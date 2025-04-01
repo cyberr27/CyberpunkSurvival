@@ -7,9 +7,8 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-// Список подключенных клиентов и игроков
-const clients = new Map(); // ws -> id
-const players = new Map(); // id -> данные игрока
+const clients = new Map();
+const players = new Map();
 
 app.use(express.static(path.join(__dirname, "public")));
 
@@ -27,14 +26,13 @@ wss.on("connection", (ws) => {
     }
 
     if (data.type === "register") {
-      // Простая проверка (в реальной игре нужна база данных)
       if (players.has(data.username)) {
         ws.send(JSON.stringify({ type: "registerFail" }));
       } else {
-        const id = data.username; // Используем username как ID для простоты
+        const id = data.username;
         players.set(id, {
           id,
-          x: 100, // Начальные координаты
+          x: 100,
           y: 100,
           health: 100,
           energy: 100,
@@ -46,21 +44,21 @@ wss.on("connection", (ws) => {
           state: "idle",
           frame: 0,
           inventory: [],
+          password: data.password, // Сохраняем пароль
         });
         clients.set(ws, id);
         ws.send(JSON.stringify({ type: "registerSuccess" }));
       }
     } else if (data.type === "login") {
       const player = players.get(data.username);
-      if (player && data.password === "111") {
-        // Простая проверка пароля
+      if (player && player.password === data.password) {
         clients.set(ws, data.username);
         ws.send(
           JSON.stringify({
             type: "loginSuccess",
             id: data.username,
             players: Array.from(players.values()),
-            wolves: [], // Пока волков нет
+            wolves: [],
           })
         );
       } else {
@@ -70,7 +68,6 @@ wss.on("connection", (ws) => {
       const id = clients.get(ws);
       if (id) {
         players.set(id, { ...players.get(id), ...data });
-        // Рассылаем обновление всем клиентам
         wss.clients.forEach((client) => {
           if (client.readyState === WebSocket.OPEN) {
             client.send(
@@ -88,13 +85,16 @@ wss.on("connection", (ws) => {
       players.delete(id);
       clients.delete(ws);
       console.log("Клиент отключился");
-      // Уведомляем остальных
       wss.clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN) {
           client.send(JSON.stringify({ type: "playerLeft", id }));
         }
       });
     }
+  });
+
+  ws.on("error", (error) => {
+    console.error("Ошибка WebSocket:", error);
   });
 });
 
