@@ -44,7 +44,7 @@ wss.on("connection", (ws) => {
           state: "idle",
           frame: 0,
           inventory: [],
-          password: data.password, // Сохраняем пароль
+          password: data.password,
         });
         clients.set(ws, id);
         ws.send(JSON.stringify({ type: "registerSuccess" }));
@@ -82,8 +82,7 @@ wss.on("connection", (ws) => {
   ws.on("close", () => {
     const id = clients.get(ws);
     if (id) {
-      players.delete(id);
-      clients.delete(ws);
+      clients.delete(ws); // Удаляем только клиентское соединение
       console.log("Клиент отключился");
       wss.clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN) {

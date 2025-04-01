@@ -15,7 +15,7 @@ const toLogin = document.getElementById("toLogin");
 const loginError = document.getElementById("loginError");
 const registerError = document.getElementById("registerError");
 
-// WebSocket соединение (инициализируем позже)
+// WebSocket соединение
 let ws;
 
 // Хранилища данных
@@ -69,13 +69,13 @@ toLogin.addEventListener("click", () => {
   registerError.textContent = "";
 });
 
-// Инициализация WebSocket только один раз при загрузке страницы
+// Инициализация WebSocket
 function initializeWebSocket() {
-  ws = new WebSocket("wss://cyberpunksurvival.onrender.com"); // Используем wss для Render
+  ws = new WebSocket("wss://cyberpunksurvival.onrender.com");
   ws.onopen = () => {
     console.log("WebSocket соединение установлено");
   };
-  ws.onmessage = handleAuthMessage; // Сначала обработчик для авторизации
+  ws.onmessage = handleAuthMessage;
   ws.onerror = (error) => {
     console.error("Ошибка WebSocket:", error);
   };
@@ -84,7 +84,6 @@ function initializeWebSocket() {
   };
 }
 
-// Вызываем инициализацию при загрузке страницы
 initializeWebSocket();
 
 // Регистрация
@@ -128,8 +127,7 @@ function handleAuthMessage(event) {
       break;
     case "registerFail":
       registerError.textContent = "Ник занят, выберите другой";
-      ws.close();
-      break;
+      break; // Убрали ws.close()
     case "loginSuccess":
       myId = data.id;
       authContainer.style.display = "none";
@@ -137,19 +135,17 @@ function handleAuthMessage(event) {
       data.players.forEach((p) => players.set(p.id, p));
       data.wolves.forEach((w) => wolves.set(w.id, w));
       resizeCanvas();
-      ws.onmessage = handleGameMessage; // Переключаем обработчик на игровой
-      startGame(); // Запускаем игровую логику
+      ws.onmessage = handleGameMessage;
+      startGame();
       break;
     case "loginFail":
       loginError.textContent = "Неверное имя или пароль";
-      ws.close();
-      break;
+      break; // Убрали ws.close()
   }
 }
 
 // Запуск игровой логики после входа
 function startGame() {
-  // Обработка клавиатуры
   document.addEventListener("keydown", (e) => {
     switch (e.key) {
       case "ArrowUp":
@@ -200,14 +196,12 @@ function startGame() {
     }
   });
 
-  // Обработка мобильных кнопок
   setupButton("upBtn", "up");
   setupButton("downBtn", "down");
   setupButton("leftBtn", "left");
   setupButton("rightBtn", "right");
   document.getElementById("shootBtn").addEventListener("click", shoot);
 
-  // Запуск игрового цикла
   requestAnimationFrame(gameLoop);
 }
 
@@ -300,7 +294,8 @@ function update() {
     me.steps += 1;
     updateResources();
     me.frameTime += 16;
-    if (me.frameTime >= me.frameDuration) {
+    if (me.frameTime >= (me.frameDuration || 100)) {
+      // Добавили значение по умолчанию
       me.frameTime = 0;
       me.frame = (me.frame + 1) % 7;
     }
@@ -344,7 +339,8 @@ function update() {
     );
   } else if (me.state === "dying") {
     me.frameTime += 16;
-    if (me.frameTime >= me.deathFrameDuration) {
+    if (me.frameTime >= (me.deathFrameDuration || 200)) {
+      // Добавили значение по умолчанию
       me.frameTime = 0;
       me.frame = Math.min(me.frame + 1, 6);
     }
@@ -535,7 +531,6 @@ function onImageLoad() {
   imagesLoaded++;
   if (imagesLoaded === 6) {
     window.addEventListener("resize", resizeCanvas);
-    // Игровой цикл запускается в startGame после входа
   }
 }
 
