@@ -15,6 +15,11 @@ const toLogin = document.getElementById("toLogin");
 const loginError = document.getElementById("loginError");
 const registerError = document.getElementById("registerError");
 
+const chatBtn = document.getElementById("chatBtn");
+const chatContainer = document.getElementById("chatContainer");
+const chatMessages = document.getElementById("chatMessages");
+const chatInput = document.getElementById("chatInput");
+
 // WebSocket соединение
 let ws;
 
@@ -201,6 +206,20 @@ function startGame() {
   setupButton("leftBtn", "left");
   setupButton("rightBtn", "right");
   document.getElementById("shootBtn").addEventListener("click", shoot);
+  // Открытие/закрытие чата
+  chatBtn.addEventListener("click", () => {
+    chatContainer.style.display =
+      chatContainer.style.display === "flex" ? "none" : "flex";
+  });
+
+  // Отправка сообщения по Enter
+  chatInput.addEventListener("keypress", (e) => {
+    if (e.key === "Enter" && chatInput.value.trim()) {
+      const message = chatInput.value.trim();
+      ws.send(JSON.stringify({ type: "chat", message }));
+      chatInput.value = "";
+    }
+  });
 
   requestAnimationFrame(gameLoop);
 }
@@ -209,12 +228,21 @@ function startGame() {
 function handleGameMessage(event) {
   const data = JSON.parse(event.data);
   switch (data.type) {
+    case "chat":
+      const messageEl = document.createElement("div");
+      messageEl.textContent = `${data.id}: ${data.message}`;
+      chatMessages.appendChild(messageEl);
+      chatMessages.scrollTop = chatMessages.scrollHeight; // Прокрутка вниз
+      break;
     case "newPlayer":
       players.set(data.player.id, data.player);
       break;
     case "update":
-      players.set(data.player.id, data.player);
-      updateStatsDisplay();
+      players.set(data.player.id, {
+        ...players.get(data.player.id),
+        ...data.player,
+      });
+      if (data.player.id === myId) updateStatsDisplay();
       break;
     case "playerLeft":
       players.delete(data.id);
@@ -340,13 +368,27 @@ function update() {
   } else if (me.state === "dying") {
     me.frameTime += 16;
     if (me.frameTime >= (me.deathFrameDuration || 200)) {
-      // Добавили значение по умолчанию
       me.frameTime = 0;
-      me.frame = Math.min(me.frame + 1, 6);
+      if (me.frame < 6) {
+        me.frame += 1; // Доходим до последнего кадра (6)
+      }
     }
-  } else {
-    me.frame = 0;
-    me.frameTime = 0;
+    ws.send(
+      JSON.stringify({
+        type: "move",
+        x: me.x,
+        y: me.y,
+        health: me.health,
+        energy: me.energy,
+        food: me.food,
+        water: me.water,
+        armor: me.armor,
+        steps: me.steps,
+        direction: me.direction,
+        state: me.state,
+        frame: me.frame,
+      })
+    );
   }
 }
 

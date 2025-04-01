@@ -79,8 +79,8 @@ wss.on("connection", (ws) => {
       const id = clients.get(ws);
       if (id) {
         const updatedPlayer = { ...players.get(id), ...data };
-        players.set(id, updatedPlayer); // Обновляем активного игрока
-        userDatabase.set(id, updatedPlayer); // Сохраняем в базе
+        players.set(id, updatedPlayer);
+        userDatabase.set(id, updatedPlayer);
         wss.clients.forEach((client) => {
           if (client.readyState === WebSocket.OPEN) {
             client.send(
@@ -97,6 +97,17 @@ wss.on("connection", (ws) => {
           if (client.readyState === WebSocket.OPEN) {
             client.send(
               JSON.stringify({ type: "itemPicked", itemId: data.itemId })
+            );
+          }
+        });
+      }
+    } else if (data.type === "chat") {
+      const id = clients.get(ws);
+      if (id) {
+        wss.clients.forEach((client) => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(
+              JSON.stringify({ type: "chat", id, message: data.message })
             );
           }
         });
