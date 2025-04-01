@@ -11,6 +11,7 @@ const clients = new Map();
 const players = new Map(); // Активные игроки
 const userDatabase = new Map(); // База всех зарегистрированных пользователей
 const items = new Map(); // Предметы
+const obstacles = [];
 
 app.use(express.static(path.join(__dirname, "public")));
 
@@ -60,6 +61,7 @@ wss.on("connection", (ws) => {
             players: Array.from(players.values()), // Отправляем только активных
             wolves: [],
             items: Array.from(items.values()),
+            obstacles: obstacles, // Добавляем препятствия
           })
         );
         wss.clients.forEach((client) => {

@@ -28,6 +28,43 @@ let players = new Map();
 let wolves = new Map();
 let myId;
 const items = new Map();
+const obstacles = new Map();
+
+function createLineObstacle(x1, y1, x2, y2, thickness = 5) {
+  const length = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+  const angle = Math.atan2(y2 - y1, x2 - x1);
+  const halfThickness = thickness / 2;
+
+  const sinAngle = Math.sin(angle);
+  const cosAngle = Math.cos(angle);
+  const dx = halfThickness * sinAngle;
+  const dy = halfThickness * cosAngle;
+
+  const point1 = { x: x1 - dx, y: y1 + dy };
+  const point2 = { x: x1 + dx, y: y1 - dy };
+  const point3 = { x: x2 - dx, y: y2 + dy };
+  const point4 = { x: x2 + dx, y: y2 - dy };
+
+  const left = Math.min(point1.x, point2.x, point3.x, point4.x);
+  const right = Math.max(point1.x, point2.x, point3.x, point4.x);
+  const top = Math.min(point1.y, point2.y, point3.y, point4.y);
+  const bottom = Math.max(point1.y, point2.y, point3.y, point4.y);
+
+  const obstacle = {
+    id: Date.now().toString(),
+    left,
+    right,
+    top,
+    bottom,
+    isLine: true,
+    x1,
+    y1,
+    x2,
+    y2,
+    thickness,
+  };
+  obstacles.push(obstacle);
+}
 
 // Управление клавишами и кнопками
 const controls = {
@@ -139,6 +176,7 @@ function handleAuthMessage(event) {
       document.getElementById("gameContainer").style.display = "block";
       data.players.forEach((p) => players.set(p.id, p));
       data.wolves.forEach((w) => wolves.set(w.id, w));
+      data.obstacles.forEach((o) => obstacles.set(o.id, o));
       resizeCanvas();
       ws.onmessage = handleGameMessage;
       startGame();
@@ -319,7 +357,6 @@ function shoot() {
   ws.send(JSON.stringify({ type: "shoot", x: me.x, y: me.y }));
 }
 
-// Обновление позиции и анимации
 function update() {
   const me = players.get(myId);
   if (!me || me.health <= 0) return;
@@ -351,36 +388,41 @@ function update() {
   newX = Math.max(0, Math.min(newX, worldWidth - 40));
   newY = Math.max(0, Math.min(newY, worldHeight - 40));
 
-  if (newX !== me.x || newY !== me.y) {
-    me.x = newX;
-    me.y = newY;
-    me.steps += 1;
-    updateResources();
-    me.frameTime += 16;
-    if (me.frameTime >= (me.frameDuration || 100)) {
-      // Добавили значение по умолчанию
-      me.frameTime = 0;
-      me.frame = (me.frame + 1) % 7;
+  if (!checkCollision(newX, newY)) {
+    if (newX !== me.x || newY !== me.y) {
+      me.x = newX;
+      me.y = newY;
+      me.steps += 1;
+      updateResources();
+      me.frameTime += 16;
+      if (me.frameTime >= (me.frameDuration || 100)) {
+        me.frameTime = 0;
+        me.frame = (me.frame + 1) % 7;
+      }
+      ws.send(
+        JSON.stringify({
+          type: "move",
+          x: me.x,
+          y: me.y,
+          health: me.health,
+          energy: me.energy,
+          food: me.food,
+          water: me.water,
+          armor: me.armor,
+          steps: me.steps,
+          direction: me.direction,
+          state: me.state,
+          frame: me.frame,
+        })
+      );
+      updateCamera();
+      checkCollisions();
     }
-    ws.send(
-      JSON.stringify({
-        type: "move",
-        x: me.x,
-        y: me.y,
-        health: me.health,
-        energy: me.energy,
-        food: me.food,
-        water: me.water,
-        armor: me.armor,
-        steps: me.steps,
-        direction: me.direction,
-        state: me.state,
-        frame: me.frame,
-      })
-    );
-    updateCamera();
-    checkCollisions();
-  } else if (me.health <= 0 && me.state !== "dying") {
+  } else {
+    me.state = "idle";
+  }
+
+  if (me.health <= 0 && me.state !== "dying") {
     me.state = "dying";
     me.frame = 0;
     me.frameTime = 0;
@@ -405,7 +447,7 @@ function update() {
     if (me.frameTime >= (me.deathFrameDuration || 200)) {
       me.frameTime = 0;
       if (me.frame < 6) {
-        me.frame += 1; // Доходим до последнего кадра (6)
+        me.frame += 1;
       }
     }
     ws.send(
@@ -553,6 +595,29 @@ function draw() {
     ctx.fillRect(screenX, screenY, 10, 10);
   });
 
+  obstacles.forEach((obstacle) => {
+    if (obstacle.isLine) {
+      const startX = obstacle.x1 - camera.x;
+      const startY = obstacle.y1 - camera.y;
+      const endX = obstacle.x2 - camera.x;
+      const endY = obstacle.y2 - camera.y;
+
+      if (
+        (startX > 0 || endX > 0) &&
+        (startX < canvas.width || endX < canvas.width) &&
+        (startY > 0 || endY > 0) &&
+        (startY < canvas.height || endY < canvas.height)
+      ) {
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(endX, endY);
+        ctx.lineWidth = obstacle.thickness;
+        ctx.strokeStyle = "rgba(255, 0, 150, 0.5)";
+        ctx.stroke();
+      }
+    }
+  });
+
   ctx.drawImage(
     vegetationImage,
     vegetationOffsetX,
@@ -645,4 +710,91 @@ function setupButton(id, action) {
     e.preventDefault();
     controls[action] = false;
   });
+}
+
+function lineIntersects(x1, y1, x2, y2, x3, y3, x4, y4) {
+  const denominator = (y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1);
+  if (denominator === 0) return false;
+  const ua = ((x4 - x3) * (y1 - y3) - (y4 - y3) * (x1 - x3)) / denominator;
+  const ub = ((x2 - x1) * (y1 - y3) - (y2 - y1) * (x1 - x3)) / denominator;
+  return ua >= 0 && ua <= 1 && ub >= 0 && ub <= 1;
+}
+
+function pointToLineDistance(px, py, x1, y1, x2, y2) {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const lineLengthSquared = dx * dx + dy * dy;
+  if (lineLengthSquared === 0) {
+    return Math.sqrt(Math.pow(px - x1, 2) + Math.pow(py - y1, 2));
+  }
+  let t = ((px - x1) * dx + (py - y1) * dy) / lineLengthSquared;
+  t = Math.max(0, Math.min(1, t));
+  const closestX = x1 + t * dx;
+  const closestY = y1 + t * dy;
+  return Math.sqrt(Math.pow(px - closestX, 2) + Math.pow(py - closestY, 2));
+}
+
+function checkCollision(newX, newY) {
+  const me = players.get(myId);
+  if (!me) return false;
+
+  const playerLeft = newX;
+  const playerRight = newX + 40;
+  const playerTop = newY;
+  const playerBottom = newY + 40;
+
+  for (const [, obstacle] of obstacles) {
+    if (obstacle.isLine) {
+      const lineX1 = obstacle.x1;
+      const lineY1 = obstacle.y1;
+      const lineX2 = obstacle.x2;
+      const lineY2 = obstacle.y2;
+
+      const playerEdges = [
+        { x1: playerLeft, y1: playerTop, x2: playerRight, y2: playerTop },
+        { x1: playerRight, y1: playerTop, x2: playerRight, y2: playerBottom },
+        { x1: playerRight, y1: playerBottom, x2: playerLeft, y2: playerBottom },
+        { x1: playerLeft, y1: playerBottom, x2: playerLeft, y2: playerTop },
+      ];
+
+      for (const edge of playerEdges) {
+        if (
+          lineIntersects(
+            lineX1,
+            lineY1,
+            lineX2,
+            lineY2,
+            edge.x1,
+            edge.y1,
+            edge.x2,
+            edge.y2
+          )
+        ) {
+          return true;
+        }
+      }
+
+      const distance = pointToLineDistance(
+        newX + 20,
+        newY + 20,
+        lineX1,
+        lineY1,
+        lineX2,
+        lineY2
+      );
+      if (distance < 20 + obstacle.thickness / 2) {
+        return true;
+      }
+    } else {
+      if (
+        playerLeft < obstacle.right &&
+        playerRight > obstacle.left &&
+        playerTop < obstacle.bottom &&
+        playerBottom > obstacle.top
+      ) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
