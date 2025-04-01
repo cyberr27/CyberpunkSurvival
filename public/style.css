@@ -114,25 +114,20 @@ body {
 
 /* Игровой контейнер */
 #gameContainer {
-  position: relative;
+  position: absolute;
   width: 100%;
   height: 100%;
+  overflow: hidden;
 }
 
 #gameCanvas {
   width: 100%;
   height: 75%;
   display: block;
+  overflow: hidden;
 }
 
-#controls {
-  position: absolute;
-  bottom: 0;
-  width: 100%;
-  padding: 10px;
-  box-sizing: border-box;
-}
-
+/* Общие стили для кнопок */
 button {
   border-radius: 50%;
   padding: 15px;
@@ -154,40 +149,55 @@ button:active {
   transform: scale(0.95);
 }
 
+/* Позиционирование кнопок для десктопов */
 #upBtn {
   position: absolute;
   top: 78%;
   left: 8%;
 }
-#leftBtn {
-  position: absolute;
-  top: 83%;
-  left: 1%;
-}
+
 #rightBtn {
   position: absolute;
   top: 83%;
   left: 15%;
 }
+
+#leftBtn {
+  position: absolute;
+  top: 83%;
+  left: 1%;
+}
+
 #downBtn {
   position: absolute;
   top: 87%;
   left: 8.2%;
 }
+
 #shootBtn {
   position: absolute;
   top: 82%;
   right: 15%;
   background: linear-gradient(135deg, #ff4500, #ff8c00);
   border: 2px solid #ff6347;
+  box-shadow: 0 0 10px rgba(255, 99, 71, 0.7);
 }
+
+#shootBtn:hover {
+  box-shadow: 0 0 20px rgba(255, 99, 71, 1);
+}
+
+/* Стили для инвентаря */
 #inventory {
   position: absolute;
   top: 10px;
   right: 10px;
   color: #fff;
+  font-size: 16px;
+  text-shadow: 0 0 5px rgba(255, 255, 255, 0.7);
 }
 
+/* Стили для статистики */
 #stats {
   position: absolute;
   top: 10px;
@@ -197,32 +207,50 @@ button:active {
   text-shadow: 0 0 5px rgba(255, 255, 255, 0.7);
 }
 
+/* Адаптация для мобильных устройств (max-width: 500px) */
 @media (max-width: 500px) {
+  body {
+    background: url(bodyImg.png);
+    background-size: 100% 100%;
+  }
+
   button {
-    padding: 10px;
-    font-size: 16px;
+    padding: 8px 15px;
+    font-size: 14px;
   }
-  #upBtn {
-    top: 77%;
-    left: 14%;
-  }
+
   #leftBtn {
     top: 82%;
     left: 2.5%;
   }
+
   #rightBtn {
     top: 82%;
     left: 25%;
   }
+
+  #upBtn {
+    top: 77%;
+    left: 14%;
+  }
+
   #downBtn {
     top: 87%;
     left: 15%;
   }
+
   #shootBtn {
     top: 77%;
     right: 4%;
+    width: auto;
+    height: auto;
   }
+
   #stats {
     font-size: 16px;
+  }
+
+  #inventory {
+    font-size: 14px;
   }
 }
