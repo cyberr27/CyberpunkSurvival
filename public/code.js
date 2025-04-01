@@ -410,6 +410,7 @@ function draw() {
     canvas.height
   );
 
+  // В функции draw() заменяем отрисовку игроков на:
   players.forEach((player) => {
     const screenX = player.x - camera.x;
     const screenY = player.y - camera.y;
@@ -418,6 +419,8 @@ function draw() {
       player.state === "dying"
         ? 160
         : { up: 0, down: 40, left: 80, right: 120 }[player.direction] || 40;
+
+    // Отрисовка спрайта
     ctx.drawImage(
       playerSprite,
       spriteX,
@@ -429,9 +432,20 @@ function draw() {
       40,
       40
     );
+
+    // Отрисовка имени и HP
     ctx.fillStyle = "white";
     ctx.font = "12px Arial";
-    ctx.fillText(`HP: ${player.health}`, screenX, screenY - 5);
+    ctx.textAlign = "center";
+
+    // Имя игрока
+    ctx.fillText(player.id, screenX + 20, screenY - 20);
+
+    // Здоровье
+    ctx.fillStyle = "red";
+    ctx.fillRect(screenX, screenY - 15, 40, 5);
+    ctx.fillStyle = "green";
+    ctx.fillRect(screenX, screenY - 15, (player.health / 100) * 40, 5);
   });
 
   wolves.forEach((wolf) => {

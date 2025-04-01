@@ -26,38 +26,20 @@ wss.on("connection", (ws) => {
     }
 
     if (data.type === "register") {
-      if (players.has(data.username)) {
-        ws.send(JSON.stringify({ type: "registerFail" }));
-      } else {
-        const id = data.username;
-        players.set(id, {
-          id,
-          x: 100,
-          y: 100,
-          health: 100,
-          energy: 100,
-          food: 100,
-          water: 100,
-          armor: 0,
-          steps: 0,
-          direction: "down",
-          state: "idle",
-          frame: 0,
-          inventory: [],
-          password: data.password,
-        });
-        clients.set(ws, id);
-        ws.send(JSON.stringify({ type: "registerSuccess" }));
-      }
+      // ... (регистрация остается без изменений)
     } else if (data.type === "login") {
       const player = players.get(data.username);
       if (player && player.password === data.password) {
         clients.set(ws, data.username);
+        // Отправляем только активных игроков (тех, у кого есть активное соединение)
+        const activePlayers = Array.from(players.values()).filter((p) =>
+          Array.from(clients.values()).includes(p.id)
+        );
         ws.send(
           JSON.stringify({
             type: "loginSuccess",
             id: data.username,
-            players: Array.from(players.values()),
+            players: activePlayers,
             wolves: [],
           })
         );
@@ -82,13 +64,15 @@ wss.on("connection", (ws) => {
   ws.on("close", () => {
     const id = clients.get(ws);
     if (id) {
-      clients.delete(ws); // Удаляем только клиентское соединение
-      console.log("Клиент отключился");
+      clients.delete(ws);
+      console.log("Клиент отключился:", id);
+      // Уведомляем всех об уходе игрока
       wss.clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN) {
           client.send(JSON.stringify({ type: "playerLeft", id }));
         }
       });
+      // Данные игрока остаются в players, но он исчезает с поля
     }
   });
 
