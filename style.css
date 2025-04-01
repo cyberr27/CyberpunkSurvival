@@ -1,0 +1,228 @@
+body {
+  margin: 0;
+  height: 100vh;
+  overflow: hidden;
+  background: url(bodyImg.png) no-repeat;
+  background-size: 100% 100%;
+  font-family: "Courier New", monospace;
+}
+
+/* Стили для окна авторизации */
+.auth-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.auth-box {
+  background: #1a1a1a;
+  padding: 30px;
+  border: 2px solid #00ffff;
+  border-radius: 10px;
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+  width: 300px;
+  text-align: center;
+}
+
+.neon-text {
+  color: #00ffff;
+  text-shadow: 0 0 5px #00ffff, 0 0 10px #00ffff, 0 0 20px #ff00ff;
+  animation: flicker 1.5s infinite alternate;
+}
+
+.form {
+  margin-top: 20px;
+}
+
+.neon-input {
+  width: 100%;
+  padding: 10px;
+  margin: 10px 0;
+  background: #0d0d0d;
+  border: 1px solid #00ffff;
+  color: #fff;
+  font-size: 16px;
+  border-radius: 5px;
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+}
+
+.neon-input:focus {
+  outline: none;
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.7);
+}
+
+.neon-btn {
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #00ffff, #ff00ff);
+  border: none;
+  color: #000;
+  font-size: 16px;
+  border-radius: 5px;
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.7);
+  transition: all 0.3s;
+}
+
+.neon-btn:hover {
+  box-shadow: 0 0 20px rgba(255, 0, 255, 0.7);
+  transform: scale(1.05);
+}
+
+.switch-text {
+  color: #fff;
+  font-size: 14px;
+  margin-top: 10px;
+}
+
+.switch-text span {
+  color: #00ffff;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.error-text {
+  color: #ff4444;
+  font-size: 14px;
+  margin-top: 10px;
+}
+
+/* Анимация мерцания */
+@keyframes flicker {
+  0%,
+  19%,
+  21%,
+  23%,
+  25%,
+  54%,
+  56%,
+  100% {
+    opacity: 1;
+  }
+  20%,
+  24%,
+  55% {
+    opacity: 0.7;
+  }
+}
+
+/* Игровой контейнер */
+#gameContainer {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+#gameCanvas {
+  width: 100%;
+  height: 75%;
+  display: block;
+}
+
+#controls {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  padding: 10px;
+  box-sizing: border-box;
+}
+
+button {
+  border-radius: 50%;
+  padding: 15px;
+  font-size: 20px;
+  cursor: pointer;
+  background: linear-gradient(135deg, #1e90ff, #00b7eb);
+  border: 2px solid #00ffff;
+  color: #fff;
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.7);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+button:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 20px rgba(0, 255, 255, 1);
+}
+
+button:active {
+  transform: scale(0.95);
+}
+
+#upBtn {
+  position: absolute;
+  top: 78%;
+  left: 8%;
+}
+#leftBtn {
+  position: absolute;
+  top: 83%;
+  left: 1%;
+}
+#rightBtn {
+  position: absolute;
+  top: 83%;
+  left: 15%;
+}
+#downBtn {
+  position: absolute;
+  top: 87%;
+  left: 8.2%;
+}
+#shootBtn {
+  position: absolute;
+  top: 82%;
+  right: 15%;
+  background: linear-gradient(135deg, #ff4500, #ff8c00);
+  border: 2px solid #ff6347;
+}
+#inventory {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  color: #fff;
+}
+
+#stats {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  color: #fff;
+  font-size: 20px;
+  text-shadow: 0 0 5px rgba(255, 255, 255, 0.7);
+}
+
+@media (max-width: 500px) {
+  button {
+    padding: 10px;
+    font-size: 16px;
+  }
+  #upBtn {
+    top: 77%;
+    left: 14%;
+  }
+  #leftBtn {
+    top: 82%;
+    left: 2.5%;
+  }
+  #rightBtn {
+    top: 82%;
+    left: 25%;
+  }
+  #downBtn {
+    top: 87%;
+    left: 15%;
+  }
+  #shootBtn {
+    top: 77%;
+    right: 4%;
+  }
+  #stats {
+    font-size: 16px;
+  }
+}
