@@ -149,9 +149,11 @@ function handleAuthMessage(event) {
   }
 }
 
-// Запуск игровой логики после входа
 function startGame() {
+  // Существующий код управления клавишами
   document.addEventListener("keydown", (e) => {
+    // Проверяем, находится ли фокус в поле ввода чата
+    if (document.activeElement === chatInput) return; // Пропускаем, если чат активен
     switch (e.key) {
       case "ArrowUp":
       case "w":
@@ -178,6 +180,7 @@ function startGame() {
   });
 
   document.addEventListener("keyup", (e) => {
+    if (document.activeElement === chatInput) return; // Пропускаем, если чат активен
     switch (e.key) {
       case "ArrowUp":
       case "w":
@@ -199,6 +202,13 @@ function startGame() {
         controls.shoot = false;
         break;
     }
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && chatContainer.style.display === "flex") {
+        chatContainer.style.display = "none";
+        chatInput.blur();
+      }
+    });
   });
 
   setupButton("upBtn", "up");
@@ -206,10 +216,26 @@ function startGame() {
   setupButton("leftBtn", "left");
   setupButton("rightBtn", "right");
   document.getElementById("shootBtn").addEventListener("click", shoot);
-  // Открытие/закрытие чата
+
   chatBtn.addEventListener("click", () => {
-    chatContainer.style.display =
-      chatContainer.style.display === "flex" ? "none" : "flex";
+    const isChatVisible = chatContainer.style.display === "flex";
+    chatContainer.style.display = isChatVisible ? "none" : "flex";
+    chatBtn.classList.toggle("active", !isChatVisible); // Переключаем класс
+    if (!isChatVisible) {
+      chatInput.focus();
+    } else {
+      chatInput.blur();
+    }
+  });
+
+  // Поддержка touch-событий для открытия чата на мобильных устройствах
+  chatBtn.addEventListener("touchstart", (e) => {
+    e.preventDefault();
+    const isChatVisible = chatContainer.style.display === "flex";
+    chatContainer.style.display = isChatVisible ? "none" : "flex";
+    if (!isChatVisible) {
+      chatInput.focus(); // Устанавливаем фокус
+    }
   });
 
   // Отправка сообщения по Enter
@@ -217,8 +243,14 @@ function startGame() {
     if (e.key === "Enter" && chatInput.value.trim()) {
       const message = chatInput.value.trim();
       ws.send(JSON.stringify({ type: "chat", message }));
-      chatInput.value = "";
+      chatInput.value = ""; // Очищаем поле ввода
     }
+  });
+
+  // Поддержка мобильного ввода (touch-клавиатура)
+  chatInput.addEventListener("touchstart", (e) => {
+    e.stopPropagation(); // Предотвращаем перехват события игрой
+    chatInput.focus(); // Явно вызываем фокус для мобильных устройств
   });
 
   requestAnimationFrame(gameLoop);
@@ -232,7 +264,10 @@ function handleGameMessage(event) {
       const messageEl = document.createElement("div");
       messageEl.textContent = `${data.id}: ${data.message}`;
       chatMessages.appendChild(messageEl);
-      chatMessages.scrollTop = chatMessages.scrollHeight; // Прокрутка вниз
+      if (chatMessages.children.length > 50) {
+        chatMessages.removeChild(chatMessages.firstChild); // Удаляем старое сообщение
+      }
+      chatMessages.scrollTop = chatMessages.scrollHeight;
       break;
     case "newPlayer":
       players.set(data.player.id, data.player);

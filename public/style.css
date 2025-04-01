@@ -2,7 +2,7 @@ body {
   margin: 0;
   height: 100vh;
   overflow: hidden;
-  background: url(bodyImg.png) no-repeat;
+  background: url(bodyImg.jpg) no-repeat;
   background-size: 100% 100%;
   font-family: "Courier New", monospace;
 }
@@ -14,7 +14,7 @@ body {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.9);
+  background: rgba(0, 0, 0, 0);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -22,7 +22,7 @@ body {
 }
 
 .auth-box {
-  background: #1a1a1a;
+  background: rgba(5, 5, 5, 0.9);
   padding: 30px;
   border: 2px solid #00ffff;
   border-radius: 10px;
@@ -218,8 +218,9 @@ button:active {
   transform: scale(1.1);
 }
 
-#chatBtn:active {
-  transform: scale(0.95);
+#chatBtn.active {
+  background: linear-gradient(135deg, #ff00cc, #00ff99);
+  box-shadow: 0 0 20px rgba(255, 0, 204, 1);
 }
 
 /* Окно чата */
