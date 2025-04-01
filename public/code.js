@@ -86,7 +86,6 @@ function initializeWebSocket() {
 
 initializeWebSocket();
 
-// Регистрация
 registerBtn.addEventListener("click", () => {
   const username = document.getElementById("registerUsername").value.trim();
   const password = document.getElementById("registerPassword").value.trim();
@@ -95,6 +94,7 @@ registerBtn.addEventListener("click", () => {
     return;
   }
   if (ws.readyState === WebSocket.OPEN) {
+    console.log("Отправка регистрации:", { username, password });
     ws.send(JSON.stringify({ type: "register", username, password }));
   } else {
     registerError.textContent = "Нет соединения с сервером";
