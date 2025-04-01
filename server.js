@@ -3,47 +3,102 @@ const http = require("http");
 const WebSocket = require("ws");
 const path = require("path");
 
-// Настройка Express для HTTP
 const app = express();
 const server = http.createServer(app);
-
-// Настройка WebSocket
 const wss = new WebSocket.Server({ server });
 
-// Обслуживание статических файлов из папки 'public'
+// Список подключенных клиентов и игроков
+const clients = new Map(); // ws -> id
+const players = new Map(); // id -> данные игрока
+
 app.use(express.static(path.join(__dirname, "public")));
 
-// Обработка WebSocket-соединений
 wss.on("connection", (ws) => {
   console.log("Клиент подключился");
+
   ws.on("message", (message) => {
     console.log("Получено:", message);
+    let data;
     try {
-      const data = JSON.parse(message);
-      // Здесь ваша игровая логика, например:
-      if (data.type === "register") {
-        ws.send(JSON.stringify({ type: "registerSuccess", id: "some-id" }));
-      } else if (data.type === "login") {
+      data = JSON.parse(message);
+    } catch (e) {
+      console.error("Неверный JSON:", e);
+      return;
+    }
+
+    if (data.type === "register") {
+      // Простая проверка (в реальной игре нужна база данных)
+      if (players.has(data.username)) {
+        ws.send(JSON.stringify({ type: "registerFail" }));
+      } else {
+        const id = data.username; // Используем username как ID для простоты
+        players.set(id, {
+          id,
+          x: 100, // Начальные координаты
+          y: 100,
+          health: 100,
+          energy: 100,
+          food: 100,
+          water: 100,
+          armor: 0,
+          steps: 0,
+          direction: "down",
+          state: "idle",
+          frame: 0,
+          inventory: [],
+        });
+        clients.set(ws, id);
+        ws.send(JSON.stringify({ type: "registerSuccess" }));
+      }
+    } else if (data.type === "login") {
+      const player = players.get(data.username);
+      if (player && data.password === "111") {
+        // Простая проверка пароля
+        clients.set(ws, data.username);
         ws.send(
           JSON.stringify({
             type: "loginSuccess",
-            id: "some-id",
-            players: [],
-            wolves: [],
+            id: data.username,
+            players: Array.from(players.values()),
+            wolves: [], // Пока волков нет
           })
         );
+      } else {
+        ws.send(JSON.stringify({ type: "loginFail" }));
       }
-    } catch (e) {
-      console.error("Ошибка обработки сообщения:", e);
+    } else if (data.type === "move") {
+      const id = clients.get(ws);
+      if (id) {
+        players.set(id, { ...players.get(id), ...data });
+        // Рассылаем обновление всем клиентам
+        wss.clients.forEach((client) => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(
+              JSON.stringify({ type: "update", player: players.get(id) })
+            );
+          }
+        });
+      }
     }
   });
+
   ws.on("close", () => {
-    console.log("Клиент отключился");
+    const id = clients.get(ws);
+    if (id) {
+      players.delete(id);
+      clients.delete(ws);
+      console.log("Клиент отключился");
+      // Уведомляем остальных
+      wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify({ type: "playerLeft", id }));
+        }
+      });
+    }
   });
 });
 
-// Запуск сервера
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 10000;
 server.listen(PORT, () => {
   console.log(`WebSocket server running on ws://localhost:${PORT}`);
 });
