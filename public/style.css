@@ -390,11 +390,17 @@ button:active {
     position: absolute;
     top: 43.5%;
   }
+<<<<<<< HEAD
+  .auth-container {
+    position: absolute;
+    left: 0%;
+=======
   .auth-box {
     left: 1%;
     right: 1%;
     width: 80%;
     margin: 0 auto;
     position: absolute;
+>>>>>>> 3dd7ad01e0df5bf800cc0edc585282a198b2bcff
   }
 }
