@@ -28,7 +28,7 @@ let players = new Map();
 let wolves = new Map();
 let myId;
 const items = new Map();
-const obstacles = new Map();
+const obstacles = [];
 const bullets = new Map(); // Изменяем на Map для синхронизации с сервером
 
 // Добавляем переменные для управления анимацией
@@ -183,7 +183,6 @@ loginBtn.addEventListener("click", () => {
   }
 });
 
-// Обработка сообщений авторизации
 function handleAuthMessage(event) {
   const data = JSON.parse(event.data);
   switch (data.type) {
@@ -194,7 +193,7 @@ function handleAuthMessage(event) {
       break;
     case "registerFail":
       registerError.textContent = "Ник занят, выберите другой";
-      break; // Убрали ws.close()
+      break;
     case "loginSuccess":
       myId = data.id;
       authContainer.style.display = "none";
@@ -205,14 +204,16 @@ function handleAuthMessage(event) {
         drawBullet(bullet.x - camera.x, bullet.y - camera.y);
       });
       data.wolves.forEach((w) => wolves.set(w.id, w));
-      data.obstacles.forEach((o) => obstacles.set(o.id, o));
+      // Было: data.obstacles.forEach((o) => obstacles.set(o.id, o));
+      // Стало: присваиваем массив напрямую
+      data.obstacles.forEach((o) => obstacles.push(o));
       resizeCanvas();
       ws.onmessage = handleGameMessage;
       startGame();
       break;
     case "loginFail":
       loginError.textContent = "Неверное имя или пароль";
-      break; // Убрали ws.close()
+      break;
   }
 }
 
@@ -683,6 +684,7 @@ function draw(deltaTime) {
   });
 
   obstacles.forEach((obstacle) => {
+    // Было: obstacles.forEach(([_, obstacle])
     if (obstacle.isLine) {
       const startX = obstacle.x1 - camera.x;
       const startY = obstacle.y1 - camera.y;
@@ -838,9 +840,9 @@ function pointToLineDistance(px, py, x1, y1, x2, y2) {
   return Math.sqrt(Math.pow(px - closestX, 2) + Math.pow(py - closestY, 2));
 }
 
-// Функция проверки столкновения пули с препятствиями
 function checkBulletCollision(bullet) {
-  for (const [, obstacle] of obstacles) {
+  for (const obstacle of obstacles) {
+    // Убираем деструктуризацию [, obstacle]
     if (obstacle.isLine) {
       const distance = pointToLineDistance(
         bullet.x,
@@ -851,7 +853,6 @@ function checkBulletCollision(bullet) {
         obstacle.y2
       );
       if (distance < obstacle.thickness / 2 + 5) {
-        // 5 - радиус пули
         return true;
       }
     }
@@ -868,7 +869,8 @@ function checkCollision(newX, newY) {
   const playerTop = newY;
   const playerBottom = newY + 40;
 
-  for (const [, obstacle] of obstacles) {
+  for (const obstacle of obstacles) {
+    // Убираем деструктуризацию [, obstacle]
     if (obstacle.isLine) {
       const lineX1 = obstacle.x1;
       const lineY1 = obstacle.y1;
