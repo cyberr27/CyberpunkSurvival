@@ -14,6 +14,21 @@ const items = new Map();
 const obstacles = [];
 const bullets = new Map(); // Хранилище пуль на сервере
 
+// Функция вычисления расстояния от точки до линии (взята из одиночной игры)
+function pointToLineDistance(px, py, x1, y1, x2, y2) {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const lineLengthSquared = dx * dx + dy * dy;
+  if (lineLengthSquared === 0) {
+    return Math.sqrt(Math.pow(px - x1, 2) + Math.pow(py - y1, 2));
+  }
+  let t = ((px - x1) * dx + (py - y1) * dy) / lineLengthSquared;
+  t = Math.max(0, Math.min(1, t));
+  const closestX = x1 + t * dx;
+  const closestY = y1 + t * dy;
+  return Math.sqrt(Math.pow(px - closestX, 2) + Math.pow(py - closestY, 2));
+}
+
 app.use(express.static(path.join(__dirname, "public")));
 
 wss.on("connection", (ws) => {
@@ -176,57 +191,85 @@ setInterval(() => {
     bullet.x += bullet.dx;
     bullet.y += bullet.dy;
 
-    // Проверяем столкновение с игроками
-    players.forEach((player, playerId) => {
-      if (playerId !== bullet.shooterId && player.health > 0) {
-        // Не наносим урон стрелявшему
-        const playerLeft = player.x;
-        const playerRight = player.x + 40;
-        const playerTop = player.y;
-        const playerBottom = player.y + 40;
-
-        if (
-          bullet.x >= playerLeft &&
-          bullet.x <= playerRight &&
-          bullet.y >= playerTop &&
-          bullet.y <= playerBottom
-        ) {
-          // Случайный урон от 1 до 100
-          const damage = Math.floor(Math.random() * 100) + 1;
-          player.health = Math.max(0, player.health - damage);
-          console.log(
-            `Пуля ${bulletId} попала в ${playerId}, урон: ${damage}, здоровье: ${player.health}`
-          );
-
-          // Обновляем состояние игрока в базе
-          userDatabase.set(playerId, { ...player });
-
-          // Удаляем пулю после попадания
+    // Проверяем столкновение с препятствиями
+    let bulletCollided = false;
+    for (const obstacle of obstacles) {
+      if (obstacle.isLine) {
+        const distance = pointToLineDistance(
+          bullet.x,
+          bullet.y,
+          obstacle.x1,
+          obstacle.y1,
+          obstacle.x2,
+          obstacle.y2
+        );
+        if (distance < obstacle.thickness / 2 + 5) {
+          // 5 - радиус пули (из стилей клиента)
+          bulletCollided = true;
           bullets.delete(bulletId);
-
-          // Рассылаем обновление состояния игрока
+          console.log(`Пуля ${bulletId} столкнулась с препятствием`);
+          // Уведомляем всех клиентов об удалении пули
           wss.clients.forEach((client) => {
             if (client.readyState === WebSocket.OPEN) {
               client.send(
                 JSON.stringify({
-                  type: "update",
-                  player: { id: playerId, ...player },
+                  type: "bulletRemoved",
+                  bulletId: bulletId,
                 })
               );
             }
           });
-
-          return; // Выходим из цикла, так как пуля уже попала
+          break; // Выходим из цикла проверки препятствий
         }
       }
-    });
+    }
 
-    // Удаляем пулю, если время жизни истекло
-    if (currentTime - bullet.spawnTime > bullet.life) {
-      bullets.delete(bulletId);
+    if (!bulletCollided) {
+      // Проверяем столкновение с игроками (существующий код)
+      players.forEach((player, playerId) => {
+        if (playerId !== bullet.shooterId && player.health > 0) {
+          const playerLeft = player.x;
+          const playerRight = player.x + 40;
+          const playerTop = player.y;
+          const playerBottom = player.y + 40;
+
+          if (
+            bullet.x >= playerLeft &&
+            bullet.x <= playerRight &&
+            bullet.y >= playerTop &&
+            bullet.y <= playerBottom
+          ) {
+            const damage = Math.floor(Math.random() * 100) + 1;
+            player.health = Math.max(0, player.health - damage);
+            console.log(
+              `Пуля ${bulletId} попала в ${playerId}, урон: ${damage}, здоровье: ${player.health}`
+            );
+
+            userDatabase.set(playerId, { ...player });
+            bullets.delete(bulletId);
+
+            wss.clients.forEach((client) => {
+              if (client.readyState === WebSocket.OPEN) {
+                client.send(
+                  JSON.stringify({
+                    type: "update",
+                    player: { id: playerId, ...player },
+                  })
+                );
+              }
+            });
+            return;
+          }
+        }
+      });
+
+      // Удаляем пулю, если время жизни истекло
+      if (currentTime - bullet.spawnTime > bullet.life) {
+        bullets.delete(bulletId);
+      }
     }
   });
-}, 16); // Обновление каждые ~16 мс (60 FPS)
+}, 16);
 
 // Спавн предметов
 setInterval(() => {

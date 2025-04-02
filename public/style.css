@@ -194,19 +194,52 @@ button:active {
   position: absolute;
   top: 10px;
   left: 10px;
-  color: #fff;
   font-size: 20px;
-  text-shadow: 0 0 5px rgba(255, 255, 255, 0.7);
+  font-family: "Courier New", monospace; /* Моноширинный шрифт для киберпанка */
 }
 
+/* Индивидуальные стили для каждого показателя */
+#stats .health {
+  color: #ff0000; /* Красный для здоровья */
+  text-shadow: 0 0 5px #ff0000, 0 0 10px #ff0000, 0 0 15px #ff00ff; /* Неоновый эффект */
+  animation: flicker 1.5s infinite alternate; /* Мерцание */
+}
+
+#stats .energy {
+  color: #00ff00; /* Зеленый для энергии */
+  text-shadow: 0 0 5px #00ff00, 0 0 10px #00ff00, 0 0 15px #00ffff; /* Неоновый эффект */
+  animation: flicker 1.5s infinite alternate;
+}
+
+#stats .food {
+  color: #ffff00; /* Желтый для еды */
+  text-shadow: 0 0 5px #ffff00, 0 0 10px #ffff00, 0 0 15px #ff00ff; /* Неоновый эффект */
+  animation: flicker 1.5s infinite alternate;
+}
+
+#stats .water {
+  color: #0000ff; /* Синий для воды */
+  text-shadow: 0 0 5px #0000ff, 0 0 10px #0000ff, 0 0 15px #00ffff; /* Неоновый эффект */
+  animation: flicker 1.5s infinite alternate;
+}
+
+#stats .armor {
+  color: #8b4513; /* Коричневый для брони */
+  text-shadow: 0 0 5px #8b4513, 0 0 10px #8b4513, 0 0 15px #ff00ff; /* Неоновый эффект */
+  animation: flicker 1.5s infinite alternate;
+}
+
+/* Перенос координат в верхний правый угол */
 #coords {
   position: absolute;
-  top: 110px; /* Под статистикой */
-  left: 10px;
+  top: 10px; /* Выравниваем с #stats */
+  right: 10px; /* Справа */
   color: #00ffff; /* Неоновый голубой */
   font-size: 18px;
+  font-family: "Courier New", monospace;
   text-shadow: 0 0 5px #00ffff, 0 0 10px #00ffff, 0 0 15px #ff00ff;
   animation: cyberFlicker 2s infinite alternate; /* Мерцающий эффект */
+  text-align: right; /* Выравнивание текста вправо */
 }
 
 /* Эффект мерцания в стиле киберпанка */

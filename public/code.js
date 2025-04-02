@@ -33,7 +33,27 @@ const bullets = new Map(); // Изменяем на Map для синхрони�
 
 // Добавляем переменные для управления анимацией
 let lastTime = 0; // Время последнего кадра для расчета deltaTime
-const frameDuration = 100; // Длительность одного кадра в миллисекундах (настраиваемая скорость анимации)
+const frameDuration = 300; // Длительность одного кадра в миллисекундах (настраиваемая скорость анимации)
+
+createLineObstacle(1590, 1510, 1830, 1725);
+createLineObstacle(1830, 1725, 2100, 1515);
+createLineObstacle(2100, 1515, 1895, 1410);
+createLineObstacle(1895, 1410, 1590, 1510);
+
+createLineObstacle(1460, 490, 1630, 620);
+createLineObstacle(1630, 620, 1820, 500);
+createLineObstacle(1820, 500, 1640, 405);
+createLineObstacle(1640, 405, 1460, 490);
+
+createLineObstacle(2125, 930, 2260, 1080);
+createLineObstacle(2260, 1080, 2395, 915);
+createLineObstacle(2395, 915, 2290, 825);
+createLineObstacle(2290, 825, 2125, 930);
+
+createLineObstacle(1640, 2530, 1355, 2720);
+createLineObstacle(1355, 2720, 1065, 2520);
+createLineObstacle(1065, 2520, 1290, 2435);
+createLineObstacle(1290, 2435, 1640, 2530);
 
 function createLineObstacle(x1, y1, x2, y2, thickness = 5) {
   const length = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
@@ -197,67 +217,111 @@ function handleAuthMessage(event) {
 }
 
 function startGame() {
-  // Существующий код управления клавишами
+  // Удаляем старые слушатели keydown и keyup
   document.addEventListener("keydown", (e) => {
     // Проверяем, находится ли фокус в поле ввода чата
     if (document.activeElement === chatInput) return; // Пропускаем, если чат активен
+
+    const me = players.get(myId);
+    if (!me || me.health <= 0) return;
+
+    const speed = 5; // Шаг движения
+    let moved = false;
+
     switch (e.key) {
       case "ArrowUp":
       case "w":
         controls.up = true;
+        me.direction = "up";
+        me.state = "walking";
+        me.y = Math.max(0, me.y - speed);
+        moved = true;
         break;
       case "ArrowDown":
       case "s":
         controls.down = true;
+        me.direction = "down";
+        me.state = "walking";
+        me.y = Math.min(worldHeight - 40, me.y + speed);
+        moved = true;
         break;
       case "ArrowLeft":
       case "a":
         controls.left = true;
+        me.direction = "left";
+        me.state = "walking";
+        me.x = Math.max(0, me.x - speed);
+        moved = true;
         break;
       case "ArrowRight":
       case "d":
         controls.right = true;
+        me.direction = "right";
+        me.state = "walking";
+        me.x = Math.min(worldWidth - 40, me.x + speed);
+        moved = true;
         break;
       case " ":
         controls.shoot = true;
         shoot();
+        controls.shoot = false; // Сбрасываем сразу после выстрела
         break;
     }
+
+    if (moved && !checkCollision(me.x, me.y)) {
+      me.steps += 1;
+      updateResources();
+
+      // Анимация ходьбы
+      me.frameTime += frameDuration; // Используем фиксированное время кадра
+      if (me.frameTime >= frameDuration) {
+        me.frameTime = 0;
+        me.frame = (me.frame + 1) % 7;
+      }
+
+      // Отправляем обновление на сервер
+      ws.send(
+        JSON.stringify({
+          type: "move",
+          x: me.x,
+          y: me.y,
+          health: me.health,
+          energy: me.energy,
+          food: me.food,
+          water: me.water,
+          armor: me.armor,
+          steps: me.steps,
+          direction: me.direction,
+          state: me.state,
+          frame: me.frame,
+        })
+      );
+      updateCamera();
+      checkCollisions();
+    } else if (moved) {
+      // Если столкновение, сбрасываем состояние
+      me.state = "idle";
+      me.frame = 0;
+      me.frameTime = 0;
+    }
+
+    // Сбрасываем все флаги после обработки
+    controls.up = false;
+    controls.down = false;
+    controls.left = false;
+    controls.right = false;
+
     e.preventDefault();
   });
 
-  document.addEventListener("keyup", (e) => {
-    if (document.activeElement === chatInput) return; // Пропускаем, если чат активен
-    switch (e.key) {
-      case "ArrowUp":
-      case "w":
-        controls.up = false;
-        break;
-      case "ArrowDown":
-      case "s":
-        controls.down = false;
-        break;
-      case "ArrowLeft":
-      case "a":
-        controls.left = false;
-        break;
-      case "ArrowRight":
-      case "d":
-        controls.right = false;
-        break;
-      case " ":
-        controls.shoot = false;
-        break;
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && chatContainer.style.display === "flex") {
+      chatContainer.style.display = "none";
+      chatInput.blur();
     }
-
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && chatContainer.style.display === "flex") {
-        chatContainer.style.display = "none";
-        chatInput.blur();
-      }
-    });
   });
 
+  // Оставляем кнопки без изменений
   setupButton("upBtn", "up");
   setupButton("downBtn", "down");
   setupButton("leftBtn", "left");
@@ -267,7 +331,7 @@ function startGame() {
   chatBtn.addEventListener("click", () => {
     const isChatVisible = chatContainer.style.display === "flex";
     chatContainer.style.display = isChatVisible ? "none" : "flex";
-    chatBtn.classList.toggle("active", !isChatVisible); // Переключаем класс
+    chatBtn.classList.toggle("active", !isChatVisible);
     if (!isChatVisible) {
       chatInput.focus();
     } else {
@@ -275,29 +339,26 @@ function startGame() {
     }
   });
 
-  // Поддержка touch-событий для открытия чата на мобильных устройствах
   chatBtn.addEventListener("touchstart", (e) => {
     e.preventDefault();
     const isChatVisible = chatContainer.style.display === "flex";
     chatContainer.style.display = isChatVisible ? "none" : "flex";
     if (!isChatVisible) {
-      chatInput.focus(); // Устанавливаем фокус
+      chatInput.focus();
     }
   });
 
-  // Отправка сообщения по Enter
   chatInput.addEventListener("keypress", (e) => {
     if (e.key === "Enter" && chatInput.value.trim()) {
       const message = chatInput.value.trim();
       ws.send(JSON.stringify({ type: "chat", message }));
-      chatInput.value = ""; // Очищаем поле ввода
+      chatInput.value = "";
     }
   });
 
-  // Поддержка мобильного ввода (touch-клавиатура)
   chatInput.addEventListener("touchstart", (e) => {
-    e.stopPropagation(); // Предотвращаем перехват события игрой
-    chatInput.focus(); // Явно вызываем фокус для мобильных устройств
+    e.stopPropagation();
+    chatInput.focus();
   });
 
   requestAnimationFrame(gameLoop);
@@ -341,6 +402,9 @@ function handleGameMessage(event) {
     case "itemPicked":
       items.delete(data.itemId);
       updateStatsDisplay();
+      break;
+    case "bulletRemoved": // Новая обработка
+      bullets.delete(data.bulletId);
       break;
   }
 }
@@ -399,82 +463,15 @@ function update(deltaTime) {
   const me = players.get(myId);
   if (!me || me.health <= 0) return;
 
-  const speed = 5;
-  let newX = me.x;
-  let newY = me.y;
-
-  if (controls.up) {
-    newY -= speed;
-    me.direction = "up";
-    me.state = "walking";
-  } else if (controls.down) {
-    newY += speed;
-    me.direction = "down";
-    me.state = "walking";
-  } else if (controls.left) {
-    newX -= speed;
-    me.direction = "left";
-    me.state = "walking";
-  } else if (controls.right) {
-    newX += speed;
-    me.direction = "right";
-    me.state = "walking";
-  } else {
-    me.state = "idle";
-  }
-
-  newX = Math.max(0, Math.min(newX, worldWidth - 40));
-  newY = Math.max(0, Math.min(newY, worldHeight - 40));
-
-  if (!checkCollision(newX, newY)) {
-    if (newX !== me.x || newY !== me.y) {
-      me.x = newX;
-      me.y = newY;
-      me.steps += 1;
-      updateResources();
-
-      if (me.state === "walking") {
-        me.frameTime += deltaTime;
-        if (me.frameTime >= frameDuration) {
-          me.frameTime = 0;
-          me.frame = (me.frame + 1) % 7;
-        }
-      } else {
-        me.frame = 0;
-        me.frameTime = 0;
-      }
-
-      ws.send(
-        JSON.stringify({
-          type: "move",
-          x: me.x,
-          y: me.y,
-          health: me.health,
-          energy: me.energy,
-          food: me.food,
-          water: me.water,
-          armor: me.armor,
-          steps: me.steps,
-          direction: me.direction,
-          state: me.state,
-          frame: me.frame,
-        })
-      );
-      updateCamera();
-      checkCollisions();
-    }
-  } else {
-    me.state = "idle";
-    me.frame = 0;
-    me.frameTime = 0;
-  }
-
   // Обновление пуль
   bullets.forEach((bullet, bulletId) => {
     bullet.x += bullet.dx * (deltaTime / 16);
     bullet.y += bullet.dy * (deltaTime / 16);
-    if (Date.now() - bullet.spawnTime > bullet.life) {
-      bullets.delete(bulletId); // Удаляем локально, если время жизни истекло
+    if (
+      checkBulletCollision(bullet) ||
+      Date.now() - bullet.spawnTime > bullet.life
+    ) {
+      bullets.delete(bulletId); // Удаляем локально при столкновении или истечении времени
     }
   });
 
@@ -532,11 +529,11 @@ function updateStatsDisplay() {
   const me = players.get(myId);
   if (!me) return;
   statsEl.innerHTML = `
-    Здоровье: ${me.health}<br>
-    Энергия: ${me.energy}<br>
-    Еда: ${me.food}<br>
-    Вода: ${me.water}<br>
-    Броня: ${me.armor}
+    <span class="health">Здоровье: ${me.health}</span><br>
+    <span class="energy">Энергия: ${me.energy}</span><br>
+    <span class="food">Еда: ${me.food}</span><br>
+    <span class="water">Вода: ${me.water}</span><br>
+    <span class="armor">Броня: ${me.armor}</span>
   `;
   const coordsEl = document.getElementById("coords");
   coordsEl.innerHTML = `X: ${Math.floor(me.x)}<br>Y: ${Math.floor(me.y)}`;
@@ -826,6 +823,7 @@ function lineIntersects(x1, y1, x2, y2, x3, y3, x4, y4) {
   return ua >= 0 && ua <= 1 && ub >= 0 && ub <= 1;
 }
 
+// Добавляем функцию pointToLineDistance (если её ещё нет)
 function pointToLineDistance(px, py, x1, y1, x2, y2) {
   const dx = x2 - x1;
   const dy = y2 - y1;
@@ -838,6 +836,27 @@ function pointToLineDistance(px, py, x1, y1, x2, y2) {
   const closestX = x1 + t * dx;
   const closestY = y1 + t * dy;
   return Math.sqrt(Math.pow(px - closestX, 2) + Math.pow(py - closestY, 2));
+}
+
+// Функция проверки столкновения пули с препятствиями
+function checkBulletCollision(bullet) {
+  for (const [, obstacle] of obstacles) {
+    if (obstacle.isLine) {
+      const distance = pointToLineDistance(
+        bullet.x,
+        bullet.y,
+        obstacle.x1,
+        obstacle.y1,
+        obstacle.x2,
+        obstacle.y2
+      );
+      if (distance < obstacle.thickness / 2 + 5) {
+        // 5 - радиус пули
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 function checkCollision(newX, newY) {
