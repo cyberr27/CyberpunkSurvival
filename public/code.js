@@ -528,7 +528,6 @@ function draw() {
     canvas.height
   );
 
-  // Отрисовка всех игроков с анимацией
   players.forEach((player) => {
     const screenX = player.x - camera.x;
     const screenY = player.y - camera.y;
@@ -536,7 +535,7 @@ function draw() {
     // Локальная анимация для других игроков (кроме себя)
     if (player.id !== myId) {
       if (player.state === "walking") {
-        player.frameTime += 16; // Примерное значение deltaTime (можно передать точно из gameLoop)
+        player.frameTime += 16;
         if (player.frameTime >= frameDuration) {
           player.frameTime = 0;
           player.frame = (player.frame + 1) % 7;
@@ -555,15 +554,25 @@ function draw() {
 
     // Определяем координаты в спрайте
     let spriteX = player.frame * 40;
-    let spriteY =
-      player.state === "dying"
-        ? 160
-        : {
-            up: 0,
-            down: 40,
-            left: 80,
-            right: 120,
-          }[player.direction] || 40;
+    let spriteY;
+    if (player.state === "dying") {
+      spriteY = 160;
+    } else {
+      const directionMap = {
+        up: 0,
+        down: 40,
+        left: 80,
+        right: 120,
+      };
+      spriteY = directionMap[player.direction];
+      // Если direction некорректен, используем down как запасной вариант
+      if (spriteY === undefined) {
+        spriteY = 40;
+        console.warn(
+          `Некорректное направление для игрока ${player.id}: ${player.direction}`
+        );
+      }
+    }
 
     // Отрисовка спрайта
     ctx.drawImage(
@@ -577,6 +586,11 @@ function draw() {
       40,
       40
     );
+
+    // Для отладки: логируем направление и координаты
+    if (player.id === myId) {
+      console.log(`Direction: ${player.direction}, SpriteY: ${spriteY}`);
+    }
 
     // Отрисовка имени и HP
     ctx.fillStyle = "white";
