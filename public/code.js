@@ -29,6 +29,7 @@ let wolves = new Map();
 let myId;
 const items = new Map();
 const obstacles = new Map();
+const bullets = new Map(); // Изменяем на Map для синхронизации с сервером
 
 // Добавляем переменные для управления анимацией
 let lastTime = 0; // Время последнего кадра для расчета deltaTime
@@ -179,6 +180,10 @@ function handleAuthMessage(event) {
       authContainer.style.display = "none";
       document.getElementById("gameContainer").style.display = "block";
       data.players.forEach((p) => players.set(p.id, p));
+      // Отрисовка локальных пуль
+      bullets.forEach((bullet) => {
+        drawBullet(bullet.x - camera.x, bullet.y - camera.y);
+      });
       data.wolves.forEach((w) => wolves.set(w.id, w));
       data.obstacles.forEach((o) => obstacles.set(o.id, o));
       resizeCanvas();
@@ -302,23 +307,17 @@ function handleGameMessage(event) {
   const data = JSON.parse(event.data);
   switch (data.type) {
     case "chat":
-      const messageEl = document.createElement("div");
-      messageEl.textContent = `${data.id}: ${data.message}`;
-      chatMessages.appendChild(messageEl);
-      if (chatMessages.children.length > 50) {
-        chatMessages.removeChild(chatMessages.firstChild);
-      }
-      chatMessages.scrollTop = chatMessages.scrollHeight;
+      // ... (без изменений)
       break;
     case "newPlayer":
-      players.set(data.player.id, { ...data.player, frameTime: 0 }); // Инициализируем frameTime
+      players.set(data.player.id, { ...data.player, frameTime: 0 });
       break;
     case "update":
       const existingPlayer = players.get(data.player.id);
       players.set(data.player.id, {
         ...existingPlayer,
         ...data.player,
-        frameTime: existingPlayer.frameTime || 0, // Сохраняем frameTime
+        frameTime: existingPlayer.frameTime || 0,
       });
       if (data.player.id === myId) updateStatsDisplay();
       break;
@@ -329,7 +328,15 @@ function handleGameMessage(event) {
       wolves.set(data.wolf.id, data.wolf);
       break;
     case "shoot":
-      drawBullet(data.x, data.y);
+      bullets.set(data.bulletId, {
+        x: data.x,
+        y: data.y,
+        dx: data.dx,
+        dy: data.dy,
+        spawnTime: Date.now(),
+        life: 1000,
+        shooterId: data.shooterId,
+      });
       break;
     case "itemPicked":
       items.delete(data.itemId);
@@ -355,11 +362,37 @@ function updateCamera() {
   camera.y = Math.max(0, Math.min(camera.y, worldHeight - canvas.height));
 }
 
-// Стрельба
 function shoot() {
   const me = players.get(myId);
   if (!me || me.health <= 0) return;
-  ws.send(JSON.stringify({ type: "shoot", x: me.x, y: me.y }));
+
+  let dx = 0,
+    dy = 0;
+  switch (me.direction) {
+    case "up":
+      dy = -1;
+      break;
+    case "down":
+      dy = 1;
+      break;
+    case "left":
+      dx = -1;
+      break;
+    case "right":
+      dx = 1;
+      break;
+  }
+
+  // Отправляем выстрел на сервер, локально пулю не создаем
+  ws.send(
+    JSON.stringify({
+      type: "shoot",
+      x: me.x + 20,
+      y: me.y + 20,
+      dx: dx * 10,
+      dy: dy * 10,
+    })
+  );
 }
 
 function update(deltaTime) {
@@ -400,16 +433,14 @@ function update(deltaTime) {
       me.steps += 1;
       updateResources();
 
-      // Обновляем анимацию с использованием deltaTime
       if (me.state === "walking") {
-        me.frameTime += deltaTime; // Накапливаем время
+        me.frameTime += deltaTime;
         if (me.frameTime >= frameDuration) {
-          // Если прошло достаточно времени для смены кадра
-          me.frameTime = 0; // Сбрасываем таймер
-          me.frame = (me.frame + 1) % 7; // Переходим к следующему кадру (0-6)
+          me.frameTime = 0;
+          me.frame = (me.frame + 1) % 7;
         }
       } else {
-        me.frame = 0; // При остановке сбрасываем на первый кадр
+        me.frame = 0;
         me.frameTime = 0;
       }
 
@@ -434,21 +465,33 @@ function update(deltaTime) {
     }
   } else {
     me.state = "idle";
-    me.frame = 0; // Сбрасываем кадр при столкновении
+    me.frame = 0;
     me.frameTime = 0;
   }
+
+  // Обновление пуль
+  bullets.forEach((bullet, bulletId) => {
+    bullet.x += bullet.dx * (deltaTime / 16);
+    bullet.y += bullet.dy * (deltaTime / 16);
+    if (Date.now() - bullet.spawnTime > bullet.life) {
+      bullets.delete(bulletId); // Удаляем локально, если время жизни истекло
+    }
+  });
 
   // Обработка смерти
   if (me.health <= 0 && me.state !== "dying") {
     me.state = "dying";
     me.frame = 0;
     me.frameTime = 0;
+    console.log(`Игрок ${myId} начал анимацию смерти`);
   } else if (me.state === "dying") {
-    me.frameTime += deltaTime; // Используем deltaTime для анимации смерти
+    me.frameTime += deltaTime;
     if (me.frameTime >= 200) {
-      // Более медленная анимация смерти (200 мс на кадр)
       me.frameTime = 0;
-      if (me.frame < 6) me.frame += 1; // Останавливаемся на последнем кадре (6)
+      if (me.frame < 6) {
+        me.frame += 1;
+        console.log(`Игрок ${myId} смерть, кадр: ${me.frame}`);
+      }
     }
     ws.send(
       JSON.stringify({
@@ -485,7 +528,6 @@ function updateResources() {
   updateStatsDisplay();
 }
 
-// Отображение показателей
 function updateStatsDisplay() {
   const me = players.get(myId);
   if (!me) return;
@@ -496,9 +538,11 @@ function updateStatsDisplay() {
     Вода: ${me.water}<br>
     Броня: ${me.armor}
   `;
+  const coordsEl = document.getElementById("coords");
+  coordsEl.innerHTML = `X: ${Math.floor(me.x)}<br>Y: ${Math.floor(me.y)}`;
 }
 
-function draw() {
+function draw(deltaTime) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   const groundSpeed = 1.0,
     vegetationSpeed = 0.8,
@@ -532,19 +576,23 @@ function draw() {
     const screenX = player.x - camera.x;
     const screenY = player.y - camera.y;
 
-    // Локальная анимация для других игроков (кроме себя)
     if (player.id !== myId) {
       if (player.state === "walking") {
-        player.frameTime += 16;
+        player.frameTime += deltaTime; // Используем deltaTime вместо фиксированного 16
         if (player.frameTime >= frameDuration) {
           player.frameTime = 0;
           player.frame = (player.frame + 1) % 7;
         }
       } else if (player.state === "dying") {
-        player.frameTime += 16;
+        player.frameTime += deltaTime;
         if (player.frameTime >= 200) {
           player.frameTime = 0;
-          if (player.frame < 6) player.frame += 1;
+          if (player.frame < 6) {
+            player.frame += 1;
+            console.log(
+              `Другой игрок ${player.id} смерть, кадр: ${player.frame}`
+            );
+          }
         }
       } else {
         player.frame = 0;
@@ -659,6 +707,13 @@ function draw() {
     }
   });
 
+  // Отрисовка пуль
+  bullets.forEach((bullet) => {
+    const screenX = bullet.x - camera.x;
+    const screenY = bullet.y - camera.y;
+    drawBullet(screenX, screenY);
+  });
+
   ctx.drawImage(
     vegetationImage,
     vegetationOffsetX,
@@ -684,10 +739,14 @@ function draw() {
 }
 
 function drawBullet(x, y) {
-  ctx.fillStyle = "black";
-  const screenX = x - camera.x;
-  const screenY = y - camera.y;
-  ctx.fillRect(screenX, screenY, 5, 5);
+  // Киберпанк-стиль: неоновый круг с градиентом
+  const gradient = ctx.createRadialGradient(x, y, 2, x, y, 5);
+  gradient.addColorStop(0, "rgba(0, 255, 255, 1)"); // Яркий центр
+  gradient.addColorStop(1, "rgba(0, 255, 255, 0)"); // Прозрачная кайма
+  ctx.fillStyle = gradient;
+  ctx.beginPath();
+  ctx.arc(x, y, 5, 0, Math.PI * 2);
+  ctx.fill();
 }
 
 // Проверка столкновений
@@ -715,14 +774,16 @@ setInterval(() => {
   }
 }, 10000);
 
-// Игровой цикл
-function gameLoop(timestamp) {
-  if (!lastTime) lastTime = timestamp; // Инициализируем lastTime при первом вызове
-  const deltaTime = timestamp - lastTime; // Разница времени между кадрами
-  lastTime = timestamp;
+let currentDeltaTime = 0; // Добавьте это в глобальные переменные перед gameLoop
 
-  update(deltaTime); // Передаем deltaTime в update
-  draw();
+function gameLoop(timestamp) {
+  if (!lastTime) lastTime = timestamp;
+  const deltaTime = timestamp - lastTime;
+  lastTime = timestamp;
+  currentDeltaTime = deltaTime; // Сохраняем deltaTime
+
+  update(deltaTime);
+  draw(currentDeltaTime); // Передаем deltaTime в draw
   requestAnimationFrame(gameLoop);
 }
 
