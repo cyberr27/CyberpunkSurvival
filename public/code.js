@@ -218,21 +218,17 @@ function handleAuthMessage(event) {
 }
 
 function startGame() {
-  // Удаляем старые слушатели keydown и keyup
   document.addEventListener("keydown", (e) => {
-    // Проверяем, находится ли фокус в поле ввода чата
-    if (document.activeElement === chatInput) return; // Пропускаем, если чат активен
-
+    if (document.activeElement === chatInput) return;
     const me = players.get(myId);
     if (!me || me.health <= 0) return;
 
-    const speed = 5; // Шаг движения
+    const speed = 5;
     let moved = false;
 
     switch (e.key) {
       case "ArrowUp":
       case "w":
-        controls.up = true;
         me.direction = "up";
         me.state = "walking";
         me.y = Math.max(0, me.y - speed);
@@ -240,7 +236,6 @@ function startGame() {
         break;
       case "ArrowDown":
       case "s":
-        controls.down = true;
         me.direction = "down";
         me.state = "walking";
         me.y = Math.min(worldHeight - 40, me.y + speed);
@@ -248,7 +243,6 @@ function startGame() {
         break;
       case "ArrowLeft":
       case "a":
-        controls.left = true;
         me.direction = "left";
         me.state = "walking";
         me.x = Math.max(0, me.x - speed);
@@ -256,16 +250,13 @@ function startGame() {
         break;
       case "ArrowRight":
       case "d":
-        controls.right = true;
         me.direction = "right";
         me.state = "walking";
         me.x = Math.min(worldWidth - 40, me.x + speed);
         moved = true;
         break;
       case " ":
-        controls.shoot = true;
         shoot();
-        controls.shoot = false; // Сбрасываем сразу после выстрела
         break;
     }
 
@@ -273,14 +264,12 @@ function startGame() {
       me.steps += 1;
       updateResources();
 
-      // Анимация ходьбы
-      me.frameTime += frameDuration; // Используем фиксированное время кадра
+      me.frameTime += frameDuration;
       if (me.frameTime >= frameDuration) {
         me.frameTime = 0;
         me.frame = (me.frame + 1) % 7;
       }
 
-      // Отправляем обновление на сервер
       ws.send(
         JSON.stringify({
           type: "move",
@@ -300,17 +289,10 @@ function startGame() {
       updateCamera();
       checkCollisions();
     } else if (moved) {
-      // Если столкновение, сбрасываем состояние
       me.state = "idle";
       me.frame = 0;
       me.frameTime = 0;
     }
-
-    // Сбрасываем все флаги после обработки
-    controls.up = false;
-    controls.down = false;
-    controls.left = false;
-    controls.right = false;
 
     e.preventDefault();
   });
@@ -322,12 +304,15 @@ function startGame() {
     }
   });
 
-  // Оставляем кнопки без изменений
   setupButton("upBtn", "up");
   setupButton("downBtn", "down");
   setupButton("leftBtn", "left");
   setupButton("rightBtn", "right");
   document.getElementById("shootBtn").addEventListener("click", shoot);
+  document.getElementById("shootBtn").addEventListener("touchstart", (e) => {
+    e.preventDefault();
+    shoot();
+  });
 
   chatBtn.addEventListener("click", () => {
     const isChatVisible = chatContainer.style.display === "flex";
@@ -369,7 +354,11 @@ function handleGameMessage(event) {
   const data = JSON.parse(event.data);
   switch (data.type) {
     case "chat":
-      // ... (без изменений)
+      const chatMessagesEl = document.getElementById("chatMessages");
+      const messageEl = document.createElement("div");
+      messageEl.textContent = `${data.id}: ${data.message}`;
+      chatMessagesEl.appendChild(messageEl);
+      chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight; // Прокрутка вниз
       break;
     case "newPlayer":
       players.set(data.player.id, { ...data.player, frameTime: 0 });
@@ -404,7 +393,7 @@ function handleGameMessage(event) {
       items.delete(data.itemId);
       updateStatsDisplay();
       break;
-    case "bulletRemoved": // Новая обработка
+    case "bulletRemoved":
       bullets.delete(data.bulletId);
       break;
   }
@@ -802,19 +791,85 @@ cloudsImage.onload = onImageLoad;
 playerSprite.onload = onImageLoad;
 wolfSprite.onload = onImageLoad;
 
-// Функция для настройки кнопок
 function setupButton(id, action) {
   const btn = document.getElementById(id);
-  btn.addEventListener("mousedown", () => (controls[action] = true));
-  btn.addEventListener("mouseup", () => (controls[action] = false));
+  btn.addEventListener("mousedown", (e) => {
+    e.preventDefault();
+    handleButtonAction(action);
+  });
   btn.addEventListener("touchstart", (e) => {
     e.preventDefault();
-    controls[action] = true;
+    handleButtonAction(action);
   });
-  btn.addEventListener("touchend", (e) => {
-    e.preventDefault();
-    controls[action] = false;
-  });
+}
+
+function handleButtonAction(action) {
+  const me = players.get(myId);
+  if (!me || me.health <= 0) return;
+
+  const speed = 5;
+  let moved = false;
+
+  switch (action) {
+    case "up":
+      me.direction = "up";
+      me.state = "walking";
+      me.y = Math.max(0, me.y - speed);
+      moved = true;
+      break;
+    case "down":
+      me.direction = "down";
+      me.state = "walking";
+      me.y = Math.min(worldHeight - 40, me.y + speed);
+      moved = true;
+      break;
+    case "left":
+      me.direction = "left";
+      me.state = "walking";
+      me.x = Math.max(0, me.x - speed);
+      moved = true;
+      break;
+    case "right":
+      me.direction = "right";
+      me.state = "walking";
+      me.x = Math.min(worldWidth - 40, me.x + speed);
+      moved = true;
+      break;
+  }
+
+  if (moved && !checkCollision(me.x, me.y)) {
+    me.steps += 1;
+    updateResources();
+
+    me.frameTime += frameDuration;
+    if (me.frameTime >= frameDuration) {
+      me.frameTime = 0;
+      me.frame = (me.frame + 1) % 7;
+    }
+
+    ws.send(
+      JSON.stringify({
+        type: "move",
+        x: me.x,
+        y: me.y,
+        health: me.health,
+        energy: me.energy,
+        food: me.food,
+        water: me.water,
+        armor: me.armor,
+        steps: me.steps,
+        direction: me.direction,
+        state: me.state,
+        frame: me.frame,
+      })
+    );
+    updateCamera();
+    checkCollisions();
+  } else if (moved) {
+    me.state = "idle";
+    me.frame = 0;
+    me.frameTime = 0;
+  }
 }
 
 function lineIntersects(x1, y1, x2, y2, x3, y3, x4, y4) {
