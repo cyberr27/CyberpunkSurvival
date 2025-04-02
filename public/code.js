@@ -308,11 +308,7 @@ function startGame() {
   setupButton("downBtn", "down");
   setupButton("leftBtn", "left");
   setupButton("rightBtn", "right");
-  document.getElementById("shootBtn").addEventListener("click", shoot);
-  document.getElementById("shootBtn").addEventListener("touchstart", (e) => {
-    e.preventDefault();
-    shoot();
-  });
+  setupButton("shootBtn", "shoot"); // Используем setupButton для унификации
 
   chatBtn.addEventListener("click", () => {
     const isChatVisible = chatContainer.style.display === "flex";
@@ -793,13 +789,39 @@ wolfSprite.onload = onImageLoad;
 
 function setupButton(id, action) {
   const btn = document.getElementById(id);
-  btn.addEventListener("mousedown", (e) => {
+  let isPressed = false; // Флаг для отслеживания нажатия
+
+  // Обработчик для десктопов (click)
+  btn.addEventListener("click", (e) => {
     e.preventDefault();
-    handleButtonAction(action);
+    if (!isPressed) {
+      isPressed = true;
+      handleButtonAction(action);
+      // Сбрасываем флаг после небольшого таймаута
+      setTimeout(() => {
+        isPressed = false;
+      }, 200); // 200 мс — минимальная задержка между нажатиями
+    }
   });
+
+  // Обработчик для мобильных устройств (touchstart)
   btn.addEventListener("touchstart", (e) => {
     e.preventDefault();
-    handleButtonAction(action);
+    if (!isPressed) {
+      isPressed = true;
+      handleButtonAction(action);
+    }
+  });
+
+  // Сбрасываем флаг при отпускании кнопки на мобильных устройствах
+  btn.addEventListener("touchend", (e) => {
+    e.preventDefault();
+    isPressed = false;
+  });
+
+  // Дополнительно предотвращаем нежелательное поведение при движении пальца
+  btn.addEventListener("touchmove", (e) => {
+    e.preventDefault();
   });
 }
 
@@ -834,6 +856,9 @@ function handleButtonAction(action) {
       me.state = "walking";
       me.x = Math.min(worldWidth - 40, me.x + speed);
       moved = true;
+      break;
+    case "shoot": // Добавляем обработку выстрела
+      shoot();
       break;
   }
 
