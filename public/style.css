@@ -328,4 +328,8 @@ button:active {
     position: absolute;
     top: 43.5%;
   }
+  .auth-container {
+    position: absolute;
+    left: 0%;
+  }
 }

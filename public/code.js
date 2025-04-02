@@ -30,6 +30,10 @@ let myId;
 const items = new Map();
 const obstacles = new Map();
 
+// Добавляем переменные для управления анимацией
+let lastTime = 0; // Время последнего кадра для расчета deltaTime
+const frameDuration = 100; // Длительность одного кадра в миллисекундах (настраиваемая скорость анимации)
+
 function createLineObstacle(x1, y1, x2, y2, thickness = 5) {
   const length = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
   const angle = Math.atan2(y2 - y1, x2 - x1);
@@ -294,7 +298,6 @@ function startGame() {
   requestAnimationFrame(gameLoop);
 }
 
-// Обработка игровых сообщений
 function handleGameMessage(event) {
   const data = JSON.parse(event.data);
   switch (data.type) {
@@ -303,17 +306,19 @@ function handleGameMessage(event) {
       messageEl.textContent = `${data.id}: ${data.message}`;
       chatMessages.appendChild(messageEl);
       if (chatMessages.children.length > 50) {
-        chatMessages.removeChild(chatMessages.firstChild); // Удаляем старое сообщение
+        chatMessages.removeChild(chatMessages.firstChild);
       }
       chatMessages.scrollTop = chatMessages.scrollHeight;
       break;
     case "newPlayer":
-      players.set(data.player.id, data.player);
+      players.set(data.player.id, { ...data.player, frameTime: 0 }); // Инициализируем frameTime
       break;
     case "update":
+      const existingPlayer = players.get(data.player.id);
       players.set(data.player.id, {
-        ...players.get(data.player.id),
+        ...existingPlayer,
         ...data.player,
+        frameTime: existingPlayer.frameTime || 0, // Сохраняем frameTime
       });
       if (data.player.id === myId) updateStatsDisplay();
       break;
@@ -357,7 +362,7 @@ function shoot() {
   ws.send(JSON.stringify({ type: "shoot", x: me.x, y: me.y }));
 }
 
-function update() {
+function update(deltaTime) {
   const me = players.get(myId);
   if (!me || me.health <= 0) return;
 
@@ -394,11 +399,20 @@ function update() {
       me.y = newY;
       me.steps += 1;
       updateResources();
-      me.frameTime += 16;
-      if (me.frameTime >= (me.frameDuration || 100)) {
+
+      // Обновляем анимацию с использованием deltaTime
+      if (me.state === "walking") {
+        me.frameTime += deltaTime; // Накапливаем время
+        if (me.frameTime >= frameDuration) {
+          // Если прошло достаточно времени для смены кадра
+          me.frameTime = 0; // Сбрасываем таймер
+          me.frame = (me.frame + 1) % 7; // Переходим к следующему кадру (0-6)
+        }
+      } else {
+        me.frame = 0; // При остановке сбрасываем на первый кадр
         me.frameTime = 0;
-        me.frame = (me.frame + 1) % 7;
       }
+
       ws.send(
         JSON.stringify({
           type: "move",
@@ -420,35 +434,21 @@ function update() {
     }
   } else {
     me.state = "idle";
+    me.frame = 0; // Сбрасываем кадр при столкновении
+    me.frameTime = 0;
   }
 
+  // Обработка смерти
   if (me.health <= 0 && me.state !== "dying") {
     me.state = "dying";
     me.frame = 0;
     me.frameTime = 0;
-    ws.send(
-      JSON.stringify({
-        type: "move",
-        x: me.x,
-        y: me.y,
-        health: me.health,
-        energy: me.energy,
-        food: me.food,
-        water: me.water,
-        armor: me.armor,
-        steps: me.steps,
-        direction: me.direction,
-        state: me.state,
-        frame: me.frame,
-      })
-    );
   } else if (me.state === "dying") {
-    me.frameTime += 16;
-    if (me.frameTime >= (me.deathFrameDuration || 200)) {
+    me.frameTime += deltaTime; // Используем deltaTime для анимации смерти
+    if (me.frameTime >= 200) {
+      // Более медленная анимация смерти (200 мс на кадр)
       me.frameTime = 0;
-      if (me.frame < 6) {
-        me.frame += 1;
-      }
+      if (me.frame < 6) me.frame += 1; // Останавливаемся на последнем кадре (6)
     }
     ws.send(
       JSON.stringify({
@@ -498,7 +498,6 @@ function updateStatsDisplay() {
   `;
 }
 
-// Отрисовка
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   const groundSpeed = 1.0,
@@ -529,15 +528,42 @@ function draw() {
     canvas.height
   );
 
-  // В функции draw() заменяем отрисовку игроков на:
+  // Отрисовка всех игроков с анимацией
   players.forEach((player) => {
     const screenX = player.x - camera.x;
     const screenY = player.y - camera.y;
+
+    // Локальная анимация для других игроков (кроме себя)
+    if (player.id !== myId) {
+      if (player.state === "walking") {
+        player.frameTime += 16; // Примерное значение deltaTime (можно передать точно из gameLoop)
+        if (player.frameTime >= frameDuration) {
+          player.frameTime = 0;
+          player.frame = (player.frame + 1) % 7;
+        }
+      } else if (player.state === "dying") {
+        player.frameTime += 16;
+        if (player.frameTime >= 200) {
+          player.frameTime = 0;
+          if (player.frame < 6) player.frame += 1;
+        }
+      } else {
+        player.frame = 0;
+        player.frameTime = 0;
+      }
+    }
+
+    // Определяем координаты в спрайте
     let spriteX = player.frame * 40;
     let spriteY =
       player.state === "dying"
         ? 160
-        : { up: 0, down: 40, left: 80, right: 120 }[player.direction] || 40;
+        : {
+            up: 0,
+            down: 40,
+            left: 80,
+            right: 120,
+          }[player.direction] || 40;
 
     // Отрисовка спрайта
     ctx.drawImage(
@@ -556,17 +582,14 @@ function draw() {
     ctx.fillStyle = "white";
     ctx.font = "12px Arial";
     ctx.textAlign = "center";
-
-    // Имя игрока
     ctx.fillText(player.id, screenX + 20, screenY - 20);
-
-    // Здоровье
     ctx.fillStyle = "red";
     ctx.fillRect(screenX, screenY - 15, 40, 5);
     ctx.fillStyle = "green";
     ctx.fillRect(screenX, screenY - 15, (player.health / 100) * 40, 5);
   });
 
+  // Оставшиеся части функции draw() остаются без изменений
   wolves.forEach((wolf) => {
     const screenX = wolf.x - camera.x;
     const screenY = wolf.y - camera.y;
@@ -574,7 +597,12 @@ function draw() {
     let spriteY =
       wolf.state === "dying"
         ? 160
-        : { up: 0, down: 40, left: 80, right: 120 }[wolf.direction] || 40;
+        : {
+            up: 0,
+            down: 40,
+            left: 80,
+            right: 120,
+          }[wolf.direction] || 40;
     ctx.drawImage(
       wolfSprite,
       spriteX,
@@ -601,7 +629,6 @@ function draw() {
       const startY = obstacle.y1 - camera.y;
       const endX = obstacle.x2 - camera.x;
       const endY = obstacle.y2 - camera.y;
-
       if (
         (startX > 0 || endX > 0) &&
         (startX < canvas.width || endX < canvas.width) &&
@@ -675,8 +702,12 @@ setInterval(() => {
 }, 10000);
 
 // Игровой цикл
-function gameLoop() {
-  update();
+function gameLoop(timestamp) {
+  if (!lastTime) lastTime = timestamp; // Инициализируем lastTime при первом вызове
+  const deltaTime = timestamp - lastTime; // Разница времени между кадрами
+  lastTime = timestamp;
+
+  update(deltaTime); // Передаем deltaTime в update
   draw();
   requestAnimationFrame(gameLoop);
 }
