@@ -224,9 +224,9 @@ button:active {
 }
 
 #stats .armor {
-  color: #8b4513; /* Коричневый для брони */
-  text-shadow: 0 0 5px #8b4513, 0 0 10px #8b4513, 0 0 15px #ff00ff; /* Неоновый эффект */
-  animation: flicker 1.5s infinite alternate;
+  color: #ff4500; /* Яркий оранжевый для брони */
+  text-shadow: 0 0 5px #ff4500, 0 0 10px #ff4500, 0 0 15px #ff00ff, 0 0 20px #ff4500; /* Усиленный неоновый эффект */
+  animation: flicker 1.5s infinite alternate; /* Мерцание оставляем */
 }
 
 /* Перенос координат в верхний правый угол */

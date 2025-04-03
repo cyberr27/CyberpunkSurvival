@@ -56,9 +56,9 @@ createLineObstacle(1355, 2720, 1065, 2520);
 createLineObstacle(1065, 2520, 1290, 2435);
 createLineObstacle(1290, 2435, 1640, 2530);
 
-createLight(1700, 1600, "rgba(0, 255, 255, 0.7)", 150); // Голубой неон
-createLight(2000, 1000, "rgba(255, 0, 255, 0.7)", 120); // Розовый неон
-createLight(1400, 2600, "rgba(148, 0, 211, 0.7)", 130); // Фиолетовый неон
+createLight(1700, 1600, "rgba(0, 255, 255, 0.7)", 1000); // Голубой неон
+createLight(2000, 1000, "rgba(255, 0, 255, 0.7)", 1000); // Розовый неон
+createLight(1400, 2600, "rgba(148, 0, 211, 0.7)", 1000); // Фиолетовый неон
 
 function createLineObstacle(x1, y1, x2, y2, thickness = 5) {
   const length = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
@@ -216,6 +216,7 @@ function handleAuthMessage(event) {
         lights.length = 0; // Очищаем локальный массив
         data.lights.forEach((light) => lights.push(light));
       }
+      backgroundImage.src = "backgr2.png";
       resizeCanvas();
       ws.onmessage = handleGameMessage;
       startGame();

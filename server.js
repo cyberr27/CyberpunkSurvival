@@ -100,21 +100,21 @@ const lights = [
     x: 1700,
     y: 1600,
     color: "rgba(0, 255, 255, 0.7)",
-    radius: 150,
+    radius: 1000,
   },
   {
     id: "light2",
     x: 2000,
     y: 1000,
     color: "rgba(255, 0, 255, 0.7)",
-    radius: 120,
+    radius: 1000,
   },
   {
     id: "light3",
     x: 1400,
     y: 2600,
     color: "rgba(148, 0, 211, 0.7)",
-    radius: 130,
+    radius: 1000,
   },
 ];
 
