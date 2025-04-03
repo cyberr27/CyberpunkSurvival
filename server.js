@@ -1,4 +1,4 @@
-const fs = require("fs").promises; // Используем промисы для асинхронной работы с файлами
+const fs = require("fs").promises;
 const express = require("express");
 const http = require("http");
 const WebSocket = require("ws");
@@ -11,8 +11,6 @@ const wss = new WebSocket.Server({ server });
 const clients = new Map();
 const players = new Map();
 const userDatabase = new Map();
-
-// Путь к файлу для хранения данных
 const DB_FILE = path.join(__dirname, "userDatabase.json");
 
 // Функция загрузки базы данных из файла
@@ -26,7 +24,8 @@ async function loadUserDatabase() {
     console.log("База данных пользователей загружена из файла");
   } catch (error) {
     if (error.code === "ENOENT") {
-      console.log("Файл базы данных не найден, начинаем с пустой базы");
+      console.log("Файл базы данных не найден, создаем новый");
+      await saveUserDatabase(); // Создаем пустой файл, если его нет
     } else {
       console.error("Ошибка при загрузке базы данных:", error);
     }
@@ -36,13 +35,24 @@ async function loadUserDatabase() {
 // Функция сохранения базы данных в файл
 async function saveUserDatabase() {
   try {
-    const data = JSON.stringify(Object.fromEntries(userDatabase));
+    const data = JSON.stringify(Object.fromEntries(userDatabase), null, 2); // Форматируем JSON для читаемости
     await fs.writeFile(DB_FILE, data, "utf8");
     console.log("База данных пользователей сохранена в файл");
   } catch (error) {
     console.error("Ошибка при сохранении базы данных:", error);
   }
 }
+
+// Инициализация сервера только после загрузки базы данных
+async function initializeServer() {
+  await loadUserDatabase(); // Загружаем базу данных перед стартом
+  console.log("Сервер готов к работе после загрузки базы данных");
+}
+
+initializeServer().catch((error) => {
+  console.error("Ошибка при инициализации сервера:", error);
+  process.exit(1); // Завершаем процесс, если не удалось загрузить базу
+});
 
 const items = new Map();
 const obstacles = [];
@@ -66,11 +76,6 @@ function pointToLineDistance(px, py, x1, y1, x2, y2) {
 app.use(express.static(path.join(__dirname, "public")));
 
 wss.on("connection", (ws) => {
-  // Загружаем базу данных при старте сервера
-  loadUserDatabase().then(() => {
-    console.log("Сервер готов к работе после загрузки базы данных");
-  });
-
   console.log("Клиент подключился");
 
   ws.on("message", (message) => {
@@ -100,10 +105,8 @@ wss.on("connection", (ws) => {
           state: "idle",
           frame: 0,
         };
-        userDatabase.set(data.username, newPlayer); // Сохраняем в базе
         userDatabase.set(data.username, newPlayer);
-        saveUserDatabase(); // Сохраняем после добавления нового пользователя
-        ws.send(JSON.stringify({ type: "registerSuccess" }));
+        saveUserDatabase(); // Сохраняем после регистрации
         ws.send(JSON.stringify({ type: "registerSuccess" }));
       }
     } else if (data.type === "login") {
@@ -115,10 +118,10 @@ wss.on("connection", (ws) => {
           JSON.stringify({
             type: "loginSuccess",
             id: data.username,
-            players: Array.from(players.values()), // Отправляем только активных
+            players: Array.from(players.values()),
             wolves: [],
             items: Array.from(items.values()),
-            obstacles: obstacles, // Добавляем препятствия
+            obstacles: obstacles,
           })
         );
         wss.clients.forEach((client) => {
@@ -139,8 +142,8 @@ wss.on("connection", (ws) => {
       if (id) {
         const updatedPlayer = { ...players.get(id), ...data };
         players.set(id, updatedPlayer);
-        userDatabase.set(id, updatedPlayer);
-        saveUserDatabase(); // Сохраняем после обновления данных игрока
+        userDatabase.set(id, updatedPlayer); // Обновляем в базе
+        saveUserDatabase(); // Сохраняем после каждого движения
         wss.clients.forEach((client) => {
           if (client.readyState === WebSocket.OPEN) {
             client.send(
@@ -175,7 +178,7 @@ wss.on("connection", (ws) => {
     } else if (data.type === "shoot") {
       const id = clients.get(ws);
       if (id) {
-        const bulletId = Date.now().toString(); // Уникальный ID пули
+        const bulletId = Date.now().toString();
         bullets.set(bulletId, {
           id: bulletId,
           shooterId: id,
@@ -184,7 +187,7 @@ wss.on("connection", (ws) => {
           dx: data.dx,
           dy: data.dy,
           spawnTime: Date.now(),
-          life: 1000, // Время жизни пули в мс
+          life: 1000,
         });
 
         wss.clients.forEach((client) => {
@@ -320,7 +323,8 @@ setInterval(() => {
 }, 10000);
 
 const PORT = process.env.PORT || 10000;
-loadUserDatabase()
+
+initializeServer()
   .then(() => {
     server.listen(PORT, () => {
       console.log(`WebSocket server running on ws://localhost:${PORT}`);
@@ -331,4 +335,5 @@ loadUserDatabase()
       "Не удалось запустить сервер из-за ошибки загрузки базы:",
       error
     );
+    process.exit(1);
   });
