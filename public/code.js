@@ -218,10 +218,12 @@ function handleAuthMessage(event) {
 }
 
 function startGame() {
+  let isKeyPressed = false; // Флаг для отслеживания нажатия клавиши
+
   document.addEventListener("keydown", (e) => {
     if (document.activeElement === chatInput) return;
     const me = players.get(myId);
-    if (!me || me.health <= 0) return;
+    if (!me || me.health <= 0 || isKeyPressed) return; // Проверяем флаг
 
     const speed = 5;
     let moved = false;
@@ -261,6 +263,7 @@ function startGame() {
     }
 
     if (moved && !checkCollision(me.x, me.y)) {
+      isKeyPressed = true; // Устанавливаем флаг при успешном движении
       me.steps += 1;
       updateResources();
 
@@ -295,6 +298,44 @@ function startGame() {
     }
 
     e.preventDefault();
+  });
+
+  // Сбрасываем флаг при отпускании клавиши
+  document.addEventListener("keyup", (e) => {
+    switch (e.key) {
+      case "ArrowUp":
+      case "w":
+      case "ArrowDown":
+      case "s":
+      case "ArrowLeft":
+      case "a":
+      case "ArrowRight":
+      case "d":
+        isKeyPressed = false;
+        const me = players.get(myId);
+        if (me) {
+          me.state = "idle"; // Переводим в состояние покоя
+          me.frame = 0;
+          me.frameTime = 0;
+          ws.send(
+            JSON.stringify({
+              type: "move",
+              x: me.x,
+              y: me.y,
+              health: me.health,
+              energy: me.energy,
+              food: me.food,
+              water: me.water,
+              armor: me.armor,
+              steps: me.steps,
+              direction: me.direction,
+              state: me.state,
+              frame: me.frame,
+            })
+          );
+        }
+        break;
+    }
   });
 
   document.addEventListener("keydown", (e) => {
@@ -594,7 +635,6 @@ function draw(deltaTime) {
       // Если direction некорректен, используем down как запасной вариант
       if (spriteY === undefined) {
         spriteY = 40;
-        
       }
     }
 
