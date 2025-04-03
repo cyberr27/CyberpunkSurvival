@@ -466,14 +466,12 @@ function update(deltaTime) {
     me.state = "dying";
     me.frame = 0;
     me.frameTime = 0;
-    console.log(`Игрок ${myId} начал анимацию смерти`);
   } else if (me.state === "dying") {
     me.frameTime += deltaTime;
     if (me.frameTime >= 200) {
       me.frameTime = 0;
       if (me.frame < 6) {
         me.frame += 1;
-        console.log(`Игрок ${myId} смерть, кадр: ${me.frame}`);
       }
     }
     ws.send(
@@ -572,9 +570,6 @@ function draw(deltaTime) {
           player.frameTime = 0;
           if (player.frame < 6) {
             player.frame += 1;
-            console.log(
-              `Другой игрок ${player.id} смерть, кадр: ${player.frame}`
-            );
           }
         }
       } else {
@@ -599,9 +594,7 @@ function draw(deltaTime) {
       // Если direction некорректен, используем down как запасной вариант
       if (spriteY === undefined) {
         spriteY = 40;
-        console.warn(
-          `Некорректное направление для игрока ${player.id}: ${player.direction}`
-        );
+        
       }
     }
 
@@ -617,11 +610,6 @@ function draw(deltaTime) {
       40,
       40
     );
-
-    // Для отладки: логируем направление и координаты
-    if (player.id === myId) {
-      console.log(`Direction: ${player.direction}, SpriteY: ${spriteY}`);
-    }
 
     // Отрисовка имени и HP
     ctx.fillStyle = "white";
