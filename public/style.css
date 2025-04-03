@@ -149,44 +149,112 @@ button:active {
   transform: scale(0.95);
 }
 
-/* Позиционирование кнопок для десктопов */
-#upBtn {
-  position: absolute;
-  top: 78%;
-  left: 8%;
+/* Панель управления в стиле киберпанк */
+#controls {
+  position: absolute; /* Оставляем абсолютное позиционирование, как у кнопок */
+  bottom: 2%; /* Располагаем внизу экрана, чуть выше края */
+  left: 50%; /* Центрируем по горизонтали */
+  transform: translateX(
+    -50%
+  ); /* Сдвигаем влево на половину ширины для точного центрирования */
+  width: 300px; /* Фиксированная ширина панели (можно подогнать под твои кнопки) */
+  height: 150px; /* Высота панели, чтобы вместить все кнопки */
+  background: linear-gradient(
+    135deg,
+    rgba(0, 255, 255, 0.2),
+    rgba(255, 0, 255, 0.2)
+  ); /* Полупрозрачный градиент от голубого к пурпурному */
+  border: 2px solid #00ffff; /* Неоновая голубая рамка */
+  border-radius: 10px; /* Скругленные углы для футуристичного вида */
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.7),
+    /* Внешнее свечение голубого цвета */ 0 0 20px rgba(255, 0, 255, 0.5),
+    /* Дополнительное пурпурное свечение */ inset 0 0 15px
+      rgba(0, 255, 255, 0.3); /* Внутреннее свечение для глубины */
+  backdrop-filter: blur(
+    5px
+  ); /* Эффект размытия фона за панелью (если поддерживается браузером) */
+  z-index: 50; /* Убеждаемся, что панель выше канваса, но ниже чата или авторизации */
 }
 
-#rightBtn {
-  position: absolute;
-  top: 83%;
-  left: 15%;
+/* Усиливаем киберпанк-эффект при наведении */
+#controls:hover {
+  box-shadow: 0 0 15px rgba(0, 255, 255, 1),
+    /* Усиленное свечение при наведении */ 0 0 30px rgba(255, 0, 255, 0.7),
+    inset 0 0 20px rgba(0, 255, 255, 0.5);
+  animation: pulse 1.5s infinite alternate; /* Пульсация при наведении */
 }
 
-#leftBtn {
-  position: absolute;
-  top: 83%;
-  left: 1%;
-}
+/* Анимация пульсации для панели */
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.7), 0 0 20px rgba(255, 0, 255, 0.5),
+      inset 0 0 15px rgba(0, 255, 255, 0.3);
+  }
+  100% {
+    box-shadow: 0 0 20px rgba(0, 255, 255, 1), 0 0 40px rgba(255, 0, 255, 0.8),
+      inset 0 0 25px rgba(0, 255, 255, 0.6);
 
-#downBtn {
-  position: absolute;
-  top: 87%;
-  left: 8.2%;
-}
+    /* Позиционирование кнопок для десктопов */
+    #upBtn {
+      position: absolute;
+      top: 10px; /* Сдвигаем ближе к верху панели */
+      left: 50%; /* Центрируем */
+      transform: translateX(-50%); /* Точное центрирование */
+    }
 
-#shootBtn {
-  position: absolute;
-  top: 77.5%;
-  right: 2%;
-  width: 20%;
-  height: 20%;
-  background: linear-gradient(135deg, #ff4500, #ff8c00);
-  border: 2px solid #ff6347;
-  box-shadow: 0 0 10px rgba(255, 99, 71, 0.7);
-}
+    #rightBtn {
+      position: absolute;
+      top: 50%;
+      right: 10px; /* Справа от центра */
+      transform: translateY(-50%);
+    }
 
-#shootBtn:hover {
-  box-shadow: 0 0 20px rgba(255, 99, 71, 1);
+    #leftBtn {
+      position: absolute;
+      top: 50%; /* Серединная линия */
+      left: 10px; /* Слева от центра */
+      transform: translateY(-50%); /* Центрируем по вертикали */
+    }
+
+    #downBtn {
+      position: absolute;
+      bottom: 10px; /* Прижимаем к низу панели */
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    #shootBtn {
+      position: absolute;
+      top: 10px; /* В верхнем правом углу панели */
+      right: 10px;
+      width: 60px; /* Уменьшаем размер для компактности */
+      height: 60px;
+      border-radius: 50%; /* Убеждаемся, что кнопка круглая */
+    }
+
+    #shootBtn:hover {
+      box-shadow: 0 0 20px rgba(255, 99, 71, 1);
+    }
+
+    #chatBtn {
+      position: absolute;
+      bottom: 10px; /* В нижнем правом углу панели */
+      right: 10px;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+    }
+
+    #chatBtn:hover {
+      box-shadow: 0 0 20px rgba(148, 0, 211, 1);
+      transform: scale(1.1);
+    }
+
+    #chatBtn.active {
+      background: linear-gradient(135deg, #ff00cc, #00ff99);
+      box-shadow: 0 0 20px rgba(255, 0, 204, 1);
+    }
+  }
 }
 
 /* Стили для статистики */
@@ -225,7 +293,8 @@ button:active {
 
 #stats .armor {
   color: #ff4500; /* Яркий оранжевый для брони */
-  text-shadow: 0 0 5px #ff4500, 0 0 10px #ff4500, 0 0 15px #ff00ff, 0 0 20px #ff4500; /* Усиленный неоновый эффект */
+  text-shadow: 0 0 5px #ff4500, 0 0 10px #ff4500, 0 0 15px #ff00ff,
+    0 0 20px #ff4500; /* Усиленный неоновый эффект */
   animation: flicker 1.5s infinite alternate; /* Мерцание оставляем */
 }
 
@@ -261,32 +330,6 @@ button:active {
     opacity: 0.6;
     text-shadow: 0 0 2px #00ffff, 0 0 5px #00ffff, 0 0 10px #ff00ff;
   }
-}
-
-/* Кнопка чата */
-#chatBtn {
-  position: absolute;
-  top: 91%;
-  left: 25%;
-  background: linear-gradient(135deg, #9400d3, #00ffcc);
-  border: 2px solid #9400d3;
-  box-shadow: 0 0 10px rgba(148, 0, 211, 0.7);
-  border-radius: 50%;
-  padding: 15px;
-  font-size: 16px;
-  color: #fff;
-  cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-
-#chatBtn:hover {
-  box-shadow: 0 0 20px rgba(148, 0, 211, 1);
-  transform: scale(1.1);
-}
-
-#chatBtn.active {
-  background: linear-gradient(135deg, #ff00cc, #00ff99);
-  box-shadow: 0 0 20px rgba(255, 0, 204, 1);
 }
 
 /* Окно чата */
@@ -343,64 +386,59 @@ button:active {
     font-size: 14px;
   }
 
+  #upBtn {
+    top: 5px; /* Уменьшаем отступы */
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
   #leftBtn {
-    top: 82%;
-    left: 2%;
-    width: 20%;
-    height: 10%;
+    top: 50%;
+    left: 5px;
+    transform: translateY(-50%);
   }
 
   #rightBtn {
-    top: 82%;
-    left: 34%;
-    width: 20%;
-    height: 10%;
-  }
-
-  #upBtn {
-    top: 76%;
-    left: 18%;
-    width: 20%;
-    height: 10%;
+    top: 50%;
+    right: 5px;
+    transform: translateY(-50%);
   }
 
   #downBtn {
-    top: 88%;
-    left: 18%;
-    width: 20%;
-    height: 10%;
+    bottom: 5px;
+    left: 50%;
+    transform: translateX(-50%);
   }
+
   #shootBtn {
-    top: 77%;
-    right: 4%;
-    width: auto;
-    height: auto;
-    width: 30%;
-    height: 15%;
+    top: 5px;
+    right: 5px;
+    width: 50px;
+    height: 50px;
+  }
+
+  #chatBtn {
+    bottom: 5px;
+    right: 5px;
+    width: 40px;
+    height: 40px;
   }
   #stats {
     font-size: 16px;
-  }
-  #chatBtn {
-    position: absolute;
-    top: 92%;
-    left: 1%;
   }
   #chatContainer {
     position: absolute;
     top: 43.5%;
   }
-<<<<<<< HEAD
   .auth-container {
     position: absolute;
     left: 0%;
-=======
-  .auth-box {
-    left: 1%;
-    right: 1%;
-    width: 80%;
-    margin: 0 auto;
-    position: absolute;
->>>>>>> 3dd7ad01e0df5bf800cc0edc585282a198b2bcff
+    .auth-box {
+      left: 1%;
+      right: 1%;
+      width: 80%;
+      margin: 0 auto;
+      position: absolute;
+    }
   }
 }

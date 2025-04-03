@@ -203,8 +203,6 @@ function handleAuthMessage(event) {
       myId = data.id;
       authContainer.style.display = "none";
       document.getElementById("gameContainer").style.display = "block";
-      document.body.style.background = "url(body2.png) center no-repeat";
-      document.body.style.backgroundSize = "100% 100%";
       data.players.forEach((p) => players.set(p.id, p));
       // Отрисовка локальных пуль
       bullets.forEach((bullet) => {
