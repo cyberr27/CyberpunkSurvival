@@ -28,10 +28,9 @@ let players = new Map();
 let wolves = new Map();
 let myId;
 const items = new Map();
+const lights = [];
 const obstacles = [];
 const bullets = new Map(); // Изменяем на Map для синхронизации с сервером
-// Добавляем массив огней в глобальные переменные
-const lights = [];
 
 // Добавляем переменные для управления анимацией
 let lastTime = 0; // Время последнего кадра для расчета deltaTime

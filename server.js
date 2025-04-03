@@ -94,6 +94,29 @@ initializeServer()
 const items = new Map();
 const obstacles = [];
 const bullets = new Map(); // Хранилище пуль на сервере
+const lights = [
+  {
+    id: "light1",
+    x: 1700,
+    y: 1600,
+    color: "rgba(0, 255, 255, 0.7)",
+    radius: 150,
+  },
+  {
+    id: "light2",
+    x: 2000,
+    y: 1000,
+    color: "rgba(255, 0, 255, 0.7)",
+    radius: 120,
+  },
+  {
+    id: "light3",
+    x: 1400,
+    y: 2600,
+    color: "rgba(148, 0, 211, 0.7)",
+    radius: 130,
+  },
+];
 
 // Функция вычисления расстояния от точки до линии (взята из одиночной игры)
 function pointToLineDistance(px, py, x1, y1, x2, y2) {
@@ -160,7 +183,7 @@ wss.on("connection", (ws) => {
             wolves: [],
             items: Array.from(items.values()),
             obstacles: obstacles,
-            lights: lights, // Добавляем огни в ответ
+            lights: lights, // Здесь проблема
           })
         );
         wss.clients.forEach((client) => {
