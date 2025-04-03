@@ -30,6 +30,8 @@ let myId;
 const items = new Map();
 const obstacles = [];
 const bullets = new Map(); // Изменяем на Map для синхронизации с сервером
+// Добавляем массив огней в глобальные переменные
+const lights = [];
 
 // Добавляем переменные для управления анимацией
 let lastTime = 0; // Время последнего кадра для расчета deltaTime
@@ -54,6 +56,10 @@ createLineObstacle(1640, 2530, 1355, 2720);
 createLineObstacle(1355, 2720, 1065, 2520);
 createLineObstacle(1065, 2520, 1290, 2435);
 createLineObstacle(1290, 2435, 1640, 2530);
+
+createLight(1700, 1600, "rgba(0, 255, 255, 0.7)", 150); // Голубой неон
+createLight(2000, 1000, "rgba(255, 0, 255, 0.7)", 120); // Розовый неон
+createLight(1400, 2600, "rgba(148, 0, 211, 0.7)", 130); // Фиолетовый неон
 
 function createLineObstacle(x1, y1, x2, y2, thickness = 5) {
   const length = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
@@ -207,6 +213,10 @@ function handleAuthMessage(event) {
       // Было: data.obstacles.forEach((o) => obstacles.set(o.id, o));
       // Стало: присваиваем массив напрямую
       data.obstacles.forEach((o) => obstacles.push(o));
+      if (data.lights) {
+        lights.length = 0; // Очищаем локальный массив
+        data.lights.forEach((light) => lights.push(light));
+      }
       resizeCanvas();
       ws.onmessage = handleGameMessage;
       startGame();
@@ -566,6 +576,9 @@ function updateStatsDisplay() {
 
 function draw(deltaTime) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+  // Эффект ночи: тёмный полупрозрачный слой
+  ctx.fillStyle = "rgba(10, 20, 40, 0.8)"; // Тёмно-синий с прозрачностью для киберпанк-стиля
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
   const groundSpeed = 1.0,
     vegetationSpeed = 0.8,
     rocksSpeed = 0.6,
@@ -581,6 +594,36 @@ function draw(deltaTime) {
   ctx.translate(-groundOffsetX, -camera.y * groundSpeed);
   ctx.fillRect(groundOffsetX, camera.y * groundSpeed, worldWidth, worldHeight);
   ctx.restore();
+
+  // Отрисовка огней
+  lights.forEach((light) => {
+    const screenX = light.x - camera.x;
+    const screenY = light.y - camera.y;
+
+    // Проверяем, виден ли свет в области камеры
+    if (
+      screenX + light.radius > 0 &&
+      screenX - light.radius < canvas.width &&
+      screenY + light.radius > 0 &&
+      screenY - light.radius < canvas.height
+    ) {
+      const gradient = ctx.createRadialGradient(
+        screenX,
+        screenY,
+        0,
+        screenX,
+        screenY,
+        light.radius
+      );
+      gradient.addColorStop(0, light.color); // Яркий центр
+      gradient.addColorStop(1, "rgba(0, 0, 0, 0)"); // Прозрачная граница
+
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(screenX, screenY, light.radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  });
 
   ctx.drawImage(
     rocksImage,
@@ -966,6 +1009,11 @@ function checkBulletCollision(bullet) {
     }
   }
   return false;
+}
+
+// Функция создания источника света
+function createLight(x, y, color, radius) {
+  lights.push({ x, y, color, radius });
 }
 
 function checkCollision(newX, newY) {

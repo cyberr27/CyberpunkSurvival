@@ -160,6 +160,7 @@ wss.on("connection", (ws) => {
             wolves: [],
             items: Array.from(items.values()),
             obstacles: obstacles,
+            lights: lights, // Добавляем огни в ответ
           })
         );
         wss.clients.forEach((client) => {
