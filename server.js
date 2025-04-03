@@ -12,13 +12,31 @@ const clients = new Map();
 const players = new Map();
 const userDatabase = new Map();
 
-const uri =
-  process.env.MONGO_URI ||
-  "mongodb+srv://aleksejbalinskij27:<76360587636058>@cluster0.jk71lmt.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+// Получаем строку подключения только из переменной окружения
+const uri = process.env.MONGO_URI;
+console.log(
+  "Значение MONGO_URI из окружения:",
+  uri ? uri.replace(/:([^:@]+)@/, ":<password>@") : "не определено"
+);
+
+if (!uri || typeof uri !== "string" || !uri.trim()) {
+  console.error(
+    "Ошибка: Переменная окружения MONGO_URI не определена или пуста!"
+  );
+  process.exit(1);
+}
+
+if (!uri.startsWith("mongodb://") && !uri.startsWith("mongodb+srv://")) {
+  console.error(
+    "Ошибка: Некорректная схема в MONGO_URI. Ожидается 'mongodb://' или 'mongodb+srv://'"
+  );
+  process.exit(1);
+}
+
 console.log(
   "Используемая строка подключения MongoDB:",
   uri.replace(/:([^:@]+)@/, ":<password>@")
-); // Скрываем пароль в логах
+);
 const mongoClient = new MongoClient(uri);
 
 async function connectToDatabase() {
@@ -32,6 +50,7 @@ async function connectToDatabase() {
   }
 }
 
+// Остальной код остается без изменений...
 async function loadUserDatabase(collection) {
   try {
     const users = await collection.find({}).toArray();
