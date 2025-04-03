@@ -14,7 +14,7 @@ const userDatabase = new Map();
 
 const uri =
   process.env.MONGO_URI ||
-  "mongodb+srv://aleksejbalinskij27:<db_password>@cluster0.jk71lmt.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+  "mongodb+srv://aleksejbalinskij27:<76360587636058>@cluster0.jk71lmt.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 console.log(
   "Используемая строка подключения MongoDB:",
   uri.replace(/:([^:@]+)@/, ":<password>@")
