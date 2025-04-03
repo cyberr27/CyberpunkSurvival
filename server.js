@@ -1,3 +1,4 @@
+const fs = require("fs").promises; // Используем промисы для асинхронной работы с файлами
 const express = require("express");
 const http = require("http");
 const WebSocket = require("ws");
@@ -10,6 +11,39 @@ const wss = new WebSocket.Server({ server });
 const clients = new Map();
 const players = new Map();
 const userDatabase = new Map();
+
+// Путь к файлу для хранения данных
+const DB_FILE = path.join(__dirname, "userDatabase.json");
+
+// Функция загрузки базы данных из файла
+async function loadUserDatabase() {
+  try {
+    const data = await fs.readFile(DB_FILE, "utf8");
+    const users = JSON.parse(data);
+    for (const [username, player] of Object.entries(users)) {
+      userDatabase.set(username, player);
+    }
+    console.log("База данных пользователей загружена из файла");
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      console.log("Файл базы данных не найден, начинаем с пустой базы");
+    } else {
+      console.error("Ошибка при загрузке базы данных:", error);
+    }
+  }
+}
+
+// Функция сохранения базы данных в файл
+async function saveUserDatabase() {
+  try {
+    const data = JSON.stringify(Object.fromEntries(userDatabase));
+    await fs.writeFile(DB_FILE, data, "utf8");
+    console.log("База данных пользователей сохранена в файл");
+  } catch (error) {
+    console.error("Ошибка при сохранении базы данных:", error);
+  }
+}
+
 const items = new Map();
 const obstacles = [];
 const bullets = new Map(); // Хранилище пуль на сервере
@@ -32,6 +66,11 @@ function pointToLineDistance(px, py, x1, y1, x2, y2) {
 app.use(express.static(path.join(__dirname, "public")));
 
 wss.on("connection", (ws) => {
+  // Загружаем базу данных при старте сервера
+  loadUserDatabase().then(() => {
+    console.log("Сервер готов к работе после загрузки базы данных");
+  });
+
   console.log("Клиент подключился");
 
   ws.on("message", (message) => {
@@ -62,6 +101,9 @@ wss.on("connection", (ws) => {
           frame: 0,
         };
         userDatabase.set(data.username, newPlayer); // Сохраняем в базе
+        userDatabase.set(data.username, newPlayer);
+        saveUserDatabase(); // Сохраняем после добавления нового пользователя
+        ws.send(JSON.stringify({ type: "registerSuccess" }));
         ws.send(JSON.stringify({ type: "registerSuccess" }));
       }
     } else if (data.type === "login") {
@@ -98,6 +140,7 @@ wss.on("connection", (ws) => {
         const updatedPlayer = { ...players.get(id), ...data };
         players.set(id, updatedPlayer);
         userDatabase.set(id, updatedPlayer);
+        saveUserDatabase(); // Сохраняем после обновления данных игрока
         wss.clients.forEach((client) => {
           if (client.readyState === WebSocket.OPEN) {
             client.send(
@@ -277,6 +320,15 @@ setInterval(() => {
 }, 10000);
 
 const PORT = process.env.PORT || 10000;
-server.listen(PORT, () => {
-  console.log(`WebSocket server running on ws://localhost:${PORT}`);
-});
+loadUserDatabase()
+  .then(() => {
+    server.listen(PORT, () => {
+      console.log(`WebSocket server running on ws://localhost:${PORT}`);
+    });
+  })
+  .catch((error) => {
+    console.error(
+      "Не удалось запустить сервер из-за ошибки загрузки базы:",
+      error
+    );
+  });
