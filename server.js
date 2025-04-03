@@ -2,7 +2,7 @@ const express = require("express");
 const http = require("http");
 const WebSocket = require("ws");
 const path = require("path");
-const { MongoClient } = require("mongodb"); // Импортируем MongoDB
+const { MongoClient } = require("mongodb");
 
 const app = express();
 const server = http.createServer(app);
@@ -12,13 +12,15 @@ const clients = new Map();
 const players = new Map();
 const userDatabase = new Map();
 
-// Строка подключения к MongoDB (будет из переменной окружения)
 const uri =
   process.env.MONGO_URI ||
-  "mongodb+srv://cyberpunkuser:SecurePassword123@cluster0.mongodb.net/cyberpunk_survival?retryWrites=true&w=majority";
+  "mongodb+srv://aleksejbalinskij27:<db_password>@cluster0.jk71lmt.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+console.log(
+  "Используемая строка подключения MongoDB:",
+  uri.replace(/:([^:@]+)@/, ":<password>@")
+); // Скрываем пароль в логах
 const mongoClient = new MongoClient(uri);
 
-// Подключение к MongoDB
 async function connectToDatabase() {
   try {
     await mongoClient.connect();
@@ -26,11 +28,10 @@ async function connectToDatabase() {
     return mongoClient.db("cyberpunk_survival").collection("users");
   } catch (error) {
     console.error("Ошибка подключения к MongoDB:", error);
-    process.exit(1); // Завершаем процесс, если не удалось подключиться
+    process.exit(1);
   }
 }
 
-// Загрузка данных пользователей из MongoDB в userDatabase
 async function loadUserDatabase(collection) {
   try {
     const users = await collection.find({}).toArray();
@@ -41,13 +42,12 @@ async function loadUserDatabase(collection) {
   }
 }
 
-// Сохранение данных пользователя в MongoDB
 async function saveUserDatabase(collection, username, player) {
   try {
     await collection.updateOne(
       { id: username },
       { $set: player },
-      { upsert: true } // Создаем запись, если её нет
+      { upsert: true }
     );
     console.log(`Данные пользователя ${username} сохранены в MongoDB`);
   } catch (error) {
@@ -55,18 +55,17 @@ async function saveUserDatabase(collection, username, player) {
   }
 }
 
-// Инициализация сервера
 async function initializeServer() {
   const collection = await connectToDatabase();
   await loadUserDatabase(collection);
   console.log("Сервер готов к работе после загрузки базы данных");
-  return collection; // Возвращаем коллекцию для использования
+  return collection;
 }
 
-let dbCollection; // Глобальная переменная для коллекции
+let dbCollection;
 initializeServer()
   .then((collection) => {
-    dbCollection = collection; // Сохраняем коллекцию
+    dbCollection = collection;
   })
   .catch((error) => {
     console.error("Ошибка при инициализации сервера:", error);
