@@ -1,8 +1,8 @@
-const fs = require("fs").promises;
 const express = require("express");
 const http = require("http");
 const WebSocket = require("ws");
 const path = require("path");
+const { MongoClient } = require("mongodb"); // Импортируем MongoDB
 
 const app = express();
 const server = http.createServer(app);
@@ -11,48 +11,67 @@ const wss = new WebSocket.Server({ server });
 const clients = new Map();
 const players = new Map();
 const userDatabase = new Map();
-const DB_FILE = path.join(__dirname, "userDatabase.json");
 
-// Функция загрузки базы данных из файла
-async function loadUserDatabase() {
+// Строка подключения к MongoDB (будет из переменной окружения)
+const uri =
+  process.env.MONGO_URI ||
+  "mongodb+srv://cyberpunkuser:SecurePassword123@cluster0.mongodb.net/cyberpunk_survival?retryWrites=true&w=majority";
+const mongoClient = new MongoClient(uri);
+
+// Подключение к MongoDB
+async function connectToDatabase() {
   try {
-    const data = await fs.readFile(DB_FILE, "utf8");
-    const users = JSON.parse(data);
-    for (const [username, player] of Object.entries(users)) {
-      userDatabase.set(username, player);
-    }
-    console.log("База данных пользователей загружена из файла");
+    await mongoClient.connect();
+    console.log("Подключено к MongoDB");
+    return mongoClient.db("cyberpunk_survival").collection("users");
   } catch (error) {
-    if (error.code === "ENOENT") {
-      console.log("Файл базы данных не найден, создаем новый");
-      await saveUserDatabase(); // Создаем пустой файл, если его нет
-    } else {
-      console.error("Ошибка при загрузке базы данных:", error);
-    }
+    console.error("Ошибка подключения к MongoDB:", error);
+    process.exit(1); // Завершаем процесс, если не удалось подключиться
   }
 }
 
-// Функция сохранения базы данных в файл
-async function saveUserDatabase() {
+// Загрузка данных пользователей из MongoDB в userDatabase
+async function loadUserDatabase(collection) {
   try {
-    const data = JSON.stringify(Object.fromEntries(userDatabase), null, 2); // Форматируем JSON для читаемости
-    await fs.writeFile(DB_FILE, data, "utf8");
-    console.log("База данных пользователей сохранена в файл");
+    const users = await collection.find({}).toArray();
+    users.forEach((user) => userDatabase.set(user.id, user));
+    console.log("База данных пользователей загружена из MongoDB");
   } catch (error) {
-    console.error("Ошибка при сохранении базы данных:", error);
+    console.error("Ошибка при загрузке базы данных из MongoDB:", error);
   }
 }
 
-// Инициализация сервера только после загрузки базы данных
+// Сохранение данных пользователя в MongoDB
+async function saveUserDatabase(collection, username, player) {
+  try {
+    await collection.updateOne(
+      { id: username },
+      { $set: player },
+      { upsert: true } // Создаем запись, если её нет
+    );
+    console.log(`Данные пользователя ${username} сохранены в MongoDB`);
+  } catch (error) {
+    console.error("Ошибка при сохранении данных в MongoDB:", error);
+  }
+}
+
+// Инициализация сервера
 async function initializeServer() {
-  await loadUserDatabase(); // Загружаем базу данных перед стартом
+  const collection = await connectToDatabase();
+  await loadUserDatabase(collection);
   console.log("Сервер готов к работе после загрузки базы данных");
+  return collection; // Возвращаем коллекцию для использования
 }
 
-initializeServer().catch((error) => {
-  console.error("Ошибка при инициализации сервера:", error);
-  process.exit(1); // Завершаем процесс, если не удалось загрузить базу
-});
+let dbCollection; // Глобальная переменная для коллекции
+initializeServer()
+  .then((collection) => {
+    dbCollection = collection; // Сохраняем коллекцию
+  })
+  .catch((error) => {
+    console.error("Ошибка при инициализации сервера:", error);
+    process.exit(1);
+  });
 
 const items = new Map();
 const obstacles = [];
@@ -78,7 +97,8 @@ app.use(express.static(path.join(__dirname, "public")));
 wss.on("connection", (ws) => {
   console.log("Клиент подключился");
 
-  ws.on("message", (message) => {
+  ws.on("message", async (message) => {
+    // Добавляем async для асинхронных операций
     let data;
     try {
       data = JSON.parse(message);
@@ -106,7 +126,7 @@ wss.on("connection", (ws) => {
           frame: 0,
         };
         userDatabase.set(data.username, newPlayer);
-        saveUserDatabase(); // Сохраняем после регистрации
+        await saveUserDatabase(dbCollection, data.username, newPlayer); // Сохраняем в MongoDB
         ws.send(JSON.stringify({ type: "registerSuccess" }));
       }
     } else if (data.type === "login") {
@@ -142,8 +162,8 @@ wss.on("connection", (ws) => {
       if (id) {
         const updatedPlayer = { ...players.get(id), ...data };
         players.set(id, updatedPlayer);
-        userDatabase.set(id, updatedPlayer); // Обновляем в базе
-        saveUserDatabase(); // Сохраняем после каждого движения
+        userDatabase.set(id, updatedPlayer);
+        await saveUserDatabase(dbCollection, id, updatedPlayer); // Сохраняем в MongoDB
         wss.clients.forEach((client) => {
           if (client.readyState === WebSocket.OPEN) {
             client.send(
@@ -213,14 +233,13 @@ wss.on("connection", (ws) => {
     const id = clients.get(ws);
     if (id) {
       clients.delete(ws);
-      players.delete(id); // Удаляем только из активных игроков
+      players.delete(id);
       console.log("Клиент отключился:", id);
       wss.clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN) {
           client.send(JSON.stringify({ type: "playerLeft", id }));
         }
       });
-      // Данные в userDatabase остаются нетронутыми
     }
   });
 
@@ -229,15 +248,14 @@ wss.on("connection", (ws) => {
   });
 });
 
-// Обновление пуль и проверка столкновений
-setInterval(() => {
+setInterval(async () => {
+  // Добавляем async
   const currentTime = Date.now();
-  bullets.forEach((bullet, bulletId) => {
-    // Обновляем позицию пули
+  bullets.forEach(async (bullet, bulletId) => {
+    // Добавляем async
     bullet.x += bullet.dx;
     bullet.y += bullet.dy;
 
-    // Проверяем столкновение с препятствиями
     let bulletCollided = false;
     for (const obstacle of obstacles) {
       if (obstacle.isLine) {
@@ -250,11 +268,9 @@ setInterval(() => {
           obstacle.y2
         );
         if (distance < obstacle.thickness / 2 + 5) {
-          // 5 - радиус пули (из стилей клиента)
           bulletCollided = true;
           bullets.delete(bulletId);
           console.log(`Пуля ${bulletId} столкнулась с препятствием`);
-          // Уведомляем всех клиентов об удалении пули
           wss.clients.forEach((client) => {
             if (client.readyState === WebSocket.OPEN) {
               client.send(
@@ -265,14 +281,14 @@ setInterval(() => {
               );
             }
           });
-          break; // Выходим из цикла проверки препятствий
+          break;
         }
       }
     }
 
     if (!bulletCollided) {
-      // Проверяем столкновение с игроками (существующий код)
-      players.forEach((player, playerId) => {
+      players.forEach(async (player, playerId) => {
+        // Добавляем async
         if (playerId !== bullet.shooterId && player.health > 0) {
           const playerLeft = player.x;
           const playerRight = player.x + 40;
@@ -292,6 +308,7 @@ setInterval(() => {
             );
 
             userDatabase.set(playerId, { ...player });
+            await saveUserDatabase(dbCollection, playerId, player); // Сохраняем в MongoDB
             bullets.delete(bulletId);
 
             wss.clients.forEach((client) => {
@@ -309,7 +326,6 @@ setInterval(() => {
         }
       });
 
-      // Удаляем пулю, если время жизни истекло
       if (currentTime - bullet.spawnTime > bullet.life) {
         bullets.delete(bulletId);
       }
@@ -325,14 +341,15 @@ setInterval(() => {
 const PORT = process.env.PORT || 10000;
 
 initializeServer()
-  .then(() => {
+  .then((collection) => {
+    dbCollection = collection; // Убеждаемся, что коллекция доступна
     server.listen(PORT, () => {
       console.log(`WebSocket server running on ws://localhost:${PORT}`);
     });
   })
   .catch((error) => {
     console.error(
-      "Не удалось запустить сервер из-за ошибки загрузки базы:",
+      "Не удалось запустить сервер из-за ошибки инициализации MongoDB:",
       error
     );
     process.exit(1);
