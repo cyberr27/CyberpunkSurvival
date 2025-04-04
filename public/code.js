@@ -239,7 +239,6 @@ function startGame() {
   let touchStartY = 0; // Начальная Y координата касания
   let isTouching = false; // Флаг, что палец зажат
 
-  // Обработчик клавиш (оставляем без изменений)
   document.addEventListener("keydown", (e) => {
     if (document.activeElement === chatInput) return;
     const me = players.get(myId);
@@ -305,7 +304,7 @@ function startGame() {
           steps: me.steps,
           direction: me.direction,
           state: me.state,
-          frame: me.frame, // Оставляем текущий кадр, он обновится в update
+          frame: me.frame,
         })
       );
       updateCamera();
@@ -730,16 +729,14 @@ function draw(deltaTime) {
       if (player.state === "walking") {
         player.frameTime += deltaTime;
         if (player.frameTime >= frameDuration / 7) {
-          // Делим на 7 кадров
           player.frameTime = 0;
-          player.frame = (player.frame + 1) % 7; // 7 кадров в строке
+          player.frame = (player.frame + 1) % 7;
         }
       } else if (player.state === "dying") {
         player.frameTime += deltaTime;
         if (player.frameTime >= frameDuration / 7) {
-          // Плавная смерть
           player.frameTime = 0;
-          if (player.frame < 6) player.frame += 1; // До 6, чтобы не выйти за пределы
+          if (player.frame < 6) player.frame += 1;
         }
       } else {
         player.frame = 0;
@@ -751,7 +748,7 @@ function draw(deltaTime) {
     let spriteY =
       player.state === "dying"
         ? 160 // Строка смерти
-        : { up: 40, down: 0, left: 80, right: 120 }[player.direction] || 0; // Новое соответствие направлений
+        : { up: 0, down: 40, left: 80, right: 120 }[player.direction] || 40; // Исправляем направления
 
     ctx.drawImage(
       playerSprite,
@@ -945,6 +942,7 @@ function update(deltaTime) {
   const me = players.get(myId);
   if (!me || me.health <= 0) return;
 
+  // Обновление пуль
   bullets.forEach((bullet, bulletId) => {
     bullet.x += bullet.dx * (deltaTime / 16);
     bullet.y += bullet.dy * (deltaTime / 16);
@@ -956,16 +954,18 @@ function update(deltaTime) {
     }
   });
 
-  if (me.health <= 0 && me.state !== "dying") {
-    me.state = "dying";
-    me.frame = 0;
-    me.frameTime = 0;
+  // Обновление анимации локального игрока
+  if (me.state === "walking") {
+    me.frameTime += deltaTime;
+    if (me.frameTime >= frameDuration / 7) {
+      me.frameTime = 0;
+      me.frame = (me.frame + 1) % 7; // 7 кадров в строке
+    }
   } else if (me.state === "dying") {
     me.frameTime += deltaTime;
     if (me.frameTime >= frameDuration / 7) {
-      // Плавная анимация смерти
       me.frameTime = 0;
-      if (me.frame < 6) me.frame += 1; // До 6, чтобы не выйти за пределы
+      if (me.frame < 6) me.frame += 1; // До 6 кадров смерти
     }
     ws.send(
       JSON.stringify({
@@ -983,6 +983,9 @@ function update(deltaTime) {
         frame: me.frame,
       })
     );
+  } else {
+    me.frame = 0;
+    me.frameTime = 0;
   }
 }
 
@@ -1100,7 +1103,7 @@ function handleButtonAction(action) {
       me.x = Math.min(worldWidth - 40, me.x + speed);
       moved = true;
       break;
-    case "shoot": // Добавляем обработку выстрела
+    case "shoot":
       shoot();
       break;
   }
@@ -1108,13 +1111,6 @@ function handleButtonAction(action) {
   if (moved && !checkCollision(me.x, me.y)) {
     me.steps += 1;
     updateResources();
-
-    me.frameTime += frameDuration;
-    if (me.frameTime >= frameDuration) {
-      me.frameTime = 0;
-      me.frame = (me.frame + 1) % 7;
-    }
-
     ws.send(
       JSON.stringify({
         type: "move",
@@ -1135,8 +1131,6 @@ function handleButtonAction(action) {
     checkCollisions();
   } else if (moved) {
     me.state = "idle";
-    me.frame = 0;
-    me.frameTime = 0;
   }
 }
 
