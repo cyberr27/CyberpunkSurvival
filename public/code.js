@@ -538,7 +538,7 @@ function update(deltaTime) {
 
   // Скорость движения (пикселей в секунду)
   const speed = 10; // Устанавливаем 200 пикселей в секунду для плавности
-  const moveSpeed = speed * (deltaTime / 500); // Переводим в пиксели за кадр
+  const moveSpeed = speed * (deltaTime / 300); // Переводим в пиксели за кадр
   let moved = false;
 
   // Обработка движения на основе флагов
