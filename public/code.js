@@ -32,6 +32,14 @@ const lights = [];
 const obstacles = [];
 const bullets = new Map(); // Изменяем на Map для синхронизации с сервером
 
+// Флаги для управления движением
+const movement = {
+  up: false,
+  down: false,
+  left: false,
+  right: false,
+};
+
 // Добавляем переменные для управления анимацией
 let lastTime = 0; // Время последнего кадра для расчета deltaTime
 const frameDuration = 1000; // Длительность одного кадра в миллисекундах (настраиваемая скорость анимации)
@@ -238,14 +246,6 @@ function startGame() {
   let touchStartX = 0;
   let touchStartY = 0;
   let isTouching = false;
-
-  // Флаги для управления движением
-  const movement = {
-    up: false,
-    down: false,
-    left: false,
-    right: false,
-  };
 
   document.addEventListener("keydown", (e) => {
     if (document.activeElement === chatInput) return;
@@ -1108,31 +1108,6 @@ function handleButtonAction(action) {
     case "shoot":
       shoot();
       break;
-  }
-
-  if (moved && !checkCollision(me.x, me.y)) {
-    me.steps += 1;
-    updateResources();
-    ws.send(
-      JSON.stringify({
-        type: "move",
-        x: me.x,
-        y: me.y,
-        health: me.health,
-        energy: me.energy,
-        food: me.food,
-        water: me.water,
-        armor: me.armor,
-        steps: me.steps,
-        direction: me.direction,
-        state: me.state,
-        frame: me.frame,
-      })
-    );
-    updateCamera();
-    checkCollisions();
-  } else if (moved) {
-    me.state = "idle";
   }
 }
 
