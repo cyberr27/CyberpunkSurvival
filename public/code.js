@@ -233,7 +233,7 @@ function startGame() {
   document.addEventListener("keydown", (e) => {
     if (document.activeElement === chatInput) return;
     const me = players.get(myId);
-    if (!me || me.health <= 0 || isKeyPressed) return; // Проверяем флаг
+    if (!me || me.health <= 0 || isKeyPressed) return;
 
     const speed = 10;
     let moved = false;
@@ -270,7 +270,7 @@ function startGame() {
       case " ":
         shoot();
         break;
-      case "t": // Открытие/закрытие чата клавишей T
+      case "t":
         const isChatVisible = chatContainer.style.display === "flex";
         chatContainer.style.display = isChatVisible ? "none" : "flex";
         if (!isChatVisible) chatInput.focus();
@@ -313,6 +313,45 @@ function startGame() {
     e.preventDefault();
   });
 
+  document.addEventListener("keyup", (e) => {
+    if (
+      [
+        "ArrowUp",
+        "w",
+        "ArrowDown",
+        "s",
+        "ArrowLeft",
+        "a",
+        "ArrowRight",
+        "d",
+      ].includes(e.key)
+    ) {
+      isKeyPressed = false;
+      const me = players.get(myId);
+      if (me) {
+        me.state = "idle";
+        me.frame = 0;
+        me.frameTime = 0;
+        ws.send(
+          JSON.stringify({
+            type: "move",
+            x: me.x,
+            y: me.y,
+            health: me.health,
+            energy: me.energy,
+            food: me.food,
+            water: me.water,
+            armor: me.armor,
+            steps: me.steps,
+            direction: me.direction,
+            state: me.state,
+            frame: me.frame,
+          })
+        );
+      }
+    }
+  });
+
   canvas.addEventListener("touchstart", (e) => {
     e.preventDefault();
     const me = players.get(myId);
@@ -324,9 +363,9 @@ function startGame() {
     const screenWidth = window.innerWidth;
 
     if (touchX < screenWidth / 2) {
-      handleMovement(touchX, touch.clientY); // Левая половина — движение
+      handleMovement(touchX, touch.clientY);
     } else {
-      shoot(); // Правая половина — выстрел
+      shoot();
     }
   });
 
@@ -375,43 +414,6 @@ function startGame() {
     }
   });
 
-  setupButton("upBtn", "up");
-  setupButton("downBtn", "down");
-  setupButton("leftBtn", "left");
-  setupButton("rightBtn", "right");
-  setupButton("shootBtn", "shoot"); // Используем setupButton для унификации
-
-  chatBtn.addEventListener("click", () => {
-    const isChatVisible = chatContainer.style.display === "flex";
-    chatContainer.style.display = isChatVisible ? "none" : "flex";
-    chatBtn.classList.toggle("active", !isChatVisible);
-    if (!isChatVisible) {
-      chatInput.focus();
-    } else {
-      chatInput.blur();
-    }
-  });
-
-  chatBtn.addEventListener("touchstart", (e) => {
-    e.preventDefault();
-    const isChatVisible = chatContainer.style.display === "flex";
-    chatContainer.style.display = isChatVisible ? "none" : "flex";
-    if (!isChatVisible) {
-      chatInput.focus();
-    }
-  });
-
-  // Чат
-  chatInput.addEventListener("keypress", (e) => {
-    if (e.key === "Enter" && chatInput.value.trim()) {
-      ws.send(
-        JSON.stringify({ type: "chat", message: chatInput.value.trim() })
-      );
-      chatInput.value = "";
-    }
-  });
-
-  // Чат
   chatInput.addEventListener("keypress", (e) => {
     if (e.key === "Enter" && chatInput.value.trim()) {
       ws.send(
