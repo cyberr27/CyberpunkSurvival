@@ -362,34 +362,33 @@ function startGame() {
   canvas.addEventListener("touchstart", (e) => {
     e.preventDefault();
     const me = players.get(myId);
-    if (!me || me.health <= 0 || touchActive) return;
+    if (!me || me.health <= 0) return;
 
-    touchActive = true;
     const touch = e.touches[0];
     const touchX = touch.clientX;
+    const touchY = touch.clientY;
     const screenWidth = window.innerWidth;
+    const screenHeight = window.innerHeight;
 
-    if (touchX < screenWidth / 2) {
-      handleMovement(touchX, touch.clientY);
-    } else {
-      shoot();
-    }
+    handleTouchMovement(touchX, touchY, screenWidth, screenHeight);
   });
 
   canvas.addEventListener("touchmove", (e) => {
     e.preventDefault();
     const me = players.get(myId);
-    if (!me || me.health <= 0 || !touchActive) return;
+    if (!me || me.health <= 0) return;
 
     const touch = e.touches[0];
-    if (touch.clientX < window.innerWidth / 2) {
-      handleMovement(touch.clientX, touch.clientY);
-    }
+    const touchX = touch.clientX;
+    const touchY = touch.clientY;
+    const screenWidth = window.innerWidth;
+    const screenHeight = window.innerHeight;
+
+    touchX, touchY, screenWidth, screenHeight;
   });
 
   canvas.addEventListener("touchend", (e) => {
     e.preventDefault();
-    touchActive = false;
     const me = players.get(myId);
     if (me) {
       me.state = "idle";
@@ -412,7 +411,91 @@ function startGame() {
         })
       );
     }
+    // Настройка кнопки Fire
+    const fireBtn = document.getElementById("fireBtn");
+    fireBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      shoot();
+    });
+
+    // Настройка кнопки Chat
+    const chatBtn = document.getElementById("chatBtn");
+    chatBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      const isChatVisible = chatContainer.style.display === "flex";
+      chatContainer.style.display = isChatVisible ? "none" : "flex";
+      chatBtn.classList.toggle("active", !isChatVisible);
+      if (!isChatVisible) chatInput.focus();
+      else chatInput.blur();
+    });
   });
+
+  function handleTouchMovement(touchX, touchY, screenWidth, screenHeight) {
+    const me = players.get(myId);
+    if (!me) return;
+
+    const speed = 5;
+    let moved = false;
+
+    // Делим экран на 4 зоны
+    if (touchY < screenHeight / 2 && touchX < screenWidth / 2) {
+      // Вверх-влево (приоритет вверх)
+      me.direction = "up";
+      me.state = "walking";
+      me.y = Math.max(0, me.y - speed);
+      moved = true;
+    } else if (touchY < screenHeight / 2 && touchX >= screenWidth / 2) {
+      // Вверх-вправо (приоритет вверх)
+      me.direction = "up";
+      me.state = "walking";
+      me.y = Math.max(0, me.y - speed);
+      moved = true;
+    } else if (touchY >= screenHeight / 2 && touchX < screenWidth / 2) {
+      // Вниз-влево (приоритет вниз)
+      me.direction = "down";
+      me.state = "walking";
+      me.y = Math.min(worldHeight - 40, me.y + speed);
+      moved = true;
+    } else if (touchY >= screenHeight / 2 && touchX >= screenWidth / 2) {
+      // Вниз-вправо (приоритет вниз)
+      me.direction = "down";
+      me.state = "walking";
+      me.y = Math.min(worldHeight - 40, me.y + speed);
+      moved = true;
+    }
+
+    if (moved && !checkCollision(me.x, me.y)) {
+      me.steps += 1;
+      updateResources();
+      me.frameTime += frameDuration;
+      if (me.frameTime >= frameDuration) {
+        me.frameTime = 0;
+        me.frame = (me.frame + 1) % 7;
+      }
+      ws.send(
+        JSON.stringify({
+          type: "move",
+          x: me.x,
+          y: me.y,
+          health: me.health,
+          energy: me.energy,
+          food: me.food,
+          water: me.water,
+          armor: me.armor,
+          steps: me.steps,
+          direction: me.direction,
+          state: me.state,
+          frame: me.frame,
+        })
+      );
+      updateCamera();
+      checkCollisions();
+    } else if (moved) {
+      me.state = "idle";
+      me.frame = 0;
+      me.frameTime = 0;
+    }
+  }
 
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && chatContainer.style.display === "flex") {
@@ -431,73 +514,6 @@ function startGame() {
   });
 
   requestAnimationFrame(gameLoop);
-}
-
-function handleMovement(touchX, touchY) {
-  const me = players.get(myId);
-  if (!me) return;
-
-  const speed = 5;
-  const screenWidth = window.innerWidth / 2; // Левая половина экрана
-  const screenHeight = window.innerHeight;
-
-  const centerX = screenWidth / 2;
-  const centerY = screenHeight / 2;
-
-  let moved = false;
-  if (touchX < centerX && touchY < centerY) {
-    me.direction = "up";
-    me.state = "walking";
-    me.y = Math.max(0, me.y - speed);
-    moved = true;
-  } else if (touchX < centerX && touchY > centerY) {
-    me.direction = "down";
-    me.state = "walking";
-    me.y = Math.min(worldHeight - 40, me.y + speed);
-    moved = true;
-  } else if (touchX > centerX && touchY < centerY) {
-    me.direction = "right";
-    me.state = "walking";
-    me.x = Math.min(worldWidth - 40, me.x + speed);
-    moved = true;
-  } else if (touchX > centerX && touchY > centerY) {
-    me.direction = "left";
-    me.state = "walking";
-    me.x = Math.max(0, me.x - speed);
-    moved = true;
-  }
-
-  if (moved && !checkCollision(me.x, me.y)) {
-    me.steps += 1;
-    updateResources();
-    me.frameTime += frameDuration;
-    if (me.frameTime >= frameDuration) {
-      me.frameTime = 0;
-      me.frame = (me.frame + 1) % 7;
-    }
-    ws.send(
-      JSON.stringify({
-        type: "move",
-        x: me.x,
-        y: me.y,
-        health: me.health,
-        energy: me.energy,
-        food: me.food,
-        water: me.water,
-        armor: me.armor,
-        steps: me.steps,
-        direction: me.direction,
-        state: me.state,
-        frame: me.frame,
-      })
-    );
-    updateCamera();
-    checkCollisions();
-  } else if (moved) {
-    me.state = "idle";
-    me.frame = 0;
-    me.frameTime = 0;
-  }
 }
 
 function handleGameMessage(event) {
