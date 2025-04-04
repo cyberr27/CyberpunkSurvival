@@ -127,14 +127,14 @@ const lights = [
     id: "light5",
     x: 364,
     y: 3093,
-    color: "rgba(214, 211, 4, 0.7)",
+    color: "rgba(214, 211, 4, 0.5)",
     radius: 900,
   },
   {
     id: "light6",
     x: 364,
     y: 3093,
-    color: "rgba(214, 211, 4, 0.7)",
+    color: "rgba(214, 211, 4, 0.5)",
     radius: 900,
   },
   {
@@ -155,14 +155,14 @@ const lights = [
     id: "light9",
     x: 924,
     y: 943,
-    color: "rgba(2, 35, 250, 0.7)",
+    color: "rgba(2, 35, 250, 0.4)",
     radius: 900,
   },
   {
     id: "light10",
     x: 1454,
     y: 1103,
-    color: "rgba(2, 35, 250, 0.7)",
+    color: "rgba(2, 35, 250, 0.4)",
     radius: 900,
   },
 ];

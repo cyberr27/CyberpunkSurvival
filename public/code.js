@@ -245,7 +245,7 @@ function startGame() {
     const me = players.get(myId);
     if (!me || me.health <= 0 || isKeyPressed) return;
 
-    const speed = 2;
+    const speed = 10;
     let moved = false;
 
     switch (e.key) {
@@ -295,7 +295,7 @@ function startGame() {
       me.frameTime += frameDuration;
       if (me.frameTime >= frameDuration) {
         me.frameTime = 0;
-        me.frame = (me.frame + 1) % 7;
+        me.frame = (me.frame + 1) % 3;
       }
       ws.send(
         JSON.stringify({
