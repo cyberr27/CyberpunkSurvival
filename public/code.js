@@ -247,73 +247,104 @@ function startGame() {
   let touchStartY = 0;
   let isTouching = false;
 
+  // Обработчик нажатия клавиш
   document.addEventListener("keydown", (e) => {
-    if (document.activeElement === chatInput) return;
+    if (document.activeElement === chatInput || isKeyPressed) return; // Игнорируем, если чат активен или клавиша уже нажата
     const me = players.get(myId);
     if (!me || me.health <= 0) return;
+
+    isKeyPressed = true; // Устанавливаем флаг, чтобы предотвратить зажатие
+    const stepSize = 10; // Фиксированный шаг движения (можно настроить)
+    let moved = false;
 
     switch (e.key) {
       case "ArrowUp":
       case "w":
-        movement.up = true;
+        me.y = Math.max(0, me.y - stepSize); // Двигаем на шаг вверх
         me.direction = "up";
         me.state = "walking";
+        moved = true;
         break;
       case "ArrowDown":
       case "s":
-        movement.down = true;
+        me.y = Math.min(worldHeight - 40, me.y + stepSize); // Двигаем на шаг вниз
         me.direction = "down";
         me.state = "walking";
+        moved = true;
         break;
       case "ArrowLeft":
       case "a":
-        movement.left = true;
+        me.x = Math.max(0, me.x - stepSize); // Двигаем на шаг влево
         me.direction = "left";
         me.state = "walking";
+        moved = true;
         break;
       case "ArrowRight":
       case "d":
-        movement.right = true;
+        me.x = Math.min(worldWidth - 40, me.x + stepSize); // Двигаем на шаг вправо
         me.direction = "right";
         me.state = "walking";
+        moved = true;
         break;
-      case " ":
+      case " ": // Пробел для стрельбы (уже было, оставляем)
         shoot();
         break;
-      case "t":
+      case "c": // Добавляем открытие/закрытие чата по C
         const isChatVisible = chatContainer.style.display === "flex";
         chatContainer.style.display = isChatVisible ? "none" : "flex";
         if (!isChatVisible) chatInput.focus();
         else chatInput.blur();
         break;
     }
-    e.preventDefault();
+
+    // Если персонаж двигался, обновляем сервер и камеру
+    if (moved && !checkCollision(me.x, me.y)) {
+      me.steps += 0.01; // Увеличиваем шаги (можно настроить)
+      updateResources();
+      me.frame = (me.frame + 1) % 7; // Переключаем кадр анимации
+      ws.send(
+        JSON.stringify({
+          type: "move",
+          x: me.x,
+          y: me.y,
+          health: me.health,
+          energy: me.energy,
+          food: me.food,
+          water: me.water,
+          armor: me.armor,
+          steps: me.steps,
+          direction: me.direction,
+          state: me.state,
+          frame: me.frame,
+        })
+      );
+      updateCamera();
+      checkCollisions();
+    }
+
+    e.preventDefault(); // Предотвращаем стандартное поведение (например, прокрутку страницы)
   });
 
+  // Обработчик отпускания клавиш для сброса флага и состояния
   document.addEventListener("keyup", (e) => {
     const me = players.get(myId);
     if (!me) return;
 
-    switch (e.key) {
-      case "ArrowUp":
-      case "w":
-        movement.up = false;
-        break;
-      case "ArrowDown":
-      case "s":
-        movement.down = false;
-        break;
-      case "ArrowLeft":
-      case "a":
-        movement.left = false;
-        break;
-      case "ArrowRight":
-      case "d":
-        movement.right = false;
-        break;
-    }
-    if (!movement.up && !movement.down && !movement.left && !movement.right) {
-      me.state = "idle";
+    isKeyPressed = false; // Сбрасываем флаг, чтобы разрешить следующее нажатие
+    if (
+      [
+        "ArrowUp",
+        "w",
+        "ArrowDown",
+        "s",
+        "ArrowLeft",
+        "a",
+        "ArrowRight",
+        "d",
+      ].includes(e.key)
+    ) {
+      me.state = "idle"; // Устанавливаем состояние покоя после движения
+      me.frame = 0; // Сбрасываем кадр анимации
       ws.send(
         JSON.stringify({
           type: "move",
@@ -535,11 +566,6 @@ function shoot() {
 function update(deltaTime) {
   const me = players.get(myId);
   if (!me || me.health <= 0) return;
-
-  // Скорость движения (пикселей в секунду)
-  const speed = 10; // Устанавливаем 200 пикселей в секунду для плавности
-  const moveSpeed = speed * (deltaTime / 800); // Переводим в пиксели за кадр
-  let moved = false;
 
   // Обработка движения на основе флагов
   if (movement.up) {
