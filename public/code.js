@@ -34,7 +34,7 @@ const bullets = new Map(); // Изменяем на Map для синхрони�
 
 // Добавляем переменные для управления анимацией
 let lastTime = 0; // Время последнего кадра для расчета deltaTime
-const frameDuration = 3000; // Длительность одного кадра в миллисекундах (настраиваемая скорость анимации)
+const frameDuration = 1000; // Длительность одного кадра в миллисекундах (настраиваемая скорость анимации)
 
 createLineObstacle(1590, 1510, 1830, 1725);
 createLineObstacle(1830, 1725, 2100, 1515);
@@ -234,47 +234,48 @@ function handleAuthMessage(event) {
 }
 
 function startGame() {
-  let isKeyPressed = false; // Флаг для клавиш
-  let touchStartX = 0; // Начальная X координата касания
-  let touchStartY = 0; // Начальная Y координата касания
-  let isTouching = false; // Флаг, что палец зажат
+  let isKeyPressed = false;
+  let touchStartX = 0;
+  let touchStartY = 0;
+  let isTouching = false;
+
+  // Флаги для управления движением
+  const movement = {
+    up: false,
+    down: false,
+    left: false,
+    right: false,
+  };
 
   document.addEventListener("keydown", (e) => {
     if (document.activeElement === chatInput) return;
     const me = players.get(myId);
-    if (!me || me.health <= 0 || isKeyPressed) return;
-
-    const speed = 10;
-    let moved = false;
+    if (!me || me.health <= 0) return;
 
     switch (e.key) {
       case "ArrowUp":
       case "w":
+        movement.up = true;
         me.direction = "up";
         me.state = "walking";
-        me.y = Math.max(0, me.y - speed);
-        moved = true;
         break;
       case "ArrowDown":
       case "s":
+        movement.down = true;
         me.direction = "down";
         me.state = "walking";
-        me.y = Math.min(worldHeight - 40, me.y + speed);
-        moved = true;
         break;
       case "ArrowLeft":
       case "a":
+        movement.left = true;
         me.direction = "left";
         me.state = "walking";
-        me.x = Math.max(0, me.x - speed);
-        moved = true;
         break;
       case "ArrowRight":
       case "d":
+        movement.right = true;
         me.direction = "right";
         me.state = "walking";
-        me.x = Math.min(worldWidth - 40, me.x + speed);
-        moved = true;
         break;
       case " ":
         shoot();
@@ -286,11 +287,33 @@ function startGame() {
         else chatInput.blur();
         break;
     }
+    e.preventDefault();
+  });
 
-    if (moved && !checkCollision(me.x, me.y)) {
-      isKeyPressed = true;
-      me.steps += 1;
-      updateResources();
+  document.addEventListener("keyup", (e) => {
+    const me = players.get(myId);
+    if (!me) return;
+
+    switch (e.key) {
+      case "ArrowUp":
+      case "w":
+        movement.up = false;
+        break;
+      case "ArrowDown":
+      case "s":
+        movement.down = false;
+        break;
+      case "ArrowLeft":
+      case "a":
+        movement.left = false;
+        break;
+      case "ArrowRight":
+      case "d":
+        movement.right = false;
+        break;
+    }
+    if (!movement.up && !movement.down && !movement.left && !movement.right) {
+      me.state = "idle";
       ws.send(
         JSON.stringify({
           type: "move",
@@ -307,50 +330,6 @@ function startGame() {
           frame: me.frame,
         })
       );
-      updateCamera();
-      checkCollisions();
-    } else if (moved) {
-      me.state = "idle";
-    }
-    e.preventDefault();
-  });
-
-  document.addEventListener("keyup", (e) => {
-    if (
-      [
-        "ArrowUp",
-        "w",
-        "ArrowDown",
-        "s",
-        "ArrowLeft",
-        "a",
-        "ArrowRight",
-        "d",
-      ].includes(e.key)
-    ) {
-      isKeyPressed = false;
-      const me = players.get(myId);
-      if (me) {
-        me.state = "idle";
-        me.frame = 0;
-        me.frameTime = 0;
-        ws.send(
-          JSON.stringify({
-            type: "move",
-            x: me.x,
-            y: me.y,
-            health: me.health,
-            energy: me.energy,
-            food: me.food,
-            water: me.water,
-            armor: me.armor,
-            steps: me.steps,
-            direction: me.direction,
-            state: me.state,
-            frame: me.frame,
-          })
-        );
-      }
     }
   });
 
@@ -380,46 +359,19 @@ function startGame() {
     const distance = Math.sqrt(dx * dx + dy * dy);
 
     if (distance > 5) {
-      const speed = 2;
-      const moveX = (dx / distance) * speed;
-      const moveY = (dy / distance) * speed;
-
-      const newX = Math.max(0, Math.min(worldWidth - 40, me.x + moveX));
-      const newY = Math.max(0, Math.min(worldHeight - 40, me.y + moveY));
-
-      if (!checkCollision(newX, newY)) {
-        me.x = newX;
-        me.y = newY;
-        me.steps += 1;
-        updateResources();
-
-        if (Math.abs(dx) > Math.abs(dy)) {
-          me.direction = dx > 0 ? "right" : "left";
-        } else {
-          me.direction = dy > 0 ? "down" : "up";
-        }
-        me.state = "walking";
-
-        ws.send(
-          JSON.stringify({
-            type: "move",
-            x: me.x,
-            y: me.y,
-            health: me.health,
-            energy: me.energy,
-            food: me.food,
-            water: me.water,
-            armor: me.armor,
-            steps: me.steps,
-            direction: me.direction,
-            state: me.state,
-            frame: me.frame,
-          })
-        );
-        updateCamera();
-        checkCollisions();
+      me.state = "walking";
+      if (Math.abs(dx) > Math.abs(dy)) {
+        me.direction = dx > 0 ? "right" : "left";
+        movement.right = dx > 0;
+        movement.left = dx < 0;
+        movement.up = false;
+        movement.down = false;
       } else {
-        me.state = "idle";
+        me.direction = dy > 0 ? "down" : "up";
+        movement.down = dy > 0;
+        movement.up = dy < 0;
+        movement.left = false;
+        movement.right = false;
       }
     }
   });
@@ -429,9 +381,7 @@ function startGame() {
     const me = players.get(myId);
     if (me) {
       me.state = "idle";
-      me.frame = 0;
-      me.frameTime = 0;
-      isTouching = false;
+      movement.up = movement.down = movement.left = movement.right = false;
       ws.send(
         JSON.stringify({
           type: "move",
@@ -449,6 +399,7 @@ function startGame() {
         })
       );
     }
+    isTouching = false;
   });
 
   // Настройка кнопки Fire
@@ -942,6 +893,35 @@ function update(deltaTime) {
   const me = players.get(myId);
   if (!me || me.health <= 0) return;
 
+  // Скорость движения (пикселей в секунду)
+  const speed = 200; // Устанавливаем 200 пикселей в секунду для плавности
+  const moveSpeed = speed * (deltaTime / 1000); // Переводим в пиксели за кадр
+  let moved = false;
+
+  // Обработка движения на основе флагов
+  if (movement.up) {
+    me.y = Math.max(0, me.y - moveSpeed);
+    me.direction = "up";
+    me.state = "walking";
+    moved = true;
+  } else if (movement.down) {
+    me.y = Math.min(worldHeight - 40, me.y + moveSpeed);
+    me.direction = "down";
+    me.state = "walking";
+    moved = true;
+  }
+  if (movement.left) {
+    me.x = Math.max(0, me.x - moveSpeed);
+    me.direction = "left";
+    me.state = "walking";
+    moved = true;
+  } else if (movement.right) {
+    me.x = Math.min(worldWidth - 40, me.x + moveSpeed);
+    me.direction = "right";
+    me.state = "walking";
+    moved = true;
+  }
+
   // Обновление пуль
   bullets.forEach((bullet, bulletId) => {
     bullet.x += bullet.dx * (deltaTime / 16);
@@ -954,18 +934,46 @@ function update(deltaTime) {
     }
   });
 
-  // Обновление анимации локального игрока
-  if (me.state === "walking") {
-    me.frameTime += deltaTime;
-    if (me.frameTime >= frameDuration / 7) {
-      me.frameTime = 0;
-      me.frame = (me.frame + 1) % 7; // 7 кадров в строке
+  // Обновление анимации и отправка данных
+  if (moved && !checkCollision(me.x, me.y)) {
+    me.steps += deltaTime / 1000; // Шаги пропорциональны времени
+    updateResources();
+
+    if (me.state === "walking") {
+      me.frameTime += deltaTime;
+      if (me.frameTime >= frameDuration / 7) {
+        me.frameTime = 0;
+        me.frame = (me.frame + 1) % 7;
+      }
     }
+
+    ws.send(
+      JSON.stringify({
+        type: "move",
+        x: me.x,
+        y: me.y,
+        health: me.health,
+        energy: me.energy,
+        food: me.food,
+        water: me.water,
+        armor: me.armor,
+        steps: me.steps,
+        direction: me.direction,
+        state: me.state,
+        frame: me.frame,
+      })
+    );
+    updateCamera();
+    checkCollisions();
+  } else if (moved) {
+    me.state = "idle";
+    me.frame = 0;
+    me.frameTime = 0;
   } else if (me.state === "dying") {
     me.frameTime += deltaTime;
     if (me.frameTime >= frameDuration / 7) {
       me.frameTime = 0;
-      if (me.frame < 6) me.frame += 1; // До 6 кадров смерти
+      if (me.frame < 6) me.frame += 1;
     }
     ws.send(
       JSON.stringify({
@@ -983,9 +991,6 @@ function update(deltaTime) {
         frame: me.frame,
       })
     );
-  } else {
-    me.frame = 0;
-    me.frameTime = 0;
   }
 }
 
@@ -1075,33 +1080,30 @@ function handleButtonAction(action) {
   const me = players.get(myId);
   if (!me || me.health <= 0) return;
 
-  const speed = 2;
-  let moved = false;
-
   switch (action) {
     case "up":
+      movement.up = true;
+      movement.down = movement.left = movement.right = false;
       me.direction = "up";
       me.state = "walking";
-      me.y = Math.max(0, me.y - speed);
-      moved = true;
       break;
     case "down":
+      movement.down = true;
+      movement.up = movement.left = movement.right = false;
       me.direction = "down";
       me.state = "walking";
-      me.y = Math.min(worldHeight - 40, me.y + speed);
-      moved = true;
       break;
     case "left":
+      movement.left = true;
+      movement.up = movement.down = movement.right = false;
       me.direction = "left";
       me.state = "walking";
-      me.x = Math.max(0, me.x - speed);
-      moved = true;
       break;
     case "right":
+      movement.right = true;
+      movement.up = movement.down = movement.left = false;
       me.direction = "right";
       me.state = "walking";
-      me.x = Math.min(worldWidth - 40, me.x + speed);
-      moved = true;
       break;
     case "shoot":
       shoot();
