@@ -536,6 +536,35 @@ function update(deltaTime) {
   const me = players.get(myId);
   if (!me || me.health <= 0) return;
 
+  // Скорость движения (пикселей в секунду)
+  const speed = 20; // Устанавливаем 200 пикселей в секунду для плавности
+  const moveSpeed = speed * (deltaTime / 1000); // Переводим в пиксели за кадр
+  let moved = false;
+
+  // Обработка движения на основе флагов
+  if (movement.up) {
+    me.y = Math.max(0, me.y - moveSpeed);
+    me.direction = "up";
+    me.state = "walking";
+    moved = true;
+  } else if (movement.down) {
+    me.y = Math.min(worldHeight - 40, me.y + moveSpeed);
+    me.direction = "down";
+    me.state = "walking";
+    moved = true;
+  }
+  if (movement.left) {
+    me.x = Math.max(0, me.x - moveSpeed);
+    me.direction = "left";
+    me.state = "walking";
+    moved = true;
+  } else if (movement.right) {
+    me.x = Math.min(worldWidth - 40, me.x + moveSpeed);
+    me.direction = "right";
+    me.state = "walking";
+    moved = true;
+  }
+
   // Обновление пуль
   bullets.forEach((bullet, bulletId) => {
     bullet.x += bullet.dx * (deltaTime / 16);
@@ -548,13 +577,41 @@ function update(deltaTime) {
     }
   });
 
-  // Обновление анимации локального игрока
-  if (me.state === "walking") {
-    me.frameTime += deltaTime;
-    if (me.frameTime >= frameDuration / 7) {
-      me.frameTime = 0;
-      me.frame = (me.frame + 1) % 7;
+  // Обновление анимации и отправка данных
+  if (moved && !checkCollision(me.x, me.y)) {
+    me.steps += deltaTime / 1000; // Шаги пропорциональны времени
+    updateResources();
+
+    if (me.state === "walking") {
+      me.frameTime += deltaTime;
+      if (me.frameTime >= frameDuration / 7) {
+        me.frameTime = 0;
+        me.frame = (me.frame + 1) % 7;
+      }
     }
+
+    ws.send(
+      JSON.stringify({
+        type: "move",
+        x: me.x,
+        y: me.y,
+        health: me.health,
+        energy: me.energy,
+        food: me.food,
+        water: me.water,
+        armor: me.armor,
+        steps: me.steps,
+        direction: me.direction,
+        state: me.state,
+        frame: me.frame,
+      })
+    );
+    updateCamera();
+    checkCollisions();
+  } else if (moved) {
+    me.state = "idle";
+    me.frame = 0;
+    me.frameTime = 0;
   } else if (me.state === "dying") {
     me.frameTime += deltaTime;
     if (me.frameTime >= frameDuration / 7) {
@@ -577,9 +634,6 @@ function update(deltaTime) {
         frame: me.frame,
       })
     );
-  } else {
-    me.frame = 0;
-    me.frameTime = 0;
   }
 }
 
