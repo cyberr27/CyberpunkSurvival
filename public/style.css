@@ -330,8 +330,8 @@ button:active {
   #chatContainer {
     width: 250px;
     height: 150px;
-    bottom: 5px;
-    right: 5px;
+    bottom: 10%;
+    right: 1%;
   }
   .auth-box {
     width: 80%;
