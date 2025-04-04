@@ -579,7 +579,7 @@ function update(deltaTime) {
 
   // Обновление анимации и отправка данных
   if (moved && !checkCollision(me.x, me.y)) {
-    me.steps += deltaTime / 10; // Шаги пропорциональны времени
+    me.steps += deltaTime / 800; // Шаги пропорциональны времени
     updateResources();
 
     if (me.state === "walking") {
