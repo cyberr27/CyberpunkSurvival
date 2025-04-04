@@ -230,8 +230,8 @@ button:active {
 /* Окно чата */
 #chatContainer {
   position: absolute;
-  bottom: 10px;
-  right: 10px;
+  bottom: 10%;
+  right: 1%;
   width: 300px;
   height: 200px;
   background: rgba(26, 26, 26, 0.9);
