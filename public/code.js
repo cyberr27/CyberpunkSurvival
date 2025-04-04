@@ -245,7 +245,7 @@ function startGame() {
     const me = players.get(myId);
     if (!me || me.health <= 0 || isKeyPressed) return;
 
-    const speed = 10;
+    const speed = 2;
     let moved = false;
 
     switch (e.key) {
@@ -292,12 +292,6 @@ function startGame() {
       isKeyPressed = true;
       me.steps += 1;
       updateResources();
-      me.frameTime += deltaTime; // Используем deltaTime вместо frameDuration
-      if (me.frameTime >= frameDuration / 7) {
-        // Плавное переключение кадров
-        me.frameTime = 0;
-        me.frame = (me.frame + 1) % 7; // 7 кадров в строке
-      }
       ws.send(
         JSON.stringify({
           type: "move",
@@ -311,15 +305,13 @@ function startGame() {
           steps: me.steps,
           direction: me.direction,
           state: me.state,
-          frame: me.frame,
+          frame: me.frame, // Оставляем текущий кадр, он обновится в update
         })
       );
       updateCamera();
       checkCollisions();
     } else if (moved) {
       me.state = "idle";
-      me.frame = 0;
-      me.frameTime = 0;
     }
     e.preventDefault();
   });
@@ -384,43 +376,31 @@ function startGame() {
     const touchX = touch.clientX;
     const touchY = touch.clientY;
 
-    // Вычисляем вектор направления
     const dx = touchX - touchStartX;
     const dy = touchY - touchStartY;
     const distance = Math.sqrt(dx * dx + dy * dy);
 
     if (distance > 5) {
-      // Минимальный порог, чтобы избежать мелких дрожаний
-      // Нормализуем вектор и задаем скорость
       const speed = 2;
       const moveX = (dx / distance) * speed;
       const moveY = (dy / distance) * speed;
 
-      // Обновляем позицию
       const newX = Math.max(0, Math.min(worldWidth - 40, me.x + moveX));
       const newY = Math.max(0, Math.min(worldHeight - 40, me.y + moveY));
 
-      // Проверяем столкновения
       if (!checkCollision(newX, newY)) {
         me.x = newX;
         me.y = newY;
         me.steps += 1;
         updateResources();
 
-        // Определяем направление для анимации
         if (Math.abs(dx) > Math.abs(dy)) {
           me.direction = dx > 0 ? "right" : "left";
         } else {
           me.direction = dy > 0 ? "down" : "up";
         }
         me.state = "walking";
-        me.frameTime += frameDuration;
-        if (me.frameTime >= frameDuration) {
-          me.frameTime = 0;
-          me.frame = (me.frame + 1) % 7;
-        }
 
-        // Отправляем данные на сервер
         ws.send(
           JSON.stringify({
             type: "move",
@@ -441,8 +421,6 @@ function startGame() {
         checkCollisions();
       } else {
         me.state = "idle";
-        me.frame = 0;
-        me.frameTime = 0;
       }
     }
   });
@@ -608,6 +586,7 @@ function update(deltaTime) {
   const me = players.get(myId);
   if (!me || me.health <= 0) return;
 
+  // Обновление пуль
   bullets.forEach((bullet, bulletId) => {
     bullet.x += bullet.dx * (deltaTime / 16);
     bullet.y += bullet.dy * (deltaTime / 16);
@@ -619,13 +598,16 @@ function update(deltaTime) {
     }
   });
 
-  if (me.health <= 0 && me.state !== "dying") {
-    me.state = "dying";
-    me.frame = 0;
-    me.frameTime = 0;
+  // Обновление анимации локального игрока
+  if (me.state === "walking") {
+    me.frameTime += deltaTime;
+    if (me.frameTime >= frameDuration / 7) {
+      me.frameTime = 0;
+      me.frame = (me.frame + 1) % 7;
+    }
   } else if (me.state === "dying") {
     me.frameTime += deltaTime;
-    if (me.frameTime >= 200) {
+    if (me.frameTime >= frameDuration / 7) {
       me.frameTime = 0;
       if (me.frame < 6) me.frame += 1;
     }
@@ -645,54 +627,9 @@ function update(deltaTime) {
         frame: me.frame,
       })
     );
-  }
-}
-
-function update(deltaTime) {
-  const me = players.get(myId);
-  if (!me || me.health <= 0) return;
-
-  // Обновление пуль
-  bullets.forEach((bullet, bulletId) => {
-    bullet.x += bullet.dx * (deltaTime / 16);
-    bullet.y += bullet.dy * (deltaTime / 16);
-    if (
-      checkBulletCollision(bullet) ||
-      Date.now() - bullet.spawnTime > bullet.life
-    ) {
-      bullets.delete(bulletId); // Удаляем локально при столкновении или истечении времени
-    }
-  });
-
-  // Обработка смерти
-  if (me.health <= 0 && me.state !== "dying") {
-    me.state = "dying";
+  } else {
     me.frame = 0;
     me.frameTime = 0;
-  } else if (me.state === "dying") {
-    me.frameTime += deltaTime;
-    if (me.frameTime >= 200) {
-      me.frameTime = 0;
-      if (me.frame < 6) {
-        me.frame += 1;
-      }
-    }
-    ws.send(
-      JSON.stringify({
-        type: "move",
-        x: me.x,
-        y: me.y,
-        health: me.health,
-        energy: me.energy,
-        food: me.food,
-        water: me.water,
-        armor: me.armor,
-        steps: me.steps,
-        direction: me.direction,
-        state: me.state,
-        frame: me.frame,
-      })
-    );
   }
 }
 
