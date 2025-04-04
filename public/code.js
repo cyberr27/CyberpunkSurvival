@@ -57,8 +57,15 @@ createLineObstacle(1065, 2520, 1290, 2435);
 createLineObstacle(1290, 2435, 1640, 2530);
 
 createLight(1700, 1600, "rgba(0, 255, 255, 0.7)", 1000); // Голубой неон
-createLight(2000, 1000, "rgba(255, 0, 255, 0.7)", 1000); // Розовый неон
+createLight(1710, 0, "rgba(255, 0, 255, 0.7)", 1200); // Розовый неон
 createLight(1400, 2600, "rgba(148, 0, 211, 0.7)", 1000); // Фиолетовый неон
+createLight(1164, 2843, "rgba(255, 0, 255, 0.7)", 1000); // Розовый неон
+createLight(364, 3093, "rgba(214, 211, 4, 0.7)", 900);
+createLight(434, 2653, "rgba(214, 211, 4, 0.7)", 900);
+createLight(264, 1173, "rgba(214, 211, 4, 0.7)", 1500);
+createLight(374, 483, "rgba(245, 5, 17, 0.7)", 1000);
+createLight(924, 943, "rgba(2, 35, 250, 0.7)", 900);
+createLight(1454, 110, "rgba(2, 35, 250, 0.7)", 900);
 
 function createLineObstacle(x1, y1, x2, y2, thickness = 5) {
   const length = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
