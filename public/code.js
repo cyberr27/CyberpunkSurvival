@@ -34,7 +34,7 @@ const bullets = new Map(); // Изменяем на Map для синхрони�
 
 // Добавляем переменные для управления анимацией
 let lastTime = 0; // Время последнего кадра для расчета deltaTime
-const frameDuration = 300; // Длительность одного кадра в миллисекундах (настраиваемая скорость анимации)
+const frameDuration = 150; // Длительность одного кадра в миллисекундах (настраиваемая скорость анимации)
 
 createLineObstacle(1590, 1510, 1830, 1725);
 createLineObstacle(1830, 1725, 2100, 1515);
@@ -227,14 +227,15 @@ function handleAuthMessage(event) {
 }
 
 function startGame() {
-  let isKeyPressed = false; // Флаг для отслеживания нажатия клавиши
+  let isKeyPressed = false; // Флаг для клавиш
+  let touchActive = false; // Флаг для касаний
 
   document.addEventListener("keydown", (e) => {
     if (document.activeElement === chatInput) return;
     const me = players.get(myId);
     if (!me || me.health <= 0 || isKeyPressed) return; // Проверяем флаг
 
-    const speed = 5;
+    const speed = 10;
     let moved = false;
 
     switch (e.key) {
@@ -269,19 +270,23 @@ function startGame() {
       case " ":
         shoot();
         break;
+      case "t": // Открытие/закрытие чата клавишей T
+        const isChatVisible = chatContainer.style.display === "flex";
+        chatContainer.style.display = isChatVisible ? "none" : "flex";
+        if (!isChatVisible) chatInput.focus();
+        else chatInput.blur();
+        break;
     }
 
     if (moved && !checkCollision(me.x, me.y)) {
-      isKeyPressed = true; // Устанавливаем флаг при успешном движении
+      isKeyPressed = true;
       me.steps += 1;
       updateResources();
-
       me.frameTime += frameDuration;
       if (me.frameTime >= frameDuration) {
         me.frameTime = 0;
         me.frame = (me.frame + 1) % 7;
       }
-
       ws.send(
         JSON.stringify({
           type: "move",
@@ -305,45 +310,61 @@ function startGame() {
       me.frame = 0;
       me.frameTime = 0;
     }
-
     e.preventDefault();
   });
 
-  // Сбрасываем флаг при отпускании клавиши
-  document.addEventListener("keyup", (e) => {
-    switch (e.key) {
-      case "ArrowUp":
-      case "w":
-      case "ArrowDown":
-      case "s":
-      case "ArrowLeft":
-      case "a":
-      case "ArrowRight":
-      case "d":
-        isKeyPressed = false;
-        const me = players.get(myId);
-        if (me) {
-          me.state = "idle"; // Переводим в состояние покоя
-          me.frame = 0;
-          me.frameTime = 0;
-          ws.send(
-            JSON.stringify({
-              type: "move",
-              x: me.x,
-              y: me.y,
-              health: me.health,
-              energy: me.energy,
-              food: me.food,
-              water: me.water,
-              armor: me.armor,
-              steps: me.steps,
-              direction: me.direction,
-              state: me.state,
-              frame: me.frame,
-            })
-          );
-        }
-        break;
+  canvas.addEventListener("touchstart", (e) => {
+    e.preventDefault();
+    const me = players.get(myId);
+    if (!me || me.health <= 0 || touchActive) return;
+
+    touchActive = true;
+    const touch = e.touches[0];
+    const touchX = touch.clientX;
+    const screenWidth = window.innerWidth;
+
+    if (touchX < screenWidth / 2) {
+      handleMovement(touchX, touch.clientY); // Левая половина — движение
+    } else {
+      shoot(); // Правая половина — выстрел
+    }
+  });
+
+  canvas.addEventListener("touchmove", (e) => {
+    e.preventDefault();
+    const me = players.get(myId);
+    if (!me || me.health <= 0 || !touchActive) return;
+
+    const touch = e.touches[0];
+    if (touch.clientX < window.innerWidth / 2) {
+      handleMovement(touch.clientX, touch.clientY);
+    }
+  });
+
+  canvas.addEventListener("touchend", (e) => {
+    e.preventDefault();
+    touchActive = false;
+    const me = players.get(myId);
+    if (me) {
+      me.state = "idle";
+      me.frame = 0;
+      me.frameTime = 0;
+      ws.send(
+        JSON.stringify({
+          type: "move",
+          x: me.x,
+          y: me.y,
+          health: me.health,
+          energy: me.energy,
+          food: me.food,
+          water: me.water,
+          armor: me.armor,
+          steps: me.steps,
+          direction: me.direction,
+          state: me.state,
+          frame: me.frame,
+        })
+      );
     }
   });
 
@@ -380,31 +401,104 @@ function startGame() {
     }
   });
 
+  // Чат
   chatInput.addEventListener("keypress", (e) => {
     if (e.key === "Enter" && chatInput.value.trim()) {
-      const message = chatInput.value.trim();
-      ws.send(JSON.stringify({ type: "chat", message }));
+      ws.send(
+        JSON.stringify({ type: "chat", message: chatInput.value.trim() })
+      );
       chatInput.value = "";
     }
   });
 
-  chatInput.addEventListener("touchstart", (e) => {
-    e.stopPropagation();
-    chatInput.focus();
+  // Чат
+  chatInput.addEventListener("keypress", (e) => {
+    if (e.key === "Enter" && chatInput.value.trim()) {
+      ws.send(
+        JSON.stringify({ type: "chat", message: chatInput.value.trim() })
+      );
+      chatInput.value = "";
+    }
   });
 
   requestAnimationFrame(gameLoop);
+}
+
+function handleMovement(touchX, touchY) {
+  const me = players.get(myId);
+  if (!me) return;
+
+  const speed = 5;
+  const screenWidth = window.innerWidth / 2; // Левая половина экрана
+  const screenHeight = window.innerHeight;
+
+  const centerX = screenWidth / 2;
+  const centerY = screenHeight / 2;
+
+  let moved = false;
+  if (touchX < centerX && touchY < centerY) {
+    me.direction = "up";
+    me.state = "walking";
+    me.y = Math.max(0, me.y - speed);
+    moved = true;
+  } else if (touchX < centerX && touchY > centerY) {
+    me.direction = "down";
+    me.state = "walking";
+    me.y = Math.min(worldHeight - 40, me.y + speed);
+    moved = true;
+  } else if (touchX > centerX && touchY < centerY) {
+    me.direction = "right";
+    me.state = "walking";
+    me.x = Math.min(worldWidth - 40, me.x + speed);
+    moved = true;
+  } else if (touchX > centerX && touchY > centerY) {
+    me.direction = "left";
+    me.state = "walking";
+    me.x = Math.max(0, me.x - speed);
+    moved = true;
+  }
+
+  if (moved && !checkCollision(me.x, me.y)) {
+    me.steps += 1;
+    updateResources();
+    me.frameTime += frameDuration;
+    if (me.frameTime >= frameDuration) {
+      me.frameTime = 0;
+      me.frame = (me.frame + 1) % 7;
+    }
+    ws.send(
+      JSON.stringify({
+        type: "move",
+        x: me.x,
+        y: me.y,
+        health: me.health,
+        energy: me.energy,
+        food: me.food,
+        water: me.water,
+        armor: me.armor,
+        steps: me.steps,
+        direction: me.direction,
+        state: me.state,
+        frame: me.frame,
+      })
+    );
+    updateCamera();
+    checkCollisions();
+  } else if (moved) {
+    me.state = "idle";
+    me.frame = 0;
+    me.frameTime = 0;
+  }
 }
 
 function handleGameMessage(event) {
   const data = JSON.parse(event.data);
   switch (data.type) {
     case "chat":
-      const chatMessagesEl = document.getElementById("chatMessages");
       const messageEl = document.createElement("div");
       messageEl.textContent = `${data.id}: ${data.message}`;
-      chatMessagesEl.appendChild(messageEl);
-      chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight; // Прокрутка вниз
+      chatMessages.appendChild(messageEl);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
       break;
     case "newPlayer":
       players.set(data.player.id, { ...data.player, frameTime: 0 });
@@ -420,9 +514,6 @@ function handleGameMessage(event) {
       break;
     case "playerLeft":
       players.delete(data.id);
-      break;
-    case "spawnWolf":
-      wolves.set(data.wolf.id, data.wolf);
       break;
     case "shoot":
       bullets.set(data.bulletId, {
@@ -447,8 +538,8 @@ function handleGameMessage(event) {
 
 // Адаптация размеров канваса
 function resizeCanvas() {
-  canvas.width = window.innerWidth * 0.997;
-  canvas.height = window.innerHeight * 0.75;
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight; // 100% высоты
   updateCamera();
 }
 
@@ -482,8 +573,6 @@ function shoot() {
       dx = 1;
       break;
   }
-
-  // Отправляем выстрел на сервер, локально пулю не создаем
   ws.send(
     JSON.stringify({
       type: "shoot",
@@ -493,6 +582,50 @@ function shoot() {
       dy: dy * 10,
     })
   );
+}
+
+function update(deltaTime) {
+  const me = players.get(myId);
+  if (!me || me.health <= 0) return;
+
+  bullets.forEach((bullet, bulletId) => {
+    bullet.x += bullet.dx * (deltaTime / 16);
+    bullet.y += bullet.dy * (deltaTime / 16);
+    if (
+      checkBulletCollision(bullet) ||
+      Date.now() - bullet.spawnTime > bullet.life
+    ) {
+      bullets.delete(bulletId);
+    }
+  });
+
+  if (me.health <= 0 && me.state !== "dying") {
+    me.state = "dying";
+    me.frame = 0;
+    me.frameTime = 0;
+  } else if (me.state === "dying") {
+    me.frameTime += deltaTime;
+    if (me.frameTime >= 200) {
+      me.frameTime = 0;
+      if (me.frame < 6) me.frame += 1;
+    }
+    ws.send(
+      JSON.stringify({
+        type: "move",
+        x: me.x,
+        y: me.y,
+        health: me.health,
+        energy: me.energy,
+        food: me.food,
+        water: me.water,
+        armor: me.armor,
+        steps: me.steps,
+        direction: me.direction,
+        state: me.state,
+        frame: me.frame,
+      })
+    );
+  }
 }
 
 function update(deltaTime) {
@@ -569,15 +702,16 @@ function updateStatsDisplay() {
     <span class="water">Вода: ${me.water}</span><br>
     <span class="armor">Броня: ${me.armor}</span>
   `;
-  const coordsEl = document.getElementById("coords");
-  coordsEl.innerHTML = `X: ${Math.floor(me.x)}<br>Y: ${Math.floor(me.y)}`;
+  document.getElementById("coords").innerHTML = `X: ${Math.floor(
+    me.x
+  )}<br>Y: ${Math.floor(me.y)}`;
 }
 
 function draw(deltaTime) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  // Эффект ночи: тёмный полупрозрачный слой
-  ctx.fillStyle = "rgba(10, 20, 40, 0.8)"; // Тёмно-синий с прозрачностью для киберпанк-стиля
+  ctx.fillStyle = "rgba(10, 20, 40, 0.8)"; // Ночной эффект
   ctx.fillRect(0, 0, canvas.width, canvas.height);
+
   const groundSpeed = 1.0,
     vegetationSpeed = 0.8,
     rocksSpeed = 0.6,
@@ -587,19 +721,15 @@ function draw(deltaTime) {
   const rocksOffsetX = camera.x * rocksSpeed;
   const cloudsOffsetX = camera.x * cloudsSpeed;
 
-  const pattern = ctx.createPattern(backgroundImage, "repeat");
-  ctx.fillStyle = pattern;
+  ctx.fillStyle = ctx.createPattern(backgroundImage, "repeat");
   ctx.save();
   ctx.translate(-groundOffsetX, -camera.y * groundSpeed);
   ctx.fillRect(groundOffsetX, camera.y * groundSpeed, worldWidth, worldHeight);
   ctx.restore();
 
-  // Отрисовка огней
   lights.forEach((light) => {
     const screenX = light.x - camera.x;
     const screenY = light.y - camera.y;
-
-    // Проверяем, виден ли свет в области камеры
     if (
       screenX + light.radius > 0 &&
       screenX - light.radius < canvas.width &&
@@ -614,9 +744,8 @@ function draw(deltaTime) {
         screenY,
         light.radius
       );
-      gradient.addColorStop(0, light.color); // Яркий центр
-      gradient.addColorStop(1, "rgba(0, 0, 0, 0)"); // Прозрачная граница
-
+      gradient.addColorStop(0, light.color);
+      gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
       ctx.fillStyle = gradient;
       ctx.beginPath();
       ctx.arc(screenX, screenY, light.radius, 0, Math.PI * 2);
@@ -642,7 +771,7 @@ function draw(deltaTime) {
 
     if (player.id !== myId) {
       if (player.state === "walking") {
-        player.frameTime += deltaTime; // Используем deltaTime вместо фиксированного 16
+        player.frameTime += deltaTime;
         if (player.frameTime >= frameDuration) {
           player.frameTime = 0;
           player.frame = (player.frame + 1) % 7;
@@ -651,9 +780,7 @@ function draw(deltaTime) {
         player.frameTime += deltaTime;
         if (player.frameTime >= 200) {
           player.frameTime = 0;
-          if (player.frame < 6) {
-            player.frame += 1;
-          }
+          if (player.frame < 6) player.frame += 1;
         }
       } else {
         player.frame = 0;
@@ -661,26 +788,12 @@ function draw(deltaTime) {
       }
     }
 
-    // Определяем координаты в спрайте
     let spriteX = player.frame * 40;
-    let spriteY;
-    if (player.state === "dying") {
-      spriteY = 160;
-    } else {
-      const directionMap = {
-        up: 0,
-        down: 40,
-        left: 80,
-        right: 120,
-      };
-      spriteY = directionMap[player.direction];
-      // Если direction некорректен, используем down как запасной вариант
-      if (spriteY === undefined) {
-        spriteY = 40;
-      }
-    }
+    let spriteY =
+      player.state === "dying"
+        ? 160
+        : { up: 0, down: 40, left: 80, right: 120 }[player.direction] || 40;
 
-    // Отрисовка спрайта
     ctx.drawImage(
       playerSprite,
       spriteX,
@@ -692,8 +805,6 @@ function draw(deltaTime) {
       40,
       40
     );
-
-    // Отрисовка имени и HP
     ctx.fillStyle = "white";
     ctx.font = "12px Arial";
     ctx.textAlign = "center";
@@ -704,7 +815,6 @@ function draw(deltaTime) {
     ctx.fillRect(screenX, screenY - 15, (player.health / 100) * 40, 5);
   });
 
-  // Оставшиеся части функции draw() остаются без изменений
   wolves.forEach((wolf) => {
     const screenX = wolf.x - camera.x;
     const screenY = wolf.y - camera.y;
@@ -712,12 +822,7 @@ function draw(deltaTime) {
     let spriteY =
       wolf.state === "dying"
         ? 160
-        : {
-            up: 0,
-            down: 40,
-            left: 80,
-            right: 120,
-          }[wolf.direction] || 40;
+        : { up: 0, down: 40, left: 80, right: 120 }[wolf.direction] || 40;
     ctx.drawImage(
       wolfSprite,
       spriteX,
@@ -739,7 +844,6 @@ function draw(deltaTime) {
   });
 
   obstacles.forEach((obstacle) => {
-    // Было: obstacles.forEach(([_, obstacle])
     if (obstacle.isLine) {
       const startX = obstacle.x1 - camera.x;
       const startY = obstacle.y1 - camera.y;
@@ -761,7 +865,6 @@ function draw(deltaTime) {
     }
   });
 
-  // Отрисовка пуль
   bullets.forEach((bullet) => {
     const screenX = bullet.x - camera.x;
     const screenY = bullet.y - camera.y;
@@ -790,33 +893,38 @@ function draw(deltaTime) {
     canvas.width,
     canvas.height
   );
+
+  // Опционально: визуальные подсказки зон для мобильных (раскомментируй, если нужно)
+  /*
+  if (window.innerWidth <= 500) {
+    ctx.fillStyle = "rgba(0, 255, 255, 0.1)"; // Левая зона (движение)
+    ctx.fillRect(0, 0, canvas.width / 2, canvas.height);
+    ctx.fillStyle = "rgba(255, 0, 255, 0.1)"; // Правая зона (выстрел)
+    ctx.fillRect(canvas.width / 2, 0, canvas.width / 2, canvas.height);
+  }
+  */
 }
 
 function drawBullet(x, y) {
-  // Киберпанк-стиль: неоновый круг с градиентом
   const gradient = ctx.createRadialGradient(x, y, 2, x, y, 5);
-  gradient.addColorStop(0, "rgba(0, 255, 255, 1)"); // Яркий центр
-  gradient.addColorStop(1, "rgba(0, 255, 255, 0)"); // Прозрачная кайма
+  gradient.addColorStop(0, "rgb(0, 75, 75)");
+  gradient.addColorStop(1, "rgba(0, 255, 255, 0)");
   ctx.fillStyle = gradient;
   ctx.beginPath();
   ctx.arc(x, y, 5, 0, Math.PI * 2);
   ctx.fill();
 }
 
-// Проверка столкновений
 function checkCollisions() {
   const me = players.get(myId);
   items.forEach((item, id) => {
     if (Math.abs(me.x - item.x) < 40 && Math.abs(me.y - item.y) < 40) {
       ws.send(JSON.stringify({ type: "pickup", itemId: id, item: item.type }));
-      me.inventory.push(item.type);
-      inventoryEl.textContent = me.inventory.join(", ");
-      if (item.type === "health") me.health = Math.min(100, me.health + 10);
+      me.health = Math.min(100, me.health + (item.type === "health" ? 10 : 0));
     }
   });
 }
 
-// Спавн предметов
 setInterval(() => {
   if (items.size < 3) {
     const item = {
@@ -828,28 +936,22 @@ setInterval(() => {
   }
 }, 10000);
 
-let currentDeltaTime = 0; // Добавьте это в глобальные переменные перед gameLoop
-
 function gameLoop(timestamp) {
   if (!lastTime) lastTime = timestamp;
   const deltaTime = timestamp - lastTime;
   lastTime = timestamp;
-  currentDeltaTime = deltaTime; // Сохраняем deltaTime
 
   update(deltaTime);
-  draw(currentDeltaTime); // Передаем deltaTime в draw
+  draw(deltaTime);
   requestAnimationFrame(gameLoop);
 }
 
-// Инициализация изображений
+// Инициализация изображений (без изменений)
 let imagesLoaded = 0;
 function onImageLoad() {
   imagesLoaded++;
-  if (imagesLoaded === 6) {
-    window.addEventListener("resize", resizeCanvas);
-  }
+  if (imagesLoaded === 6) window.addEventListener("resize", resizeCanvas);
 }
-
 backgroundImage.onload = onImageLoad;
 vegetationImage.onload = onImageLoad;
 rocksImage.onload = onImageLoad;

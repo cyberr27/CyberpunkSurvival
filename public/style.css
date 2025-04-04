@@ -112,7 +112,6 @@ body {
   }
 }
 
-/* Игровой контейнер */
 #gameContainer {
   position: absolute;
   width: 100%;
@@ -122,9 +121,58 @@ body {
 
 #gameCanvas {
   width: 100%;
-  height: 75%;
+  height: 100%; /* Растягиваем на весь экран */
   display: block;
-  overflow: hidden;
+}
+
+/* Стили для статистики */
+#stats {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  font-size: 20px;
+  font-family: "Courier New", monospace;
+  z-index: 50; /* Поверх канваса */
+}
+
+#stats .health {
+  color: #ff0000;
+  text-shadow: 0 0 5px #ff0000, 0 0 10px #ff0000, 0 0 15px #ff00ff;
+  animation: flicker 1.5s infinite alternate;
+}
+#stats .energy {
+  color: #00ff00;
+  text-shadow: 0 0 5px #00ff00, 0 0 10px #00ff00, 0 0 15px #00ffff;
+  animation: flicker 1.5s infinite alternate;
+}
+#stats .food {
+  color: #ffff00;
+  text-shadow: 0 0 5px #ffff00, 0 0 10px #ffff00, 0 0 15px #ff00ff;
+  animation: flicker 1.5s infinite alternate;
+}
+#stats .water {
+  color: #0000ff;
+  text-shadow: 0 0 5px #0000ff, 0 0 10px #0000ff, 0 0 15px #00ffff;
+  animation: flicker 1.5s infinite alternate;
+}
+#stats .armor {
+  color: #ff4500;
+  text-shadow: 0 0 5px #ff4500, 0 0 10px #ff4500, 0 0 15px #ff00ff,
+    0 0 20px #ff4500;
+  animation: flicker 1.5s infinite alternate;
+}
+/* Координаты */
+#coords {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  color: #00ffff;
+  font-size: 18px;
+  font-family: "Courier New", monospace;
+  text-shadow: 0 0 5px #00ffff, 0 0 10px #00ffff, 0 0 15px #ff00ff;
+  animation: cyberFlicker 2s infinite alternate;
+  text-align: right;
+  z-index: 50; /* Поверх канваса */
 }
 
 /* Общие стили для кнопок */
@@ -256,7 +304,6 @@ button:active {
     }
   }
 }
-
 /* Стили для статистики */
 #stats {
   position: absolute;
@@ -264,51 +311,6 @@ button:active {
   left: 10px;
   font-size: 20px;
   font-family: "Courier New", monospace; /* Моноширинный шрифт для киберпанка */
-}
-
-/* Индивидуальные стили для каждого показателя */
-#stats .health {
-  color: #ff0000; /* Красный для здоровья */
-  text-shadow: 0 0 5px #ff0000, 0 0 10px #ff0000, 0 0 15px #ff00ff; /* Неоновый эффект */
-  animation: flicker 1.5s infinite alternate; /* Мерцание */
-}
-
-#stats .energy {
-  color: #00ff00; /* Зеленый для энергии */
-  text-shadow: 0 0 5px #00ff00, 0 0 10px #00ff00, 0 0 15px #00ffff; /* Неоновый эффект */
-  animation: flicker 1.5s infinite alternate;
-}
-
-#stats .food {
-  color: #ffff00; /* Желтый для еды */
-  text-shadow: 0 0 5px #ffff00, 0 0 10px #ffff00, 0 0 15px #ff00ff; /* Неоновый эффект */
-  animation: flicker 1.5s infinite alternate;
-}
-
-#stats .water {
-  color: #0000ff; /* Синий для воды */
-  text-shadow: 0 0 5px #0000ff, 0 0 10px #0000ff, 0 0 15px #00ffff; /* Неоновый эффект */
-  animation: flicker 1.5s infinite alternate;
-}
-
-#stats .armor {
-  color: #ff4500; /* Яркий оранжевый для брони */
-  text-shadow: 0 0 5px #ff4500, 0 0 10px #ff4500, 0 0 15px #ff00ff,
-    0 0 20px #ff4500; /* Усиленный неоновый эффект */
-  animation: flicker 1.5s infinite alternate; /* Мерцание оставляем */
-}
-
-/* Перенос координат в верхний правый угол */
-#coords {
-  position: absolute;
-  top: 10px; /* Выравниваем с #stats */
-  right: 10px; /* Справа */
-  color: #00ffff; /* Неоновый голубой */
-  font-size: 18px;
-  font-family: "Courier New", monospace;
-  text-shadow: 0 0 5px #00ffff, 0 0 10px #00ffff, 0 0 15px #ff00ff;
-  animation: cyberFlicker 2s infinite alternate; /* Мерцающий эффект */
-  text-align: right; /* Выравнивание текста вправо */
 }
 
 /* Эффект мерцания в стиле киберпанка */
@@ -335,18 +337,18 @@ button:active {
 /* Окно чата */
 #chatContainer {
   position: absolute;
-  bottom: 29%;
-  right: 2%;
+  bottom: 10px;
+  right: 10px;
   width: 300px;
   height: 200px;
   background: rgba(26, 26, 26, 0.9);
   border: 2px solid #00ffff;
   border-radius: 10px;
   box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
-  display: none; /* Скрыто по умолчанию */
+  display: none;
   flex-direction: column;
   padding: 10px;
-  z-index: 100;
+  z-index: 100; /* Поверх канваса и статистики */
 }
 
 #chatMessages {
@@ -357,7 +359,6 @@ button:active {
   text-shadow: 0 0 5px rgba(0, 255, 255, 0.7);
   margin-bottom: 10px;
 }
-
 #chatInput {
   width: 100%;
   padding: 5px;
@@ -368,7 +369,6 @@ button:active {
   border-radius: 5px;
   box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
 }
-
 #chatInput:focus {
   outline: none;
   box-shadow: 0 0 15px rgba(0, 255, 255, 0.7);
@@ -426,10 +426,19 @@ button:active {
   #stats {
     font-size: 16px;
   }
-  #chatContainer {
-    position: absolute;
-    top: 43.5%;
+  #coords {
+    font-size: 14px;
   }
+  #chatContainer {
+    width: 250px;
+    height: 150px;
+    bottom: 5px;
+    right: 5px;
+  }
+  .auth-box {
+    width: 80%;
+  }
+
   .auth-container {
     position: absolute;
     left: 0%;
