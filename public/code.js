@@ -295,7 +295,7 @@ function startGame() {
       me.frameTime += frameDuration;
       if (me.frameTime >= frameDuration) {
         me.frameTime = 0;
-        me.frame = (me.frame + 1) % 3;
+        me.frame = (me.frame + 1) % 1;
       }
       ws.send(
         JSON.stringify({
