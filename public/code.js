@@ -537,8 +537,8 @@ function update(deltaTime) {
   if (!me || me.health <= 0) return;
 
   // Скорость движения (пикселей в секунду)
-  const speed = 10; // Устанавливаем 200 пикселей в секунду для плавности
-  const moveSpeed = speed * (deltaTime / 1000); // Переводим в пиксели за кадр
+  const speed = 20; // Устанавливаем 200 пикселей в секунду для плавности
+  const moveSpeed = speed * (deltaTime / 100); // Переводим в пиксели за кадр
   let moved = false;
 
   // Обработка движения на основе флагов
