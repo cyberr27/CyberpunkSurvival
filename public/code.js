@@ -601,7 +601,7 @@ function update(deltaTime) {
   if (!me || me.health <= 0) return;
 
   const speed = 20; // 200 пикселей в секунду
-  const moveSpeed = speed * (deltaTime / 200);
+  const moveSpeed = speed * (deltaTime / 100);
   let moved = false;
   let prevX = me.x;
   let prevY = me.y;
@@ -950,7 +950,7 @@ function handleTouchMovement(touchX, touchY, screenWidth, screenHeight) {
   const me = players.get(myId);
   if (!me) return;
 
-  const speed = 40;
+  const speed = 20;
   let moved = false;
 
   // Делим экран на 4 зоны
