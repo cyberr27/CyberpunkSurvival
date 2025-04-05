@@ -210,7 +210,7 @@ wss.on("connection", (ws) => {
           food: 100,
           water: 100,
           armor: 0,
-          steps: 0,
+          distanceTraveled: 0,
           direction: "down",
           state: "idle",
           frame: 0,
@@ -254,7 +254,7 @@ wss.on("connection", (ws) => {
         const updatedPlayer = { ...players.get(id), ...data };
         players.set(id, updatedPlayer);
         userDatabase.set(id, updatedPlayer);
-        await saveUserDatabase(dbCollection, id, updatedPlayer); // Сохраняем в MongoDB
+        await saveUserDatabase(dbCollection, id, updatedPlayer);
         wss.clients.forEach((client) => {
           if (client.readyState === WebSocket.OPEN) {
             client.send(

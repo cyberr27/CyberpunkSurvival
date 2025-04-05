@@ -25,8 +25,8 @@ let ws;
 
 // Хранилища данных
 let players = new Map();
-let wolves = new Map();
 let myId;
+let wolves = new Map();
 const items = new Map();
 const lights = [];
 const obstacles = [];
@@ -248,43 +248,28 @@ function startGame() {
   let isTouching = false;
 
   // Обработчик нажатия клавиш
+  // Обновляем обработчики клавиш для установки флагов
   document.addEventListener("keydown", (e) => {
-    if (document.activeElement === chatInput || isKeyPressed) return;
+    if (document.activeElement === chatInput) return;
     const me = players.get(myId);
     if (!me || me.health <= 0) return;
-
-    isKeyPressed = true;
-    const stepSize = 10;
-    let moved = false;
 
     switch (e.key) {
       case "ArrowUp":
       case "w":
-        me.y = Math.max(0, me.y - stepSize);
-        me.direction = "up";
-        me.state = "walking";
-        moved = true;
+        movement.up = true;
         break;
       case "ArrowDown":
       case "s":
-        me.y = Math.min(worldHeight - 40, me.y + stepSize);
-        me.direction = "down";
-        me.state = "walking";
-        moved = true;
+        movement.down = true;
         break;
       case "ArrowLeft":
       case "a":
-        me.x = Math.max(0, me.x - stepSize);
-        me.direction = "left";
-        me.state = "walking";
-        moved = true;
+        movement.left = true;
         break;
       case "ArrowRight":
       case "d":
-        me.x = Math.min(worldWidth - 40, me.x + stepSize);
-        me.direction = "right";
-        me.state = "walking";
-        moved = true;
+        movement.right = true;
         break;
       case " ":
         shoot();
@@ -296,53 +281,35 @@ function startGame() {
         else chatInput.blur();
         break;
     }
-
-    if (moved && !checkCollision(me.x, me.y)) {
-      // Убираем me.steps += 0.01, так как это теперь в update
-      me.frame = (me.frame + 1) % 7;
-      ws.send(
-        JSON.stringify({
-          type: "move",
-          x: me.x,
-          y: me.y,
-          health: me.health,
-          energy: me.energy,
-          food: me.food,
-          water: me.water,
-          armor: me.armor,
-          steps: me.steps,
-          direction: me.direction,
-          state: me.state,
-          frame: me.frame,
-        })
-      );
-      updateCamera();
-      checkCollisions();
-    }
-
     e.preventDefault();
   });
 
-  // Обработчик отпускания клавиш для сброса флага и состояния
   document.addEventListener("keyup", (e) => {
     const me = players.get(myId);
     if (!me) return;
 
-    isKeyPressed = false; // Сбрасываем флаг, чтобы разрешить следующее нажатие
-    if (
-      [
-        "ArrowUp",
-        "w",
-        "ArrowDown",
-        "s",
-        "ArrowLeft",
-        "a",
-        "ArrowRight",
-        "d",
-      ].includes(e.key)
-    ) {
-      me.state = "idle"; // Устанавливаем состояние покоя после движения
-      me.frame = 0; // Сбрасываем кадр анимации
+    switch (e.key) {
+      case "ArrowUp":
+      case "w":
+        movement.up = false;
+        break;
+      case "ArrowDown":
+      case "s":
+        movement.down = false;
+        break;
+      case "ArrowLeft":
+      case "a":
+        movement.left = false;
+        break;
+      case "ArrowRight":
+      case "d":
+        movement.right = false;
+        break;
+    }
+    if (!movement.up && !movement.down && !movement.left && !movement.right) {
+      me.state = "idle";
+      me.frame = 0;
+      me.frameTime = 0;
       ws.send(
         JSON.stringify({
           type: "move",
@@ -353,7 +320,7 @@ function startGame() {
           food: me.food,
           water: me.water,
           armor: me.armor,
-          steps: me.steps,
+          distanceTraveled: me.distanceTraveled,
           direction: me.direction,
           state: me.state,
           frame: me.frame,
@@ -523,6 +490,15 @@ function updateStatsDisplay() {
 function handleGameMessage(event) {
   const data = JSON.parse(event.data);
   switch (data.type) {
+    case "update":
+      const existingPlayer = players.get(data.player.id);
+      players.set(data.player.id, {
+        ...existingPlayer,
+        ...data.player,
+        frameTime: existingPlayer.frameTime || 0,
+      });
+      if (data.player.id === myId) updateStatsDisplay();
+      break;
     case "chat":
       const messageEl = document.createElement("div");
       messageEl.textContent = `${data.id}: ${data.message}`;
@@ -531,15 +507,6 @@ function handleGameMessage(event) {
       break;
     case "newPlayer":
       players.set(data.player.id, { ...data.player, frameTime: 0 });
-      break;
-    case "update":
-      const existingPlayer = players.get(data.player.id);
-      players.set(data.player.id, {
-        ...existingPlayer,
-        ...data.player,
-        frameTime: existingPlayer.frameTime || 0,
-      });
-      if (data.player.id === myId) updateStatsDisplay(); // Обновляем интерфейс
       break;
     case "playerLeft":
       players.delete(data.id);
@@ -617,9 +584,11 @@ function update(deltaTime) {
   const me = players.get(myId);
   if (!me || me.health <= 0) return;
 
-  const speed = 200;
+  const speed = 200; // 200 пикселей в секунду для всех устройств
   const moveSpeed = speed * (deltaTime / 1000);
   let moved = false;
+  let prevX = me.x;
+  let prevY = me.y;
 
   if (movement.up) {
     me.y = Math.max(0, me.y - moveSpeed);
@@ -645,8 +614,13 @@ function update(deltaTime) {
   }
 
   if (moved && !checkCollision(me.x, me.y)) {
-    me.steps += deltaTime / 1000;
-    console.log(`Steps: ${me.steps}`); // Добавляем отладку
+    // Считаем пройденное расстояние
+    const distance = Math.sqrt(
+      Math.pow(me.x - prevX, 2) + Math.pow(me.y - prevY, 2)
+    );
+    me.distanceTraveled = (me.distanceTraveled || 0) + distance;
+    console.log(`Distance traveled: ${me.distanceTraveled}`);
+
     updateResources();
 
     if (me.state === "walking") {
@@ -667,7 +641,7 @@ function update(deltaTime) {
         food: me.food,
         water: me.water,
         armor: me.armor,
-        steps: me.steps,
+        distanceTraveled: me.distanceTraveled,
         direction: me.direction,
         state: me.state,
         frame: me.frame,
@@ -679,28 +653,6 @@ function update(deltaTime) {
     me.state = "idle";
     me.frame = 0;
     me.frameTime = 0;
-  } else if (me.state === "dying") {
-    me.frameTime += deltaTime;
-    if (me.frameTime >= frameDuration / 7) {
-      me.frameTime = 0;
-      if (me.frame < 6) me.frame += 1;
-    }
-    ws.send(
-      JSON.stringify({
-        type: "move",
-        x: me.x,
-        y: me.y,
-        health: me.health,
-        energy: me.energy,
-        food: me.food,
-        water: me.water,
-        armor: me.armor,
-        steps: me.steps,
-        direction: me.direction,
-        state: me.state,
-        frame: me.frame,
-      })
-    );
   }
 }
 
@@ -708,29 +660,39 @@ function updateResources() {
   const me = players.get(myId);
   if (!me) return;
 
+  const distance = Math.floor(me.distanceTraveled || 0);
   console.log(
-    `Before: Health: ${me.health}, Energy: ${me.energy}, Food: ${me.food}, Water: ${me.water}, Steps: ${me.steps}`
+    `Before: Health: ${me.health}, Energy: ${me.energy}, Food: ${me.food}, Water: ${me.water}, Distance: ${distance}`
   );
 
-  if (Math.floor(me.steps) % 100 === 0 && me.steps > 0) {
+  // Энергия: -1 каждые 100 пикселей
+  const energyLoss = Math.floor(distance / 100);
+  if (energyLoss > Math.floor((me.distanceTraveled - distance) / 100)) {
     me.energy = Math.max(0, me.energy - 1);
     console.log(`Energy reduced to ${me.energy}`);
   }
-  if (Math.floor(me.steps) % 60 === 0 && me.steps > 0) {
+
+  // Еда: -1 каждые 60 пикселей
+  const foodLoss = Math.floor(distance / 60);
+  if (foodLoss > Math.floor((me.distanceTraveled - distance) / 60)) {
     me.food = Math.max(0, me.food - 1);
     console.log(`Food reduced to ${me.food}`);
   }
-  if (Math.floor(me.steps) % 35 === 0 && me.steps > 0) {
+
+  // Вода: -1 каждые 35 пикселей
+  const waterLoss = Math.floor(distance / 35);
+  if (waterLoss > Math.floor((me.distanceTraveled - distance) / 35)) {
     me.water = Math.max(0, me.water - 1);
     console.log(`Water reduced to ${me.water}`);
   }
-  if (
-    (me.energy === 0 || me.food === 0 || me.water === 0) &&
-    Math.floor(me.steps) % 10 === 0 &&
-    me.steps > 0
-  ) {
-    me.health = Math.max(0, me.health - 1);
-    console.log(`Health reduced to ${me.health}`);
+
+  // Здоровье: -1 каждые 10 пикселей, если ресурсы на нуле
+  if (me.energy === 0 || me.food === 0 || me.water === 0) {
+    const healthLoss = Math.floor(distance / 10);
+    if (healthLoss > Math.floor((me.distanceTraveled - distance) / 10)) {
+      me.health = Math.max(0, me.health - 1);
+      console.log(`Health reduced to ${me.health}`);
+    }
   }
 
   console.log(
