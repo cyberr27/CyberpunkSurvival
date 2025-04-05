@@ -600,8 +600,8 @@ function update(deltaTime) {
   const me = players.get(myId);
   if (!me || me.health <= 0) return;
 
-  const speed = 40; // 200 пикселей в секунду
-  const moveSpeed = speed * (deltaTime / 300);
+  const speed = 20; // 200 пикселей в секунду
+  const moveSpeed = speed * (deltaTime / 100);
   let moved = false;
   let prevX = me.x;
   let prevY = me.y;
@@ -1017,8 +1017,8 @@ function update(deltaTime) {
   const me = players.get(myId);
   if (!me || me.health <= 0) return;
 
-  const speed = 40; // 200 пикселей в секунду
-  const moveSpeed = speed * (deltaTime / 300);
+  const speed = 20; // 200 пикселей в секунду
+  const moveSpeed = speed * (deltaTime / 100);
   let moved = false;
   let prevX = me.x;
   let prevY = me.y;
