@@ -666,36 +666,41 @@ function updateResources() {
     `Before: Health: ${me.health}, Energy: ${me.energy}, Food: ${me.food}, Water: ${me.water}, Distance: ${distance}`
   );
 
-  // Энергия: -1 каждые 100 пикселей
-  const energyLoss = Math.floor(distance / 100);
-  if (energyLoss > Math.floor((me.distanceTraveled - distance) / 100)) {
-    me.energy = Math.max(0, me.energy - 1);
+  // Энергия: -1 каждые 500 пикселей
+  const energyLoss = Math.floor(distance / 600);
+  const prevEnergyLoss = Math.floor(lastDistance / 600);
+  if (energyLoss > prevEnergyLoss) {
+    me.energy = Math.max(0, me.energy - (energyLoss - prevEnergyLoss));
     console.log(`Energy reduced to ${me.energy}`);
   }
 
-  // Еда: -1 каждые 60 пикселей
-  const foodLoss = Math.floor(distance / 60);
-  if (foodLoss > Math.floor((me.distanceTraveled - distance) / 60)) {
-    me.food = Math.max(0, me.food - 1);
+  // Еда: -1 каждые 300 пикселей
+  const foodLoss = Math.floor(distance / 350);
+  const prevFoodLoss = Math.floor(lastDistance / 350);
+  if (foodLoss > prevFoodLoss) {
+    me.food = Math.max(0, me.food - (foodLoss - prevFoodLoss));
     console.log(`Food reduced to ${me.food}`);
   }
 
-  // Вода: -1 каждые 35 пикселей
-  const waterLoss = Math.floor(distance / 35);
-  if (waterLoss > Math.floor((me.distanceTraveled - distance) / 35)) {
-    me.water = Math.max(0, me.water - 1);
+  // Вода: -1 каждые 175 пикселей
+  const waterLoss = Math.floor(distance / 200);
+  const prevWaterLoss = Math.floor(lastDistance / 200);
+  if (waterLoss > prevWaterLoss) {
+    me.water = Math.max(0, me.water - (waterLoss - prevWaterLoss));
     console.log(`Water reduced to ${me.water}`);
   }
 
-  // Здоровье: -1 каждые 10 пикселей, если ресурсы на нуле
+  // Здоровье: -1 каждые 50 пикселей, если ресурсы на нуле
   if (me.energy === 0 || me.food === 0 || me.water === 0) {
-    const healthLoss = Math.floor(distance / 10);
-    if (healthLoss > Math.floor((me.distanceTraveled - distance) / 10)) {
-      me.health = Math.max(0, me.health - 1);
+    const healthLoss = Math.floor(distance / 50);
+    const prevHealthLoss = Math.floor(lastDistance / 50);
+    if (healthLoss > prevHealthLoss) {
+      me.health = Math.max(0, me.health - (healthLoss - prevHealthLoss));
       console.log(`Health reduced to ${me.health}`);
     }
   }
 
+  lastDistance = distance;
   console.log(
     `After: Health: ${me.health}, Energy: ${me.energy}, Food: ${me.food}, Water: ${me.water}`
   );
