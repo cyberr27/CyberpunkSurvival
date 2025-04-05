@@ -996,12 +996,12 @@ function update(deltaTime) {
   const me = players.get(myId);
   if (!me || me.health <= 0) return;
 
-  // Скорость движения (пикселей в секунду)
-  const speed = 200; // Устанавливаем 200 пикселей в секунду для плавности
-  const moveSpeed = speed * (deltaTime / 1000); // Переводим в пиксели за кадр
+  const speed = 200; // 200 пикселей в секунду
+  const moveSpeed = speed * (deltaTime / 1000);
   let moved = false;
+  let prevX = me.x;
+  let prevY = me.y;
 
-  // Обработка движения на основе флагов
   if (movement.up) {
     me.y = Math.max(0, me.y - moveSpeed);
     me.direction = "up";
@@ -1025,21 +1025,15 @@ function update(deltaTime) {
     moved = true;
   }
 
-  // Обновление пуль
-  bullets.forEach((bullet, bulletId) => {
-    bullet.x += bullet.dx * (deltaTime / 16);
-    bullet.y += bullet.dy * (deltaTime / 16);
-    if (
-      checkBulletCollision(bullet) ||
-      Date.now() - bullet.spawnTime > bullet.life
-    ) {
-      bullets.delete(bulletId);
-    }
-  });
-
-  // Обновление анимации и отправка данных
   if (moved && !checkCollision(me.x, me.y)) {
-    me.steps += deltaTime / 1000; // Шаги пропорциональны времени
+    const distance = Math.sqrt(
+      Math.pow(me.x - prevX, 2) + Math.pow(me.y - prevY, 2)
+    );
+    me.distanceTraveled = (me.distanceTraveled || 0) + distance;
+    console.log(
+      `Moved from (${prevX}, ${prevY}) to (${me.x}, ${me.y}), Distance: ${distance}, Total: ${me.distanceTraveled}`
+    );
+
     updateResources();
 
     if (me.state === "walking") {
@@ -1060,7 +1054,7 @@ function update(deltaTime) {
         food: me.food,
         water: me.water,
         armor: me.armor,
-        steps: me.steps,
+        distanceTraveled: me.distanceTraveled,
         direction: me.direction,
         state: me.state,
         frame: me.frame,
