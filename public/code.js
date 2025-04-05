@@ -448,7 +448,7 @@ function updateResources() {
   );
 
   // Энергия: -1 каждые 600 пикселей
-  const energyLoss = Math.floor(distance / 600);
+  const energyLoss = Math.floor(distance / 800);
   const prevEnergyLoss = Math.floor(lastDistance / 600);
   if (energyLoss > prevEnergyLoss) {
     me.energy = Math.max(0, me.energy - (energyLoss - prevEnergyLoss));
@@ -600,8 +600,8 @@ function update(deltaTime) {
   const me = players.get(myId);
   if (!me || me.health <= 0) return;
 
-  const speed = 200; // 200 пикселей в секунду
-  const moveSpeed = speed * (deltaTime / 1000);
+  const speed = 40; // 200 пикселей в секунду
+  const moveSpeed = speed * (deltaTime / 300);
   let moved = false;
   let prevX = me.x;
   let prevY = me.y;
