@@ -449,23 +449,23 @@ function updateResources() {
 
   // Энергия: -1 каждые 600 пикселей
   const energyLoss = Math.floor(distance / 800);
-  const prevEnergyLoss = Math.floor(lastDistance / 600);
+  const prevEnergyLoss = Math.floor(lastDistance / 800);
   if (energyLoss > prevEnergyLoss) {
     me.energy = Math.max(0, me.energy - (energyLoss - prevEnergyLoss));
     console.log(`Energy reduced to ${me.energy}`);
   }
 
   // Еда: -1 каждые 350 пикселей
-  const foodLoss = Math.floor(distance / 350);
-  const prevFoodLoss = Math.floor(lastDistance / 350);
+  const foodLoss = Math.floor(distance / 450);
+  const prevFoodLoss = Math.floor(lastDistance / 450);
   if (foodLoss > prevFoodLoss) {
     me.food = Math.max(0, me.food - (foodLoss - prevFoodLoss));
     console.log(`Food reduced to ${me.food}`);
   }
 
   // Вода: -1 каждые 200 пикселей
-  const waterLoss = Math.floor(distance / 200);
-  const prevWaterLoss = Math.floor(lastDistance / 200);
+  const waterLoss = Math.floor(distance / 250);
+  const prevWaterLoss = Math.floor(lastDistance / 250);
   if (waterLoss > prevWaterLoss) {
     me.water = Math.max(0, me.water - (waterLoss - prevWaterLoss));
     console.log(`Water reduced to ${me.water}`);
@@ -473,8 +473,8 @@ function updateResources() {
 
   // Здоровье: -1 каждые 50 пикселей, если ресурсы на нуле
   if (me.energy === 0 || me.food === 0 || me.water === 0) {
-    const healthLoss = Math.floor(distance / 50);
-    const prevHealthLoss = Math.floor(lastDistance / 50);
+    const healthLoss = Math.floor(distance / 150);
+    const prevHealthLoss = Math.floor(lastDistance / 150);
     if (healthLoss > prevHealthLoss) {
       me.health = Math.max(0, me.health - (healthLoss - prevHealthLoss));
       console.log(`Health reduced to ${me.health}`);
@@ -601,7 +601,7 @@ function update(deltaTime) {
   if (!me || me.health <= 0) return;
 
   const speed = 20; // 200 пикселей в секунду
-  const moveSpeed = speed * (deltaTime / 100);
+  const moveSpeed = speed * (deltaTime / 20);
   let moved = false;
   let prevX = me.x;
   let prevY = me.y;
@@ -683,24 +683,24 @@ function updateResources() {
   );
 
   // Энергия: -1 каждые 500 пикселей
-  const energyLoss = Math.floor(distance / 600);
-  const prevEnergyLoss = Math.floor(lastDistance / 600);
+  const energyLoss = Math.floor(distance / 800);
+  const prevEnergyLoss = Math.floor(lastDistance / 800);
   if (energyLoss > prevEnergyLoss) {
     me.energy = Math.max(0, me.energy - (energyLoss - prevEnergyLoss));
     console.log(`Energy reduced to ${me.energy}`);
   }
 
   // Еда: -1 каждые 300 пикселей
-  const foodLoss = Math.floor(distance / 350);
-  const prevFoodLoss = Math.floor(lastDistance / 350);
+  const foodLoss = Math.floor(distance / 450);
+  const prevFoodLoss = Math.floor(lastDistance / 450);
   if (foodLoss > prevFoodLoss) {
     me.food = Math.max(0, me.food - (foodLoss - prevFoodLoss));
     console.log(`Food reduced to ${me.food}`);
   }
 
   // Вода: -1 каждые 175 пикселей
-  const waterLoss = Math.floor(distance / 200);
-  const prevWaterLoss = Math.floor(lastDistance / 200);
+  const waterLoss = Math.floor(distance / 250);
+  const prevWaterLoss = Math.floor(lastDistance / 250);
   if (waterLoss > prevWaterLoss) {
     me.water = Math.max(0, me.water - (waterLoss - prevWaterLoss));
     console.log(`Water reduced to ${me.water}`);
@@ -708,8 +708,8 @@ function updateResources() {
 
   // Здоровье: -1 каждые 50 пикселей, если ресурсы на нуле
   if (me.energy === 0 || me.food === 0 || me.water === 0) {
-    const healthLoss = Math.floor(distance / 50);
-    const prevHealthLoss = Math.floor(lastDistance / 50);
+    const healthLoss = Math.floor(distance / 150);
+    const prevHealthLoss = Math.floor(lastDistance / 150);
     if (healthLoss > prevHealthLoss) {
       me.health = Math.max(0, me.health - (healthLoss - prevHealthLoss));
       console.log(`Health reduced to ${me.health}`);
@@ -1018,7 +1018,7 @@ function update(deltaTime) {
   if (!me || me.health <= 0) return;
 
   const speed = 20; // 200 пикселей в секунду
-  const moveSpeed = speed * (deltaTime / 100);
+  const moveSpeed = speed * (deltaTime / 20);
   let moved = false;
   let prevX = me.x;
   let prevY = me.y;
