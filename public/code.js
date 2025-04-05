@@ -249,47 +249,47 @@ function startGame() {
 
   // Обработчик нажатия клавиш
   document.addEventListener("keydown", (e) => {
-    if (document.activeElement === chatInput || isKeyPressed) return; // Игнорируем, если чат активен или клавиша уже нажата
+    if (document.activeElement === chatInput || isKeyPressed) return;
     const me = players.get(myId);
     if (!me || me.health <= 0) return;
 
-    isKeyPressed = true; // Устанавливаем флаг, чтобы предотвратить зажатие
-    const stepSize = 10; // Фиксированный шаг движения (можно настроить)
+    isKeyPressed = true;
+    const stepSize = 10;
     let moved = false;
 
     switch (e.key) {
       case "ArrowUp":
       case "w":
-        me.y = Math.max(0, me.y - stepSize); // Двигаем на шаг вверх
+        me.y = Math.max(0, me.y - stepSize);
         me.direction = "up";
         me.state = "walking";
         moved = true;
         break;
       case "ArrowDown":
       case "s":
-        me.y = Math.min(worldHeight - 40, me.y + stepSize); // Двигаем на шаг вниз
+        me.y = Math.min(worldHeight - 40, me.y + stepSize);
         me.direction = "down";
         me.state = "walking";
         moved = true;
         break;
       case "ArrowLeft":
       case "a":
-        me.x = Math.max(0, me.x - stepSize); // Двигаем на шаг влево
+        me.x = Math.max(0, me.x - stepSize);
         me.direction = "left";
         me.state = "walking";
         moved = true;
         break;
       case "ArrowRight":
       case "d":
-        me.x = Math.min(worldWidth - 40, me.x + stepSize); // Двигаем на шаг вправо
+        me.x = Math.min(worldWidth - 40, me.x + stepSize);
         me.direction = "right";
         me.state = "walking";
         moved = true;
         break;
-      case " ": // Пробел для стрельбы (уже было, оставляем)
+      case " ":
         shoot();
         break;
-      case "c": // Добавляем открытие/закрытие чата по C
+      case "c":
         const isChatVisible = chatContainer.style.display === "flex";
         chatContainer.style.display = isChatVisible ? "none" : "flex";
         if (!isChatVisible) chatInput.focus();
@@ -297,11 +297,9 @@ function startGame() {
         break;
     }
 
-    // Если персонаж двигался, обновляем сервер и камеру
     if (moved && !checkCollision(me.x, me.y)) {
-      me.steps += 0.01; // Увеличиваем шаги (можно настроить)
-      updateResources();
-      me.frame = (me.frame + 1) % 7; // Переключаем кадр анимации
+      // Убираем me.steps += 0.01, так как это теперь в update
+      me.frame = (me.frame + 1) % 7;
       ws.send(
         JSON.stringify({
           type: "move",
@@ -322,7 +320,7 @@ function startGame() {
       checkCollisions();
     }
 
-    e.preventDefault(); // Предотвращаем стандартное поведение (например, прокрутку страницы)
+    e.preventDefault();
   });
 
   // Обработчик отпускания клавиш для сброса флага и состояния
@@ -475,28 +473,33 @@ function updateResources() {
   const me = players.get(myId);
   if (!me) return;
 
+  // Увеличиваем steps только в update, здесь только проверяем
   // Расход энергии: -1 каждые 100 шагов
   if (Math.floor(me.steps) % 100 === 0 && me.steps > 0) {
     me.energy = Math.max(0, me.energy - 1);
+    console.log(`Энергия уменьшена: ${me.energy}`); // Для отладки
   }
 
   // Расход еды: -1 каждые 60 шагов
   if (Math.floor(me.steps) % 60 === 0 && me.steps > 0) {
     me.food = Math.max(0, me.food - 1);
+    console.log(`Еда уменьшена: ${me.food}`); // Для отладки
   }
 
   // Расход воды: -1 каждые 35 шагов
   if (Math.floor(me.steps) % 35 === 0 && me.steps > 0) {
     me.water = Math.max(0, me.water - 1);
+    console.log(`Вода уменьшена: ${me.water}`); // Для отладки
   }
 
-  // Урон здоровью, если ресурсы на нуле: -1 каждые 10 шагов
+  // Урон здоровью: -1 каждые 10 шагов, если любой ресурс на 0
   if (
     (me.energy === 0 || me.food === 0 || me.water === 0) &&
     Math.floor(me.steps) % 10 === 0 &&
     me.steps > 0
   ) {
     me.health = Math.max(0, me.health - 1);
+    console.log(`Здоровье уменьшено: ${me.health}`); // Для отладки
   }
 
   updateStatsDisplay();
@@ -536,7 +539,7 @@ function handleGameMessage(event) {
         ...data.player,
         frameTime: existingPlayer.frameTime || 0,
       });
-      if (data.player.id === myId) updateStatsDisplay();
+      if (data.player.id === myId) updateStatsDisplay(); // Обновляем интерфейс
       break;
     case "playerLeft":
       players.delete(data.id);
@@ -614,7 +617,11 @@ function update(deltaTime) {
   const me = players.get(myId);
   if (!me || me.health <= 0) return;
 
-  // Обработка движения на основе флагов
+  const speed = 200; // Скорость в пикселях в секунду
+  const moveSpeed = speed * (deltaTime / 1000); // Пиксели за кадр
+  let moved = false;
+
+  // Обработка движения
   if (movement.up) {
     me.y = Math.max(0, me.y - moveSpeed);
     me.direction = "up";
@@ -638,22 +645,10 @@ function update(deltaTime) {
     moved = true;
   }
 
-  // Обновление пуль
-  bullets.forEach((bullet, bulletId) => {
-    bullet.x += bullet.dx * (deltaTime / 16);
-    bullet.y += bullet.dy * (deltaTime / 16);
-    if (
-      checkBulletCollision(bullet) ||
-      Date.now() - bullet.spawnTime > bullet.life
-    ) {
-      bullets.delete(bulletId);
-    }
-  });
-
-  // Обновление анимации и отправка данных
+  // Обновление шагов и ресурсов
   if (moved && !checkCollision(me.x, me.y)) {
-    me.steps += deltaTime / 800; // Шаги пропорциональны времени
-    updateResources();
+    me.steps += deltaTime / 1000; // Увеличиваем шаги пропорционально времени (1 шаг = 1 секунда движения)
+    updateResources(); // Проверяем ресурсы
 
     if (me.state === "walking") {
       me.frameTime += deltaTime;
