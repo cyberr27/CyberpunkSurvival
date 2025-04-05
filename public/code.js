@@ -667,15 +667,31 @@ function update(deltaTime) {
 function updateResources() {
   const me = players.get(myId);
   if (!me) return;
-  if (me.steps % 100 === 0) me.energy = Math.max(0, me.energy - 1);
-  if (me.steps % 50 === 0) me.food = Math.max(0, me.food - 1);
-  if (me.steps % 25 === 0) me.water = Math.max(0, me.water - 1);
+
+  // Расход энергии: -1 каждые 100 шагов
+  if (Math.floor(me.steps) % 100 === 0 && me.steps > 0) {
+    me.energy = Math.max(0, me.energy - 1);
+  }
+
+  // Расход еды: -1 каждые 60 шагов
+  if (Math.floor(me.steps) % 60 === 0 && me.steps > 0) {
+    me.food = Math.max(0, me.food - 1);
+  }
+
+  // Расход воды: -1 каждые 35 шагов
+  if (Math.floor(me.steps) % 35 === 0 && me.steps > 0) {
+    me.water = Math.max(0, me.water - 1);
+  }
+
+  // Урон здоровью, если ресурсы на нуле: -1 каждые 10 шагов
   if (
     (me.energy === 0 || me.food === 0 || me.water === 0) &&
-    me.steps % 10 === 0
+    Math.floor(me.steps) % 10 === 0 &&
+    me.steps > 0
   ) {
     me.health = Math.max(0, me.health - 1);
   }
+
   updateStatsDisplay();
 }
 
