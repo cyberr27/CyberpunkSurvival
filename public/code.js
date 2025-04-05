@@ -704,35 +704,38 @@ function update(deltaTime) {
   }
 }
 
-// Логика расхода ресурсов
 function updateResources() {
   const me = players.get(myId);
   if (!me) return;
 
-  // Расход энергии: -1 каждые 100 шагов
+  console.log(
+    `Before: Health: ${me.health}, Energy: ${me.energy}, Food: ${me.food}, Water: ${me.water}, Steps: ${me.steps}`
+  );
+
   if (Math.floor(me.steps) % 100 === 0 && me.steps > 0) {
     me.energy = Math.max(0, me.energy - 1);
+    console.log(`Energy reduced to ${me.energy}`);
   }
-
-  // Расход еды: -1 каждые 60 шагов
   if (Math.floor(me.steps) % 60 === 0 && me.steps > 0) {
     me.food = Math.max(0, me.food - 1);
+    console.log(`Food reduced to ${me.food}`);
   }
-
-  // Расход воды: -1 каждые 35 шагов
   if (Math.floor(me.steps) % 35 === 0 && me.steps > 0) {
     me.water = Math.max(0, me.water - 1);
+    console.log(`Water reduced to ${me.water}`);
   }
-
-  // Урон здоровью, если ресурсы на нуле: -1 каждые 10 шагов
   if (
     (me.energy === 0 || me.food === 0 || me.water === 0) &&
     Math.floor(me.steps) % 10 === 0 &&
     me.steps > 0
   ) {
     me.health = Math.max(0, me.health - 1);
+    console.log(`Health reduced to ${me.health}`);
   }
 
+  console.log(
+    `After: Health: ${me.health}, Energy: ${me.energy}, Food: ${me.food}, Water: ${me.water}`
+  );
   updateStatsDisplay();
 }
 
