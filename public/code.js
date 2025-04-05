@@ -950,7 +950,7 @@ function handleTouchMovement(touchX, touchY, screenWidth, screenHeight) {
   const me = players.get(myId);
   if (!me) return;
 
-  const speed = 20;
+  const speed = 40;
   let moved = false;
 
   // Делим экран на 4 зоны
