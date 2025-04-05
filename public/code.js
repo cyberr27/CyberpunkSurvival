@@ -241,53 +241,6 @@ function handleAuthMessage(event) {
   }
 }
 
-// Логика расхода ресурсов
-function updateResources() {
-  const me = players.get(myId);
-  if (!me) return;
-
-  // Расход энергии: -1 каждые 100 шагов
-  if (Math.floor(me.steps) % 100 === 0 && me.steps > 0) {
-    me.energy = Math.max(0, me.energy - 1);
-  }
-
-  // Расход еды: -1 каждые 60 шагов
-  if (Math.floor(me.steps) % 60 === 0 && me.steps > 0) {
-    me.food = Math.max(0, me.food - 1);
-  }
-
-  // Расход воды: -1 каждые 35 шагов
-  if (Math.floor(me.steps) % 35 === 0 && me.steps > 0) {
-    me.water = Math.max(0, me.water - 1);
-  }
-
-  // Урон здоровью, если ресурсы на нуле: -1 каждые 10 шагов
-  if (
-    (me.energy === 0 || me.food === 0 || me.water === 0) &&
-    Math.floor(me.steps) % 10 === 0 &&
-    me.steps > 0
-  ) {
-    me.health = Math.max(0, me.health - 1);
-  }
-
-  updateStatsDisplay();
-}
-
-function updateStatsDisplay() {
-  const me = players.get(myId);
-  if (!me) return;
-  statsEl.innerHTML = `
-    <span class="health">Здоровье: ${me.health}</span><br>
-    <span class="energy">Энергия: ${me.energy}</span><br>
-    <span class="food">Еда: ${me.food}</span><br>
-    <span class="water">Вода: ${me.water}</span><br>
-    <span class="armor">Броня: ${me.armor}</span>
-  `;
-  document.getElementById("coords").innerHTML = `X: ${Math.floor(
-    me.x
-  )}<br>Y: ${Math.floor(me.y)}`;
-}
-
 function startGame() {
   let isKeyPressed = false;
   let touchStartX = 0;
@@ -515,6 +468,53 @@ function startGame() {
   });
 
   requestAnimationFrame(gameLoop);
+}
+
+// Логика расхода ресурсов
+function updateResources() {
+  const me = players.get(myId);
+  if (!me) return;
+
+  // Расход энергии: -1 каждые 100 шагов
+  if (Math.floor(me.steps) % 100 === 0 && me.steps > 0) {
+    me.energy = Math.max(0, me.energy - 1);
+  }
+
+  // Расход еды: -1 каждые 60 шагов
+  if (Math.floor(me.steps) % 60 === 0 && me.steps > 0) {
+    me.food = Math.max(0, me.food - 1);
+  }
+
+  // Расход воды: -1 каждые 35 шагов
+  if (Math.floor(me.steps) % 35 === 0 && me.steps > 0) {
+    me.water = Math.max(0, me.water - 1);
+  }
+
+  // Урон здоровью, если ресурсы на нуле: -1 каждые 10 шагов
+  if (
+    (me.energy === 0 || me.food === 0 || me.water === 0) &&
+    Math.floor(me.steps) % 10 === 0 &&
+    me.steps > 0
+  ) {
+    me.health = Math.max(0, me.health - 1);
+  }
+
+  updateStatsDisplay();
+}
+
+function updateStatsDisplay() {
+  const me = players.get(myId);
+  if (!me) return;
+  statsEl.innerHTML = `
+    <span class="health">Здоровье: ${me.health}</span><br>
+    <span class="energy">Энергия: ${me.energy}</span><br>
+    <span class="food">Еда: ${me.food}</span><br>
+    <span class="water">Вода: ${me.water}</span><br>
+    <span class="armor">Броня: ${me.armor}</span>
+  `;
+  document.getElementById("coords").innerHTML = `X: ${Math.floor(
+    me.x
+  )}<br>Y: ${Math.floor(me.y)}`;
 }
 
 function handleGameMessage(event) {
