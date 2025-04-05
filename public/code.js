@@ -617,11 +617,10 @@ function update(deltaTime) {
   const me = players.get(myId);
   if (!me || me.health <= 0) return;
 
-  const speed = 200; // Скорость в пикселях в секунду
-  const moveSpeed = speed * (deltaTime / 1000); // Пиксели за кадр
+  const speed = 200;
+  const moveSpeed = speed * (deltaTime / 1000);
   let moved = false;
 
-  // Обработка движения
   if (movement.up) {
     me.y = Math.max(0, me.y - moveSpeed);
     me.direction = "up";
@@ -645,10 +644,10 @@ function update(deltaTime) {
     moved = true;
   }
 
-  // Обновление шагов и ресурсов
   if (moved && !checkCollision(me.x, me.y)) {
-    me.steps += deltaTime / 1000; // Увеличиваем шаги пропорционально времени (1 шаг = 1 секунда движения)
-    updateResources(); // Проверяем ресурсы
+    me.steps += deltaTime / 1000;
+    console.log(`Steps: ${me.steps}`); // Добавляем отладку
+    updateResources();
 
     if (me.state === "walking") {
       me.frameTime += deltaTime;
