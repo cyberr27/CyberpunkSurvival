@@ -584,7 +584,7 @@ function update(deltaTime) {
   const me = players.get(myId);
   if (!me || me.health <= 0) return;
 
-  const speed = 200; // 200 пикселей в секунду для всех устройств
+  const speed = 200; // 200 пикселей в секунду
   const moveSpeed = speed * (deltaTime / 1000);
   let moved = false;
   let prevX = me.x;
@@ -614,12 +614,13 @@ function update(deltaTime) {
   }
 
   if (moved && !checkCollision(me.x, me.y)) {
-    // Считаем пройденное расстояние
     const distance = Math.sqrt(
       Math.pow(me.x - prevX, 2) + Math.pow(me.y - prevY, 2)
     );
     me.distanceTraveled = (me.distanceTraveled || 0) + distance;
-    console.log(`Distance traveled: ${me.distanceTraveled}`);
+    console.log(
+      `Moved from (${prevX}, ${prevY}) to (${me.x}, ${me.y}), Distance: ${distance}, Total: ${me.distanceTraveled}`
+    );
 
     updateResources();
 
