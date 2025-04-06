@@ -119,15 +119,6 @@ function createLineObstacle(x1, y1, x2, y2, thickness = 5) {
   obstacles.push(obstacle);
 }
 
-// Управление клавишами и кнопками
-const controls = {
-  up: false,
-  down: false,
-  left: false,
-  right: false,
-  shoot: false,
-};
-
 // Размеры мира
 const worldWidth = 2800;
 const worldHeight = 3300;
@@ -251,8 +242,6 @@ function handleAuthMessage(event) {
 }
 
 function startGame() {
-  let isKeyPressed = false;
-
   // Обработчик клавиш (только для стрельбы и чата)
   document.addEventListener("keydown", (e) => {
     if (document.activeElement === chatInput) return;
@@ -571,37 +560,29 @@ function update(deltaTime) {
   if (!me || me.health <= 0) return;
 
   if (isMoving) {
-    // Вычисляем вектор направления к цели
     const dx = targetX - me.x;
     const dy = targetY - me.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
 
     if (distance > 5) {
-      // Двигаемся, если расстояние больше 5 пикселей
-      // Нормализуем вектор направления
-      const moveSpeed = baseSpeed * (deltaTime / 1000); // Скорость в пикселях за кадр
+      const moveSpeed = baseSpeed * (deltaTime / 1000);
       const moveX = (dx / distance) * moveSpeed;
       const moveY = (dy / distance) * moveSpeed;
 
-      // Сохраняем предыдущие координаты для расчёта расстояния
       const prevX = me.x;
       const prevY = me.y;
 
-      // Обновляем позицию
       me.x += moveX;
       me.y += moveY;
 
-      // Ограничиваем движение границами мира
       me.x = Math.max(0, Math.min(worldWidth - 40, me.x));
       me.y = Math.max(0, Math.min(worldHeight - 40, me.y));
 
-      // Проверяем столкновения с препятствиями
       if (checkCollision(me.x, me.y)) {
-        me.x = prevX; // Откатываем позицию при столкновении
+        me.x = prevX;
         me.y = prevY;
         me.state = "idle";
       } else {
-        // Обновляем направление и состояние
         me.state = "walking";
         if (Math.abs(dx) > Math.abs(dy)) {
           me.direction = dx > 0 ? "right" : "left";
@@ -609,26 +590,22 @@ function update(deltaTime) {
           me.direction = dy > 0 ? "down" : "up";
         }
 
-        // Расчёт пройденного расстояния
         const traveled = Math.sqrt(
           Math.pow(me.x - prevX, 2) + Math.pow(me.y - prevY, 2)
         );
         me.distanceTraveled = (me.distanceTraveled || 0) + traveled;
 
-        // Обновляем анимацию
         me.frameTime += deltaTime;
         if (me.frameTime >= frameDuration / 7) {
           me.frameTime = 0;
           me.frame = (me.frame + 1) % 7;
         }
 
-        // Обновляем ресурсы и камеру
         updateResources();
         updateCamera();
         checkCollisions();
       }
 
-      // Отправляем обновление на сервер
       ws.send(
         JSON.stringify({
           type: "move",
@@ -646,7 +623,6 @@ function update(deltaTime) {
         })
       );
     } else {
-      // Если персонаж достиг цели
       me.state = "idle";
       me.frame = 0;
       me.frameTime = 0;
@@ -669,7 +645,6 @@ function update(deltaTime) {
       );
     }
   } else if (me.state === "dying") {
-    // Обработка анимации смерти
     me.frameTime += deltaTime;
     if (me.frameTime >= frameDuration / 7) {
       me.frameTime = 0;
@@ -692,88 +667,21 @@ function update(deltaTime) {
       })
     );
   }
-  // Добавляем обновление позиций пуль
+
+  // Обновление пуль
   bullets.forEach((bullet, bulletId) => {
-    // Двигаем пулю
-    bullet.x += bullet.dx * (deltaTime / 1000); // Учитываем deltaTime для плавности
+    bullet.x += bullet.dx * (deltaTime / 1000);
     bullet.y += bullet.dy * (deltaTime / 1000);
 
-    // Проверяем время жизни пули
     const currentTime = Date.now();
     if (currentTime - bullet.spawnTime > bullet.life) {
-      bullets.delete(bulletId); // Удаляем локально, если время жизни истекло
+      bullets.delete(bulletId);
     }
 
-    // Опционально: проверка столкновений с препятствиями на клиенте
     if (checkBulletCollision(bullet)) {
-      bullets.delete(bulletId); // Удаляем при столкновении
+      bullets.delete(bulletId);
     }
   });
-}
-
-function updateResources() {
-  const me = players.get(myId);
-  if (!me) return;
-
-  const distance = Math.floor(me.distanceTraveled || 0);
-  console.log(
-    `Before: Health: ${me.health}, Energy: ${me.energy}, Food: ${me.food}, Water: ${me.water}, Distance: ${distance}`
-  );
-
-  // Энергия: -1 каждые 500 пикселей
-  const energyLoss = Math.floor(distance / 800);
-  const prevEnergyLoss = Math.floor(lastDistance / 800);
-  if (energyLoss > prevEnergyLoss) {
-    me.energy = Math.max(0, me.energy - (energyLoss - prevEnergyLoss));
-    console.log(`Energy reduced to ${me.energy}`);
-  }
-
-  // Еда: -1 каждые 300 пикселей
-  const foodLoss = Math.floor(distance / 450);
-  const prevFoodLoss = Math.floor(lastDistance / 450);
-  if (foodLoss > prevFoodLoss) {
-    me.food = Math.max(0, me.food - (foodLoss - prevFoodLoss));
-    console.log(`Food reduced to ${me.food}`);
-  }
-
-  // Вода: -1 каждые 175 пикселей
-  const waterLoss = Math.floor(distance / 250);
-  const prevWaterLoss = Math.floor(lastDistance / 250);
-  if (waterLoss > prevWaterLoss) {
-    me.water = Math.max(0, me.water - (waterLoss - prevWaterLoss));
-    console.log(`Water reduced to ${me.water}`);
-  }
-
-  // Здоровье: -1 каждые 50 пикселей, если ресурсы на нуле
-  if (me.energy === 0 || me.food === 0 || me.water === 0) {
-    const healthLoss = Math.floor(distance / 150);
-    const prevHealthLoss = Math.floor(lastDistance / 150);
-    if (healthLoss > prevHealthLoss) {
-      me.health = Math.max(0, me.health - (healthLoss - prevHealthLoss));
-      console.log(`Health reduced to ${me.health}`);
-    }
-  }
-
-  lastDistance = distance;
-  console.log(
-    `After: Health: ${me.health}, Energy: ${me.energy}, Food: ${me.food}, Water: ${me.water}`
-  );
-  updateStatsDisplay();
-}
-
-function updateStatsDisplay() {
-  const me = players.get(myId);
-  if (!me) return;
-  statsEl.innerHTML = `
-    <span class="health">Здоровье: ${me.health}</span><br>
-    <span class="energy">Энергия: ${me.energy}</span><br>
-    <span class="food">Еда: ${me.food}</span><br>
-    <span class="water">Вода: ${me.water}</span><br>
-    <span class="armor">Броня: ${me.armor}</span>
-  `;
-  document.getElementById("coords").innerHTML = `X: ${Math.floor(
-    me.x
-  )}<br>Y: ${Math.floor(me.y)}`;
 }
 
 function draw(deltaTime) {
@@ -1027,41 +935,6 @@ rocksImage.onload = onImageLoad;
 cloudsImage.onload = onImageLoad;
 playerSprite.onload = onImageLoad;
 wolfSprite.onload = onImageLoad;
-
-function handleButtonAction(action) {
-  const me = players.get(myId);
-  if (!me || me.health <= 0) return;
-
-  switch (action) {
-    case "up":
-      movement.up = true;
-      movement.down = movement.left = movement.right = false;
-      me.direction = "up";
-      me.state = "walking";
-      break;
-    case "down":
-      movement.down = true;
-      movement.up = movement.left = movement.right = false;
-      me.direction = "down";
-      me.state = "walking";
-      break;
-    case "left":
-      movement.left = true;
-      movement.up = movement.down = movement.right = false;
-      me.direction = "left";
-      me.state = "walking";
-      break;
-    case "right":
-      movement.right = true;
-      movement.up = movement.down = movement.left = false;
-      me.direction = "right";
-      me.state = "walking";
-      break;
-    case "shoot":
-      shoot();
-      break;
-  }
-}
 
 function lineIntersects(x1, y1, x2, y2, x3, y3, x4, y4) {
   const denominator = (y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1);
