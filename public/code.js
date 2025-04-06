@@ -32,6 +32,13 @@ const lights = [];
 const obstacles = [];
 const bullets = new Map(); // Изменяем на Map для синхронизации с сервером
 let lastDistance = 0; // Добавляем глобальную переменную
+// Флаг, указывающий, что персонаж должен двигаться к цели
+let isMoving = false;
+// Целевая позиция в мировых координатах
+let targetX = 0;
+let targetY = 0;
+// Базовая скорость в пикселях в секунду (одинакова для всех устройств)
+const baseSpeed = 20; // 20 пикселей в секунду
 
 // Флаги для управления движением
 const movement = {
@@ -245,34 +252,14 @@ function handleAuthMessage(event) {
 
 function startGame() {
   let isKeyPressed = false;
-  let touchStartX = 0;
-  let touchStartY = 0;
-  let isTouching = false;
 
-  // Обработчик нажатия клавиш
-  // Обновляем обработчики клавиш для установки флагов
+  // Обработчик клавиш (только для стрельбы и чата)
   document.addEventListener("keydown", (e) => {
     if (document.activeElement === chatInput) return;
     const me = players.get(myId);
     if (!me || me.health <= 0) return;
 
     switch (e.key) {
-      case "ArrowUp":
-      case "w":
-        movement.up = true;
-        break;
-      case "ArrowDown":
-      case "s":
-        movement.down = true;
-        break;
-      case "ArrowLeft":
-      case "a":
-        movement.left = true;
-        break;
-      case "ArrowRight":
-      case "d":
-        movement.right = true;
-        break;
       case " ":
         shoot();
         break;
@@ -286,29 +273,81 @@ function startGame() {
     e.preventDefault();
   });
 
-  document.addEventListener("keyup", (e) => {
-    const me = players.get(myId);
-    if (!me) return;
+  // Обработчик нажатия мыши
+  canvas.addEventListener("mousedown", (e) => {
+    if (e.button === 0) {
+      // Только левая кнопка мыши
+      const me = players.get(myId);
+      if (!me || me.health <= 0) return;
 
-    switch (e.key) {
-      case "ArrowUp":
-      case "w":
-        movement.up = false;
-        break;
-      case "ArrowDown":
-      case "s":
-        movement.down = false;
-        break;
-      case "ArrowLeft":
-      case "a":
-        movement.left = false;
-        break;
-      case "ArrowRight":
-      case "d":
-        movement.right = false;
-        break;
+      isMoving = true;
+      // Переводим координаты клика из экранных в мировые
+      targetX = e.clientX + camera.x;
+      targetY = e.clientY + camera.y;
     }
-    if (!movement.up && !movement.down && !movement.left && !movement.right) {
+  });
+
+  // Обработчик движения мыши (обновляем цель, если кнопка зажата)
+  canvas.addEventListener("mousemove", (e) => {
+    if (isMoving) {
+      targetX = e.clientX + camera.x;
+      targetY = e.clientY + camera.y;
+    }
+  });
+
+  // Обработчик отпускания мыши
+  canvas.addEventListener("mouseup", (e) => {
+    if (e.button === 0) {
+      isMoving = false;
+      const me = players.get(myId);
+      if (me) {
+        me.state = "idle";
+        me.frame = 0;
+        me.frameTime = 0;
+        ws.send(
+          JSON.stringify({
+            type: "move",
+            x: me.x,
+            y: me.y,
+            health: me.health,
+            energy: me.energy,
+            food: me.food,
+            water: me.water,
+            armor: me.armor,
+            distanceTraveled: me.distanceTraveled,
+            direction: me.direction,
+            state: me.state,
+            frame: me.frame,
+          })
+        );
+      }
+    }
+  });
+
+  // Обработчик тач-событий для мобильных устройств
+  canvas.addEventListener("touchstart", (e) => {
+    e.preventDefault();
+    const me = players.get(myId);
+    if (!me || me.health <= 0) return;
+
+    const touch = e.touches[0];
+    isMoving = true;
+    targetX = touch.clientX + camera.x;
+    targetY = touch.clientY + camera.y;
+  });
+
+  canvas.addEventListener("touchmove", (e) => {
+    e.preventDefault();
+    const touch = e.touches[0];
+    targetX = touch.clientX + camera.x;
+    targetY = touch.clientY + camera.y;
+  });
+
+  canvas.addEventListener("touchend", (e) => {
+    e.preventDefault();
+    isMoving = false;
+    const me = players.get(myId);
+    if (me) {
       me.state = "idle";
       me.frame = 0;
       me.frameTime = 0;
@@ -329,75 +368,6 @@ function startGame() {
         })
       );
     }
-  });
-
-  // Новое управление касанием
-  canvas.addEventListener("touchstart", (e) => {
-    e.preventDefault();
-    const me = players.get(myId);
-    if (!me || me.health <= 0) return;
-
-    const touch = e.touches[0];
-    touchStartX = touch.clientX;
-    touchStartY = touch.clientY;
-    isTouching = true;
-  });
-
-  canvas.addEventListener("touchmove", (e) => {
-    e.preventDefault();
-    const me = players.get(myId);
-    if (!me || me.health <= 0 || !isTouching) return;
-
-    const touch = e.touches[0];
-    const touchX = touch.clientX;
-    const touchY = touch.clientY;
-
-    const dx = touchX - touchStartX;
-    const dy = touchY - touchStartY;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-
-    if (distance > 5) {
-      me.state = "walking";
-      if (Math.abs(dx) > Math.abs(dy)) {
-        me.direction = dx > 0 ? "right" : "left";
-        movement.right = dx > 0;
-        movement.left = dx < 0;
-        movement.up = false;
-        movement.down = false;
-      } else {
-        me.direction = dy > 0 ? "down" : "up";
-        movement.down = dy > 0;
-        movement.up = dy < 0;
-        movement.left = false;
-        movement.right = false;
-      }
-    }
-  });
-
-  canvas.addEventListener("touchend", (e) => {
-    e.preventDefault();
-    const me = players.get(myId);
-    if (me) {
-      me.state = "idle";
-      movement.up = movement.down = movement.left = movement.right = false;
-      ws.send(
-        JSON.stringify({
-          type: "move",
-          x: me.x,
-          y: me.y,
-          health: me.health,
-          energy: me.energy,
-          food: me.food,
-          water: me.water,
-          armor: me.armor,
-          steps: me.steps,
-          direction: me.direction,
-          state: me.state,
-          frame: me.frame,
-        })
-      );
-    }
-    isTouching = false;
   });
 
   // Настройка кнопки Fire
@@ -600,54 +570,111 @@ function update(deltaTime) {
   const me = players.get(myId);
   if (!me || me.health <= 0) return;
 
-  const speed = 20; // 200 пикселей в секунду
-  const moveSpeed = speed * (deltaTime / 100);
-  let moved = false;
-  let prevX = me.x;
-  let prevY = me.y;
+  if (isMoving) {
+    // Вычисляем вектор направления к цели
+    const dx = targetX - me.x;
+    const dy = targetY - me.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
 
-  if (movement.up) {
-    me.y = Math.max(0, me.y - moveSpeed);
-    me.direction = "up";
-    me.state = "walking";
-    moved = true;
-  } else if (movement.down) {
-    me.y = Math.min(worldHeight - 40, me.y + moveSpeed);
-    me.direction = "down";
-    me.state = "walking";
-    moved = true;
-  }
-  if (movement.left) {
-    me.x = Math.max(0, me.x - moveSpeed);
-    me.direction = "left";
-    me.state = "walking";
-    moved = true;
-  } else if (movement.right) {
-    me.x = Math.min(worldWidth - 40, me.x + moveSpeed);
-    me.direction = "right";
-    me.state = "walking";
-    moved = true;
-  }
+    if (distance > 5) {
+      // Двигаемся, если расстояние больше 5 пикселей
+      // Нормализуем вектор направления
+      const moveSpeed = baseSpeed * (deltaTime / 1000); // Скорость в пикселях за кадр
+      const moveX = (dx / distance) * moveSpeed;
+      const moveY = (dy / distance) * moveSpeed;
 
-  if (moved && !checkCollision(me.x, me.y)) {
-    const distance = Math.sqrt(
-      Math.pow(me.x - prevX, 2) + Math.pow(me.y - prevY, 2)
-    );
-    me.distanceTraveled = (me.distanceTraveled || 0) + distance;
-    console.log(
-      `Moved from (${prevX}, ${prevY}) to (${me.x}, ${me.y}), Distance: ${distance}, Total: ${me.distanceTraveled}`
-    );
+      // Сохраняем предыдущие координаты для расчёта расстояния
+      const prevX = me.x;
+      const prevY = me.y;
 
-    updateResources();
+      // Обновляем позицию
+      me.x += moveX;
+      me.y += moveY;
 
-    if (me.state === "walking") {
-      me.frameTime += deltaTime;
-      if (me.frameTime >= frameDuration / 7) {
-        me.frameTime = 0;
-        me.frame = (me.frame + 1) % 7;
+      // Ограничиваем движение границами мира
+      me.x = Math.max(0, Math.min(worldWidth - 40, me.x));
+      me.y = Math.max(0, Math.min(worldHeight - 40, me.y));
+
+      // Проверяем столкновения с препятствиями
+      if (checkCollision(me.x, me.y)) {
+        me.x = prevX; // Откатываем позицию при столкновении
+        me.y = prevY;
+        me.state = "idle";
+      } else {
+        // Обновляем направление и состояние
+        me.state = "walking";
+        if (Math.abs(dx) > Math.abs(dy)) {
+          me.direction = dx > 0 ? "right" : "left";
+        } else {
+          me.direction = dy > 0 ? "down" : "up";
+        }
+
+        // Расчёт пройденного расстояния
+        const traveled = Math.sqrt(
+          Math.pow(me.x - prevX, 2) + Math.pow(me.y - prevY, 2)
+        );
+        me.distanceTraveled = (me.distanceTraveled || 0) + traveled;
+
+        // Обновляем анимацию
+        me.frameTime += deltaTime;
+        if (me.frameTime >= frameDuration / 7) {
+          me.frameTime = 0;
+          me.frame = (me.frame + 1) % 7;
+        }
+
+        // Обновляем ресурсы и камеру
+        updateResources();
+        updateCamera();
+        checkCollisions();
       }
-    }
 
+      // Отправляем обновление на сервер
+      ws.send(
+        JSON.stringify({
+          type: "move",
+          x: me.x,
+          y: me.y,
+          health: me.health,
+          energy: me.energy,
+          food: me.food,
+          water: me.water,
+          armor: me.armor,
+          distanceTraveled: me.distanceTraveled,
+          direction: me.direction,
+          state: me.state,
+          frame: me.frame,
+        })
+      );
+    } else {
+      // Если персонаж достиг цели
+      me.state = "idle";
+      me.frame = 0;
+      me.frameTime = 0;
+      isMoving = false;
+      ws.send(
+        JSON.stringify({
+          type: "move",
+          x: me.x,
+          y: me.y,
+          health: me.health,
+          energy: me.energy,
+          food: me.food,
+          water: me.water,
+          armor: me.armor,
+          distanceTraveled: me.distanceTraveled,
+          direction: me.direction,
+          state: me.state,
+          frame: me.frame,
+        })
+      );
+    }
+  } else if (me.state === "dying") {
+    // Обработка анимации смерти
+    me.frameTime += deltaTime;
+    if (me.frameTime >= frameDuration / 7) {
+      me.frameTime = 0;
+      if (me.frame < 6) me.frame += 1;
+    }
     ws.send(
       JSON.stringify({
         type: "move",
@@ -664,12 +691,6 @@ function update(deltaTime) {
         frame: me.frame,
       })
     );
-    updateCamera();
-    checkCollisions();
-  } else if (moved) {
-    me.state = "idle";
-    me.frame = 0;
-    me.frameTime = 0;
   }
 }
 
@@ -946,172 +967,6 @@ function drawBullet(x, y) {
   ctx.fill();
 }
 
-function handleTouchMovement(touchX, touchY, screenWidth, screenHeight) {
-  const me = players.get(myId);
-  if (!me) return;
-
-  const speed = 20;
-  let moved = false;
-
-  // Делим экран на 4 зоны
-  if (touchY < screenHeight / 2 && touchX < screenWidth / 2) {
-    // Вверх-влево (приоритет вверх)
-    me.direction = "up";
-    me.state = "walking";
-    me.y = Math.max(0, me.y - speed);
-    moved = true;
-  } else if (touchY < screenHeight / 2 && touchX >= screenWidth / 2) {
-    // Вверх-вправо (приоритет вверх)
-    me.direction = "up";
-    me.state = "walking";
-    me.y = Math.max(0, me.y - speed);
-    moved = true;
-  } else if (touchY >= screenHeight / 2 && touchX < screenWidth / 2) {
-    // Вниз-влево (приоритет вниз)
-    me.direction = "down";
-    me.state = "walking";
-    me.y = Math.min(worldHeight - 40, me.y + speed);
-    moved = true;
-  } else if (touchY >= screenHeight / 2 && touchX >= screenWidth / 2) {
-    // Вниз-вправо (приоритет вниз)
-    me.direction = "down";
-    me.state = "walking";
-    me.y = Math.min(worldHeight - 40, me.y + speed);
-    moved = true;
-  }
-
-  if (moved && !checkCollision(me.x, me.y)) {
-    me.steps += 1;
-    updateResources();
-    me.frameTime += frameDuration;
-    if (me.frameTime >= frameDuration) {
-      me.frameTime = 0;
-      me.frame = (me.frame + 1) % 7;
-    }
-    ws.send(
-      JSON.stringify({
-        type: "move",
-        x: me.x,
-        y: me.y,
-        health: me.health,
-        energy: me.energy,
-        food: me.food,
-        water: me.water,
-        armor: me.armor,
-        steps: me.steps,
-        direction: me.direction,
-        state: me.state,
-        frame: me.frame,
-      })
-    );
-    updateCamera();
-    checkCollisions();
-  } else if (moved) {
-    me.state = "idle";
-    me.frame = 0;
-    me.frameTime = 0;
-  }
-}
-
-function update(deltaTime) {
-  const me = players.get(myId);
-  if (!me || me.health <= 0) return;
-
-  const speed = 20; // 200 пикселей в секунду
-  const moveSpeed = speed * (deltaTime / 200);
-  let moved = false;
-  let prevX = me.x;
-  let prevY = me.y;
-
-  if (movement.up) {
-    me.y = Math.max(0, me.y - moveSpeed);
-    me.direction = "up";
-    me.state = "walking";
-    moved = true;
-  } else if (movement.down) {
-    me.y = Math.min(worldHeight - 40, me.y + moveSpeed);
-    me.direction = "down";
-    me.state = "walking";
-    moved = true;
-  }
-  if (movement.left) {
-    me.x = Math.max(0, me.x - moveSpeed);
-    me.direction = "left";
-    me.state = "walking";
-    moved = true;
-  } else if (movement.right) {
-    me.x = Math.min(worldWidth - 40, me.x + moveSpeed);
-    me.direction = "right";
-    me.state = "walking";
-    moved = true;
-  }
-
-  if (moved && !checkCollision(me.x, me.y)) {
-    const distance = Math.sqrt(
-      Math.pow(me.x - prevX, 2) + Math.pow(me.y - prevY, 2)
-    );
-    me.distanceTraveled = (me.distanceTraveled || 0) + distance;
-    console.log(
-      `Moved from (${prevX}, ${prevY}) to (${me.x}, ${me.y}), Distance: ${distance}, Total: ${me.distanceTraveled}`
-    );
-
-    updateResources();
-
-    if (me.state === "walking") {
-      me.frameTime += deltaTime;
-      if (me.frameTime >= frameDuration / 7) {
-        me.frameTime = 0;
-        me.frame = (me.frame + 1) % 7;
-      }
-    }
-
-    ws.send(
-      JSON.stringify({
-        type: "move",
-        x: me.x,
-        y: me.y,
-        health: me.health,
-        energy: me.energy,
-        food: me.food,
-        water: me.water,
-        armor: me.armor,
-        distanceTraveled: me.distanceTraveled,
-        direction: me.direction,
-        state: me.state,
-        frame: me.frame,
-      })
-    );
-    updateCamera();
-    checkCollisions();
-  } else if (moved) {
-    me.state = "idle";
-    me.frame = 0;
-    me.frameTime = 0;
-  } else if (me.state === "dying") {
-    me.frameTime += deltaTime;
-    if (me.frameTime >= frameDuration / 7) {
-      me.frameTime = 0;
-      if (me.frame < 6) me.frame += 1;
-    }
-    ws.send(
-      JSON.stringify({
-        type: "move",
-        x: me.x,
-        y: me.y,
-        health: me.health,
-        energy: me.energy,
-        food: me.food,
-        water: me.water,
-        armor: me.armor,
-        steps: me.steps,
-        direction: me.direction,
-        state: me.state,
-        frame: me.frame,
-      })
-    );
-  }
-}
-
 function checkCollisions() {
   const me = players.get(myId);
   items.forEach((item, id) => {
@@ -1155,44 +1010,6 @@ rocksImage.onload = onImageLoad;
 cloudsImage.onload = onImageLoad;
 playerSprite.onload = onImageLoad;
 wolfSprite.onload = onImageLoad;
-
-function setupButton(id, action) {
-  const btn = document.getElementById(id);
-  let isPressed = false; // Флаг для отслеживания нажатия
-
-  // Обработчик для десктопов (click)
-  btn.addEventListener("click", (e) => {
-    e.preventDefault();
-    if (!isPressed) {
-      isPressed = true;
-      handleButtonAction(action);
-      // Сбрасываем флаг после небольшого таймаута
-      setTimeout(() => {
-        isPressed = false;
-      }, 200); // 200 мс — минимальная задержка между нажатиями
-    }
-  });
-
-  // Обработчик для мобильных устройств (touchstart)
-  btn.addEventListener("touchstart", (e) => {
-    e.preventDefault();
-    if (!isPressed) {
-      isPressed = true;
-      handleButtonAction(action);
-    }
-  });
-
-  // Сбрасываем флаг при отпускании кнопки на мобильных устройствах
-  btn.addEventListener("touchend", (e) => {
-    e.preventDefault();
-    isPressed = false;
-  });
-
-  // Дополнительно предотвращаем нежелательное поведение при движении пальца
-  btn.addEventListener("touchmove", (e) => {
-    e.preventDefault();
-  });
-}
 
 function handleButtonAction(action) {
   const me = players.get(myId);
