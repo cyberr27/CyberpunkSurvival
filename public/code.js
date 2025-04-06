@@ -38,7 +38,7 @@ let isMoving = false;
 let targetX = 0;
 let targetY = 0;
 // Базовая скорость в пикселях в секунду (одинакова для всех устройств)
-const baseSpeed = 20; // 20 пикселей в секунду
+const baseSpeed = 60; // 20 пикселей в секунду
 
 // Флаги для управления движением
 const movement = {
