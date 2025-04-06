@@ -340,12 +340,11 @@ wss.on("connection", (ws) => {
 });
 
 setInterval(async () => {
-  // Добавляем async
   const currentTime = Date.now();
   bullets.forEach(async (bullet, bulletId) => {
-    // Добавляем async
-    bullet.x += bullet.dx;
-    bullet.y += bullet.dy;
+    // Двигаем пулю с учётом скорости (без деления на 1000, так как интервал 16 мс)
+    bullet.x += bullet.dx * (16 / 1000);
+    bullet.y += bullet.dy * (16 / 1000);
 
     let bulletCollided = false;
     for (const obstacle of obstacles) {
@@ -379,7 +378,6 @@ setInterval(async () => {
 
     if (!bulletCollided) {
       players.forEach(async (player, playerId) => {
-        // Добавляем async
         if (playerId !== bullet.shooterId && player.health > 0) {
           const playerLeft = player.x;
           const playerRight = player.x + 40;
@@ -392,14 +390,16 @@ setInterval(async () => {
             bullet.y >= playerTop &&
             bullet.y <= playerBottom
           ) {
-            const damage = Math.floor(Math.random() * 100) + 1;
-            player.health = Math.max(0, player.health - damage);
+            player.health = Math.max(
+              0,
+              player.health - GAME_CONFIG.BULLET_DAMAGE
+            );
             console.log(
-              `Пуля ${bulletId} попала в ${playerId}, урон: ${damage}, здоровье: ${player.health}`
+              `Пуля ${bulletId} попала в ${playerId}, урон: ${GAME_CONFIG.BULLET_DAMAGE}, здоровье: ${player.health}`
             );
 
             userDatabase.set(playerId, { ...player });
-            await saveUserDatabase(dbCollection, playerId, player); // Сохраняем в MongoDB
+            await saveUserDatabase(dbCollection, playerId, player);
             bullets.delete(bulletId);
 
             wss.clients.forEach((client) => {
@@ -417,8 +417,18 @@ setInterval(async () => {
         }
       });
 
-      if (currentTime - bullet.spawnTime > bullet.life) {
+      if (currentTime - bullet.spawnTime > GAME_CONFIG.BULLET_LIFE) {
         bullets.delete(bulletId);
+        wss.clients.forEach((client) => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(
+              JSON.stringify({
+                type: "bulletRemoved",
+                bulletId: bulletId,
+              })
+            );
+          }
+        });
       }
     }
   });

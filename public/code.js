@@ -31,6 +31,14 @@ const items = new Map();
 const lights = [];
 const obstacles = [];
 const bullets = new Map(); // Изменяем на Map для синхронизации с сервером
+// Глобальные настройки игры
+const GAME_CONFIG = {
+  PLAYER_SPEED: 100, // Скорость игрока (пикселей в секунду)
+  FRAME_DURATION: 8000, // Длительность полного цикла анимации (мс)
+  BULLET_SPEED: 500, // Скорость пули (пикселей в секунду)
+  BULLET_LIFE: 2000, // Время жизни пули (мс)
+  BULLET_DAMAGE: 10, // Урон от пули
+};
 let lastDistance = 0; // Добавляем глобальную переменную
 // Флаг, указывающий, что персонаж должен двигаться к цели
 let isMoving = false;
@@ -493,7 +501,7 @@ function handleGameMessage(event) {
         dx: data.dx,
         dy: data.dy,
         spawnTime: Date.now(),
-        life: 1000,
+        life: GAME_CONFIG.BULLET_LIFE, // Используем значение из конфига
         shooterId: data.shooterId,
       });
       break;
@@ -544,13 +552,19 @@ function shoot() {
       dx = 1;
       break;
   }
+  // Нормализуем направление и умножаем на скорость из конфига
+  const magnitude = Math.sqrt(dx * dx + dy * dy);
+  if (magnitude !== 0) {
+    dx = (dx / magnitude) * GAME_CONFIG.BULLET_SPEED;
+    dy = (dy / magnitude) * GAME_CONFIG.BULLET_SPEED;
+  }
   ws.send(
     JSON.stringify({
       type: "shoot",
       x: me.x + 20,
       y: me.y + 20,
-      dx: dx * 10,
-      dy: dy * 10,
+      dx: dx,
+      dy: dy,
     })
   );
 }
@@ -565,7 +579,7 @@ function update(deltaTime) {
     const distance = Math.sqrt(dx * dx + dy * dy);
 
     if (distance > 5) {
-      const moveSpeed = baseSpeed * (deltaTime / 1000);
+      const moveSpeed = GAME_CONFIG.PLAYER_SPEED * (deltaTime / 1000);
       const moveX = (dx / distance) * moveSpeed;
       const moveY = (dy / distance) * moveSpeed;
 
@@ -596,7 +610,7 @@ function update(deltaTime) {
         me.distanceTraveled = (me.distanceTraveled || 0) + traveled;
 
         me.frameTime += deltaTime;
-        if (me.frameTime >= frameDuration / 7) {
+        if (me.frameTime >= GAME_CONFIG.FRAME_DURATION / 7) {
           me.frameTime = 0;
           me.frame = (me.frame + 1) % 7;
         }
@@ -646,7 +660,7 @@ function update(deltaTime) {
     }
   } else if (me.state === "dying") {
     me.frameTime += deltaTime;
-    if (me.frameTime >= frameDuration / 7) {
+    if (me.frameTime >= GAME_CONFIG.FRAME_DURATION / 7) {
       me.frameTime = 0;
       if (me.frame < 6) me.frame += 1;
     }
@@ -749,13 +763,13 @@ function draw(deltaTime) {
     if (player.id !== myId) {
       if (player.state === "walking") {
         player.frameTime += deltaTime;
-        if (player.frameTime >= frameDuration / 7) {
+        if (player.frameTime >= GAME_CONFIG.FRAME_DURATION / 7) {
           player.frameTime = 0;
           player.frame = (player.frame + 1) % 7;
         }
       } else if (player.state === "dying") {
         player.frameTime += deltaTime;
-        if (player.frameTime >= frameDuration / 7) {
+        if (player.frameTime >= GAME_CONFIG.FRAME_DURATION / 7) {
           player.frameTime = 0;
           if (player.frame < 6) player.frame += 1;
         }
