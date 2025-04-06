@@ -692,6 +692,23 @@ function update(deltaTime) {
       })
     );
   }
+  // Добавляем обновление позиций пуль
+  bullets.forEach((bullet, bulletId) => {
+    // Двигаем пулю
+    bullet.x += bullet.dx * (deltaTime / 1000); // Учитываем deltaTime для плавности
+    bullet.y += bullet.dy * (deltaTime / 1000);
+
+    // Проверяем время жизни пули
+    const currentTime = Date.now();
+    if (currentTime - bullet.spawnTime > bullet.life) {
+      bullets.delete(bulletId); // Удаляем локально, если время жизни истекло
+    }
+
+    // Опционально: проверка столкновений с препятствиями на клиенте
+    if (checkBulletCollision(bullet)) {
+      bullets.delete(bulletId); // Удаляем при столкновении
+    }
+  });
 }
 
 function updateResources() {
