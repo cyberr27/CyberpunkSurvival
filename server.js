@@ -17,6 +17,12 @@ const GAME_CONFIG = {
   BULLET_LIFE: 1000,
 };
 
+const ITEM_CONFIG = {
+  energy_drink: { effect: { energy: 20 }, count: 1 },
+  nut: { effect: { food: 27 }, count: 2 },
+  water_bottle: { effect: { water: 30 }, count: 3 },
+};
+
 // Получаем строку подключения только из переменной окружения
 const uri = process.env.MONGO_URI;
 console.log(
@@ -235,9 +241,15 @@ wss.on("connection", (ws) => {
             id: data.username,
             players: Array.from(players.values()),
             wolves: [],
-            items: Array.from(items.values()),
+            items: Array.from(items.entries()).map(([itemId, item]) => ({
+              itemId,
+              x: item.x,
+              y: item.y,
+              type: item.type,
+              spawnTime: item.spawnTime,
+            })),
             obstacles: obstacles,
-            lights: lights, // Здесь проблема
+            lights: lights,
           })
         );
         wss.clients.forEach((client) => {
@@ -271,12 +283,36 @@ wss.on("connection", (ws) => {
     } else if (data.type === "pickup") {
       const id = clients.get(ws);
       if (id && items.has(data.itemId)) {
+        const item = items.get(data.itemId);
+        const player = players.get(id);
+        const effect = ITEM_CONFIG[item.type]?.effect;
+
+        if (effect) {
+          if (effect.health)
+            player.health = Math.min(100, player.health + effect.health);
+          if (effect.energy)
+            player.energy = Math.min(100, player.energy + effect.energy);
+          if (effect.food)
+            player.food = Math.min(100, player.food + effect.food);
+          if (effect.water)
+            player.water = Math.min(100, player.water + effect.water);
+        }
+
         items.delete(data.itemId);
+        players.set(id, { ...player });
+        userDatabase.set(id, { ...player });
+        await saveUserDatabase(dbCollection, id, player);
+
         wss.clients.forEach((client) => {
           if (client.readyState === WebSocket.OPEN) {
             client.send(
               JSON.stringify({ type: "itemPicked", itemId: data.itemId })
             );
+            if (clients.get(client) === id) {
+              client.send(
+                JSON.stringify({ type: "update", player: { id, ...player } })
+              );
+            }
           }
         });
       }
@@ -442,8 +478,62 @@ setInterval(async () => {
 
 // Спавн предметов
 setInterval(() => {
-  // ... (без изменений)
-}, 10000);
+  const currentTime = Date.now();
+
+  // Удаляем предметы, которые не подняли за 10 минут
+  items.forEach((item, itemId) => {
+    if (currentTime - item.spawnTime > 10 * 60 * 1000) {
+      // 10 минут
+      items.delete(itemId);
+      console.log(`Предмет ${item.type} (${itemId}) исчез из-за таймаута`);
+      wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify({ type: "itemPicked", itemId }));
+        }
+      });
+    }
+  });
+
+  // Спавн новых предметов
+  const worldWidth = 2800;
+  const worldHeight = 3300;
+
+  for (const [type, config] of Object.entries(ITEM_CONFIG)) {
+    const existingCount = Array.from(items.values()).filter(
+      (item) => item.type === type
+    ).length;
+    const toSpawn = config.count - existingCount;
+
+    for (let i = 0; i < toSpawn; i++) {
+      const itemId = `${type}_${Date.now()}_${i}`;
+      const newItem = {
+        x: Math.random() * worldWidth,
+        y: Math.random() * worldHeight,
+        type: type,
+        spawnTime: currentTime,
+      };
+      items.set(itemId, newItem);
+      console.log(
+        `Создан предмет ${type} (${itemId}) на x:${newItem.x}, y:${newItem.y}`
+      );
+
+      wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(
+            JSON.stringify({
+              type: "newItem",
+              itemId,
+              x: newItem.x,
+              y: newItem.y,
+              type: newItem.type,
+              spawnTime: newItem.spawnTime,
+            })
+          );
+        }
+      });
+    }
+  }
+}, 10 * 60 * 1000); // Каждые 10 минут
 
 const PORT = process.env.PORT || 10000;
 

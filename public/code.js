@@ -40,6 +40,12 @@ const GAME_CONFIG = {
   BULLET_DAMAGE: 10, // Урон от пули
 };
 
+const ITEM_CONFIG = {
+  energy_drink: { effect: { energy: 20 }, image: energyDrinkImage },
+  nut: { effect: { food: 27 }, image: nutImage },
+  water_bottle: { effect: { water: 30 }, image: waterBottleImage },
+};
+
 let reconnectAttempts = 0;
 const maxReconnectAttempts = 5;
 const reconnectDelay = 2000; // 2 секунды
@@ -63,7 +69,7 @@ const movement = {
 
 // Добавляем переменные для управления анимацией
 let lastTime = 0; // Время последнего кадра для расчета deltaTime
-const frameDuration = 8000; // Длительность одного кадра в миллисекундах (настраиваемая скорость анимации)
+const frameDuration = 200; // Длительность одного кадра в миллисекундах (настраиваемая скорость анимации)
 
 createLineObstacle(1590, 1510, 1830, 1725);
 createLineObstacle(1830, 1725, 2100, 1515);
@@ -152,6 +158,12 @@ const playerSprite = new Image();
 playerSprite.src = "playerSprite.png";
 const wolfSprite = new Image();
 wolfSprite.src = "wolfSprite.png";
+const energyDrinkImage = new Image();
+energyDrinkImage.src = "energy_drink.png";
+const nutImage = new Image();
+nutImage.src = "nut.png";
+const waterBottleImage = new Image();
+waterBottleImage.src = "water_bottle.png";
 
 // Переключение форм
 toRegister.addEventListener("click", () => {
@@ -549,6 +561,14 @@ function handleGameMessage(event) {
         shooterId: data.shooterId,
       });
       break;
+    case "newItem":
+      items.set(data.itemId, {
+        x: data.x,
+        y: data.y,
+        type: data.type,
+        spawnTime: data.spawnTime,
+      });
+      break;
     case "itemPicked":
       items.delete(data.itemId);
       updateStatsDisplay();
@@ -745,6 +765,16 @@ function update(deltaTime) {
       bullets.delete(bulletId);
     }
   });
+
+  // Удаление предметов, которые не подняли через 10 минут
+  const currentTime = Date.now();
+  items.forEach((item, itemId) => {
+    if (currentTime - item.spawnTime > 10 * 60 * 1000) {
+      // 10 минут в миллисекундах
+      items.delete(itemId);
+      console.log(`Предмет ${item.type} (${itemId}) исчез из-за таймаута`);
+    }
+  });
 }
 
 function draw(deltaTime) {
@@ -877,10 +907,16 @@ function draw(deltaTime) {
   });
 
   items.forEach((item) => {
-    ctx.fillStyle = "yellow";
     const screenX = item.x - camera.x;
     const screenY = item.y - camera.y;
-    ctx.fillRect(screenX, screenY, 10, 10);
+    const itemImage = ITEM_CONFIG[item.type]?.image;
+    if (itemImage) {
+      ctx.drawImage(itemImage, screenX, screenY, 40, 40);
+    } else {
+      // Запасной вариант, если изображение не загрузилось
+      ctx.fillStyle = "yellow";
+      ctx.fillRect(screenX, screenY, 10, 10);
+    }
   });
 
   obstacles.forEach((obstacle) => {
@@ -957,10 +993,18 @@ function drawBullet(x, y) {
 
 function checkCollisions() {
   const me = players.get(myId);
+  if (!me) return;
+
   items.forEach((item, id) => {
     if (Math.abs(me.x - item.x) < 40 && Math.abs(me.y - item.y) < 40) {
+      const effect = ITEM_CONFIG[item.type]?.effect;
+      if (effect) {
+        if (effect.health) me.health = Math.min(100, me.health + effect.health);
+        if (effect.energy) me.energy = Math.min(100, me.energy + effect.energy);
+        if (effect.food) me.food = Math.min(100, me.food + effect.food);
+        if (effect.water) me.water = Math.min(100, me.water + effect.water);
+      }
       ws.send(JSON.stringify({ type: "pickup", itemId: id, item: item.type }));
-      me.health = Math.min(100, me.health + (item.type === "health" ? 10 : 0));
     }
   });
 }
@@ -990,7 +1034,7 @@ function gameLoop(timestamp) {
 let imagesLoaded = 0;
 function onImageLoad() {
   imagesLoaded++;
-  if (imagesLoaded === 6) window.addEventListener("resize", resizeCanvas);
+  if (imagesLoaded === 9) window.addEventListener("resize", resizeCanvas);
 }
 backgroundImage.onload = onImageLoad;
 vegetationImage.onload = onImageLoad;
@@ -998,6 +1042,9 @@ rocksImage.onload = onImageLoad;
 cloudsImage.onload = onImageLoad;
 playerSprite.onload = onImageLoad;
 wolfSprite.onload = onImageLoad;
+energyDrinkImage.onload = onImageLoad;
+nutImage.onload = onImageLoad;
+waterBottleImage.onload = onImageLoad;
 
 function lineIntersects(x1, y1, x2, y2, x3, y3, x4, y4) {
   const denominator = (y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1);
