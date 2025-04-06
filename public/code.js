@@ -39,6 +39,11 @@ const GAME_CONFIG = {
   BULLET_LIFE: 2000, // Время жизни пули (мс)
   BULLET_DAMAGE: 10, // Урон от пули
 };
+
+let reconnectAttempts = 0;
+const maxReconnectAttempts = 5;
+const reconnectDelay = 2000; // 2 секунды
+
 let lastDistance = 0; // Добавляем глобальную переменную
 // Флаг, указывающий, что персонаж должен двигаться к цели
 let isMoving = false;
@@ -163,6 +168,44 @@ toLogin.addEventListener("click", () => {
   registerError.textContent = "";
 });
 
+function reconnectWebSocket() {
+  if (reconnectAttempts >= maxReconnectAttempts) {
+    console.error(
+      "Достигнуто максимальное количество попыток переподключения."
+    );
+    alert(
+      "Потеряно соединение с сервером. Пожалуйста, перезагрузите страницу."
+    );
+    return;
+  }
+
+  console.log(`Попытка переподключения ${reconnectAttempts + 1}...`);
+  ws = new WebSocket("wss://cyberpunksurvival.onrender.com");
+
+  ws.onopen = () => {
+    console.log("WebSocket успешно переподключен");
+    reconnectAttempts = 0;
+    // Повторная авторизация, если нужно
+    const username =
+      document.getElementById("loginUsername")?.value.trim() || myId;
+    const password = document.getElementById("loginPassword")?.value.trim();
+    if (username && password) {
+      ws.send(JSON.stringify({ type: "login", username, password }));
+    }
+    ws.onmessage = handleAuthMessage; // Восстанавливаем обработчик авторизации
+  };
+
+  ws.onerror = (error) => {
+    console.error("Ошибка при переподключении WebSocket:", error);
+  };
+
+  ws.onclose = () => {
+    console.log("WebSocket соединение закрыто, повторная попытка...");
+    reconnectAttempts++;
+    setTimeout(reconnectWebSocket, reconnectDelay);
+  };
+}
+
 // Инициализация WebSocket
 function initializeWebSocket() {
   ws = new WebSocket("wss://cyberpunksurvival.onrender.com");
@@ -175,6 +218,7 @@ function initializeWebSocket() {
   };
   ws.onclose = () => {
     console.log("WebSocket соединение закрыто");
+    reconnectWebSocket();
   };
 }
 
@@ -536,6 +580,12 @@ function shoot() {
   const me = players.get(myId);
   if (!me || me.health <= 0) return;
 
+  if (ws.readyState !== WebSocket.OPEN) {
+    console.error("WebSocket не открыт. Пытаемся переподключиться...");
+    reconnectWebSocket();
+    return;
+  }
+
   let dx = 0,
     dy = 0;
   switch (me.direction) {
@@ -552,7 +602,6 @@ function shoot() {
       dx = 1;
       break;
   }
-  // Нормализуем направление и умножаем на скорость из конфига
   const magnitude = Math.sqrt(dx * dx + dy * dy);
   if (magnitude !== 0) {
     dx = (dx / magnitude) * GAME_CONFIG.BULLET_SPEED;

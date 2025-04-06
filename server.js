@@ -12,6 +12,11 @@ const clients = new Map();
 const players = new Map();
 const userDatabase = new Map();
 
+const GAME_CONFIG = {
+  BULLET_DAMAGE: 10,
+  BULLET_LIFE: 1000,
+};
+
 // Получаем строку подключения только из переменной окружения
 const uri = process.env.MONGO_URI;
 console.log(
@@ -342,7 +347,6 @@ wss.on("connection", (ws) => {
 setInterval(async () => {
   const currentTime = Date.now();
   bullets.forEach(async (bullet, bulletId) => {
-    // Двигаем пулю с учётом скорости (без деления на 1000, так как интервал 16 мс)
     bullet.x += bullet.dx * (16 / 1000);
     bullet.y += bullet.dy * (16 / 1000);
 
@@ -377,59 +381,61 @@ setInterval(async () => {
     }
 
     if (!bulletCollided) {
-      players.forEach(async (player, playerId) => {
-        if (playerId !== bullet.shooterId && player.health > 0) {
-          const playerLeft = player.x;
-          const playerRight = player.x + 40;
-          const playerTop = player.y;
-          const playerBottom = player.y + 40;
+      try {
+        players.forEach(async (player, playerId) => {
+          if (playerId !== bullet.shooterId && player.health > 0) {
+            const playerLeft = player.x;
+            const playerRight = player.x + 40;
+            const playerTop = player.y;
+            const playerBottom = player.y + 40;
 
-          if (
-            bullet.x >= playerLeft &&
-            bullet.x <= playerRight &&
-            bullet.y >= playerTop &&
-            bullet.y <= playerBottom
-          ) {
-            player.health = Math.max(
-              0,
-              player.health - GAME_CONFIG.BULLET_DAMAGE
-            );
-            console.log(
-              `Пуля ${bulletId} попала в ${playerId}, урон: ${GAME_CONFIG.BULLET_DAMAGE}, здоровье: ${player.health}`
-            );
-
-            userDatabase.set(playerId, { ...player });
-            await saveUserDatabase(dbCollection, playerId, player);
-            bullets.delete(bulletId);
-
-            wss.clients.forEach((client) => {
-              if (client.readyState === WebSocket.OPEN) {
-                client.send(
-                  JSON.stringify({
-                    type: "update",
-                    player: { id: playerId, ...player },
-                  })
-                );
-              }
-            });
-            return;
-          }
-        }
-      });
-
-      if (currentTime - bullet.spawnTime > GAME_CONFIG.BULLET_LIFE) {
-        bullets.delete(bulletId);
-        wss.clients.forEach((client) => {
-          if (client.readyState === WebSocket.OPEN) {
-            client.send(
-              JSON.stringify({
-                type: "bulletRemoved",
-                bulletId: bulletId,
-              })
-            );
+            if (
+              bullet.x >= playerLeft &&
+              bullet.x <= playerRight &&
+              bullet.y >= playerTop &&
+              bullet.y <= playerBottom
+            ) {
+              player.health = Math.max(
+                0,
+                player.health - GAME_CONFIG.BULLET_DAMAGE
+              );
+              console.log(
+                `Пуля ${bulletId} попала в ${playerId}, здоровье: ${player.health}`
+              );
+              userDatabase.set(playerId, { ...player });
+              await saveUserDatabase(dbCollection, playerId, player);
+              bullets.delete(bulletId);
+              wss.clients.forEach((client) => {
+                if (client.readyState === WebSocket.OPEN) {
+                  client.send(
+                    JSON.stringify({
+                      type: "update",
+                      player: { id: playerId, ...player },
+                    })
+                  );
+                }
+              });
+            }
           }
         });
+      } catch (error) {
+        console.error("Ошибка при обработке попадания пули:", error);
       }
+    }
+
+    if (currentTime - bullet.spawnTime > GAME_CONFIG.BULLET_LIFE) {
+      bullets.delete(bulletId);
+      console.log(`Пуля ${bulletId} удалена по истечении времени жизни`);
+      wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(
+            JSON.stringify({
+              type: "bulletRemoved",
+              bulletId: bulletId,
+            })
+          );
+        }
+      });
     }
   });
 }, 16);
