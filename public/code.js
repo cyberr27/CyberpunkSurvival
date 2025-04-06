@@ -1042,12 +1042,6 @@ wolfSprite.onload = onImageLoad;
 energyDrinkImage.onload = onImageLoad;
 nutImage.onload = onImageLoad;
 waterBottleImage.onload = onImageLoad;
-energyDrinkImage.onload = () => { console.log("Энергетик загружен"); onImageLoad(); };
-energyDrinkImage.onerror = () => console.error("Ошибка загрузки энергетика");
-nutImage.onload = () => { console.log("Орех загружен"); onImageLoad(); };
-nutImage.onerror = () => console.error("Ошибка загрузки ореха");
-waterBottleImage.onload = () => { console.log("Вода загружена"); onImageLoad(); };
-waterBottleImage.onerror = () => console.error("Ошибка загрузки воды");
 
 function lineIntersects(x1, y1, x2, y2, x3, y3, x4, y4) {
   const denominator = (y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1);
