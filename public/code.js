@@ -22,7 +22,6 @@ const chatInput = document.getElementById("chatInput");
 
 // WebSocket соединение
 let ws;
-
 // Хранилища данных
 let players = new Map();
 let myId;
@@ -30,20 +29,14 @@ let wolves = new Map();
 const items = new Map();
 const lights = [];
 const obstacles = [];
-const bullets = new Map(); // Изменяем на Map для синхронизации с сервером
+const bullets = new Map();
 // Глобальные настройки игры
 const GAME_CONFIG = {
-  PLAYER_SPEED: 100, // Скорость игрока (пикселей в секунду)
-  FRAME_DURATION: 8000, // Длительность полного цикла анимации (мс)
-  BULLET_SPEED: 500, // Скорость пули (пикселей в секунду)
-  BULLET_LIFE: 2000, // Время жизни пули (мс)
-  BULLET_DAMAGE: 10, // Урон от пули
-};
-
-const ITEM_CONFIG = {
-  energy_drink: { effect: { energy: 20 }, image: energyDrinkImage },
-  nut: { effect: { food: 27 }, image: nutImage },
-  water_bottle: { effect: { water: 30 }, image: waterBottleImage },
+  PLAYER_SPEED: 100,
+  FRAME_DURATION: 8000,
+  BULLET_SPEED: 500,
+  BULLET_LIFE: 2000,
+  BULLET_DAMAGE: 10,
 };
 
 let reconnectAttempts = 0;
@@ -71,80 +64,6 @@ const movement = {
 let lastTime = 0; // Время последнего кадра для расчета deltaTime
 const frameDuration = 200; // Длительность одного кадра в миллисекундах (настраиваемая скорость анимации)
 
-createLineObstacle(1590, 1510, 1830, 1725);
-createLineObstacle(1830, 1725, 2100, 1515);
-createLineObstacle(2100, 1515, 1895, 1410);
-createLineObstacle(1895, 1410, 1590, 1510);
-
-createLineObstacle(1460, 490, 1630, 620);
-createLineObstacle(1630, 620, 1820, 500);
-createLineObstacle(1820, 500, 1640, 405);
-createLineObstacle(1640, 405, 1460, 490);
-
-createLineObstacle(2125, 930, 2260, 1080);
-createLineObstacle(2260, 1080, 2395, 915);
-createLineObstacle(2395, 915, 2290, 825);
-createLineObstacle(2290, 825, 2125, 930);
-
-createLineObstacle(1640, 2530, 1355, 2720);
-createLineObstacle(1355, 2720, 1065, 2520);
-createLineObstacle(1065, 2520, 1290, 2435);
-createLineObstacle(1290, 2435, 1640, 2530);
-
-createLight(2404, 1693, "rgba(0, 255, 255, 0.7)", 1500); // Голубой неон
-createLight(1710, 0, "rgba(255, 0, 255, 0.7)", 1200); // Розовый неон
-createLight(934, 1793, "rgba(148, 0, 211, 0.7)", 1200); // Фиолетовый неон
-createLight(1164, 2843, "rgba(255, 0, 255, 0.7)", 800); // Розовый неон
-createLight(364, 3093, "rgba(214, 211, 4, 0.5)", 700);
-createLight(434, 2653, "rgba(214, 211, 4, 0.5)", 700);
-createLight(264, 1173, "rgba(214, 211, 4, 0.7)", 1500);
-createLight(374, 483, "rgba(245, 5, 17, 0.7)", 1000);
-createLight(924, 943, "rgba(2, 35, 250, 0.4)", 800);
-createLight(1454, 110, "rgba(2, 35, 250, 0.4)", 800);
-
-function createLineObstacle(x1, y1, x2, y2, thickness = 5) {
-  const length = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
-  const angle = Math.atan2(y2 - y1, x2 - x1);
-  const halfThickness = thickness / 2;
-
-  const sinAngle = Math.sin(angle);
-  const cosAngle = Math.cos(angle);
-  const dx = halfThickness * sinAngle;
-  const dy = halfThickness * cosAngle;
-
-  const point1 = { x: x1 - dx, y: y1 + dy };
-  const point2 = { x: x1 + dx, y: y1 - dy };
-  const point3 = { x: x2 - dx, y: y2 + dy };
-  const point4 = { x: x2 + dx, y: y2 - dy };
-
-  const left = Math.min(point1.x, point2.x, point3.x, point4.x);
-  const right = Math.max(point1.x, point2.x, point3.x, point4.x);
-  const top = Math.min(point1.y, point2.y, point3.y, point4.y);
-  const bottom = Math.max(point1.y, point2.y, point3.y, point4.y);
-
-  const obstacle = {
-    id: Date.now().toString(),
-    left,
-    right,
-    top,
-    bottom,
-    isLine: true,
-    x1,
-    y1,
-    x2,
-    y2,
-    thickness,
-  };
-  obstacles.push(obstacle);
-}
-
-// Размеры мира
-const worldWidth = 2800;
-const worldHeight = 3300;
-
-// Камера
-const camera = { x: 0, y: 0 };
-
 // Загрузка изображений
 const backgroundImage = new Image();
 backgroundImage.src = "backgr.png";
@@ -164,6 +83,30 @@ const nutImage = new Image();
 nutImage.src = "nut.png";
 const waterBottleImage = new Image();
 waterBottleImage.src = "water_bottle.png";
+
+const ITEM_CONFIG = {
+  energy_drink: { effect: { energy: 20 }, image: energyDrinkImage },
+  nut: { effect: { food: 27 }, image: nutImage },
+  water_bottle: { effect: { water: 30 }, image: waterBottleImage },
+};
+
+// Размеры мира
+const worldWidth = 2800;
+const worldHeight = 3300;
+
+// Камера
+const camera = { x: 0, y: 0 };
+
+createLight(2404, 1693, "rgba(0, 255, 255, 0.7)", 1500); // Голубой неон
+createLight(1710, 0, "rgba(255, 0, 255, 0.7)", 1200); // Розовый неон
+createLight(934, 1793, "rgba(148, 0, 211, 0.7)", 1200); // Фиолетовый неон
+createLight(1164, 2843, "rgba(255, 0, 255, 0.7)", 800); // Розовый неон
+createLight(364, 3093, "rgba(214, 211, 4, 0.5)", 700);
+createLight(434, 2653, "rgba(214, 211, 4, 0.5)", 700);
+createLight(264, 1173, "rgba(214, 211, 4, 0.7)", 1500);
+createLight(374, 483, "rgba(245, 5, 17, 0.7)", 1000);
+createLight(924, 943, "rgba(2, 35, 250, 0.4)", 800);
+createLight(1454, 110, "rgba(2, 35, 250, 0.4)", 800);
 
 // Переключение форм
 toRegister.addEventListener("click", () => {
@@ -303,6 +246,42 @@ function handleAuthMessage(event) {
       loginError.textContent = "Неверное имя или пароль";
       break;
   }
+}
+
+function createLineObstacle(x1, y1, x2, y2, thickness = 5) {
+  const length = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+  const angle = Math.atan2(y2 - y1, x2 - x1);
+  const halfThickness = thickness / 2;
+
+  const sinAngle = Math.sin(angle);
+  const cosAngle = Math.cos(angle);
+  const dx = halfThickness * sinAngle;
+  const dy = halfThickness * cosAngle;
+
+  const point1 = { x: x1 - dx, y: y1 + dy };
+  const point2 = { x: x1 + dx, y: y1 - dy };
+  const point3 = { x: x2 - dx, y: y2 + dy };
+  const point4 = { x: x2 + dx, y: y2 - dy };
+
+  const left = Math.min(point1.x, point2.x, point3.x, point4.x);
+  const right = Math.max(point1.x, point2.x, point3.x, point4.x);
+  const top = Math.min(point1.y, point2.y, point3.y, point4.y);
+  const bottom = Math.max(point1.y, point2.y, point3.y, point4.y);
+
+  const obstacle = {
+    id: Date.now().toString(),
+    left,
+    right,
+    top,
+    bottom,
+    isLine: true,
+    x1,
+    y1,
+    x2,
+    y2,
+    thickness,
+  };
+  obstacles.push(obstacle);
 }
 
 function startGame() {
