@@ -18,9 +18,9 @@ const GAME_CONFIG = {
 };
 
 const ITEM_CONFIG = {
-  energy_drink: { effect: { energy: 20 }, count: 1 },
-  nut: { effect: { food: 27 }, count: 2 },
-  water_bottle: { effect: { water: 30 }, count: 3 },
+  energy_drink: { effect: { energy: 20 }, baseCount: 1 },
+  nut: { effect: { food: 27 }, baseCount: 2 },
+  water_bottle: { effect: { water: 30 }, baseCount: 3 },
 };
 
 // Получаем строку подключения только из переменной окружения
@@ -315,6 +315,11 @@ wss.on("connection", (ws) => {
             }
           }
         });
+        console.log(`Игрок ${id} поднял ${item.type} (ID: ${data.itemId})`);
+      } else {
+        console.log(
+          `Не удалось поднять предмет ${data.itemId}: не найден или игрок не авторизован`
+        );
       }
     } else if (data.type === "chat") {
       const id = clients.get(ws);
@@ -479,6 +484,8 @@ setInterval(async () => {
 // Спавн предметов
 setInterval(() => {
   const currentTime = Date.now();
+  const playerCount = players.size; // Количество игроков онлайн
+  console.log(`Игроков онлайн: ${playerCount}`);
 
   // Удаляем предметы, которые не подняли за 10 минут
   items.forEach((item, itemId) => {
@@ -494,15 +501,16 @@ setInterval(() => {
     }
   });
 
-  // Спавн новых предметов
+  // Спавн новых предметов в зависимости от количества игроков
   const worldWidth = 2800;
   const worldHeight = 3300;
 
   for (const [type, config] of Object.entries(ITEM_CONFIG)) {
+    const desiredCount = config.baseCount * Math.max(1, playerCount); // Минимум 1 комплект
     const existingCount = Array.from(items.values()).filter(
       (item) => item.type === type
     ).length;
-    const toSpawn = config.count - existingCount;
+    const toSpawn = Math.max(0, desiredCount - existingCount);
 
     for (let i = 0; i < toSpawn; i++) {
       const itemId = `${type}_${Date.now()}_${i}`;

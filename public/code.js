@@ -84,6 +84,23 @@ nutImage.src = "nut.png";
 const waterBottleImage = new Image();
 waterBottleImage.src = "water_bottle.png";
 
+// Добавляем проверку загрузки
+energyDrinkImage.onload = () => {
+  console.log("Энергетик загружен");
+  onImageLoad();
+};
+energyDrinkImage.onerror = () => console.error("Ошибка загрузки энергетика");
+nutImage.onload = () => {
+  console.log("Орех загружен");
+  onImageLoad();
+};
+nutImage.onerror = () => console.error("Ошибка загрузки ореха");
+waterBottleImage.onload = () => {
+  console.log("Вода загружена");
+  onImageLoad();
+};
+waterBottleImage.onerror = () => console.error("Ошибка загрузки воды");
+
 const ITEM_CONFIG = {
   energy_drink: { effect: { energy: 20 }, image: energyDrinkImage },
   nut: { effect: { food: 27 }, image: nutImage },
@@ -972,32 +989,33 @@ function drawBullet(x, y) {
 
 function checkCollisions() {
   const me = players.get(myId);
-  if (!me) return;
+  if (!me || me.health <= 0) return;
 
   items.forEach((item, id) => {
-    if (Math.abs(me.x - item.x) < 40 && Math.abs(me.y - item.y) < 40) {
+    const distance = Math.sqrt(
+      Math.pow(me.x + 20 - item.x - 20, 2) +
+        Math.pow(me.y + 20 - item.y - 20, 2)
+    );
+    if (distance < 40) {
+      // 40 — размер предмета/игрока
       const effect = ITEM_CONFIG[item.type]?.effect;
       if (effect) {
+        console.log(`Подбираем ${item.type} с эффектом:`, effect);
         if (effect.health) me.health = Math.min(100, me.health + effect.health);
         if (effect.energy) me.energy = Math.min(100, me.energy + effect.energy);
         if (effect.food) me.food = Math.min(100, me.food + effect.food);
         if (effect.water) me.water = Math.min(100, me.water + effect.water);
       }
-      ws.send(JSON.stringify({ type: "pickup", itemId: id, item: item.type }));
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(
+          JSON.stringify({ type: "pickup", itemId: id, item: item.type })
+        );
+      } else {
+        console.error("WebSocket не открыт, предмет не отправлен на сервер");
+      }
     }
   });
 }
-
-setInterval(() => {
-  if (items.size < 3) {
-    const item = {
-      x: Math.random() * worldWidth,
-      y: Math.random() * worldHeight,
-      type: "health",
-    };
-    items.set(Date.now(), item);
-  }
-}, 10000);
 
 function gameLoop(timestamp) {
   if (!lastTime) lastTime = timestamp;
@@ -1024,6 +1042,12 @@ wolfSprite.onload = onImageLoad;
 energyDrinkImage.onload = onImageLoad;
 nutImage.onload = onImageLoad;
 waterBottleImage.onload = onImageLoad;
+energyDrinkImage.onload = () => { console.log("Энергетик загружен"); onImageLoad(); };
+energyDrinkImage.onerror = () => console.error("Ошибка загрузки энергетика");
+nutImage.onload = () => { console.log("Орех загружен"); onImageLoad(); };
+nutImage.onerror = () => console.error("Ошибка загрузки ореха");
+waterBottleImage.onload = () => { console.log("Вода загружена"); onImageLoad(); };
+waterBottleImage.onerror = () => console.error("Ошибка загрузки воды");
 
 function lineIntersects(x1, y1, x2, y2, x3, y3, x4, y4) {
   const denominator = (y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1);
