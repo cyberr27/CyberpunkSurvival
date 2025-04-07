@@ -196,6 +196,10 @@ function initializeWebSocket() {
     console.log("WebSocket соединение установлено");
   };
   ws.onmessage = handleAuthMessage;
+  ws.onmessage = (event) => {
+    console.log("Получено сообщение от сервера:", event.data);
+    handleAuthMessage(event);
+  };
   ws.onerror = (error) => {
     console.error("Ошибка WebSocket:", error);
   };
@@ -919,6 +923,9 @@ function draw(deltaTime) {
   items.forEach((item) => {
     const screenX = item.x - camera.x;
     const screenY = item.y - camera.y;
+    console.log(
+      `Рисуем предмет ${item.type} на screenX:${screenX}, screenY:${screenY}`
+    );
     const itemImage = ITEM_CONFIG[item.type]?.image;
     if (itemImage) {
       ctx.drawImage(itemImage, screenX, screenY, 40, 40);
