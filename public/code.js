@@ -855,14 +855,20 @@ function draw(deltaTime) {
   const rocksOffsetX = camera.x * rocksSpeed;
   const cloudsOffsetX = camera.x * cloudsSpeed;
 
+  // Рисуем фон с учётом смещения камеры
   ctx.fillStyle = ctx.createPattern(backgroundImage, "repeat");
   ctx.save();
-  ctx.translate(-groundOffsetX, -camera.y * groundSpeed);
-  ctx.fillitems.forEachRect(
-    groundOffsetX,
-    camera.y * groundSpeed,
-    worldWidth,
-    worldHeight
+  ctx.translate(
+    -groundOffsetX % backgroundImage.width,
+    (-camera.y * groundSpeed) % backgroundImage.height
+  );
+  // Рисуем прямоугольник, покрывающий весь мир
+  ctx.fillRect(
+    (groundOffsetX % backgroundImage.width) - backgroundImage.width,
+    ((camera.y * groundSpeed) % backgroundImage.height) -
+      backgroundImage.height,
+    worldWidth + backgroundImage.width,
+    worldHeight + backgroundImage.height
   );
   ctx.restore();
 
