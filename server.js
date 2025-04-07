@@ -323,31 +323,40 @@ wss.on("connection", (ws) => {
           const worldHeight = 3300;
           const newItemId = `${item.type}_${Date.now()}`; // Уникальный ID для нового предмета
           const newItem = {
-            x: Math.random() * worldWidth, // Случайная X-координата в пределах мира
-            y: Math.random() * worldHeight, // Случайная Y-координата в пределах мира
-            type: item.type, // Тип предмета (energy_drink, nut, water_bottle)
-            spawnTime: Date.now(), // Время создания предмета
+            x: Math.random() * worldWidth,
+            y: Math.random() * worldHeight,
+            type: item.type,
+            spawnTime: Date.now(),
           };
-          items.set(newItemId, newItem); // Добавляем предмет в серверное хранилище
+          items.set(newItemId, newItem);
           console.log(
             `Предмет ${item.type} (${newItemId}) возродился на x:${newItem.x}, y:${newItem.y}`
           );
 
-          // Отправляем всем клиентам сообщение о новом предмете
+          // Отправляем всем клиентам сообщение о новом предмете с дополнительным логированием
+          let clientsNotified = 0;
           wss.clients.forEach((client) => {
             if (client.readyState === WebSocket.OPEN) {
-              client.send(
-                JSON.stringify({
-                  type: "newItem", // Исправлено: тип сообщения должен быть "newItem"
-                  itemId: newItemId, // Уникальный ID предмета
-                  x: newItem.x,
-                  y: newItem.y,
-                  type: newItem.type, // Тип предмета
-                  spawnTime: newItem.spawnTime,
-                })
+              const message = JSON.stringify({
+                type: "newItem",
+                itemId: newItemId,
+                x: newItem.x,
+                y: newItem.y,
+                type: newItem.type, // Тип предмета (energy_drink, nut, water_bottle)
+                spawnTime: newItem.spawnTime,
+              });
+              client.send(message);
+              clientsNotified++;
+              console.log(
+                `Отправлено сообщение "newItem" клиенту ${
+                  clients.get(client) || "unknown"
+                }: ${message}`
               );
             }
           });
+          console.log(
+            `Уведомлено ${clientsNotified} клиентов о новом предмете ${newItemId}`
+          );
         }, 10 * 60 * 1000); // 10 минут
       } else {
         console.log(
