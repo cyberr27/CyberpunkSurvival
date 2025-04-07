@@ -336,11 +336,11 @@ wss.on("connection", (ws) => {
             if (client.readyState === WebSocket.OPEN) {
               client.send(
                 JSON.stringify({
-                  type: "newItem",
-                  itemId: newItemId,
+                  type: newItem.type, // ОШИБКА: "energy_drink", "nut" и т.д.
+                  itemId,
                   x: newItem.x,
                   y: newItem.y,
-                  type: newItem.type,
+                  type: newItem.type, // Дублирование поля
                   spawnTime: newItem.spawnTime,
                 })
               );
@@ -515,13 +515,12 @@ setInterval(async () => {
 // Спавн предметов
 setInterval(() => {
   const currentTime = Date.now();
-  const playerCount = players.size; // Количество игроков онлайн
+  const playerCount = players.size;
   console.log(`Игроков онлайн: ${playerCount}`);
 
-  // Удаляем предметы, которые не подняли за 10 минут
+  // Удаляем предметы по таймауту
   items.forEach((item, itemId) => {
     if (currentTime - item.spawnTime > 10 * 60 * 1000) {
-      // 10 минут
       items.delete(itemId);
       console.log(`Предмет ${item.type} (${itemId}) исчез из-за таймаута`);
       wss.clients.forEach((client) => {
@@ -532,12 +531,12 @@ setInterval(() => {
     }
   });
 
-  // Спавн новых предметов в зависимости от количества игроков
+  // Спавн новых предметов
   const worldWidth = 2800;
   const worldHeight = 3300;
 
   for (const [type, config] of Object.entries(ITEM_CONFIG)) {
-    const desiredCount = config.baseCount * Math.max(1, playerCount); // Минимум 1 комплект
+    const desiredCount = config.baseCount * Math.max(1, playerCount);
     const existingCount = Array.from(items.values()).filter(
       (item) => item.type === type
     ).length;
@@ -560,7 +559,7 @@ setInterval(() => {
         if (client.readyState === WebSocket.OPEN) {
           client.send(
             JSON.stringify({
-              type: "newItem",
+              type: "newItem", // Исправлено
               itemId,
               x: newItem.x,
               y: newItem.y,
@@ -568,11 +567,14 @@ setInterval(() => {
               spawnTime: newItem.spawnTime,
             })
           );
+          console.log(
+            `Отправлено newItem клиенту ${clients.get(client) || "неизвестно"}`
+          );
         }
       });
     }
   }
-}, 10 * 1000); // Каждые 10 минут
+}, 10 * 1000);
 
 const PORT = process.env.PORT || 10000;
 

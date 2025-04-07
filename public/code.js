@@ -249,6 +249,37 @@ loginBtn.addEventListener("click", () => {
 function handleAuthMessage(event) {
   const data = JSON.parse(event.data);
   switch (data.type) {
+    case "loginSuccess":
+      myId = data.id;
+      authContainer.style.display = "none";
+      document.getElementById("gameContainer").style.display = "block";
+      data.players.forEach((p) => players.set(p.id, p));
+      lastDistance = players.get(myId).distanceTraveled || 0;
+      data.wolves.forEach((w) => wolves.set(w.id, w));
+      data.obstacles.forEach((o) => obstacles.push(o));
+      if (data.items) {
+        data.items.forEach((item) =>
+          items.set(item.itemId, {
+            x: item.x,
+            y: item.y,
+            type: item.type,
+            spawnTime: item.spawnTime,
+          })
+        );
+        console.log(
+          "Загружены начальные предметы:",
+          Array.from(items.entries())
+        );
+      }
+      if (data.lights) {
+        lights.length = 0;
+        data.lights.forEach((light) => lights.push(light));
+      }
+      resizeCanvas();
+      ws.onmessage = handleGameMessage;
+      console.log("Переключен обработчик на handleGameMessage");
+      startGame();
+      break;
     case "registerSuccess":
       registerError.textContent = "Регистрация успешна! Войдите.";
       registerForm.style.display = "none";
@@ -256,28 +287,6 @@ function handleAuthMessage(event) {
       break;
     case "registerFail":
       registerError.textContent = "Ник занят, выберите другой";
-      break;
-    case "loginSuccess":
-      myId = data.id;
-      authContainer.style.display = "none";
-      document.getElementById("gameContainer").style.display = "block";
-      data.players.forEach((p) => players.set(p.id, p));
-      lastDistance = players.get(myId).distanceTraveled || 0;
-      // Отрисовка локальных пуль
-      bullets.forEach((bullet) => {
-        drawBullet(bullet.x - camera.x, bullet.y - camera.y);
-      });
-      data.wolves.forEach((w) => wolves.set(w.id, w));
-      // Было: data.obstacles.forEach((o) => obstacles.set(o.id, o));
-      // Стало: присваиваем массив напрямую
-      data.obstacles.forEach((o) => obstacles.push(o));
-      if (data.lights) {
-        lights.length = 0; // Очищаем локальный массив
-        data.lights.forEach((light) => lights.push(light));
-      }
-      resizeCanvas();
-      ws.onmessage = handleGameMessage;
-      startGame();
       break;
     case "loginFail":
       loginError.textContent = "Неверное имя или пароль";
