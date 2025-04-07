@@ -72,7 +72,7 @@ const GAME_CONFIG = {
   PLAYER_SPEED: 100,
   FRAME_DURATION: 8000,
   BULLET_SPEED: 500,
-  BULLET_LIFE: 2000,
+  BULLET_LIFE: 1000,
   BULLET_DAMAGE: 10,
 };
 
@@ -193,14 +193,13 @@ function reconnectWebSocket() {
   ws.onopen = () => {
     console.log("WebSocket успешно переподключен");
     reconnectAttempts = 0;
-    // Повторная авторизация, если нужно
     const username =
       document.getElementById("loginUsername")?.value.trim() || myId;
     const password = document.getElementById("loginPassword")?.value.trim();
     if (username && password) {
-      ws.send(JSON.stringify({ type: "login", username, password }));
+      sendWhenReady(ws, JSON.stringify({ type: "login", username, password }));
     }
-    ws.onmessage = handleAuthMessage; // Восстанавливаем обработчик авторизации
+    ws.onmessage = handleAuthMessage;
   };
 
   ws.onerror = (error) => {
@@ -250,7 +249,7 @@ registerBtn.addEventListener("click", () => {
   }
   if (ws.readyState === WebSocket.OPEN) {
     console.log("Отправка регистрации:", { username, password });
-    ws.send(JSON.stringify({ type: "register", username, password }));
+    sendWhenReady(ws, JSON.stringify({ type: "register", username, password }));
   } else {
     registerError.textContent = "Нет соединения с сервером";
   }
@@ -265,7 +264,7 @@ loginBtn.addEventListener("click", () => {
     return;
   }
   if (ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ type: "login", username, password }));
+    sendWhenReady(ws, JSON.stringify({ type: "login", username, password }));
   } else {
     loginError.textContent = "Нет соединения с сервером";
   }
@@ -355,6 +354,23 @@ function createLineObstacle(x1, y1, x2, y2, thickness = 5) {
   obstacles.push(obstacle);
 }
 
+// Функция для отправки данных, когда WebSocket готов
+function sendWhenReady(ws, message) {
+  if (ws.readyState === WebSocket.OPEN) {
+    ws.send(message);
+  } else if (ws.readyState === WebSocket.CONNECTING) {
+    const checkInterval = setInterval(() => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(message);
+        clearInterval(checkInterval);
+      }
+    }, 100); // Проверяем каждые 100 мс
+    setTimeout(() => clearInterval(checkInterval), 5000); // Таймаут 5 секунд
+  } else {
+    console.error("WebSocket не готов для отправки:", ws.readyState);
+  }
+}
+
 function startGame() {
   // Обработчик клавиш (только для стрельбы и чата)
   document.addEventListener("keydown", (e) => {
@@ -407,21 +423,23 @@ function startGame() {
         me.state = "idle";
         me.frame = 0;
         me.frameTime = 0;
-        ws.send(
-          JSON.stringify({
-            type: "move",
-            x: me.x,
-            y: me.y,
-            health: me.health,
-            energy: me.energy,
-            food: me.food,
-            water: me.water,
-            armor: me.armor,
-            distanceTraveled: me.distanceTraveled,
-            direction: me.direction,
-            state: me.state,
-            frame: me.frame,
-          })
+        sendWhenReady(
+          ws.send(
+            JSON.stringify({
+              type: "move",
+              x: me.x,
+              y: me.y,
+              health: me.health,
+              energy: me.energy,
+              food: me.food,
+              water: me.water,
+              armor: me.armor,
+              distanceTraveled: me.distanceTraveled,
+              direction: me.direction,
+              state: me.state,
+              frame: me.frame,
+            })
+          )
         );
       }
     }
@@ -454,21 +472,23 @@ function startGame() {
       me.state = "idle";
       me.frame = 0;
       me.frameTime = 0;
-      ws.send(
-        JSON.stringify({
-          type: "move",
-          x: me.x,
-          y: me.y,
-          health: me.health,
-          energy: me.energy,
-          food: me.food,
-          water: me.water,
-          armor: me.armor,
-          distanceTraveled: me.distanceTraveled,
-          direction: me.direction,
-          state: me.state,
-          frame: me.frame,
-        })
+      sendWhenReady(
+        ws.send(
+          JSON.stringify({
+            type: "move",
+            x: me.x,
+            y: me.y,
+            health: me.health,
+            energy: me.energy,
+            food: me.food,
+            water: me.water,
+            armor: me.armor,
+            distanceTraveled: me.distanceTraveled,
+            direction: me.direction,
+            state: me.state,
+            frame: me.frame,
+          })
+        )
       );
     }
   });
@@ -500,9 +520,12 @@ function startGame() {
 
   chatInput.addEventListener("keypress", (e) => {
     if (e.key === "Enter" && chatInput.value.trim()) {
-      ws.send(
-        JSON.stringify({ type: "chat", message: chatInput.value.trim() })
+      sendWhenReady(
+        ws.send(
+          JSON.stringify({ type: "chat", message: chatInput.value.trim() })
+        )
       );
+
       chatInput.value = "";
     }
   });
@@ -553,6 +576,7 @@ function toggleInventory() {
   isInventoryOpen = !isInventoryOpen;
   const inventoryContainer = document.getElementById("inventoryContainer");
   inventoryContainer.style.display = isInventoryOpen ? "grid" : "none";
+  if (isInventoryOpen) updateInventoryDisplay();
   const inventoryBtn = document.getElementById("inventoryBtn");
   inventoryBtn.classList.toggle("active", isInventoryOpen);
 
@@ -634,7 +658,8 @@ function useItem(slotIndex) {
   if (effect.water) me.water = Math.min(100, me.water + effect.water);
 
   inventory[slotIndex] = null;
-  ws.send(
+  sendWhenReady(
+    ws,
     JSON.stringify({
       type: "useItem",
       slotIndex,
@@ -657,7 +682,8 @@ function dropItem(slotIndex) {
   const me = players.get(myId);
 
   // Отправляем запрос на сервер для выброса
-  ws.send(
+  sendWhenReady(
+    ws,
     JSON.stringify({
       type: "dropItem",
       slotIndex,
@@ -734,6 +760,23 @@ function updateStatsDisplay() {
   document.getElementById("coords").innerHTML = `X: ${Math.floor(
     me.x
   )}<br>Y: ${Math.floor(me.y)}`;
+}
+
+function updateInventoryDisplay() {
+  if (!isInventoryOpen) return;
+  const inventoryContainer = document.getElementById("inventoryContainer");
+  const slots = inventoryContainer.children;
+  for (let i = 0; i < slots.length; i++) {
+    const slot = slots[i];
+    slot.innerHTML = ""; // Очищаем слот
+    if (inventory[i]) {
+      const img = document.createElement("img");
+      img.src = ITEM_CONFIG[inventory[i].type].image.src;
+      img.style.width = "40px";
+      img.style.height = "40px";
+      slot.appendChild(img);
+    }
+  }
 }
 
 function handleGameMessage(event) {
@@ -824,14 +867,16 @@ function handleGameMessage(event) {
       break;
     case "itemPicked":
       items.delete(data.itemId);
-      // Добавляем предмет в инвентарь
-      const item = data.item;
-      const freeSlot = inventory.findIndex((slot) => slot === null);
-      if (freeSlot !== -1) {
-        inventory[freeSlot] = item;
-        console.log(`Предмет ${item.type} добавлен в слот ${freeSlot}`);
-      } else {
-        console.log("Инвентарь полон, предмет не добавлен");
+      const me = players.get(myId);
+      if (me && data.item) {
+        const freeSlot = inventory.findIndex((slot) => slot === null);
+        if (freeSlot !== -1) {
+          inventory[freeSlot] = data.item; // Добавляем предмет в инвентарь
+          console.log(`Предмет ${data.item.type} добавлен в слот ${freeSlot}`);
+          updateInventoryDisplay(); // Обновляем отображение инвентаря
+        } else {
+          console.log("Инвентарь полон, предмет не добавлен");
+        }
       }
       updateStatsDisplay();
       break;
@@ -843,8 +888,9 @@ function handleGameMessage(event) {
         frameTime: existingPlayer.frameTime || 0,
       });
       if (data.player.id === myId) {
-        inventory = data.player.inventory || inventory; // Синхронизируем инвентарь
+        inventory = data.player.inventory || inventory;
         updateStatsDisplay();
+        updateInventoryDisplay();
       }
       break;
     case "itemDropped":
@@ -878,13 +924,6 @@ function handleGameMessage(event) {
         life: GAME_CONFIG.BULLET_LIFE, // Используем значение из конфига
         shooterId: data.shooterId,
       });
-      break;
-    case "itemPicked":
-      items.delete(data.itemId);
-      updateStatsDisplay();
-      break;
-    case "bulletRemoved":
-      bullets.delete(data.bulletId);
       break;
   }
 }
@@ -937,7 +976,8 @@ function shoot() {
     dx = (dx / magnitude) * GAME_CONFIG.BULLET_SPEED;
     dy = (dy / magnitude) * GAME_CONFIG.BULLET_SPEED;
   }
-  ws.send(
+  sendWhenReady(
+    ws,
     JSON.stringify({
       type: "shoot",
       x: me.x + 20,
@@ -999,21 +1039,23 @@ function update(deltaTime) {
         checkCollisions();
       }
 
-      ws.send(
-        JSON.stringify({
-          type: "move",
-          x: me.x,
-          y: me.y,
-          health: me.health,
-          energy: me.energy,
-          food: me.food,
-          water: me.water,
-          armor: me.armor,
-          distanceTraveled: me.distanceTraveled,
-          direction: me.direction,
-          state: me.state,
-          frame: me.frame,
-        })
+      sendWhenReady(
+        ws.send(
+          JSON.stringify({
+            type: "move",
+            x: me.x,
+            y: me.y,
+            health: me.health,
+            energy: me.energy,
+            food: me.food,
+            water: me.water,
+            armor: me.armor,
+            distanceTraveled: me.distanceTraveled,
+            direction: me.direction,
+            state: me.state,
+            frame: me.frame,
+          })
+        )
       );
     } else {
       me.state = "idle";
@@ -1384,7 +1426,7 @@ function checkCollisions() {
         `Игрок ${myId} пытается подобрать предмет ${item.type} (ID: ${id})`
       );
       if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: "pickup", itemId: id }));
+        sendWhenReady(ws, JSON.stringify({ type: "pickup", itemId: id }));
         console.log(`Отправлено сообщение pickup для ${id}`);
       } else {
         console.error("WebSocket не открыт, предмет не отправлен на сервер");

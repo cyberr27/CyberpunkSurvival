@@ -432,21 +432,28 @@ wss.on("connection", (ws) => {
           life: 1000,
         });
 
+        // Уведомляем всех об удалении предмета
         wss.clients.forEach((client) => {
           if (client.readyState === WebSocket.OPEN) {
             client.send(
               JSON.stringify({
-                type: "shoot",
-                bulletId,
-                shooterId: id,
-                x: data.x,
-                y: data.y,
-                dx: data.dx,
-                dy: data.dy,
+                type: "itemPicked",
+                itemId: data.itemId,
+                item: { type: item.type, itemId: data.itemId },
               })
             );
           }
         });
+
+        // Отправляем обновление только игроку, который поднял предмет
+        const client = Array.from(clients.entries()).find(
+          ([_, clientId]) => clientId === id
+        )?.[0];
+        if (client && client.readyState === WebSocket.OPEN) {
+          client.send(
+            JSON.stringify({ type: "update", player: { id, ...player } })
+          );
+        }
       }
     }
     // Обработка использования предмета из инвентаря
@@ -466,15 +473,6 @@ wss.on("connection", (ws) => {
           // Получаем эффект предмета из конфигурации
           const effect = ITEM_CONFIG[item.type].effect;
           // Применяем эффекты к характеристикам игрока
-          if (effect.health)
-            player.health = Math.min(100, player.health + effect.health);
-          if (effect.energy)
-            player.energy = Math.min(100, player.energy + effect.energy);
-          if (effect.food)
-            player.food = Math.min(100, player.food + effect.food);
-          if (effect.water)
-            player.water = Math.min(100, player.water + effect.water);
-
           // Удаляем предмет из инвентаря, заменяя слот на null
           player.inventory[slotIndex] = null;
           // Обновляем данные игрока в карте активных игроков
