@@ -195,10 +195,15 @@ function initializeWebSocket() {
   ws.onopen = () => {
     console.log("WebSocket соединение установлено");
   };
-  ws.onmessage = handleAuthMessage;
   ws.onmessage = (event) => {
     console.log("Получено сообщение от сервера:", event.data);
-    handleAuthMessage(event);
+    const data = JSON.parse(event.data);
+    if (data.type === "loginSuccess") {
+      handleAuthMessage(event);
+      ws.onmessage = handleGameMessage; // Переключаем на игровые сообщения после логина
+    } else {
+      handleAuthMessage(event);
+    }
   };
   ws.onerror = (error) => {
     console.error("Ошибка WebSocket:", error);
@@ -538,8 +543,20 @@ function updateStatsDisplay() {
 }
 
 function handleGameMessage(event) {
+  console.log("Обрабатываем игровое сообщение:", event.data);
   const data = JSON.parse(event.data);
   switch (data.type) {
+    case "newItem":
+      console.log(
+        `Получен предмет ${data.type} (ID: ${data.itemId}) на x:${data.x}, y:${data.y}`
+      );
+      items.set(data.itemId, {
+        x: data.x,
+        y: data.y,
+        type: data.type,
+        spawnTime: data.spawnTime,
+      });
+      break;
     case "update":
       const existingPlayer = players.get(data.player.id);
       players.set(data.player.id, {
@@ -570,17 +587,6 @@ function handleGameMessage(event) {
         spawnTime: Date.now(),
         life: GAME_CONFIG.BULLET_LIFE, // Используем значение из конфига
         shooterId: data.shooterId,
-      });
-      break;
-    case "newItem":
-      console.log(
-        `Получен предмет ${data.type} (ID: ${data.itemId}) на x:${data.x}, y:${data.y}`
-      );
-      items.set(data.itemId, {
-        x: data.x,
-        y: data.y,
-        type: data.type,
-        spawnTime: data.spawnTime,
       });
       break;
     case "itemPicked":
@@ -926,12 +932,21 @@ function draw(deltaTime) {
     console.log(
       `Рисуем предмет ${item.type} на screenX:${screenX}, screenY:${screenY}`
     );
-    const itemImage = ITEM_CONFIG[item.type]?.image;
-    if (itemImage) {
-      ctx.drawImage(itemImage, screenX, screenY, 40, 40);
+    if (
+      screenX >= -40 &&
+      screenX <= canvas.width &&
+      screenY >= -40 &&
+      screenY <= canvas.height
+    ) {
+      const itemImage = ITEM_CONFIG[item.type]?.image;
+      if (itemImage) {
+        ctx.drawImage(itemImage, screenX, screenY, 40, 40);
+      } else {
+        ctx.fillStyle = "yellow";
+        ctx.fillRect(screenX, screenY, 10, 10);
+      }
     } else {
-      ctx.fillStyle = "yellow";
-      ctx.fillRect(screenX, screenY, 10, 10);
+      console.log(`Предмет ${item.type} вне экрана`);
     }
   });
 
