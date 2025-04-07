@@ -316,6 +316,37 @@ wss.on("connection", (ws) => {
           }
         });
         console.log(`Игрок ${id} поднял ${item.type} (ID: ${data.itemId})`);
+
+        // Планируем респавн предмета через 10 минут
+        setTimeout(() => {
+          const worldWidth = 2800;
+          const worldHeight = 3300;
+          const newItemId = `${item.type}_${Date.now()}`;
+          const newItem = {
+            x: Math.random() * worldWidth,
+            y: Math.random() * worldHeight,
+            type: item.type,
+            spawnTime: Date.now(),
+          };
+          items.set(newItemId, newItem);
+          console.log(
+            `Предмет ${item.type} (${newItemId}) возродился на x:${newItem.x}, y:${newItem.y}`
+          );
+          wss.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+              client.send(
+                JSON.stringify({
+                  type: "newItem",
+                  itemId: newItemId,
+                  x: newItem.x,
+                  y: newItem.y,
+                  type: newItem.type,
+                  spawnTime: newItem.spawnTime,
+                })
+              );
+            }
+          });
+        }, 10 * 60 * 1000); // 10 минут
       } else {
         console.log(
           `Не удалось поднять предмет ${data.itemId}: не найден или игрок не авторизован`
