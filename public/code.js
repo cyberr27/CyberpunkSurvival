@@ -581,6 +581,33 @@ function handleGameMessage(event) {
         );
       }
       break;
+    case "syncItems":
+      console.log(`Получена синхронизация предметов: ${data.items.length} шт`);
+      items.clear(); // Очищаем текущие предметы
+      data.items.forEach((item) => {
+        if (
+          item.itemId &&
+          typeof item.x === "number" &&
+          typeof item.y === "number" &&
+          item.type &&
+          item.spawnTime
+        ) {
+          items.set(item.itemId, {
+            x: item.x,
+            y: item.y,
+            type: item.type,
+            spawnTime: item.spawnTime,
+          });
+          console.log(
+            `Синхронизирован предмет ${item.type} (ID: ${item.itemId})`
+          );
+        } else {
+          console.error(
+            `Ошибка в данных syncItems для предмета: ${JSON.stringify(item)}`
+          );
+        }
+      });
+      break;
     case "update":
       const existingPlayer = players.get(data.player.id);
       players.set(data.player.id, {
@@ -1092,14 +1119,16 @@ function checkCollisions() {
       `Проверка столкновения с ${item.type} (ID: ${id}), расстояние: ${distance}`
     );
     if (distance < 40) {
-      console.log(`Игрок ${myId} подобрал предмет ${item.type} (ID: ${id})`);
+      console.log(
+        `Игрок ${myId} пытается подобрать предмет ${item.type} (ID: ${id})`
+      );
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: "pickup", itemId: id }));
         console.log(`Отправлено сообщение pickup для ${id}`);
       } else {
         console.error("WebSocket не открыт, предмет не отправлен на сервер");
       }
-      // НЕ УДАЛЯЕМ items.delete(id) здесь — сервер сам сообщит об удалении через "itemPicked"
+      // Удаление items.delete(id) убрано, ждём подтверждения от сервера через "itemPicked"
     }
   });
 }

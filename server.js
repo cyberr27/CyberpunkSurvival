@@ -241,13 +241,18 @@ wss.on("connection", (ws) => {
             id: data.username,
             players: Array.from(players.values()),
             wolves: [],
-            items: Array.from(items.entries()).map(([itemId, item]) => ({
-              itemId,
-              x: item.x,
-              y: item.y,
-              type: item.type,
-              spawnTime: item.spawnTime,
-            })),
+            items: Array.from(items.entries()).map(([itemId, item]) => {
+              console.log(
+                `Отправляем предмет ${item.type} (ID: ${itemId}) новому игроку ${data.username}`
+              );
+              return {
+                itemId,
+                x: item.x,
+                y: item.y,
+                type: item.type,
+                spawnTime: item.spawnTime,
+              };
+            }),
             obstacles: obstacles,
             lights: lights,
           })
@@ -528,8 +533,6 @@ setInterval(async () => {
   });
 }, 16);
 
-// Спавн предметов
-// Спавн предметов каждые 10 секунд
 setInterval(() => {
   const currentTime = Date.now();
   const playerCount = players.size;
@@ -548,39 +551,39 @@ setInterval(() => {
     }
   });
 
-  // Спавн новых предметов в зависимости от количества игроков
+  // Спавн новых предметов
   const worldWidth = 2800;
   const worldHeight = 3300;
 
   for (const [type, config] of Object.entries(ITEM_CONFIG)) {
-    const desiredCount = config.baseCount * Math.max(1, playerCount); // Желаемое количество предметов
+    const desiredCount = config.baseCount * Math.max(1, playerCount);
     const existingCount = Array.from(items.values()).filter(
       (item) => item.type === type
-    ).length; // Текущее количество предметов данного типа
-    const toSpawn = Math.max(0, desiredCount - existingCount); // Сколько нужно заспавнить
+    ).length;
+    const toSpawn = Math.max(0, desiredCount - existingCount);
 
     for (let i = 0; i < toSpawn; i++) {
-      const itemId = `${type}_${Date.now()}_${i}`; // Уникальный ID
+      const itemId = `${type}_${Date.now()}_${i}`;
       const newItem = {
-        x: Math.random() * worldWidth, // Случайная X-координата
-        y: Math.random() * worldHeight, // Случайная Y-координата
-        type: type, // Тип предмета
-        spawnTime: currentTime, // Время создания
+        x: Math.random() * worldWidth,
+        y: Math.random() * worldHeight,
+        type: type,
+        spawnTime: currentTime,
       };
-      items.set(itemId, newItem); // Добавляем в хранилище
+      items.set(itemId, newItem);
       console.log(
         `Создан предмет ${type} (${itemId}) на x:${newItem.x}, y:${newItem.y}`
       );
-      // Уведомляем всех клиентов о новом предмете
+
       let clientsNotified = 0;
       wss.clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN) {
           const message = JSON.stringify({
-            type: "newItem", // Было item.type, что давало "energy_drink" и т.д.
+            type: "newItem",
             itemId: itemId,
             x: newItem.x,
             y: newItem.y,
-            type: newItem.type, // Тип предмета отдельно
+            type: newItem.type,
             spawnTime: newItem.spawnTime,
           });
           client.send(message);
@@ -597,7 +600,31 @@ setInterval(() => {
       );
     }
   }
-}, 10 * 1000); // Каждые 10 секунд
+
+  // Полная синхронизация предметов после спавна
+  const allItems = Array.from(items.entries()).map(([itemId, item]) => ({
+    itemId,
+    x: item.x,
+    y: item.y,
+    type: item.type,
+    spawnTime: item.spawnTime,
+  }));
+  wss.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(
+        JSON.stringify({
+          type: "syncItems",
+          items: allItems,
+        })
+      );
+      console.log(
+        `Отправлена полная синхронизация предметов клиенту ${
+          clients.get(client) || "unknown"
+        }: ${allItems.length} предметов`
+      );
+    }
+  });
+}, 10 * 1000);
 
 const PORT = process.env.PORT || 10000;
 
