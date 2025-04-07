@@ -310,6 +310,91 @@ button:active {
   background: linear-gradient(135deg, #ff00cc, #00ff99);
   box-shadow: 0 0 20px rgba(255, 0, 204, 1);
 }
+/* Контейнер инвентаря */
+#inventoryContainer {
+  position: absolute;
+  bottom: 15%;
+  right: 1%;
+  width: 210px; /* 4 ячейки по 40px + отступы */
+  height: 260px; /* 5 рядов по 40px + отступы */
+  background: rgba(26, 26, 26, 0.9);
+  border: 2px solid #00ffff;
+  border-radius: 10px;
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+  display: none;
+  grid-template-columns: repeat(4, 40px);
+  grid-gap: 10px;
+  padding: 10px;
+  z-index: 100;
+}
+
+/* Ячейка инвентаря */
+.inventory-slot {
+  width: 40px;
+  height: 40px;
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid #00ffff;
+  box-shadow: 0 0 5px rgba(0, 255, 255, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.inventory-slot:hover {
+  box-shadow: 0 0 10px rgba(255, 0, 255, 0.7);
+}
+
+/* Кнопка инвентаря */
+#inventoryBtn {
+  bottom: 20px;
+  right: 150px; /* Левее кнопки Fire */
+  width: 60px;
+  height: 60px;
+}
+
+#inventoryBtn.active {
+  background: linear-gradient(135deg, #ff00cc, #00ff99);
+  box-shadow: 0 0 20px rgba(255, 0, 204, 1);
+}
+
+/* Подсказка */
+.tooltip {
+  position: absolute;
+  background: rgba(0, 0, 0, 0.9);
+  border: 1px solid #ff00ff;
+  color: #00ffff;
+  padding: 5px 10px;
+  font-size: 12px;
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.7);
+  z-index: 150;
+  pointer-events: none;
+}
+
+/* Кнопки действий */
+.action-btn {
+  position: absolute;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-family: "Courier New", monospace;
+  border: 1px solid #00ffff;
+  color: #fff;
+  border-radius: 5px;
+  cursor: pointer;
+  z-index: 150;
+}
+
+.use-btn {
+  background: linear-gradient(135deg, #00ff00, #00ffff);
+}
+
+.drop-btn {
+  background: linear-gradient(135deg, #ff0000, #ff00ff);
+}
+
+.action-btn:hover {
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.7);
+}
 /* Адаптация для мобильных устройств (max-width: 500px) */
 @media (max-width: 500px) {
   body {
@@ -363,6 +448,25 @@ button:active {
   #chatBtn {
     bottom: 15px;
     right: 10px;
+    width: 50px;
+    height: 50px;
+  }
+  #inventoryContainer {
+    width: 180px;
+    height: 220px;
+    grid-template-columns: repeat(4, 35px);
+    grid-gap: 5px;
+    bottom: 10%;
+  }
+
+  .inventory-slot {
+    width: 35px;
+    height: 35px;
+  }
+
+  #inventoryBtn {
+    bottom: 15px;
+    right: 130px;
     width: 50px;
     height: 50px;
   }

@@ -30,6 +30,36 @@ const items = new Map();
 const lights = [];
 const obstacles = [];
 const bullets = new Map();
+
+// Инвентарь игрока (массив на 20 слотов, изначально пустой)
+let inventory = Array(20).fill(null);
+
+// Конфигурация эффектов предметов (расширяем ITEM_CONFIG)
+const ITEM_CONFIG = {
+  energy_drink: {
+    effect: { energy: 20, water: 5 },
+    image: energyDrinkImage,
+    description: "Энергетик: +20 энергии, +5 воды",
+  },
+  nut: {
+    effect: { food: 25 },
+    image: nutImage,
+    description: "Орех: +25 еды",
+  },
+  water_bottle: {
+    effect: { water: 30 },
+    image: waterBottleImage,
+    description: "Вода: +30 воды",
+  },
+};
+
+// Состояние инвентаря (открыт или закрыт)
+let isInventoryOpen = false;
+// Элемент подсказки
+let tooltip = null;
+// Выбранный слот инвентаря
+let selectedSlot = null;
+
 // Глобальные настройки игры
 const GAME_CONFIG = {
   PLAYER_SPEED: 100,
@@ -111,12 +141,6 @@ waterBottleImage.onerror = () =>
   console.error(
     "Ошибка загрузки water_bottle.png: файл не найден или путь неверный"
   );
-
-const ITEM_CONFIG = {
-  energy_drink: { effect: { energy: 20 }, image: energyDrinkImage },
-  nut: { effect: { food: 27 }, image: nutImage },
-  water_bottle: { effect: { water: 30 }, image: waterBottleImage },
-};
 
 // Размеры мира
 const worldWidth = 2800;
@@ -482,7 +506,167 @@ function startGame() {
     }
   });
 
+  // Обработчик клавиш (добавляем "I" для инвентаря)
+  document.addEventListener("keydown", (e) => {
+    if (document.activeElement === chatInput) return;
+    const me = players.get(myId);
+    if (!me || me.health <= 0) return;
+
+    switch (e.key) {
+      case " ":
+        shoot();
+        break;
+      case "c":
+        const isChatVisible = chatContainer.style.display === "flex";
+        chatContainer.style.display = isChatVisible ? "none" : "flex";
+        if (!isChatVisible) chatInput.focus();
+        else chatInput.blur();
+        break;
+      case "i": // Открытие/закрытие инвентаря
+        toggleInventory();
+        break;
+    }
+    e.preventDefault();
+  });
+
+  // Настройка кнопки Inventory
+  const inventoryBtn = document.getElementById("inventoryBtn");
+  inventoryBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    toggleInventory();
+  });
+
+  // Создаём 20 ячеек инвентаря
+  const inventoryContainer = document.getElementById("inventoryContainer");
+  inventoryContainer.style.display = "none"; // Скрыто по умолчанию
+  for (let i = 0; i < 20; i++) {
+    const slot = document.createElement("div");
+    slot.className = "inventory-slot";
+    inventoryContainer.appendChild(slot);
+  }
   requestAnimationFrame(gameLoop);
+}
+
+// Функция переключения инвентаря
+function toggleInventory() {
+  isInventoryOpen = !isInventoryOpen;
+  const inventoryContainer = document.getElementById("inventoryContainer");
+  inventoryContainer.style.display = isInventoryOpen ? "grid" : "none";
+  const inventoryBtn = document.getElementById("inventoryBtn");
+  inventoryBtn.classList.toggle("active", isInventoryOpen);
+
+  // Скрываем подсказку и кнопки при закрытии
+  if (!isInventoryOpen) {
+    hideTooltip();
+    hideActionButtons();
+    selectedSlot = null;
+  }
+}
+
+// Показать подсказку
+function showTooltip(slotIndex, slotElement) {
+  if (!inventory[slotIndex]) return;
+  hideTooltip(); // Убираем старую подсказку
+  tooltip = document.createElement("div");
+  tooltip.className = "tooltip";
+  tooltip.textContent = ITEM_CONFIG[inventory[slotIndex].type].description;
+  document.body.appendChild(tooltip);
+
+  const rect = slotElement.getBoundingClientRect();
+  tooltip.style.left = `${rect.left + rect.width}px`;
+  tooltip.style.top = `${rect.top}px`;
+}
+
+// Скрыть подсказку
+function hideTooltip() {
+  if (tooltip) {
+    tooltip.remove();
+    tooltip = null;
+  }
+}
+
+// Выбрать слот и показать кнопки
+function selectSlot(slotIndex, slotElement) {
+  if (!inventory[slotIndex]) return;
+  if (selectedSlot === slotIndex) {
+    hideActionButtons();
+    selectedSlot = null;
+    return;
+  }
+  selectedSlot = slotIndex;
+  hideActionButtons();
+
+  const useBtn = document.createElement("button");
+  useBtn.className = "action-btn use-btn";
+  useBtn.textContent = "Использовать";
+  useBtn.onclick = () => useItem(slotIndex);
+
+  const dropBtn = document.createElement("button");
+  dropBtn.className = "action-btn drop-btn";
+  dropBtn.textContent = "Выкинуть";
+  dropBtn.onclick = () => dropItem(slotIndex);
+
+  const rect = slotElement.getBoundingClientRect();
+  useBtn.style.left = `${rect.left}px`;
+  useBtn.style.top = `${rect.bottom + 5}px`;
+  dropBtn.style.left = `${rect.left + 60}px`;
+  dropBtn.style.top = `${rect.bottom + 5}px`;
+
+  document.body.appendChild(useBtn);
+  document.body.appendChild(dropBtn);
+}
+
+// Скрыть кнопки действий
+function hideActionButtons() {
+  document.querySelectorAll(".action-btn").forEach((btn) => btn.remove());
+}
+
+// Использовать предмет
+function useItem(slotIndex) {
+  const item = inventory[slotIndex];
+  if (!item) return;
+  const me = players.get(myId);
+  const effect = ITEM_CONFIG[item.type].effect;
+
+  if (effect.energy) me.energy = Math.min(100, me.energy + effect.energy);
+  if (effect.food) me.food = Math.min(100, me.food + effect.food);
+  if (effect.water) me.water = Math.min(100, me.water + effect.water);
+
+  inventory[slotIndex] = null;
+  ws.send(
+    JSON.stringify({
+      type: "useItem",
+      slotIndex,
+      health: me.health,
+      energy: me.energy,
+      food: me.food,
+      water: me.water,
+      inventory,
+    })
+  );
+  hideActionButtons();
+  selectedSlot = null;
+  updateStatsDisplay();
+}
+
+// Выкинуть предмет
+function dropItem(slotIndex) {
+  const item = inventory[slotIndex];
+  if (!item) return;
+  const me = players.get(myId);
+
+  // Отправляем запрос на сервер для выброса
+  ws.send(
+    JSON.stringify({
+      type: "dropItem",
+      slotIndex,
+      x: me.x,
+      y: me.y,
+    })
+  );
+  inventory[slotIndex] = null;
+  hideActionButtons();
+  selectedSlot = null;
 }
 
 // Логика расхода ресурсов
@@ -555,6 +739,35 @@ function handleGameMessage(event) {
   console.log("Обрабатываем игровое сообщение:", event.data);
   const data = JSON.parse(event.data);
   switch (data.type) {
+    case "loginSuccess":
+      myId = data.id;
+      authContainer.style.display = "none";
+      document.getElementById("gameContainer").style.display = "block";
+      data.players.forEach((p) => players.set(p.id, p));
+      lastDistance = players.get(myId).distanceTraveled || 0;
+      data.wolves.forEach((w) => wolves.set(w.id, w));
+      data.obstacles.forEach((o) => obstacles.push(o));
+      if (data.items) {
+        data.items.forEach((item) =>
+          items.set(item.itemId, {
+            x: item.x,
+            y: item.y,
+            type: item.type,
+            spawnTime: item.spawnTime,
+          })
+        );
+      }
+      if (data.lights) {
+        lights.length = 0;
+        data.lights.forEach((light) => lights.push(light));
+      }
+      // Загружаем инвентарь из данных сервера
+      inventory = data.inventory || Array(20).fill(null);
+      console.log("Инвентарь загружен:", inventory);
+      resizeCanvas();
+      ws.onmessage = handleGameMessage;
+      startGame();
+      break;
     case "newItem":
       console.log(
         `Получен новый предмет ${data.type} (ID: ${data.itemId}) на x:${data.x}, y:${data.y}`
@@ -608,6 +821,19 @@ function handleGameMessage(event) {
         }
       });
       break;
+    case "itemPicked":
+      items.delete(data.itemId);
+      // Добавляем предмет в инвентарь
+      const item = data.item;
+      const freeSlot = inventory.findIndex((slot) => slot === null);
+      if (freeSlot !== -1) {
+        inventory[freeSlot] = item;
+        console.log(`Предмет ${item.type} добавлен в слот ${freeSlot}`);
+      } else {
+        console.log("Инвентарь полон, предмет не добавлен");
+      }
+      updateStatsDisplay();
+      break;
     case "update":
       const existingPlayer = players.get(data.player.id);
       players.set(data.player.id, {
@@ -615,7 +841,19 @@ function handleGameMessage(event) {
         ...data.player,
         frameTime: existingPlayer.frameTime || 0,
       });
-      if (data.player.id === myId) updateStatsDisplay();
+      if (data.player.id === myId) {
+        inventory = data.player.inventory || inventory; // Синхронизируем инвентарь
+        updateStatsDisplay();
+      }
+      break;
+    case "itemDropped":
+      items.set(data.itemId, {
+        x: data.x,
+        y: data.y,
+        type: data.type,
+        spawnTime: data.spawnTime,
+      });
+      console.log(`Предмет ${data.type} выброшен на x:${data.x}, y:${data.y}`);
       break;
     case "chat":
       const messageEl = document.createElement("div");
@@ -1085,6 +1323,28 @@ function draw(deltaTime) {
     canvas.width,
     canvas.height
   );
+
+  // Рисуем инвентарь, если открыт
+  if (isInventoryOpen) {
+    const inventoryContainer = document.getElementById("inventoryContainer");
+    const slots = inventoryContainer.children;
+    for (let i = 0; i < slots.length; i++) {
+      const slot = slots[i];
+      slot.innerHTML = ""; // Очищаем слот
+      if (inventory[i]) {
+        const img = document.createElement("img");
+        img.src = ITEM_CONFIG[inventory[i].type].image.src;
+        img.style.width = "40px";
+        img.style.height = "40px";
+        slot.appendChild(img);
+
+        // Обработчики для подсказок и выбора
+        slot.onmouseover = () => showTooltip(i, slot);
+        slot.onmouseout = hideTooltip;
+        slot.onclick = () => selectSlot(i, slot);
+      }
+    }
+  }
 
   // Опционально: визуальные подсказки зон для мобильных (раскомментируй, если нужно)
   /*

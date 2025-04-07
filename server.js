@@ -195,6 +195,36 @@ function pointToLineDistance(px, py, x1, y1, x2, y2) {
 
 app.use(express.static(path.join(__dirname, "public")));
 
+function checkCollisionServer(x, y) {
+  const left = x;
+  const right = x + 40;
+  const top = y;
+  const bottom = y + 40;
+
+  for (const obstacle of obstacles) {
+    if (obstacle.isLine) {
+      const distance = pointToLineDistance(
+        x + 20,
+        y + 20,
+        obstacle.x1,
+        obstacle.y1,
+        obstacle.x2,
+        obstacle.y2
+      );
+      if (distance < 20 + obstacle.thickness / 2) return true;
+    } else {
+      if (
+        left < obstacle.right &&
+        right > obstacle.left &&
+        top < obstacle.bottom &&
+        bottom > obstacle.top
+      )
+        return true;
+    }
+  }
+  return false;
+}
+
 wss.on("connection", (ws) => {
   console.log("Клиент подключился");
 
@@ -225,7 +255,9 @@ wss.on("connection", (ws) => {
           direction: "down",
           state: "idle",
           frame: 0,
+          inventory: Array(20).fill(null), // Добавляем инвентарь
         };
+
         userDatabase.set(data.username, newPlayer);
         await saveUserDatabase(dbCollection, data.username, newPlayer); // Сохраняем в MongoDB
         ws.send(JSON.stringify({ type: "registerSuccess" }));
@@ -241,20 +273,17 @@ wss.on("connection", (ws) => {
             id: data.username,
             players: Array.from(players.values()),
             wolves: [],
-            items: Array.from(items.entries()).map(([itemId, item]) => {
-              console.log(
-                `Отправляем предмет ${item.type} (ID: ${itemId}) новому игроку ${data.username}`
-              );
-              return {
-                itemId,
-                x: item.x,
-                y: item.y,
-                type: item.type,
-                spawnTime: item.spawnTime,
-              };
-            }),
+            items: Array.from(items.entries()).map(([itemId, item]) => ({
+              itemId,
+              x: item.x,
+              y: item.y,
+              type: item.type,
+              spawnTime: item.spawnTime,
+            })),
             obstacles: obstacles,
             lights: lights,
+            inventory:
+              players.get(data.username).inventory || Array(20).fill(null), // Отправляем инвентарь
           })
         );
         wss.clients.forEach((client) => {
@@ -297,35 +326,39 @@ wss.on("connection", (ws) => {
         const player = players.get(id);
         const effect = ITEM_CONFIG[item.type]?.effect;
 
-        if (effect) {
-          if (effect.health)
-            player.health = Math.min(100, player.health + effect.health);
-          if (effect.energy)
-            player.energy = Math.min(100, player.energy + effect.energy);
-          if (effect.food)
-            player.food = Math.min(100, player.food + effect.food);
-          if (effect.water)
-            player.water = Math.min(100, player.water + effect.water);
-        }
+        // Проверяем, есть ли свободный слот
+        const freeSlot = player.inventory.findIndex((slot) => slot === null);
+        if (freeSlot !== -1) {
+          player.inventory[freeSlot] = { type: item.type, itemId: data.itemId };
+          items.delete(data.itemId);
+          players.set(id, { ...player });
+          userDatabase.set(id, { ...player });
+          await saveUserDatabase(dbCollection, id, player);
 
-        items.delete(data.itemId);
-        players.set(id, { ...player });
-        userDatabase.set(id, { ...player });
-        await saveUserDatabase(dbCollection, id, player);
-
-        wss.clients.forEach((client) => {
-          if (client.readyState === WebSocket.OPEN) {
-            client.send(
-              JSON.stringify({ type: "itemPicked", itemId: data.itemId })
-            );
-            if (clients.get(client) === id) {
+          wss.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
               client.send(
-                JSON.stringify({ type: "update", player: { id, ...player } })
+                JSON.stringify({
+                  type: "itemPicked",
+                  itemId: data.itemId,
+                  item: player.inventory[freeSlot],
+                })
               );
+              if (clients.get(client) === id) {
+                client.send(
+                  JSON.stringify({ type: "update", player: { id, ...player } })
+                );
+              }
             }
-          }
-        });
-        console.log(`Игрок ${id} поднял ${item.type} (ID: ${data.itemId})`);
+          });
+          console.log(
+            `Игрок ${id} поднял ${item.type} (ID: ${data.itemId}) в слот ${freeSlot}`
+          );
+        } else {
+          console.log(
+            `Инвентарь игрока ${id} полон, предмет ${data.itemId} не поднят`
+          );
+        }
 
         // Планируем респавн предмета через 10 минут
         setTimeout(() => {
@@ -414,6 +447,149 @@ wss.on("connection", (ws) => {
             );
           }
         });
+      }
+    }
+    // Обработка использования предмета из инвентаря
+    else if (data.type === "useItem") {
+      // Получаем ID игрока
+      const id = clients.get(ws);
+      // Проверяем, что игрок авторизован
+      if (id) {
+        // Получаем данные игрока
+        const player = players.get(id);
+        // Получаем индекс слота из сообщения
+        const slotIndex = data.slotIndex;
+        // Получаем предмет из указанного слота инвентаря
+        const item = player.inventory[slotIndex];
+        // Проверяем, что в слоте есть предмет
+        if (item) {
+          // Получаем эффект предмета из конфигурации
+          const effect = ITEM_CONFIG[item.type].effect;
+          // Применяем эффекты к характеристикам игрока
+          if (effect.health)
+            player.health = Math.min(100, player.health + effect.health);
+          if (effect.energy)
+            player.energy = Math.min(100, player.energy + effect.energy);
+          if (effect.food)
+            player.food = Math.min(100, player.food + effect.food);
+          if (effect.water)
+            player.water = Math.min(100, player.water + effect.water);
+
+          // Удаляем предмет из инвентаря, заменяя слот на null
+          player.inventory[slotIndex] = null;
+          // Обновляем данные игрока в карте активных игроков
+          players.set(id, { ...player });
+          // Обновляем данные игрока в базе пользователей
+          userDatabase.set(id, { ...player });
+          // Сохраняем изменения в MongoDB
+          await saveUserDatabase(dbCollection, id, player);
+
+          // Уведомляем всех клиентов об обновлении данных игрока
+          wss.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+              client.send(
+                JSON.stringify({ type: "update", player: { id, ...player } })
+              );
+            }
+          });
+          // Логируем использование предмета
+          console.log(
+            `Игрок ${id} использовал ${item.type} из слота ${slotIndex}`
+          );
+        }
+      }
+    }
+    // Обработка выброса предмета из инвентаря
+    else if (data.type === "dropItem") {
+      // Получаем ID игрока
+      const id = clients.get(ws);
+      // Проверяем, что игрок авторизован
+      if (id) {
+        // Получаем данные игрока
+        const player = players.get(id);
+        // Получаем индекс слота из сообщения
+        const slotIndex = data.slotIndex;
+        // Получаем предмет из указанного слота инвентаря
+        const item = player.inventory[slotIndex];
+        // Проверяем, что в слоте есть предмет
+        if (item) {
+          // Переменные для координат выброса
+          let dropX,
+            dropY,
+            attempts = 0;
+          // Максимальное количество попыток найти свободное место
+          const maxAttempts = 10;
+          // Ищем свободное место в радиусе 100 пикселей от игрока
+          do {
+            // Случайный угол для направления выброса
+            const angle = Math.random() * Math.PI * 2;
+            // Случайное расстояние до 100 пикселей
+            const radius = Math.random() * 100;
+            // Вычисляем координаты выброса
+            dropX = player.x + Math.cos(angle) * radius;
+            dropY = player.y + Math.sin(angle) * radius;
+            attempts++;
+            // Проверяем, нет ли коллизий с препятствиями, и не превышено ли количество попыток
+          } while (
+            checkCollisionServer(dropX, dropY) &&
+            attempts < maxAttempts
+          );
+
+          // Если нашли свободное место (attempts < maxAttempts)
+          if (attempts < maxAttempts) {
+            // Создаём новый уникальный ID для выброшенного предмета
+            const itemId = `${item.type}_${Date.now()}`;
+            // Добавляем предмет на карту с новыми координатами
+            items.set(itemId, {
+              x: dropX,
+              y: dropY,
+              type: item.type,
+              spawnTime: Date.now(),
+            });
+            // Удаляем предмет из инвентаря игрока
+            player.inventory[slotIndex] = null;
+            // Обновляем данные игрока в карте активных игроков
+            players.set(id, { ...player });
+            // Обновляем данные игрока в базе пользователей
+            userDatabase.set(id, { ...player });
+            // Сохраняем изменения в MongoDB
+            await saveUserDatabase(dbCollection, id, player);
+
+            // Уведомляем всех клиентов о выбросе предмета
+            wss.clients.forEach((client) => {
+              if (client.readyState === WebSocket.OPEN) {
+                client.send(
+                  JSON.stringify({
+                    type: "itemDropped",
+                    itemId,
+                    x: dropX,
+                    y: dropY,
+                    type: item.type,
+                    spawnTime: Date.now(),
+                  })
+                );
+                // Отправляем обновленные данные игрока только самому игроку
+                if (clients.get(client) === id) {
+                  client.send(
+                    JSON.stringify({
+                      type: "update",
+                      player: { id, ...player },
+                    })
+                  );
+                }
+              }
+            });
+            // Логируем успешный выброс предмета
+            console.log(
+              `Игрок ${id} выбросил ${item.type} на x:${dropX}, y:${dropY}`
+            );
+          } else {
+            // Если не нашли свободное место, логируем предупреждение
+            console.log(
+              `Не удалось найти место для выброса предмета ${item.type}`
+            );
+          }
+        }
       }
     }
   });
