@@ -79,7 +79,6 @@ async function saveUserDatabase(collection, username, player) {
       { $set: player },
       { upsert: true }
     );
-    console.log(`Данные пользователя ${username} сохранены в MongoDB`);
   } catch (error) {
     console.error("Ошибка при сохранении данных в MongoDB:", error);
   }
@@ -266,7 +265,11 @@ wss.on("connection", (ws) => {
       const player = userDatabase.get(data.username);
       if (player && player.password === data.password) {
         clients.set(ws, data.username);
-        players.set(data.username, { ...player }); // Добавляем в активные игроки
+        const playerData = {
+          ...player,
+          inventory: player.inventory || Array(20).fill(null), // Гарантируем наличие inventory
+        };
+        players.set(data.username, playerData);
         ws.send(
           JSON.stringify({
             type: "loginSuccess",
@@ -282,8 +285,7 @@ wss.on("connection", (ws) => {
             })),
             obstacles: obstacles,
             lights: lights,
-            inventory:
-              players.get(data.username).inventory || Array(20).fill(null), // Отправляем инвентарь
+            inventory: playerData.inventory, // Отправляем гарантированно существующий inventory
           })
         );
         wss.clients.forEach((client) => {
@@ -302,12 +304,16 @@ wss.on("connection", (ws) => {
     } else if (data.type === "move") {
       const id = clients.get(ws);
       if (id) {
-        const updatedPlayer = { ...players.get(id), ...data };
+        const existingPlayer = players.get(id);
+        const updatedPlayer = {
+          ...existingPlayer,
+          ...data,
+          inventory: existingPlayer.inventory || Array(20).fill(null), // Сохраняем или инициализируем inventory
+        };
         players.set(id, updatedPlayer);
         userDatabase.set(id, updatedPlayer);
         let lastSaved = new Map();
         if (!lastSaved.has(id) || Date.now() - lastSaved.get(id) > 5000) {
-          // Каждые 5 секунд
           await saveUserDatabase(dbCollection, id, updatedPlayer);
           lastSaved.set(id, Date.now());
         }
@@ -326,7 +332,14 @@ wss.on("connection", (ws) => {
         const player = players.get(id);
         const effect = ITEM_CONFIG[item.type]?.effect;
 
-        // Проверяем, есть ли свободный слот
+        // Защита от undefined
+        if (!player.inventory) {
+          player.inventory = Array(20).fill(null);
+          console.warn(
+            `Inventory для игрока ${id} был undefined, инициализирован заново`
+          );
+        }
+
         const freeSlot = player.inventory.findIndex((slot) => slot === null);
         if (freeSlot !== -1) {
           player.inventory[freeSlot] = { type: item.type, itemId: data.itemId };
@@ -341,7 +354,7 @@ wss.on("connection", (ws) => {
                 JSON.stringify({
                   type: "itemPicked",
                   itemId: data.itemId,
-                  item: { type: item.type, itemId: data.itemId }, // Убедитесь, что itemId включён
+                  item: { type: item.type, itemId: data.itemId },
                 })
               );
               if (clients.get(client) === id) {
@@ -360,11 +373,11 @@ wss.on("connection", (ws) => {
           );
         }
 
-        // Планируем респавн предмета через 10 минут
+        // Респавн предмета
         setTimeout(() => {
           const worldWidth = 2800;
           const worldHeight = 3300;
-          const newItemId = `${item.type}_${Date.now()}`; // Уникальный ID для нового предмета
+          const newItemId = `${item.type}_${Date.now()}`;
           const newItem = {
             x: Math.random() * worldWidth,
             y: Math.random() * worldHeight,
@@ -376,30 +389,20 @@ wss.on("connection", (ws) => {
             `Предмет ${item.type} (${newItemId}) возродился на x:${newItem.x}, y:${newItem.y}`
           );
 
-          // Отправляем всем клиентам сообщение о новом предмете с дополнительным логированием
-          let clientsNotified = 0;
           wss.clients.forEach((client) => {
             if (client.readyState === WebSocket.OPEN) {
-              const message = JSON.stringify({
-                type: "newItem",
-                itemId: newItemId,
-                x: newItem.x,
-                y: newItem.y,
-                type: newItem.type, // Тип предмета (energy_drink, nut, water_bottle)
-                spawnTime: newItem.spawnTime,
-              });
-              client.send(message);
-              clientsNotified++;
-              console.log(
-                `Отправлено сообщение "newItem" клиенту ${
-                  clients.get(client) || "unknown"
-                }: ${message}`
+              client.send(
+                JSON.stringify({
+                  type: "newItem",
+                  itemId: newItemId,
+                  x: newItem.x,
+                  y: newItem.y,
+                  type: newItem.type,
+                  spawnTime: newItem.spawnTime,
+                })
               );
             }
           });
-          console.log(
-            `Уведомлено ${clientsNotified} клиентов о новом предмете ${newItemId}`
-          );
         }, 10 * 60 * 1000); // 10 минут
       } else {
         console.log(
@@ -417,7 +420,7 @@ wss.on("connection", (ws) => {
           }
         });
       }
-    }else if (data.type === "shoot") {
+    } else if (data.type === "shoot") {
       const id = clients.get(ws);
       if (id) {
         const bulletId = Date.now().toString();
@@ -431,7 +434,7 @@ wss.on("connection", (ws) => {
           spawnTime: Date.now(),
           life: GAME_CONFIG.BULLET_LIFE, // Используем константу из конфига
         });
-    
+
         // Уведомляем всех о новом выстреле
         wss.clients.forEach((client) => {
           if (client.readyState === WebSocket.OPEN) {
