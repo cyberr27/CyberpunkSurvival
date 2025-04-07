@@ -271,7 +271,12 @@ wss.on("connection", (ws) => {
         const updatedPlayer = { ...players.get(id), ...data };
         players.set(id, updatedPlayer);
         userDatabase.set(id, updatedPlayer);
-        await saveUserDatabase(dbCollection, id, updatedPlayer);
+        let lastSaved = new Map();
+        if (!lastSaved.has(id) || Date.now() - lastSaved.get(id) > 5000) {
+          // Каждые 5 секунд
+          await saveUserDatabase(dbCollection, id, updatedPlayer);
+          lastSaved.set(id, Date.now());
+        }
         wss.clients.forEach((client) => {
           if (client.readyState === WebSocket.OPEN) {
             client.send(
@@ -571,11 +576,11 @@ setInterval(() => {
       wss.clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN) {
           const message = JSON.stringify({
-            type: "newItem",
+            type: "newItem", // Было item.type, что давало "energy_drink" и т.д.
             itemId: itemId,
             x: newItem.x,
             y: newItem.y,
-            type: newItem.type,
+            type: newItem.type, // Тип предмета отдельно
             spawnTime: newItem.spawnTime,
           });
           client.send(message);
