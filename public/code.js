@@ -31,6 +31,13 @@ const lights = [];
 const obstacles = [];
 const bullets = new Map();
 
+const energyDrinkImage = new Image();
+energyDrinkImage.src = "energy_drink.png";
+const nutImage = new Image();
+nutImage.src = "nut.png";
+const waterBottleImage = new Image();
+waterBottleImage.src = "water_bottle.png";
+
 // Инвентарь игрока (массив на 20 слотов, изначально пустой)
 let inventory = Array(20).fill(null);
 
@@ -107,12 +114,6 @@ const playerSprite = new Image();
 playerSprite.src = "playerSprite.png";
 const wolfSprite = new Image();
 wolfSprite.src = "wolfSprite.png";
-const energyDrinkImage = new Image();
-energyDrinkImage.src = "energy_drink.png";
-const nutImage = new Image();
-nutImage.src = "nut.png";
-const waterBottleImage = new Image();
-waterBottleImage.src = "water_bottle.png";
 
 // Добавляем проверку загрузки
 energyDrinkImage.onload = () => {
