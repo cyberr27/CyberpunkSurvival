@@ -327,12 +327,23 @@ wss.on("connection", (ws) => {
       }
     } else if (data.type === "pickup") {
       const id = clients.get(ws);
-      if (id && items.has(data.itemId)) {
+      if (!id) {
+        console.log("Игрок не авторизован для pickup");
+        return;
+      }
+      if (!items.has(data.itemId)) {
+        console.log(`Предмет ${data.itemId} не найден на сервере`);
+        return;
+      }
+
+      try {
         const item = items.get(data.itemId);
         const player = players.get(id);
-        const effect = ITEM_CONFIG[item.type]?.effect;
+        if (!player) {
+          console.log(`Игрок ${id} не найден в players`);
+          return;
+        }
 
-        // Защита от undefined
         if (!player.inventory) {
           player.inventory = Array(20).fill(null);
           console.warn(
@@ -367,47 +378,45 @@ wss.on("connection", (ws) => {
           console.log(
             `Игрок ${id} поднял ${item.type} (ID: ${data.itemId}) в слот ${freeSlot}`
           );
+
+          // Респавн предмета
+          setTimeout(() => {
+            const worldWidth = 2800;
+            const worldHeight = 3300;
+            const newItemId = `${item.type}_${Date.now()}`;
+            const newItem = {
+              x: Math.random() * worldWidth,
+              y: Math.random() * worldHeight,
+              type: item.type,
+              spawnTime: Date.now(),
+            };
+            items.set(newItemId, newItem);
+            console.log(
+              `Предмет ${item.type} (${newItemId}) возродился на x:${newItem.x}, y:${newItem.y}`
+            );
+
+            wss.clients.forEach((client) => {
+              if (client.readyState === WebSocket.OPEN) {
+                client.send(
+                  JSON.stringify({
+                    type: "newItem",
+                    itemId: newItemId,
+                    x: newItem.x,
+                    y: newItem.y,
+                    type: newItem.type,
+                    spawnTime: newItem.spawnTime,
+                  })
+                );
+              }
+            });
+          }, 10 * 60 * 1000); // 10 минут
         } else {
           console.log(
             `Инвентарь игрока ${id} полон, предмет ${data.itemId} не поднят`
           );
         }
-
-        // Респавн предмета
-        setTimeout(() => {
-          const worldWidth = 2800;
-          const worldHeight = 3300;
-          const newItemId = `${item.type}_${Date.now()}`;
-          const newItem = {
-            x: Math.random() * worldWidth,
-            y: Math.random() * worldHeight,
-            type: item.type,
-            spawnTime: Date.now(),
-          };
-          items.set(newItemId, newItem);
-          console.log(
-            `Предмет ${item.type} (${newItemId}) возродился на x:${newItem.x}, y:${newItem.y}`
-          );
-
-          wss.clients.forEach((client) => {
-            if (client.readyState === WebSocket.OPEN) {
-              client.send(
-                JSON.stringify({
-                  type: "newItem",
-                  itemId: newItemId,
-                  x: newItem.x,
-                  y: newItem.y,
-                  type: newItem.type,
-                  spawnTime: newItem.spawnTime,
-                })
-              );
-            }
-          });
-        }, 10 * 60 * 1000); // 10 минут
-      } else {
-        console.log(
-          `Не удалось поднять предмет ${data.itemId}: не найден или игрок не авторизован`
-        );
+      } catch (error) {
+        console.error(`Ошибка в обработке pickup для ${data.itemId}:`, error);
       }
     } else if (data.type === "chat") {
       const id = clients.get(ws);
@@ -590,9 +599,15 @@ wss.on("connection", (ws) => {
     }
   });
 
-  ws.on("close", () => {
+  ws.on("close", async () => {
     const id = clients.get(ws);
     if (id) {
+      const player = players.get(id);
+      if (player) {
+        userDatabase.set(id, { ...player });
+        await saveUserDatabase(dbCollection, id, player);
+        console.log(`Данные игрока ${id} сохранены перед отключением`);
+      }
       clients.delete(ws);
       players.delete(id);
       console.log("Клиент отключился:", id);
@@ -772,6 +787,34 @@ setInterval(() => {
       );
     }
   }
+
+  // Добавляем пинг каждые 30 секунд
+  setInterval(() => {
+    wss.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify({ type: "ping" }));
+      }
+    });
+  }, 30000);
+
+  // Проверяем живых клиентов
+  wss.on("connection", (ws) => {
+    ws.isAlive = true;
+    ws.on("pong", () => {
+      ws.isAlive = true;
+    });
+  });
+
+  setInterval(() => {
+    wss.clients.forEach((ws) => {
+      if (!ws.isAlive) {
+        console.log("Клиент не отвечает на пинг, завершаем соединение");
+        return ws.terminate();
+      }
+      ws.isAlive = false;
+      ws.ping();
+    });
+  }, 60000);
 
   // Полная синхронизация предметов после спавна
   const allItems = Array.from(items.entries()).map(([itemId, item]) => ({

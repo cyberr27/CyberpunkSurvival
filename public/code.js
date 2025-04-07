@@ -182,11 +182,34 @@ function reconnectWebSocket() {
     return;
   }
   console.log(`Попытка переподключения ${reconnectAttempts + 1}...`);
-  ws = new WebSocket("wss://cyberpunksurvival.onrender.com"); // Обновляем глобальный ws
+  ws = new WebSocket("wss://cyberpunksurvival.onrender.com");
   ws.onopen = () => {
     console.log("WebSocket успешно переподключен");
     reconnectAttempts = 0;
     // Повторная авторизация
+    if (myId) {
+      const lastUsername = document
+        .getElementById("loginUsername")
+        .value.trim();
+      const lastPassword = document
+        .getElementById("loginPassword")
+        .value.trim();
+      if (lastUsername && lastPassword) {
+        sendWhenReady(
+          ws,
+          JSON.stringify({
+            type: "login",
+            username: lastUsername,
+            password: lastPassword,
+          })
+        );
+        console.log(`Повторная авторизация для ${lastUsername}`);
+      } else {
+        console.warn("Нет сохранённых данных для авторизации");
+        authContainer.style.display = "flex"; // Показываем форму логина
+        document.getElementById("gameContainer").style.display = "none";
+      }
+    }
   };
   ws.onerror = (error) => {
     console.error("Ошибка WebSocket:", error);
@@ -205,11 +228,15 @@ function initializeWebSocket() {
     console.log("WebSocket соединение установлено");
   };
   ws.onmessage = (event) => {
-    console.log("Получено сообщение от сервера:", event.data);
     const data = JSON.parse(event.data);
+    if (data.type === "ping") {
+      sendWhenReady(ws, JSON.stringify({ type: "pong" }));
+      return;
+    }
+    // Остальная логика обработки сообщений
     if (data.type === "loginSuccess") {
       handleAuthMessage(event);
-      ws.onmessage = handleGameMessage; // Переключаем на игровые сообщения после логина
+      ws.onmessage = handleGameMessage;
     } else {
       handleAuthMessage(event);
     }
@@ -355,6 +382,8 @@ function sendWhenReady(ws, message) {
     console.error("WebSocket не готов для отправки:", ws.readyState);
   }
 }
+
+
 
 function startGame() {
   // Обработчик клавиш (только для стрельбы и чата)
