@@ -417,7 +417,7 @@ wss.on("connection", (ws) => {
           }
         });
       }
-    } else if (data.type === "shoot") {
+    }else if (data.type === "shoot") {
       const id = clients.get(ws);
       if (id) {
         const bulletId = Date.now().toString();
@@ -429,31 +429,26 @@ wss.on("connection", (ws) => {
           dx: data.dx,
           dy: data.dy,
           spawnTime: Date.now(),
-          life: 1000,
+          life: GAME_CONFIG.BULLET_LIFE, // Используем константу из конфига
         });
-
-        // Уведомляем всех об удалении предмета
+    
+        // Уведомляем всех о новом выстреле
         wss.clients.forEach((client) => {
           if (client.readyState === WebSocket.OPEN) {
             client.send(
               JSON.stringify({
-                type: "itemPicked",
-                itemId: data.itemId,
-                item: { type: item.type, itemId: data.itemId },
+                type: "shoot",
+                bulletId: bulletId,
+                x: data.x,
+                y: data.y,
+                dx: data.dx,
+                dy: data.dy,
+                shooterId: id,
               })
             );
           }
         });
-
-        // Отправляем обновление только игроку, который поднял предмет
-        const client = Array.from(clients.entries()).find(
-          ([_, clientId]) => clientId === id
-        )?.[0];
-        if (client && client.readyState === WebSocket.OPEN) {
-          client.send(
-            JSON.stringify({ type: "update", player: { id, ...player } })
-          );
-        }
+        console.log(`Игрок ${id} выстрелил, пуля ${bulletId} создана`);
       }
     }
     // Обработка использования предмета из инвентаря

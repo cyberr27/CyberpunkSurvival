@@ -921,7 +921,7 @@ function handleGameMessage(event) {
         dx: data.dx,
         dy: data.dy,
         spawnTime: Date.now(),
-        life: GAME_CONFIG.BULLET_LIFE, // Используем значение из конфига
+        life: GAME_CONFIG.BULLET_LIFE,
         shooterId: data.shooterId,
       });
       break;
