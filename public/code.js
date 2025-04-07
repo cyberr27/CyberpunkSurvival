@@ -559,12 +559,27 @@ function handleGameMessage(event) {
       console.log(
         `Получен новый предмет ${data.type} (ID: ${data.itemId}) на x:${data.x}, y:${data.y}`
       );
-      items.set(data.itemId, {
-        x: data.x,
-        y: data.y,
-        type: data.type,
-        spawnTime: data.spawnTime,
-      });
+      if (
+        data.itemId &&
+        typeof data.x === "number" &&
+        typeof data.y === "number" &&
+        data.type &&
+        data.spawnTime
+      ) {
+        items.set(data.itemId, {
+          x: data.x,
+          y: data.y,
+          type: data.type,
+          spawnTime: data.spawnTime,
+        });
+        console.log(
+          `Добавлен предмет ${data.type} (ID: ${data.itemId}) в items`
+        );
+      } else {
+        console.error(
+          `Ошибка: Некорректные данные для newItem: ${JSON.stringify(data)}`
+        );
+      }
       break;
     case "update":
       const existingPlayer = players.get(data.player.id);
@@ -798,10 +813,30 @@ function update(deltaTime) {
   // Удаление предметов, которые не подняли через 10 минут
   const currentTime = Date.now();
   items.forEach((item, itemId) => {
-    if (currentTime - item.spawnTime > 10 * 60 * 1000) {
-      // 10 минут в миллисекундах
-      items.delete(itemId);
-      console.log(`Предмет ${item.type} (${itemId}) исчез из-за таймаута`);
+    const screenX = item.x - camera.x;
+    const screenY = item.y - camera.y;
+    console.log(
+      `Попытка отрисовки ${item.type} (ID: ${itemId}) на screenX:${screenX}, screenY:${screenY}`
+    );
+    if (
+      screenX >= -40 &&
+      screenX <= canvas.width + 40 &&
+      screenY >= -40 &&
+      screenY <= canvas.height + 40
+    ) {
+      const itemImage = ITEM_CONFIG[item.type]?.image;
+      if (itemImage && itemImage.complete) {
+        ctx.drawImage(itemImage, screenX, screenY, 40, 40);
+        console.log(`Предмет ${item.type} (ID: ${itemId}) успешно нарисован`);
+      } else {
+        console.warn(
+          `Изображение для ${item.type} не загружено, рисую заглушку`
+        );
+        ctx.fillStyle = "yellow";
+        ctx.fillRect(screenX, screenY, 10, 10);
+      }
+    } else {
+      console.log(`Предмет ${item.type} (ID: ${itemId}) вне видимой области`);
     }
   });
 }
@@ -823,7 +858,12 @@ function draw(deltaTime) {
   ctx.fillStyle = ctx.createPattern(backgroundImage, "repeat");
   ctx.save();
   ctx.translate(-groundOffsetX, -camera.y * groundSpeed);
-  ctx.fillRect(groundOffsetX, camera.y * groundSpeed, worldWidth, worldHeight);
+  ctx.fillitems.forEachRect(
+    groundOffsetX,
+    camera.y * groundSpeed,
+    worldWidth,
+    worldHeight
+  );
   ctx.restore();
 
   lights.forEach((light) => {
@@ -1039,25 +1079,21 @@ function checkCollisions() {
   if (!me || me.health <= 0) return;
 
   items.forEach((item, id) => {
-    const distance = Math.sqrt(
-      Math.pow(me.x + 20 - item.x - 20, 2) +
-        Math.pow(me.y + 20 - item.y - 20, 2)
+    const dx = me.x + 20 - (item.x + 20);
+    const dy = me.y + 20 - (item.y + 20);
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    console.log(
+      `Проверка столкновения с ${item.type} (ID: ${id}), расстояние: ${distance}`
     );
     if (distance < 40) {
       console.log(`Игрок ${myId} подобрал предмет ${item.type} (ID: ${id})`);
-      const effect = ITEM_CONFIG[item.type]?.effect;
-      if (effect) {
-        if (effect.health) me.health = Math.min(100, me.health + effect.health);
-        if (effect.energy) me.energy = Math.min(100, me.energy + effect.energy);
-        if (effect.food) me.food = Math.min(100, me.food + effect.food);
-        if (effect.water) me.water = Math.min(100, me.water + effect.water);
-        updateStatsDisplay(); // Обновляем интерфейс
-      }
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: "pickup", itemId: id }));
+        console.log(`Отправлено сообщение pickup для ${id}`);
       } else {
         console.error("WebSocket не открыт, предмет не отправлен на сервер");
       }
+      // НЕ УДАЛЯЕМ items.delete(id) здесь — сервер сам сообщит об удалении через "itemPicked"
     }
   });
 }

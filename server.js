@@ -566,22 +566,30 @@ setInterval(() => {
       console.log(
         `Создан предмет ${type} (${itemId}) на x:${newItem.x}, y:${newItem.y}`
       );
-
       // Уведомляем всех клиентов о новом предмете
+      let clientsNotified = 0;
       wss.clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN) {
-          client.send(
-            JSON.stringify({
-              type: "newItem", // Тип сообщения
-              itemId: itemId,
-              x: newItem.x,
-              y: newItem.y,
-              type: newItem.type,
-              spawnTime: newItem.spawnTime,
-            })
+          const message = JSON.stringify({
+            type: "newItem",
+            itemId: itemId,
+            x: newItem.x,
+            y: newItem.y,
+            type: newItem.type,
+            spawnTime: newItem.spawnTime,
+          });
+          client.send(message);
+          clientsNotified++;
+          console.log(
+            `Отправлено сообщение "newItem" клиенту ${
+              clients.get(client) || "unknown"
+            }: ${message}`
           );
         }
       });
+      console.log(
+        `Уведомлено ${clientsNotified} клиентов о новом предмете ${itemId}`
+      );
     }
   }
 }, 10 * 1000); // Каждые 10 секунд
