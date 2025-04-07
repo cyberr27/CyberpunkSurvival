@@ -84,6 +84,16 @@ async function saveUserDatabase(collection, username, player) {
   }
 }
 
+// Добавляем функцию initializeServer
+async function initializeServer() {
+  const collection = await connectToDatabase();
+  await loadUserDatabase(collection);
+  console.log("Сервер готов к работе после загрузки базы данных");
+  return collection;
+}
+
+// Теперь вызов функции будет работать
+let dbCollection; // Объявляем переменную для коллекции
 initializeServer()
   .then((collection) => {
     dbCollection = collection;
