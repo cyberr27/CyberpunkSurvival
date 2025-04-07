@@ -178,36 +178,21 @@ toLogin.addEventListener("click", () => {
 
 function reconnectWebSocket() {
   if (reconnectAttempts >= maxReconnectAttempts) {
-    console.error(
-      "Достигнуто максимальное количество попыток переподключения."
-    );
-    alert(
-      "Потеряно соединение с сервером. Пожалуйста, перезагрузите страницу."
-    );
+    console.error("Максимум попыток переподключения достигнут.");
     return;
   }
-
   console.log(`Попытка переподключения ${reconnectAttempts + 1}...`);
-  ws = new WebSocket("wss://cyberpunksurvival.onrender.com");
-
+  ws = new WebSocket("wss://cyberpunksurvival.onrender.com"); // Обновляем глобальный ws
   ws.onopen = () => {
     console.log("WebSocket успешно переподключен");
     reconnectAttempts = 0;
-    const username =
-      document.getElementById("loginUsername")?.value.trim() || myId;
-    const password = document.getElementById("loginPassword")?.value.trim();
-    if (username && password) {
-      sendWhenReady(ws, JSON.stringify({ type: "login", username, password }));
-    }
-    ws.onmessage = handleAuthMessage;
+    // Повторная авторизация
   };
-
   ws.onerror = (error) => {
-    console.error("Ошибка при переподключении WebSocket:", error);
+    console.error("Ошибка WebSocket:", error);
   };
-
   ws.onclose = () => {
-    console.log("WebSocket соединение закрыто, повторная попытка...");
+    console.log("WebSocket закрыт, повторная попытка...");
     reconnectAttempts++;
     setTimeout(reconnectWebSocket, reconnectDelay);
   };
@@ -424,22 +409,21 @@ function startGame() {
         me.frame = 0;
         me.frameTime = 0;
         sendWhenReady(
-          ws.send(
-            JSON.stringify({
-              type: "move",
-              x: me.x,
-              y: me.y,
-              health: me.health,
-              energy: me.energy,
-              food: me.food,
-              water: me.water,
-              armor: me.armor,
-              distanceTraveled: me.distanceTraveled,
-              direction: me.direction,
-              state: me.state,
-              frame: me.frame,
-            })
-          )
+          ws,
+          JSON.stringify({
+            type: "move",
+            x: me.x,
+            y: me.y,
+            health: me.health,
+            energy: me.energy,
+            food: me.food,
+            water: me.water,
+            armor: me.armor,
+            distanceTraveled: me.distanceTraveled,
+            direction: me.direction,
+            state: me.state,
+            frame: me.frame,
+          })
         );
       }
     }
@@ -473,22 +457,21 @@ function startGame() {
       me.frame = 0;
       me.frameTime = 0;
       sendWhenReady(
-        ws.send(
-          JSON.stringify({
-            type: "move",
-            x: me.x,
-            y: me.y,
-            health: me.health,
-            energy: me.energy,
-            food: me.food,
-            water: me.water,
-            armor: me.armor,
-            distanceTraveled: me.distanceTraveled,
-            direction: me.direction,
-            state: me.state,
-            frame: me.frame,
-          })
-        )
+        ws,
+        JSON.stringify({
+          type: "move",
+          x: me.x,
+          y: me.y,
+          health: me.health,
+          energy: me.energy,
+          food: me.food,
+          water: me.water,
+          armor: me.armor,
+          distanceTraveled: me.distanceTraveled,
+          direction: me.direction,
+          state: me.state,
+          frame: me.frame,
+        })
       );
     }
   });
@@ -521,11 +504,9 @@ function startGame() {
   chatInput.addEventListener("keypress", (e) => {
     if (e.key === "Enter" && chatInput.value.trim()) {
       sendWhenReady(
-        ws.send(
-          JSON.stringify({ type: "chat", message: chatInput.value.trim() })
-        )
+        ws,
+        JSON.stringify({ type: "chat", message: chatInput.value.trim() })
       );
-
       chatInput.value = "";
     }
   });
@@ -1040,22 +1021,21 @@ function update(deltaTime) {
       }
 
       sendWhenReady(
-        ws.send(
-          JSON.stringify({
-            type: "move",
-            x: me.x,
-            y: me.y,
-            health: me.health,
-            energy: me.energy,
-            food: me.food,
-            water: me.water,
-            armor: me.armor,
-            distanceTraveled: me.distanceTraveled,
-            direction: me.direction,
-            state: me.state,
-            frame: me.frame,
-          })
-        )
+        ws,
+        JSON.stringify({
+          type: "move",
+          x: me.x,
+          y: me.y,
+          health: me.health,
+          energy: me.energy,
+          food: me.food,
+          water: me.water,
+          armor: me.armor,
+          distanceTraveled: me.distanceTraveled,
+          direction: me.direction,
+          state: me.state,
+          frame: me.frame,
+        })
       );
     } else {
       me.state = "idle";
