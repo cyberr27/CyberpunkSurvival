@@ -383,8 +383,6 @@ function sendWhenReady(ws, message) {
   }
 }
 
-
-
 function startGame() {
   // Обработчик клавиш (только для стрельбы и чата)
   document.addEventListener("keydown", (e) => {
@@ -790,6 +788,10 @@ function updateInventoryDisplay() {
 }
 
 function handleGameMessage(event) {
+  if (data.type === "ping") {
+    sendWhenReady(ws, JSON.stringify({ type: "pong" }));
+    return;
+  }
   console.log("Обрабатываем игровое сообщение:", event.data);
   const data = JSON.parse(event.data);
   switch (data.type) {

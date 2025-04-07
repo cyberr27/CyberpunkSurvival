@@ -84,17 +84,12 @@ async function saveUserDatabase(collection, username, player) {
   }
 }
 
-async function initializeServer() {
-  const collection = await connectToDatabase();
-  await loadUserDatabase(collection);
-  console.log("Сервер готов к работе после загрузки базы данных");
-  return collection;
-}
-
-let dbCollection;
 initializeServer()
   .then((collection) => {
     dbCollection = collection;
+    server.listen(PORT, () => {
+      console.log(`WebSocket server running on ws://localhost:${PORT}`);
+    });
   })
   .catch((error) => {
     console.error("Ошибка при инициализации сервера:", error);
@@ -226,6 +221,10 @@ function checkCollisionServer(x, y) {
 
 wss.on("connection", (ws) => {
   console.log("Клиент подключился");
+  ws.isAlive = true;
+  ws.on("pong", () => {
+    ws.isAlive = true;
+  });
 
   ws.on("message", async (message) => {
     // Добавляем async для асинхронных операций
@@ -797,14 +796,6 @@ setInterval(() => {
     });
   }, 30000);
 
-  // Проверяем живых клиентов
-  wss.on("connection", (ws) => {
-    ws.isAlive = true;
-    ws.on("pong", () => {
-      ws.isAlive = true;
-    });
-  });
-
   setInterval(() => {
     wss.clients.forEach((ws) => {
       if (!ws.isAlive) {
@@ -842,18 +833,3 @@ setInterval(() => {
 }, 10 * 1000);
 
 const PORT = process.env.PORT || 10000;
-
-initializeServer()
-  .then((collection) => {
-    dbCollection = collection; // Убеждаемся, что коллекция доступна
-    server.listen(PORT, () => {
-      console.log(`WebSocket server running on ws://localhost:${PORT}`);
-    });
-  })
-  .catch((error) => {
-    console.error(
-      "Не удалось запустить сервер из-за ошибки инициализации MongoDB:",
-      error
-    );
-    process.exit(1);
-  });
