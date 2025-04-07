@@ -569,6 +569,9 @@ function handleGameMessage(event) {
       });
       break;
     case "newItem":
+      console.log(
+        `Получен предмет ${data.type} (ID: ${data.itemId}) на x:${data.x}, y:${data.y}`
+      );
       items.set(data.itemId, {
         x: data.x,
         y: data.y,
@@ -920,7 +923,6 @@ function draw(deltaTime) {
     if (itemImage) {
       ctx.drawImage(itemImage, screenX, screenY, 40, 40);
     } else {
-      // Запасной вариант, если изображение не загрузилось
       ctx.fillStyle = "yellow";
       ctx.fillRect(screenX, screenY, 10, 10);
     }
