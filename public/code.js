@@ -557,7 +557,7 @@ function handleGameMessage(event) {
   switch (data.type) {
     case "newItem":
       console.log(
-        `Получен предмет ${data.type} (ID: ${data.itemId}) на x:${data.x}, y:${data.y}`
+        `Получен новый предмет ${data.type} (ID: ${data.itemId}) на x:${data.x}, y:${data.y}`
       );
       items.set(data.itemId, {
         x: data.x,
@@ -935,11 +935,11 @@ function draw(deltaTime) {
     );
   });
 
-  items.forEach((item) => {
+  items.forEach((item, itemId) => {
     const screenX = item.x - camera.x;
     const screenY = item.y - camera.y;
     console.log(
-      `Рисуем предмет ${item.type} на screenX:${screenX}, screenY:${screenY}`
+      `Рисуем предмет ${item.type} (ID: ${itemId}) на screenX:${screenX}, screenY:${screenY}`
     );
     if (
       screenX >= -40 &&
@@ -948,14 +948,17 @@ function draw(deltaTime) {
       screenY <= canvas.height
     ) {
       const itemImage = ITEM_CONFIG[item.type]?.image;
-      if (itemImage) {
+      if (itemImage && itemImage.complete) {
         ctx.drawImage(itemImage, screenX, screenY, 40, 40);
       } else {
+        console.warn(
+          `Изображение для ${item.type} не загружено, рисую заглушку`
+        );
         ctx.fillStyle = "yellow";
         ctx.fillRect(screenX, screenY, 10, 10);
       }
     } else {
-      console.log(`Предмет ${item.type} вне экрана`);
+      console.log(`Предмет ${item.type} (ID: ${itemId}) вне экрана`);
     }
   });
 
@@ -1041,19 +1044,17 @@ function checkCollisions() {
         Math.pow(me.y + 20 - item.y - 20, 2)
     );
     if (distance < 40) {
-      // 40 — размер предмета/игрока
+      console.log(`Игрок ${myId} подобрал предмет ${item.type} (ID: ${id})`);
       const effect = ITEM_CONFIG[item.type]?.effect;
       if (effect) {
-        console.log(`Подбираем ${item.type} с эффектом:`, effect);
         if (effect.health) me.health = Math.min(100, me.health + effect.health);
         if (effect.energy) me.energy = Math.min(100, me.energy + effect.energy);
         if (effect.food) me.food = Math.min(100, me.food + effect.food);
         if (effect.water) me.water = Math.min(100, me.water + effect.water);
+        updateStatsDisplay(); // Обновляем интерфейс
       }
       if (ws.readyState === WebSocket.OPEN) {
-        ws.send(
-          JSON.stringify({ type: "pickup", itemId: id, item: item.type })
-        );
+        ws.send(JSON.stringify({ type: "pickup", itemId: id }));
       } else {
         console.error("WebSocket не открыт, предмет не отправлен на сервер");
       }

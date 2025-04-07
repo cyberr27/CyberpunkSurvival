@@ -321,26 +321,28 @@ wss.on("connection", (ws) => {
         setTimeout(() => {
           const worldWidth = 2800;
           const worldHeight = 3300;
-          const newItemId = `${item.type}_${Date.now()}`;
+          const newItemId = `${item.type}_${Date.now()}`; // Уникальный ID для нового предмета
           const newItem = {
-            x: Math.random() * worldWidth,
-            y: Math.random() * worldHeight,
-            type: item.type,
-            spawnTime: Date.now(),
+            x: Math.random() * worldWidth, // Случайная X-координата в пределах мира
+            y: Math.random() * worldHeight, // Случайная Y-координата в пределах мира
+            type: item.type, // Тип предмета (energy_drink, nut, water_bottle)
+            spawnTime: Date.now(), // Время создания предмета
           };
-          items.set(newItemId, newItem);
+          items.set(newItemId, newItem); // Добавляем предмет в серверное хранилище
           console.log(
             `Предмет ${item.type} (${newItemId}) возродился на x:${newItem.x}, y:${newItem.y}`
           );
+
+          // Отправляем всем клиентам сообщение о новом предмете
           wss.clients.forEach((client) => {
             if (client.readyState === WebSocket.OPEN) {
               client.send(
                 JSON.stringify({
-                  type: newItem.type, // ОШИБКА: "energy_drink", "nut" и т.д.
-                  itemId,
+                  type: "newItem", // Исправлено: тип сообщения должен быть "newItem"
+                  itemId: newItemId, // Уникальный ID предмета
                   x: newItem.x,
                   y: newItem.y,
-                  type: newItem.type, // Дублирование поля
+                  type: newItem.type, // Тип предмета
                   spawnTime: newItem.spawnTime,
                 })
               );
@@ -513,12 +515,13 @@ setInterval(async () => {
 }, 16);
 
 // Спавн предметов
+// Спавн предметов каждые 10 секунд
 setInterval(() => {
   const currentTime = Date.now();
   const playerCount = players.size;
   console.log(`Игроков онлайн: ${playerCount}`);
 
-  // Удаляем предметы по таймауту
+  // Удаляем предметы, которые не были подняты более 10 минут
   items.forEach((item, itemId) => {
     if (currentTime - item.spawnTime > 10 * 60 * 1000) {
       items.delete(itemId);
@@ -531,50 +534,48 @@ setInterval(() => {
     }
   });
 
-  // Спавн новых предметов
+  // Спавн новых предметов в зависимости от количества игроков
   const worldWidth = 2800;
   const worldHeight = 3300;
 
   for (const [type, config] of Object.entries(ITEM_CONFIG)) {
-    const desiredCount = config.baseCount * Math.max(1, playerCount);
+    const desiredCount = config.baseCount * Math.max(1, playerCount); // Желаемое количество предметов
     const existingCount = Array.from(items.values()).filter(
       (item) => item.type === type
-    ).length;
-    const toSpawn = Math.max(0, desiredCount - existingCount);
+    ).length; // Текущее количество предметов данного типа
+    const toSpawn = Math.max(0, desiredCount - existingCount); // Сколько нужно заспавнить
 
     for (let i = 0; i < toSpawn; i++) {
-      const itemId = `${type}_${Date.now()}_${i}`;
+      const itemId = `${type}_${Date.now()}_${i}`; // Уникальный ID
       const newItem = {
-        x: Math.random() * worldWidth,
-        y: Math.random() * worldHeight,
-        type: type,
-        spawnTime: currentTime,
+        x: Math.random() * worldWidth, // Случайная X-координата
+        y: Math.random() * worldHeight, // Случайная Y-координата
+        type: type, // Тип предмета
+        spawnTime: currentTime, // Время создания
       };
-      items.set(itemId, newItem);
+      items.set(itemId, newItem); // Добавляем в хранилище
       console.log(
         `Создан предмет ${type} (${itemId}) на x:${newItem.x}, y:${newItem.y}`
       );
 
+      // Уведомляем всех клиентов о новом предмете
       wss.clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN) {
           client.send(
             JSON.stringify({
-              type: "newItem", // Исправлено
-              itemId,
+              type: "newItem", // Тип сообщения
+              itemId: itemId,
               x: newItem.x,
               y: newItem.y,
               type: newItem.type,
               spawnTime: newItem.spawnTime,
             })
           );
-          console.log(
-            `Отправлено newItem клиенту ${clients.get(client) || "неизвестно"}`
-          );
         }
       });
     }
   }
-}, 10 * 1000);
+}, 10 * 1000); // Каждые 10 секунд
 
 const PORT = process.env.PORT || 10000;
 
