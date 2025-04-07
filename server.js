@@ -341,7 +341,7 @@ wss.on("connection", (ws) => {
                 JSON.stringify({
                   type: "itemPicked",
                   itemId: data.itemId,
-                  item: player.inventory[freeSlot],
+                  item: { type: item.type, itemId: data.itemId }, // Убедитесь, что itemId включён
                 })
               );
               if (clients.get(client) === id) {
