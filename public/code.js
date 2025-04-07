@@ -101,6 +101,17 @@ waterBottleImage.onload = () => {
 };
 waterBottleImage.onerror = () => console.error("Ошибка загрузки воды");
 
+energyDrinkImage.onerror = () =>
+  console.error(
+    "Ошибка загрузки energy_drink.png: файл не найден или путь неверный"
+  );
+nutImage.onerror = () =>
+  console.error("Ошибка загрузки nut.png: файл не найден или путь неверный");
+waterBottleImage.onerror = () =>
+  console.error(
+    "Ошибка загрузки water_bottle.png: файл не найден или путь неверный"
+  );
+
 const ITEM_CONFIG = {
   energy_drink: { effect: { energy: 20 }, image: energyDrinkImage },
   nut: { effect: { food: 27 }, image: nutImage },
