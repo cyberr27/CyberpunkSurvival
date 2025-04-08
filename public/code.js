@@ -178,7 +178,11 @@ toLogin.addEventListener("click", () => {
 
 function reconnectWebSocket() {
   if (reconnectAttempts >= maxReconnectAttempts) {
-    console.error("Максимум попыток переподключения достигнут.");
+    console.error(
+      "Максимум попыток переподключения достигнут. Игра остановлена."
+    );
+    authContainer.style.display = "flex";
+    document.getElementById("gameContainer").style.display = "none";
     return;
   }
   console.log(`Попытка переподключения ${reconnectAttempts + 1}...`);
@@ -186,7 +190,6 @@ function reconnectWebSocket() {
   ws.onopen = () => {
     console.log("WebSocket успешно переподключен");
     reconnectAttempts = 0;
-    // Повторная авторизация
     if (myId) {
       const lastUsername = document
         .getElementById("loginUsername")
@@ -206,16 +209,20 @@ function reconnectWebSocket() {
         console.log(`Повторная авторизация для ${lastUsername}`);
       } else {
         console.warn("Нет сохранённых данных для авторизации");
-        authContainer.style.display = "flex"; // Показываем форму логина
+        authContainer.style.display = "flex";
         document.getElementById("gameContainer").style.display = "none";
       }
     }
   };
   ws.onerror = (error) => {
-    console.error("Ошибка WebSocket:", error);
+    console.error("Ошибка WebSocket при переподключении:", error);
   };
-  ws.onclose = () => {
-    console.log("WebSocket закрыт, повторная попытка...");
+  ws.onclose = (event) => {
+    console.log(
+      "WebSocket закрыт при переподключении:",
+      event.code,
+      event.reason
+    );
     reconnectAttempts++;
     setTimeout(reconnectWebSocket, reconnectDelay);
   };
@@ -228,24 +235,29 @@ function initializeWebSocket() {
     console.log("WebSocket соединение установлено");
   };
   ws.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-    if (data.type === "ping") {
-      sendWhenReady(ws, JSON.stringify({ type: "pong" }));
-      return;
-    }
-    // Остальная логика обработки сообщений
-    if (data.type === "loginSuccess") {
-      handleAuthMessage(event);
-      ws.onmessage = handleGameMessage;
-    } else {
-      handleAuthMessage(event);
+    try {
+      const data = JSON.parse(event.data);
+      console.log("Получено сообщение:", event.data); // Отладка
+      if (data.type === "ping") {
+        console.log("Получен ping, отправляем pong");
+        sendWhenReady(ws, JSON.stringify({ type: "pong" }));
+        return;
+      }
+      if (data.type === "loginSuccess") {
+        handleAuthMessage(event);
+        ws.onmessage = handleGameMessage; // Переключаем после успешной авторизации
+      } else {
+        handleAuthMessage(event);
+      }
+    } catch (error) {
+      console.error("Ошибка при обработке сообщения:", error);
     }
   };
   ws.onerror = (error) => {
     console.error("Ошибка WebSocket:", error);
   };
-  ws.onclose = () => {
-    console.log("WebSocket соединение закрыто");
+  ws.onclose = (event) => {
+    console.log("WebSocket закрыт:", event.code, event.reason);
     reconnectWebSocket();
   };
 }
@@ -710,9 +722,6 @@ function updateResources() {
   if (!me) return;
 
   const distance = Math.floor(me.distanceTraveled || 0);
-  console.log(
-    `Before: Health: ${me.health}, Energy: ${me.energy}, Food: ${me.food}, Water: ${me.water}, Distance: ${distance}`
-  );
 
   // Энергия: -1 каждые 600 пикселей
   const energyLoss = Math.floor(distance / 800);
@@ -749,9 +758,6 @@ function updateResources() {
   }
 
   lastDistance = distance; // Обновляем lastDistance для следующего вызова
-  console.log(
-    `After: Health: ${me.health}, Energy: ${me.energy}, Food: ${me.food}, Water: ${me.water}`
-  );
   updateStatsDisplay();
 }
 
@@ -788,22 +794,51 @@ function updateInventoryDisplay() {
 }
 
 function handleGameMessage(event) {
-  const data = JSON.parse(event.data); // Сначала парсим данные
-  if (data.type === "ping") {
-    sendWhenReady(ws, JSON.stringify({ type: "pong" }));
-    return;
-  }
-  console.log("Обрабатываем игровое сообщение:", event.data);
-  switch (data.type) {
-    case "loginSuccess":
-      myId = data.id;
-      authContainer.style.display = "none";
-      document.getElementById("gameContainer").style.display = "block";
-      data.players.forEach((p) => players.set(p.id, p));
-      lastDistance = players.get(myId).distanceTraveled || 0;
-      data.wolves.forEach((w) => wolves.set(w.id, w));
-      data.obstacles.forEach((o) => obstacles.push(o));
-      if (data.items) {
+  try {
+    const data = JSON.parse(event.data);
+    console.log("Обрабатываем игровое сообщение:", event.data);
+    if (data.type === "ping") {
+      console.log("Получен ping в handleGameMessage, отправляем pong");
+      sendWhenReady(ws, JSON.stringify({ type: "pong" }));
+      return;
+    }
+    switch (data.type) {
+      case "loginSuccess":
+        myId = data.id;
+        authContainer.style.display = "none";
+        document.getElementById("gameContainer").style.display = "block";
+        data.players.forEach((p) => players.set(p.id, p));
+        lastDistance = players.get(myId).distanceTraveled || 0;
+        data.wolves.forEach((w) => wolves.set(w.id, w));
+        data.obstacles.forEach((o) => obstacles.push(o));
+        if (data.items) {
+          data.items.forEach((item) =>
+            items.set(item.itemId, {
+              x: item.x,
+              y: item.y,
+              type: item.type,
+              spawnTime: item.spawnTime,
+            })
+          );
+        }
+        if (data.lights) {
+          lights.length = 0;
+          data.lights.forEach((light) => lights.push(light));
+        }
+        inventory = data.inventory || Array(20).fill(null);
+        resizeCanvas();
+        startGame();
+        break;
+      case "newItem":
+        items.set(data.itemId, {
+          x: data.x,
+          y: data.y,
+          type: data.type,
+          spawnTime: data.spawnTime,
+        });
+        break;
+      case "syncItems":
+        items.clear();
         data.items.forEach((item) =>
           items.set(item.itemId, {
             x: item.x,
@@ -812,136 +847,71 @@ function handleGameMessage(event) {
             spawnTime: item.spawnTime,
           })
         );
-      }
-      if (data.lights) {
-        lights.length = 0;
-        data.lights.forEach((light) => lights.push(light));
-      }
-      // Загружаем инвентарь из данных сервера
-      inventory = data.inventory || Array(20).fill(null);
-      console.log("Инвентарь загружен:", inventory);
-      resizeCanvas();
-      ws.onmessage = handleGameMessage;
-      startGame();
-      break;
-    case "newItem":
-      console.log(
-        `Получен новый предмет ${data.type} (ID: ${data.itemId}) на x:${data.x}, y:${data.y}`
-      );
-      if (
-        data.itemId &&
-        typeof data.x === "number" &&
-        typeof data.y === "number" &&
-        data.type &&
-        data.spawnTime
-      ) {
+        break;
+      case "itemPicked":
+        items.delete(data.itemId);
+        const me = players.get(myId);
+        if (me && data.item) {
+          const freeSlot = inventory.findIndex((slot) => slot === null);
+          if (freeSlot !== -1) {
+            inventory[freeSlot] = data.item;
+            updateInventoryDisplay();
+          }
+        }
+        updateStatsDisplay();
+        break;
+      case "update":
+        const existingPlayer = players.get(data.player.id);
+        players.set(data.player.id, {
+          ...existingPlayer,
+          ...data.player,
+          frameTime: existingPlayer.frameTime || 0,
+        });
+        if (data.player.id === myId) {
+          inventory = data.player.inventory || inventory;
+          updateStatsDisplay();
+          updateInventoryDisplay();
+        }
+        break;
+      case "itemDropped":
         items.set(data.itemId, {
           x: data.x,
           y: data.y,
           type: data.type,
           spawnTime: data.spawnTime,
         });
-        console.log(
-          `Добавлен предмет ${data.type} (ID: ${data.itemId}) в items`
-        );
-      } else {
-        console.error(
-          `Ошибка: Некорректные данные для newItem: ${JSON.stringify(data)}`
-        );
-      }
-      break;
-    case "syncItems":
-      console.log(`Получена синхронизация предметов: ${data.items.length} шт`);
-      items.clear(); // Очищаем текущие предметы
-      data.items.forEach((item) => {
-        if (
-          item.itemId &&
-          typeof item.x === "number" &&
-          typeof item.y === "number" &&
-          item.type &&
-          item.spawnTime
-        ) {
-          items.set(item.itemId, {
-            x: item.x,
-            y: item.y,
-            type: item.type,
-            spawnTime: item.spawnTime,
-          });
-          console.log(
-            `Синхронизирован предмет ${item.type} (ID: ${item.itemId})`
-          );
-        } else {
-          console.error(
-            `Ошибка в данных syncItems для предмета: ${JSON.stringify(item)}`
-          );
-        }
-      });
-      break;
-    case "itemPicked":
-      items.delete(data.itemId);
-      const me = players.get(myId);
-      if (me && data.item) {
-        const freeSlot = inventory.findIndex((slot) => slot === null);
-        if (freeSlot !== -1) {
-          inventory[freeSlot] = data.item; // Добавляем предмет в инвентарь
-          console.log(`Предмет ${data.item.type} добавлен в слот ${freeSlot}`);
-          updateInventoryDisplay(); // Обновляем отображение инвентаря
-        } else {
-          console.log("Инвентарь полон, предмет не добавлен");
-        }
-      }
-      updateStatsDisplay();
-      break;
-    case "update":
-      const existingPlayer = players.get(data.player.id);
-      players.set(data.player.id, {
-        ...existingPlayer,
-        ...data.player,
-        frameTime: existingPlayer.frameTime || 0,
-      });
-      if (data.player.id === myId) {
-        inventory = data.player.inventory || inventory;
-        updateStatsDisplay();
-        updateInventoryDisplay();
-      }
-      break;
-    case "itemDropped":
-      items.set(data.itemId, {
-        x: data.x,
-        y: data.y,
-        type: data.type,
-        spawnTime: data.spawnTime,
-      });
-      console.log(`Предмет ${data.type} выброшен на x:${data.x}, y:${data.y}`);
-      break;
-    case "chat":
-      const messageEl = document.createElement("div");
-      messageEl.textContent = `${data.id}: ${data.message}`;
-      chatMessages.appendChild(messageEl);
-      chatMessages.scrollTop = chatMessages.scrollHeight;
-      break;
-    case "newPlayer":
-      players.set(data.player.id, { ...data.player, frameTime: 0 });
-      break;
-    case "playerLeft":
-      players.delete(data.id);
-      break;
-    case "shoot":
-      console.log(`Получена пуля ${data.bulletId} от ${data.shooterId}`);
-      bullets.set(data.bulletId, {
-        x: data.x,
-        y: data.y,
-        dx: data.dx,
-        dy: data.dy,
-        spawnTime: Date.now(),
-        life: GAME_CONFIG.BULLET_LIFE,
-        shooterId: data.shooterId,
-      });
-      break;
-    case "bulletRemoved":
-      bullets.delete(data.bulletId);
-      console.log(`Пуля ${data.bulletId} удалена`);
-      break;
+        break;
+      case "chat":
+        const messageEl = document.createElement("div");
+        messageEl.textContent = `${data.id}: ${data.message}`;
+        chatMessages.appendChild(messageEl);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+        break;
+      case "newPlayer":
+        players.set(data.player.id, { ...data.player, frameTime: 0 });
+        break;
+      case "playerLeft":
+        players.delete(data.id);
+        break;
+      case "shoot":
+        console.log(`Получена пуля ${data.bulletId} от ${data.shooterId}`);
+        bullets.set(data.bulletId, {
+          x: data.x,
+          y: data.y,
+          dx: data.dx,
+          dy: data.dy,
+          spawnTime: Date.now(),
+          life: GAME_CONFIG.BULLET_LIFE,
+          shooterId: data.shooterId,
+        });
+        break;
+      case "bulletRemoved":
+        bullets.delete(data.bulletId);
+        console.log(`Пуля ${data.bulletId} удалена`);
+        break;
+    }
+  } catch (error) {
+    console.error("Ошибка в handleGameMessage:", error);
   }
 }
 

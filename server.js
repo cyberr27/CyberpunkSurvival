@@ -801,6 +801,10 @@ setInterval(() => {
   setInterval(() => {
     wss.clients.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
+        console.log(
+          "Отправляем ping клиенту:",
+          clients.get(client) || "unknown"
+        );
         client.send(JSON.stringify({ type: "ping" }));
       }
     });
@@ -809,7 +813,10 @@ setInterval(() => {
   setInterval(() => {
     wss.clients.forEach((ws) => {
       if (!ws.isAlive) {
-        console.log("Клиент не отвечает на пинг, завершаем соединение");
+        console.log(
+          "Клиент не отвечает на пинг, завершаем соединение:",
+          clients.get(ws) || "unknown"
+        );
         return ws.terminate();
       }
       ws.isAlive = false;
