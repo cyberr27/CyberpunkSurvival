@@ -341,7 +341,6 @@ wss.on("connection", (ws) => {
       // Проверяем, существует ли предмет в items
       if (!items.has(data.itemId)) {
         console.log(`Предмет ${data.itemId} не найден на сервере`);
-        // Отправляем клиенту сообщение об ошибке, чтобы он удалил предмет локально
         ws.send(
           JSON.stringify({
             type: "itemNotFound",
@@ -382,7 +381,7 @@ wss.on("connection", (ws) => {
                 JSON.stringify({
                   type: "itemPicked",
                   itemId: data.itemId,
-                  playerId: id, // Добавляем ID игрока, поднявшего предмет
+                  playerId: id,
                   item: { type: item.type, itemId: data.itemId },
                 })
               );
@@ -432,7 +431,6 @@ wss.on("connection", (ws) => {
           console.log(
             `Инвентарь игрока ${id} полон, предмет ${data.itemId} не поднят`
           );
-          // Отправляем клиенту уведомление, что инвентарь полон
           ws.send(
             JSON.stringify({
               type: "inventoryFull",
