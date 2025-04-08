@@ -861,9 +861,19 @@ function handleGameMessage(event) {
           console.log(
             `Предмет ${data.itemId} не найден на сервере, удалён из локального items`
           );
+          // Если предмет был в инвентаре, обновляем отображение
+          const me = players.get(myId);
+          if (me && me.inventory) {
+            const slotIndex = me.inventory.findIndex(
+              (item) => item && item.itemId === data.itemId
+            );
+            if (slotIndex !== -1) {
+              me.inventory[slotIndex] = null;
+              updateInventoryDisplay();
+            }
+          }
         }
         break;
-
       case "inventoryFull":
         // Инвентарь полон, уведомляем игрока
         console.log(`Инвентарь полон, предмет ${data.itemId} не поднят`);
@@ -1119,9 +1129,6 @@ function update(deltaTime) {
   items.forEach((item, itemId) => {
     const screenX = item.x - camera.x;
     const screenY = item.y - camera.y;
-    console.log(
-      `Попытка отрисовки ${item.type} (ID: ${itemId}) на screenX:${screenX}, screenY:${screenY}`
-    );
     if (
       screenX >= -40 &&
       screenX <= canvas.width + 40 &&
@@ -1139,10 +1146,10 @@ function update(deltaTime) {
         ctx.fillStyle = "yellow";
         ctx.fillRect(screenX, screenY, 10, 10);
       }
-    } else {
-      console.log(`Предмет ${item.type} (ID: ${itemId}) вне видимой области`);
     }
   });
+
+  
 }
 
 function draw(deltaTime) {
@@ -1286,6 +1293,13 @@ function draw(deltaTime) {
   });
 
   items.forEach((item, itemId) => {
+    // Проверяем, существует ли предмет в items (на случай, если он был удалён во время цикла)
+    if (!items.has(itemId)) {
+      console.log(
+        `Предмет ${itemId} пропущен при отрисовке, так как уже удалён`
+      );
+      return;
+    }
     const screenX = item.x - camera.x;
     const screenY = item.y - camera.y;
     if (
@@ -1297,7 +1311,13 @@ function draw(deltaTime) {
       const itemImage = ITEM_CONFIG[item.type]?.image;
       if (itemImage && itemImage.complete) {
         ctx.drawImage(itemImage, screenX, screenY, 40, 40);
+        console.log(
+          `Предмет ${item.type} (ID: ${itemId}) отрисован на ${screenX}, ${screenY}`
+        );
       } else {
+        console.warn(
+          `Изображение для ${item.type} (ID: ${itemId}) не загружено, рисую заглушку`
+        );
         ctx.fillStyle = "yellow";
         ctx.fillRect(screenX, screenY, 10, 10);
       }
@@ -1404,26 +1424,22 @@ function checkCollisions() {
   if (!me || me.health <= 0) return;
 
   items.forEach((item, id) => {
+    // Проверяем, существует ли предмет, иначе пропускаем
+    if (!items.has(id)) {
+      console.log(`Предмет ${id} уже удалён, пропускаем проверку столкновения`);
+      return;
+    }
     const dx = me.x + 20 - (item.x + 20);
     const dy = me.y + 20 - (item.y + 20);
     const distance = Math.sqrt(dx * dx + dy * dy);
-    console.log(
-      `Проверка столкновения с ${item.type} (ID: ${id}), расстояние: ${distance}`
-    );
+    console.log(`Проверка столкновения с ${item.type} (ID: ${id}), расстояние: ${distance}`);
     if (distance < 40) {
-      // Проверяем, существует ли предмет в items перед отправкой
-      if (items.has(id)) {
-        console.log(
-          `Игрок ${myId} пытается подобрать предмет ${item.type} (ID: ${id})`
-        );
-        if (ws.readyState === WebSocket.OPEN) {
-          sendWhenReady(ws, JSON.stringify({ type: "pickup", itemId: id }));
-          console.log(`Отправлено сообщение pickup для ${id}`);
-        } else {
-          console.error("WebSocket не открыт, предмет не отправлен на сервер");
-        }
+      console.log(`Игрок ${myId} пытается подобрать предмет ${item.type} (ID: ${id})`);
+      if (ws.readyState === WebSocket.OPEN) {
+        sendWhenReady(ws, JSON.stringify({ type: "pickup", itemId: id }));
+        console.log(`Отправлено сообщение pickup для ${id}`);
       } else {
-        console.log(`Предмет ${id} уже удалён из локального items, пропускаем`);
+        console.error("WebSocket не открыт, предмет не отправлен на сервер");
       }
     }
   });
