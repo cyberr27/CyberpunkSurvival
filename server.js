@@ -382,10 +382,10 @@ wss.on("connection", (ws) => {
                 JSON.stringify({
                   type: "itemPicked",
                   itemId: data.itemId,
+                  playerId: id, // Добавляем ID игрока, поднявшего предмет
                   item: { type: item.type, itemId: data.itemId },
                 })
               );
-              // Отправляем обновлённые данные игроку, который поднял предмет
               if (clients.get(client) === id) {
                 client.send(
                   JSON.stringify({ type: "update", player: { id, ...player } })

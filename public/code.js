@@ -842,15 +842,20 @@ function handleGameMessage(event) {
       case "itemPicked":
         items.delete(data.itemId); // Удаляем предмет из локального items
         const me = players.get(myId);
-        if (me && data.item) {
+        if (me && data.playerId === myId && data.item) {
+          // Проверяем, что это наш игрок
           const freeSlot = inventory.findIndex((slot) => slot === null);
           if (freeSlot !== -1) {
-            inventory[freeSlot] = data.item; // Добавляем предмет в инвентарь
+            inventory[freeSlot] = data.item; // Добавляем предмет только себе
             console.log(
               `Предмет ${data.item.type} (ID: ${data.itemId}) добавлен в слот ${freeSlot}`
             );
             updateInventoryDisplay();
           }
+        } else {
+          console.log(
+            `Предмет ${data.itemId} поднят игроком ${data.playerId}, не трогаем локальный инвентарь`
+          );
         }
         updateStatsDisplay();
         break;
@@ -1148,8 +1153,6 @@ function update(deltaTime) {
       }
     }
   });
-
-  
 }
 
 function draw(deltaTime) {
@@ -1432,9 +1435,13 @@ function checkCollisions() {
     const dx = me.x + 20 - (item.x + 20);
     const dy = me.y + 20 - (item.y + 20);
     const distance = Math.sqrt(dx * dx + dy * dy);
-    console.log(`Проверка столкновения с ${item.type} (ID: ${id}), расстояние: ${distance}`);
+    console.log(
+      `Проверка столкновения с ${item.type} (ID: ${id}), расстояние: ${distance}`
+    );
     if (distance < 40) {
-      console.log(`Игрок ${myId} пытается подобрать предмет ${item.type} (ID: ${id})`);
+      console.log(
+        `Игрок ${myId} пытается подобрать предмет ${item.type} (ID: ${id})`
+      );
       if (ws.readyState === WebSocket.OPEN) {
         sendWhenReady(ws, JSON.stringify({ type: "pickup", itemId: id }));
         console.log(`Отправлено сообщение pickup для ${id}`);
