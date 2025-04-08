@@ -30,6 +30,8 @@ const items = new Map();
 const lights = [];
 const obstacles = [];
 const bullets = new Map();
+// Хранилище предметов, для которых уже отправлен запрос pickup
+const pendingPickups = new Set();
 
 const energyDrinkImage = new Image();
 energyDrinkImage.src = "energy_drink.png";
@@ -841,9 +843,9 @@ function handleGameMessage(event) {
         break;
       case "itemPicked":
         items.delete(data.itemId); // Удаляем предмет из локального items
+        pendingPickups.delete(data.itemId); // Убираем из ожидающих
         const me = players.get(myId);
         if (me && data.playerId === myId && data.item) {
-          // Проверяем, что это наш игрок
           const freeSlot = inventory.findIndex((slot) => slot === null);
           if (freeSlot !== -1) {
             inventory[freeSlot] = data.item; // Добавляем предмет только себе
@@ -859,25 +861,13 @@ function handleGameMessage(event) {
         }
         updateStatsDisplay();
         break;
+
       case "itemNotFound":
-        // Сервер сообщил, что предмета нет, удаляем его из локального items
-        if (items.has(data.itemId)) {
-          items.delete(data.itemId);
-          console.log(
-            `Предмет ${data.itemId} не найден на сервере, удалён из локального items`
-          );
-          // Если предмет был в инвентаре, обновляем отображение
-          const me = players.get(myId);
-          if (me && me.inventory) {
-            const slotIndex = me.inventory.findIndex(
-              (item) => item && item.itemId === data.itemId
-            );
-            if (slotIndex !== -1) {
-              me.inventory[slotIndex] = null;
-              updateInventoryDisplay();
-            }
-          }
-        }
+        items.delete(data.itemId); // Удаляем предмет из локального items
+        pendingPickups.delete(data.itemId); // Убираем из ожидающих
+        console.log(
+          `Предмет ${data.itemId} не найден на сервере, удалён из локального items`
+        );
         break;
       case "inventoryFull":
         // Инвентарь полон, уведомляем игрока
@@ -1427,9 +1417,11 @@ function checkCollisions() {
   if (!me || me.health <= 0) return;
 
   items.forEach((item, id) => {
-    // Проверяем, существует ли предмет, иначе пропускаем
-    if (!items.has(id)) {
-      console.log(`Предмет ${id} уже удалён, пропускаем проверку столкновения`);
+    // Проверяем, существует ли предмет и не отправляли ли мы уже запрос
+    if (!items.has(id) || pendingPickups.has(id)) {
+      console.log(
+        `Предмет ${id} уже удалён или в процессе поднятия, пропускаем`
+      );
       return;
     }
     const dx = me.x + 20 - (item.x + 20);
@@ -1443,6 +1435,7 @@ function checkCollisions() {
         `Игрок ${myId} пытается подобрать предмет ${item.type} (ID: ${id})`
       );
       if (ws.readyState === WebSocket.OPEN) {
+        pendingPickups.add(id); // Добавляем предмет в "ожидание"
         sendWhenReady(ws, JSON.stringify({ type: "pickup", itemId: id }));
         console.log(`Отправлено сообщение pickup для ${id}`);
       } else {
