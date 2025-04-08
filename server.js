@@ -231,10 +231,6 @@ function checkCollisionServer(x, y) {
 
 wss.on("connection", (ws) => {
   console.log("Клиент подключился");
-  ws.isAlive = true;
-  ws.on("pong", () => {
-    ws.isAlive = true;
-  });
 
   ws.on("message", async (message) => {
     // Добавляем async для асинхронных операций
@@ -734,7 +730,7 @@ setInterval(() => {
   const playerCount = players.size;
   console.log(`Игроков онлайн: ${playerCount}`);
 
-  // Удаляем предметы, которые не были подняты более 10 минут
+  // Удаление предметов по таймауту и спавн новых остаются
   items.forEach((item, itemId) => {
     if (currentTime - item.spawnTime > 10 * 60 * 1000) {
       items.delete(itemId);
@@ -747,7 +743,6 @@ setInterval(() => {
     }
   });
 
-  // Спавн новых предметов
   const worldWidth = 2800;
   const worldHeight = 3300;
 
@@ -771,60 +766,23 @@ setInterval(() => {
         `Создан предмет ${type} (${itemId}) на x:${newItem.x}, y:${newItem.y}`
       );
 
-      let clientsNotified = 0;
       wss.clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN) {
-          const message = JSON.stringify({
-            type: "newItem",
-            itemId: itemId,
-            x: newItem.x,
-            y: newItem.y,
-            type: newItem.type,
-            spawnTime: newItem.spawnTime,
-          });
-          client.send(message);
-          clientsNotified++;
-          console.log(
-            `Отправлено сообщение "newItem" клиенту ${
-              clients.get(client) || "unknown"
-            }: ${message}`
+          client.send(
+            JSON.stringify({
+              type: "newItem",
+              itemId: itemId,
+              x: newItem.x,
+              y: newItem.y,
+              type: newItem.type,
+              spawnTime: newItem.spawnTime,
+            })
           );
         }
       });
-      console.log(
-        `Уведомлено ${clientsNotified} клиентов о новом предмете ${itemId}`
-      );
     }
   }
 
-  // Добавляем пинг каждые 30 секунд
-  setInterval(() => {
-    wss.clients.forEach((client) => {
-      if (client.readyState === WebSocket.OPEN) {
-        console.log(
-          "Отправляем ping клиенту:",
-          clients.get(client) || "unknown"
-        );
-        client.send(JSON.stringify({ type: "ping" }));
-      }
-    });
-  }, 30000);
-
-  setInterval(() => {
-    wss.clients.forEach((ws) => {
-      if (!ws.isAlive) {
-        console.log(
-          "Клиент не отвечает на пинг, завершаем соединение:",
-          clients.get(ws) || "unknown"
-        );
-        return ws.terminate();
-      }
-      ws.isAlive = false;
-      ws.ping();
-    });
-  }, 60000);
-
-  // Полная синхронизация предметов после спавна
   const allItems = Array.from(items.entries()).map(([itemId, item]) => ({
     itemId,
     x: item.x,
@@ -839,11 +797,6 @@ setInterval(() => {
           type: "syncItems",
           items: allItems,
         })
-      );
-      console.log(
-        `Отправлена полная синхронизация предметов клиенту ${
-          clients.get(client) || "unknown"
-        }: ${allItems.length} предметов`
       );
     }
   });

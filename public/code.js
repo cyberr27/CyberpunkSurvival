@@ -237,15 +237,11 @@ function initializeWebSocket() {
   ws.onmessage = (event) => {
     try {
       const data = JSON.parse(event.data);
-      console.log("Получено сообщение:", event.data); // Отладка
-      if (data.type === "ping") {
-        console.log("Получен ping, отправляем pong");
-        sendWhenReady(ws, JSON.stringify({ type: "pong" }));
-        return;
-      }
+      console.log("Получено сообщение:", event.data);
+      // Убираем проверку на ping
       if (data.type === "loginSuccess") {
         handleAuthMessage(event);
-        ws.onmessage = handleGameMessage; // Переключаем после успешной авторизации
+        ws.onmessage = handleGameMessage;
       } else {
         handleAuthMessage(event);
       }
@@ -797,11 +793,6 @@ function handleGameMessage(event) {
   try {
     const data = JSON.parse(event.data);
     console.log("Обрабатываем игровое сообщение:", event.data);
-    if (data.type === "ping") {
-      console.log("Получен ping в handleGameMessage, отправляем pong");
-      sendWhenReady(ws, JSON.stringify({ type: "pong" }));
-      return;
-    }
     switch (data.type) {
       case "loginSuccess":
         myId = data.id;
