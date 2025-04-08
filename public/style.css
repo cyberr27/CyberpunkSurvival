@@ -343,6 +343,9 @@ button:active {
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  user-select: none; /* Предотвращаем выделение текста */
+  -webkit-user-select: none; /* Для Safari */
+  -ms-user-select: none; /* Для IE */
 }
 
 .inventory-slot:hover {
@@ -389,8 +392,9 @@ button:active {
   border-radius: 5px;
   cursor: pointer;
   z-index: 150;
-  width: 80px; /* Фиксированная ширина для предсказуемости */
+  width: 80px;
   text-align: center;
+  height: 30px; /* Фиксированная высота для предсказуемости */
 }
 
 .use-btn {

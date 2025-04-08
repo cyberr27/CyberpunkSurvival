@@ -442,12 +442,23 @@ function startGame() {
   // Обработчик нажатия мыши
   canvas.addEventListener("mousedown", (e) => {
     if (e.button === 0) {
-      // Только левая кнопка мыши
       const me = players.get(myId);
       if (!me || me.health <= 0) return;
 
+      // Проверяем, кликнули ли по инвентарю
+      const inventoryContainer = document.getElementById("inventoryContainer");
+      const rect = inventoryContainer.getBoundingClientRect();
+      if (
+        isInventoryOpen &&
+        e.clientX >= rect.left &&
+        e.clientX <= rect.right &&
+        e.clientY >= rect.top &&
+        e.clientY <= rect.bottom
+      ) {
+        return; // Игнорируем клик, если он внутри инвентаря
+      }
+
       isMoving = true;
-      // Переводим координаты клика из экранных в мировые
       targetX = e.clientX + camera.x;
       targetY = e.clientY + camera.y;
     }
@@ -498,9 +509,36 @@ function startGame() {
     if (!me || me.health <= 0) return;
 
     const touch = e.touches[0];
-    isMoving = true;
-    targetX = touch.clientX + camera.x;
-    targetY = touch.clientY + camera.y;
+    const inventoryContainer = document.getElementById("inventoryContainer");
+    const rect = inventoryContainer.getBoundingClientRect();
+
+    if (
+      isInventoryOpen &&
+      touch.clientX >= rect.left &&
+      touch.clientX <= rect.right &&
+      touch.clientY >= rect.top &&
+      touch.clientY <= rect.bottom
+    ) {
+      // Находим слот, по которому кликнули
+      const slots = inventoryContainer.children;
+      for (let i = 0; i < slots.length; i++) {
+        const slotRect = slots[i].getBoundingClientRect();
+        if (
+          touch.clientX >= slotRect.left &&
+          touch.clientX <= slotRect.right &&
+          touch.clientY >= slotRect.top &&
+          touch.clientY <= slotRect.bottom
+        ) {
+          console.log(`Тач по слоту ${i}`); // Отладка
+          selectSlot(i, slots[i]);
+          return;
+        }
+      }
+    } else {
+      isMoving = true;
+      targetX = touch.clientX + camera.x;
+      targetY = touch.clientY + camera.y;
+    }
   });
 
   canvas.addEventListener("touchmove", (e) => {
@@ -676,26 +714,35 @@ function selectSlot(slotIndex, slotElement) {
 
   const rect = slotElement.getBoundingClientRect();
   const tooltipHeight = tooltip ? tooltip.offsetHeight : 0;
-  const buttonTop = rect.bottom + tooltipHeight + 10; // Отступ от подсказки
-  const buttonWidth = 90; // Примерная ширина кнопки
+  const buttonHeight = 30; // Примерная высота кнопки
+  const buttonWidth = 80; // Фиксированная ширина из CSS
   const gap = 10; // Отступ между кнопками
 
-  // Позиционирование кнопок
-  useBtn.style.left = `${rect.left}px`;
-  useBtn.style.top = `${buttonTop}px`;
-  dropBtn.style.left = `${rect.left + buttonWidth + gap}px`;
-  dropBtn.style.top = `${buttonTop}px`;
+  // Позиционирование ниже слота
+  let buttonTop = rect.bottom + tooltipHeight + 5;
+  let useBtnLeft = rect.left;
+  let dropBtnLeft = rect.left + buttonWidth + gap;
 
-  // Проверка выхода за пределы экрана
-  const viewportWidth = window.innerWidth;
-  const useBtnRight = rect.left + buttonWidth;
-  const dropBtnRight = rect.left + buttonWidth * 2 + gap;
-  if (dropBtnRight > viewportWidth) {
-    // Сдвигаем обе кнопки влево
-    const overflow = dropBtnRight - viewportWidth + 10; // 10px запас
-    useBtn.style.left = `${rect.left - overflow}px`;
-    dropBtn.style.left = `${rect.left + buttonWidth + gap - overflow}px`;
+  // Проверка выхода за нижнюю границу экрана
+  const viewportHeight = window.innerHeight;
+  if (buttonTop + buttonHeight > viewportHeight) {
+    buttonTop = rect.top - buttonHeight - 5; // Перемещаем выше слота
   }
+
+  // Проверка выхода за правую границу экрана
+  const viewportWidth = window.innerWidth;
+  const dropBtnRight = dropBtnLeft + buttonWidth;
+  if (dropBtnRight > viewportWidth) {
+    const overflow = dropBtnRight - viewportWidth + 5;
+    useBtnLeft -= overflow;
+    dropBtnLeft -= overflow;
+  }
+
+  // Установка позиций
+  useBtn.style.left = `${useBtnLeft}px`;
+  useBtn.style.top = `${buttonTop}px`;
+  dropBtn.style.left = `${dropBtnLeft}px`;
+  dropBtn.style.top = `${buttonTop}px`;
 
   document.body.appendChild(useBtn);
   document.body.appendChild(dropBtn);
@@ -838,9 +885,12 @@ function updateInventoryDisplay() {
       // Обработчики для подсказок и выбора
       slot.onmouseover = () => showTooltip(i, slot);
       slot.onmouseout = () => hideTooltip();
-      slot.onclick = () => selectSlot(i, slot);
+      slot.onclick = (e) => {
+        e.stopPropagation(); // Останавливаем всплытие события
+        console.log(`Клик по слоту ${i}`); // Отладка
+        selectSlot(i, slot);
+      };
     } else {
-      // Убираем старые обработчики для пустых слотов
       slot.onmouseover = null;
       slot.onmouseout = null;
       slot.onclick = null;
