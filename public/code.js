@@ -788,12 +788,12 @@ function updateInventoryDisplay() {
 }
 
 function handleGameMessage(event) {
+  const data = JSON.parse(event.data); // Сначала парсим данные
   if (data.type === "ping") {
     sendWhenReady(ws, JSON.stringify({ type: "pong" }));
     return;
   }
   console.log("Обрабатываем игровое сообщение:", event.data);
-  const data = JSON.parse(event.data);
   switch (data.type) {
     case "loginSuccess":
       myId = data.id;
