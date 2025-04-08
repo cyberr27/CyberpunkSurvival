@@ -840,16 +840,35 @@ function handleGameMessage(event) {
         );
         break;
       case "itemPicked":
-        items.delete(data.itemId);
+        items.delete(data.itemId); // Удаляем предмет из локального items
         const me = players.get(myId);
         if (me && data.item) {
           const freeSlot = inventory.findIndex((slot) => slot === null);
           if (freeSlot !== -1) {
-            inventory[freeSlot] = data.item;
+            inventory[freeSlot] = data.item; // Добавляем предмет в инвентарь
+            console.log(
+              `Предмет ${data.item.type} (ID: ${data.itemId}) добавлен в слот ${freeSlot}`
+            );
             updateInventoryDisplay();
           }
         }
         updateStatsDisplay();
+        break;
+      case "itemNotFound":
+        // Сервер сообщил, что предмета нет, удаляем его из локального items
+        if (items.has(data.itemId)) {
+          items.delete(data.itemId);
+          console.log(
+            `Предмет ${data.itemId} не найден на сервере, удалён из локального items`
+          );
+        }
+        break;
+
+      case "inventoryFull":
+        // Инвентарь полон, уведомляем игрока
+        console.log(`Инвентарь полон, предмет ${data.itemId} не поднят`);
+        // Можно добавить визуальное уведомление, например:
+        //alert("Инвентарь полон!");
         break;
       case "update":
         const existingPlayer = players.get(data.player.id);
@@ -1269,9 +1288,6 @@ function draw(deltaTime) {
   items.forEach((item, itemId) => {
     const screenX = item.x - camera.x;
     const screenY = item.y - camera.y;
-    console.log(
-      `Рисуем предмет ${item.type} (ID: ${itemId}) на screenX:${screenX}, screenY:${screenY}`
-    );
     if (
       screenX >= -40 &&
       screenX <= canvas.width &&
@@ -1282,14 +1298,9 @@ function draw(deltaTime) {
       if (itemImage && itemImage.complete) {
         ctx.drawImage(itemImage, screenX, screenY, 40, 40);
       } else {
-        console.warn(
-          `Изображение для ${item.type} не загружено, рисую заглушку`
-        );
         ctx.fillStyle = "yellow";
         ctx.fillRect(screenX, screenY, 10, 10);
       }
-    } else {
-      console.log(`Предмет ${item.type} (ID: ${itemId}) вне экрана`);
     }
   });
 
@@ -1400,16 +1411,20 @@ function checkCollisions() {
       `Проверка столкновения с ${item.type} (ID: ${id}), расстояние: ${distance}`
     );
     if (distance < 40) {
-      console.log(
-        `Игрок ${myId} пытается подобрать предмет ${item.type} (ID: ${id})`
-      );
-      if (ws.readyState === WebSocket.OPEN) {
-        sendWhenReady(ws, JSON.stringify({ type: "pickup", itemId: id }));
-        console.log(`Отправлено сообщение pickup для ${id}`);
+      // Проверяем, существует ли предмет в items перед отправкой
+      if (items.has(id)) {
+        console.log(
+          `Игрок ${myId} пытается подобрать предмет ${item.type} (ID: ${id})`
+        );
+        if (ws.readyState === WebSocket.OPEN) {
+          sendWhenReady(ws, JSON.stringify({ type: "pickup", itemId: id }));
+          console.log(`Отправлено сообщение pickup для ${id}`);
+        } else {
+          console.error("WebSocket не открыт, предмет не отправлен на сервер");
+        }
       } else {
-        console.error("WebSocket не открыт, предмет не отправлен на сервер");
+        console.log(`Предмет ${id} уже удалён из локального items, пропускаем`);
       }
-      // Удаление items.delete(id) убрано, ждём подтверждения от сервера через "itemPicked"
     }
   });
 }

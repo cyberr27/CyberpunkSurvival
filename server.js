@@ -330,14 +330,24 @@ wss.on("connection", (ws) => {
           }
         });
       }
-    } else if (data.type === "pickup") {
+    }
+    if (data.type === "pickup") {
       const id = clients.get(ws);
       if (!id) {
         console.log("Игрок не авторизован для pickup");
         return;
       }
+
+      // Проверяем, существует ли предмет в items
       if (!items.has(data.itemId)) {
         console.log(`Предмет ${data.itemId} не найден на сервере`);
+        // Отправляем клиенту сообщение об ошибке, чтобы он удалил предмет локально
+        ws.send(
+          JSON.stringify({
+            type: "itemNotFound",
+            itemId: data.itemId,
+          })
+        );
         return;
       }
 
@@ -358,12 +368,14 @@ wss.on("connection", (ws) => {
 
         const freeSlot = player.inventory.findIndex((slot) => slot === null);
         if (freeSlot !== -1) {
+          // Предмет успешно подбирается
           player.inventory[freeSlot] = { type: item.type, itemId: data.itemId };
-          items.delete(data.itemId);
+          items.delete(data.itemId); // Удаляем предмет из мира
           players.set(id, { ...player });
           userDatabase.set(id, { ...player });
           await saveUserDatabase(dbCollection, id, player);
 
+          // Уведомляем всех клиентов о том, что предмет поднят
           wss.clients.forEach((client) => {
             if (client.readyState === WebSocket.OPEN) {
               client.send(
@@ -373,6 +385,7 @@ wss.on("connection", (ws) => {
                   item: { type: item.type, itemId: data.itemId },
                 })
               );
+              // Отправляем обновлённые данные игроку, который поднял предмет
               if (clients.get(client) === id) {
                 client.send(
                   JSON.stringify({ type: "update", player: { id, ...player } })
@@ -384,7 +397,7 @@ wss.on("connection", (ws) => {
             `Игрок ${id} поднял ${item.type} (ID: ${data.itemId}) в слот ${freeSlot}`
           );
 
-          // Респавн предмета
+          // Респавн предмета через 10 минут
           setTimeout(() => {
             const worldWidth = 2800;
             const worldHeight = 3300;
@@ -418,6 +431,13 @@ wss.on("connection", (ws) => {
         } else {
           console.log(
             `Инвентарь игрока ${id} полон, предмет ${data.itemId} не поднят`
+          );
+          // Отправляем клиенту уведомление, что инвентарь полон
+          ws.send(
+            JSON.stringify({
+              type: "inventoryFull",
+              itemId: data.itemId,
+            })
           );
         }
       } catch (error) {
