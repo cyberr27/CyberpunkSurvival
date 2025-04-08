@@ -503,31 +503,25 @@ wss.on("connection", (ws) => {
     }
     // Обработка использования предмета из инвентаря
     else if (data.type === "useItem") {
-      // Получаем ID игрока
       const id = clients.get(ws);
-      // Проверяем, что игрок авторизован
       if (id) {
-        // Получаем данные игрока
         const player = players.get(id);
-        // Получаем индекс слота из сообщения
         const slotIndex = data.slotIndex;
-        // Получаем предмет из указанного слота инвентаря
         const item = player.inventory[slotIndex];
-        // Проверяем, что в слоте есть предмет
         if (item) {
-          // Получаем эффект предмета из конфигурации
           const effect = ITEM_CONFIG[item.type].effect;
-          // Применяем эффекты к характеристикам игрока
-          // Удаляем предмет из инвентаря, заменяя слот на null
+          if (effect.energy)
+            player.energy = Math.min(100, player.energy + effect.energy);
+          if (effect.food)
+            player.food = Math.min(100, player.food + effect.food);
+          if (effect.water)
+            player.water = Math.min(100, player.water + effect.water);
+
           player.inventory[slotIndex] = null;
-          // Обновляем данные игрока в карте активных игроков
           players.set(id, { ...player });
-          // Обновляем данные игрока в базе пользователей
           userDatabase.set(id, { ...player });
-          // Сохраняем изменения в MongoDB
           await saveUserDatabase(dbCollection, id, player);
 
-          // Уведомляем всех клиентов об обновлении данных игрока
           wss.clients.forEach((client) => {
             if (client.readyState === WebSocket.OPEN) {
               client.send(
@@ -535,7 +529,6 @@ wss.on("connection", (ws) => {
               );
             }
           });
-          // Логируем использование предмета
           console.log(
             `Игрок ${id} использовал ${item.type} из слота ${slotIndex}`
           );
