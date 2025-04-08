@@ -927,6 +927,7 @@ function handleGameMessage(event) {
       players.delete(data.id);
       break;
     case "shoot":
+      console.log(`Получена пуля ${data.bulletId} от ${data.shooterId}`);
       bullets.set(data.bulletId, {
         x: data.x,
         y: data.y,
@@ -936,6 +937,10 @@ function handleGameMessage(event) {
         life: GAME_CONFIG.BULLET_LIFE,
         shooterId: data.shooterId,
       });
+      break;
+    case "bulletRemoved":
+      bullets.delete(data.bulletId);
+      console.log(`Пуля ${data.bulletId} удалена`);
       break;
   }
 }
@@ -1352,6 +1357,7 @@ function draw(deltaTime) {
   bullets.forEach((bullet) => {
     const screenX = bullet.x - camera.x;
     const screenY = bullet.y - camera.y;
+    console.log(`Отрисовка пули ${bullet.id} на x:${screenX}, y:${screenY}`);
     drawBullet(screenX, screenY);
   });
 
