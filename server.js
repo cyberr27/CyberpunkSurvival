@@ -12,6 +12,9 @@ const clients = new Map();
 const players = new Map();
 const userDatabase = new Map();
 
+// В начало файла, после определения констант
+const INACTIVITY_TIMEOUT = 1 * 60 * 1000; // 5 минут в миллисекундах
+
 const GAME_CONFIG = {
   BULLET_DAMAGE: 10,
   BULLET_LIFE: 1000,
@@ -232,8 +235,20 @@ function checkCollisionServer(x, y) {
 wss.on("connection", (ws) => {
   console.log("Клиент подключился");
 
+  // Добавляем таймер неактивности для клиента
+  let inactivityTimer = setTimeout(() => {
+    console.log("Клиент отключён из-за неактивности");
+    ws.close(4000, "Inactivity timeout"); // Закрываем соединение с пользовательским кодом
+  }, INACTIVITY_TIMEOUT);
+
   ws.on("message", async (message) => {
-    // Добавляем async для асинхронных операций
+    // Сбрасываем таймер неактивности при получении любого сообщения
+    clearTimeout(inactivityTimer);
+    inactivityTimer = setTimeout(() => {
+      console.log("Клиент отключён из-за неактивности");
+      ws.close(4000, "Inactivity timeout");
+    }, INACTIVITY_TIMEOUT);
+
     let data;
     try {
       data = JSON.parse(message);
@@ -622,14 +637,16 @@ wss.on("connection", (ws) => {
     }
   });
 
-  ws.on("close", async () => {
+  ws.on("close", async (code, reason) => {
     const id = clients.get(ws);
     if (id) {
       const player = players.get(id);
       if (player) {
         userDatabase.set(id, { ...player });
         await saveUserDatabase(dbCollection, id, player);
-        console.log(`Данные игрока ${id} сохранены перед отключением`);
+        console.log(
+          `Данные игрока ${id} сохранены перед отключением. Код: ${code}, Причина: ${reason}`
+        );
       }
       clients.delete(ws);
       players.delete(id);
@@ -640,10 +657,14 @@ wss.on("connection", (ws) => {
         }
       });
     }
+    // Очищаем таймер при закрытии соединения
+    clearTimeout(inactivityTimer);
   });
 
   ws.on("error", (error) => {
     console.error("Ошибка WebSocket:", error);
+    // Очищаем таймер при ошибке
+    clearTimeout(inactivityTimer);
   });
 });
 

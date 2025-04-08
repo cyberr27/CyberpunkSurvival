@@ -188,46 +188,59 @@ function reconnectWebSocket() {
     return;
   }
   console.log(`Попытка переподключения ${reconnectAttempts + 1}...`);
-  ws = new WebSocket("wss://cyberpunksurvival.onrender.com");
-  ws.onopen = () => {
-    console.log("WebSocket успешно переподключен");
-    reconnectAttempts = 0;
-    if (myId) {
-      const lastUsername = document
-        .getElementById("loginUsername")
-        .value.trim();
-      const lastPassword = document
-        .getElementById("loginPassword")
-        .value.trim();
-      if (lastUsername && lastPassword) {
-        sendWhenReady(
-          ws,
-          JSON.stringify({
-            type: "login",
-            username: lastUsername,
-            password: lastPassword,
-          })
+  setTimeout(() => {
+    ws = new WebSocket("wss://cyberpunksurvival.onrender.com");
+    ws.onopen = () => {
+      console.log("WebSocket успешно переподключен");
+      reconnectAttempts = 0;
+      if (myId) {
+        const lastUsername = document
+          .getElementById("loginUsername")
+          .value.trim();
+        const lastPassword = document
+          .getElementById("loginPassword")
+          .value.trim();
+        if (lastUsername && lastPassword) {
+          sendWhenReady(
+            ws,
+            JSON.stringify({
+              type: "login",
+              username: lastUsername,
+              password: lastPassword,
+            })
+          );
+          console.log(`Повторная авторизация для ${lastUsername}`);
+        } else {
+          console.warn("Нет сохранённых данных для авторизации");
+          authContainer.style.display = "flex";
+          document.getElementById("gameContainer").style.display = "none";
+        }
+      }
+    };
+    ws.onerror = (error) => {
+      console.error("Ошибка WebSocket при переподключении:", error);
+      reconnectAttempts++;
+      reconnectWebSocket();
+    };
+    ws.onclose = (event) => {
+      console.log(
+        "WebSocket закрыт при переподключении:",
+        event.code,
+        event.reason
+      );
+      // Если код 4000, не переподключаемся
+      if (event.code === 4000) {
+        console.log(
+          "Отключён из-за неактивности, переподключение не требуется"
         );
-        console.log(`Повторная авторизация для ${lastUsername}`);
-      } else {
-        console.warn("Нет сохранённых данных для авторизации");
         authContainer.style.display = "flex";
         document.getElementById("gameContainer").style.display = "none";
+        return;
       }
-    }
-  };
-  ws.onerror = (error) => {
-    console.error("Ошибка WebSocket при переподключении:", error);
-  };
-  ws.onclose = (event) => {
-    console.log(
-      "WebSocket закрыт при переподключении:",
-      event.code,
-      event.reason
-    );
-    reconnectAttempts++;
-    setTimeout(reconnectWebSocket, reconnectDelay);
-  };
+      reconnectAttempts++;
+      reconnectWebSocket();
+    };
+  }, reconnectDelay);
 }
 
 // Инициализация WebSocket
@@ -235,12 +248,12 @@ function initializeWebSocket() {
   ws = new WebSocket("wss://cyberpunksurvival.onrender.com");
   ws.onopen = () => {
     console.log("WebSocket соединение установлено");
+    reconnectAttempts = 0; // Сбрасываем попытки переподключения
   };
   ws.onmessage = (event) => {
     try {
       const data = JSON.parse(event.data);
       console.log("Получено сообщение:", event.data);
-      // Убираем проверку на ping
       if (data.type === "loginSuccess") {
         handleAuthMessage(event);
         ws.onmessage = handleGameMessage;
@@ -256,6 +269,18 @@ function initializeWebSocket() {
   };
   ws.onclose = (event) => {
     console.log("WebSocket закрыт:", event.code, event.reason);
+    // Показываем окно авторизации
+    authContainer.style.display = "flex";
+    document.getElementById("gameContainer").style.display = "none";
+    // Очищаем данные игрока
+    players.clear();
+    myId = null;
+    // Если код 4000 (неактивность), не пытаемся переподключиться
+    if (event.code === 4000) {
+      console.log("Отключён из-за неактивности, переподключение не требуется");
+      return;
+    }
+    // Иначе пробуем переподключиться
     reconnectWebSocket();
   };
 }
