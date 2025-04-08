@@ -675,10 +675,27 @@ function selectSlot(slotIndex, slotElement) {
   dropBtn.onclick = () => dropItem(slotIndex);
 
   const rect = slotElement.getBoundingClientRect();
+  const tooltipHeight = tooltip ? tooltip.offsetHeight : 0;
+  const buttonTop = rect.bottom + tooltipHeight + 10; // Отступ от подсказки
+  const buttonWidth = 90; // Примерная ширина кнопки
+  const gap = 10; // Отступ между кнопками
+
+  // Позиционирование кнопок
   useBtn.style.left = `${rect.left}px`;
-  useBtn.style.top = `${rect.bottom + 5}px`;
-  dropBtn.style.left = `${rect.left + 60}px`;
-  dropBtn.style.top = `${rect.bottom + 5}px`;
+  useBtn.style.top = `${buttonTop}px`;
+  dropBtn.style.left = `${rect.left + buttonWidth + gap}px`;
+  dropBtn.style.top = `${buttonTop}px`;
+
+  // Проверка выхода за пределы экрана
+  const viewportWidth = window.innerWidth;
+  const useBtnRight = rect.left + buttonWidth;
+  const dropBtnRight = rect.left + buttonWidth * 2 + gap;
+  if (dropBtnRight > viewportWidth) {
+    // Сдвигаем обе кнопки влево
+    const overflow = dropBtnRight - viewportWidth + 10; // 10px запас
+    useBtn.style.left = `${rect.left - overflow}px`;
+    dropBtn.style.left = `${rect.left + buttonWidth + gap - overflow}px`;
+  }
 
   document.body.appendChild(useBtn);
   document.body.appendChild(dropBtn);
@@ -696,11 +713,15 @@ function useItem(slotIndex) {
   const me = players.get(myId);
   const effect = ITEM_CONFIG[item.type].effect;
 
+  // Применяем эффекты локально
   if (effect.energy) me.energy = Math.min(100, me.energy + effect.energy);
   if (effect.food) me.food = Math.min(100, me.food + effect.food);
   if (effect.water) me.water = Math.min(100, me.water + effect.water);
 
+  // Удаляем предмет из инвентаря
   inventory[slotIndex] = null;
+
+  // Отправляем на сервер
   sendWhenReady(
     ws,
     JSON.stringify({
@@ -710,12 +731,13 @@ function useItem(slotIndex) {
       energy: me.energy,
       food: me.food,
       water: me.water,
-      inventory,
     })
   );
+
   hideActionButtons();
   selectedSlot = null;
   updateStatsDisplay();
+  updateInventoryDisplay();
 }
 
 // Выкинуть предмет
@@ -812,6 +834,16 @@ function updateInventoryDisplay() {
       img.style.width = "40px";
       img.style.height = "40px";
       slot.appendChild(img);
+
+      // Обработчики для подсказок и выбора
+      slot.onmouseover = () => showTooltip(i, slot);
+      slot.onmouseout = () => hideTooltip();
+      slot.onclick = () => selectSlot(i, slot);
+    } else {
+      // Убираем старые обработчики для пустых слотов
+      slot.onmouseover = null;
+      slot.onmouseout = null;
+      slot.onclick = null;
     }
   }
 }
