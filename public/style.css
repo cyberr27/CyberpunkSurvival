@@ -343,9 +343,11 @@ button:active {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  user-select: none; /* Предотвращаем выделение текста */
-  -webkit-user-select: none; /* Для Safari */
-  -ms-user-select: none; /* Для IE */
+  user-select: none;
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  position: relative; /* Для правильного z-index */
+  z-index: 110; /* Выше канваса, но ниже кнопок */
 }
 
 .inventory-slot:hover {
@@ -391,10 +393,10 @@ button:active {
   color: #fff;
   border-radius: 5px;
   cursor: pointer;
-  z-index: 150;
+  z-index: 150; /* Выше слотов */
   width: 80px;
-  text-align: center;
-  height: 30px; /* Фиксированная высота для предсказуемости */
+  height: 30px;
+  box-sizing: border-box; /* Учитываем padding в размерах */
 }
 
 .use-btn {

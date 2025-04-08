@@ -203,6 +203,7 @@ function pointToLineDistance(px, py, x1, y1, x2, y2) {
 app.use(express.static(path.join(__dirname, "public")));
 
 function checkCollisionServer(x, y) {
+  console.log(`Игроков онлайн: ${playerCount}`);
   const left = x;
   const right = x + 40;
   const top = y;
@@ -238,7 +239,7 @@ wss.on("connection", (ws) => {
   // Добавляем таймер неактивности для клиента
   let inactivityTimer = setTimeout(() => {
     console.log("Клиент отключён из-за неактивности");
-    ws.close(4000, "Inactivity timeout"); // Закрываем соединение с пользовательским кодом
+    ws.close(9000, "Inactivity timeout"); // Закрываем соединение с пользовательским кодом
   }, INACTIVITY_TIMEOUT);
 
   ws.on("message", async (message) => {
@@ -246,7 +247,7 @@ wss.on("connection", (ws) => {
     clearTimeout(inactivityTimer);
     inactivityTimer = setTimeout(() => {
       console.log("Клиент отключён из-за неактивности");
-      ws.close(4000, "Inactivity timeout");
+      ws.close(10000, "Inactivity timeout");
     }, INACTIVITY_TIMEOUT);
 
     let data;
@@ -760,7 +761,6 @@ setInterval(async () => {
 setInterval(() => {
   const currentTime = Date.now();
   const playerCount = players.size;
-  console.log(`Игроков онлайн: ${playerCount}`);
 
   // Удаление предметов по таймауту и спавн новых остаются
   items.forEach((item, itemId) => {

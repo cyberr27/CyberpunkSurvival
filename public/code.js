@@ -519,7 +519,6 @@ function startGame() {
       touch.clientY >= rect.top &&
       touch.clientY <= rect.bottom
     ) {
-      // Находим слот, по которому кликнули
       const slots = inventoryContainer.children;
       for (let i = 0; i < slots.length; i++) {
         const slotRect = slots[i].getBoundingClientRect();
@@ -527,9 +526,10 @@ function startGame() {
           touch.clientX >= slotRect.left &&
           touch.clientX <= slotRect.right &&
           touch.clientY >= slotRect.top &&
-          touch.clientY <= slotRect.bottom
+          touch.clientY <= slotRect.bottom &&
+          inventory[i] // Проверяем, что слот не пустой
         ) {
-          console.log(`Тач по слоту ${i}`); // Отладка
+          console.log(`Тач по слоту ${i}, предмет: ${inventory[i].type}`); // Отладка
           selectSlot(i, slots[i]);
           return;
         }
@@ -694,6 +694,9 @@ function hideTooltip() {
 // Выбрать слот и показать кнопки
 function selectSlot(slotIndex, slotElement) {
   if (!inventory[slotIndex]) return;
+  console.log(
+    `Выбран слот ${slotIndex}, предмет: ${inventory[slotIndex].type}`
+  ); // Отладка
   if (selectedSlot === slotIndex) {
     hideActionButtons();
     selectedSlot = null;
@@ -705,44 +708,51 @@ function selectSlot(slotIndex, slotElement) {
   const useBtn = document.createElement("button");
   useBtn.className = "action-btn use-btn";
   useBtn.textContent = "Использовать";
-  useBtn.onclick = () => useItem(slotIndex);
+  useBtn.onclick = (e) => {
+    e.stopPropagation(); // Предотвращаем всплытие
+    useItem(slotIndex);
+  };
 
   const dropBtn = document.createElement("button");
   dropBtn.className = "action-btn drop-btn";
   dropBtn.textContent = "Выкинуть";
-  dropBtn.onclick = () => dropItem(slotIndex);
+  dropBtn.onclick = (e) => {
+    e.stopPropagation(); // Предотвращаем всплытие
+    dropItem(slotIndex);
+  };
 
   const rect = slotElement.getBoundingClientRect();
-  const tooltipHeight = tooltip ? tooltip.offsetHeight : 0;
-  const buttonHeight = 30; // Примерная высота кнопки
-  const buttonWidth = 80; // Фиксированная ширина из CSS
-  const gap = 10; // Отступ между кнопками
+  const buttonWidth = 80;
+  const buttonHeight = 30;
+  const gap = 5; // Уменьшаем отступ для компактности
 
-  // Позиционирование ниже слота
-  let buttonTop = rect.bottom + tooltipHeight + 5;
-  let useBtnLeft = rect.left;
-  let dropBtnLeft = rect.left + buttonWidth + gap;
-
-  // Проверка выхода за нижнюю границу экрана
-  const viewportHeight = window.innerHeight;
-  if (buttonTop + buttonHeight > viewportHeight) {
-    buttonTop = rect.top - buttonHeight - 5; // Перемещаем выше слота
-  }
+  // Позиционируем кнопки горизонтально справа от слота
+  const useBtnLeft = rect.right + gap;
+  const dropBtnLeft = useBtnLeft + buttonWidth + gap;
+  const buttonTop = rect.top + (rect.height - buttonHeight) / 2; // Центрируем по вертикали
 
   // Проверка выхода за правую границу экрана
   const viewportWidth = window.innerWidth;
   const dropBtnRight = dropBtnLeft + buttonWidth;
   if (dropBtnRight > viewportWidth) {
-    const overflow = dropBtnRight - viewportWidth + 5;
-    useBtnLeft -= overflow;
-    dropBtnLeft -= overflow;
+    // Если не помещаются справа, размещаем слева от слота
+    useBtn.style.left = `${rect.left - buttonWidth - gap}px`;
+    dropBtn.style.left = `${rect.left - (buttonWidth * 2 + gap * 2)}px`;
+  } else {
+    useBtn.style.left = `${useBtnLeft}px`;
+    dropBtn.style.left = `${dropBtnLeft}px`;
   }
 
-  // Установка позиций
-  useBtn.style.left = `${useBtnLeft}px`;
-  useBtn.style.top = `${buttonTop}px`;
-  dropBtn.style.left = `${dropBtnLeft}px`;
-  dropBtn.style.top = `${buttonTop}px`;
+  // Проверка выхода за нижнюю/верхнюю границу
+  const viewportHeight = window.innerHeight;
+  let adjustedTop = buttonTop;
+  if (buttonTop + buttonHeight > viewportHeight) {
+    adjustedTop = viewportHeight - buttonHeight - 5;
+  } else if (buttonTop < 0) {
+    adjustedTop = 5;
+  }
+  useBtn.style.top = `${adjustedTop}px`;
+  dropBtn.style.top = `${adjustedTop}px`;
 
   document.body.appendChild(useBtn);
   document.body.appendChild(dropBtn);
@@ -882,14 +892,23 @@ function updateInventoryDisplay() {
       img.style.height = "40px";
       slot.appendChild(img);
 
-      // Обработчики для подсказок и выбора
+      // Убираем старые обработчики, чтобы избежать наложения
+      slot.onmouseover = null;
+      slot.onmouseout = null;
+      slot.onclick = null;
+
+      // Новые обработчики
       slot.onmouseover = () => showTooltip(i, slot);
       slot.onmouseout = () => hideTooltip();
       slot.onclick = (e) => {
-        e.stopPropagation(); // Останавливаем всплытие события
-        console.log(`Клик по слоту ${i}`); // Отладка
+        e.preventDefault(); // Предотвращаем стандартное поведение
+        e.stopPropagation(); // Останавливаем всплытие
+        console.log(`Клик по слоту ${i}, предмет: ${inventory[i].type}`); // Отладка
         selectSlot(i, slot);
       };
+
+      // Делаем изображение некликабельным, чтобы клик шёл только по слоту
+      img.style.pointerEvents = "none";
     } else {
       slot.onmouseover = null;
       slot.onmouseout = null;
@@ -1240,7 +1259,6 @@ function update(deltaTime) {
       const itemImage = ITEM_CONFIG[item.type]?.image;
       if (itemImage && itemImage.complete) {
         ctx.drawImage(itemImage, screenX, screenY, 40, 40);
-        console.log(`Предмет ${item.type} (ID: ${itemId}) успешно нарисован`);
       } else {
         console.warn(
           `Изображение для ${item.type} не загружено, рисую заглушку`
@@ -1411,13 +1429,7 @@ function draw(deltaTime) {
       const itemImage = ITEM_CONFIG[item.type]?.image;
       if (itemImage && itemImage.complete) {
         ctx.drawImage(itemImage, screenX, screenY, 40, 40);
-        console.log(
-          `Предмет ${item.type} (ID: ${itemId}) отрисован на ${screenX}, ${screenY}`
-        );
       } else {
-        console.warn(
-          `Изображение для ${item.type} (ID: ${itemId}) не загружено, рисую заглушку`
-        );
         ctx.fillStyle = "yellow";
         ctx.fillRect(screenX, screenY, 10, 10);
       }
