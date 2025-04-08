@@ -13,7 +13,7 @@ const players = new Map();
 const userDatabase = new Map();
 
 // В начало файла, после определения констант
-const INACTIVITY_TIMEOUT = 1 * 60 * 1000; // 5 минут в миллисекундах
+const INACTIVITY_TIMEOUT = 10 * 60 * 1000; // 5 минут в миллисекундах
 
 const GAME_CONFIG = {
   BULLET_DAMAGE: 10,
