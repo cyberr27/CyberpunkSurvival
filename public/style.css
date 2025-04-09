@@ -429,7 +429,7 @@ button:active {
   padding: 0;
 }
 #inventoryContainer {
-  height: 450px; /* Было 400px, увеличиваем, чтобы всё влезло */
+  height: 480px; /* Было 400px, увеличиваем, чтобы всё влезло */
 }
 
 /* Стили для кнопок внутри экрана */
@@ -588,8 +588,11 @@ button:active {
     height: 50px;
   }
   #inventoryContainer {
+    position: absolute;
+    bottom: 10%;
+    right: 1%;
     width: 240px;
-    height: 360px;
+    height: 400px;
     padding: 15px;
   }
   #inventoryScreen {
