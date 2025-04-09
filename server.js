@@ -21,23 +21,26 @@ const GAME_CONFIG = {
 };
 
 const ITEM_CONFIG = {
-  energy_drink: { effect: { energy: 20, water: 5 }, baseCount: 1 },
-  nut: { effect: { food: 27 }, baseCount: 2 },
-  water_bottle: { effect: { water: 30 }, baseCount: 3 },
-  canned_meat: { effect: { food: 20 }, baseCount: 2 }, // Банка тушёнки
-  mushroom: { effect: { food: 5, energy: 15 }, baseCount: 3 }, // Гриб
-  sausage: { effect: { food: 16, energy: 3 }, baseCount: 2 }, // Колбаса
-  blood_pack: { effect: { health: 40 }, baseCount: 1 }, // Пакет донорской крови
-  bread: { effect: { food: 13, water: -2 }, baseCount: 3 }, // Хлеб
+  // Редкие (уровень 1)
+  blood_pack: { effect: { health: 40 }, rarity: 1 },
+  canned_meat: { effect: { food: 20 }, rarity: 1 },
+  mushroom: { effect: { food: 5, energy: 15 }, rarity: 1 },
+  // Средние (уровень 2)
+  dried_fish: { effect: { food: 10, water: -3 }, rarity: 2 },
+  condensed_milk: { effect: { water: 5, food: 11, energy: 2 }, rarity: 2 },
+  milk: { effect: { water: 15, food: 5 }, rarity: 2 },
+  blood_syringe: { effect: { health: 10 }, rarity: 2 },
+  meat_chunk: { effect: { food: 20, energy: 5, water: -2 }, rarity: 2 },
   vodka_bottle: {
     effect: { health: 5, energy: -2, water: 1, food: 2 },
-    baseCount: 1,
-  }, // Бутылка водки
-  meat_chunk: { effect: { food: 20, energy: 5, water: -2 }, baseCount: 2 }, // Кусок мяса
-  blood_syringe: { effect: { health: 10 }, baseCount: 2 }, // Шприц с кровью
-  milk: { effect: { water: 15, food: 5 }, baseCount: 2 }, // Молоко
-  condensed_milk: { effect: { water: 5, food: 11, energy: 2 }, baseCount: 2 }, // Банка сгущёнки
-  dried_fish: { effect: { food: 10, water: -3 }, baseCount: 3 }, // Сушёная рыба
+    rarity: 2,
+  },
+  bread: { effect: { food: 13, water: -2 }, rarity: 2 },
+  sausage: { effect: { food: 16, energy: 3 }, rarity: 2 },
+  energy_drink: { effect: { energy: 20, water: 5 }, rarity: 2 },
+  // Частые (уровень 3)
+  water_bottle: { effect: { water: 30 }, rarity: 3 },
+  nut: { effect: { food: 27 }, rarity: 3 },
 };
 
 // Получаем строку подключения только из переменной окружения
@@ -807,7 +810,7 @@ setInterval(() => {
   const currentTime = Date.now();
   const playerCount = players.size;
 
-  // Удаление предметов по таймауту остаётся без изменений
+  // Удаление предметов по таймауту (10 минут)
   items.forEach((item, itemId) => {
     if (currentTime - item.spawnTime > 10 * 60 * 1000) {
       items.delete(itemId);
@@ -823,7 +826,7 @@ setInterval(() => {
   const worldWidth = 2800;
   const worldHeight = 3300;
 
-  // Считаем существующие предметы по типам
+  // Считаем текущие предметы по типам
   const itemCounts = {};
   for (const [type] of Object.entries(ITEM_CONFIG)) {
     itemCounts[type] = Array.from(items.values()).filter(
@@ -831,27 +834,65 @@ setInterval(() => {
     ).length;
   }
 
-  // Спавним новые предметы с привязкой к игроку
-  for (const [type, config] of Object.entries(ITEM_CONFIG)) {
-    const desiredCount = config.baseCount * Math.max(1, playerCount);
-    const existingCount = itemCounts[type];
-    const toSpawn = Math.max(0, desiredCount - existingCount);
+  // Определяем группы предметов по редкости
+  const rareItems = Object.entries(ITEM_CONFIG)
+    .filter(([_, config]) => config.rarity === 1)
+    .map(([type]) => type); // blood_pack, canned_meat, mushroom
+  const mediumItems = Object.entries(ITEM_CONFIG)
+    .filter(([_, config]) => config.rarity === 2)
+    .map(([type]) => type); // dried_fish, condensed_milk, и т.д.
+  const commonItems = Object.entries(ITEM_CONFIG)
+    .filter(([_, config]) => config.rarity === 3)
+    .map(([type]) => type); // water_bottle, nut
 
-    for (let i = 0; i < toSpawn; i++) {
+  // Цель: 6 предметов на игрока (например, 1 редкий, 2 средних, 3 частых)
+  const desiredTotalItems = playerCount * 6;
+  const currentTotalItems = Array.from(items.values()).length;
+
+  if (currentTotalItems < desiredTotalItems) {
+    const itemsToSpawn = desiredTotalItems - currentTotalItems;
+
+    // Распределяем предметы: 1 редкий, 2 средних, 3 частых на игрока
+    let rareCount = playerCount; // 1 редкий на игрока
+    let mediumCount = playerCount * 2; // 2 средних на игрока
+    let commonCount = playerCount * 3; // 3 частых на игрока
+
+    for (let i = 0; i < itemsToSpawn; i++) {
+      let type;
+      if (
+        rareCount > 0 &&
+        itemCounts[rareItems[rareCount % rareItems.length]] < rareCount
+      ) {
+        type = rareItems[Math.floor(Math.random() * rareItems.length)];
+        rareCount--;
+      } else if (
+        mediumCount > 0 &&
+        itemCounts[mediumItems[mediumCount % mediumItems.length]] < mediumCount
+      ) {
+        type = mediumItems[Math.floor(Math.random() * mediumItems.length)];
+        mediumCount--;
+      } else if (
+        commonCount > 0 &&
+        itemCounts[commonItems[commonCount % commonItems.length]] < commonCount
+      ) {
+        type = commonItems[Math.floor(Math.random() * commonItems.length)];
+        commonCount--;
+      } else {
+        // Если все категории исчерпаны, берём случайный предмет
+        const allTypes = Object.keys(ITEM_CONFIG);
+        type = allTypes[Math.floor(Math.random() * allTypes.length)];
+      }
+
       const itemId = `${type}_${Date.now()}_${i}`;
       const newItem = {
         x: Math.random() * worldWidth,
         y: Math.random() * worldHeight,
         type: type,
         spawnTime: currentTime,
-        spawnedBy:
-          playerCount > 1 ? Array.from(players.keys())[playerCount - 1] : null, // Привязываем к последнему игроку
       };
       items.set(itemId, newItem);
       console.log(
-        `Создан предмет ${type} (${itemId}) на x:${newItem.x}, y:${
-          newItem.y
-        }, spawnedBy: ${newItem.spawnedBy || "базовый"}`
+        `Создан предмет ${type} (${itemId}) на x:${newItem.x}, y:${newItem.y}`
       );
 
       wss.clients.forEach((client) => {
