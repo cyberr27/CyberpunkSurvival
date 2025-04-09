@@ -53,6 +53,30 @@ nutImage.src = "nut.png";
 const waterBottleImage = new Image();
 waterBottleImage.src = "water_bottle.png";
 
+// Добавляем новые изображения
+const cannedMeatImage = new Image();
+cannedMeatImage.src = "canned_meat.png";
+const mushroomImage = new Image();
+mushroomImage.src = "mushroom.png";
+const sausageImage = new Image();
+sausageImage.src = "sausage.png";
+const bloodPackImage = new Image();
+bloodPackImage.src = "blood_pack.png";
+const breadImage = new Image();
+breadImage.src = "bread.png";
+const vodkaBottleImage = new Image();
+vodkaBottleImage.src = "vodka_bottle.png";
+const meatChunkImage = new Image();
+meatChunkImage.src = "meat_chunk.png";
+const bloodSyringeImage = new Image();
+bloodSyringeImage.src = "blood_syringe.png";
+const milkImage = new Image();
+milkImage.src = "milk.png";
+const condensedMilkImage = new Image();
+condensedMilkImage.src = "condensed_milk.png";
+const driedFishImage = new Image();
+driedFishImage.src = "dried_fish.png";
+
 // Проверка загрузки новых изображений
 cannedMeatImage.onload = () => {
   console.log("Банка тушёнки загружена");
