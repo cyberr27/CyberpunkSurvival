@@ -588,8 +588,8 @@ button:active {
     height: 50px;
   }
   #inventoryContainer {
-    width: 240px; /* 4 * 45px + 3 * 5px + 40px (padding) */
-    height: 360px; /* Экран (60px) + ячейки (5 * 45px + 4 * 5px) + кнопки (40px) + отступы */
+    width: 240px;
+    height: 360px;
     padding: 15px;
   }
   #inventoryScreen {
@@ -604,10 +604,15 @@ button:active {
     gap: 5px;
   }
   .inventory-slot {
-    width: 45px; /* Чуть меньше для мобильных */
+    width: 45px;
     height: 45px;
   }
-
+  .action-btn {
+    width: 100px;
+    height: 35px;
+    font-size: 12px;
+    padding: 6px 12px;
+  }
   #inventoryBtn {
     bottom: 15px;
     right: 130px;
