@@ -669,6 +669,7 @@ function startGame() {
   const inventoryContainer = document.getElementById("inventoryContainer");
   inventoryContainer.style.display = "none"; // Скрыто по умолчанию
   for (let i = 0; i < 20; i++) {
+    // Теперь просто 20, так как экран уже добавлен в HTML
     const slot = document.createElement("div");
     slot.className = "inventory-slot";
     inventoryContainer.appendChild(slot);
@@ -685,33 +686,12 @@ function toggleInventory() {
   const inventoryBtn = document.getElementById("inventoryBtn");
   inventoryBtn.classList.toggle("active", isInventoryOpen);
 
-  // Скрываем подсказку и кнопки при закрытии
+  // Скрываем экран и кнопки при закрытии
   if (!isInventoryOpen) {
-    hideTooltip();
+    const screen = document.getElementById("inventoryScreen");
+    screen.innerHTML = "";
     hideActionButtons();
     selectedSlot = null;
-  }
-}
-
-// Показать подсказку
-function showTooltip(slotIndex, slotElement) {
-  if (!inventory[slotIndex]) return;
-  hideTooltip(); // Убираем старую подсказку
-  tooltip = document.createElement("div");
-  tooltip.className = "tooltip";
-  tooltip.textContent = ITEM_CONFIG[inventory[slotIndex].type].description;
-  document.body.appendChild(tooltip);
-
-  const rect = slotElement.getBoundingClientRect();
-  tooltip.style.left = `${rect.left + rect.width}px`;
-  tooltip.style.top = `${rect.top}px`;
-}
-
-// Скрыть подсказку
-function hideTooltip() {
-  if (tooltip) {
-    tooltip.remove();
-    tooltip = null;
   }
 }
 
@@ -720,20 +700,26 @@ function selectSlot(slotIndex, slotElement) {
   if (!inventory[slotIndex]) return;
   console.log(
     `Выбран слот ${slotIndex}, предмет: ${inventory[slotIndex].type}`
-  ); // Отладка
+  );
+  const screen = document.getElementById("inventoryScreen");
+
   if (selectedSlot === slotIndex) {
     hideActionButtons();
+    screen.innerHTML = ITEM_CONFIG[inventory[slotIndex].type].description;
     selectedSlot = null;
     return;
   }
+
   selectedSlot = slotIndex;
   hideActionButtons();
+
+  screen.innerHTML = ITEM_CONFIG[inventory[slotIndex].type].description;
 
   const useBtn = document.createElement("button");
   useBtn.className = "action-btn use-btn";
   useBtn.textContent = "Использовать";
   useBtn.onclick = (e) => {
-    e.stopPropagation(); // Предотвращаем всплытие
+    e.stopPropagation();
     useItem(slotIndex);
   };
 
@@ -741,45 +727,18 @@ function selectSlot(slotIndex, slotElement) {
   dropBtn.className = "action-btn drop-btn";
   dropBtn.textContent = "Выкинуть";
   dropBtn.onclick = (e) => {
-    e.stopPropagation(); // Предотвращаем всплытие
+    e.stopPropagation();
     dropItem(slotIndex);
   };
 
-  const rect = slotElement.getBoundingClientRect();
-  const buttonWidth = 80;
-  const buttonHeight = 30;
-  const gap = 5; // Уменьшаем отступ для компактности
+  // Позиционируем кнопки внутри экрана
+  useBtn.style.left = "10px";
+  useBtn.style.top = "10px";
+  dropBtn.style.right = "10px";
+  dropBtn.style.top = "10px";
 
-  // Позиционируем кнопки горизонтально справа от слота
-  const useBtnLeft = rect.right + gap;
-  const dropBtnLeft = useBtnLeft + buttonWidth + gap;
-  const buttonTop = rect.top + (rect.height - buttonHeight) / 2; // Центрируем по вертикали
-
-  // Проверка выхода за правую границу экрана
-  const viewportWidth = window.innerWidth;
-  const dropBtnRight = dropBtnLeft + buttonWidth;
-  if (dropBtnRight > viewportWidth) {
-    // Если не помещаются справа, размещаем слева от слота
-    useBtn.style.left = `${rect.left - buttonWidth - gap}px`;
-    dropBtn.style.left = `${rect.left - (buttonWidth * 2 + gap * 2)}px`;
-  } else {
-    useBtn.style.left = `${useBtnLeft}px`;
-    dropBtn.style.left = `${dropBtnLeft}px`;
-  }
-
-  // Проверка выхода за нижнюю/верхнюю границу
-  const viewportHeight = window.innerHeight;
-  let adjustedTop = buttonTop;
-  if (buttonTop + buttonHeight > viewportHeight) {
-    adjustedTop = viewportHeight - buttonHeight - 5;
-  } else if (buttonTop < 0) {
-    adjustedTop = 5;
-  }
-  useBtn.style.top = `${adjustedTop}px`;
-  dropBtn.style.top = `${adjustedTop}px`;
-
-  document.body.appendChild(useBtn);
-  document.body.appendChild(dropBtn);
+  screen.appendChild(useBtn);
+  screen.appendChild(dropBtn);
 }
 
 // Скрыть кнопки действий
@@ -909,32 +868,36 @@ function updateInventoryDisplay() {
   if (!isInventoryOpen) return;
   const inventoryContainer = document.getElementById("inventoryContainer");
   const slots = inventoryContainer.children;
-  for (let i = 0; i < slots.length; i++) {
+  const screen = document.getElementById("inventoryScreen");
+  screen.innerHTML = ""; // Очищаем экран по умолчанию
+
+  for (let i = 1; i < slots.length; i++) {
     const slot = slots[i];
-    slot.innerHTML = ""; // Очищаем слот
-    if (inventory[i]) {
+    slot.innerHTML = "";
+    if (inventory[i - 1]) {
       const img = document.createElement("img");
-      img.src = ITEM_CONFIG[inventory[i].type].image.src;
-      img.style.width = "50px"; // Увеличиваем до 50px
-      img.style.height = "50px"; // Увеличиваем до 50px
+      img.src = ITEM_CONFIG[inventory[i - 1].type].image.src;
+      img.style.width = "100%"; // Растягиваем на весь слот
+      img.style.height = "100%";
       slot.appendChild(img);
 
-      // Убираем старые обработчики
-      slot.onmouseover = null;
-      slot.onmouseout = null;
-      slot.onclick = null;
-
-      // Новые обработчики
-      slot.onmouseover = () => showTooltip(i, slot);
-      slot.onmouseout = () => hideTooltip();
+      slot.onmouseover = () => {
+        if (inventory[i - 1]) {
+          screen.textContent = ITEM_CONFIG[inventory[i - 1].type].description;
+        }
+      };
+      slot.onmouseout = () => {
+        if (selectedSlot === null) screen.textContent = "";
+      };
       slot.onclick = (e) => {
         e.preventDefault();
         e.stopPropagation();
-        console.log(`Клик по слоту ${i}, предмет: ${inventory[i].type}`); // Отладка
-        selectSlot(i, slot);
+        console.log(
+          `Клик по слоту ${i - 1}, предмет: ${inventory[i - 1].type}`
+        );
+        selectSlot(i - 1, slot);
       };
 
-      // Отключаем события на изображении
       img.style.pointerEvents = "none";
     } else {
       slot.onmouseover = null;
@@ -1041,16 +1004,18 @@ function handleGameMessage(event) {
           updateInventoryDisplay();
         }
         break;
-        case "itemDropped":
-          console.log(`Получено itemDropped: itemId=${data.itemId}, type=${data.type}, x=${data.x}, y=${data.y}`);
-          items.set(data.itemId, {
-            x: data.x,
-            y: data.y,
-            type: data.type,
-            spawnTime: data.spawnTime,
-          });
-          updateInventoryDisplay();
-          break;
+      case "itemDropped":
+        console.log(
+          `Получено itemDropped: itemId=${data.itemId}, type=${data.type}, x=${data.x}, y=${data.y}`
+        );
+        items.set(data.itemId, {
+          x: data.x,
+          y: data.y,
+          type: data.type,
+          spawnTime: data.spawnTime,
+        });
+        updateInventoryDisplay();
+        break;
       case "chat":
         const messageEl = document.createElement("div");
         messageEl.textContent = `${data.id}: ${data.message}`;
