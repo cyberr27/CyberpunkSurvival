@@ -13,7 +13,7 @@ const players = new Map();
 const userDatabase = new Map();
 
 // В начало файла, после определения констант
-const INACTIVITY_TIMEOUT = 10 * 60 * 1000; // 5 минут в миллисекундах
+const INACTIVITY_TIMEOUT = 5 * 60 * 1000; // 5 минут в миллисекундах
 
 const GAME_CONFIG = {
   BULLET_DAMAGE: 10,
@@ -238,7 +238,7 @@ wss.on("connection", (ws) => {
   // Добавляем таймер неактивности для клиента
   let inactivityTimer = setTimeout(() => {
     console.log("Клиент отключён из-за неактивности");
-    ws.close(9000, "Inactivity timeout"); // Закрываем соединение с пользовательским кодом
+    ws.close(4000, "Inactivity timeout"); // Закрываем соединение с пользовательским кодом
   }, INACTIVITY_TIMEOUT);
 
   ws.on("message", async (message) => {
@@ -246,7 +246,7 @@ wss.on("connection", (ws) => {
     clearTimeout(inactivityTimer);
     inactivityTimer = setTimeout(() => {
       console.log("Клиент отключён из-за неактивности");
-      ws.close(10000, "Inactivity timeout");
+      ws.close(4999, "Inactivity timeout");
     }, INACTIVITY_TIMEOUT);
 
     let data;
@@ -441,7 +441,7 @@ wss.on("connection", (ws) => {
                 );
               }
             });
-          }, 10 * 60 * 1000); // 10 минут
+          }, 5 * 60 * 1000); // 10 минут
         } else {
           console.log(
             `Инвентарь игрока ${id} полон, предмет ${data.itemId} не поднят`
