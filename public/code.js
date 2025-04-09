@@ -977,6 +977,7 @@ function handleGameMessage(event) {
       case "itemPicked":
         items.delete(data.itemId); // Удаляем предмет из локального items
         pendingPickups.delete(data.itemId); // Убираем из ожидающих
+        console.log(`Предмет ${data.itemId} удалён из мира (itemPicked)`);
         const me = players.get(myId);
         if (me && data.playerId === myId && data.item) {
           const freeSlot = inventory.findIndex((slot) => slot === null);
@@ -989,12 +990,11 @@ function handleGameMessage(event) {
           }
         } else {
           console.log(
-            `Предмет ${data.itemId} поднят игроком ${data.playerId}, не трогаем локальный инвентарь`
+            `Предмет ${data.itemId} поднят игроком ${data.playerId} или удалён сервером`
           );
         }
         updateStatsDisplay();
         break;
-
       case "itemNotFound":
         items.delete(data.itemId); // Удаляем предмет из локального items
         pendingPickups.delete(data.itemId); // Убираем из ожидающих
