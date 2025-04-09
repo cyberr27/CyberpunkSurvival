@@ -1288,7 +1288,6 @@ function draw(deltaTime) {
     -groundOffsetX % backgroundImage.width,
     (-camera.y * groundSpeed) % backgroundImage.height
   );
-  // Рисуем прямоугольник, покрывающий весь мир
   ctx.fillRect(
     (groundOffsetX % backgroundImage.width) - backgroundImage.width,
     ((camera.y * groundSpeed) % backgroundImage.height) -
@@ -1359,11 +1358,11 @@ function draw(deltaTime) {
       }
     }
 
-    let spriteX = player.frame * 40; // Каждый кадр шириной 40px
+    let spriteX = player.frame * 40;
     let spriteY =
       player.state === "dying"
-        ? 160 // Строка смерти
-        : { up: 0, down: 40, left: 80, right: 120 }[player.direction] || 40; // Исправляем направления
+        ? 160
+        : { up: 0, down: 40, left: 80, right: 120 }[player.direction] || 40;
 
     ctx.drawImage(
       playerSprite,
@@ -1408,7 +1407,6 @@ function draw(deltaTime) {
   });
 
   items.forEach((item, itemId) => {
-    // Проверяем, существует ли предмет в items (на случай, если он был удалён во время цикла)
     if (!items.has(itemId)) {
       console.log(
         `Предмет ${itemId} пропущен при отрисовке, так как уже удалён`
@@ -1484,38 +1482,6 @@ function draw(deltaTime) {
     canvas.width,
     canvas.height
   );
-
-  // Рисуем инвентарь, если открыт
-  if (isInventoryOpen) {
-    const inventoryContainer = document.getElementById("inventoryContainer");
-    const slots = inventoryContainer.children;
-    for (let i = 0; i < slots.length; i++) {
-      const slot = slots[i];
-      slot.innerHTML = ""; // Очищаем слот
-      if (inventory[i]) {
-        const img = document.createElement("img");
-        img.src = ITEM_CONFIG[inventory[i].type].image.src;
-        img.style.width = "40px";
-        img.style.height = "40px";
-        slot.appendChild(img);
-
-        // Обработчики для подсказок и выбора
-        slot.onmouseover = () => showTooltip(i, slot);
-        slot.onmouseout = hideTooltip;
-        slot.onclick = () => selectSlot(i, slot);
-      }
-    }
-  }
-
-  // Опционально: визуальные подсказки зон для мобильных (раскомментируй, если нужно)
-  /*
-  if (window.innerWidth <= 500) {
-    ctx.fillStyle = "rgba(0, 255, 255, 0.1)"; // Левая зона (движение)
-    ctx.fillRect(0, 0, canvas.width / 2, canvas.height);
-    ctx.fillStyle = "rgba(255, 0, 255, 0.1)"; // Правая зона (выстрел)
-    ctx.fillRect(canvas.width / 2, 0, canvas.width / 2, canvas.height);
-  }
-  */
 }
 
 function drawBullet(x, y) {
