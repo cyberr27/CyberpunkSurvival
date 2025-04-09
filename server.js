@@ -538,61 +538,58 @@ wss.on("connection", (ws) => {
     }
     // Обработка выброса предмета из инвентаря
     else if (data.type === "dropItem") {
-      // Получаем ID игрока
       const id = clients.get(ws);
-      // Проверяем, что игрок авторизован
+      console.log(
+        `Получен запрос dropItem от ${id}, slotIndex: ${data.slotIndex}, x: ${data.x}, y: ${data.y}`
+      );
       if (id) {
-        // Получаем данные игрока
         const player = players.get(id);
-        // Получаем индекс слота из сообщения
         const slotIndex = data.slotIndex;
-        // Получаем предмет из указанного слота инвентаря
         const item = player.inventory[slotIndex];
-        // Проверяем, что в слоте есть предмет
+        console.log(
+          `Проверяем предмет в слоте ${slotIndex}: ${item ? item.type : "null"}`
+        );
         if (item) {
-          // Переменные для координат выброса
           let dropX,
             dropY,
             attempts = 0;
-          // Максимальное количество попыток найти свободное место
           const maxAttempts = 10;
-          // Ищем свободное место в радиусе 100 пикселей от игрока
+          console.log(`Начинаем поиск места для выброса ${item.type}`);
           do {
-            // Случайный угол для направления выброса
             const angle = Math.random() * Math.PI * 2;
-            // Случайное расстояние до 100 пикселей
             const radius = Math.random() * 100;
-            // Вычисляем координаты выброса
             dropX = player.x + Math.cos(angle) * radius;
             dropY = player.y + Math.sin(angle) * radius;
             attempts++;
-            // Проверяем, нет ли коллизий с препятствиями, и не превышено ли количество попыток
+            console.log(
+              `Попытка ${attempts}: x=${dropX}, y=${dropY}, коллизия: ${checkCollisionServer(
+                dropX,
+                dropY
+              )}`
+            );
           } while (
             checkCollisionServer(dropX, dropY) &&
             attempts < maxAttempts
           );
 
-          // Если нашли свободное место (attempts < maxAttempts)
           if (attempts < maxAttempts) {
-            // Создаём новый уникальный ID для выброшенного предмета
             const itemId = `${item.type}_${Date.now()}`;
-            // Добавляем предмет на карту с новыми координатами
+            console.log(
+              `Место найдено, создаём предмет ${itemId} на x:${dropX}, y:${dropY}`
+            );
             items.set(itemId, {
               x: dropX,
               y: dropY,
               type: item.type,
               spawnTime: Date.now(),
             });
-            // Удаляем предмет из инвентаря игрока
             player.inventory[slotIndex] = null;
-            // Обновляем данные игрока в карте активных игроков
             players.set(id, { ...player });
-            // Обновляем данные игрока в базе пользователей
             userDatabase.set(id, { ...player });
-            // Сохраняем изменения в MongoDB
+            console.log(`Сохраняем данные игрока ${id} в MongoDB`);
             await saveUserDatabase(dbCollection, id, player);
 
-            // Уведомляем всех клиентов о выбросе предмета
+            console.log(`Отправляем уведомления о выбросе ${itemId}`);
             wss.clients.forEach((client) => {
               if (client.readyState === WebSocket.OPEN) {
                 client.send(
@@ -605,7 +602,6 @@ wss.on("connection", (ws) => {
                     spawnTime: Date.now(),
                   })
                 );
-                // Отправляем обновленные данные игрока только самому игроку
                 if (clients.get(client) === id) {
                   client.send(
                     JSON.stringify({
@@ -616,17 +612,19 @@ wss.on("connection", (ws) => {
                 }
               }
             });
-            // Логируем успешный выброс предмета
             console.log(
-              `Игрок ${id} выбросил ${item.type} на x:${dropX}, y:${dropY}`
+              `Игрок ${id} успешно выбросил ${item.type} на x:${dropX}, y:${dropY}`
             );
           } else {
-            // Если не нашли свободное место, логируем предупреждение
             console.log(
-              `Не удалось найти место для выброса предмета ${item.type}`
+              `Не удалось найти место для выброса ${item.type} после ${maxAttempts} попыток`
             );
           }
+        } else {
+          console.log(`В слоте ${slotIndex} нет предмета для выброса`);
         }
+      } else {
+        console.log(`Игрок не авторизован для dropItem`);
       }
     }
   });

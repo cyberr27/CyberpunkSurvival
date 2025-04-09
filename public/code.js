@@ -826,8 +826,10 @@ function dropItem(slotIndex) {
   const item = inventory[slotIndex];
   if (!item) return;
   const me = players.get(myId);
+  console.log(
+    `Отправляем запрос на выброс ${item.type} из слота ${slotIndex}, x:${me.x}, y:${me.y}`
+  );
 
-  // Отправляем запрос на сервер для выброса
   sendWhenReady(
     ws,
     JSON.stringify({
@@ -837,6 +839,7 @@ function dropItem(slotIndex) {
       y: me.y,
     })
   );
+  console.log(`Запрос на выброс отправлен`);
   inventory[slotIndex] = null;
   hideActionButtons();
   selectedSlot = null;
@@ -1038,14 +1041,16 @@ function handleGameMessage(event) {
           updateInventoryDisplay();
         }
         break;
-      case "itemDropped":
-        items.set(data.itemId, {
-          x: data.x,
-          y: data.y,
-          type: data.type,
-          spawnTime: data.spawnTime,
-        });
-        break;
+        case "itemDropped":
+          console.log(`Получено itemDropped: itemId=${data.itemId}, type=${data.type}, x=${data.x}, y=${data.y}`);
+          items.set(data.itemId, {
+            x: data.x,
+            y: data.y,
+            type: data.type,
+            spawnTime: data.spawnTime,
+          });
+          updateInventoryDisplay();
+          break;
       case "chat":
         const messageEl = document.createElement("div");
         messageEl.textContent = `${data.id}: ${data.message}`;
