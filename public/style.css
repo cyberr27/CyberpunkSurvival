@@ -549,10 +549,11 @@ button:active {
     font-size: 14px;
   }
   #chatContainer {
-    width: 250px;
-    height: 150px;
-    bottom: 10%;
-    right: 1%;
+    position: absolute;
+    width: 214px;
+    height: 100px;
+    top: 18%;
+    left: 32.5%;
   }
   .auth-box {
     width: 80%;
