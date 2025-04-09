@@ -40,7 +40,7 @@ const ITEM_CONFIG = {
   energy_drink: { effect: { energy: 20, water: 5 }, rarity: 2 },
   // Частые (уровень 3)
   water_bottle: { effect: { water: 30 }, rarity: 3 },
-  nut: { effect: { food: 27 }, rarity: 3 },
+  nut: { effect: { food: 7 }, rarity: 3 },
 };
 
 // Получаем строку подключения только из переменной окружения

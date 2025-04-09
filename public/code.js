@@ -144,9 +144,9 @@ const ITEM_CONFIG = {
     description: "Энергетик: +20 энергии, +5 воды",
   },
   nut: {
-    effect: { food: 27 },
+    effect: { food: 7 },
     image: nutImage,
-    description: "Орех: +27 еды",
+    description: "Орех: +7 еды",
   },
   water_bottle: {
     effect: { water: 30 },
@@ -161,7 +161,7 @@ const ITEM_CONFIG = {
   mushroom: {
     effect: { food: 5, energy: 15 },
     image: mushroomImage,
-    description: "Гриб: +5 еды, +15 энергии",
+    description: "Гриб прущий: +5 еды, +15 энергии",
   },
   sausage: {
     effect: { food: 16, energy: 3 },
