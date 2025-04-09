@@ -21,7 +21,7 @@ const GAME_CONFIG = {
 };
 
 const ITEM_CONFIG = {
-  energy_drink: { effect: { energy: 20 }, baseCount: 1 },
+  energy_drink: { effect: { energy: 20, water: 5 }, baseCount: 1 },
   nut: { effect: { food: 27 }, baseCount: 2 },
   water_bottle: { effect: { water: 30 }, baseCount: 3 },
 };
