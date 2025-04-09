@@ -24,6 +24,20 @@ const ITEM_CONFIG = {
   energy_drink: { effect: { energy: 20, water: 5 }, baseCount: 1 },
   nut: { effect: { food: 27 }, baseCount: 2 },
   water_bottle: { effect: { water: 30 }, baseCount: 3 },
+  canned_meat: { effect: { food: 20 }, baseCount: 2 }, // Банка тушёнки
+  mushroom: { effect: { food: 5, energy: 15 }, baseCount: 3 }, // Гриб
+  sausage: { effect: { food: 16, energy: 3 }, baseCount: 2 }, // Колбаса
+  blood_pack: { effect: { health: 40 }, baseCount: 1 }, // Пакет донорской крови
+  bread: { effect: { food: 13, water: -2 }, baseCount: 3 }, // Хлеб
+  vodka_bottle: {
+    effect: { health: 5, energy: -2, water: 1, food: 2 },
+    baseCount: 1,
+  }, // Бутылка водки
+  meat_chunk: { effect: { food: 20, energy: 5, water: -2 }, baseCount: 2 }, // Кусок мяса
+  blood_syringe: { effect: { health: 10 }, baseCount: 2 }, // Шприц с кровью
+  milk: { effect: { water: 15, food: 5 }, baseCount: 2 }, // Молоко
+  condensed_milk: { effect: { water: 5, food: 11, energy: 2 }, baseCount: 2 }, // Банка сгущёнки
+  dried_fish: { effect: { food: 10, water: -3 }, baseCount: 3 }, // Сушёная рыба
 };
 
 // Получаем строку подключения только из переменной окружения
@@ -510,12 +524,23 @@ wss.on("connection", (ws) => {
         const item = player.inventory[slotIndex];
         if (item) {
           const effect = ITEM_CONFIG[item.type].effect;
+          if (effect.health)
+            player.health = Math.min(
+              100,
+              Math.max(0, player.health + effect.health)
+            );
           if (effect.energy)
-            player.energy = Math.min(100, player.energy + effect.energy);
+            player.energy = Math.min(
+              100,
+              Math.max(0, player.energy + effect.energy)
+            );
           if (effect.food)
-            player.food = Math.min(100, player.food + effect.food);
+            player.food = Math.min(100, Math.max(0, player.food + effect.food));
           if (effect.water)
-            player.water = Math.min(100, player.water + effect.water);
+            player.water = Math.min(
+              100,
+              Math.max(0, player.water + effect.water)
+            );
 
           player.inventory[slotIndex] = null;
           players.set(id, { ...player });

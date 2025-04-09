@@ -33,12 +33,81 @@ const bullets = new Map();
 // Хранилище предметов, для которых уже отправлен запрос pickup
 const pendingPickups = new Set();
 
+// Загрузка изображений
+const backgroundImage = new Image();
+backgroundImage.src = "backgr.png";
+const vegetationImage = new Image();
+vegetationImage.src = "vegetation.png";
+const rocksImage = new Image();
+rocksImage.src = "rocks.png";
+const cloudsImage = new Image();
+cloudsImage.src = "clouds.png";
+const playerSprite = new Image();
+playerSprite.src = "playerSprite.png";
+const wolfSprite = new Image();
+wolfSprite.src = "wolfSprite.png";
 const energyDrinkImage = new Image();
 energyDrinkImage.src = "energy_drink.png";
 const nutImage = new Image();
 nutImage.src = "nut.png";
 const waterBottleImage = new Image();
 waterBottleImage.src = "water_bottle.png";
+
+// Проверка загрузки новых изображений
+cannedMeatImage.onload = () => {
+  console.log("Банка тушёнки загружена");
+  onImageLoad();
+};
+cannedMeatImage.onerror = () =>
+  console.error("Ошибка загрузки canned_meat.png");
+mushroomImage.onload = () => {
+  console.log("Гриб загружен");
+  onImageLoad();
+};
+mushroomImage.onerror = () => console.error("Ошибка загрузки mushroom.png");
+sausageImage.onload = () => {
+  console.log("Колбаса загружена");
+  onImageLoad();
+};
+sausageImage.onerror = () => console.error("Ошибка загрузки sausage.png");
+bloodPackImage.onload = () => {
+  console.log("Пакет крови загружен");
+  onImageLoad();
+};
+bloodPackImage.onerror = () => console.error("Ошибка загрузки blood_pack.png");
+breadImage.onload = () => {
+  console.log("Хлеб загружен");
+  onImageLoad();
+};
+breadImage.onerror = () => console.error("Ошибка загрузки bread.png");
+vodkaBottleImage.onload = () => {
+  console.log("Водка загружена");
+  onImageLoad();
+};
+vodkaBottleImage.onerror = () =>
+  console.error("Ошибка загрузки vodka_bottle.png");
+meatChunkImage.onload = () => {
+  console.log("Кусок мяса загружен");
+  onImageLoad();
+};
+meatChunkImage.onerror = () => console.error("Ошибка загрузки meat_chunk.png");
+bloodSyringeImage.onload = () => {
+  console.log("Шприц с кровью загружен");
+  onImageLoad();
+};
+bloodSyringeImage.onerror = () =>
+  console.error("Ошибка загрузки blood_syringe.png");
+milkImage.onload = () => {
+  console.log("Молоко загружено");
+  onImageLoad();
+};
+milkImage.onerror = () => console.error("Ошибка загрузки milk.png");
+condensedMilkImage.onload = () => {
+  console.log("Сгущёнка загружена");
+  onImageLoad();
+};
+condensedMilkImage.onerror = () =>
+  console.error("Ошибка загрузки condensed_milk.png");
 
 // Инвентарь игрока (массив на 20 слотов, изначально пустой)
 let inventory = Array(20).fill(null);
@@ -51,14 +120,69 @@ const ITEM_CONFIG = {
     description: "Энергетик: +20 энергии, +5 воды",
   },
   nut: {
-    effect: { food: 25 },
+    effect: { food: 27 },
     image: nutImage,
-    description: "Орех: +25 еды",
+    description: "Орех: +27 еды",
   },
   water_bottle: {
     effect: { water: 30 },
     image: waterBottleImage,
     description: "Вода: +30 воды",
+  },
+  canned_meat: {
+    effect: { food: 20 },
+    image: cannedMeatImage,
+    description: "Банка тушёнки: +20 еды",
+  },
+  mushroom: {
+    effect: { food: 5, energy: 15 },
+    image: mushroomImage,
+    description: "Гриб: +5 еды, +15 энергии",
+  },
+  sausage: {
+    effect: { food: 16, energy: 3 },
+    image: sausageImage,
+    description: "Колбаса: +16 еды, +3 энергии",
+  },
+  blood_pack: {
+    effect: { health: 40 },
+    image: bloodPackImage,
+    description: "Пакет крови: +40 здоровья",
+  },
+  bread: {
+    effect: { food: 13, water: -2 },
+    image: breadImage,
+    description: "Хлеб: +13 еды, -2 воды",
+  },
+  vodka_bottle: {
+    effect: { health: 5, energy: -2, water: 1, food: 2 },
+    image: vodkaBottleImage,
+    description: "Водка: +5 здоровья, -2 энергии, +1 воды, +2 еды",
+  },
+  meat_chunk: {
+    effect: { food: 20, energy: 5, water: -2 },
+    image: meatChunkImage,
+    description: "Кусок мяса: +20 еды, +5 энергии, -2 воды",
+  },
+  blood_syringe: {
+    effect: { health: 10 },
+    image: bloodSyringeImage,
+    description: "Шприц с кровью: +10 здоровья",
+  },
+  milk: {
+    effect: { water: 15, food: 5 },
+    image: milkImage,
+    description: "Молоко: +15 воды, +5 еды",
+  },
+  condensed_milk: {
+    effect: { water: 5, food: 11, energy: 2 },
+    image: condensedMilkImage,
+    description: "Сгущёнка: +5 воды, +11 еды, +2 энергии",
+  },
+  dried_fish: {
+    effect: { food: 10, water: -3 },
+    image: driedFishImage,
+    description: "Сушёная рыба: +10 еды, -3 воды",
   },
 };
 
@@ -102,48 +226,6 @@ const movement = {
 // Добавляем переменные для управления анимацией
 let lastTime = 0; // Время последнего кадра для расчета deltaTime
 const frameDuration = 200; // Длительность одного кадра в миллисекундах (настраиваемая скорость анимации)
-
-// Загрузка изображений
-const backgroundImage = new Image();
-backgroundImage.src = "backgr.png";
-const vegetationImage = new Image();
-vegetationImage.src = "vegetation.png";
-const rocksImage = new Image();
-rocksImage.src = "rocks.png";
-const cloudsImage = new Image();
-cloudsImage.src = "clouds.png";
-const playerSprite = new Image();
-playerSprite.src = "playerSprite.png";
-const wolfSprite = new Image();
-wolfSprite.src = "wolfSprite.png";
-
-// Добавляем проверку загрузки
-energyDrinkImage.onload = () => {
-  console.log("Энергетик загружен");
-  onImageLoad();
-};
-energyDrinkImage.onerror = () => console.error("Ошибка загрузки энергетика");
-nutImage.onload = () => {
-  console.log("Орех загружен");
-  onImageLoad();
-};
-nutImage.onerror = () => console.error("Ошибка загрузки ореха");
-waterBottleImage.onload = () => {
-  console.log("Вода загружена");
-  onImageLoad();
-};
-waterBottleImage.onerror = () => console.error("Ошибка загрузки воды");
-
-energyDrinkImage.onerror = () =>
-  console.error(
-    "Ошибка загрузки energy_drink.png: файл не найден или путь неверный"
-  );
-nutImage.onerror = () =>
-  console.error("Ошибка загрузки nut.png: файл не найден или путь неверный");
-waterBottleImage.onerror = () =>
-  console.error(
-    "Ошибка загрузки water_bottle.png: файл не найден или путь неверный"
-  );
 
 // Размеры мира
 const worldWidth = 2800;
@@ -752,9 +834,13 @@ function useItem(slotIndex) {
   const me = players.get(myId);
   const effect = ITEM_CONFIG[item.type].effect;
 
-  if (effect.energy) me.energy = Math.min(100, me.energy + effect.energy);
-  if (effect.food) me.food = Math.min(100, me.food + effect.food);
-  if (effect.water) me.water = Math.min(100, me.water + effect.water);
+  if (effect.health)
+    me.health = Math.min(100, Math.max(0, me.health + effect.health));
+  if (effect.energy)
+    me.energy = Math.min(100, Math.max(0, me.energy + effect.energy));
+  if (effect.food) me.food = Math.min(100, Math.max(0, me.food + effect.food));
+  if (effect.water)
+    me.water = Math.min(100, Math.max(0, me.water + effect.water));
 
   inventory[slotIndex] = null;
 
@@ -1560,7 +1646,7 @@ function gameLoop(timestamp) {
 let imagesLoaded = 0;
 function onImageLoad() {
   imagesLoaded++;
-  if (imagesLoaded === 9) window.addEventListener("resize", resizeCanvas);
+  if (imagesLoaded === 20) window.addEventListener("resize", resizeCanvas);
 }
 backgroundImage.onload = onImageLoad;
 vegetationImage.onload = onImageLoad;
