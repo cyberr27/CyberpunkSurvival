@@ -203,7 +203,6 @@ function pointToLineDistance(px, py, x1, y1, x2, y2) {
 app.use(express.static(path.join(__dirname, "public")));
 
 function checkCollisionServer(x, y) {
-  console.log(`Игроков онлайн: ${playerCount}`);
   const left = x;
   const right = x + 40;
   const top = y;
