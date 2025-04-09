@@ -667,7 +667,7 @@ function startGame() {
 
   // Создаём контейнер для ячеек инвентаря
   const inventoryContainer = document.getElementById("inventoryContainer");
-  inventoryContainer.style.display = "none"; // Скрыто по умолчанию
+  inventoryContainer.style.display = "none";
 
   const inventoryGrid = document.createElement("div");
   inventoryGrid.id = "inventoryGrid";
@@ -679,10 +679,9 @@ function startGame() {
   for (let i = 0; i < 20; i++) {
     const slot = document.createElement("div");
     slot.className = "inventory-slot";
-    inventoryGrid.appendChild(slot); // Добавляем ячейки в #inventoryGrid
+    inventoryGrid.appendChild(slot);
   }
 
-  // Настраиваем кнопки
   const useBtn = document.getElementById("useBtn");
   const dropBtn = document.getElementById("dropBtn");
 
@@ -695,6 +694,7 @@ function startGame() {
     e.preventDefault();
     if (selectedSlot !== null) dropItem(selectedSlot);
   });
+
   requestAnimationFrame(gameLoop);
 }
 
@@ -707,12 +707,12 @@ function toggleInventory() {
   const inventoryBtn = document.getElementById("inventoryBtn");
   inventoryBtn.classList.toggle("active", isInventoryOpen);
 
-  // Скрываем экран и кнопки при закрытии
   if (!isInventoryOpen) {
     const screen = document.getElementById("inventoryScreen");
-    screen.innerHTML = "";
-    hideActionButtons();
+    screen.textContent = ""; // Очищаем текст, а не innerHTML
     selectedSlot = null;
+    document.getElementById("useBtn").disabled = true;
+    document.getElementById("dropBtn").disabled = true;
   }
 }
 

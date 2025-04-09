@@ -318,16 +318,16 @@ button:active {
   position: absolute;
   bottom: 15%;
   right: 1%;
-  width: 280px; /* Увеличиваем ширину: 4 * 50px + 3 * 10px + 40px (padding) */
-  height: 400px; /* Увеличиваем высоту: экран (70px) + ячейки (5 * 50px + 4 * 10px) + кнопки (50px) + отступы */
+  width: 280px;
+  height: 400px;
   background: rgba(26, 26, 26, 0.9);
   border: 2px solid #00ffff;
   border-radius: 10px;
   box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
-  display: none;
+  display: none; /* Скрыт по умолчанию */
   grid-template-rows: auto 1fr auto; /* Экран, ячейки, кнопки */
-  gap: 10px; /* Одинаковый отступ между секциями */
-  padding: 20px; /* Увеличиваем внутренние отступы для симметрии */
+  gap: 10px;
+  padding: 20px;
   box-sizing: border-box;
   z-index: 100;
 }
@@ -426,7 +426,10 @@ button:active {
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  padding: 0; /* Отступы уже есть от контейнера */
+  padding: 0;
+}
+#inventoryContainer {
+  height: 450px; /* Было 400px, увеличиваем, чтобы всё влезло */
 }
 
 /* Стили для кнопок внутри экрана */
@@ -452,6 +455,18 @@ button:active {
 #inventoryScreen .action-btn:hover {
   box-shadow: 0 0 10px rgba(0, 255, 255, 0.9);
   transform: scale(1.05);
+}
+
+#inventoryGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr); /* 4 столбца */
+  grid-template-rows: repeat(5, 1fr); /* 5 строк */
+  gap: 10px; /* Отступы между ячейками */
+  width: 100%; /* Растягиваем на всю ширину контейнера */
+  height: 100%; /* Устанавливаем высоту, чтобы ячейки не вылезали */
+  justify-items: center;
+  align-items: center;
+  grid-row: 2; /* Второй ряд в контейнере */
 }
 
 /* Подсказка */
@@ -587,12 +602,6 @@ button:active {
   }
   #inventoryGrid {
     gap: 5px;
-  }
-  .action-btn {
-    width: 100px;
-    height: 35px;
-    font-size: 12px;
-    padding: 6px 12px;
   }
   .inventory-slot {
     width: 45px; /* Чуть меньше для мобильных */
