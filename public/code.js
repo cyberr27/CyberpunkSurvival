@@ -445,7 +445,6 @@ function startGame() {
       const me = players.get(myId);
       if (!me || me.health <= 0) return;
 
-      // Проверяем, кликнули ли по инвентарю
       const inventoryContainer = document.getElementById("inventoryContainer");
       const rect = inventoryContainer.getBoundingClientRect();
       if (
@@ -455,7 +454,27 @@ function startGame() {
         e.clientY >= rect.top &&
         e.clientY <= rect.bottom
       ) {
-        return; // Игнорируем клик, если он внутри инвентаря
+        const slots = inventoryContainer.children;
+        for (let i = 0; i < slots.length; i++) {
+          const slotRect = slots[i].getBoundingClientRect();
+          if (
+            e.clientX >= slotRect.left &&
+            e.clientX <= slotRect.right &&
+            e.clientY >= slotRect.top &&
+            e.clientY <= slotRect.bottom &&
+            inventory[i]
+          ) {
+            console.log(
+              `Клик по слоту ${i} (x:${e.clientX}, y:${e.clientY}), предмет: ${inventory[i].type}`
+            );
+            selectSlot(i, slots[i]);
+            return;
+          }
+        }
+        console.log(
+          `Клик вне слотов инвентаря (x:${e.clientX}, y:${e.clientY})`
+        );
+        return; // Прерываем, если клик в инвентаре, но не по слоту
       }
 
       isMoving = true;
@@ -527,13 +546,18 @@ function startGame() {
           touch.clientX <= slotRect.right &&
           touch.clientY >= slotRect.top &&
           touch.clientY <= slotRect.bottom &&
-          inventory[i] // Проверяем, что слот не пустой
+          inventory[i]
         ) {
-          console.log(`Тач по слоту ${i}, предмет: ${inventory[i].type}`); // Отладка
+          console.log(
+            `Тач по слоту ${i} (x:${touch.clientX}, y:${touch.clientY}), предмет: ${inventory[i].type}`
+          );
           selectSlot(i, slots[i]);
           return;
         }
       }
+      console.log(
+        `Тач вне слотов инвентаря (x:${touch.clientX}, y:${touch.clientY})`
+      );
     } else {
       isMoving = true;
       targetX = touch.clientX + camera.x;
@@ -888,11 +912,11 @@ function updateInventoryDisplay() {
     if (inventory[i]) {
       const img = document.createElement("img");
       img.src = ITEM_CONFIG[inventory[i].type].image.src;
-      img.style.width = "40px";
-      img.style.height = "40px";
+      img.style.width = "50px"; // Увеличиваем до 50px
+      img.style.height = "50px"; // Увеличиваем до 50px
       slot.appendChild(img);
 
-      // Убираем старые обработчики, чтобы избежать наложения
+      // Убираем старые обработчики
       slot.onmouseover = null;
       slot.onmouseout = null;
       slot.onclick = null;
@@ -901,13 +925,13 @@ function updateInventoryDisplay() {
       slot.onmouseover = () => showTooltip(i, slot);
       slot.onmouseout = () => hideTooltip();
       slot.onclick = (e) => {
-        e.preventDefault(); // Предотвращаем стандартное поведение
-        e.stopPropagation(); // Останавливаем всплытие
+        e.preventDefault();
+        e.stopPropagation();
         console.log(`Клик по слоту ${i}, предмет: ${inventory[i].type}`); // Отладка
         selectSlot(i, slot);
       };
 
-      // Делаем изображение некликабельным, чтобы клик шёл только по слоту
+      // Отключаем события на изображении
       img.style.pointerEvents = "none";
     } else {
       slot.onmouseover = null;

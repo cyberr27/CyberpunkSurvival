@@ -121,8 +121,10 @@ body {
 
 #gameCanvas {
   width: 100%;
-  height: 100%; /* Растягиваем на весь экран */
+  height: 100%;
   display: block;
+  position: absolute; /* Добавляем для явного слоя */
+  z-index: 10; /* Канвас ниже инвентаря */
 }
 
 /* Стили для статистики */
@@ -315,27 +317,27 @@ button:active {
   position: absolute;
   bottom: 15%;
   right: 1%;
-  width: 220px; /* Чуть шире для симметрии */
-  height: 270px; /* Чуть выше для равных отступов */
+  width: 260px; /* 4 * 50px + 3 * 10px (gap) + 20px (padding) */
+  height: 320px; /* 5 * 50px + 4 * 10px (gap) + 30px (padding) */
   background: rgba(26, 26, 26, 0.9);
   border: 2px solid #00ffff;
   border-radius: 10px;
   box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
   display: none;
-  grid-template-columns: repeat(4, 1fr); /* Равные колонки */
-  grid-template-rows: repeat(5, 1fr); /* Равные строки */
-  gap: 10px; /* Единый отступ между ячейками */
-  padding: 15px; /* Отступ от границ контейнера */
-  box-sizing: border-box; /* Учитываем padding в размерах */
-  justify-items: center; /* Центрируем ячейки по горизонтали */
-  align-items: center; /* Центрируем ячейки по вертикали */
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(5, 1fr);
+  gap: 10px;
+  padding: 15px;
+  box-sizing: border-box;
+  justify-items: center;
+  align-items: center;
   z-index: 100;
 }
 
 /* Ячейка инвентаря */
 .inventory-slot {
-  width: 40px;
-  height: 40px;
+  width: 50px; /* Увеличиваем до 50px */
+  height: 50px; /* Увеличиваем до 50px */
   background: rgba(0, 0, 0, 0.8);
   border: 1px solid #00ffff;
   box-shadow: 0 0 5px rgba(0, 255, 255, 0.3);
@@ -346,8 +348,8 @@ button:active {
   user-select: none;
   -webkit-user-select: none;
   -ms-user-select: none;
-  position: relative; /* Для правильного z-index */
-  z-index: 110; /* Выше канваса, но ниже кнопок */
+  position: relative;
+  z-index: 110;
 }
 
 .inventory-slot:hover {
@@ -480,16 +482,16 @@ button:active {
     height: 50px;
   }
   #inventoryContainer {
-    width: 180px;
-    height: 220px;
-    grid-template-columns: repeat(4, 35px);
+    width: 220px; /* 4 * 45px + 3 * 5px (gap) + 20px (padding) */
+    height: 270px; /* 5 * 45px + 4 * 5px (gap) + 25px (padding) */
+    grid-template-columns: repeat(4, 45px);
     grid-gap: 5px;
     bottom: 10%;
   }
 
   .inventory-slot {
-    width: 35px;
-    height: 35px;
+    width: 45px; /* Чуть меньше для мобильных */
+    height: 45px;
   }
 
   #inventoryBtn {
