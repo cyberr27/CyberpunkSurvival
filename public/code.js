@@ -953,7 +953,9 @@ function handleGameMessage(event) {
         });
         break;
       case "syncItems":
+        // Очищаем старые предметы
         items.clear();
+        // Заполняем актуальными предметами из сервера
         data.items.forEach((item) =>
           items.set(item.itemId, {
             x: item.x,
@@ -962,6 +964,15 @@ function handleGameMessage(event) {
             spawnTime: item.spawnTime,
           })
         );
+        // Очищаем pendingPickups для предметов, которые всё ещё существуют
+        data.items.forEach((item) => {
+          if (pendingPickups.has(item.itemId)) {
+            console.log(
+              `Предмет ${item.itemId} всё ещё в мире, убираем из pendingPickups`
+            );
+            pendingPickups.delete(item.itemId);
+          }
+        });
         break;
       case "itemPicked":
         items.delete(data.itemId); // Удаляем предмет из локального items
@@ -992,10 +1003,11 @@ function handleGameMessage(event) {
         );
         break;
       case "inventoryFull":
-        // Инвентарь полон, уведомляем игрока
+        // Инвентарь полон, уведомляем игрока и убираем предмет из pendingPickups
         console.log(`Инвентарь полон, предмет ${data.itemId} не поднят`);
+        pendingPickups.delete(data.itemId); // Очищаем из pendingPickups
         // Можно добавить визуальное уведомление, например:
-        //alert("Инвентарь полон!");
+        // alert("Инвентарь полон!");
         break;
       case "update":
         const existingPlayer = players.get(data.player.id);
@@ -1503,9 +1515,13 @@ function checkCollisions() {
 
   items.forEach((item, id) => {
     // Проверяем, существует ли предмет и не отправляли ли мы уже запрос
-    if (!items.has(id) || pendingPickups.has(id)) {
+    if (!items.has(id)) {
+      console.log(`Предмет ${id} уже удалён из items, пропускаем`);
+      return;
+    }
+    if (pendingPickups.has(id)) {
       console.log(
-        `Предмет ${id} уже удалён или в процессе поднятия, пропускаем`
+        `Предмет ${id} в процессе поднятия (pendingPickups), пропускаем`
       );
       return;
     }
