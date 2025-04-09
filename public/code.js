@@ -665,15 +665,36 @@ function startGame() {
     toggleInventory();
   });
 
-  // Создаём 20 ячеек инвентаря
+  // Создаём контейнер для ячеек инвентаря
   const inventoryContainer = document.getElementById("inventoryContainer");
   inventoryContainer.style.display = "none"; // Скрыто по умолчанию
+
+  const inventoryGrid = document.createElement("div");
+  inventoryGrid.id = "inventoryGrid";
+  inventoryContainer.insertBefore(
+    inventoryGrid,
+    document.getElementById("inventoryActions")
+  );
+
   for (let i = 0; i < 20; i++) {
-    // Теперь просто 20, так как экран уже добавлен в HTML
     const slot = document.createElement("div");
     slot.className = "inventory-slot";
-    inventoryContainer.appendChild(slot);
+    inventoryGrid.appendChild(slot); // Добавляем ячейки в #inventoryGrid
   }
+
+  // Настраиваем кнопки
+  const useBtn = document.getElementById("useBtn");
+  const dropBtn = document.getElementById("dropBtn");
+
+  useBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    if (selectedSlot !== null) useItem(selectedSlot);
+  });
+
+  dropBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    if (selectedSlot !== null) dropItem(selectedSlot);
+  });
   requestAnimationFrame(gameLoop);
 }
 
@@ -702,43 +723,21 @@ function selectSlot(slotIndex, slotElement) {
     `Выбран слот ${slotIndex}, предмет: ${inventory[slotIndex].type}`
   );
   const screen = document.getElementById("inventoryScreen");
+  const useBtn = document.getElementById("useBtn");
+  const dropBtn = document.getElementById("dropBtn");
 
   if (selectedSlot === slotIndex) {
-    hideActionButtons();
-    screen.innerHTML = ITEM_CONFIG[inventory[slotIndex].type].description;
     selectedSlot = null;
+    screen.textContent = "";
+    useBtn.disabled = true;
+    dropBtn.disabled = true;
     return;
   }
 
   selectedSlot = slotIndex;
-  hideActionButtons();
-
-  screen.innerHTML = ITEM_CONFIG[inventory[slotIndex].type].description;
-
-  const useBtn = document.createElement("button");
-  useBtn.className = "action-btn use-btn";
-  useBtn.textContent = "Использовать";
-  useBtn.onclick = (e) => {
-    e.stopPropagation();
-    useItem(slotIndex);
-  };
-
-  const dropBtn = document.createElement("button");
-  dropBtn.className = "action-btn drop-btn";
-  dropBtn.textContent = "Выкинуть";
-  dropBtn.onclick = (e) => {
-    e.stopPropagation();
-    dropItem(slotIndex);
-  };
-
-  // Позиционируем кнопки внутри экрана
-  useBtn.style.left = "10px";
-  useBtn.style.top = "10px";
-  dropBtn.style.right = "10px";
-  dropBtn.style.top = "10px";
-
-  screen.appendChild(useBtn);
-  screen.appendChild(dropBtn);
+  screen.textContent = ITEM_CONFIG[inventory[slotIndex].type].description;
+  useBtn.disabled = false;
+  dropBtn.disabled = false;
 }
 
 // Скрыть кнопки действий
@@ -753,15 +752,12 @@ function useItem(slotIndex) {
   const me = players.get(myId);
   const effect = ITEM_CONFIG[item.type].effect;
 
-  // Применяем эффекты локально
   if (effect.energy) me.energy = Math.min(100, me.energy + effect.energy);
   if (effect.food) me.food = Math.min(100, me.food + effect.food);
   if (effect.water) me.water = Math.min(100, me.water + effect.water);
 
-  // Удаляем предмет из инвентаря
   inventory[slotIndex] = null;
 
-  // Отправляем на сервер
   sendWhenReady(
     ws,
     JSON.stringify({
@@ -774,8 +770,10 @@ function useItem(slotIndex) {
     })
   );
 
-  hideActionButtons();
   selectedSlot = null;
+  document.getElementById("useBtn").disabled = true;
+  document.getElementById("dropBtn").disabled = true;
+  document.getElementById("inventoryScreen").textContent = "";
   updateStatsDisplay();
   updateInventoryDisplay();
 }
@@ -799,9 +797,13 @@ function dropItem(slotIndex) {
     })
   );
   console.log(`Запрос на выброс отправлен`);
+
   inventory[slotIndex] = null;
-  hideActionButtons();
   selectedSlot = null;
+  document.getElementById("useBtn").disabled = true;
+  document.getElementById("dropBtn").disabled = true;
+  document.getElementById("inventoryScreen").textContent = "";
+  updateInventoryDisplay();
 }
 
 // Логика расхода ресурсов
@@ -866,42 +868,43 @@ function updateStatsDisplay() {
 
 function updateInventoryDisplay() {
   if (!isInventoryOpen) return;
-  const inventoryContainer = document.getElementById("inventoryContainer");
-  const slots = inventoryContainer.children;
+  const inventoryGrid = document.getElementById("inventoryGrid");
+  const slots = inventoryGrid.children;
   const screen = document.getElementById("inventoryScreen");
-  screen.innerHTML = ""; // Очищаем экран по умолчанию
 
-  for (let i = 1; i < slots.length; i++) {
-    // Начинаем с 1, так как 0 — это экран
+  if (selectedSlot === null) screen.textContent = "";
+  else if (inventory[selectedSlot])
+    screen.textContent = ITEM_CONFIG[inventory[selectedSlot].type].description;
+
+  for (let i = 0; i < slots.length; i++) {
     const slot = slots[i];
-    slot.innerHTML = ""; // Очищаем слот
-    if (inventory[i - 1]) {
-      // Сдвигаем индекс из-за экрана
+    slot.innerHTML = "";
+    if (inventory[i]) {
       const img = document.createElement("img");
-      img.src = ITEM_CONFIG[inventory[i - 1].type].image.src;
-      img.style.width = "100%"; // Растягиваем на весь слот
+      img.src = ITEM_CONFIG[inventory[i].type].image.src;
+      img.style.width = "100%";
       img.style.height = "100%";
       slot.appendChild(img);
 
-      // Обработчики для экрана вместо tooltip
       slot.onmouseover = () => {
-        if (inventory[i - 1]) {
-          screen.textContent = ITEM_CONFIG[inventory[i - 1].type].description;
+        if (inventory[i]) {
+          screen.textContent = ITEM_CONFIG[inventory[i].type].description;
         }
       };
       slot.onmouseout = () => {
         if (selectedSlot === null) screen.textContent = "";
+        else if (inventory[selectedSlot])
+          screen.textContent =
+            ITEM_CONFIG[inventory[selectedSlot].type].description;
       };
       slot.onclick = (e) => {
         e.preventDefault();
         e.stopPropagation();
-        console.log(
-          `Клик по слоту ${i - 1}, предмет: ${inventory[i - 1].type}`
-        );
-        selectSlot(i - 1, slot);
+        console.log(`Клик по слоту ${i}, предмет: ${inventory[i].type}`);
+        selectSlot(i, slot);
       };
 
-      img.style.pointerEvents = "none"; // Изображение не мешает событиям
+      img.style.pointerEvents = "none";
     } else {
       slot.onmouseover = null;
       slot.onmouseout = null;
