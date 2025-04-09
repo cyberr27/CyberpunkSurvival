@@ -638,6 +638,29 @@ wss.on("connection", (ws) => {
         console.log(
           `Данные игрока ${id} сохранены перед отключением. Код: ${code}, Причина: ${reason}`
         );
+
+        // Удаляем предметы, связанные с этим игроком, если они не были подняты
+        const itemsToRemove = [];
+        items.forEach((item, itemId) => {
+          if (item.spawnedBy === id) {
+            itemsToRemove.push(itemId);
+          }
+        });
+
+        itemsToRemove.forEach((itemId) => {
+          items.delete(itemId);
+          console.log(`Предмет ${itemId} удалён из-за отключения игрока ${id}`);
+          wss.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+              client.send(
+                JSON.stringify({
+                  type: "itemPicked",
+                  itemId: itemId,
+                })
+              );
+            }
+          });
+        });
       }
       clients.delete(ws);
       players.delete(id);
@@ -759,7 +782,7 @@ setInterval(() => {
   const currentTime = Date.now();
   const playerCount = players.size;
 
-  // Удаление предметов по таймауту и спавн новых остаются
+  // Удаление предметов по таймауту остаётся без изменений
   items.forEach((item, itemId) => {
     if (currentTime - item.spawnTime > 10 * 60 * 1000) {
       items.delete(itemId);
@@ -775,11 +798,18 @@ setInterval(() => {
   const worldWidth = 2800;
   const worldHeight = 3300;
 
-  for (const [type, config] of Object.entries(ITEM_CONFIG)) {
-    const desiredCount = config.baseCount * Math.max(1, playerCount);
-    const existingCount = Array.from(items.values()).filter(
+  // Считаем существующие предметы по типам
+  const itemCounts = {};
+  for (const [type] of Object.entries(ITEM_CONFIG)) {
+    itemCounts[type] = Array.from(items.values()).filter(
       (item) => item.type === type
     ).length;
+  }
+
+  // Спавним новые предметы с привязкой к игроку
+  for (const [type, config] of Object.entries(ITEM_CONFIG)) {
+    const desiredCount = config.baseCount * Math.max(1, playerCount);
+    const existingCount = itemCounts[type];
     const toSpawn = Math.max(0, desiredCount - existingCount);
 
     for (let i = 0; i < toSpawn; i++) {
@@ -789,10 +819,14 @@ setInterval(() => {
         y: Math.random() * worldHeight,
         type: type,
         spawnTime: currentTime,
+        spawnedBy:
+          playerCount > 1 ? Array.from(players.keys())[playerCount - 1] : null, // Привязываем к последнему игроку
       };
       items.set(itemId, newItem);
       console.log(
-        `Создан предмет ${type} (${itemId}) на x:${newItem.x}, y:${newItem.y}`
+        `Создан предмет ${type} (${itemId}) на x:${newItem.x}, y:${
+          newItem.y
+        }, spawnedBy: ${newItem.spawnedBy || "базовый"}`
       );
 
       wss.clients.forEach((client) => {
