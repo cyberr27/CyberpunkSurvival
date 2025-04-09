@@ -872,15 +872,18 @@ function updateInventoryDisplay() {
   screen.innerHTML = ""; // Очищаем экран по умолчанию
 
   for (let i = 1; i < slots.length; i++) {
+    // Начинаем с 1, так как 0 — это экран
     const slot = slots[i];
-    slot.innerHTML = "";
+    slot.innerHTML = ""; // Очищаем слот
     if (inventory[i - 1]) {
+      // Сдвигаем индекс из-за экрана
       const img = document.createElement("img");
       img.src = ITEM_CONFIG[inventory[i - 1].type].image.src;
       img.style.width = "100%"; // Растягиваем на весь слот
       img.style.height = "100%";
       slot.appendChild(img);
 
+      // Обработчики для экрана вместо tooltip
       slot.onmouseover = () => {
         if (inventory[i - 1]) {
           screen.textContent = ITEM_CONFIG[inventory[i - 1].type].description;
@@ -898,7 +901,7 @@ function updateInventoryDisplay() {
         selectSlot(i - 1, slot);
       };
 
-      img.style.pointerEvents = "none";
+      img.style.pointerEvents = "none"; // Изображение не мешает событиям
     } else {
       slot.onmouseover = null;
       slot.onmouseout = null;
