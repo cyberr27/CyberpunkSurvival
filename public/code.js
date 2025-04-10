@@ -963,34 +963,17 @@ function selectSlot(slotIndex, slotElement) {
 
   if (selectedSlot === slotIndex) {
     selectedSlot = null;
-    screen.innerHTML = ""; // Очищаем HTML
+    screen.innerHTML = "";
     useBtn.disabled = true;
     dropBtn.disabled = true;
     return;
   }
 
   selectedSlot = slotIndex;
-  if (inventory[slotIndex].type === "balyary") {
-    // Показываем форму для "Баляр"
-    screen.innerHTML = `
-      <div class="balyary-drop-form">
-        <p class="cyber-text">Сколько выкинуть?</p>
-        <input type="number" id="balyaryAmount" class="cyber-input" min="1" placeholder="0" />
-        <p id="balyaryError" class="error-text"></p>
-      </div>
-    `;
-    const input = document.getElementById("balyaryAmount");
-    input.focus();
-    input.addEventListener("input", () => {
-      input.value = input.value.replace(/[^0-9]/g, ""); // Только числа
-    });
-    dropBtn.disabled = false;
-    useBtn.disabled = true; // "Баляры" нельзя использовать
-  } else {
-    screen.textContent = ITEM_CONFIG[inventory[slotIndex].type].description;
-    useBtn.disabled = false;
-    dropBtn.disabled = false;
-  }
+  // Показываем описание предмета
+  screen.textContent = ITEM_CONFIG[inventory[slotIndex].type].description;
+  useBtn.disabled = inventory[slotIndex].type === "balyary"; // Отключаем "Использовать" для Баляр
+  dropBtn.disabled = false;
 }
 
 // Скрыть кнопки действий
@@ -1001,7 +984,7 @@ function hideActionButtons() {
 // Использовать предмет
 function useItem(slotIndex) {
   const item = inventory[slotIndex];
-  if (!item) return;
+  if (!item || item.type === "balyary") return; // Ничего не делаем для Баляр
   const me = players.get(myId);
   const effect = ITEM_CONFIG[item.type].effect;
 
@@ -1043,38 +1026,78 @@ function dropItem(slotIndex) {
   const screen = document.getElementById("inventoryScreen");
 
   if (item.type === "balyary") {
+    // Показываем форму ввода количества
+    screen.innerHTML = `
+      <div class="balyary-drop-form">
+        <p class="cyber-text">Сколько выкинуть?</p>
+        <input type="number" id="balyaryAmount" class="cyber-input" min="1" max="${
+          item.quantity || 1
+        }" placeholder="0" value="" />
+        <button id="confirmDropBtn" class="action-btn drop-btn">OK</button>
+        <p id="balyaryError" class="error-text"></p>
+      </div>
+    `;
     const input = document.getElementById("balyaryAmount");
+    const confirmBtn = document.getElementById("confirmDropBtn");
     const errorEl = document.getElementById("balyaryError");
-    const amount = parseInt(input.value) || 0;
-    const currentQuantity = item.quantity || 1;
 
-    if (amount <= 0) {
-      errorEl.textContent = "Введи нормальное число, братишка!";
-      return;
-    }
+    // Фокусируемся на поле ввода
+    input.focus();
 
-    if (amount > currentQuantity) {
-      errorEl.textContent = "Не хватает Баляр!";
-      return;
-    }
+    // Разрешаем ввод только чисел
+    input.addEventListener("input", () => {
+      input.value = input.value.replace(/[^0-9]/g, "");
+      if (input.value === "") input.value = "";
+    });
 
-    // Отправляем запрос на сервер с количеством
-    sendWhenReady(
-      ws,
-      JSON.stringify({
-        type: "dropItem",
-        slotIndex,
-        x: me.x,
-        y: me.y,
-        quantity: amount, // Добавляем количество
-      })
-    );
+    // Обработка ввода с клавиатуры (Enter)
+    input.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") {
+        confirmDrop();
+      }
+    });
 
-    // Локально обновляем инвентарь
-    if (amount === currentQuantity) {
-      inventory[slotIndex] = null;
-    } else {
-      inventory[slotIndex].quantity -= amount;
+    // Обработка нажатия кнопки "OK"
+    confirmBtn.addEventListener("click", confirmDrop);
+
+    function confirmDrop() {
+      const amount = parseInt(input.value) || 0;
+      const currentQuantity = item.quantity || 1;
+
+      if (amount <= 0) {
+        errorEl.textContent = "Введи нормальное число, братишка!";
+        return;
+      }
+
+      if (amount > currentQuantity) {
+        errorEl.textContent = "Не хватает Баляр!";
+        return;
+      }
+
+      // Отправляем запрос на сервер
+      sendWhenReady(
+        ws,
+        JSON.stringify({
+          type: "dropItem",
+          slotIndex,
+          x: me.x,
+          y: me.y,
+          quantity: amount,
+        })
+      );
+
+      // Локально обновляем инвентарь
+      if (amount === currentQuantity) {
+        inventory[slotIndex] = null;
+      } else {
+        inventory[slotIndex].quantity -= amount;
+      }
+
+      selectedSlot = null;
+      screen.innerHTML = "";
+      document.getElementById("useBtn").disabled = true;
+      document.getElementById("dropBtn").disabled = true;
+      updateInventoryDisplay();
     }
   } else {
     // Обычная логика для других предметов
@@ -1088,13 +1111,12 @@ function dropItem(slotIndex) {
       })
     );
     inventory[slotIndex] = null;
+    selectedSlot = null;
+    screen.innerHTML = "";
+    document.getElementById("useBtn").disabled = true;
+    document.getElementById("dropBtn").disabled = true;
+    updateInventoryDisplay();
   }
-
-  selectedSlot = null;
-  screen.innerHTML = "";
-  document.getElementById("useBtn").disabled = true;
-  document.getElementById("dropBtn").disabled = true;
-  updateInventoryDisplay();
 }
 
 // Логика расхода ресурсов
@@ -1166,23 +1188,7 @@ function updateInventoryDisplay() {
   if (selectedSlot === null) {
     screen.innerHTML = "";
   } else if (inventory[selectedSlot]) {
-    if (inventory[selectedSlot].type === "balyary") {
-      screen.innerHTML = `
-        <div class="balyary-drop-form">
-          <p class="cyber-text">Сколько выкинуть?</p>
-          <input type="number" id="balyaryAmount" class="cyber-input" min="1" placeholder="0" />
-          <p id="balyaryError" class="error-text"></p>
-        </div>
-      `;
-      const input = document.getElementById("balyaryAmount");
-      input.focus();
-      input.addEventListener("input", () => {
-        input.value = input.value.replace(/[^0-9]/g, "");
-      });
-    } else {
-      screen.textContent =
-        ITEM_CONFIG[inventory[selectedSlot].type].description;
-    }
+    screen.textContent = ITEM_CONFIG[inventory[selectedSlot].type].description;
   }
 
   for (let i = 0; i < slots.length; i++) {
@@ -1214,10 +1220,7 @@ function updateInventoryDisplay() {
       };
       slot.onmouseout = () => {
         if (selectedSlot === null) screen.innerHTML = "";
-        else if (
-          inventory[selectedSlot] &&
-          inventory[selectedSlot].type !== "balyary"
-        ) {
+        else if (inventory[selectedSlot]) {
           screen.textContent =
             ITEM_CONFIG[inventory[selectedSlot].type].description;
         }

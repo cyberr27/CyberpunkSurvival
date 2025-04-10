@@ -564,6 +564,8 @@ button:active {
   text-align: center;
   box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
   transition: all 0.3s;
+  -webkit-appearance: none; /* Убираем стандартные стили на iOS */
+  appearance: none;
 }
 
 .cyber-input:focus {
@@ -654,8 +656,9 @@ button:active {
     height: 400px;
     padding: 15px;
   }
+
   #inventoryScreen {
-    height: 60px;
+    height: 80px; /* Увеличиваем для формы */
     font-size: 12px;
   }
   #inventoryContainer .inventory-slot {
@@ -680,5 +683,36 @@ button:active {
     right: 130px;
     width: 50px;
     height: 50px;
+  }
+  .balyary-drop-form {
+    padding: 5px;
+  }
+
+  .cyber-text {
+    font-size: 14px;
+    margin-bottom: 5px;
+  }
+
+  .cyber-input {
+    width: 80px;
+    font-size: 12px;
+    padding: 8px;
+    touch-action: manipulation; /* Улучшаем взаимодействие на сенсорных экранах */
+  }
+
+  .action-btn {
+    width: 80px;
+    height: 30px;
+    font-size: 12px;
+    padding: 5px 10px;
+  }
+
+  #confirmDropBtn {
+    margin-top: 5px;
+  }
+
+  .error-text {
+    font-size: 10px;
+    margin-top: 3px;
   }
 }
