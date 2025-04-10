@@ -970,7 +970,6 @@ function selectSlot(slotIndex, slotElement) {
   }
 
   selectedSlot = slotIndex;
-  // Показываем описание предмета
   screen.textContent = ITEM_CONFIG[inventory[slotIndex].type].description;
   useBtn.disabled = inventory[slotIndex].type === "balyary"; // Отключаем "Использовать" для Баляр
   dropBtn.disabled = false;
@@ -1024,6 +1023,8 @@ function dropItem(slotIndex) {
   if (!item) return;
   const me = players.get(myId);
   const screen = document.getElementById("inventoryScreen");
+  const useBtn = document.getElementById("useBtn"); // Берем кнопку "Использовать"
+  const dropBtn = document.getElementById("dropBtn");
 
   if (item.type === "balyary") {
     // Показываем форму ввода количества
@@ -1033,13 +1034,18 @@ function dropItem(slotIndex) {
         <input type="number" id="balyaryAmount" class="cyber-input" min="1" max="${
           item.quantity || 1
         }" placeholder="0" value="" />
-        <button id="confirmDropBtn" class="action-btn drop-btn">OK</button>
         <p id="balyaryError" class="error-text"></p>
       </div>
     `;
     const input = document.getElementById("balyaryAmount");
-    const confirmBtn = document.getElementById("confirmDropBtn");
     const errorEl = document.getElementById("balyaryError");
+
+    // Меняем кнопку "Использовать" на "Подтвердить"
+    useBtn.textContent = "Подтвердить";
+    useBtn.classList.remove("use-btn"); // Убираем старый стиль
+    useBtn.classList.add("confirm-btn"); // Добавляем новый стиль для киберпанка
+    useBtn.disabled = false; // Активируем кнопку
+    dropBtn.disabled = true; // Отключаем "Выкинуть" на время ввода
 
     // Фокусируемся на поле ввода
     input.focus();
@@ -1057,8 +1063,8 @@ function dropItem(slotIndex) {
       }
     });
 
-    // Обработка нажатия кнопки "OK"
-    confirmBtn.addEventListener("click", confirmDrop);
+    // Обработка нажатия кнопки "Подтвердить"
+    useBtn.onclick = confirmDrop; // Переопределяем действие кнопки
 
     function confirmDrop() {
       const amount = parseInt(input.value) || 0;
@@ -1093,10 +1099,16 @@ function dropItem(slotIndex) {
         inventory[slotIndex].quantity -= amount;
       }
 
+      // Возвращаем кнопку "Использовать" в исходное состояние
+      useBtn.textContent = "Использовать";
+      useBtn.classList.remove("confirm-btn");
+      useBtn.classList.add("use-btn");
+      useBtn.disabled = true;
+      dropBtn.disabled = true;
+      useBtn.onclick = () => useItem(slotIndex); // Восстанавливаем старую функцию
+
       selectedSlot = null;
       screen.innerHTML = "";
-      document.getElementById("useBtn").disabled = true;
-      document.getElementById("dropBtn").disabled = true;
       updateInventoryDisplay();
     }
   } else {
@@ -1113,8 +1125,8 @@ function dropItem(slotIndex) {
     inventory[slotIndex] = null;
     selectedSlot = null;
     screen.innerHTML = "";
-    document.getElementById("useBtn").disabled = true;
-    document.getElementById("dropBtn").disabled = true;
+    useBtn.disabled = true;
+    dropBtn.disabled = true;
     updateInventoryDisplay();
   }
 }

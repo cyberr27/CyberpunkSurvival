@@ -541,6 +541,9 @@ button:active {
   height: 100%;
   padding: 10px;
   box-sizing: border-box;
+  background: rgba(10, 10, 10, 0.95); /* Полупрозрачный фон */
+  border-radius: 5px;
+  box-shadow: 0 0 15px rgba(255, 0, 255, 0.3); /* Неоновое свечение */
 }
 
 .cyber-text {
@@ -564,7 +567,7 @@ button:active {
   text-align: center;
   box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
   transition: all 0.3s;
-  -webkit-appearance: none; /* Убираем стандартные стили на iOS */
+  -webkit-appearance: none;
   appearance: none;
 }
 
@@ -572,6 +575,7 @@ button:active {
   outline: none;
   border-color: #ff00ff;
   box-shadow: 0 0 15px rgba(255, 0, 255, 0.7);
+  background: rgba(20, 20, 20, 0.95); /* Лёгкое затемнение при фокусе */
 }
 
 .cyber-input::-webkit-inner-spin-button,
@@ -590,6 +594,32 @@ button:active {
   font-family: "Courier New", monospace;
   text-shadow: 0 0 5px rgba(255, 0, 0, 0.7);
   margin: 5px 0 0 0;
+}
+/* Стиль для кнопки "Подтвердить" */
+.confirm-btn {
+  background: linear-gradient(135deg, #00ffff, #ff00ff); /* Неоновый градиент */
+  border: 1px solid #ff00ff; /* Розовая обводка */
+  color: #000; /* Чёрный текст для контраста */
+  box-shadow: 0 0 15px rgba(255, 0, 255, 0.7), 0 0 25px rgba(0, 255, 255, 0.5);
+  animation: neonPulse 1.5s infinite alternate; /* Пульсация */
+}
+
+.confirm-btn:hover:not(:disabled) {
+  box-shadow: 0 0 20px rgba(255, 0, 255, 1), 0 0 30px rgba(0, 255, 255, 0.8);
+  transform: scale(1.05);
+}
+
+/* Анимация пульсации в стиле киберпанк */
+@keyframes neonPulse {
+  0% {
+    box-shadow: 0 0 10px rgba(255, 0, 255, 0.7), 0 0 20px rgba(0, 255, 255, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 15px rgba(255, 0, 255, 0.9), 0 0 25px rgba(0, 255, 255, 0.7);
+  }
+  100% {
+    box-shadow: 0 0 20px rgba(255, 0, 255, 1), 0 0 30px rgba(0, 255, 255, 0.8);
+  }
 }
 /* Адаптация для мобильных устройств (max-width: 500px) */
 @media (max-width: 500px) {
