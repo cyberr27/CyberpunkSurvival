@@ -38,6 +38,11 @@ const ITEM_CONFIG = {
   bread: { effect: { food: 13, water: -2 }, rarity: 2 },
   sausage: { effect: { food: 16, energy: 3 }, rarity: 2 },
   energy_drink: { effect: { energy: 20, water: 5 }, rarity: 2 },
+  balyary: {
+    effect: {}, // Без эффекта
+    rarity: 2,
+    stackable: true, // Указываем, что предмет складывается
+  },
   // Частые (уровень 3)
   water_bottle: { effect: { water: 30 }, rarity: 3 },
   nut: { effect: { food: 7 }, rarity: 3 },
@@ -365,114 +370,104 @@ wss.on("connection", (ws) => {
     }
     if (data.type === "pickup") {
       const id = clients.get(ws);
-      if (!id) {
-        console.log("Игрок не авторизован для pickup");
-        return;
-      }
+      if (!id) return;
 
-      // Проверяем, существует ли предмет в items
       if (!items.has(data.itemId)) {
-        console.log(`Предмет ${data.itemId} не найден на сервере`);
-        ws.send(
-          JSON.stringify({
-            type: "itemNotFound",
-            itemId: data.itemId,
-          })
-        );
+        ws.send(JSON.stringify({ type: "itemNotFound", itemId: data.itemId }));
         return;
       }
 
-      try {
-        const item = items.get(data.itemId);
-        const player = players.get(id);
-        if (!player) {
-          console.log(`Игрок ${id} не найден в players`);
-          return;
-        }
+      const item = items.get(data.itemId);
+      const player = players.get(id);
+      if (!player.inventory) player.inventory = Array(20).fill(null);
 
-        if (!player.inventory) {
-          player.inventory = Array(20).fill(null);
-          console.warn(
-            `Inventory для игрока ${id} был undefined, инициализирован заново`
-          );
+      if (item.type === "balyary") {
+        const balyarySlot = player.inventory.findIndex(
+          (slot) => slot && slot.type === "balyary"
+        );
+        if (balyarySlot !== -1) {
+          player.inventory[balyarySlot].quantity =
+            (player.inventory[balyarySlot].quantity || 1) + 1;
+        } else {
+          const freeSlot = player.inventory.findIndex((slot) => slot === null);
+          if (freeSlot !== -1) {
+            player.inventory[freeSlot] = {
+              type: "balyary",
+              quantity: 1,
+              itemId: data.itemId,
+            };
+          } else {
+            ws.send(
+              JSON.stringify({ type: "inventoryFull", itemId: data.itemId })
+            );
+            return;
+          }
         }
-
+      } else {
         const freeSlot = player.inventory.findIndex((slot) => slot === null);
         if (freeSlot !== -1) {
-          // Предмет успешно подбирается
           player.inventory[freeSlot] = { type: item.type, itemId: data.itemId };
-          items.delete(data.itemId); // Удаляем предмет из мира
-          players.set(id, { ...player });
-          userDatabase.set(id, { ...player });
-          await saveUserDatabase(dbCollection, id, player);
-
-          // Уведомляем всех клиентов о том, что предмет поднят
-          wss.clients.forEach((client) => {
-            if (client.readyState === WebSocket.OPEN) {
-              client.send(
-                JSON.stringify({
-                  type: "itemPicked",
-                  itemId: data.itemId,
-                  playerId: id,
-                  item: { type: item.type, itemId: data.itemId },
-                })
-              );
-              if (clients.get(client) === id) {
-                client.send(
-                  JSON.stringify({ type: "update", player: { id, ...player } })
-                );
-              }
-            }
-          });
-          console.log(
-            `Игрок ${id} поднял ${item.type} (ID: ${data.itemId}) в слот ${freeSlot}`
-          );
-
-          // Респавн предмета через 10 минут
-          setTimeout(() => {
-            const worldWidth = 2800;
-            const worldHeight = 3300;
-            const newItemId = `${item.type}_${Date.now()}`;
-            const newItem = {
-              x: Math.random() * worldWidth,
-              y: Math.random() * worldHeight,
-              type: item.type,
-              spawnTime: Date.now(),
-            };
-            items.set(newItemId, newItem);
-            console.log(
-              `Предмет ${item.type} (${newItemId}) возродился на x:${newItem.x}, y:${newItem.y}`
-            );
-
-            wss.clients.forEach((client) => {
-              if (client.readyState === WebSocket.OPEN) {
-                client.send(
-                  JSON.stringify({
-                    type: "newItem",
-                    itemId: newItemId,
-                    x: newItem.x,
-                    y: newItem.y,
-                    type: newItem.type,
-                    spawnTime: newItem.spawnTime,
-                  })
-                );
-              }
-            });
-          }, 5 * 60 * 1000); // 10 минут
         } else {
-          console.log(
-            `Инвентарь игрока ${id} полон, предмет ${data.itemId} не поднят`
-          );
           ws.send(
+            JSON.stringify({ type: "inventoryFull", itemId: data.itemId })
+          );
+          return;
+        }
+      }
+
+      items.delete(data.itemId);
+      players.set(id, { ...player });
+      userDatabase.set(id, { ...player });
+      await saveUserDatabase(dbCollection, id, player);
+
+      wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(
             JSON.stringify({
-              type: "inventoryFull",
+              type: "itemPicked",
               itemId: data.itemId,
+              playerId: id,
+              item: {
+                type: item.type,
+                itemId: data.itemId,
+                quantity: item.quantity || 1,
+              },
             })
           );
+          if (clients.get(client) === id) {
+            client.send(
+              JSON.stringify({ type: "update", player: { id, ...player } })
+            );
+          }
         }
-      } catch (error) {
-        console.error(`Ошибка в обработке pickup для ${data.itemId}:`, error);
-      }
+      });
+
+      setTimeout(() => {
+        const worldWidth = 2800;
+        const worldHeight = 3300;
+        const newItemId = `${item.type}_${Date.now()}`;
+        const newItem = {
+          x: Math.random() * worldWidth,
+          y: Math.random() * worldHeight,
+          type: item.type,
+          spawnTime: Date.now(),
+        };
+        items.set(newItemId, newItem);
+        wss.clients.forEach((client) => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(
+              JSON.stringify({
+                type: "newItem",
+                itemId: newItemId,
+                x: newItem.x,
+                y: newItem.y,
+                type: newItem.type,
+                spawnTime: newItem.spawnTime,
+              })
+            );
+          }
+        });
+      }, 5 * 60 * 1000); // 5 минут для теста, можно вернуть 10
     } else if (data.type === "chat") {
       const id = clients.get(ws);
       if (id) {
@@ -566,34 +561,21 @@ wss.on("connection", (ws) => {
     // Обработка выброса предмета из инвентаря
     else if (data.type === "dropItem") {
       const id = clients.get(ws);
-      console.log(
-        `Получен запрос dropItem от ${id}, slotIndex: ${data.slotIndex}, x: ${data.x}, y: ${data.y}`
-      );
       if (id) {
         const player = players.get(id);
         const slotIndex = data.slotIndex;
         const item = player.inventory[slotIndex];
-        console.log(
-          `Проверяем предмет в слоте ${slotIndex}: ${item ? item.type : "null"}`
-        );
         if (item) {
           let dropX,
             dropY,
             attempts = 0;
           const maxAttempts = 10;
-          console.log(`Начинаем поиск места для выброса ${item.type}`);
           do {
             const angle = Math.random() * Math.PI * 2;
             const radius = Math.random() * 100;
             dropX = player.x + Math.cos(angle) * radius;
             dropY = player.y + Math.sin(angle) * radius;
             attempts++;
-            console.log(
-              `Попытка ${attempts}: x=${dropX}, y=${dropY}, коллизия: ${checkCollisionServer(
-                dropX,
-                dropY
-              )}`
-            );
           } while (
             checkCollisionServer(dropX, dropY) &&
             attempts < maxAttempts
@@ -601,22 +583,21 @@ wss.on("connection", (ws) => {
 
           if (attempts < maxAttempts) {
             const itemId = `${item.type}_${Date.now()}`;
-            console.log(
-              `Место найдено, создаём предмет ${itemId} на x:${dropX}, y:${dropY}`
-            );
+            if (item.type === "balyary" && item.quantity > 1) {
+              item.quantity--;
+            } else {
+              player.inventory[slotIndex] = null;
+            }
             items.set(itemId, {
               x: dropX,
               y: dropY,
               type: item.type,
               spawnTime: Date.now(),
             });
-            player.inventory[slotIndex] = null;
             players.set(id, { ...player });
             userDatabase.set(id, { ...player });
-            console.log(`Сохраняем данные игрока ${id} в MongoDB`);
             await saveUserDatabase(dbCollection, id, player);
 
-            console.log(`Отправляем уведомления о выбросе ${itemId}`);
             wss.clients.forEach((client) => {
               if (client.readyState === WebSocket.OPEN) {
                 client.send(
@@ -639,19 +620,8 @@ wss.on("connection", (ws) => {
                 }
               }
             });
-            console.log(
-              `Игрок ${id} успешно выбросил ${item.type} на x:${dropX}, y:${dropY}`
-            );
-          } else {
-            console.log(
-              `Не удалось найти место для выброса ${item.type} после ${maxAttempts} попыток`
-            );
           }
-        } else {
-          console.log(`В слоте ${slotIndex} нет предмета для выброса`);
         }
-      } else {
-        console.log(`Игрок не авторизован для dropItem`);
       }
     }
   });

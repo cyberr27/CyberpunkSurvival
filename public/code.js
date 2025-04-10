@@ -76,6 +76,8 @@ const condensedMilkImage = new Image();
 condensedMilkImage.src = "condensed_milk.png";
 const driedFishImage = new Image();
 driedFishImage.src = "dried_fish.png";
+const balyaryImage = new Image();
+balyaryImage.src = "balyary.png"; // Укажи правильный путь к файлу
 
 // Проверка загрузки новых изображений
 cannedMeatImage.onload = () => {
@@ -132,6 +134,12 @@ condensedMilkImage.onload = () => {
 };
 condensedMilkImage.onerror = () =>
   console.error("Ошибка загрузки condensed_milk.png");
+
+balyaryImage.onload = () => {
+  console.log("Баляры загружены");
+  onImageLoad();
+};
+balyaryImage.onerror = () => console.error("Ошибка загрузки balyary.png");
 
 // Инвентарь игрока (массив на 20 слотов, изначально пустой)
 let inventory = Array(20).fill(null);
@@ -207,6 +215,13 @@ const ITEM_CONFIG = {
     effect: { food: 10, water: -3 },
     image: driedFishImage,
     description: "Сушёная рыба: +10 еды, -3 воды",
+  },
+  balyary: {
+    effect: {}, // Эффекта нет, это валюта
+    image: balyaryImage,
+    description: "Баляры: игровая валюта",
+    stackable: true, // Указываем, что предмет складывается
+    rarity: 2,
   },
 };
 
@@ -505,6 +520,120 @@ function createLineObstacle(x1, y1, x2, y2, thickness = 5) {
     thickness,
   };
   obstacles.push(obstacle);
+}
+
+function lineIntersects(x1, y1, x2, y2, x3, y3, x4, y4) {
+  const denominator = (y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1);
+  if (denominator === 0) return false;
+  const ua = ((x4 - x3) * (y1 - y3) - (y4 - y3) * (x1 - x3)) / denominator;
+  const ub = ((x2 - x1) * (y1 - y3) - (y2 - y1) * (x1 - x3)) / denominator;
+  return ua >= 0 && ua <= 1 && ub >= 0 && ub <= 1;
+}
+
+// Добавляем функцию pointToLineDistance (если её ещё нет)
+function pointToLineDistance(px, py, x1, y1, x2, y2) {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const lineLengthSquared = dx * dx + dy * dy;
+  if (lineLengthSquared === 0) {
+    return Math.sqrt(Math.pow(px - x1, 2) + Math.pow(py - y1, 2));
+  }
+  let t = ((px - x1) * dx + (py - y1) * dy) / lineLengthSquared;
+  t = Math.max(0, Math.min(1, t));
+  const closestX = x1 + t * dx;
+  const closestY = y1 + t * dy;
+  return Math.sqrt(Math.pow(px - closestX, 2) + Math.pow(py - closestY, 2));
+}
+
+function checkBulletCollision(bullet) {
+  for (const obstacle of obstacles) {
+    // Убираем деструктуризацию [, obstacle]
+    if (obstacle.isLine) {
+      const distance = pointToLineDistance(
+        bullet.x,
+        bullet.y,
+        obstacle.x1,
+        obstacle.y1,
+        obstacle.x2,
+        obstacle.y2
+      );
+      if (distance < obstacle.thickness / 2 + 5) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+// Функция создания источника света
+function createLight(x, y, color, radius) {
+  lights.push({ x, y, color, radius });
+}
+
+function checkCollision(newX, newY) {
+  const me = players.get(myId);
+  if (!me) return false;
+
+  const playerLeft = newX;
+  const playerRight = newX + 40;
+  const playerTop = newY;
+  const playerBottom = newY + 40;
+
+  for (const obstacle of obstacles) {
+    // Убираем деструктуризацию [, obstacle]
+    if (obstacle.isLine) {
+      const lineX1 = obstacle.x1;
+      const lineY1 = obstacle.y1;
+      const lineX2 = obstacle.x2;
+      const lineY2 = obstacle.y2;
+
+      const playerEdges = [
+        { x1: playerLeft, y1: playerTop, x2: playerRight, y2: playerTop },
+        { x1: playerRight, y1: playerTop, x2: playerRight, y2: playerBottom },
+        { x1: playerRight, y1: playerBottom, x2: playerLeft, y2: playerBottom },
+        { x1: playerLeft, y1: playerBottom, x2: playerLeft, y2: playerTop },
+      ];
+
+      for (const edge of playerEdges) {
+        if (
+          lineIntersects(
+            lineX1,
+            lineY1,
+            lineX2,
+            lineY2,
+            edge.x1,
+            edge.y1,
+            edge.x2,
+            edge.y2
+          )
+        ) {
+          return true;
+        }
+      }
+
+      const distance = pointToLineDistance(
+        newX + 20,
+        newY + 20,
+        lineX1,
+        lineY1,
+        lineX2,
+        lineY2
+      );
+      if (distance < 20 + obstacle.thickness / 2) {
+        return true;
+      }
+    } else {
+      if (
+        playerLeft < obstacle.right &&
+        playerRight > obstacle.left &&
+        playerTop < obstacle.bottom &&
+        playerBottom > obstacle.top
+      ) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 // Функция для отправки данных, когда WebSocket готов
@@ -893,9 +1022,14 @@ function dropItem(slotIndex) {
   const item = inventory[slotIndex];
   if (!item) return;
   const me = players.get(myId);
-  console.log(
-    `Отправляем запрос на выброс ${item.type} из слота ${slotIndex}, x:${me.x}, y:${me.y}`
-  );
+
+  if (item.type === "balyary" && item.quantity > 1) {
+    item.quantity--;
+    console.log(`Выброшено 1 Баляр, осталось ${item.quantity}`);
+  } else {
+    inventory[slotIndex] = null;
+    console.log(`Выброшен предмет ${item.type} из слота ${slotIndex}`);
+  }
 
   sendWhenReady(
     ws,
@@ -906,9 +1040,7 @@ function dropItem(slotIndex) {
       y: me.y,
     })
   );
-  console.log(`Запрос на выброс отправлен`);
 
-  inventory[slotIndex] = null;
   selectedSlot = null;
   document.getElementById("useBtn").disabled = true;
   document.getElementById("dropBtn").disabled = true;
@@ -995,6 +1127,19 @@ function updateInventoryDisplay() {
       img.style.width = "100%";
       img.style.height = "100%";
       slot.appendChild(img);
+
+      // Добавляем количество для "Баляр"
+      if (inventory[i].type === "balyary" && inventory[i].quantity > 1) {
+        const quantityEl = document.createElement("div");
+        quantityEl.textContent = inventory[i].quantity;
+        quantityEl.style.position = "absolute";
+        quantityEl.style.top = "0";
+        quantityEl.style.right = "0";
+        quantityEl.style.color = "#00ffff";
+        quantityEl.style.fontSize = "14px";
+        quantityEl.style.textShadow = "0 0 5px rgba(0, 255, 255, 0.7)";
+        slot.appendChild(quantityEl);
+      }
 
       slot.onmouseover = () => {
         if (inventory[i]) {
@@ -1085,23 +1230,48 @@ function handleGameMessage(event) {
         });
         break;
       case "itemPicked":
-        items.delete(data.itemId); // Удаляем предмет из локального items
-        pendingPickups.delete(data.itemId); // Убираем из ожидающих
+        items.delete(data.itemId);
+        pendingPickups.delete(data.itemId);
         console.log(`Предмет ${data.itemId} удалён из мира (itemPicked)`);
         const me = players.get(myId);
         if (me && data.playerId === myId && data.item) {
-          const freeSlot = inventory.findIndex((slot) => slot === null);
-          if (freeSlot !== -1) {
-            inventory[freeSlot] = data.item; // Добавляем предмет только себе
-            console.log(
-              `Предмет ${data.item.type} (ID: ${data.itemId}) добавлен в слот ${freeSlot}`
+          if (data.item.type === "balyary") {
+            // Проверяем, есть ли уже "Баляры" в инвентаре
+            const balyarySlot = inventory.findIndex(
+              (slot) => slot && slot.type === "balyary"
             );
-            updateInventoryDisplay();
+            if (balyarySlot !== -1) {
+              // Увеличиваем количество
+              inventory[balyarySlot].quantity =
+                (inventory[balyarySlot].quantity || 1) + 1;
+              console.log(
+                `Добавлено 1 Баляр, теперь их ${inventory[balyarySlot].quantity}`
+              );
+            } else {
+              // Добавляем в новый слот
+              const freeSlot = inventory.findIndex((slot) => slot === null);
+              if (freeSlot !== -1) {
+                inventory[freeSlot] = {
+                  type: "balyary",
+                  quantity: 1,
+                  itemId: data.itemId,
+                };
+                console.log(
+                  `Баляры добавлены в слот ${freeSlot}, количество: 1`
+                );
+              }
+            }
+          } else {
+            // Обычная логика для других предметов
+            const freeSlot = inventory.findIndex((slot) => slot === null);
+            if (freeSlot !== -1) {
+              inventory[freeSlot] = data.item;
+              console.log(
+                `Предмет ${data.item.type} добавлен в слот ${freeSlot}`
+              );
+            }
           }
-        } else {
-          console.log(
-            `Предмет ${data.itemId} поднят игроком ${data.playerId} или удалён сервером`
-          );
+          updateInventoryDisplay();
         }
         updateStatsDisplay();
         break;
@@ -1676,128 +1846,5 @@ function gameLoop(timestamp) {
 let imagesLoaded = 0;
 function onImageLoad() {
   imagesLoaded++;
-  if (imagesLoaded === 20) window.addEventListener("resize", resizeCanvas);
-}
-backgroundImage.onload = onImageLoad;
-vegetationImage.onload = onImageLoad;
-rocksImage.onload = onImageLoad;
-cloudsImage.onload = onImageLoad;
-playerSprite.onload = onImageLoad;
-wolfSprite.onload = onImageLoad;
-energyDrinkImage.onload = onImageLoad;
-nutImage.onload = onImageLoad;
-waterBottleImage.onload = onImageLoad;
-
-function lineIntersects(x1, y1, x2, y2, x3, y3, x4, y4) {
-  const denominator = (y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1);
-  if (denominator === 0) return false;
-  const ua = ((x4 - x3) * (y1 - y3) - (y4 - y3) * (x1 - x3)) / denominator;
-  const ub = ((x2 - x1) * (y1 - y3) - (y2 - y1) * (x1 - x3)) / denominator;
-  return ua >= 0 && ua <= 1 && ub >= 0 && ub <= 1;
-}
-
-// Добавляем функцию pointToLineDistance (если её ещё нет)
-function pointToLineDistance(px, py, x1, y1, x2, y2) {
-  const dx = x2 - x1;
-  const dy = y2 - y1;
-  const lineLengthSquared = dx * dx + dy * dy;
-  if (lineLengthSquared === 0) {
-    return Math.sqrt(Math.pow(px - x1, 2) + Math.pow(py - y1, 2));
-  }
-  let t = ((px - x1) * dx + (py - y1) * dy) / lineLengthSquared;
-  t = Math.max(0, Math.min(1, t));
-  const closestX = x1 + t * dx;
-  const closestY = y1 + t * dy;
-  return Math.sqrt(Math.pow(px - closestX, 2) + Math.pow(py - closestY, 2));
-}
-
-function checkBulletCollision(bullet) {
-  for (const obstacle of obstacles) {
-    // Убираем деструктуризацию [, obstacle]
-    if (obstacle.isLine) {
-      const distance = pointToLineDistance(
-        bullet.x,
-        bullet.y,
-        obstacle.x1,
-        obstacle.y1,
-        obstacle.x2,
-        obstacle.y2
-      );
-      if (distance < obstacle.thickness / 2 + 5) {
-        return true;
-      }
-    }
-  }
-  return false;
-}
-
-// Функция создания источника света
-function createLight(x, y, color, radius) {
-  lights.push({ x, y, color, radius });
-}
-
-function checkCollision(newX, newY) {
-  const me = players.get(myId);
-  if (!me) return false;
-
-  const playerLeft = newX;
-  const playerRight = newX + 40;
-  const playerTop = newY;
-  const playerBottom = newY + 40;
-
-  for (const obstacle of obstacles) {
-    // Убираем деструктуризацию [, obstacle]
-    if (obstacle.isLine) {
-      const lineX1 = obstacle.x1;
-      const lineY1 = obstacle.y1;
-      const lineX2 = obstacle.x2;
-      const lineY2 = obstacle.y2;
-
-      const playerEdges = [
-        { x1: playerLeft, y1: playerTop, x2: playerRight, y2: playerTop },
-        { x1: playerRight, y1: playerTop, x2: playerRight, y2: playerBottom },
-        { x1: playerRight, y1: playerBottom, x2: playerLeft, y2: playerBottom },
-        { x1: playerLeft, y1: playerBottom, x2: playerLeft, y2: playerTop },
-      ];
-
-      for (const edge of playerEdges) {
-        if (
-          lineIntersects(
-            lineX1,
-            lineY1,
-            lineX2,
-            lineY2,
-            edge.x1,
-            edge.y1,
-            edge.x2,
-            edge.y2
-          )
-        ) {
-          return true;
-        }
-      }
-
-      const distance = pointToLineDistance(
-        newX + 20,
-        newY + 20,
-        lineX1,
-        lineY1,
-        lineX2,
-        lineY2
-      );
-      if (distance < 20 + obstacle.thickness / 2) {
-        return true;
-      }
-    } else {
-      if (
-        playerLeft < obstacle.right &&
-        playerRight > obstacle.left &&
-        playerTop < obstacle.bottom &&
-        playerBottom > obstacle.top
-      ) {
-        return true;
-      }
-    }
-  }
-  return false;
+  if (imagesLoaded === 21) window.addEventListener("resize", resizeCanvas);
 }
