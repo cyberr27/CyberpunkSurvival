@@ -382,18 +382,19 @@ wss.on("connection", (ws) => {
       if (!player.inventory) player.inventory = Array(20).fill(null);
 
       if (item.type === "balyary") {
+        const quantityToAdd = item.quantity || 1;
         const balyarySlot = player.inventory.findIndex(
           (slot) => slot && slot.type === "balyary"
         );
         if (balyarySlot !== -1) {
           player.inventory[balyarySlot].quantity =
-            (player.inventory[balyarySlot].quantity || 1) + 1;
+            (player.inventory[balyarySlot].quantity || 1) + quantityToAdd;
         } else {
           const freeSlot = player.inventory.findIndex((slot) => slot === null);
           if (freeSlot !== -1) {
             player.inventory[freeSlot] = {
               type: "balyary",
-              quantity: 1,
+              quantity: quantityToAdd,
               itemId: data.itemId,
             };
           } else {
@@ -467,7 +468,7 @@ wss.on("connection", (ws) => {
             );
           }
         });
-      }, 5 * 60 * 1000); // 5 минут для теста, можно вернуть 10
+      }, 10 * 60 * 1000);
     } else if (data.type === "chat") {
       const id = clients.get(ws);
       if (id) {
@@ -561,11 +562,27 @@ wss.on("connection", (ws) => {
     // Обработка выброса предмета из инвентаря
     else if (data.type === "dropItem") {
       const id = clients.get(ws);
+      console.log(
+        `Получен запрос dropItem от ${id}, slotIndex: ${data.slotIndex}, x: ${
+          data.x
+        }, y: ${data.y}, quantity: ${data.quantity || 1}`
+      );
       if (id) {
         const player = players.get(id);
         const slotIndex = data.slotIndex;
         const item = player.inventory[slotIndex];
         if (item) {
+          let quantityToDrop = data.quantity || 1; // По умолчанию 1, если не указано
+          if (item.type === "balyary") {
+            const currentQuantity = item.quantity || 1;
+            if (quantityToDrop > currentQuantity) {
+              console.log(
+                `У игрока ${id} недостаточно Баляр для выброса: ${quantityToDrop} > ${currentQuantity}`
+              );
+              return; // Клиент уже проверил, но на всякий случай
+            }
+          }
+
           let dropX,
             dropY,
             attempts = 0;
@@ -583,17 +600,29 @@ wss.on("connection", (ws) => {
 
           if (attempts < maxAttempts) {
             const itemId = `${item.type}_${Date.now()}`;
-            if (item.type === "balyary" && item.quantity > 1) {
-              item.quantity--;
+            if (item.type === "balyary") {
+              if (quantityToDrop === item.quantity) {
+                player.inventory[slotIndex] = null;
+              } else {
+                player.inventory[slotIndex].quantity -= quantityToDrop;
+              }
+              items.set(itemId, {
+                x: dropX,
+                y: dropY,
+                type: item.type,
+                spawnTime: Date.now(),
+                quantity: quantityToDrop, // Сохраняем количество выброшенных Баляр
+              });
             } else {
               player.inventory[slotIndex] = null;
+              items.set(itemId, {
+                x: dropX,
+                y: dropY,
+                type: item.type,
+                spawnTime: Date.now(),
+              });
             }
-            items.set(itemId, {
-              x: dropX,
-              y: dropY,
-              type: item.type,
-              spawnTime: Date.now(),
-            });
+
             players.set(id, { ...player });
             userDatabase.set(id, { ...player });
             await saveUserDatabase(dbCollection, id, player);
@@ -608,6 +637,8 @@ wss.on("connection", (ws) => {
                     y: dropY,
                     type: item.type,
                     spawnTime: Date.now(),
+                    quantity:
+                      item.type === "balyary" ? quantityToDrop : undefined,
                   })
                 );
                 if (clients.get(client) === id) {
@@ -620,6 +651,11 @@ wss.on("connection", (ws) => {
                 }
               }
             });
+            console.log(
+              `Игрок ${id} выбросил ${quantityToDrop} ${item.type} на x:${dropX}, y:${dropY}`
+            );
+          } else {
+            console.log(`Не удалось найти место для выброса ${item.type}`);
           }
         }
       }

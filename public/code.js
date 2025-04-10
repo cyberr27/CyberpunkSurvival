@@ -149,77 +149,77 @@ const ITEM_CONFIG = {
   energy_drink: {
     effect: { energy: 20, water: 5 },
     image: energyDrinkImage,
-    description: "Энергетик: +20 энергии, +5 воды",
+    description: "Энергетик: +20 эн. +5 воды.",
   },
   nut: {
     effect: { food: 7 },
     image: nutImage,
-    description: "Орех: +7 еды",
+    description: "Орех: +7 еды.",
   },
   water_bottle: {
     effect: { water: 30 },
     image: waterBottleImage,
-    description: "Вода: +30 воды",
+    description: "Вода: +30 воды.",
   },
   canned_meat: {
     effect: { food: 20 },
     image: cannedMeatImage,
-    description: "Банка тушёнки: +20 еды",
+    description: "Банка тушёнки: +20 еды.",
   },
   mushroom: {
     effect: { food: 5, energy: 15 },
     image: mushroomImage,
-    description: "Гриб прущий: +5 еды, +15 энергии",
+    description: "Гриб прущий: +15 энергии. +5 еды.",
   },
   sausage: {
     effect: { food: 16, energy: 3 },
     image: sausageImage,
-    description: "Колбаса: +16 еды, +3 энергии",
+    description: "Колбаса: +16 еды, +3 энергии.",
   },
   blood_pack: {
     effect: { health: 40 },
     image: bloodPackImage,
-    description: "Пакет крови: +40 здоровья",
+    description: "Пакет крови: +40 здоровья.",
   },
   bread: {
     effect: { food: 13, water: -2 },
     image: breadImage,
-    description: "Хлеб: +13 еды, -2 воды",
+    description: "Хлеб: +13 еды, -2 воды.",
   },
   vodka_bottle: {
     effect: { health: 5, energy: -2, water: 1, food: 2 },
     image: vodkaBottleImage,
-    description: "Водка: +5 здоровья, -2 энергии, +1 воды, +2 еды",
+    description: "Водка: +5 здоровья, -2 эн. +1 воды, +2 еды.",
   },
   meat_chunk: {
     effect: { food: 20, energy: 5, water: -2 },
     image: meatChunkImage,
-    description: "Кусок мяса: +20 еды, +5 энергии, -2 воды",
+    description: "Кусок мяса: +20 еды, +5 эн. -2 воды.",
   },
   blood_syringe: {
     effect: { health: 10 },
     image: bloodSyringeImage,
-    description: "Шприц с кровью: +10 здоровья",
+    description: "Шприц с кровью: +10 здоровья.",
   },
   milk: {
     effect: { water: 15, food: 5 },
     image: milkImage,
-    description: "Молоко: +15 воды, +5 еды",
+    description: "Молоко: +15 воды, +5 еды.",
   },
   condensed_milk: {
     effect: { water: 5, food: 11, energy: 2 },
     image: condensedMilkImage,
-    description: "Сгущёнка: +5 воды, +11 еды, +2 энергии",
+    description: "Сгущёнка: +11 еды, +5 воды, +2 эн.",
   },
   dried_fish: {
     effect: { food: 10, water: -3 },
     image: driedFishImage,
-    description: "Сушёная рыба: +10 еды, -3 воды",
+    description: "Сушёная рыба: +10 еды, -3 воды.",
   },
   balyary: {
     effect: {}, // Эффекта нет, это валюта
     image: balyaryImage,
-    description: "Баляры: игровая валюта",
+    description: "Баляр: игровая валюта.",
     stackable: true, // Указываем, что предмет складывается
     rarity: 2,
   },
@@ -944,7 +944,7 @@ function toggleInventory() {
 
   if (!isInventoryOpen) {
     const screen = document.getElementById("inventoryScreen");
-    screen.textContent = ""; // Очищаем текст, а не innerHTML
+    screen.innerHTML = ""; // Очищаем HTML
     selectedSlot = null;
     document.getElementById("useBtn").disabled = true;
     document.getElementById("dropBtn").disabled = true;
@@ -963,16 +963,34 @@ function selectSlot(slotIndex, slotElement) {
 
   if (selectedSlot === slotIndex) {
     selectedSlot = null;
-    screen.textContent = "";
+    screen.innerHTML = ""; // Очищаем HTML
     useBtn.disabled = true;
     dropBtn.disabled = true;
     return;
   }
 
   selectedSlot = slotIndex;
-  screen.textContent = ITEM_CONFIG[inventory[slotIndex].type].description;
-  useBtn.disabled = false;
-  dropBtn.disabled = false;
+  if (inventory[slotIndex].type === "balyary") {
+    // Показываем форму для "Баляр"
+    screen.innerHTML = `
+      <div class="balyary-drop-form">
+        <p class="cyber-text">Сколько выкинуть?</p>
+        <input type="number" id="balyaryAmount" class="cyber-input" min="1" placeholder="0" />
+        <p id="balyaryError" class="error-text"></p>
+      </div>
+    `;
+    const input = document.getElementById("balyaryAmount");
+    input.focus();
+    input.addEventListener("input", () => {
+      input.value = input.value.replace(/[^0-9]/g, ""); // Только числа
+    });
+    dropBtn.disabled = false;
+    useBtn.disabled = true; // "Баляры" нельзя использовать
+  } else {
+    screen.textContent = ITEM_CONFIG[inventory[slotIndex].type].description;
+    useBtn.disabled = false;
+    dropBtn.disabled = false;
+  }
 }
 
 // Скрыть кнопки действий
@@ -1022,29 +1040,60 @@ function dropItem(slotIndex) {
   const item = inventory[slotIndex];
   if (!item) return;
   const me = players.get(myId);
+  const screen = document.getElementById("inventoryScreen");
 
-  if (item.type === "balyary" && item.quantity > 1) {
-    item.quantity--;
-    console.log(`Выброшено 1 Баляр, осталось ${item.quantity}`);
+  if (item.type === "balyary") {
+    const input = document.getElementById("balyaryAmount");
+    const errorEl = document.getElementById("balyaryError");
+    const amount = parseInt(input.value) || 0;
+    const currentQuantity = item.quantity || 1;
+
+    if (amount <= 0) {
+      errorEl.textContent = "Введи нормальное число, братишка!";
+      return;
+    }
+
+    if (amount > currentQuantity) {
+      errorEl.textContent = "Не хватает Баляр!";
+      return;
+    }
+
+    // Отправляем запрос на сервер с количеством
+    sendWhenReady(
+      ws,
+      JSON.stringify({
+        type: "dropItem",
+        slotIndex,
+        x: me.x,
+        y: me.y,
+        quantity: amount, // Добавляем количество
+      })
+    );
+
+    // Локально обновляем инвентарь
+    if (amount === currentQuantity) {
+      inventory[slotIndex] = null;
+    } else {
+      inventory[slotIndex].quantity -= amount;
+    }
   } else {
+    // Обычная логика для других предметов
+    sendWhenReady(
+      ws,
+      JSON.stringify({
+        type: "dropItem",
+        slotIndex,
+        x: me.x,
+        y: me.y,
+      })
+    );
     inventory[slotIndex] = null;
-    console.log(`Выброшен предмет ${item.type} из слота ${slotIndex}`);
   }
 
-  sendWhenReady(
-    ws,
-    JSON.stringify({
-      type: "dropItem",
-      slotIndex,
-      x: me.x,
-      y: me.y,
-    })
-  );
-
   selectedSlot = null;
+  screen.innerHTML = "";
   document.getElementById("useBtn").disabled = true;
   document.getElementById("dropBtn").disabled = true;
-  document.getElementById("inventoryScreen").textContent = "";
   updateInventoryDisplay();
 }
 
@@ -1114,9 +1163,27 @@ function updateInventoryDisplay() {
   const slots = inventoryGrid.children;
   const screen = document.getElementById("inventoryScreen");
 
-  if (selectedSlot === null) screen.textContent = "";
-  else if (inventory[selectedSlot])
-    screen.textContent = ITEM_CONFIG[inventory[selectedSlot].type].description;
+  if (selectedSlot === null) {
+    screen.innerHTML = "";
+  } else if (inventory[selectedSlot]) {
+    if (inventory[selectedSlot].type === "balyary") {
+      screen.innerHTML = `
+        <div class="balyary-drop-form">
+          <p class="cyber-text">Сколько выкинуть?</p>
+          <input type="number" id="balyaryAmount" class="cyber-input" min="1" placeholder="0" />
+          <p id="balyaryError" class="error-text"></p>
+        </div>
+      `;
+      const input = document.getElementById("balyaryAmount");
+      input.focus();
+      input.addEventListener("input", () => {
+        input.value = input.value.replace(/[^0-9]/g, "");
+      });
+    } else {
+      screen.textContent =
+        ITEM_CONFIG[inventory[selectedSlot].type].description;
+    }
+  }
 
   for (let i = 0; i < slots.length; i++) {
     const slot = slots[i];
@@ -1128,7 +1195,6 @@ function updateInventoryDisplay() {
       img.style.height = "100%";
       slot.appendChild(img);
 
-      // Добавляем количество для "Баляр"
       if (inventory[i].type === "balyary" && inventory[i].quantity > 1) {
         const quantityEl = document.createElement("div");
         quantityEl.textContent = inventory[i].quantity;
@@ -1142,15 +1208,19 @@ function updateInventoryDisplay() {
       }
 
       slot.onmouseover = () => {
-        if (inventory[i]) {
+        if (inventory[i] && selectedSlot !== i) {
           screen.textContent = ITEM_CONFIG[inventory[i].type].description;
         }
       };
       slot.onmouseout = () => {
-        if (selectedSlot === null) screen.textContent = "";
-        else if (inventory[selectedSlot])
+        if (selectedSlot === null) screen.innerHTML = "";
+        else if (
+          inventory[selectedSlot] &&
+          inventory[selectedSlot].type !== "balyary"
+        ) {
           screen.textContent =
             ITEM_CONFIG[inventory[selectedSlot].type].description;
+        }
       };
       slot.onclick = (e) => {
         e.preventDefault();
