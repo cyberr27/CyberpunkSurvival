@@ -656,7 +656,9 @@ function sendWhenReady(ws, message) {
 function startGame() {
   // Обработчик клавиш (только для стрельбы и чата)
   document.addEventListener("keydown", (e) => {
-    if (document.activeElement === chatInput) return;
+    if (document.activeElement === chatInput) return; // Пропускаем, если фокус в чате
+    if (document.activeElement === document.getElementById("balyaryAmount"))
+      return; // Пропускаем, если фокус в поле ввода "Баляр"
     const me = players.get(myId);
     if (!me || me.health <= 0) return;
 
@@ -670,8 +672,11 @@ function startGame() {
         if (!isChatVisible) chatInput.focus();
         else chatInput.blur();
         break;
+      case "i":
+        toggleInventory();
+        break;
     }
-    e.preventDefault();
+    e.preventDefault(); // Оставляем, но он не мешает вводу в поле
   });
 
   // Обработчик нажатия мыши
@@ -946,8 +951,11 @@ function toggleInventory() {
     const screen = document.getElementById("inventoryScreen");
     screen.innerHTML = ""; // Очищаем HTML
     selectedSlot = null;
-    document.getElementById("useBtn").disabled = true;
-    document.getElementById("dropBtn").disabled = true;
+    const useBtn = document.getElementById("useBtn");
+    const dropBtn = document.getElementById("dropBtn");
+    useBtn.textContent = "Использовать"; // Сбрасываем текст
+    useBtn.disabled = true;
+    dropBtn.disabled = true;
   }
 }
 
@@ -964,14 +972,17 @@ function selectSlot(slotIndex, slotElement) {
   if (selectedSlot === slotIndex) {
     selectedSlot = null;
     screen.innerHTML = "";
+    useBtn.textContent = "Использовать"; // Возвращаем текст
     useBtn.disabled = true;
     dropBtn.disabled = true;
     return;
   }
 
   selectedSlot = slotIndex;
+  // Если ранее была форма "Баляр", убираем её и показываем описание
   screen.textContent = ITEM_CONFIG[inventory[slotIndex].type].description;
-  useBtn.disabled = inventory[slotIndex].type === "balyary"; // Отключаем "Использовать" для Баляр
+  useBtn.textContent = "Использовать"; // Сбрасываем текст
+  useBtn.disabled = inventory[slotIndex].type === "balyary"; // Отключаем для "Баляр"
   dropBtn.disabled = false;
 }
 
@@ -1023,7 +1034,7 @@ function dropItem(slotIndex) {
   if (!item) return;
   const me = players.get(myId);
   const screen = document.getElementById("inventoryScreen");
-  const useBtn = document.getElementById("useBtn"); // Берем кнопку "Использовать"
+  const useBtn = document.getElementById("useBtn");
   const dropBtn = document.getElementById("dropBtn");
 
   if (item.type === "balyary") {
@@ -1040,15 +1051,16 @@ function dropItem(slotIndex) {
     const input = document.getElementById("balyaryAmount");
     const errorEl = document.getElementById("balyaryError");
 
-    // Меняем кнопку "Использовать" на "Подтвердить"
+    // Меняем только текст кнопки "Использовать" на "Подтвердить"
     useBtn.textContent = "Подтвердить";
-    useBtn.classList.remove("use-btn"); // Убираем старый стиль
-    useBtn.classList.add("confirm-btn"); // Добавляем новый стиль для киберпанка
     useBtn.disabled = false; // Активируем кнопку
     dropBtn.disabled = true; // Отключаем "Выкинуть" на время ввода
 
-    // Фокусируемся на поле ввода
-    input.focus();
+    // Устанавливаем фокус на поле ввода и убираем возможные блокировки
+    setTimeout(() => {
+      input.focus();
+      input.select(); // Выделяем текст, если есть
+    }, 0); // Даём DOM время обновиться
 
     // Разрешаем ввод только чисел
     input.addEventListener("input", () => {
@@ -1064,7 +1076,7 @@ function dropItem(slotIndex) {
     });
 
     // Обработка нажатия кнопки "Подтвердить"
-    useBtn.onclick = confirmDrop; // Переопределяем действие кнопки
+    useBtn.onclick = confirmDrop;
 
     function confirmDrop() {
       const amount = parseInt(input.value) || 0;
@@ -1101,8 +1113,6 @@ function dropItem(slotIndex) {
 
       // Возвращаем кнопку "Использовать" в исходное состояние
       useBtn.textContent = "Использовать";
-      useBtn.classList.remove("confirm-btn");
-      useBtn.classList.add("use-btn");
       useBtn.disabled = true;
       dropBtn.disabled = true;
       useBtn.onclick = () => useItem(slotIndex); // Восстанавливаем старую функцию
@@ -1196,8 +1206,20 @@ function updateInventoryDisplay() {
   const inventoryGrid = document.getElementById("inventoryGrid");
   const slots = inventoryGrid.children;
   const screen = document.getElementById("inventoryScreen");
+  const useBtn = document.getElementById("useBtn");
+  const dropBtn = document.getElementById("dropBtn");
 
-  if (selectedSlot === null) {
+  // Проверяем, была ли уже показана форма выброса "Баляр"
+  const isBalyaryFormActive =
+    selectedSlot !== null &&
+    inventory[selectedSlot] &&
+    inventory[selectedSlot].type === "balyary" &&
+    screen.querySelector(".balyary-drop-form");
+
+  if (isBalyaryFormActive) {
+    // Сохраняем форму, если выбраны "Баляры" и форма уже есть
+    // Ничего не делаем с содержимым экрана
+  } else if (selectedSlot === null) {
     screen.innerHTML = "";
   } else if (inventory[selectedSlot]) {
     screen.textContent = ITEM_CONFIG[inventory[selectedSlot].type].description;
@@ -1227,15 +1249,31 @@ function updateInventoryDisplay() {
 
       slot.onmouseover = () => {
         if (inventory[i] && selectedSlot !== i) {
+          if (
+            inventory[selectedSlot] &&
+            inventory[selectedSlot].type === "balyary" &&
+            screen.querySelector(".balyary-drop-form")
+          ) {
+            // Сохраняем форму выброса "Баляр" при наведении на другие слоты
+            return;
+          }
           screen.textContent = ITEM_CONFIG[inventory[i].type].description;
         }
       };
       slot.onmouseout = () => {
-        if (selectedSlot === null) screen.innerHTML = "";
-        else if (inventory[selectedSlot]) {
-          screen.textContent =
-            ITEM_CONFIG[inventory[selectedSlot].type].description;
+        if (
+          selectedSlot === null ||
+          (inventory[selectedSlot] &&
+            inventory[selectedSlot].type === "balyary" &&
+            screen.querySelector(".balyary-drop-form"))
+        ) {
+          // Ничего не очищаем, если форма "Баляр" активна
+          return;
         }
+        screen.textContent =
+          inventory[selectedSlot] && selectedSlot !== null
+            ? ITEM_CONFIG[inventory[selectedSlot].type].description
+            : "";
       };
       slot.onclick = (e) => {
         e.preventDefault();
