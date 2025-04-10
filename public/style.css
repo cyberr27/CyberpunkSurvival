@@ -569,6 +569,10 @@ button:active {
   transition: all 0.3s;
   -webkit-appearance: none;
   appearance: none;
+  pointer-events: auto; /* Убеждаемся, что поле принимает события */
+  user-select: text; /* Разрешаем выбор текста */
+  -webkit-user-select: text;
+  touch-action: manipulation; /* Для сенсорных экранов */
 }
 
 .cyber-input:focus {

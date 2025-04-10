@@ -659,15 +659,23 @@ function startGame() {
     const me = players.get(myId);
     if (!me || me.health <= 0) return;
 
-    // Пропускаем, если фокус в чате или в поле ввода "Баляр"
+    if (e.key === "Escape") {
+      if (chatContainer.style.display === "flex") {
+        chatContainer.style.display = "none";
+        chatInput.blur();
+      }
+      if (isInventoryOpen) {
+        toggleInventory();
+      }
+      e.preventDefault();
+      return;
+    }
+
     if (
       document.activeElement === chatInput ||
       document.activeElement === document.getElementById("balyaryAmount")
     ) {
-      if (e.key === "Escape" && chatContainer.style.display === "flex") {
-        chatContainer.style.display = "none";
-        chatInput.blur();
-      }
+      console.log("Фокус на balyaryAmount, пропускаем keydown:", e.key);
       return;
     }
 
@@ -687,19 +695,8 @@ function startGame() {
         toggleInventory();
         e.preventDefault();
         break;
-      case "Escape":
-        if (isInventoryOpen) {
-          toggleInventory();
-        }
-        if (chatContainer.style.display === "flex") {
-          chatContainer.style.display = "none";
-          chatInput.blur();
-        }
-        e.preventDefault();
-        break;
     }
   });
-
   // Обработчик нажатия мыши
   canvas.addEventListener("mousedown", (e) => {
     if (e.button === 0) {
@@ -896,29 +893,6 @@ function startGame() {
     }
   });
 
-  // Обработчик клавиш (добавляем "I" для инвентаря)
-  document.addEventListener("keydown", (e) => {
-    if (document.activeElement === chatInput) return;
-    const me = players.get(myId);
-    if (!me || me.health <= 0) return;
-
-    switch (e.key) {
-      case " ":
-        shoot();
-        break;
-      case "c":
-        const isChatVisible = chatContainer.style.display === "flex";
-        chatContainer.style.display = isChatVisible ? "none" : "flex";
-        if (!isChatVisible) chatInput.focus();
-        else chatInput.blur();
-        break;
-      case "i": // Открытие/закрытие инвентаря
-        toggleInventory();
-        break;
-    }
-    e.preventDefault();
-  });
-
   // Настройка кнопки Inventory
   const inventoryBtn = document.getElementById("inventoryBtn");
   inventoryBtn.addEventListener("click", (e) => {
@@ -1059,45 +1033,40 @@ function dropItem(slotIndex) {
   const dropBtn = document.getElementById("dropBtn");
 
   if (item.type === "balyary") {
-    // Показываем форму ввода количества
     screen.innerHTML = `
       <div class="balyary-drop-form">
         <p class="cyber-text">Сколько выкинуть?</p>
         <input type="number" id="balyaryAmount" class="cyber-input" min="1" max="${
           item.quantity || 1
-        }" placeholder="0" value="" />
+        }" placeholder="0" value="" autofocus />
         <p id="balyaryError" class="error-text"></p>
       </div>
     `;
     const input = document.getElementById("balyaryAmount");
     const errorEl = document.getElementById("balyaryError");
 
-    // Устанавливаем фокус явно
-    setTimeout(() => {
+    requestAnimationFrame(() => {
       input.focus();
       input.select();
-    }, 0);
+    });
 
-    // Разрешаем только числа
     input.addEventListener("input", () => {
+      console.log("Ввод в balyaryAmount:", input.value);
       input.value = input.value.replace(/[^0-9]/g, "");
       if (input.value === "") input.value = "";
     });
 
-    // Меняем текст кнопки "Использовать" на "Подтвердить"
     useBtn.textContent = "Подтвердить";
     useBtn.disabled = false;
     dropBtn.disabled = true;
 
-    // Обработчик Enter
     input.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
-        e.preventDefault(); // Предотвращаем лишние действия
+        e.preventDefault();
         confirmDrop();
       }
     });
 
-    // Обработчик клика по кнопке "Подтвердить"
     useBtn.onclick = (e) => {
       e.preventDefault();
       confirmDrop();
@@ -1137,28 +1106,11 @@ function dropItem(slotIndex) {
       useBtn.textContent = "Использовать";
       useBtn.disabled = true;
       dropBtn.disabled = true;
-      useBtn.onclick = () => useItem(slotIndex); // Восстанавливаем старую функцию
+      useBtn.onclick = () => useItem(slotIndex);
       selectedSlot = null;
       screen.innerHTML = "";
       updateInventoryDisplay();
     }
-  } else {
-    // Обычная логика для других предметов (без изменений)
-    sendWhenReady(
-      ws,
-      JSON.stringify({
-        type: "dropItem",
-        slotIndex,
-        x: me.x,
-        y: me.y,
-      })
-    );
-    inventory[slotIndex] = null;
-    selectedSlot = null;
-    screen.innerHTML = "";
-    useBtn.disabled = true;
-    dropBtn.disabled = true;
-    updateInventoryDisplay();
   }
 }
 
