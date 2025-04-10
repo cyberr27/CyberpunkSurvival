@@ -1540,18 +1540,22 @@ function draw(deltaTime) {
     }
     const screenX = item.x - camera.x;
     const screenY = item.y - camera.y;
+    // Уменьшаем область проверки видимости, так как размер теперь 20x20
     if (
-      screenX >= -40 &&
-      screenX <= canvas.width &&
-      screenY >= -40 &&
-      screenY <= canvas.height
+      screenX >= -20 &&
+      screenX <= canvas.width + 20 &&
+      screenY >= -20 &&
+      screenY <= canvas.height + 20
     ) {
       const itemImage = ITEM_CONFIG[item.type]?.image;
       if (itemImage && itemImage.complete) {
-        ctx.drawImage(itemImage, screenX, screenY, 40, 40);
+        // Меняем размер отрисовки с 40x40 на 20x20 и корректируем позицию,
+        // чтобы центр предмета оставался на месте
+        ctx.drawImage(itemImage, screenX + 10, screenY + 10, 20, 20);
       } else {
+        // Уменьшаем заглушку до 5x5 для согласованности
         ctx.fillStyle = "yellow";
-        ctx.fillRect(screenX, screenY, 10, 10);
+        ctx.fillRect(screenX + 7.5, screenY + 7.5, 5, 5);
       }
     }
   });
@@ -1635,18 +1639,20 @@ function checkCollisions() {
       );
       return;
     }
-    const dx = me.x + 20 - (item.x + 20);
-    const dy = me.y + 20 - (item.y + 20);
+    // Центр предмета теперь смещён, так как размер 20x20
+    const dx = me.x + 20 - (item.x + 10);
+    const dy = me.y + 20 - (item.y + 10);
     const distance = Math.sqrt(dx * dx + dy * dy);
     console.log(
       `Проверка столкновения с ${item.type} (ID: ${id}), расстояние: ${distance}`
     );
-    if (distance < 40) {
+    if (distance < 30) {
+      // Уменьшено с 40 до 30
       console.log(
         `Игрок ${myId} пытается подобрать предмет ${item.type} (ID: ${id})`
       );
       if (ws.readyState === WebSocket.OPEN) {
-        pendingPickups.add(id); // Добавляем предмет в "ожидание"
+        pendingPickups.add(id);
         sendWhenReady(ws, JSON.stringify({ type: "pickup", itemId: id }));
         console.log(`Отправлено сообщение pickup для ${id}`);
       } else {
