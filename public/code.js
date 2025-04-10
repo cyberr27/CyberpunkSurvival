@@ -656,27 +656,48 @@ function sendWhenReady(ws, message) {
 function startGame() {
   // Обработчик клавиш (только для стрельбы и чата)
   document.addEventListener("keydown", (e) => {
-    if (document.activeElement === chatInput) return; // Пропускаем, если фокус в чате
-    if (document.activeElement === document.getElementById("balyaryAmount"))
-      return; // Пропускаем, если фокус в поле ввода "Баляр"
     const me = players.get(myId);
     if (!me || me.health <= 0) return;
+
+    // Пропускаем, если фокус в чате или в поле ввода "Баляр"
+    if (
+      document.activeElement === chatInput ||
+      document.activeElement === document.getElementById("balyaryAmount")
+    ) {
+      if (e.key === "Escape" && chatContainer.style.display === "flex") {
+        chatContainer.style.display = "none";
+        chatInput.blur();
+      }
+      return;
+    }
 
     switch (e.key) {
       case " ":
         shoot();
+        e.preventDefault();
         break;
       case "c":
         const isChatVisible = chatContainer.style.display === "flex";
         chatContainer.style.display = isChatVisible ? "none" : "flex";
         if (!isChatVisible) chatInput.focus();
         else chatInput.blur();
+        e.preventDefault();
         break;
       case "i":
         toggleInventory();
+        e.preventDefault();
+        break;
+      case "Escape":
+        if (isInventoryOpen) {
+          toggleInventory();
+        }
+        if (chatContainer.style.display === "flex") {
+          chatContainer.style.display = "none";
+          chatInput.blur();
+        }
+        e.preventDefault();
         break;
     }
-    e.preventDefault(); // Оставляем, но он не мешает вводу в поле
   });
 
   // Обработчик нажатия мыши
@@ -949,11 +970,11 @@ function toggleInventory() {
 
   if (!isInventoryOpen) {
     const screen = document.getElementById("inventoryScreen");
-    screen.innerHTML = ""; // Очищаем HTML
+    screen.innerHTML = "";
     selectedSlot = null;
     const useBtn = document.getElementById("useBtn");
     const dropBtn = document.getElementById("dropBtn");
-    useBtn.textContent = "Использовать"; // Сбрасываем текст
+    useBtn.textContent = "Использовать";
     useBtn.disabled = true;
     dropBtn.disabled = true;
   }
@@ -1051,32 +1072,36 @@ function dropItem(slotIndex) {
     const input = document.getElementById("balyaryAmount");
     const errorEl = document.getElementById("balyaryError");
 
-    // Меняем только текст кнопки "Использовать" на "Подтвердить"
-    useBtn.textContent = "Подтвердить";
-    useBtn.disabled = false; // Активируем кнопку
-    dropBtn.disabled = true; // Отключаем "Выкинуть" на время ввода
-
-    // Устанавливаем фокус на поле ввода и убираем возможные блокировки
+    // Устанавливаем фокус явно
     setTimeout(() => {
       input.focus();
-      input.select(); // Выделяем текст, если есть
-    }, 0); // Даём DOM время обновиться
+      input.select();
+    }, 0);
 
-    // Разрешаем ввод только чисел
+    // Разрешаем только числа
     input.addEventListener("input", () => {
       input.value = input.value.replace(/[^0-9]/g, "");
       if (input.value === "") input.value = "";
     });
 
-    // Обработка ввода с клавиатуры (Enter)
-    input.addEventListener("keypress", (e) => {
+    // Меняем текст кнопки "Использовать" на "Подтвердить"
+    useBtn.textContent = "Подтвердить";
+    useBtn.disabled = false;
+    dropBtn.disabled = true;
+
+    // Обработчик Enter
+    input.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
+        e.preventDefault(); // Предотвращаем лишние действия
         confirmDrop();
       }
     });
 
-    // Обработка нажатия кнопки "Подтвердить"
-    useBtn.onclick = confirmDrop;
+    // Обработчик клика по кнопке "Подтвердить"
+    useBtn.onclick = (e) => {
+      e.preventDefault();
+      confirmDrop();
+    };
 
     function confirmDrop() {
       const amount = parseInt(input.value) || 0;
@@ -1092,7 +1117,6 @@ function dropItem(slotIndex) {
         return;
       }
 
-      // Отправляем запрос на сервер
       sendWhenReady(
         ws,
         JSON.stringify({
@@ -1104,25 +1128,22 @@ function dropItem(slotIndex) {
         })
       );
 
-      // Локально обновляем инвентарь
       if (amount === currentQuantity) {
         inventory[slotIndex] = null;
       } else {
         inventory[slotIndex].quantity -= amount;
       }
 
-      // Возвращаем кнопку "Использовать" в исходное состояние
       useBtn.textContent = "Использовать";
       useBtn.disabled = true;
       dropBtn.disabled = true;
       useBtn.onclick = () => useItem(slotIndex); // Восстанавливаем старую функцию
-
       selectedSlot = null;
       screen.innerHTML = "";
       updateInventoryDisplay();
     }
   } else {
-    // Обычная логика для других предметов
+    // Обычная логика для других предметов (без изменений)
     sendWhenReady(
       ws,
       JSON.stringify({
