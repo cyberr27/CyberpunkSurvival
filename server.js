@@ -140,17 +140,17 @@ const bullets = new Map(); // Хранилище пуль на сервере
 const lights = [
   {
     id: "light1",
-    x: 2404,
-    y: 1693,
+    x: 2515,
+    y: 1590,
     color: "rgba(0, 255, 255, 0.7)",
-    radius: 850,
+    radius: 800,
   },
   {
     id: "light2",
     x: 1077,
     y: 3177,
     color: "rgba(255, 0, 255, 0.7)",
-    radius: 850,
+    radius: 800,
   },
   {
     id: "light3",
@@ -200,6 +200,13 @@ const lights = [
     y: 1103,
     color: "rgba(2, 35, 250, 0.4)",
     radius: 900,
+  },
+  {
+    id: "light9",
+    x: 3095,
+    y: 2341,
+    color: "rgba(11, 160, 0, 0.4)",
+    radius: 700,
   },
 ];
 
