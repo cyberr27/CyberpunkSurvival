@@ -229,6 +229,19 @@ button:active {
   }
 }
 
+#onlineCount {
+  position: absolute;
+  top: 60px; /* Под координатами, которые начинаются с top: 10px */
+  right: 10px;
+  color: #ffffff; /* Белый цвет */
+  font-size: 18px;
+  font-family: "Courier New", monospace;
+  text-shadow: 0 0 5px #00ffff, 0 0 10px #00ffff, 0 0 15px #ff00ff; /* Неоновое свечение */
+  animation: flicker 1.5s infinite alternate; /* Мерцание */
+  text-align: right;
+  z-index: 50; /* Поверх канваса */
+}
+
 /* Окно чата */
 #chatContainer {
   position: absolute;
@@ -641,18 +654,6 @@ button:active {
   }
   #coords {
     font-size: 14px;
-  }
-  #onlineCount {
-    position: absolute;
-    top: 60px; /* Под координатами, которые начинаются с top: 10px */
-    right: 10px;
-    color: #ffffff; /* Белый цвет */
-    font-size: 18px;
-    font-family: "Courier New", monospace;
-    text-shadow: 0 0 5px #00ffff, 0 0 10px #00ffff, 0 0 15px #ff00ff; /* Неоновое свечение */
-    animation: flicker 1.5s infinite alternate; /* Мерцание */
-    text-align: right;
-    z-index: 50; /* Поверх канваса */
   }
   #chatContainer {
     position: absolute;
