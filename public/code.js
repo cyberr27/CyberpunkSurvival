@@ -77,69 +77,13 @@ condensedMilkImage.src = "condensed_milk.png";
 const driedFishImage = new Image();
 driedFishImage.src = "dried_fish.png";
 const balyaryImage = new Image();
-balyaryImage.src = "balyary.png"; // Укажи правильный путь к файлу
-
-// Проверка загрузки новых изображений
-cannedMeatImage.onload = () => {
-  console.log("Банка тушёнки загружена");
-  onImageLoad();
-};
-cannedMeatImage.onerror = () =>
-  console.error("Ошибка загрузки canned_meat.png");
-mushroomImage.onload = () => {
-  console.log("Гриб загружен");
-  onImageLoad();
-};
-mushroomImage.onerror = () => console.error("Ошибка загрузки mushroom.png");
-sausageImage.onload = () => {
-  console.log("Колбаса загружена");
-  onImageLoad();
-};
-sausageImage.onerror = () => console.error("Ошибка загрузки sausage.png");
-bloodPackImage.onload = () => {
-  console.log("Пакет крови загружен");
-  onImageLoad();
-};
-bloodPackImage.onerror = () => console.error("Ошибка загрузки blood_pack.png");
-breadImage.onload = () => {
-  console.log("Хлеб загружен");
-  onImageLoad();
-};
-breadImage.onerror = () => console.error("Ошибка загрузки bread.png");
-vodkaBottleImage.onload = () => {
-  console.log("Водка загружена");
-  onImageLoad();
-};
-vodkaBottleImage.onerror = () =>
-  console.error("Ошибка загрузки vodka_bottle.png");
-meatChunkImage.onload = () => {
-  console.log("Кусок мяса загружен");
-  onImageLoad();
-};
-meatChunkImage.onerror = () => console.error("Ошибка загрузки meat_chunk.png");
-bloodSyringeImage.onload = () => {
-  console.log("Шприц с кровью загружен");
-  onImageLoad();
-};
-bloodSyringeImage.onerror = () =>
-  console.error("Ошибка загрузки blood_syringe.png");
-milkImage.onload = () => {
-  console.log("Молоко загружено");
-  onImageLoad();
-};
-milkImage.onerror = () => console.error("Ошибка загрузки milk.png");
-condensedMilkImage.onload = () => {
-  console.log("Сгущёнка загружена");
-  onImageLoad();
-};
-condensedMilkImage.onerror = () =>
-  console.error("Ошибка загрузки condensed_milk.png");
-
-balyaryImage.onload = () => {
-  console.log("Баляры загружены");
-  onImageLoad();
-};
-balyaryImage.onerror = () => console.error("Ошибка загрузки balyary.png");
+balyaryImage.src = "balyary.png";
+const berryImage = new Image();
+berryImage.src = "berry.png";
+const appleImage = new Image();
+appleImage.src = "apple.png";
+const carrotImage = new Image();
+carrotImage.src = "carrot.png";
 
 // Инвентарь игрока (массив на 20 слотов, изначально пустой)
 let inventory = Array(20).fill(null);
@@ -222,6 +166,21 @@ const ITEM_CONFIG = {
     description: "Баляр: игровая валюта.",
     stackable: true, // Указываем, что предмет складывается
     rarity: 2,
+  },
+  berry: {
+    effect: { food: 5, water: 3 },
+    image: berryImage,
+    description: "Ягоды: +5 еды, +3 воды.",
+  },
+  apple: {
+    effect: { food: 8 },
+    image: appleImage,
+    description: "Яблоко: +8 еды.",
+  },
+  carrot: {
+    effect: { food: 6, water: 2 },
+    image: carrotImage,
+    description: "Морковь: +6 еды, +2 воды.",
   },
 };
 

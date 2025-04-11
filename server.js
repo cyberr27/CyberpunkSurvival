@@ -24,20 +24,20 @@ const ITEM_CONFIG = {
   // Редкие (уровень 1)
   blood_pack: { effect: { health: 40 }, rarity: 1 },
   canned_meat: { effect: { food: 20 }, rarity: 1 },
-  mushroom: { effect: { food: 5, energy: 15 }, rarity: 1 },
+  meat_chunk: { effect: { food: 20, energy: 5, water: -2 }, rarity: 1 },
+  energy_drink: { effect: { energy: 20, water: 5 }, rarity: 1 },
+  sausage: { effect: { food: 16, energy: 3 }, rarity: 1 },
   // Средние (уровень 2)
+  mushroom: { effect: { food: 5, energy: 15 }, rarity: 2 },
   dried_fish: { effect: { food: 10, water: -3 }, rarity: 2 },
   condensed_milk: { effect: { water: 5, food: 11, energy: 2 }, rarity: 2 },
   milk: { effect: { water: 15, food: 5 }, rarity: 2 },
   blood_syringe: { effect: { health: 10 }, rarity: 2 },
-  meat_chunk: { effect: { food: 20, energy: 5, water: -2 }, rarity: 2 },
   vodka_bottle: {
     effect: { health: 5, energy: -2, water: 1, food: 2 },
     rarity: 2,
   },
   bread: { effect: { food: 13, water: -2 }, rarity: 2 },
-  sausage: { effect: { food: 16, energy: 3 }, rarity: 2 },
-  energy_drink: { effect: { energy: 20, water: 5 }, rarity: 2 },
   balyary: {
     effect: {}, // Без эффекта
     rarity: 2,
@@ -46,6 +46,9 @@ const ITEM_CONFIG = {
   // Частые (уровень 3)
   water_bottle: { effect: { water: 30 }, rarity: 3 },
   nut: { effect: { food: 7 }, rarity: 3 },
+  berry: { effect: { food: 5, water: 3 }, rarity: 3 },
+  apple: { effect: { food: 8 }, rarity: 3 },
+  carrot: { effect: { food: 6, water: 2 }, rarity: 3 },
 };
 
 // Получаем строку подключения только из переменной окружения
@@ -381,6 +384,7 @@ wss.on("connection", (ws) => {
       const player = players.get(id);
       if (!player.inventory) player.inventory = Array(20).fill(null);
 
+      // Логика поднятия предмета (без изменений)
       if (item.type === "balyary") {
         const quantityToAdd = item.quantity || 1;
         const balyarySlot = player.inventory.findIndex(
@@ -443,17 +447,31 @@ wss.on("connection", (ws) => {
         }
       });
 
+      // Респавн нового предмета той же редкости через 10 минут
       setTimeout(() => {
-        const worldWidth = 2800;
+        const worldWidth = 3135;
         const worldHeight = 3300;
-        const newItemId = `${item.type}_${Date.now()}`;
+        const itemRarity = ITEM_CONFIG[item.type].rarity;
+        const itemsOfSameRarity = Object.keys(ITEM_CONFIG).filter(
+          (type) =>
+            ITEM_CONFIG[type].rarity === itemRarity && type !== item.type // Исключаем поднятый предмет
+        );
+        const newType =
+          itemsOfSameRarity[
+            Math.floor(Math.random() * itemsOfSameRarity.length)
+          ];
+        const newItemId = `${newType}_${Date.now()}`;
         const newItem = {
           x: Math.random() * worldWidth,
           y: Math.random() * worldHeight,
-          type: item.type,
+          type: newType,
           spawnTime: Date.now(),
         };
         items.set(newItemId, newItem);
+        console.log(
+          `Респавн предмета ${newType} (${newItemId}) вместо ${item.type} на x:${newItem.x}, y:${newItem.y}`
+        );
+
         wss.clients.forEach((client) => {
           if (client.readyState === WebSocket.OPEN) {
             client.send(
@@ -832,92 +850,75 @@ setInterval(() => {
   const worldWidth = 3135;
   const worldHeight = 3300;
 
-  // Считаем текущие предметы по типам
-  const itemCounts = {};
-  for (const [type] of Object.entries(ITEM_CONFIG)) {
-    itemCounts[type] = Array.from(items.values()).filter(
-      (item) => item.type === type
-    ).length;
-  }
+  // Считаем текущие предметы по редкости
+  const itemCountsByRarity = { 1: 0, 2: 0, 3: 0 };
+  items.forEach((item) => {
+    const rarity = ITEM_CONFIG[item.type].rarity;
+    itemCountsByRarity[rarity]++;
+  });
 
-  // Определяем группы предметов по редкости
-  const rareItems = Object.entries(ITEM_CONFIG)
-    .filter(([_, config]) => config.rarity === 1)
-    .map(([type]) => type); // blood_pack, canned_meat, mushroom
-  const mediumItems = Object.entries(ITEM_CONFIG)
-    .filter(([_, config]) => config.rarity === 2)
-    .map(([type]) => type); // dried_fish, condensed_milk, и т.д.
-  const commonItems = Object.entries(ITEM_CONFIG)
-    .filter(([_, config]) => config.rarity === 3)
-    .map(([type]) => type); // water_bottle, nut
+  // Цели по редкости на основе количества игроков
+  const targetCounts = {
+    1: playerCount * 2, // 2 редких на игрока
+    2: playerCount * 4, // 4 средних на игрока
+    3: playerCount * 5, // 5 частых на игрока
+  };
 
-  // Цель: 6 предметов на игрока (например, 1 редкий, 2 средних, 3 частых)
-  const desiredTotalItems = playerCount * 6;
-  const currentTotalItems = Array.from(items.values()).length;
+  // Определяем предметы по редкости
+  const itemsByRarity = {
+    1: Object.keys(ITEM_CONFIG).filter(
+      (type) => ITEM_CONFIG[type].rarity === 1
+    ),
+    2: Object.keys(ITEM_CONFIG).filter(
+      (type) => ITEM_CONFIG[type].rarity === 2
+    ),
+    3: Object.keys(ITEM_CONFIG).filter(
+      (type) => ITEM_CONFIG[type].rarity === 3
+    ),
+  };
 
-  if (currentTotalItems < desiredTotalItems) {
-    const itemsToSpawn = desiredTotalItems - currentTotalItems;
+  // Спавним недостающие предметы
+  for (let rarity = 1; rarity <= 3; rarity++) {
+    const currentCount = itemCountsByRarity[rarity];
+    const targetCount = targetCounts[rarity];
+    if (currentCount < targetCount) {
+      const itemsToSpawn = targetCount - currentCount;
+      for (let i = 0; i < itemsToSpawn; i++) {
+        const type =
+          itemsByRarity[rarity][
+            Math.floor(Math.random() * itemsByRarity[rarity].length)
+          ];
+        const itemId = `${type}_${Date.now()}_${i}`;
+        const newItem = {
+          x: Math.random() * worldWidth,
+          y: Math.random() * worldHeight,
+          type: type,
+          spawnTime: currentTime,
+        };
+        items.set(itemId, newItem);
+        console.log(
+          `Создан предмет ${type} (${itemId}) с редкостью ${rarity} на x:${newItem.x}, y:${newItem.y}`
+        );
 
-    // Распределяем предметы: 1 редкий, 2 средних, 3 частых на игрока
-    let rareCount = playerCount; // 1 редкий на игрока
-    let mediumCount = playerCount * 2; // 2 средних на игрока
-    let commonCount = playerCount * 3; // 3 частых на игрока
-
-    for (let i = 0; i < itemsToSpawn; i++) {
-      let type;
-      if (
-        rareCount > 0 &&
-        itemCounts[rareItems[rareCount % rareItems.length]] < rareCount
-      ) {
-        type = rareItems[Math.floor(Math.random() * rareItems.length)];
-        rareCount--;
-      } else if (
-        mediumCount > 0 &&
-        itemCounts[mediumItems[mediumCount % mediumItems.length]] < mediumCount
-      ) {
-        type = mediumItems[Math.floor(Math.random() * mediumItems.length)];
-        mediumCount--;
-      } else if (
-        commonCount > 0 &&
-        itemCounts[commonItems[commonCount % commonItems.length]] < commonCount
-      ) {
-        type = commonItems[Math.floor(Math.random() * commonItems.length)];
-        commonCount--;
-      } else {
-        // Если все категории исчерпаны, берём случайный предмет
-        const allTypes = Object.keys(ITEM_CONFIG);
-        type = allTypes[Math.floor(Math.random() * allTypes.length)];
+        wss.clients.forEach((client) => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(
+              JSON.stringify({
+                type: "newItem",
+                itemId: itemId,
+                x: newItem.x,
+                y: newItem.y,
+                type: newItem.type,
+                spawnTime: newItem.spawnTime,
+              })
+            );
+          }
+        });
       }
-
-      const itemId = `${type}_${Date.now()}_${i}`;
-      const newItem = {
-        x: Math.random() * worldWidth,
-        y: Math.random() * worldHeight,
-        type: type,
-        spawnTime: currentTime,
-      };
-      items.set(itemId, newItem);
-      console.log(
-        `Создан предмет ${type} (${itemId}) на x:${newItem.x}, y:${newItem.y}`
-      );
-
-      wss.clients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(
-            JSON.stringify({
-              type: "newItem",
-              itemId: itemId,
-              x: newItem.x,
-              y: newItem.y,
-              type: newItem.type,
-              spawnTime: newItem.spawnTime,
-            })
-          );
-        }
-      });
     }
   }
 
+  // Синхронизация предметов
   const allItems = Array.from(items.entries()).map(([itemId, item]) => ({
     itemId,
     x: item.x,
