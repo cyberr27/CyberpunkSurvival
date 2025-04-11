@@ -285,7 +285,7 @@ wss.on("connection", (ws) => {
         const newPlayer = {
           id: data.username,
           password: data.password,
-          x: 203,
+          x: 222,
           y: 3205,
           health: 100,
           energy: 100,
