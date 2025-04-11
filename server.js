@@ -285,8 +285,8 @@ wss.on("connection", (ws) => {
         const newPlayer = {
           id: data.username,
           password: data.password,
-          x: Math.random() * 2800,
-          y: Math.random() * 3300,
+          x: 203,
+          y: 3205,
           health: 100,
           energy: 100,
           food: 100,
@@ -829,7 +829,7 @@ setInterval(() => {
     }
   });
 
-  const worldWidth = 2800;
+  const worldWidth = 3135;
   const worldHeight = 3300;
 
   // Считаем текущие предметы по типам
