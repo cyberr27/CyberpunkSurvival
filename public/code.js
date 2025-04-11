@@ -242,6 +242,7 @@ createLight(2319, 2816, "rgba(245, 5, 17, 0.7)", 800);
 createLight(924, 943, "rgba(2, 35, 250, 0.4)", 800);
 createLight(1454, 110, "rgba(2, 35, 250, 0.4)", 800);
 createLight(3095, 2341, "rgba(11, 160, 0, 0.4)", 1000);
+createLight(1606, 2203, "rgba(205, 84, 205, 0.5)", 750);
 
 // Переключение форм
 toRegister.addEventListener("click", () => {
