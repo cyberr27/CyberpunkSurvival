@@ -458,10 +458,6 @@ function handleAuthMessage(event) {
             spawnTime: item.spawnTime,
           })
         );
-        console.log(
-          "Загружены начальные предметы:",
-          Array.from(items.entries())
-        );
       }
       if (data.lights) {
         lights.length = 0;
@@ -471,6 +467,7 @@ function handleAuthMessage(event) {
       ws.onmessage = handleGameMessage;
       console.log("Переключен обработчик на handleGameMessage");
       startGame();
+      updateOnlineCount(); // Добавляем вызов
       break;
     case "registerSuccess":
       registerError.textContent = "Регистрация успешна! Войдите.";
@@ -653,7 +650,14 @@ function sendWhenReady(ws, message) {
   }
 }
 
+function updateOnlineCount() {
+  const onlineCountEl = document.getElementById("onlineCount");
+  const playerCount = players.size; // Количество игроков из Map
+  onlineCountEl.textContent = `Онлайн: ${playerCount}`;
+}
+
 function startGame() {
+  updateOnlineCount();
   // Обработчик клавиш (только для стрельбы и чата)
   document.addEventListener("keydown", (e) => {
     const me = players.get(myId);
@@ -1290,41 +1294,14 @@ function updateInventoryDisplay() {
 function handleGameMessage(event) {
   try {
     const data = JSON.parse(event.data);
-    console.log("Обрабатываем игровое сообщение:", event.data);
     switch (data.type) {
-      case "loginSuccess":
-        myId = data.id;
-        authContainer.style.display = "none";
-        document.getElementById("gameContainer").style.display = "block";
-        data.players.forEach((p) => players.set(p.id, p));
-        lastDistance = players.get(myId).distanceTraveled || 0;
-        data.wolves.forEach((w) => wolves.set(w.id, w));
-        data.obstacles.forEach((o) => obstacles.push(o));
-        if (data.items) {
-          data.items.forEach((item) =>
-            items.set(item.itemId, {
-              x: item.x,
-              y: item.y,
-              type: item.type,
-              spawnTime: item.spawnTime,
-            })
-          );
-        }
-        if (data.lights) {
-          lights.length = 0;
-          data.lights.forEach((light) => lights.push(light));
-        }
-        inventory = data.inventory || Array(20).fill(null);
-        resizeCanvas();
-        startGame();
+      case "newPlayer":
+        players.set(data.player.id, { ...data.player, frameTime: 0 });
+        updateOnlineCount(); // Обновляем при входе нового игрока
         break;
-      case "newItem":
-        items.set(data.itemId, {
-          x: data.x,
-          y: data.y,
-          type: data.type,
-          spawnTime: data.spawnTime,
-        });
+      case "playerLeft":
+        players.delete(data.id);
+        updateOnlineCount(); // Обновляем при выходе игрока
         break;
       case "syncItems":
         // Очищаем старые предметы
