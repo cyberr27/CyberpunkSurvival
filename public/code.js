@@ -250,6 +250,11 @@ createLight(105, 343, "rgba(148, 0, 211, 0.7)", 800);
 createLineObstacle(8, 3260, 247, 3138);
 createLineObstacle(247, 3138, 0, 3034);
 
+createLineObstacle(786, 3260, 653, 3181);
+createLineObstacle(653, 3181, 1079, 3068);
+createLineObstacle(1079, 3068, 1446, 3170);
+createLineObstacle(1446, 3170, 1312, 3280);
+
 // Переключение форм
 toRegister.addEventListener("click", () => {
   loginForm.style.display = "none";
