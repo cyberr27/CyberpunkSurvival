@@ -189,10 +189,10 @@ const lights = [
   },
   {
     id: "light8",
-    x: 924,
-    y: 943,
+    x: 2724,
+    y: 398,
     color: "rgba(2, 35, 250, 0.4)",
-    radius: 900,
+    radius: 800,
   },
   {
     id: "light9",
