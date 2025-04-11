@@ -235,7 +235,7 @@ let selectedSlot = null;
 // Глобальные настройки игры
 const GAME_CONFIG = {
   PLAYER_SPEED: 100,
-  FRAME_DURATION: 8000,
+  FRAME_DURATION: 700, // 700 мс на весь цикл (≈100 мс на кадр)
   BULLET_SPEED: 500,
   BULLET_LIFE: 1000,
   BULLET_DAMAGE: 10,
@@ -1531,6 +1531,8 @@ function update(deltaTime) {
   const me = players.get(myId);
   if (!me || me.health <= 0) return;
 
+  console.log(`DeltaTime: ${deltaTime}, FPS: ${1000 / deltaTime}`); // Для отладки
+
   if (isMoving) {
     const dx = targetX - me.x;
     const dy = targetY - me.y;
@@ -1554,6 +1556,9 @@ function update(deltaTime) {
         me.x = prevX;
         me.y = prevY;
         me.state = "idle";
+        me.frame = 0;
+        me.frameTime = 0;
+        isMoving = false; // Останавливаем движение
       } else {
         me.state = "walking";
         if (Math.abs(dx) > Math.abs(dy)) {
@@ -1569,7 +1574,7 @@ function update(deltaTime) {
 
         me.frameTime += deltaTime;
         if (me.frameTime >= GAME_CONFIG.FRAME_DURATION / 7) {
-          me.frameTime = 0;
+          me.frameTime -= GAME_CONFIG.FRAME_DURATION / 7;
           me.frame = (me.frame + 1) % 7;
         }
 
@@ -1620,7 +1625,7 @@ function update(deltaTime) {
   } else if (me.state === "dying") {
     me.frameTime += deltaTime;
     if (me.frameTime >= GAME_CONFIG.FRAME_DURATION / 7) {
-      me.frameTime = 0;
+      me.frameTime -= GAME_CONFIG.FRAME_DURATION / 7;
       if (me.frame < 6) me.frame += 1;
     }
     ws.send(
@@ -1656,7 +1661,7 @@ function update(deltaTime) {
     }
   });
 
-  // Удаление предметов, которые не подняли через 10 минут
+  // Удаление предметов по таймауту (без изменений)
   const currentTime = Date.now();
   items.forEach((item, itemId) => {
     const screenX = item.x - camera.x;
@@ -1757,7 +1762,7 @@ function draw(deltaTime) {
       if (player.state === "walking") {
         player.frameTime += deltaTime;
         if (player.frameTime >= GAME_CONFIG.FRAME_DURATION / 7) {
-          player.frameTime = 0;
+          player.frameTime -= GAME_CONFIG.FRAME_DURATION / 7; // Плавное вычитание
           player.frame = (player.frame + 1) % 7;
         }
       } else if (player.state === "dying") {
