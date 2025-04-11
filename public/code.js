@@ -235,7 +235,7 @@ let selectedSlot = null;
 // Глобальные настройки игры
 const GAME_CONFIG = {
   PLAYER_SPEED: 100,
-  FRAME_DURATION: 700, // 700 мс на весь цикл (≈100 мс на кадр)
+  FRAME_DURATION: 400, // 700 мс на весь цикл (≈100 мс на кадр)
   BULLET_SPEED: 500,
   BULLET_LIFE: 1000,
   BULLET_DAMAGE: 10,
