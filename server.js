@@ -178,7 +178,7 @@ const lights = [
     x: 264,
     y: 1173,
     color: "rgba(214, 211, 4, 0.7)",
-    radius: 1500,
+    radius: 1200,
   },
   {
     id: "light7",
