@@ -161,8 +161,8 @@ const lights = [
   },
   {
     id: "light4",
-    x: 1164,
-    y: 2843,
+    x: 491,
+    y: 2317,
     color: "rgba(255, 0, 255, 0.7)",
     radius: 0,
   },
