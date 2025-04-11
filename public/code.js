@@ -255,6 +255,11 @@ createLineObstacle(653, 3181, 1079, 3068);
 createLineObstacle(1079, 3068, 1446, 3170);
 createLineObstacle(1446, 3170, 1312, 3280);
 
+createLineObstacle(2301, 3097, 1900, 2851);
+createLineObstacle(1900, 2851, 2313, 2621);
+createLineObstacle(2313, 2621, 2648, 2844);
+createLineObstacle(2648, 2844, 2301, 3097);
+
 // Переключение форм
 toRegister.addEventListener("click", () => {
   loginForm.style.display = "none";
