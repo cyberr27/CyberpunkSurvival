@@ -238,10 +238,10 @@ createLight(1079, 1464, "rgba(148, 0, 211, 0.7)", 800); // Фиолетовый 
 createLight(491, 2317, "rgba(255, 0, 255, 0.7)", 900); // Розовый неон
 createLight(46, 3111, "rgba(214, 211, 4, 0.5)", 800);
 createLight(264, 1173, "rgba(214, 211, 4, 0.7)", 1500);
-createLight(374, 483, "rgba(245, 5, 17, 0.7)", 1000);
+createLight(2319, 2816, "rgba(245, 5, 17, 0.7)", 800);
 createLight(924, 943, "rgba(2, 35, 250, 0.4)", 800);
 createLight(1454, 110, "rgba(2, 35, 250, 0.4)", 800);
-createLight(3095, 2341, "rgba(11, 160, 0, 0.4)", 700);
+createLight(3095, 2341, "rgba(11, 160, 0, 0.4)", 1000);
 
 // Переключение форм
 toRegister.addEventListener("click", () => {
