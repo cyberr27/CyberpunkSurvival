@@ -1033,6 +1033,7 @@ function dropItem(slotIndex) {
   const dropBtn = document.getElementById("dropBtn");
 
   if (item.type === "balyary") {
+    // Логика для "Баляр" с формой ввода количества
     screen.innerHTML = `
       <div class="balyary-drop-form">
         <p class="cyber-text">Сколько выкинуть?</p>
@@ -1111,6 +1112,28 @@ function dropItem(slotIndex) {
       screen.innerHTML = "";
       updateInventoryDisplay();
     }
+  } else {
+    // Логика для остальных предметов: выкидываем один предмет
+    sendWhenReady(
+      ws,
+      JSON.stringify({
+        type: "dropItem",
+        slotIndex,
+        x: me.x,
+        y: me.y,
+        quantity: 1, // Выкидываем ровно один предмет
+      })
+    );
+
+    // Очищаем слот инвентаря
+    inventory[slotIndex] = null;
+
+    // Сбрасываем выбранный слот и кнопки
+    selectedSlot = null;
+    useBtn.disabled = true;
+    dropBtn.disabled = true;
+    screen.innerHTML = "";
+    updateInventoryDisplay();
   }
 }
 
