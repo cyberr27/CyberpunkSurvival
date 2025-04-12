@@ -116,6 +116,7 @@ async function saveUserDatabase(collection, username, player) {
 async function initializeServer() {
   const collection = await connectToDatabase();
   await loadUserDatabase(collection);
+  initializeObstacles(); // Инициализируем препятствия
   console.log("Сервер готов к работе после загрузки базы данных");
   return collection;
 }
@@ -136,6 +137,93 @@ initializeServer()
 
 const items = new Map();
 const obstacles = [];
+
+// Инициализация препятствий
+function initializeObstacles() {
+  OBSTACLE_CONFIG.forEach((config, index) => {
+    const x1 = config.x1 * worldWidth;
+    const y1 = config.y1 * worldHeight;
+    const x2 = config.x2 * worldWidth;
+    const y2 = config.y2 * worldHeight;
+    const thickness = 5;
+
+    // Рассчитываем границы для коллизии
+    const length = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+    const angle = Math.atan2(y2 - y1, x2 - x1);
+    const halfThickness = thickness / 2;
+    const sinAngle = Math.sin(angle);
+    const cosAngle = Math.cos(angle);
+    const dx = halfThickness * sinAngle;
+    const dy = halfThickness * cosAngle;
+
+    const point1 = { x: x1 - dx, y: y1 + dy };
+    const point2 = { x: x1 + dx, y: y1 - dy };
+    const point3 = { x: x2 - dx, y: y2 + dy };
+    const point4 = { x: x2 + dx, y: y2 - dy };
+
+    const left = Math.min(point1.x, point2.x, point3.x, point4.x);
+    const right = Math.max(point1.x, point2.x, point3.x, point4.x);
+    const top = Math.min(point1.y, point2.y, point3.y, point4.y);
+    const bottom = Math.max(point1.y, point2.y, point3.y, point4.y);
+
+    obstacles.push({
+      id: `obstacle_${index}`,
+      isLine: true,
+      x1,
+      y1,
+      x2,
+      y2,
+      thickness,
+      left,
+      right,
+      top,
+      bottom,
+    });
+  });
+  console.log(`Инициализировано ${obstacles.length} препятствий`);
+}
+
+const worldWidth = 3135;
+const worldHeight = 3300;
+
+// Конфигурация препятствий в относительных координатах
+const OBSTACLE_CONFIG = [
+  // Первое препятствие
+  { x1: 8 / 3135, y1: 3260 / 3300, x2: 247 / 3135, y2: 3138 / 3300 },
+  { x1: 247 / 3135, y1: 3138 / 3300, x2: 0 / 3135, y2: 3034 / 3300 },
+  // Второе препятствие
+  { x1: 786 / 3135, y1: 3260 / 3300, x2: 653 / 3135, y2: 3181 / 3300 },
+  { x1: 653 / 3135, y1: 3181 / 3300, x2: 1079 / 3135, y2: 3068 / 3300 },
+  { x1: 1079 / 3135, y1: 3068 / 3300, x2: 1446 / 3135, y2: 3170 / 3300 },
+  { x1: 1446 / 3135, y1: 3170 / 3300, x2: 1312 / 3135, y2: 3280 / 3300 },
+  // Третье препятствие
+  { x1: 2301 / 3135, y1: 3097 / 3300, x2: 1900 / 3135, y2: 2851 / 3300 },
+  { x1: 1900 / 3135, y1: 2851 / 3300, x2: 2313 / 3135, y2: 2621 / 3300 },
+  { x1: 2313 / 3135, y1: 2621 / 3300, x2: 2648 / 3135, y2: 2844 / 3300 },
+  { x1: 2648 / 3135, y1: 2844 / 3300, x2: 2301 / 3135, y2: 3097 / 3300 },
+  // Четвёртое препятствие
+  { x1: 3087 / 3135, y1: 2665 / 3300, x2: 2727 / 3135, y2: 2360 / 3300 },
+  { x1: 2727 / 3135, y1: 2360 / 3300, x2: 3095 / 3135, y2: 2095 / 3300 },
+  // Пятое препятствие
+  { x1: 1583 / 3135, y1: 2486 / 3300, x2: 1181 / 3135, y2: 2207 / 3300 },
+  { x1: 1181 / 3135, y1: 2207 / 3300, x2: 1600 / 3135, y2: 2108 / 3300 },
+  { x1: 1600 / 3135, y1: 2108 / 3300, x2: 2019 / 3135, y2: 2213 / 3300 },
+  { x1: 2019 / 3135, y1: 2213 / 3300, x2: 1583 / 3135, y2: 2486 / 3300 },
+  // Шестое препятствие
+  { x1: 482 / 3135, y1: 2605 / 3300, x2: 180 / 3135, y2: 2288 / 3300 },
+  { x1: 180 / 3135, y1: 2288 / 3300, x2: 439 / 3135, y2: 2124 / 3300 },
+  { x1: 439 / 3135, y1: 2124 / 3300, x2: 859 / 3135, y2: 2267 / 3300 },
+  { x1: 859 / 3135, y1: 2267 / 3300, x2: 482 / 3135, y2: 2605 / 3300 },
+  // Седьмое препятствие
+  { x1: 2440 / 3135, y1: 1964 / 3300, x2: 2000 / 3135, y2: 1602 / 3300 },
+  { x1: 2000 / 3135, y1: 1602 / 3300, x2: 2459 / 3135, y2: 1457 / 3300 },
+  { x1: 2459 / 3135, y1: 1457 / 3300, x2: 2775 / 3135, y2: 1621 / 3300 },
+  { x1: 2775 / 3135, y1: 1621 / 3300, x2: 2440 / 3135, y2: 1964 / 3300 },
+  // Восьмое препятствие
+  { x1: 3135 / 3135, y1: 1451 / 3300, x2: 2800 / 3135, y2: 1156 / 3300 },
+  { x1: 2800 / 3135, y1: 1156 / 3300, x2: 3135 / 3135, y2: 936 / 3300 },
+];
+
 const bullets = new Map(); // Хранилище пуль на сервере
 const lights = [
   {

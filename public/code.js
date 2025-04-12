@@ -247,40 +247,6 @@ createLight(2006, 891, "rgba(205, 84, 205, 0.5)", 750);
 createLight(1305, 340, "rgba(255, 0, 255, 0.7)", 850);
 createLight(105, 343, "rgba(148, 0, 211, 0.7)", 800);
 
-createLineObstacle(8, 3260, 247, 3138);
-createLineObstacle(247, 3138, 0, 3034);
-
-createLineObstacle(786, 3260, 653, 3181);
-createLineObstacle(653, 3181, 1079, 3068);
-createLineObstacle(1079, 3068, 1446, 3170);
-createLineObstacle(1446, 3170, 1312, 3280);
-
-createLineObstacle(2301, 3097, 1900, 2851);
-createLineObstacle(1900, 2851, 2313, 2621);
-createLineObstacle(2313, 2621, 2648, 2844);
-createLineObstacle(2648, 2844, 2301, 3097);
-
-createLineObstacle(3087, 2665, 2727, 2360);
-createLineObstacle(2727, 2360, 3095, 2095);
-
-createLineObstacle(1583, 2486, 1181, 2207);
-createLineObstacle(1181, 2207, 1600, 2108);
-createLineObstacle(1600, 2108, 2019, 2213);
-createLineObstacle(2019, 2213, 1583, 2486);
-
-createLineObstacle(482, 2605, 180, 2288);
-createLineObstacle(180, 2288, 439, 2124);
-createLineObstacle(439, 2124, 859, 2267);
-createLineObstacle(859, 2267, 482, 2605);
-
-createLineObstacle(2440, 1964, 2000, 1602);
-createLineObstacle(2000, 1602, 2459, 1457);
-createLineObstacle(2459, 1457, 2775, 1621);
-createLineObstacle(2775, 1621, 2440, 1964);
-
-createLineObstacle(3135, 1451, 2770, 1156);
-createLineObstacle(2770, 1156, 3135, 936);
-
 // Переключение форм
 toRegister.addEventListener("click", () => {
   loginForm.style.display = "none";
@@ -445,7 +411,28 @@ function handleAuthMessage(event) {
       data.players.forEach((p) => players.set(p.id, p));
       lastDistance = players.get(myId).distanceTraveled || 0;
       data.wolves.forEach((w) => wolves.set(w.id, w));
-      data.obstacles.forEach((o) => obstacles.push(o));
+      obstacles.length = 0; // Очищаем существующие препятствия
+      data.obstacles.forEach((o) => {
+        // Преобразуем препятствие в клиентский формат
+        const obstacle = {
+          id: o.id,
+          isLine: o.isLine,
+          x1: o.x1,
+          y1: o.y1,
+          x2: o.x2,
+          y2: o.y2,
+          thickness: o.thickness,
+          left: o.left,
+          right: o.right,
+          top: o.top,
+          bottom: o.bottom,
+          relX1: o.x1 / worldWidth, // Сохраняем относительные координаты
+          relY1: o.y1 / worldHeight,
+          relX2: o.x2 / worldWidth,
+          relY2: o.y2 / worldHeight,
+        };
+        obstacles.push(obstacle);
+      });
       if (data.items) {
         data.items.forEach((item) =>
           items.set(item.itemId, {
@@ -480,7 +467,14 @@ function handleAuthMessage(event) {
   }
 }
 
-function createLineObstacle(x1, y1, x2, y2, thickness = 5) {
+function createLineObstacle(relX1, relY1, relX2, relY2, thickness = 5) {
+  // Преобразуем относительные координаты в мировые
+  const x1 = relX1 * worldWidth;
+  const y1 = relY1 * worldHeight;
+  const x2 = relX2 * worldWidth;
+  const y2 = relY2 * worldHeight;
+
+  // Рассчитываем длину и угол линии
   const length = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
   const angle = Math.atan2(y2 - y1, x2 - x1);
   const halfThickness = thickness / 2;
@@ -490,6 +484,7 @@ function createLineObstacle(x1, y1, x2, y2, thickness = 5) {
   const dx = halfThickness * sinAngle;
   const dy = halfThickness * cosAngle;
 
+  // Определяем углы прямоугольника (для проверки коллизий)
   const point1 = { x: x1 - dx, y: y1 + dy };
   const point2 = { x: x1 + dx, y: y1 - dy };
   const point3 = { x: x2 - dx, y: y2 + dy };
@@ -500,6 +495,7 @@ function createLineObstacle(x1, y1, x2, y2, thickness = 5) {
   const top = Math.min(point1.y, point2.y, point3.y, point4.y);
   const bottom = Math.max(point1.y, point2.y, point3.y, point4.y);
 
+  // Создаём объект препятствия
   const obstacle = {
     id: Date.now().toString(),
     left,
@@ -512,6 +508,10 @@ function createLineObstacle(x1, y1, x2, y2, thickness = 5) {
     x2,
     y2,
     thickness,
+    relX1, // Сохраняем относительные координаты для отладки
+    relY1,
+    relX2,
+    relY2,
   };
   obstacles.push(obstacle);
 }
@@ -574,13 +574,13 @@ function checkCollision(newX, newY) {
   const playerBottom = newY + 40;
 
   for (const obstacle of obstacles) {
-    // Убираем деструктуризацию [, obstacle]
     if (obstacle.isLine) {
       const lineX1 = obstacle.x1;
       const lineY1 = obstacle.y1;
       const lineX2 = obstacle.x2;
       const lineY2 = obstacle.y2;
 
+      // Проверяем пересечение с границами игрока
       const playerEdges = [
         { x1: playerLeft, y1: playerTop, x2: playerRight, y2: playerTop },
         { x1: playerRight, y1: playerTop, x2: playerRight, y2: playerBottom },
@@ -605,6 +605,7 @@ function checkCollision(newX, newY) {
         }
       }
 
+      // Проверяем расстояние до линии
       const distance = pointToLineDistance(
         newX + 20,
         newY + 20,
@@ -1443,8 +1444,30 @@ function handleGameMessage(event) {
 
 // Адаптация размеров канваса
 function resizeCanvas() {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight; // 100% высоты
+  // Соотношение сторон мира
+  const worldAspectRatio = worldWidth / worldHeight; // 3135 / 3300 ≈ 0.95
+  const windowAspectRatio = window.innerWidth / window.innerHeight;
+
+  let canvasWidth, canvasHeight;
+
+  // Подстраиваем размер канваса, чтобы сохранить пропорции мира
+  if (windowAspectRatio > worldAspectRatio) {
+    // Окно шире, чем мир — ограничиваем по высоте
+    canvasHeight = window.innerHeight;
+    canvasWidth = canvasHeight * worldAspectRatio;
+  } else {
+    // Окно уже, чем мир — ограничиваем по ширине
+    canvasWidth = window.innerWidth;
+    canvasHeight = canvasWidth / worldAspectRatio;
+  }
+
+  canvas.width = canvasWidth;
+  canvas.height = canvasHeight;
+
+  // Центрируем канвас, если он меньше окна
+  canvas.style.marginLeft = `${(window.innerWidth - canvasWidth) / 2}px`;
+  canvas.style.marginTop = `${(window.innerHeight - canvasHeight) / 2}px`;
+
   updateCamera();
 }
 
@@ -1452,10 +1475,24 @@ function resizeCanvas() {
 function updateCamera() {
   const me = players.get(myId);
   if (!me) return;
-  camera.x = me.x - canvas.width / 2;
-  camera.y = me.y - canvas.height / 2;
-  camera.x = Math.max(0, Math.min(camera.x, worldWidth - canvas.width));
-  camera.y = Math.max(0, Math.min(camera.y, worldHeight - canvas.height));
+
+  // Масштаб для преобразования мировых координат в экранные
+  const scaleX = canvas.width / worldWidth;
+  const scaleY = canvas.height / worldHeight;
+
+  // Центрируем камеру на игроке
+  camera.x = me.x - canvas.width / scaleX / 2;
+  camera.y = me.y - canvas.height / scaleY / 2;
+
+  // Ограничиваем камеру границами мира
+  camera.x = Math.max(
+    0,
+    Math.min(camera.x, worldWidth - canvas.width / scaleX)
+  );
+  camera.y = Math.max(
+    0,
+    Math.min(camera.y, worldHeight - canvas.height / scaleY)
+  );
 }
 
 function shoot() {
@@ -1830,21 +1867,32 @@ function draw(deltaTime) {
 
   obstacles.forEach((obstacle) => {
     if (obstacle.isLine) {
-      const startX = obstacle.x1 - camera.x;
-      const startY = obstacle.y1 - camera.y;
-      const endX = obstacle.x2 - camera.x;
-      const endY = obstacle.y2 - camera.y;
+      // Преобразуем мировые координаты в экранные с учётом масштаба канваса
+      const scaleX = canvas.width / worldWidth;
+      const scaleY = canvas.height / worldHeight;
+      const startX = obstacle.x1 * scaleX;
+      const startY = obstacle.y1 * scaleY;
+      const endX = obstacle.x2 * scaleX;
+      const endY = obstacle.y2 * scaleY;
+
+      // Применяем смещение камеры
+      const screenStartX = startX - camera.x * scaleX;
+      const screenStartY = startY - camera.y * scaleY;
+      const screenEndX = endX - camera.x * scaleX;
+      const screenEndY = endY - camera.y * scaleY;
+
+      // Проверяем, видима ли линия
       if (
-        (startX > 0 || endX > 0) &&
-        (startX < canvas.width || endX < canvas.width) &&
-        (startY > 0 || endY > 0) &&
-        (startY < canvas.height || endY < canvas.height)
+        (screenStartX > 0 || screenEndX > 0) &&
+        (screenStartX < canvas.width || screenEndX < canvas.width) &&
+        (screenStartY > 0 || screenEndY > 0) &&
+        (screenStartY < canvas.height || screenEndY < canvas.height)
       ) {
         ctx.beginPath();
-        ctx.moveTo(startX, startY);
-        ctx.lineTo(endX, endY);
-        ctx.lineWidth = obstacle.thickness;
-        ctx.strokeStyle = "rgba(255, 0, 150, 0.5)";
+        ctx.moveTo(screenStartX, screenStartY);
+        ctx.lineTo(screenEndX, screenEndY);
+        ctx.lineWidth = obstacle.thickness * Math.min(scaleX, scaleY); // Масштабируем толщину
+        ctx.strokeStyle = "rgba(255, 0, 150, 0.5)"; // Цвет для отладки
         ctx.stroke();
       }
     }
@@ -1857,14 +1905,17 @@ function draw(deltaTime) {
     drawBullet(screenX, screenY);
   });
 
+  // Масштабируем vegetationImage под размер мира
+  const scaleX = canvas.width / worldWidth;
+  const scaleY = canvas.height / worldHeight;
   ctx.drawImage(
     vegetationImage,
-    vegetationOffsetX,
-    camera.y * vegetationSpeed,
-    canvas.width,
-    canvas.height,
     0,
     0,
+    worldWidth,
+    worldHeight,
+    -camera.x * scaleX,
+    -camera.y * scaleY,
     canvas.width,
     canvas.height
   );
