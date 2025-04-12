@@ -264,10 +264,7 @@ function createLineObstacleServer(x1, y1, x2, y2, thickness = 5) {
 }
 
 // Создаём препятствия после определения функции
-createLineObstacleServer(314, 330, 314, 2970, 5); // Вертикальная стена слева
-createLineObstacleServer(2822, 330, 2822, 2970, 5); // Вертикальная стена справа
-createLineObstacleServer(314, 330, 2822, 330, 5); // Горизонтальная стена сверху
-createLineObstacleServer(314, 2970, 2822, 2970, 5); // Горизонтальная стена снизу
+createLineObstacleServer(314, 330, 314, 2970, 5);
 
 // Функция вычисления расстояния от точки до линии (взята из одиночной игры)
 function pointToLineDistance(px, py, x1, y1, x2, y2) {
