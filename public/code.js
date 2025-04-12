@@ -29,6 +29,13 @@ let wolves = new Map();
 const items = new Map();
 const lights = [];
 const obstacles = [];
+
+// Пример создания препятствий
+createLineObstacle(10, 10, 10, 90, 5); // Вертикальная стена слева
+createLineObstacle(90, 10, 90, 90, 5); // Вертикальная стена справа
+createLineObstacle(10, 10, 90, 10, 5); // Горизонтальная стена сверху
+createLineObstacle(10, 90, 90, 90, 5); // Горизонтальная стена снизу
+
 const bullets = new Map();
 // Хранилище предметов, для которых уже отправлен запрос pickup
 const pendingPickups = new Set();
@@ -483,26 +490,44 @@ function handleAuthMessage(event) {
   }
 }
 
-function createLineObstacle(x1, y1, x2, y2, thickness = 5) {
+function createLineObstacle(
+  percentX1,
+  percentY1,
+  percentX2,
+  percentY2,
+  thickness = 5
+) {
+  // Переводим проценты в пиксельные координаты
+  const x1 = (percentX1 / 100) * worldWidth;
+  const y1 = (percentY1 / 100) * worldHeight;
+  const x2 = (percentX2 / 100) * worldWidth;
+  const y2 = (percentY2 / 100) * worldHeight;
+
+  // Вычисляем длину линии
   const length = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+  // Вычисляем угол наклона линии
   const angle = Math.atan2(y2 - y1, x2 - x1);
   const halfThickness = thickness / 2;
 
+  // Вычисляем нормаль к линии для создания прямоугольника
   const sinAngle = Math.sin(angle);
   const cosAngle = Math.cos(angle);
   const dx = halfThickness * sinAngle;
   const dy = halfThickness * cosAngle;
 
+  // Определяем углы прямоугольника, описывающего линию
   const point1 = { x: x1 - dx, y: y1 + dy };
   const point2 = { x: x1 + dx, y: y1 - dy };
   const point3 = { x: x2 - dx, y: y2 + dy };
   const point4 = { x: x2 + dx, y: y2 - dy };
 
+  // Определяем границы для AABB (Axis-Aligned Bounding Box)
   const left = Math.min(point1.x, point2.x, point3.x, point4.x);
   const right = Math.max(point1.x, point2.x, point3.x, point4.x);
   const top = Math.min(point1.y, point2.y, point3.y, point4.y);
   const bottom = Math.max(point1.y, point2.y, point3.y, point4.y);
 
+  // Создаём объект препятствия
   const obstacle = {
     id: Date.now().toString(),
     left,
@@ -515,7 +540,13 @@ function createLineObstacle(x1, y1, x2, y2, thickness = 5) {
     x2,
     y2,
     thickness,
+    // Сохраняем процентные координаты для отладки или сериализации
+    percentX1,
+    percentY1,
+    percentX2,
+    percentY2,
   };
+
   obstacles.push(obstacle);
 }
 
