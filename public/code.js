@@ -211,15 +211,15 @@ const worldHeight = 3300;
 // Камера
 const camera = { x: 0, y: 0 };
 
-createLight(2404, 1693, "rgba(0, 255, 255, 0.7)", 1500); // 1
+createLight(2445, 1540, "rgba(0, 255, 255, 0.7)", 1000); // 1
 createLight(1710, 0, "rgba(255, 0, 255, 0.7)", 1200); // 2
 createLight(934, 1793, "rgba(148, 0, 211, 0.7)", 1200); // 3
 createLight(950, 3115, "rgba(255, 0, 255, 0.7)", 750); // 4
-createLight(50, 3120, "rgba(214, 211, 4, 0.5)", 700);// 5 
-createLight(264, 1173, "rgba(214, 211, 4, 0.7)", 900);// 6
-createLight(2314, 2756, "rgba(245, 5, 17, 0.7)", 700);// 7
-createLight(924, 943, "rgba(2, 35, 250, 0.4)", 800);// 8
-createLight(3095, 2335, "rgb(28, 186, 55)", 800);// 9
+createLight(50, 3120, "rgba(214, 211, 4, 0.5)", 700); // 5
+createLight(264, 1173, "rgba(214, 211, 4, 0.7)", 900); // 6
+createLight(2314, 2756, "rgba(245, 5, 17, 0.7)", 700); // 7
+createLight(924, 943, "rgba(2, 35, 250, 0.4)", 800); // 8
+createLight(3095, 2335, "rgb(28, 186, 55)", 800); // 9
 
 // Переключение форм
 toRegister.addEventListener("click", () => {
