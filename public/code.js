@@ -1447,7 +1447,23 @@ function handleGameMessage(event) {
 // Адаптация размеров канваса
 function resizeCanvas() {
   canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight; // 100% высоты
+  canvas.height = window.innerHeight;
+
+  // Вычисляем соотношение сторон канваса и мира
+  const canvasAspect = canvas.width / canvas.height;
+  const worldAspect = worldWidth / worldHeight;
+
+  // Если соотношение сторон канваса отличается, корректируем область видимости
+  if (canvasAspect > worldAspect) {
+    // Канвас шире, чем мир -> ограничиваем по высоте
+    canvas.style.width = `${canvas.height * worldAspect}px`;
+    canvas.style.height = `${canvas.height}px`;
+  } else {
+    // Канвас выше, чем мир -> ограничиваем по ширине
+    canvas.style.width = `${canvas.width}px`;
+    canvas.style.height = `${canvas.width / worldAspect}px`;
+  }
+
   updateCamera();
 }
 
@@ -1455,8 +1471,12 @@ function resizeCanvas() {
 function updateCamera() {
   const me = players.get(myId);
   if (!me) return;
+
+  // Центрируем камеру на игроке
   camera.x = me.x - canvas.width / 2;
   camera.y = me.y - canvas.height / 2;
+
+  // Ограничиваем камеру, чтобы не выходить за границы мира
   camera.x = Math.max(0, Math.min(camera.x, worldWidth - canvas.width));
   camera.y = Math.max(0, Math.min(camera.y, worldHeight - canvas.height));
 }
@@ -1833,10 +1853,12 @@ function draw(deltaTime) {
 
   obstacles.forEach((obstacle) => {
     if (obstacle.isLine) {
-      const startX = obstacle.x1 - camera.x;
-      const startY = obstacle.y1 - camera.y;
-      const endX = obstacle.x2 - camera.x;
-      const endY = obstacle.y2 - camera.y;
+      // Применяем тот же коэффициент параллакса, что для vegetation.png
+      const vegetationSpeed = 0.8;
+      const startX = obstacle.x1 * vegetationSpeed - camera.x * vegetationSpeed;
+      const startY = obstacle.y1 * vegetationSpeed - camera.y * vegetationSpeed;
+      const endX = obstacle.x2 * vegetationSpeed - camera.x * vegetationSpeed;
+      const endY = obstacle.y2 * vegetationSpeed - camera.y * vegetationSpeed;
       if (
         (startX > 0 || endX > 0) &&
         (startX < canvas.width || endX < canvas.width) &&
