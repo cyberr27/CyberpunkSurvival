@@ -483,44 +483,41 @@ function handleAuthMessage(event) {
   }
 }
 
-function createLineObstacle(
-  percentX1,
-  percentY1,
-  percentX2,
-  percentY2,
-  thickness = 5
-) {
-  // Переводим проценты в пиксельные координаты
-  const x1 = (percentX1 / 100) * worldWidth;
-  const y1 = (percentY1 / 100) * worldHeight;
-  const x2 = (percentX2 / 100) * worldWidth;
-  const y2 = (percentY2 / 100) * worldHeight;
+function createLineObstacle(x1, y1, x2, y2, thickness = 5) {
+  const worldWidth = 3135;
+  const worldHeight = 3300;
 
-  // Вычисляем длину линии
-  const length = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
-  // Вычисляем угол наклона линии
-  const angle = Math.atan2(y2 - y1, x2 - x1);
+  // Преобразуем пиксельные координаты в проценты
+  const percentX1 = (x1 / worldWidth) * 100;
+  const percentY1 = (y1 / worldHeight) * 100;
+  const percentX2 = (x2 / worldWidth) * 100;
+  const percentY2 = (y2 / worldHeight) * 100;
+
+  // Используем пиксельные координаты для вычислений
+  const px1 = x1;
+  const py1 = y1;
+  const px2 = x2;
+  const py2 = y2;
+
+  const length = Math.sqrt(Math.pow(px2 - px1, 2) + Math.pow(py2 - py1, 2));
+  const angle = Math.atan2(py2 - py1, px2 - px1);
   const halfThickness = thickness / 2;
 
-  // Вычисляем нормаль к линии для создания прямоугольника
   const sinAngle = Math.sin(angle);
   const cosAngle = Math.cos(angle);
   const dx = halfThickness * sinAngle;
   const dy = halfThickness * cosAngle;
 
-  // Определяем углы прямоугольника, описывающего линию
-  const point1 = { x: x1 - dx, y: y1 + dy };
-  const point2 = { x: x1 + dx, y: y1 - dy };
-  const point3 = { x: x2 - dx, y: y2 + dy };
-  const point4 = { x: x2 + dx, y: y2 - dy };
+  const point1 = { x: px1 - dx, y: py1 + dy };
+  const point2 = { x: px1 + dx, y: py1 - dy };
+  const point3 = { x: px2 - dx, y: py2 + dy };
+  const point4 = { x: px2 + dx, y: py2 - dy };
 
-  // Определяем границы для AABB (Axis-Aligned Bounding Box)
   const left = Math.min(point1.x, point2.x, point3.x, point4.x);
   const right = Math.max(point1.x, point2.x, point3.x, point4.x);
   const top = Math.min(point1.y, point2.y, point3.y, point4.y);
   const bottom = Math.max(point1.y, point2.y, point3.y, point4.y);
 
-  // Создаём объект препятствия
   const obstacle = {
     id: Date.now().toString(),
     left,
@@ -528,12 +525,11 @@ function createLineObstacle(
     top,
     bottom,
     isLine: true,
-    x1,
-    y1,
-    x2,
-    y2,
+    x1: px1,
+    y1: py1,
+    x2: px2,
+    y2: py2,
     thickness,
-    // Сохраняем процентные координаты для отладки или сериализации
     percentX1,
     percentY1,
     percentX2,

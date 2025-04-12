@@ -207,23 +207,24 @@ const lights = [
   },
 ];
 
-function createLineObstacleServer(
-  percentX1,
-  percentY1,
-  percentX2,
-  percentY2,
-  thickness = 5
-) {
+function createLineObstacleServer(x1, y1, x2, y2, thickness = 5) {
   const worldWidth = 3135;
   const worldHeight = 3300;
 
-  const x1 = (percentX1 / 100) * worldWidth;
-  const y1 = (percentY1 / 100) * worldHeight;
-  const x2 = (percentX2 / 100) * worldWidth;
-  const y2 = (percentY2 / 100) * worldHeight;
+  // Преобразуем пиксельные координаты в проценты
+  const percentX1 = (x1 / worldWidth) * 100;
+  const percentY1 = (y1 / worldHeight) * 100;
+  const percentX2 = (x2 / worldWidth) * 100;
+  const percentY2 = (y2 / worldHeight) * 100;
 
-  const length = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
-  const angle = Math.atan2(y2 - y1, x2 - x1);
+  // Вычисляем координаты в пикселях для внутренней логики
+  const px1 = x1;
+  const py1 = y1;
+  const px2 = x2;
+  const py2 = y2;
+
+  const length = Math.sqrt(Math.pow(px2 - px1, 2) + Math.pow(py2 - py1, 2));
+  const angle = Math.atan2(py2 - py1, px2 - px1);
   const halfThickness = thickness / 2;
 
   const sinAngle = Math.sin(angle);
@@ -231,10 +232,10 @@ function createLineObstacleServer(
   const dx = halfThickness * sinAngle;
   const dy = halfThickness * cosAngle;
 
-  const point1 = { x: x1 - dx, y: y1 + dy };
-  const point2 = { x: x1 + dx, y: y1 - dy };
-  const point3 = { x: x2 - dx, y: y2 + dy };
-  const point4 = { x: x2 + dx, y: y2 - dy };
+  const point1 = { x: px1 - dx, y: py1 + dy };
+  const point2 = { x: px1 + dx, y: py1 - dy };
+  const point3 = { x: px2 - dx, y: py2 + dy };
+  const point4 = { x: px2 + dx, y: py2 - dy };
 
   const left = Math.min(point1.x, point2.x, point3.x, point4.x);
   const right = Math.max(point1.x, point2.x, point3.x, point4.x);
@@ -248,10 +249,10 @@ function createLineObstacleServer(
     top,
     bottom,
     isLine: true,
-    x1,
-    y1,
-    x2,
-    y2,
+    x1: px1,
+    y1: py1,
+    x2: px2,
+    y2: py2,
     thickness,
     percentX1,
     percentY1,
@@ -263,10 +264,10 @@ function createLineObstacleServer(
 }
 
 // Создаём препятствия после определения функции
-createLineObstacleServer(10, 10, 10, 90, 5); // Вертикальная стена слева
-createLineObstacleServer(90, 10, 90, 90, 5); // Вертикальная стена справа
-createLineObstacleServer(10, 10, 90, 10, 5); // Горизонтальная стена сверху
-createLineObstacleServer(10, 90, 90, 90, 5); // Горизонтальная стена снизу
+createLineObstacleServer(314, 330, 314, 2970, 5); // Вертикальная стена слева
+createLineObstacleServer(2822, 330, 2822, 2970, 5); // Вертикальная стена справа
+createLineObstacleServer(314, 330, 2822, 330, 5); // Горизонтальная стена сверху
+createLineObstacleServer(314, 2970, 2822, 2970, 5); // Горизонтальная стена снизу
 
 // Функция вычисления расстояния от точки до линии (взята из одиночной игры)
 function pointToLineDistance(px, py, x1, y1, x2, y2) {
