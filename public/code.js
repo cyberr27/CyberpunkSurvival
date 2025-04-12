@@ -490,15 +490,15 @@ const { pixelX: px4, pixelY: py4 } = convertToPixelCoords(0, 3041);
 createLineObstacle(px3, py3, px4, py4, 5);
 
 const { pixelX: px5, pixelY: py5 } = convertToPixelCoords(814, 3300);
-const { pixelX: px6, pixelY: py6 } = convertToPixelCoords(666, 3170);
+const { pixelX: px6, pixelY: py6 } = convertToPixelCoords(700, 3170);
 createLineObstacle(px5, py5, px6, py6, 5);
-const { pixelX: px7, pixelY: py7 } = convertToPixelCoords(666, 3170);
+const { pixelX: px7, pixelY: py7 } = convertToPixelCoords(700, 3170);
 const { pixelX: px8, pixelY: py8 } = convertToPixelCoords(1079, 3007);
 createLineObstacle(px7, py7, px8, py8, 5);
 const { pixelX: px9, pixelY: py9 } = convertToPixelCoords(1079, 3007);
-const { pixelX: px0, pixelY: py0 } = convertToPixelCoords(1432, 3173);
+const { pixelX: px0, pixelY: py0 } = convertToPixelCoords(1484, 3173);
 createLineObstacle(px9, py9, px0, py0, 5);
-const { pixelX: px10, pixelY: py10 } = convertToPixelCoords(1432, 3173);
+const { pixelX: px10, pixelY: py10 } = convertToPixelCoords(1484, 3173);
 const { pixelX: px11, pixelY: py11 } = convertToPixelCoords(1317, 3300);
 createLineObstacle(px10, py10, px11, py11, 5);
 
