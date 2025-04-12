@@ -133,13 +133,6 @@ initializeServer()
 
 const items = new Map();
 const obstacles = [];
-
-// Пример создания препятствий
-createLineObstacle(10, 10, 10, 90, 5); // Вертикальная стена слева
-createLineObstacle(90, 10, 90, 90, 5); // Вертикальная стена справа
-createLineObstacle(10, 10, 90, 10, 5); // Горизонтальная стена сверху
-createLineObstacle(10, 90, 90, 90, 5); // Горизонтальная стена снизу
-
 const bullets = new Map(); // Хранилище пуль на сервере
 const lights = [
   {
@@ -213,6 +206,67 @@ const lights = [
     radius: 900,
   },
 ];
+
+function createLineObstacleServer(
+  percentX1,
+  percentY1,
+  percentX2,
+  percentY2,
+  thickness = 5
+) {
+  const worldWidth = 3135;
+  const worldHeight = 3300;
+
+  const x1 = (percentX1 / 100) * worldWidth;
+  const y1 = (percentY1 / 100) * worldHeight;
+  const x2 = (percentX2 / 100) * worldWidth;
+  const y2 = (percentY2 / 100) * worldHeight;
+
+  const length = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+  const angle = Math.atan2(y2 - y1, x2 - x1);
+  const halfThickness = thickness / 2;
+
+  const sinAngle = Math.sin(angle);
+  const cosAngle = Math.cos(angle);
+  const dx = halfThickness * sinAngle;
+  const dy = halfThickness * cosAngle;
+
+  const point1 = { x: x1 - dx, y: y1 + dy };
+  const point2 = { x: x1 + dx, y: y1 - dy };
+  const point3 = { x: x2 - dx, y: y2 + dy };
+  const point4 = { x: x2 + dx, y: y2 - dy };
+
+  const left = Math.min(point1.x, point2.x, point3.x, point4.x);
+  const right = Math.max(point1.x, point2.x, point3.x, point4.x);
+  const top = Math.min(point1.y, point2.y, point3.y, point4.y);
+  const bottom = Math.max(point1.y, point2.y, point3.y, point4.y);
+
+  const obstacle = {
+    id: Date.now().toString(),
+    left,
+    right,
+    top,
+    bottom,
+    isLine: true,
+    x1,
+    y1,
+    x2,
+    y2,
+    thickness,
+    percentX1,
+    percentY1,
+    percentX2,
+    percentY2,
+  };
+
+  obstacles.push(obstacle);
+}
+
+// Создаём препятствия после определения функции
+createLineObstacleServer(10, 10, 10, 90, 5); // Вертикальная стена слева
+createLineObstacleServer(90, 10, 90, 90, 5); // Вертикальная стена справа
+createLineObstacleServer(10, 10, 90, 10, 5); // Горизонтальная стена сверху
+createLineObstacleServer(10, 90, 90, 90, 5); // Горизонтальная стена снизу
 
 // Функция вычисления расстояния от точки до линии (взята из одиночной игры)
 function pointToLineDistance(px, py, x1, y1, x2, y2) {
@@ -722,61 +776,6 @@ wss.on("connection", (ws) => {
     clearTimeout(inactivityTimer);
   });
 });
-
-function createLineObstacleServer(
-  percentX1,
-  percentY1,
-  percentX2,
-  percentY2,
-  thickness = 5
-) {
-  const worldWidth = 3135;
-  const worldHeight = 3300;
-
-  const x1 = (percentX1 / 100) * worldWidth;
-  const y1 = (percentY1 / 100) * worldHeight;
-  const x2 = (percentX2 / 100) * worldWidth;
-  const y2 = (percentY2 / 100) * worldHeight;
-
-  const length = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
-  const angle = Math.atan2(y2 - y1, x2 - x1);
-  const halfThickness = thickness / 2;
-
-  const sinAngle = Math.sin(angle);
-  const cosAngle = Math.cos(angle);
-  const dx = halfThickness * sinAngle;
-  const dy = halfThickness * cosAngle;
-
-  const point1 = { x: x1 - dx, y: y1 + dy };
-  const point2 = { x: x1 + dx, y: y1 - dy };
-  const point3 = { x: x2 - dx, y: y2 + dy };
-  const point4 = { x: x2 + dx, y: y2 - dy };
-
-  const left = Math.min(point1.x, point2.x, point3.x, point4.x);
-  const right = Math.max(point1.x, point2.x, point3.x, point4.x);
-  const top = Math.min(point1.y, point2.y, point3.y, point4.y);
-  const bottom = Math.max(point1.y, point2.y, point3.y, point4.y);
-
-  const obstacle = {
-    id: Date.now().toString(),
-    left,
-    right,
-    top,
-    bottom,
-    isLine: true,
-    x1,
-    y1,
-    x2,
-    y2,
-    thickness,
-    percentX1,
-    percentY1,
-    percentX2,
-    percentY2,
-  };
-
-  obstacles.push(obstacle);
-}
 
 setInterval(async () => {
   const currentTime = Date.now();
