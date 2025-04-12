@@ -1461,12 +1461,26 @@ function resizeCanvas() {
     canvasHeight = canvasWidth / worldAspectRatio;
   }
 
+  // Устанавливаем размеры канваса
   canvas.width = canvasWidth;
   canvas.height = canvasHeight;
 
-  // Центрируем канвас, если он меньше окна
+  // Устанавливаем атрибуты для пиксельного рендеринга
+  canvas.style.width = `${canvasWidth}px`;
+  canvas.style.height = `${canvasHeight}px`;
+
+  // Центрируем канвас
   canvas.style.marginLeft = `${(window.innerWidth - canvasWidth) / 2}px`;
   canvas.style.marginTop = `${(window.innerHeight - canvasHeight) / 2}px`;
+
+  // Проверяем масштаб для отладки
+  console.log(
+    `Канвас: ${canvas.width}x${
+      canvas.height
+    }, Мир: ${worldWidth}x${worldHeight}, Масштаб: ${
+      canvas.width / worldWidth
+    }x${canvas.height / worldHeight}`
+  );
 
   updateCamera();
 }
@@ -1906,18 +1920,21 @@ function draw(deltaTime) {
   });
 
   // Масштабируем vegetationImage под размер мира
+  // Масштаб для преобразования мировых координат в экранные
   const scaleX = canvas.width / worldWidth;
   const scaleY = canvas.height / worldHeight;
+
+  // Отрисовываем vegetationImage в масштабе мира
   ctx.drawImage(
     vegetationImage,
     0,
     0,
-    worldWidth,
-    worldHeight,
+    vegetationImage.width,
+    vegetationImage.height,
     -camera.x * scaleX,
     -camera.y * scaleY,
-    canvas.width,
-    canvas.height
+    worldWidth * scaleX,
+    worldHeight * scaleY
   );
   ctx.drawImage(
     cloudsImage,
