@@ -268,8 +268,8 @@ createLineObstacle(1141, 2207, 1600, 2108);
 createLineObstacle(1600, 2108, 2019, 2213);
 createLineObstacle(2019, 2213, 1583, 2486);
 
-createLineObstacle(482, 2605, 137, 2288);
-createLineObstacle(137, 2288, 439, 2124);
+createLineObstacle(482, 2605, 160, 2288);
+createLineObstacle(160, 2288, 439, 2124);
 createLineObstacle(439, 2124, 859, 2267);
 createLineObstacle(859, 2267, 482, 2605);
 
