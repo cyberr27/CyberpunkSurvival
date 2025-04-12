@@ -421,7 +421,24 @@ function handleAuthMessage(event) {
   }
 }
 
-function createLineObstacle(x1, y1, x2, y2, thickness = 5) {
+function createLineObstacle(pixelX1, pixelY1, pixelX2, pixelY2, thickness = 5) {
+  // Базовое разрешение, относительно которого задаются пиксельные координаты
+  const baseWidth = 1366;
+  const baseHeight = 768;
+
+  // Преобразуем пиксельные координаты в проценты от базового разрешения
+  const percentX1 = pixelX1 / baseWidth;
+  const percentY1 = pixelY1 / baseHeight;
+  const percentX2 = pixelX2 / baseWidth;
+  const percentY2 = pixelY2 / baseHeight;
+
+  // Преобразуем проценты в мировые координаты (3135x3300)
+  const x1 = percentX1 * worldWidth;
+  const y1 = percentY1 * worldHeight;
+  const x2 = percentX2 * worldWidth;
+  const y2 = percentY2 * worldHeight;
+
+  // Далее идет оригинальная логика создания линии в мировых координатах
   const length = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
   const angle = Math.atan2(y2 - y1, x2 - x1);
   const halfThickness = thickness / 2;
@@ -456,6 +473,21 @@ function createLineObstacle(x1, y1, x2, y2, thickness = 5) {
   };
   obstacles.push(obstacle);
 }
+
+function convertToPixelCoords(worldX, worldY) {
+  const baseWidth = 1366;
+  const baseHeight = 768;
+  const pixelX = (worldX / worldWidth) * baseWidth;
+  const pixelY = (worldY / worldHeight) * baseHeight;
+  return { pixelX, pixelY };
+}
+
+const { pixelX: px1, pixelY: py1 } = convertToPixelCoords(0, 3240);
+const { pixelX: px2, pixelY: py2 } = convertToPixelCoords(245, 3130);
+createLineObstacle(px1, py1, px2, py2, 5);
+const { pixelX: px3, pixelY: py3 } = convertToPixelCoords(245, 3130);
+const { pixelX: px4, pixelY: py4 } = convertToPixelCoords(0, 3041);
+createLineObstacle(px3, py3, px4, py4, 5);
 
 function lineIntersects(x1, y1, x2, y2, x3, y3, x4, y4) {
   const denominator = (y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1);
