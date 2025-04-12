@@ -267,6 +267,11 @@ function createLineObstacleServer(x1, y1, x2, y2, thickness = 5) {
 createLineObstacleServer(0, 3241, 249, 3131, 5);
 createLineObstacleServer(249, 3131, 0, 3050);
 
+createLineObstacleServer(806, 3260, 659, 3168);
+createLineObstacleServer(659, 3168, 1066, 3037);
+createLineObstacleServer(1066, 3037, 1427, 3179);
+createLineObstacleServer(1427, 3179, 806, 3260);
+
 // Функция вычисления расстояния от точки до линии (взята из одиночной игры)
 function pointToLineDistance(px, py, x1, y1, x2, y2) {
   const dx = x2 - x1;
