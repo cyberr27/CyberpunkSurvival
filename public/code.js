@@ -263,8 +263,8 @@ createLineObstacle(2648, 2844, 2301, 3097);
 createLineObstacle(3087, 2665, 2727, 2360);
 createLineObstacle(2727, 2360, 3095, 2095);
 
-createLineObstacle(1583, 2486, 1161, 2207);
-createLineObstacle(1161, 2207, 1600, 2108);
+createLineObstacle(1583, 2486, 1181, 2207);
+createLineObstacle(1181, 2207, 1600, 2108);
 createLineObstacle(1600, 2108, 2019, 2213);
 createLineObstacle(2019, 2213, 1583, 2486);
 
@@ -277,6 +277,9 @@ createLineObstacle(2440, 1964, 2000, 1602);
 createLineObstacle(2000, 1602, 2459, 1457);
 createLineObstacle(2459, 1457, 2775, 1621);
 createLineObstacle(2775, 1621, 2440, 1964);
+
+createLineObstacle(3135, 1451, 2770, 1156);
+createLineObstacle(2770, 1156, 3135, 936);
 
 // Переключение форм
 toRegister.addEventListener("click", () => {
