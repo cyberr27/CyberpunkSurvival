@@ -172,17 +172,17 @@ const lights = [
   },
   {
     id: "light7",
-    x: 264,
+    x: 50,
     y: 1173,
     color: "rgba(214, 211, 4, 0.7)",
     radius: 1500,
   },
   {
     id: "light8",
-    x: 374,
-    y: 483,
+    x: 2314,
+    y: 2756,
     color: "rgba(245, 5, 17, 0.7)",
-    radius: 1000,
+    radius: 700,
   },
   {
     id: "light9",
