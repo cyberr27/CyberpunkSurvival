@@ -214,8 +214,8 @@ const camera = { x: 0, y: 0 };
 createLight(2404, 1693, "rgba(0, 255, 255, 0.7)", 1500); // Голубой неон
 createLight(1710, 0, "rgba(255, 0, 255, 0.7)", 1200); // Розовый неон
 createLight(934, 1793, "rgba(148, 0, 211, 0.7)", 1200); // Фиолетовый неон
-createLight(1164, 2843, "rgba(255, 0, 255, 0.7)", 800); // Розовый неон
-createLight(364, 3093, "rgba(214, 211, 4, 0.5)", 700);
+createLight(950, 3115, "rgba(255, 0, 255, 0.7)", 750); // Розовый неон
+createLight(270, 3120, "rgba(214, 211, 4, 0.5)", 700);
 createLight(434, 2653, "rgba(214, 211, 4, 0.5)", 700);
 createLight(264, 1173, "rgba(214, 211, 4, 0.7)", 1500);
 createLight(374, 483, "rgba(245, 5, 17, 0.7)", 1000);
@@ -489,16 +489,16 @@ const { pixelX: px3, pixelY: py3 } = convertToPixelCoords(245, 3130);
 const { pixelX: px4, pixelY: py4 } = convertToPixelCoords(0, 3041);
 createLineObstacle(px3, py3, px4, py4, 5);
 
-const { pixelX: px5, pixelY: py5 } = convertToPixelCoords(814, 3300);
+const { pixelX: px5, pixelY: py5 } = convertToPixelCoords(860, 3300);
 const { pixelX: px6, pixelY: py6 } = convertToPixelCoords(700, 3170);
 createLineObstacle(px5, py5, px6, py6, 5);
 const { pixelX: px7, pixelY: py7 } = convertToPixelCoords(700, 3170);
 const { pixelX: px8, pixelY: py8 } = convertToPixelCoords(1079, 3007);
 createLineObstacle(px7, py7, px8, py8, 5);
 const { pixelX: px9, pixelY: py9 } = convertToPixelCoords(1079, 3007);
-const { pixelX: px0, pixelY: py0 } = convertToPixelCoords(1484, 3173);
+const { pixelX: px0, pixelY: py0 } = convertToPixelCoords(1441, 3173);
 createLineObstacle(px9, py9, px0, py0, 5);
-const { pixelX: px10, pixelY: py10 } = convertToPixelCoords(1484, 3173);
+const { pixelX: px10, pixelY: py10 } = convertToPixelCoords(1441, 3173);
 const { pixelX: px11, pixelY: py11 } = convertToPixelCoords(1317, 3300);
 createLineObstacle(px10, py10, px11, py11, 5);
 
