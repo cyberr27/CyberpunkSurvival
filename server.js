@@ -211,20 +211,28 @@ function createLineObstacleServer(x1, y1, x2, y2, thickness = 5) {
   const worldWidth = 3135;
   const worldHeight = 3300;
 
-  // Преобразуем пиксельные координаты в проценты
-  const percentX1 = (x1 / worldWidth) * 100;
-  const percentY1 = (y1 / worldHeight) * 100;
-  const percentX2 = (x2 / worldWidth) * 100;
-  const percentY2 = (y2 / worldHeight) * 100;
+  // Преобразуем пиксельные координаты в проценты с высокой точностью
+  const percentX1 = Number(((x1 / worldWidth) * 100).toFixed(6));
+  const percentY1 = Number(((y1 / worldHeight) * 100).toFixed(6));
+  const percentX2 = Number(((x2 / worldWidth) * 100).toFixed(6));
+  const percentY2 = Number(((y2 / worldHeight) * 100).toFixed(6));
 
-  // Вычисляем координаты в пикселях для внутренней логики
-  const px1 = x1;
-  const py1 = y1;
-  const px2 = x2;
-  const py2 = y2;
+  // Обратно в пиксели для вычислений
+  const px1 = (percentX1 / 100) * worldWidth;
+  const py1 = (percentY1 / 100) * worldHeight;
+  const px2 = (percentX2 / 100) * worldWidth;
+  const py2 = (percentY2 / 100) * worldHeight;
 
-  const length = Math.sqrt(Math.pow(px2 - px1, 2) + Math.pow(py2 - py1, 2));
-  const angle = Math.atan2(py2 - py1, px2 - px1);
+  // Проверяем границы мира
+  const clampedPx1 = Math.max(0, Math.min(worldWidth, px1));
+  const clampedPy1 = Math.max(0, Math.min(worldHeight, py1));
+  const clampedPx2 = Math.max(0, Math.min(worldWidth, px2));
+  const clampedPy2 = Math.max(0, Math.min(worldHeight, py2));
+
+  const length = Math.sqrt(
+    Math.pow(clampedPx2 - clampedPx1, 2) + Math.pow(clampedPy2 - clampedPy1, 2)
+  );
+  const angle = Math.atan2(clampedPy2 - clampedPy1, clampedPx2 - clampedPx1);
   const halfThickness = thickness / 2;
 
   const sinAngle = Math.sin(angle);
@@ -232,10 +240,10 @@ function createLineObstacleServer(x1, y1, x2, y2, thickness = 5) {
   const dx = halfThickness * sinAngle;
   const dy = halfThickness * cosAngle;
 
-  const point1 = { x: px1 - dx, y: py1 + dy };
-  const point2 = { x: px1 + dx, y: py1 - dy };
-  const point3 = { x: px2 - dx, y: py2 + dy };
-  const point4 = { x: px2 + dx, y: py2 - dy };
+  const point1 = { x: clampedPx1 - dx, y: clampedPy1 + dy };
+  const point2 = { x: clampedPx1 + dx, y: clampedPy1 - dy };
+  const point3 = { x: clampedPx2 - dx, y: clampedPy2 + dy };
+  const point4 = { x: clampedPx2 + dx, y: clampedPy2 - dy };
 
   const left = Math.min(point1.x, point2.x, point3.x, point4.x);
   const right = Math.max(point1.x, point2.x, point3.x, point4.x);
@@ -249,10 +257,10 @@ function createLineObstacleServer(x1, y1, x2, y2, thickness = 5) {
     top,
     bottom,
     isLine: true,
-    x1: px1,
-    y1: py1,
-    x2: px2,
-    y2: py2,
+    x1: clampedPx1,
+    y1: clampedPy1,
+    x2: clampedPx2,
+    y2: clampedPy2,
     thickness,
     percentX1,
     percentY1,
@@ -271,11 +279,6 @@ createLineObstacleServer(806, 3260, 659, 3168);
 createLineObstacleServer(659, 3168, 1066, 3037);
 createLineObstacleServer(1066, 3037, 1427, 3179);
 createLineObstacleServer(1427, 3179, 1316, 3260);
-
-createLineObstacleServer(2357, 3102, 1944, 2846);
-createLineObstacleServer(1944, 2846, 2356, 2620);
-createLineObstacleServer(2356, 2620, 2710, 2832);
-createLineObstacleServer(2710, 2832, 2357, 3102);
 
 // Функция вычисления расстояния от точки до линии (взята из одиночной игры)
 function pointToLineDistance(px, py, x1, y1, x2, y2) {

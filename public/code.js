@@ -487,20 +487,28 @@ function createLineObstacle(x1, y1, x2, y2, thickness = 5) {
   const worldWidth = 3135;
   const worldHeight = 3300;
 
-  // Преобразуем пиксельные координаты в проценты
-  const percentX1 = (x1 / worldWidth) * 100;
-  const percentY1 = (y1 / worldHeight) * 100;
-  const percentX2 = (x2 / worldWidth) * 100;
-  const percentY2 = (y2 / worldHeight) * 100;
+  // Преобразуем пиксельные координаты в проценты с высокой точностью
+  const percentX1 = Number(((x1 / worldWidth) * 100).toFixed(6));
+  const percentY1 = Number(((y1 / worldHeight) * 100).toFixed(6));
+  const percentX2 = Number(((x2 / worldWidth) * 100).toFixed(6));
+  const percentY2 = Number(((y2 / worldHeight) * 100).toFixed(6));
 
-  // Используем пиксельные координаты для вычислений
-  const px1 = x1;
-  const py1 = y1;
-  const px2 = x2;
-  const py2 = y2;
+  // Обратно в пиксели для вычислений (используем проценты для точности)
+  const px1 = (percentX1 / 100) * worldWidth;
+  const py1 = (percentY1 / 100) * worldHeight;
+  const px2 = (percentX2 / 100) * worldWidth;
+  const py2 = (percentY2 / 100) * worldHeight;
 
-  const length = Math.sqrt(Math.pow(px2 - px1, 2) + Math.pow(py2 - py1, 2));
-  const angle = Math.atan2(py2 - py1, px2 - px1);
+  // Проверяем границы мира
+  const clampedPx1 = Math.max(0, Math.min(worldWidth, px1));
+  const clampedPy1 = Math.max(0, Math.min(worldHeight, py1));
+  const clampedPx2 = Math.max(0, Math.min(worldWidth, px2));
+  const clampedPy2 = Math.max(0, Math.min(worldHeight, py2));
+
+  const length = Math.sqrt(
+    Math.pow(clampedPx2 - clampedPx1, 2) + Math.pow(clampedPy2 - clampedPy1, 2)
+  );
+  const angle = Math.atan2(clampedPy2 - clampedPy1, clampedPx2 - clampedPx1);
   const halfThickness = thickness / 2;
 
   const sinAngle = Math.sin(angle);
@@ -508,10 +516,10 @@ function createLineObstacle(x1, y1, x2, y2, thickness = 5) {
   const dx = halfThickness * sinAngle;
   const dy = halfThickness * cosAngle;
 
-  const point1 = { x: px1 - dx, y: py1 + dy };
-  const point2 = { x: px1 + dx, y: py1 - dy };
-  const point3 = { x: px2 - dx, y: py2 + dy };
-  const point4 = { x: px2 + dx, y: py2 - dy };
+  const point1 = { x: clampedPx1 - dx, y: clampedPy1 + dy };
+  const point2 = { x: clampedPx1 + dx, y: clampedPy1 - dy };
+  const point3 = { x: clampedPx2 - dx, y: clampedPy2 + dy };
+  const point4 = { x: clampedPx2 + dx, y: clampedPy2 - dy };
 
   const left = Math.min(point1.x, point2.x, point3.x, point4.x);
   const right = Math.max(point1.x, point2.x, point3.x, point4.x);
@@ -525,10 +533,10 @@ function createLineObstacle(x1, y1, x2, y2, thickness = 5) {
     top,
     bottom,
     isLine: true,
-    x1: px1,
-    y1: py1,
-    x2: px2,
-    y2: py2,
+    x1: clampedPx1,
+    y1: clampedPy1,
+    x2: clampedPx2,
+    y2: clampedPy2,
     thickness,
     percentX1,
     percentY1,
@@ -1466,8 +1474,12 @@ function handleGameMessage(event) {
 
 // Адаптация размеров канваса
 function resizeCanvas() {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight; // 100% высоты
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = window.innerWidth * dpr;
+  canvas.height = window.innerHeight * dpr;
+  canvas.style.width = window.innerWidth + "px";
+  canvas.style.height = window.innerHeight + "px";
+  ctx.scale(dpr, dpr); // Масштабируем контекст
   updateCamera();
 }
 
@@ -1853,22 +1865,42 @@ function draw(deltaTime) {
 
   obstacles.forEach((obstacle) => {
     if (obstacle.isLine) {
-      const startX = obstacle.x1 - camera.x;
-      const startY = obstacle.y1 - camera.y;
-      const endX = obstacle.x2 - camera.x;
-      const endY = obstacle.y2 - camera.y;
+      // Используем процентные координаты для максимальной точности
+      const px1 = (obstacle.percentX1 / 100) * worldWidth;
+      const py1 = (obstacle.percentY1 / 100) * worldHeight;
+      const px2 = (obstacle.percentX2 / 100) * worldWidth;
+      const py2 = (obstacle.percentY2 / 100) * worldHeight;
+
+      const startX = px1 - camera.x;
+      const startY = py1 - camera.y;
+      const endX = px2 - camera.x;
+      const endY = py2 - camera.y;
+
+      // Проверяем видимость линии
       if (
-        (startX > 0 || endX > 0) &&
-        (startX < canvas.width || endX < canvas.width) &&
-        (startY > 0 || endY > 0) &&
-        (startY < canvas.height || endY < canvas.height)
+        (startX > -50 || endX > -50) &&
+        (startX < canvas.width + 50 || endX < canvas.width + 50) &&
+        (startY > -50 || endY > -50) &&
+        (startY < canvas.height + 50 || endY < canvas.height + 50)
       ) {
+        ctx.save();
+        ctx.translate(0.5, 0.5); // Смещение для чётких линий
+        ctx.lineCap = "square";
+        ctx.lineJoin = "miter";
         ctx.beginPath();
         ctx.moveTo(startX, startY);
         ctx.lineTo(endX, endY);
-        ctx.lineWidth = obstacle.thickness;
+        ctx.lineWidth = obstacle.thickness * (window.devicePixelRatio || 1);
         ctx.strokeStyle = "rgba(255, 0, 150, 0.5)";
         ctx.stroke();
+        ctx.restore();
+
+        // Отладочный лог
+        console.log(
+          `Отрисовка препятствия ${obstacle.id}: (${px1.toFixed(
+            2
+          )}, ${py1.toFixed(2)}) -> (${px2.toFixed(2)}, ${py2.toFixed(2)})`
+        );
       }
     }
   });
@@ -1895,12 +1927,14 @@ function draw(deltaTime) {
     cloudsImage,
     cloudsOffsetX,
     camera.y * cloudsSpeed,
-    canvas.width,
-    canvas.height,
     0,
     0,
-    canvas.width,
-    canvas.height
+    worldWidth,
+    worldHeight,
+    rocksOffsetX,
+    camera.y * rocksSpeed,
+    canvas.width / (window.devicePixelRatio || 1),
+    canvas.height / (window.devicePixelRatio || 1)
   );
 }
 
