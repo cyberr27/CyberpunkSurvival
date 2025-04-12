@@ -1,5080 +1,1951 @@
-let X = 4; //   Глобальная переменная Х - траэктории.
-let Y = 0; //   Глобальная переменная У - траэктории.
-let MAP = false;
-let STEP = 0; //   Щетчик шагов.
-let BALUAL = false;
-let BALUALHEALT = false;
-let ENEMYCOUNT = 0;
-let SEAL_1 = false;
-let SEAL_2 = false;
-let SEAL_3 = false;
-let SEAL_1numberRandom = null;
-let SEAL_2numberRandom = null;
-let SEAL_3numberRandom = null;
-let enemyRandom = 0;
-let DEALERDEMON = true;
-let SCELETBOSS = true;
-let BLUEDEMONBOSS = true;
-let REDDEMONBOSS = true;
-let TOMB = false;
-let TOMBTRUE = false;
+// Получаем элементы DOM
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+const inventoryEl = document.getElementById("items");
+const statsEl = document.getElementById("stats");
 
-const openTomb = () => {
-  TOMBTRUE = true;
-  if (TOMB === true) {
-    infoTextBlock.innerText = "Вы заглянули в пустой склеп...";
-    heroTextBlock.innerText = "Пусто...";
-  } else {
-    TOMB = true;
-    let randomTomb = Math.round(Math.random() * (10 - 0) + 0);
-    if (randomTomb <= 5) {
-      let randomTombGold = Math.round(Math.random() * (10 - 0) + 0);
-      infoTextBlock.innerText = `Вы нашли в склепе ${randomTombGold} золота!`;
-      heroTextBlock.innerText = "Неплохо...";
-      hero.gold += randomTombGold;
-      gold.innerText = hero.gold;
-      return;
-    } else if (randomTomb > 5 && randomTomb <= 8) {
-      buttonStash.setAttribute("onclick", "");
-      heroTextBlock.innerText = "Черт!";
-      if (X == 3 && Y == 2 && TOMBTRUE === true) roomArray[X][Y].enemy = 1;
-      enemyImg.setAttribute("class", "scelet");
-      fight();
-      return;
-    } else if (randomTomb == 9) {
-      let randomTombPoison = Math.round(Math.random() * (10 - 1) + 1);
-      infoTextBlock.innerText = `Вы открываете склеп и вдыхаете зараженную могильную пыль. Healt - ${randomTombPoison}`;
-      heroTextBlock.innerText = "Проклятье...";
-      hero.healt -= randomTombPoison;
-      healt.innerText = hero.healt;
-      if (hero.healt <= 0) {
-        audio.setAttribute("src", "mp3/dead.mp3");
-        printHealt.hidden = true;
-        printPower.hidden = true;
-        printGold.hidden = true;
-        healt.hidden = true;
-        power.hidden = true;
-        gold.hidden = true;
-        enemyHead.hidden = true;
-        enemyBody.hidden = true;
-        enemyLegs.hidden = true;
-        enemyHeadText.hidden = true;
-        enemyBodyText.hidden = true;
-        enemyLegsText.hidden = true;
-        enemyHealtText.hidden = true;
-        map.hidden = true;
-        heroImg.hidden = true;
-        heroHead.hidden = true;
-        heroBody.hidden = true;
-        heroLegs.hidden = true;
-        heroHeadText.hidden = true;
-        heroBodyText.hidden = true;
-        heroLegsText.hidden = true;
-        buttonFight.hidden = true;
-        buttonFightText.hidden = true;
-        goldDustButton.hidden = true;
-        healtButtleButton.hidden = true;
-        setTimeout(youDied, 6660);
+// Элементы авторизации
+const authContainer = document.getElementById("authContainer");
+const loginForm = document.getElementById("loginForm");
+const registerForm = document.getElementById("registerForm");
+const loginBtn = document.getElementById("loginBtn");
+const registerBtn = document.getElementById("registerBtn");
+const toRegister = document.getElementById("toRegister");
+const toLogin = document.getElementById("toLogin");
+const loginError = document.getElementById("loginError");
+const registerError = document.getElementById("registerError");
+
+const chatBtn = document.getElementById("chatBtn");
+const chatContainer = document.getElementById("chatContainer");
+const chatMessages = document.getElementById("chatMessages");
+const chatInput = document.getElementById("chatInput");
+
+// WebSocket соединение
+let ws;
+// Хранилища данных
+let players = new Map();
+let myId;
+let wolves = new Map();
+const items = new Map();
+const lights = [];
+const obstacles = [];
+const bullets = new Map();
+// Хранилище предметов, для которых уже отправлен запрос pickup
+const pendingPickups = new Set();
+
+// Загрузка изображений
+const backgroundImage = new Image();
+backgroundImage.src = "backgr.png";
+const vegetationImage = new Image();
+vegetationImage.src = "vegetation.png";
+const rocksImage = new Image();
+rocksImage.src = "rocks.png";
+const cloudsImage = new Image();
+cloudsImage.src = "clouds.png";
+const playerSprite = new Image();
+playerSprite.src = "playerSprite.png";
+const wolfSprite = new Image();
+wolfSprite.src = "wolfSprite.png";
+const energyDrinkImage = new Image();
+energyDrinkImage.src = "energy_drink.png";
+const nutImage = new Image();
+nutImage.src = "nut.png";
+const waterBottleImage = new Image();
+waterBottleImage.src = "water_bottle.png";
+
+// Добавляем новые изображения
+const cannedMeatImage = new Image();
+cannedMeatImage.src = "canned_meat.png";
+const mushroomImage = new Image();
+mushroomImage.src = "mushroom.png";
+const sausageImage = new Image();
+sausageImage.src = "sausage.png";
+const bloodPackImage = new Image();
+bloodPackImage.src = "blood_pack.png";
+const breadImage = new Image();
+breadImage.src = "bread.png";
+const vodkaBottleImage = new Image();
+vodkaBottleImage.src = "vodka_bottle.png";
+const meatChunkImage = new Image();
+meatChunkImage.src = "meat_chunk.png";
+const bloodSyringeImage = new Image();
+bloodSyringeImage.src = "blood_syringe.png";
+const milkImage = new Image();
+milkImage.src = "milk.png";
+const condensedMilkImage = new Image();
+condensedMilkImage.src = "condensed_milk.png";
+const driedFishImage = new Image();
+driedFishImage.src = "dried_fish.png";
+const balyaryImage = new Image();
+balyaryImage.src = "balyary.png"; // Укажи правильный путь к файлу
+
+// Проверка загрузки новых изображений
+cannedMeatImage.onload = () => {
+  console.log("Банка тушёнки загружена");
+  onImageLoad();
+};
+cannedMeatImage.onerror = () =>
+  console.error("Ошибка загрузки canned_meat.png");
+mushroomImage.onload = () => {
+  console.log("Гриб загружен");
+  onImageLoad();
+};
+mushroomImage.onerror = () => console.error("Ошибка загрузки mushroom.png");
+sausageImage.onload = () => {
+  console.log("Колбаса загружена");
+  onImageLoad();
+};
+sausageImage.onerror = () => console.error("Ошибка загрузки sausage.png");
+bloodPackImage.onload = () => {
+  console.log("Пакет крови загружен");
+  onImageLoad();
+};
+bloodPackImage.onerror = () => console.error("Ошибка загрузки blood_pack.png");
+breadImage.onload = () => {
+  console.log("Хлеб загружен");
+  onImageLoad();
+};
+breadImage.onerror = () => console.error("Ошибка загрузки bread.png");
+vodkaBottleImage.onload = () => {
+  console.log("Водка загружена");
+  onImageLoad();
+};
+vodkaBottleImage.onerror = () =>
+  console.error("Ошибка загрузки vodka_bottle.png");
+meatChunkImage.onload = () => {
+  console.log("Кусок мяса загружен");
+  onImageLoad();
+};
+meatChunkImage.onerror = () => console.error("Ошибка загрузки meat_chunk.png");
+bloodSyringeImage.onload = () => {
+  console.log("Шприц с кровью загружен");
+  onImageLoad();
+};
+bloodSyringeImage.onerror = () =>
+  console.error("Ошибка загрузки blood_syringe.png");
+milkImage.onload = () => {
+  console.log("Молоко загружено");
+  onImageLoad();
+};
+milkImage.onerror = () => console.error("Ошибка загрузки milk.png");
+condensedMilkImage.onload = () => {
+  console.log("Сгущёнка загружена");
+  onImageLoad();
+};
+condensedMilkImage.onerror = () =>
+  console.error("Ошибка загрузки condensed_milk.png");
+
+balyaryImage.onload = () => {
+  console.log("Баляры загружены");
+  onImageLoad();
+};
+balyaryImage.onerror = () => console.error("Ошибка загрузки balyary.png");
+
+// Инвентарь игрока (массив на 20 слотов, изначально пустой)
+let inventory = Array(20).fill(null);
+
+// Конфигурация эффектов предметов (расширяем ITEM_CONFIG)
+const ITEM_CONFIG = {
+  energy_drink: {
+    effect: { energy: 20, water: 5 },
+    image: energyDrinkImage,
+    description: "Энергетик: +20 эн. +5 воды.",
+  },
+  nut: {
+    effect: { food: 7 },
+    image: nutImage,
+    description: "Орех: +7 еды.",
+  },
+  water_bottle: {
+    effect: { water: 30 },
+    image: waterBottleImage,
+    description: "Вода: +30 воды.",
+  },
+  canned_meat: {
+    effect: { food: 20 },
+    image: cannedMeatImage,
+    description: "Банка тушёнки: +20 еды.",
+  },
+  mushroom: {
+    effect: { food: 5, energy: 15 },
+    image: mushroomImage,
+    description: "Гриб прущий: +15 энергии. +5 еды.",
+  },
+  sausage: {
+    effect: { food: 16, energy: 3 },
+    image: sausageImage,
+    description: "Колбаса: +16 еды, +3 энергии.",
+  },
+  blood_pack: {
+    effect: { health: 40 },
+    image: bloodPackImage,
+    description: "Пакет крови: +40 здоровья.",
+  },
+  bread: {
+    effect: { food: 13, water: -2 },
+    image: breadImage,
+    description: "Хлеб: +13 еды, -2 воды.",
+  },
+  vodka_bottle: {
+    effect: { health: 5, energy: -2, water: 1, food: 2 },
+    image: vodkaBottleImage,
+    description: "Водка: +5 здоровья, -2 эн. +1 воды, +2 еды.",
+  },
+  meat_chunk: {
+    effect: { food: 20, energy: 5, water: -2 },
+    image: meatChunkImage,
+    description: "Кусок мяса: +20 еды, +5 эн. -2 воды.",
+  },
+  blood_syringe: {
+    effect: { health: 10 },
+    image: bloodSyringeImage,
+    description: "Шприц с кровью: +10 здоровья.",
+  },
+  milk: {
+    effect: { water: 15, food: 5 },
+    image: milkImage,
+    description: "Молоко: +15 воды, +5 еды.",
+  },
+  condensed_milk: {
+    effect: { water: 5, food: 11, energy: 2 },
+    image: condensedMilkImage,
+    description: "Сгущёнка: +11 еды, +5 воды, +2 эн.",
+  },
+  dried_fish: {
+    effect: { food: 10, water: -3 },
+    image: driedFishImage,
+    description: "Сушёная рыба: +10 еды, -3 воды.",
+  },
+  balyary: {
+    effect: {}, // Эффекта нет, это валюта
+    image: balyaryImage,
+    description: "Баляр: игровая валюта.",
+    stackable: true, // Указываем, что предмет складывается
+    rarity: 2,
+  },
+};
+
+// Состояние инвентаря (открыт или закрыт)
+let isInventoryOpen = false;
+// Элемент подсказки
+let tooltip = null;
+// Выбранный слот инвентаря
+let selectedSlot = null;
+
+// Глобальные настройки игры
+const GAME_CONFIG = {
+  PLAYER_SPEED: 100,
+  FRAME_DURATION: 200, // 700 мс на весь цикл (≈100 мс на кадр)
+  BULLET_SPEED: 500,
+  BULLET_LIFE: 1000,
+  BULLET_DAMAGE: 10,
+};
+
+let reconnectAttempts = 0;
+const maxReconnectAttempts = 5;
+const reconnectDelay = 2000; // 2 секунды
+
+let lastDistance = 0; // Добавляем глобальную переменную
+// Флаг, указывающий, что персонаж должен двигаться к цели
+let isMoving = false;
+// Целевая позиция в мировых координатах
+let targetX = 0;
+let targetY = 0;
+// Базовая скорость в пикселях в секунду (одинакова для всех устройств)
+const baseSpeed = 100; // пикселей в секунду
+
+// Флаги для управления движением
+const movement = {
+  up: false,
+  down: false,
+  left: false,
+  right: false,
+};
+
+// Добавляем переменные для управления анимацией
+let lastTime = 0; // Время последнего кадра для расчета deltaTime
+const frameDuration = 200; // Длительность одного кадра в миллисекундах (настраиваемая скорость анимации)
+
+// Размеры мира
+const worldWidth = 3135;
+const worldHeight = 3300;
+
+// Камера
+const camera = { x: 0, y: 0 };
+
+createLight(2404, 1693, "rgba(0, 255, 255, 0.7)", 1500); // Голубой неон
+createLight(1710, 0, "rgba(255, 0, 255, 0.7)", 1200); // Розовый неон
+createLight(934, 1793, "rgba(148, 0, 211, 0.7)", 1200); // Фиолетовый неон
+createLight(1164, 2843, "rgba(255, 0, 255, 0.7)", 800); // Розовый неон
+createLight(364, 3093, "rgba(214, 211, 4, 0.5)", 700);
+createLight(434, 2653, "rgba(214, 211, 4, 0.5)", 700);
+createLight(264, 1173, "rgba(214, 211, 4, 0.7)", 1500);
+createLight(374, 483, "rgba(245, 5, 17, 0.7)", 1000);
+createLight(924, 943, "rgba(2, 35, 250, 0.4)", 800);
+createLight(1454, 110, "rgba(2, 35, 250, 0.4)", 800);
+
+// Переключение форм
+toRegister.addEventListener("click", () => {
+  loginForm.style.display = "none";
+  registerForm.style.display = "block";
+  loginError.textContent = "";
+  registerError.textContent = "";
+});
+
+toLogin.addEventListener("click", () => {
+  registerForm.style.display = "none";
+  loginForm.style.display = "block";
+  loginError.textContent = "";
+  registerError.textContent = "";
+});
+
+function reconnectWebSocket() {
+  if (reconnectAttempts >= maxReconnectAttempts) {
+    console.error(
+      "Максимум попыток переподключения достигнут. Игра остановлена."
+    );
+    authContainer.style.display = "flex";
+    document.getElementById("gameContainer").style.display = "none";
+    return;
+  }
+  console.log(`Попытка переподключения ${reconnectAttempts + 1}...`);
+  setTimeout(() => {
+    ws = new WebSocket("wss://cyberpunksurvival.onrender.com");
+    ws.onopen = () => {
+      console.log("WebSocket успешно переподключен");
+      reconnectAttempts = 0;
+      if (myId) {
+        const lastUsername = document
+          .getElementById("loginUsername")
+          .value.trim();
+        const lastPassword = document
+          .getElementById("loginPassword")
+          .value.trim();
+        if (lastUsername && lastPassword) {
+          sendWhenReady(
+            ws,
+            JSON.stringify({
+              type: "login",
+              username: lastUsername,
+              password: lastPassword,
+            })
+          );
+          console.log(`Повторная авторизация для ${lastUsername}`);
+        } else {
+          console.warn("Нет сохранённых данных для авторизации");
+          authContainer.style.display = "flex";
+          document.getElementById("gameContainer").style.display = "none";
+        }
+      }
+    };
+    ws.onerror = (error) => {
+      console.error("Ошибка WebSocket при переподключении:", error);
+      reconnectAttempts++;
+      reconnectWebSocket();
+    };
+    ws.onclose = (event) => {
+      console.log(
+        "WebSocket закрыт при переподключении:",
+        event.code,
+        event.reason
+      );
+      // Если код 4000, не переподключаемся
+      if (event.code === 4000) {
+        console.log(
+          "Отключён из-за неактивности, переподключение не требуется"
+        );
+        authContainer.style.display = "flex";
+        document.getElementById("gameContainer").style.display = "none";
         return;
       }
-    } else if (randomTomb == 10) {
-      infoTextBlock.innerText =
-        "Вы нашли и прочитали свиток знаний о силе! Power + 1";
-      heroTextBlock.innerText = "Отлично!";
-      hero.power++;
-      power.innerText = hero.power;
+      reconnectAttempts++;
+      reconnectWebSocket();
+    };
+  }, reconnectDelay);
+}
+
+// Инициализация WebSocket
+function initializeWebSocket() {
+  ws = new WebSocket("wss://cyberpunksurvival.onrender.com");
+  ws.onopen = () => {
+    console.log("WebSocket соединение установлено");
+    reconnectAttempts = 0; // Сбрасываем попытки переподключения
+  };
+  ws.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      console.log("Получено сообщение:", event.data);
+      if (data.type === "loginSuccess") {
+        handleAuthMessage(event);
+        ws.onmessage = handleGameMessage;
+      } else {
+        handleAuthMessage(event);
+      }
+    } catch (error) {
+      console.error("Ошибка при обработке сообщения:", error);
+    }
+  };
+  ws.onerror = (error) => {
+    console.error("Ошибка WebSocket:", error);
+  };
+  ws.onclose = (event) => {
+    console.log("WebSocket закрыт:", event.code, event.reason);
+    // Показываем окно авторизации
+    authContainer.style.display = "flex";
+    document.getElementById("gameContainer").style.display = "none";
+    // Очищаем данные игрока
+    players.clear();
+    myId = null;
+    // Если код 4000 (неактивность), не пытаемся переподключиться
+    if (event.code === 4000) {
+      console.log("Отключён из-за неактивности, переподключение не требуется");
       return;
     }
-  }
-  TOMBTRUE = false;
-};
+    // Иначе пробуем переподключиться
+    reconnectWebSocket();
+  };
+}
 
-const balualHealt = () => {
-  buttonE.hidden = true;
-  buttonN.hidden = true;
-  buttonS.hidden = true;
-  buttonW.hidden = true;
-  balual.hidden = false;
-  balual.setAttribute("class", "balual");
-  divBalualText.hidden = false;
-  divBalualText.setAttribute("class", "divBalualText");
-  balualText.hidden = false;
-  balualText.setAttribute("class", "balualText");
-  divBalualText.append(balualText);
-  balualText.innerText =
-    "Ты превзошел все мои ожидания смертный! Я могу смело назвать тебя воином! Твои действия вселяют веру - в то что зло будет повержено! Ты ранен? Сейчас я прочту свиток исцеления - тебе станет лучше! Продолжай искать тайники, атакуй безсмысленных тварей - тебе надо стать сильнее... Найди торговца, но будь с ним осторожен, он один из моих братьев который пал перед пороком алчности... Во дворце есть три комнаты с печатями которые тебе необходимо отыскать и прожать их - они покажут символы для открытия усыпальни. Мои братья скорее всего будут охранять печати - так что будь осторожен!";
-  balualTextButtonNext.hidden = false;
-  balualTextButtonNext.setAttribute("class", "buttonNext");
-  balualTextButtonNext.setAttribute("onclick", "exitBalualText()");
-  balualTextButtonNext.innerText = "Далее";
-  balualText.append(br);
-  balualText.append(balualTextButtonNext);
-  if (hero.healt < 100) {
-    hero.healt = 100;
-    healt.innerText = hero.healt;
-    body.append(healt);
-  }
-  BALUALHEALT = true;
-};
+initializeWebSocket();
 
-const buyArmor = () => {
-  if (hero.gold < 100) {
-    dealerDemonText.innerText = "Нет денег - нет разговора!";
-    heroTextBlock.innerText = "Я бы взял к себе в комманду такого скрягу...";
-    infoTextBlock.innerText = "У вас не хватает золота!";
-    setTimeout(exitStore, 4000);
-  } else {
-    infoTextBlock.innerText = "Вы выменяли 100 золота на Кольчугу! Armor + 10";
-    heroTextBlock.innerText = "Я чуствую королем... Я лучший!";
-    dealerDemonText.innerText = "Продолжаем? Есть монеты?";
-    hero.armor += 10;
-    hero.gold -= 100;
-    armor.innerText = hero.armor;
-    gold.innerText = hero.gold;
-    printArmor.hidden = false;
-    armor.hidden = false;
-  }
-};
-
-const buyTunic = () => {
-  if (hero.gold < 75) {
-    dealerDemonText.innerText = "Не пойдет кусок мяса!";
-    heroTextBlock.innerText = "В той жизни от тебя и следа не осталось бы...";
-    infoTextBlock.innerText = "У вас не хватает золота!";
-    setTimeout(exitStore, 4000);
-  } else {
-    infoTextBlock.innerText = "Вы выменяли 75 золота на Тунику! Armor + 6";
-    heroTextBlock.innerText = "Я чуствую себя более уверенее...";
-    dealerDemonText.innerText = "Еще? Что-то?";
-    hero.armor += 6;
-    hero.gold -= 75;
-    armor.innerText = hero.armor;
-    gold.innerText = hero.gold;
-    printArmor.hidden = false;
-    armor.hidden = false;
-  }
-};
-
-const buyChainMail = () => {
-  if (hero.gold < 45) {
-    dealerDemonText.innerText = "Даже не думай!";
-    heroTextBlock.innerText =
-      "Жизнь человека, для этого существа - ничего не стоит!";
-    infoTextBlock.innerText = "У вас не хватает золота!";
-    setTimeout(exitStore, 4000);
-  } else {
-    infoTextBlock.innerText = "Вы выменяли 45 золота на Кольчугу! Armor + 3";
-    heroTextBlock.innerText = "Я чуствую себя уверенее...";
-    dealerDemonText.innerText = "Что по золоту в карманах?";
-    hero.armor += 3;
-    hero.gold -= 45;
-    armor.innerText = hero.armor;
-    gold.innerText = hero.gold;
-    printArmor.hidden = false;
-    armor.hidden = false;
-  }
-};
-
-const buyKnife2 = () => {
-  if (hero.gold < 70) {
-    dealerDemonText.innerText = "Нет! Нет! Без золота - нет!";
-    heroTextBlock.innerText = "Этого уродца интересует только золото...";
-    infoTextBlock.innerText = "У вас не хватает золота!";
-    setTimeout(exitStore, 4000);
-  } else {
-    infoTextBlock.innerText =
-      "Вы выменяли 70 золота на Серебряный мечь! Power + 25";
-    heroTextBlock.innerText = "Я чуствую что стал намного опаснее!";
-    dealerDemonText.innerText = "Есть еще золотишко?";
-    hero.power += 25;
-    hero.gold -= 70;
-    power.innerText = hero.power;
-    gold.innerText = hero.gold;
-  }
-};
-
-const buyKnife = () => {
-  if (hero.gold < 40) {
-    dealerDemonText.innerText = "Пытаешся обмануть? Неполучится!";
-    heroTextBlock.innerText =
-      "Да... Деньги из прежней жизни здесь роли не играют.";
-    infoTextBlock.innerText = "У вас не хватает золота!";
-    setTimeout(exitStore, 4000);
-  } else {
-    infoTextBlock.innerText = "Вы выменяли 40 золота на Ржавый нож! Power + 10";
-    heroTextBlock.innerText = "Я чуствую что стал опаснее!";
-    dealerDemonText.innerText = "Надеюсь у тебя много золота...";
-    hero.power += 10;
-    hero.gold -= 40;
-    power.innerText = hero.power;
-    gold.innerText = hero.gold;
-  }
-};
-
-const buyHealtButtle = () => {
-  if (hero.gold < 5) {
-    dealerDemonText.innerText = "Я не вижу золото!";
-    heroTextBlock.innerText = "Мои акции здесь - бумага!";
-    infoTextBlock.innerText = "У вас не хватает золота!";
-    setTimeout(exitStore, 4000);
-  } else {
-    infoTextBlock.innerText = "Вы выпили большое зелье здоровья. Healt + 15";
-    heroTextBlock.innerText = "Я чуствую себя лучше! Это стоило 5 золота... ";
-    dealerDemonText.innerText = "Золото! Хорошо!";
-    hero.healt += 15;
-    hero.gold -= 5;
-    healt.innerText = hero.healt;
-    gold.innerText = hero.gold;
-  }
-};
-
-const selectionInStore = () => {
-  dealerDemonText.innerText = "Выбирай что тебе нужно и по рукам!";
-
-  yesStore.hidden = true;
-  storeImg.hidden = false;
-  healtButtleStore.hidden = false;
-  knifeStore.hidden = false;
-  knifeStore2.hidden = false;
-  chainMail.hidden = false;
-  tunic.hidden = false;
-  armorStore.hidden = false;
-
-  storeImg.setAttribute("class", "storeImg");
-  body.append(storeImg);
-
-  healtButtleStore.setAttribute("class", "healtButtleStore");
-  healtButtleStore.setAttribute("onclick", "buyHealtButtle()");
-  body.append(healtButtleStore);
-
-  knifeStore.setAttribute("class", "knifeStore");
-  knifeStore.setAttribute("onclick", "buyKnife()");
-  body.append(knifeStore);
-
-  knifeStore2.setAttribute("class", "knifeStore2");
-  knifeStore2.setAttribute("onclick", "buyKnife2()");
-  body.append(knifeStore2);
-
-  chainMail.setAttribute("class", "chainMail");
-  chainMail.setAttribute("onclick", "buyChainMail()");
-  body.append(chainMail);
-
-  tunic.setAttribute("class", "tunic");
-  tunic.setAttribute("onclick", "buyTunic()");
-  body.append(tunic);
-
-  armorStore.setAttribute("class", "armorStore");
-  armorStore.setAttribute("onclick", "buyArmor()");
-  body.append(armorStore);
-};
-
-const exitStore = () => {
-  storeImg.hidden = true;
-  buttonE.hidden = false;
-  buttonN.hidden = false;
-  buttonS.hidden = false;
-  buttonW.hidden = false;
-  divDealerDemonText.hidden = true;
-  healtButtleStore.hidden = true;
-  knifeStore.hidden = true;
-  knifeStore2.hidden = true;
-  chainMail.hidden = true;
-  tunic.hidden = true;
-  armorStore.hidden = true;
-  buttonDealerDemon.setAttribute("onclick", "dealerDemon()");
-  buttonStash.setAttribute("onclick", "openStash()");
-};
-
-const store = () => {
-  yesStore.innerText = "Обмен";
-  noStore.innerText = "Выход";
-  yesStore.setAttribute("class", "yesStore");
-  yesStore.setAttribute("onclick", "selectionInStore()");
-  noStore.setAttribute("class", "noStore");
-  noStore.setAttribute("onclick", "exitStore()");
-  divDealerDemonText.append(yesStore);
-  divDealerDemonText.append(noStore);
-};
-
-const dealerDemon = () => {
-  buttonStash.setAttribute("onclick", "");
-  buttonDealerDemon.setAttribute("onclick", "");
-  if (hero.power < 23) {
-    divDealerDemonText.hidden = false;
-    divDealerDemonText.setAttribute("class", "divDealerDemonText");
-    body.append(divDealerDemonText);
-    dealerDemonText.innerText =
-      "Что за дохлый червь? Сейчас ты узнаешь что такое первородное зло!";
-    dealerDemonText.setAttribute("class", "dealerDemonText");
-    divDealerDemonText.append(dealerDemonText);
-    DEALERDEMON = false;
-    buttonE.hidden = true;
-    buttonN.hidden = true;
-    buttonS.hidden = true;
-    buttonW.hidden = true;
-    setTimeout(fight, 6000);
-  } else {
-    divDealerDemonText.hidden = false;
-    divDealerDemonText.setAttribute("class", "divDealerDemonText");
-    body.append(divDealerDemonText);
-    dealerDemonText.innerText =
-      "Незнакомец! Хм... У тебя есть золото? Посмотри что есть у меня! Обмен?";
-    dealerDemonText.setAttribute("class", "dealerDemonText");
-    divDealerDemonText.append(dealerDemonText);
-    yesStore.hidden = false;
-    buttonE.hidden = true;
-    buttonN.hidden = true;
-    buttonS.hidden = true;
-    buttonW.hidden = true;
-    setTimeout(store, 5000);
-  }
-};
-
-const dealerDemonOnclick = () => {
-  buttonDealerDemon.setAttribute("onclick", "dealerDemon()");
-};
-
-const falsePushSeal = () => {
-  infoTextBlock.innerText = "";
-  heroTextBlock.innerText = "Ничего не происходит...";
-  body.append(heroTextBlock);
-  return;
-};
-
-const pushSeal = () => {
-  if (X == 2 && Y == 7) {
-    SEAL_1 = true;
-    if (SEAL_1 == true) {
-      SEAL_1numberRandom = Math.round(Math.random() * (9 - 0) + 0);
-      if (SEAL_1numberRandom == 0) {
-        sealNumberImg_0.hidden = false;
-        sealNumberImg_0.setAttribute("class", "sealNumberImg_0");
-      }
-      if (SEAL_1numberRandom == 1) {
-        sealNumberImg_1.hidden = false;
-        sealNumberImg_1.setAttribute("class", "sealNumberImg_1");
-      }
-      if (SEAL_1numberRandom == 2) {
-        sealNumberImg_2.hidden = false;
-        sealNumberImg_2.setAttribute("class", "sealNumberImg_2");
-      }
-      if (SEAL_1numberRandom == 3) {
-        sealNumberImg_3.hidden = false;
-        sealNumberImg_3.setAttribute("class", "sealNumberImg_3");
-      }
-      if (SEAL_1numberRandom == 4) {
-        sealNumberImg_4.hidden = false;
-        sealNumberImg_4.setAttribute("class", "sealNumberImg_4");
-      }
-      if (SEAL_1numberRandom == 5) {
-        sealNumberImg_5.hidden = false;
-        sealNumberImg_5.setAttribute("class", "sealNumberImg_5");
-      }
-      if (SEAL_1numberRandom == 6) {
-        sealNumberImg_6.hidden = false;
-        sealNumberImg_6.setAttribute("class", "sealNumberImg_6");
-      }
-      if (SEAL_1numberRandom == 7) {
-        sealNumberImg_7.hidden = false;
-        sealNumberImg_7.setAttribute("class", "sealNumberImg_7");
-      }
-      if (SEAL_1numberRandom == 8) {
-        sealNumberImg_8.hidden = false;
-        sealNumberImg_8.setAttribute("class", "sealNumberImg_8");
-      }
-      if (SEAL_1numberRandom == 9) {
-        sealNumberImg_9.hidden = false;
-        sealNumberImg_9.setAttribute("class", "sealNumberImg_9");
-      }
-    }
-  } else if (X == 3 && Y == 12) {
-    SEAL_2 = true;
-    if (SEAL_2 == true) {
-      SEAL_2numberRandom = Math.round(Math.random() * (9 - 0) + 0);
-      if (SEAL_2numberRandom == 0) {
-        sealNumberImg_0.hidden = false;
-        sealNumberImg_0.setAttribute("class", "seal_2NumberImg_0");
-      }
-      if (SEAL_2numberRandom == 1) {
-        sealNumberImg_1.hidden = false;
-        sealNumberImg_1.setAttribute("class", "seal_2NumberImg_1");
-      }
-      if (SEAL_2numberRandom == 2) {
-        sealNumberImg_2.hidden = false;
-        sealNumberImg_2.setAttribute("class", "seal_2NumberImg_2");
-      }
-      if (SEAL_2numberRandom == 3) {
-        sealNumberImg_3.hidden = false;
-        sealNumberImg_3.setAttribute("class", "seal_2NumberImg_3");
-      }
-      if (SEAL_2numberRandom == 4) {
-        sealNumberImg_4.hidden = false;
-        sealNumberImg_4.setAttribute("class", "seal_2NumberImg_4");
-      }
-      if (SEAL_2numberRandom == 5) {
-        sealNumberImg_5.hidden = false;
-        sealNumberImg_5.setAttribute("class", "seal_2NumberImg_5");
-      }
-      if (SEAL_2numberRandom == 6) {
-        sealNumberImg_6.hidden = false;
-        sealNumberImg_6.setAttribute("class", "seal_2NumberImg_6");
-      }
-      if (SEAL_2numberRandom == 7) {
-        sealNumberImg_7.hidden = false;
-        sealNumberImg_7.setAttribute("class", "seal_2NumberImg_7");
-      }
-      if (SEAL_2numberRandom == 8) {
-        sealNumberImg_8.hidden = false;
-        sealNumberImg_8.setAttribute("class", "seal_2NumberImg_8");
-      }
-      if (SEAL_2numberRandom == 9) {
-        sealNumberImg_9.hidden = false;
-        sealNumberImg_9.setAttribute("class", "seal_2NumberImg_9");
-      }
-    }
-  } else if (X == 7 && Y == 12) {
-    SEAL_3 = true;
-    if (SEAL_3 == true) {
-      SEAL_3numberRandom = Math.round(Math.random() * (9 - 0) + 0);
-      if (SEAL_3numberRandom == 0) {
-        sealNumberImg_0.hidden = false;
-        sealNumberImg_0.setAttribute("class", "seal_3NumberImg_0");
-      }
-      if (SEAL_3numberRandom == 1) {
-        sealNumberImg_1.hidden = false;
-        sealNumberImg_1.setAttribute("class", "seal_3NumberImg_1");
-      }
-      if (SEAL_3numberRandom == 2) {
-        sealNumberImg_2.hidden = false;
-        sealNumberImg_2.setAttribute("class", "seal_3NumberImg_2");
-      }
-      if (SEAL_3numberRandom == 3) {
-        sealNumberImg_3.hidden = false;
-        sealNumberImg_3.setAttribute("class", "seal_3NumberImg_3");
-      }
-      if (SEAL_3numberRandom == 4) {
-        sealNumberImg_4.hidden = false;
-        sealNumberImg_4.setAttribute("class", "seal_3NumberImg_4");
-      }
-      if (SEAL_3numberRandom == 5) {
-        sealNumberImg_5.hidden = false;
-        sealNumberImg_5.setAttribute("class", "seal_3NumberImg_5");
-      }
-      if (SEAL_3numberRandom == 6) {
-        sealNumberImg_6.hidden = false;
-        sealNumberImg_6.setAttribute("class", "seal_3NumberImg_6");
-      }
-      if (SEAL_3numberRandom == 7) {
-        sealNumberImg_7.hidden = false;
-        sealNumberImg_7.setAttribute("class", "seal_3NumberImg_7");
-      }
-      if (SEAL_3numberRandom == 8) {
-        sealNumberImg_8.hidden = false;
-        sealNumberImg_8.setAttribute("class", "seal_3NumberImg_8");
-      }
-      if (SEAL_3numberRandom == 9) {
-        sealNumberImg_9.hidden = false;
-        sealNumberImg_9.setAttribute("class", "seal_3NumberImg_9");
-      }
-    }
-  }
-  seal_1.setAttribute("onclick", "");
-  seal_2.setAttribute("onclick", "");
-  seal_3.setAttribute("onclick", "");
-  seal_1.setAttribute("class", "pushSeal_1");
-  seal_2.setAttribute("class", "pushSeal_2");
-  seal_3.setAttribute("class", "pushSeal_3");
-  infoTextBlock.innerText = "Скрежет сработавшего миханизма режит вам уши...";
-  heroTextBlock.innerText =
-    "Вероятно это какой-то символ! Нужно его запомнить...";
-  return;
-};
-
-const showMap = () => {
-  MAP = true;
-  mapImage.hidden = false;
-  mapButton.hidden = true;
-};
-
-const exitBalualText = () => {
-  balual.hidden = true;
-  divBalualText.hidden = true;
-  balualText.hidden = true;
-  balualTextButtonNext.hidden = true;
-  buttonN.hidden = false;
-  buttonS.hidden = false;
-  buttonW.hidden = false;
-  buttonE.hidden = false;
-  infoTextBlock.hidden = false;
-  heroTextBlock.hidden = false;
-  BALUAL = true;
-  buttonStash.hidden = false;
-  jugButton.setAttribute("onclick", "startJugButton()");
-  buttonStash.setAttribute("onclick", "openStash()");
-};
-
-const nextBalualText = () => {
-  balualText.innerText =
-    "В знак моей благодарности знай, что в каждой комнате у меня был тайник, в нем ты можешь найти золото и воду. Надеюсь они еще целы и помогут тебе! Так же ты можешь найти план моего дворца в комнате отведенную под библиотеку. Тебе следует пройти две комнаты в сторону севера и затем сразу повернуть на восток. Удачи тебе смертный!";
-  balualText.append(br);
-  balualText.append(balualTextButtonNext);
-  balualTextButtonNext.setAttribute("onclick", "exitBalualText()");
-};
-
-const startJugButton = () => {
-  if (BALUAL === true) {
-    infoTextBlock.innerText = "Ничего нет!";
-    heroTextBlock.innerText = "Здесь пусто...";
-    body.append(heroTextBlock);
+registerBtn.addEventListener("click", () => {
+  const username = document.getElementById("registerUsername").value.trim();
+  const password = document.getElementById("registerPassword").value.trim();
+  if (!username || !password) {
+    registerError.textContent = "Введите имя и пароль";
     return;
   }
-
-  infoTextBlock.hidden = true;
-  heroTextBlock.hidden = true;
-  buttonE.hidden = true;
-  buttonN.hidden = true;
-  buttonS.hidden = true;
-  buttonW.hidden = true;
-  buttonStash.hidden = true;
-  balual.hidden = false;
-  divBalualText.hidden = false;
-  balualText.hidden = false;
-  balualTextButtonNext.hidden = false;
-
-  jugButton.setAttribute("onclick", "");
-
-  balual.setAttribute("class", "balual");
-
-  divBalualText.setAttribute("class", "divBalualText");
-
-  balualText.innerText =
-    "Приветствую тебя в моем некогда роскошном дворце! Я Архангел Балуал! Не знаю как ты попал сюда, но я благодарен тебе за свое освобождение! Мои братья хотят вылить на Мир - первородное зло. Они заточили меня в эту амфору, тем временем готовя армию зла в стенах моего великого дворца... Не знаю на сколько далеко они зашли , и каким способом им получается порождать зло. Я не могу противостоять им так как полностью лишен энергии... Это прийдется з делать тебе! Нужно успеть до того как армия достигнет нужного числа демонов, для нападения на ваш Мир, и еще - другого способа для тебя выбраться живим я не вижу...";
-  balualText.setAttribute("class", "balualText");
-  divBalualText.append(balualText);
-
-  divBalualText.append(br);
-
-  balualTextButtonNext.setAttribute("class", "buttonNext");
-  balualTextButtonNext.setAttribute("onclick", "nextBalualText()");
-  balualTextButtonNext.innerText = "Далее";
-  balualText.append(br);
-  balualText.append(balualTextButtonNext);
-};
-
-const takeGoldDust = () => {
-  infoTextBlock.hidden = false;
-  heroTextBlock.hidden = false;
-  roomArray[X][Y].goldDust = 0;
-  infoTextBlock.innerText = "Gold + 1";
-  body.append(infoTextBlock);
-  heroTextBlock.innerText = "Возможно мне это пригодится!";
-  body.append(heroTextBlock);
-  hero.gold++;
-  gold.innerText = hero.gold;
-  goldDustButton.hidden = true;
-};
-
-const drinkHealtButtle = () => {
-  let healtOfButtle = Math.round(Math.random() * (10 - 1) + 1);
-  infoTextBlock.hidden = false;
-  heroTextBlock.hidden = false;
-  infoTextBlock.innerText = "Вы нашли зелье здоровья!";
-  body.append(infoTextBlock);
-  let heroString =
-    "Отлично, я чуствую себя на " + healtOfButtle + " процентов лучше!";
-  heroTextBlock.innerText = heroString;
-  body.append(heroTextBlock);
-  hero.healt += healtOfButtle;
-  healt.innerText = hero.healt;
-  roomArray[X][Y].healtButtle = 0;
-  healtButtleButton.hidden = true;
-};
-
-const nextRoom = () => {
-  buttonE.hidden = false;
-  buttonN.hidden = false;
-  buttonS.hidden = false;
-  buttonW.hidden = false;
-  buttonStash.hidden = false;
-  map.hidden = false;
-  jugButton.setAttribute("onclick", "startJugButton()");
-};
-
-const searchDeadEnemy = () => {
-  infoTextBlock.innerText = "Вы обыскали останки...";
-  heroTextBlock.innerText = "Я нашел " + enemy.gold + " золота!";
-  hero.gold += enemy.gold;
-  gold.innerText = hero.gold;
-  enemy.gold = 0;
-  body.append(gold);
-
-  buttonDeadEnemy.hidden = true;
-  buttonStash.hidden = false;
-  goldDustButton.setAttribute("onclick", "takeGoldDust()");
-  healtButtleButton.setAttribute("onclick", "drinkHealtButtle()");
-  if (SEAL_1 == false) seal_1.setAttribute("onclick", "pushSeal()");
-  if (SEAL_2 == false) seal_2.setAttribute("onclick", "pushSeal()");
-  if (SEAL_3 == false) seal_3.setAttribute("onclick", "pushSeal()");
-  falseSeal.setAttribute("onclick", "falsePushSeal()");
-  buttonDealerDemon.setAttribute("onclick", "dealerDemon()");
-  buttonTomb.setAttribute("onclick", "openTomb()");
-};
-
-const enemyDied = () => {
-  let x = X;
-  let y = Y;
-
-  buttonN.hidden = false;
-  buttonE.hidden = false;
-  buttonS.hidden = false;
-  buttonW.hidden = false;
-  buttonStash.hidden = false;
-
-  hero.power++;
-  power.innerText = hero.power;
-  body.append(power);
-
-  if (
-    (X == 6 && Y == 9 && DEALERDEMON === false) ||
-    (X == 2 && Y == 9 && DEALERDEMON === false)
-  ) {
-    buttonDealerDemon.hidden = true;
-    DEALERDEMON = null;
+  if (ws.readyState === WebSocket.OPEN) {
+    console.log("Отправка регистрации:", { username, password });
+    sendWhenReady(ws, JSON.stringify({ type: "register", username, password }));
+  } else {
+    registerError.textContent = "Нет соединения с сервером";
   }
-  if (X == 2 && Y == 7 && SCELETBOSS === false) {
-    sceletBoss.hidden = true;
+});
+
+// Вход
+loginBtn.addEventListener("click", () => {
+  const username = document.getElementById("loginUsername").value.trim();
+  const password = document.getElementById("loginPassword").value.trim();
+  if (!username || !password) {
+    loginError.textContent = "Введите имя и пароль";
+    return;
   }
-  if (X == 7 && Y == 12 && BLUEDEMONBOSS === false) {
-    blueDemonBoss.hidden = true;
+  if (ws.readyState === WebSocket.OPEN) {
+    sendWhenReady(ws, JSON.stringify({ type: "login", username, password }));
+  } else {
+    loginError.textContent = "Нет соединения с сервером";
   }
-  if (X == 3 && Y == 12 && REDDEMONBOSS === false) {
-    redDemonBoss.hidden = true;
+});
+
+function handleAuthMessage(event) {
+  const data = JSON.parse(event.data);
+  switch (data.type) {
+    case "loginSuccess":
+      myId = data.id;
+      authContainer.style.display = "none";
+      document.getElementById("gameContainer").style.display = "block";
+      data.players.forEach((p) => players.set(p.id, p));
+      lastDistance = players.get(myId).distanceTraveled || 0;
+      data.wolves.forEach((w) => wolves.set(w.id, w));
+      data.obstacles.forEach((o) => obstacles.push(o));
+      if (data.items) {
+        data.items.forEach((item) =>
+          items.set(item.itemId, {
+            x: item.x,
+            y: item.y,
+            type: item.type,
+            spawnTime: item.spawnTime,
+          })
+        );
+      }
+      if (data.lights) {
+        lights.length = 0;
+        data.lights.forEach((light) => lights.push(light));
+      }
+      resizeCanvas();
+      ws.onmessage = handleGameMessage;
+      console.log("Переключен обработчик на handleGameMessage");
+      startGame();
+      updateOnlineCount(); // Добавляем вызов
+      break;
+    case "registerSuccess":
+      registerError.textContent = "Регистрация успешна! Войдите.";
+      registerForm.style.display = "none";
+      loginForm.style.display = "block";
+      break;
+    case "registerFail":
+      registerError.textContent = "Ник занят, выберите другой";
+      break;
+    case "loginFail":
+      loginError.textContent = "Неверное имя или пароль";
+      break;
   }
+}
 
-  infoTextBlock.innerText = "Нечто мертво... Power : + 1!";
-  enemyRandom = Math.round(Math.random() * (3 - 1) + 1);
-  buttonStash.setAttribute("onclick", "openStash()");
-  goldDustButton.setAttribute("onclick", "takeGoldDust()");
-  healtButtleButton.setAttribute("onclick", "drinkHealtButtle()");
-  jugButton.setAttribute("onclick", "startJugButton()");
-  if (SEAL_1 == false) seal_1.setAttribute("onclick", "pushSeal()");
-  if (SEAL_2 == false) seal_2.setAttribute("onclick", "pushSeal()");
-  if (SEAL_3 == false) seal_3.setAttribute("onclick", "pushSeal()");
-  falseSeal.setAttribute("onclick", "falsePushSeal()");
-  buttonDealerDemon.setAttribute("onclick", "dealerDemon()");
-  buttonTomb.setAttribute("onclick", "openTomb()");
-};
+function createLineObstacle(x1, y1, x2, y2, thickness = 5) {
+  const length = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+  const angle = Math.atan2(y2 - y1, x2 - x1);
+  const halfThickness = thickness / 2;
 
-const youDied = () => {
-  buttonN.hidden = true;
-  buttonW.hidden = true;
-  buttonE.hidden = true;
-  buttonS.hidden = true;
-  youDiedText.hidden = false;
-  infoTextBlock.hidden = true;
-  heroTextBlock.hidden = true;
-  mapImage.hidden = true;
-  printArmor.hidden = true;
-  armor.hidden = true;
-  seal_1.hidden = true;
-  seal_2.hidden = true;
-  seal_3.hidden = true;
-  buttonTomb.hidden = true;
-  goldDustButton.setAttribute("onclick", "");
-  healtButtleButton.setAttribute("onclick", "");
-  jugButton.setAttribute("onclick", "");
+  const sinAngle = Math.sin(angle);
+  const cosAngle = Math.cos(angle);
+  const dx = halfThickness * sinAngle;
+  const dy = halfThickness * cosAngle;
 
-  STEP = 0;
-  BALUAL = false;
-  BALUALHEALT = false;
-  MAP = false;
-  SEAL_1 = false;
-  SEAL_2 = false;
-  SEAL_3 = false;
-  DEALERDEMON = true;
-  SCELETBOSS = true;
-  BLUEDEMONBOSS = true;
-  REDDEMONBOSS = true;
+  const point1 = { x: x1 - dx, y: y1 + dy };
+  const point2 = { x: x1 + dx, y: y1 - dy };
+  const point3 = { x: x2 - dx, y: y2 + dy };
+  const point4 = { x: x2 + dx, y: y2 - dy };
 
-  hero.healt = 91;
-  hero.power = 19;
-  hero.gold = 0;
+  const left = Math.min(point1.x, point2.x, point3.x, point4.x);
+  const right = Math.max(point1.x, point2.x, point3.x, point4.x);
+  const top = Math.min(point1.y, point2.y, point3.y, point4.y);
+  const bottom = Math.max(point1.y, point2.y, point3.y, point4.y);
 
-  enemy.healt = 0;
-  enemy.power = 0;
-  enemy.gold = 0;
+  const obstacle = {
+    id: Date.now().toString(),
+    left,
+    right,
+    top,
+    bottom,
+    isLine: true,
+    x1,
+    y1,
+    x2,
+    y2,
+    thickness,
+  };
+  obstacles.push(obstacle);
+}
 
-  createRoomArray();
+function lineIntersects(x1, y1, x2, y2, x3, y3, x4, y4) {
+  const denominator = (y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1);
+  if (denominator === 0) return false;
+  const ua = ((x4 - x3) * (y1 - y3) - (y4 - y3) * (x1 - x3)) / denominator;
+  const ub = ((x2 - x1) * (y1 - y3) - (y2 - y1) * (x1 - x3)) / denominator;
+  return ua >= 0 && ua <= 1 && ub >= 0 && ub <= 1;
+}
 
-  body.style.background = "black";
-  youDiedText.innerText = "YOU DIED";
-  youDiedText.setAttribute("class", "youDiedText");
-  body.append(youDiedText);
-  startButton.hidden = false;
-  startButton.style.background = "none";
-
-  X = 4;
-  Y = 0;
-};
-
-const battleLogic = () => {
-  let x = X;
-  let y = Y;
-
-  let heroHit = 0;
-  let heroBlock = 0;
-  let heroHitPower = Math.round(Math.random() * (hero.power - 1) + 1);
-
-  let enemyHit = Math.round(Math.random() * (3 - 1) + 1);
-  let enemyBlock = Math.round(Math.random() * (3 - 1) + 1);
-  let enemyHitPower = Math.round(Math.random() * (enemy.power - 1) + 1);
-  if ((X == 6 && Y == 9) || (X == 2 && Y == 9)) {
-    enemyHitPower = Math.round(Math.random() * (enemy.power - 9) + 9);
+// Добавляем функцию pointToLineDistance (если её ещё нет)
+function pointToLineDistance(px, py, x1, y1, x2, y2) {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const lineLengthSquared = dx * dx + dy * dy;
+  if (lineLengthSquared === 0) {
+    return Math.sqrt(Math.pow(px - x1, 2) + Math.pow(py - y1, 2));
   }
+  let t = ((px - x1) * dx + (py - y1) * dy) / lineLengthSquared;
+  t = Math.max(0, Math.min(1, t));
+  const closestX = x1 + t * dx;
+  const closestY = y1 + t * dy;
+  return Math.sqrt(Math.pow(px - closestX, 2) + Math.pow(py - closestY, 2));
+}
 
-  if (heroHead.checked) heroBlock = 1;
-  if (heroBody.checked) heroBlock = 2;
-  if (heroLegs.checked) heroBlock = 3;
+function checkBulletCollision(bullet) {
+  for (const obstacle of obstacles) {
+    // Убираем деструктуризацию [, obstacle]
+    if (obstacle.isLine) {
+      const distance = pointToLineDistance(
+        bullet.x,
+        bullet.y,
+        obstacle.x1,
+        obstacle.y1,
+        obstacle.x2,
+        obstacle.y2
+      );
+      if (distance < obstacle.thickness / 2 + 5) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
 
-  if (enemyHead.checked) heroHit = 1;
-  if (enemyBody.checked) heroHit = 2;
-  if (enemyLegs.checked) heroHit = 3;
+// Функция создания источника света
+function createLight(x, y, color, radius) {
+  lights.push({ x, y, color, radius });
+}
 
-  if (heroHit === enemyBlock && heroHit === 1) {
-    infoTextBlock.innerText =
-      "Вы хотели пробить голову врага, но нечто ушло в сторону!";
-    body.append(infoTextBlock);
-  }
-  if (heroHit === enemyBlock && heroHit === 2) {
-    infoTextBlock.innerText = "Вы били в грудь - нечто увернулось!";
-    body.append(infoTextBlock);
-  }
-  if (heroHit === enemyBlock && heroHit === 3) {
-    infoTextBlock.innerText =
-      "Это мог быть лучший лоу-кик в истории - нечто парирует удар!";
-    body.append(infoTextBlock);
-  }
-  if (heroHit !== enemyBlock && heroHit === 1) {
-    infoTextBlock.innerText =
-      "Сокрушительный удар в голуву! Нечто : - " + heroHitPower + " hp...";
-    body.append(infoTextBlock);
-    enemy.healt -= heroHitPower;
-    enemyHealtText.innerText = enemy.healt;
-    body.append(enemyHealtText);
-  }
-  if (heroHit !== enemyBlock && heroHit === 2) {
-    infoTextBlock.innerText =
-      "Резкий рывок и грудная клетка хрустит! Нечто : - " +
-      heroHitPower +
-      " hp...";
-    body.append(infoTextBlock);
-    enemy.healt -= heroHitPower;
-    enemyHealtText.innerText = enemy.healt;
-    body.append(enemyHealtText);
-  }
-  if (heroHit !== enemyBlock && heroHit === 3) {
-    infoTextBlock.innerText =
-      "Сокрушительный удар по ногам! Нечто : - " + heroHitPower + " hp...";
-    body.append(infoTextBlock);
-    enemy.healt -= heroHitPower;
-    enemyHealtText.innerText = enemy.healt;
-    body.append(enemyHealtText);
-  }
-  if (enemyHit === heroBlock && enemyHit === 1) {
-    heroTextBlock.innerText = "Эта тварь пыталась впится мне в голову!";
-    body.append(heroTextBlock);
-  }
-  if (enemyHit === heroBlock && enemyHit === 2) {
-    heroTextBlock.innerText =
-      "Фух! Нечисть прыгнула мне в грудь - я успел увернуться!";
-    body.append(heroTextBlock);
-  }
-  if (enemyHit === heroBlock && enemyHit === 3) {
-    heroTextBlock.innerText = "Ха! Как ловко убрал ноги!";
-    body.append(heroTextBlock);
-  }
-  if (enemyHit !== heroBlock && enemyHit === 1) {
-    let sum = enemyHitPower - hero.armor;
-    enemyHitPower -= hero.armor;
-    if (enemyHitPower <= 0) {
-      infoTextBlock.innerText = "Броня поглотила урон!";
-      heroTextBlock.innerText = "Отличная куртка!";
-      hero.healt + -sum;
+function checkCollision(newX, newY) {
+  const me = players.get(myId);
+  if (!me) return false;
+
+  const playerLeft = newX;
+  const playerRight = newX + 40;
+  const playerTop = newY;
+  const playerBottom = newY + 40;
+
+  for (const obstacle of obstacles) {
+    // Убираем деструктуризацию [, obstacle]
+    if (obstacle.isLine) {
+      const lineX1 = obstacle.x1;
+      const lineY1 = obstacle.y1;
+      const lineX2 = obstacle.x2;
+      const lineY2 = obstacle.y2;
+
+      const playerEdges = [
+        { x1: playerLeft, y1: playerTop, x2: playerRight, y2: playerTop },
+        { x1: playerRight, y1: playerTop, x2: playerRight, y2: playerBottom },
+        { x1: playerRight, y1: playerBottom, x2: playerLeft, y2: playerBottom },
+        { x1: playerLeft, y1: playerBottom, x2: playerLeft, y2: playerTop },
+      ];
+
+      for (const edge of playerEdges) {
+        if (
+          lineIntersects(
+            lineX1,
+            lineY1,
+            lineX2,
+            lineY2,
+            edge.x1,
+            edge.y1,
+            edge.x2,
+            edge.y2
+          )
+        ) {
+          return true;
+        }
+      }
+
+      const distance = pointToLineDistance(
+        newX + 20,
+        newY + 20,
+        lineX1,
+        lineY1,
+        lineX2,
+        lineY2
+      );
+      if (distance < 20 + obstacle.thickness / 2) {
+        return true;
+      }
     } else {
-      heroTextBlock.innerText =
-        "У меня затряслась голова! Герой : - " + enemyHitPower + " hp...";
-      body.append(heroTextBlock);
-      hero.healt -= enemyHitPower;
-      healt.innerText = hero.healt;
-      body.append(healt);
+      if (
+        playerLeft < obstacle.right &&
+        playerRight > obstacle.left &&
+        playerTop < obstacle.bottom &&
+        playerBottom > obstacle.top
+      ) {
+        return true;
+      }
     }
   }
-  if (enemyHit !== heroBlock && enemyHit === 2) {
-    let sum = enemyHitPower - hero.armor;
-    enemyHitPower -= hero.armor;
-    if (enemyHitPower <= 0) {
-      infoTextBlock.innerText = "Нечто не пробило броню.";
-      heroTextBlock.innerText = "Хорошее одеяние я приобрел!";
-      hero.healt += sum;
-    } else
-      heroTextBlock.innerText =
-        "Нечисть процарапала мне грудь! Герой : - " + enemyHitPower + " hp...";
-    body.append(heroTextBlock);
-    hero.healt -= enemyHitPower;
-    healt.innerText = hero.healt;
-    body.append(healt);
+  return false;
+}
+
+// Функция для отправки данных, когда WebSocket готов
+function sendWhenReady(ws, message) {
+  if (ws.readyState === WebSocket.OPEN) {
+    ws.send(message);
+  } else if (ws.readyState === WebSocket.CONNECTING) {
+    const checkInterval = setInterval(() => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(message);
+        clearInterval(checkInterval);
+      }
+    }, 100); // Проверяем каждые 100 мс
+    setTimeout(() => clearInterval(checkInterval), 5000); // Таймаут 5 секунд
+  } else {
+    console.error("WebSocket не готов для отправки:", ws.readyState);
   }
-  if (enemyHit !== heroBlock && enemyHit === 3) {
-    let sum = enemyHitPower - hero.armor;
-    enemyHitPower -= hero.armor;
-    if (enemyHitPower <= 0) {
-      infoTextBlock.innerText = "Бронь спасла от удара!";
-      heroTextBlock.innerText = "Хотя цены здешний уродец завышает...";
-      hero.healt += sum;
-    } else
-      heroTextBlock.innerText =
-        "Ааа! Тварь вцепилась в ноги! Герой : - " + enemyHitPower + " hp...";
-    body.append(heroTextBlock);
-    hero.healt -= enemyHitPower;
-    healt.innerText = hero.healt;
-    body.append(healt);
-  }
-  if (enemy.healt <= 19) enemyHealtText.style.color = "red";
+}
 
-  if (hero.healt <= 0) {
-    audio.setAttribute("src", "mp3/dead.mp3");
-    printHealt.hidden = true;
-    printPower.hidden = true;
-    printGold.hidden = true;
-    healt.hidden = true;
-    power.hidden = true;
-    gold.hidden = true;
-    enemyHead.hidden = true;
-    enemyBody.hidden = true;
-    enemyLegs.hidden = true;
-    enemyHeadText.hidden = true;
-    enemyBodyText.hidden = true;
-    enemyLegsText.hidden = true;
-    enemyHealtText.hidden = true;
-    map.hidden = true;
-    heroImg.hidden = true;
-    heroHead.hidden = true;
-    heroBody.hidden = true;
-    heroLegs.hidden = true;
-    heroHeadText.hidden = true;
-    heroBodyText.hidden = true;
-    heroLegsText.hidden = true;
-    buttonFight.hidden = true;
-    buttonFightText.hidden = true;
-    goldDustButton.hidden = true;
-    healtButtleButton.hidden = true;
-    setTimeout(youDied, 6660);
-    return;
-  }
+function updateOnlineCount() {
+  const onlineCountEl = document.getElementById("onlineCount");
+  const playerCount = players.size; // Количество игроков из Map
+  onlineCountEl.textContent = `Онлайн: ${playerCount}`;
+}
 
-  if (enemy.healt <= 0) {
-    heroImg.hidden = true;
-    heroHead.hidden = true;
-    heroBody.hidden = true;
-    heroLegs.hidden = true;
-    heroHeadText.hidden = true;
-    heroBodyText.hidden = true;
-    heroLegsText.hidden = true;
-    enemyImg.hidden = true;
-    enemyHealtText.hidden = true;
-    enemyHead.hidden = true;
-    enemyBody.hidden = true;
-    enemyLegs.hidden = true;
-    enemyHeadText.hidden = true;
-    enemyBodyText.hidden = true;
-    enemyLegsText.hidden = true;
-    buttonFight.hidden = true;
-    buttonFightText.hidden = true;
-    buttonDeadEnemy.hidden = false;
+function startGame() {
+  updateOnlineCount();
+  // Обработчик клавиш (только для стрельбы и чата)
+  document.addEventListener("keydown", (e) => {
+    const me = players.get(myId);
+    if (!me || me.health <= 0) return;
 
-    if (Y < 13) {
-      buttonDeadEnemy.setAttribute("class", "buttonDeadScelet");
+    if (e.key === "Escape") {
+      if (chatContainer.style.display === "flex") {
+        chatContainer.style.display = "none";
+        chatInput.blur();
+      }
+      if (isInventoryOpen) {
+        toggleInventory();
+      }
+      e.preventDefault();
+      return;
     }
-    buttonDeadEnemy.setAttribute("onclick", "searchDeadEnemy()");
-    body.append(buttonDeadEnemy);
 
-    enemyDied();
-    return;
-  }
-
-  fight();
-};
-
-const createEnemy = () => {
-  if (
-    (X == 6 && Y == 9 && DEALERDEMON === false) ||
-    (X == 2 && Y == 9 && DEALERDEMON === false)
-  ) {
-    divDealerDemonText.hidden = true;
-    dealerDemonText.hidden = true;
-    enemyImg.setAttribute("class", "dealerDemonFalse");
-    buttonDealerDemon.setAttribute("class", "dealerDemonFalse");
-    enemy.healt = 666;
-    enemyHealtText.innerText = enemy.healt;
-    body.append(enemyHealtText);
-    enemy.gold = 0;
-    enemy.power = 20;
-  } else if (X == 2 && Y == 7 && SCELETBOSS === true) {
-    enemyImg.setAttribute("class", "sceletBoss");
-    sceletBoss.setAttribute("class", "sceletBoss");
-    enemy.healt = 333;
-    enemy.power = 66;
-    enemyHealtText.innerText = enemy.healt;
-    body.append(enemyHealtText);
-    enemy.gold = Math.round(Math.random() * (27 - 13) + 13);
-    SCELETBOSS = false;
-    ENEMYCOUNT++;
-  } else if (X == 7 && Y == 12 && BLUEDEMONBOSS === true) {
-    enemyImg.setAttribute("class", "blueDemonBoss");
-    blueDemonBoss.setAttribute("class", "blueDemonBoss");
-    enemy.healt = 666;
-    enemy.power = 66;
-    enemyHealtText.innerText = enemy.healt;
-    body.append(enemyHealtText);
-    enemy.gold = Math.round(Math.random() * (50 - 27) + 27);
-    BLUEDEMONBOSS = false;
-    ENEMYCOUNT++;
-  } else if (X == 3 && Y == 12 && REDDEMONBOSS === true) {
-    enemyImg.setAttribute("class", "redDemonBoss");
-    redDemonBoss.setAttribute("class", "redDemonBoss");
-    enemy.healt = 999;
-    enemy.power = 66;
-    enemyHealtText.innerText = enemy.healt;
-    body.append(enemyHealtText);
-    enemy.gold = Math.round(Math.random() * (66 - 33) + 33);
-    REDDEMONBOSS = false;
-    ENEMYCOUNT++;
-  } else if (Y < 4) {
-    enemy.healt = Math.round(Math.random() * (27 - 11) + 11);
-    enemyHealtText.innerText = enemy.healt;
-    body.append(enemyHealtText);
-    enemy.power = 20;
-    enemy.gold = Math.round(Math.random() * (8 - 0) + 0);
-    ENEMYCOUNT++;
-    if (enemyRandom === 1) {
-      enemyImg.setAttribute("class", "scelet1");
-    }
-    if (enemyRandom === 2) {
-      enemyImg.setAttribute("class", "scelet");
-    }
-    if (enemyRandom === 3) {
-      enemyImg.setAttribute("class", "scelet2");
-    }
-  } else if (Y >= 4) {
-    enemyRandom = Math.round(Math.random() * (3 - 0) + 0);
-    enemy.healt = Math.round(Math.random() * (40 - 13) + 13);
-    enemyHealtText.innerText = enemy.healt;
-    body.append(enemyHealtText);
-    enemy.power = 27;
-    enemy.gold = Math.round(Math.random() * (13 - 0) + 0);
-    ENEMYCOUNT++;
-    if (enemyRandom === 0) {
-      enemyImg.setAttribute("class", "demon");
-    }
-    if (enemyRandom === 1) {
-      enemyImg.setAttribute("class", "demon1");
-    }
-    if (enemyRandom === 2) {
-      enemyImg.setAttribute("class", "demon2");
-    }
-    if (enemyRandom === 3) {
-      enemyImg.setAttribute("class", "demon3");
-    }
-  }
-
-  if (enemy.healt > 19) enemyHealtText.style.color = "green";
-  if (enemy.healt <= 19) enemyHealtText.style.color = "red";
-
-  buttonE.hidden = true;
-  buttonN.hidden = true;
-  buttonS.hidden = true;
-  buttonW.hidden = true;
-  heroImg.hidden = false;
-  enemyImg.hidden = false;
-  heroHead.hidden = false;
-  heroBody.hidden = false;
-  heroLegs.hidden = false;
-  heroHeadText.hidden = false;
-  heroBodyText.hidden = false;
-  heroLegsText.hidden = false;
-  enemyHead.hidden = false;
-  enemyBody.hidden = false;
-  enemyLegs.hidden = false;
-  enemyHeadText.hidden = false;
-  enemyBodyText.hidden = false;
-  enemyLegsText.hidden = false;
-  buttonFight.hidden = false;
-  buttonFightText.hidden = false;
-  enemyHealtText.hidden = false;
-};
-
-const fight = () => {
-  let x = X;
-  let y = Y;
-
-  if (roomArray[x][y].enemy > 0) {
-    infoTextBlock.innerText =
-      "Отходя от тайника вы слышите шорох! Перед вами предстает нечто...";
     if (
-      (X == 6 && Y == 9 && DEALERDEMON === false) ||
-      (X == 2 && Y == 9 && DEALERDEMON === false) ||
-      (X == 2 && Y == 7 && SCELETBOSS === true) ||
-      (X == 7 && Y == 12 && BLUEDEMONBOSS === true) ||
-      (X == 3 && Y == 12 && REDDEMONBOSS === true)
+      document.activeElement === chatInput ||
+      document.activeElement === document.getElementById("balyaryAmount")
     ) {
-      infoTextBlock.innerText = "";
-    } else if (X == 3 && Y == 2 && TOMBTRUE === true) {
-      infoTextBlock.innerText =
-        "Вы открываете крышку - из склепа вылазит нечто!";
+      console.log("Фокус на balyaryAmount, пропускаем keydown:", e.key);
+      return;
     }
 
-    body.append(infoTextBlock);
+    switch (e.key) {
+      case " ":
+        shoot();
+        e.preventDefault();
+        break;
+      case "c":
+        const isChatVisible = chatContainer.style.display === "flex";
+        chatContainer.style.display = isChatVisible ? "none" : "flex";
+        if (!isChatVisible) chatInput.focus();
+        else chatInput.blur();
+        e.preventDefault();
+        break;
+      case "i":
+        toggleInventory();
+        e.preventDefault();
+        break;
+    }
+  });
+  // Обработчик нажатия мыши
+  canvas.addEventListener("mousedown", (e) => {
+    if (e.button === 0) {
+      const me = players.get(myId);
+      if (!me || me.health <= 0) return;
 
-    createEnemy();
-    roomArray[x][y].enemy = 0;
+      const inventoryContainer = document.getElementById("inventoryContainer");
+      const rect = inventoryContainer.getBoundingClientRect();
+      if (
+        isInventoryOpen &&
+        e.clientX >= rect.left &&
+        e.clientX <= rect.right &&
+        e.clientY >= rect.top &&
+        e.clientY <= rect.bottom
+      ) {
+        const slots = inventoryContainer.children;
+        for (let i = 0; i < slots.length; i++) {
+          const slotRect = slots[i].getBoundingClientRect();
+          if (
+            e.clientX >= slotRect.left &&
+            e.clientX <= slotRect.right &&
+            e.clientY >= slotRect.top &&
+            e.clientY <= slotRect.bottom &&
+            inventory[i]
+          ) {
+            console.log(
+              `Клик по слоту ${i} (x:${e.clientX}, y:${e.clientY}), предмет: ${inventory[i].type}`
+            );
+            selectSlot(i, slots[i]);
+            return;
+          }
+        }
+        console.log(
+          `Клик вне слотов инвентаря (x:${e.clientX}, y:${e.clientY})`
+        );
+        return; // Прерываем, если клик в инвентаре, но не по слоту
+      }
+
+      isMoving = true;
+      targetX = e.clientX + camera.x;
+      targetY = e.clientY + camera.y;
+    }
+  });
+
+  // Обработчик движения мыши (обновляем цель, если кнопка зажата)
+  canvas.addEventListener("mousemove", (e) => {
+    if (isMoving) {
+      targetX = e.clientX + camera.x;
+      targetY = e.clientY + camera.y;
+    }
+  });
+
+  // Обработчик отпускания мыши
+  canvas.addEventListener("mouseup", (e) => {
+    if (e.button === 0) {
+      isMoving = false;
+      const me = players.get(myId);
+      if (me) {
+        me.state = "idle";
+        me.frame = 0;
+        me.frameTime = 0;
+        sendWhenReady(
+          ws,
+          JSON.stringify({
+            type: "move",
+            x: me.x,
+            y: me.y,
+            health: me.health,
+            energy: me.energy,
+            food: me.food,
+            water: me.water,
+            armor: me.armor,
+            distanceTraveled: me.distanceTraveled,
+            direction: me.direction,
+            state: me.state,
+            frame: me.frame,
+          })
+        );
+      }
+    }
+  });
+
+  // Обработчик тач-событий для мобильных устройств
+  canvas.addEventListener("touchstart", (e) => {
+    e.preventDefault();
+    const me = players.get(myId);
+    if (!me || me.health <= 0) return;
+
+    const touch = e.touches[0];
+    const inventoryContainer = document.getElementById("inventoryContainer");
+    const rect = inventoryContainer.getBoundingClientRect();
+
+    if (
+      isInventoryOpen &&
+      touch.clientX >= rect.left &&
+      touch.clientX <= rect.right &&
+      touch.clientY >= rect.top &&
+      touch.clientY <= rect.bottom
+    ) {
+      const slots = inventoryContainer.children;
+      for (let i = 0; i < slots.length; i++) {
+        const slotRect = slots[i].getBoundingClientRect();
+        if (
+          touch.clientX >= slotRect.left &&
+          touch.clientX <= slotRect.right &&
+          touch.clientY >= slotRect.top &&
+          touch.clientY <= slotRect.bottom &&
+          inventory[i]
+        ) {
+          console.log(
+            `Тач по слоту ${i} (x:${touch.clientX}, y:${touch.clientY}), предмет: ${inventory[i].type}`
+          );
+          selectSlot(i, slots[i]);
+          return;
+        }
+      }
+      console.log(
+        `Тач вне слотов инвентаря (x:${touch.clientX}, y:${touch.clientY})`
+      );
+    } else {
+      isMoving = true;
+      targetX = touch.clientX + camera.x;
+      targetY = touch.clientY + camera.y;
+    }
+  });
+
+  canvas.addEventListener("touchmove", (e) => {
+    e.preventDefault();
+    const touch = e.touches[0];
+    targetX = touch.clientX + camera.x;
+    targetY = touch.clientY + camera.y;
+  });
+
+  canvas.addEventListener("touchend", (e) => {
+    e.preventDefault();
+    isMoving = false;
+    const me = players.get(myId);
+    if (me) {
+      me.state = "idle";
+      me.frame = 0;
+      me.frameTime = 0;
+      sendWhenReady(
+        ws,
+        JSON.stringify({
+          type: "move",
+          x: me.x,
+          y: me.y,
+          health: me.health,
+          energy: me.energy,
+          food: me.food,
+          water: me.water,
+          armor: me.armor,
+          distanceTraveled: me.distanceTraveled,
+          direction: me.direction,
+          state: me.state,
+          frame: me.frame,
+        })
+      );
+    }
+  });
+
+  // Настройка кнопки Fire
+  const fireBtn = document.getElementById("fireBtn");
+  fireBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    shoot();
+  });
+
+  // Настройка кнопки Chat
+  const chatBtn = document.getElementById("chatBtn");
+  chatBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    const isChatVisible = chatContainer.style.display === "flex";
+    chatContainer.style.display = isChatVisible ? "none" : "flex";
+    chatBtn.classList.toggle("active", !isChatVisible);
+    if (!isChatVisible) chatInput.focus();
+    else chatInput.blur();
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && chatContainer.style.display === "flex") {
+      chatContainer.style.display = "none";
+      chatInput.blur();
+    }
+  });
+
+  chatInput.addEventListener("keypress", (e) => {
+    if (e.key === "Enter" && chatInput.value.trim()) {
+      sendWhenReady(
+        ws,
+        JSON.stringify({ type: "chat", message: chatInput.value.trim() })
+      );
+      chatInput.value = "";
+    }
+  });
+
+  // Настройка кнопки Inventory
+  const inventoryBtn = document.getElementById("inventoryBtn");
+  inventoryBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    toggleInventory();
+  });
+
+  // Создаём контейнер для ячеек инвентаря
+  const inventoryContainer = document.getElementById("inventoryContainer");
+  inventoryContainer.style.display = "none";
+
+  const inventoryGrid = document.createElement("div");
+  inventoryGrid.id = "inventoryGrid";
+  inventoryContainer.insertBefore(
+    inventoryGrid,
+    document.getElementById("inventoryActions")
+  );
+
+  for (let i = 0; i < 20; i++) {
+    const slot = document.createElement("div");
+    slot.className = "inventory-slot";
+    inventoryGrid.appendChild(slot);
   }
 
-  body.append(enemyImg);
-  enemyHealtText.setAttribute("class", "enemyHealtText");
-  enemyHealtText.innerText = enemy.healt;
-  body.append(enemyHealtText);
+  const useBtn = document.getElementById("useBtn");
+  const dropBtn = document.getElementById("dropBtn");
 
-  heroImg.setAttribute("class", "heroImg");
-  body.append(heroImg);
+  useBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    if (selectedSlot !== null) useItem(selectedSlot);
+  });
 
-  const heroVSmonster = () => {
-    heroHead.setAttribute("class", "heroHead");
-    heroHead.setAttribute("checked", "checked");
-    heroHead.setAttribute("type", "radio");
-    heroHead.setAttribute("value", "1");
-    heroHead.setAttribute("name", "hero");
-    body.append(heroHead);
+  dropBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    if (selectedSlot !== null) dropItem(selectedSlot);
+  });
 
-    heroBody.setAttribute("class", "heroBody");
-    heroBody.setAttribute("type", "radio");
-    heroBody.setAttribute("value", "2");
-    heroBody.setAttribute("name", "hero");
-    body.append(heroBody);
+  requestAnimationFrame(gameLoop);
+}
 
-    heroLegs.setAttribute("class", "heroLegs");
-    heroLegs.setAttribute("type", "radio");
-    heroLegs.setAttribute("value", "3");
-    heroLegs.setAttribute("name", "hero");
-    body.append(heroLegs);
+// Функция переключения инвентаря
+function toggleInventory() {
+  isInventoryOpen = !isInventoryOpen;
+  const inventoryContainer = document.getElementById("inventoryContainer");
+  inventoryContainer.style.display = isInventoryOpen ? "grid" : "none";
+  if (isInventoryOpen) updateInventoryDisplay();
+  const inventoryBtn = document.getElementById("inventoryBtn");
+  inventoryBtn.classList.toggle("active", isInventoryOpen);
 
-    enemyHead.setAttribute("class", "enemyHead");
-    enemyHead.setAttribute("checked", "checked");
-    enemyHead.setAttribute("type", "radio");
-    enemyHead.setAttribute("value", "1");
-    enemyHead.setAttribute("name", "enemy");
-    body.append(enemyHead);
+  if (!isInventoryOpen) {
+    const screen = document.getElementById("inventoryScreen");
+    screen.innerHTML = "";
+    selectedSlot = null;
+    const useBtn = document.getElementById("useBtn");
+    const dropBtn = document.getElementById("dropBtn");
+    useBtn.textContent = "Использовать";
+    useBtn.disabled = true;
+    dropBtn.disabled = true;
+  }
+}
 
-    enemyBody.setAttribute("class", "enemyBody");
-    enemyBody.setAttribute("type", "radio");
-    enemyBody.setAttribute("value", "2");
-    enemyBody.setAttribute("name", "enemy");
-    body.append(enemyBody);
+// Выбрать слот и показать кнопки
+function selectSlot(slotIndex, slotElement) {
+  if (!inventory[slotIndex]) return;
+  console.log(
+    `Выбран слот ${slotIndex}, предмет: ${inventory[slotIndex].type}`
+  );
+  const screen = document.getElementById("inventoryScreen");
+  const useBtn = document.getElementById("useBtn");
+  const dropBtn = document.getElementById("dropBtn");
 
-    enemyLegs.setAttribute("class", "enemyLegs");
-    enemyLegs.setAttribute("type", "radio");
-    enemyLegs.setAttribute("value", "3");
-    enemyLegs.setAttribute("name", "enemy");
-    body.append(enemyLegs);
+  if (selectedSlot === slotIndex) {
+    selectedSlot = null;
+    screen.innerHTML = "";
+    useBtn.textContent = "Использовать"; // Возвращаем текст
+    useBtn.disabled = true;
+    dropBtn.disabled = true;
+    return;
+  }
 
-    heroHeadText.innerText = "Прикрить голову";
-    heroBodyText.innerText = "Закрыть грудь";
-    heroLegsText.innerText = "Блок ног";
+  selectedSlot = slotIndex;
+  // Если ранее была форма "Баляр", убираем её и показываем описание
+  screen.textContent = ITEM_CONFIG[inventory[slotIndex].type].description;
+  useBtn.textContent = "Использовать"; // Сбрасываем текст
+  useBtn.disabled = inventory[slotIndex].type === "balyary"; // Отключаем для "Баляр"
+  dropBtn.disabled = false;
+}
 
-    enemyHeadText.innerText = "Удар в голову";
-    enemyBodyText.innerText = "Пробить грудь";
-    enemyLegsText.innerText = "Прострел по ногам";
+// Скрыть кнопки действий
+function hideActionButtons() {
+  document.querySelectorAll(".action-btn").forEach((btn) => btn.remove());
+}
 
-    heroHeadText.setAttribute("class", "heroHeadText");
-    heroBodyText.setAttribute("class", "heroBodyText");
-    heroLegsText.setAttribute("class", "heroLegsText");
+// Использовать предмет
+function useItem(slotIndex) {
+  const item = inventory[slotIndex];
+  if (!item || item.type === "balyary") return; // Ничего не делаем для Баляр
+  const me = players.get(myId);
+  const effect = ITEM_CONFIG[item.type].effect;
 
-    enemyHeadText.setAttribute("class", "enemyHeadText");
-    enemyBodyText.setAttribute("class", "enemyBodyText");
-    enemyLegsText.setAttribute("class", "enemyLegsText");
+  if (effect.health)
+    me.health = Math.min(100, Math.max(0, me.health + effect.health));
+  if (effect.energy)
+    me.energy = Math.min(100, Math.max(0, me.energy + effect.energy));
+  if (effect.food) me.food = Math.min(100, Math.max(0, me.food + effect.food));
+  if (effect.water)
+    me.water = Math.min(100, Math.max(0, me.water + effect.water));
 
-    body.append(heroHeadText);
-    body.append(heroBodyText);
-    body.append(heroLegsText);
-    body.append(enemyHeadText);
-    body.append(enemyBodyText);
-    body.append(enemyLegsText);
+  inventory[slotIndex] = null;
 
-    buttonFight.setAttribute("class", "buttonFight");
-    buttonFight.setAttribute("type", "submit");
-    buttonFight.setAttribute("name", "hero");
-    buttonFight.setAttribute("onclick", "battleLogic()");
-    body.append(buttonFight);
+  sendWhenReady(
+    ws,
+    JSON.stringify({
+      type: "useItem",
+      slotIndex,
+      health: me.health,
+      energy: me.energy,
+      food: me.food,
+      water: me.water,
+    })
+  );
 
-    buttonFightText.innerText = "Бой!";
-    buttonFightText.setAttribute("class", "buttonFightText");
-    body.append(buttonFightText);
-  };
-  setTimeout(heroVSmonster, 2000);
-};
+  selectedSlot = null;
+  document.getElementById("useBtn").disabled = true;
+  document.getElementById("dropBtn").disabled = true;
+  document.getElementById("inventoryScreen").textContent = "";
+  updateStatsDisplay();
+  updateInventoryDisplay();
+}
 
-const buttonYesFunc = () => {
-  //   Функция воды - ответ ДА   >>>>>>>>>
-  let x = X;
-  let y = Y;
+// Выкинуть предмет
+function dropItem(slotIndex) {
+  const item = inventory[slotIndex];
+  if (!item) return;
+  const me = players.get(myId);
+  const screen = document.getElementById("inventoryScreen");
+  const useBtn = document.getElementById("useBtn");
+  const dropBtn = document.getElementById("dropBtn");
 
-  buttonYes.hidden = true;
-  buttonNo.hidden = true;
+  if (item.type === "balyary") {
+    // Логика для "Баляр" с формой ввода количества
+    screen.innerHTML = `
+      <div class="balyary-drop-form">
+        <p class="cyber-text">Сколько выкинуть?</p>
+        <input type="number" id="balyaryAmount" class="cyber-input" min="1" max="${
+          item.quantity || 1
+        }" placeholder="0" value="" autofocus />
+        <p id="balyaryError" class="error-text"></p>
+      </div>
+    `;
+    const input = document.getElementById("balyaryAmount");
+    const errorEl = document.getElementById("balyaryError");
 
-  if (roomArray[x][y].water == 1 || roomArray[x][y].water == 2) {
-    let waterYesStr =
-      "В воде которую вы выпили были личинки паразитов :  - " +
-      roomArray[x][y].water +
-      " здоровья.";
-    infoTextBlock.innerText = waterYesStr;
-    hero.healt -= roomArray[x][y].water;
-    healt.innerText = hero.healt;
-    if (hero.healt <= 0) {
-      audio.setAttribute("src", "mp3/dead.mp3");
-      printHealt.hidden = true;
-      printPower.hidden = true;
-      printGold.hidden = true;
-      healt.hidden = true;
-      power.hidden = true;
-      gold.hidden = true;
-      enemyHead.hidden = true;
-      enemyBody.hidden = true;
-      enemyLegs.hidden = true;
-      enemyHeadText.hidden = true;
-      enemyBodyText.hidden = true;
-      enemyLegsText.hidden = true;
-      enemyHealtText.hidden = true;
-      map.hidden = true;
-      heroImg.hidden = true;
-      heroHead.hidden = true;
-      heroBody.hidden = true;
-      heroLegs.hidden = true;
-      heroHeadText.hidden = true;
-      heroBodyText.hidden = true;
-      heroLegsText.hidden = true;
-      buttonFight.hidden = true;
-      buttonFightText.hidden = true;
-      goldDustButton.hidden = true;
-      healtButtleButton.hidden = true;
-      setTimeout(youDied, 6660);
-      return;
-    }
-  } else if (roomArray[x][y].water == 0) {
-    infoTextBlock.innerText =
-      "Вода которую вы випили, была отравлена! Healt : - 6 hp.";
-    hero.healt -= 6;
-    healt.innerText = hero.healt;
-    if (hero.healt <= 0) {
-      audio.setAttribute("src", "mp3/dead.mp3");
-      printHealt.hidden = true;
-      printPower.hidden = true;
-      printGold.hidden = true;
-      healt.hidden = true;
-      power.hidden = true;
-      gold.hidden = true;
-      enemyHead.hidden = true;
-      enemyBody.hidden = true;
-      enemyLegs.hidden = true;
-      enemyHeadText.hidden = true;
-      enemyBodyText.hidden = true;
-      enemyLegsText.hidden = true;
-      enemyHealtText.hidden = true;
-      map.hidden = true;
-      heroImg.hidden = true;
-      heroHead.hidden = true;
-      heroBody.hidden = true;
-      heroLegs.hidden = true;
-      heroHeadText.hidden = true;
-      heroBodyText.hidden = true;
-      heroLegsText.hidden = true;
-      buttonFight.hidden = true;
-      buttonFightText.hidden = true;
-      goldDustButton.hidden = true;
-      healtButtleButton.hidden = true;
-      setTimeout(youDied, 6660);
-      return;
+    requestAnimationFrame(() => {
+      input.focus();
+      input.select();
+    });
+
+    input.addEventListener("input", () => {
+      console.log("Ввод в balyaryAmount:", input.value);
+      input.value = input.value.replace(/[^0-9]/g, "");
+      if (input.value === "") input.value = "";
+    });
+
+    useBtn.textContent = "Подтвердить";
+    useBtn.disabled = false;
+    dropBtn.disabled = true;
+
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        confirmDrop();
+      }
+    });
+
+    useBtn.onclick = (e) => {
+      e.preventDefault();
+      confirmDrop();
+    };
+
+    function confirmDrop() {
+      const amount = parseInt(input.value) || 0;
+      const currentQuantity = item.quantity || 1;
+
+      if (amount <= 0) {
+        errorEl.textContent = "Введи нормальное число, братишка!";
+        return;
+      }
+
+      if (amount > currentQuantity) {
+        errorEl.textContent = "Не хватает Баляр!";
+        return;
+      }
+
+      sendWhenReady(
+        ws,
+        JSON.stringify({
+          type: "dropItem",
+          slotIndex,
+          x: me.x,
+          y: me.y,
+          quantity: amount,
+        })
+      );
+
+      if (amount === currentQuantity) {
+        inventory[slotIndex] = null;
+      } else {
+        inventory[slotIndex].quantity -= amount;
+      }
+
+      useBtn.textContent = "Использовать";
+      useBtn.disabled = true;
+      dropBtn.disabled = true;
+      useBtn.onclick = () => useItem(slotIndex);
+      selectedSlot = null;
+      screen.innerHTML = "";
+      updateInventoryDisplay();
     }
   } else {
-    let waterYesStr =
-      "Вы испили воды из сосуда и чувствуете прилив сил :  + " +
-      roomArray[x][y].water +
-      " здоровья.";
-    infoTextBlock.innerText = waterYesStr;
-    hero.healt += roomArray[x][y].water;
-    healt.innerText = hero.healt;
+    // Логика для остальных предметов: выкидываем один предмет
+    sendWhenReady(
+      ws,
+      JSON.stringify({
+        type: "dropItem",
+        slotIndex,
+        x: me.x,
+        y: me.y,
+        quantity: 1, // Выкидываем ровно один предмет
+      })
+    );
+
+    // Очищаем слот инвентаря
+    inventory[slotIndex] = null;
+
+    // Сбрасываем выбранный слот и кнопки
+    selectedSlot = null;
+    useBtn.disabled = true;
+    dropBtn.disabled = true;
+    screen.innerHTML = "";
+    updateInventoryDisplay();
   }
-  if (roomArray[x][y].enemy > 0 && Y < 4) {
-    enemyRandom = Math.round(Math.random() * (3 - 1) + 1);
-    setTimeout(fight, 5000);
-  } else if (roomArray[x][y].enemy > 0 && Y >= 4) {
-    enemyRandom = Math.round(Math.random() * (3 - 0) + 0);
-    setTimeout(fight, 5000);
-  }
+}
 
-  if (roomArray[x][y].enemy === 0) {
-    buttonE.hidden = false;
-    buttonN.hidden = false;
-    buttonS.hidden = false;
-    buttonW.hidden = false;
-    buttonStash.hidden = false;
-    goldDustButton.setAttribute("onclick", "takeGoldDust()");
-    healtButtleButton.setAttribute("onclick", "drinkHealtButtle()");
-    jugButton.setAttribute("onclick", "startJugButton()");
-    if (SEAL_1 == false) seal_1.setAttribute("onclick", "pushSeal()");
-    if (SEAL_2 == false) seal_2.setAttribute("onclick", "pushSeal()");
-    if (SEAL_3 == false) seal_3.setAttribute("onclick", "pushSeal()");
-    falseSeal.setAttribute("onclick", "falsePushSeal()");
-    buttonDealerDemon.setAttribute("onclick", "dealerDemon()");
-    buttonTomb.setAttribute("onclick", "openTomb()");
-  }
-}; //   Функция воды - ответ ДА   >>>>>>>>>
+// Логика расхода ресурсов
+function updateResources() {
+  const me = players.get(myId);
+  if (!me) return;
 
-const buttonNoFunc = () => {
-  //   Функция воды - ответ НЕТ   >>>>>>>>>
-  let x = X;
-  let y = Y;
+  const distance = Math.floor(me.distanceTraveled || 0);
 
-  buttonYes.hidden = true;
-  buttonNo.hidden = true;
-  buttonE.hidden = true;
-  buttonN.hidden = true;
-  buttonS.hidden = true;
-  buttonW.hidden = true;
-  buttonStash.hidden = true;
-  infoTextBlock.innerText = "Вы вылили жидкость на пол лабиринта ...";
-
-  if (roomArray[x][y].enemy > 0 && Y < 4) {
-    enemyRandom = Math.round(Math.random() * (3 - 1) + 1);
-    setTimeout(fight, 5000);
-  } else if (roomArray[x][y].enemy > 0 && Y >= 4) {
-    enemyRandom = Math.round(Math.random() * (3 - 0) + 0);
-    setTimeout(fight, 5000);
+  // Энергия: -1 каждые 600 пикселей
+  const energyLoss = Math.floor(distance / 800);
+  const prevEnergyLoss = Math.floor(lastDistance / 800);
+  if (energyLoss > prevEnergyLoss) {
+    me.energy = Math.max(0, me.energy - (energyLoss - prevEnergyLoss));
+    console.log(`Energy reduced to ${me.energy}`);
   }
 
-  if (roomArray[x][y].enemy === 0) {
-    buttonE.hidden = false;
-    buttonN.hidden = false;
-    buttonS.hidden = false;
-    buttonW.hidden = false;
-    buttonStash.hidden = false;
-    goldDustButton.setAttribute("onclick", "takeGoldDust()");
-    healtButtleButton.setAttribute("onclick", "drinkHealtButtle()");
-    jugButton.setAttribute("onclick", "startJugButton()");
-    if (SEAL_1 == false) seal_1.setAttribute("onclick", "pushSeal()");
-    if (SEAL_2 == false) seal_2.setAttribute("onclick", "pushSeal()");
-    if (SEAL_3 == false) seal_3.setAttribute("onclick", "pushSeal()");
-    falseSeal.setAttribute("onclick", "falsePushSeal()");
-    buttonDealerDemon.setAttribute("onclick", "dealerDemon()");
-    buttonTomb.setAttribute("onclick", "openTomb()");
-  }
-}; //   Функция воды - ответ НЕТ   >>>>>>>>>
-
-//   СОЗДАНИЕ DOM ОБЬЕКТОВ   >>>>>>>
-
-let body = document.querySelector("body"); //   Получение тела body.
-
-let audio = document.querySelector("audio"); //   Получение тега аудио.
-
-const userWidth = window.screen.width; //   Ширина экрана пользователя.
-const userHeight = window.screen.height; //   Высота экрана пользователя.
-const userSizeStr = userWidth + "px " + userHeight + "px"; //   Разширение экрана пользователя (строка).
-let startButton = document.querySelector("button"); //   Получение кнопки старта игры.
-let heroTextBlock = document.createElement("p"); //   Создание блока с текстом (героя).
-let infoTextBlock = document.createElement("p"); //   Создание текста подсказки.
-let printGold = document.createElement("p"); //   Создание параграфа под строку.
-let printHealt = document.createElement("p"); //   Создание параграфа под строку.
-let printPower = document.createElement("p"); //   Создание параграфа под строку.
-let printArmor = document.createElement("p");
-let gold = document.createElement("p"); //   Создание параграфа под строку.
-let healt = document.createElement("p"); //   Создание параграфа под строку.
-let power = document.createElement("p"); //   Создание параграфа под строку.
-let armor = document.createElement("p");
-let map = document.createElement("a"); //   Создание ссылки на карту.
-let buttonStash = document.createElement("button");
-let buttonN = document.createElement("button"); //   Создание кнопки перехода из комнат.
-let buttonE = document.createElement("button"); //   Создание кнопки перехода из комнат.
-let buttonS = document.createElement("button"); //   Создание кнопки перехода из комнат.
-let buttonW = document.createElement("button"); //   Создание кнопки перехода из комнат.
-let buttonYes = document.createElement("button"); //   Создание кнопки выбора воды - ДА.
-let buttonNo = document.createElement("button"); //   Создание кнопки выбора воды - НЕТ.
-let enemyImg = document.createElement("img");
-let enemyHealtText = document.createElement("p");
-let heroImg = document.createElement("img");
-let heroHead = document.createElement("input");
-let heroBody = document.createElement("input");
-let heroLegs = document.createElement("input");
-let enemyHead = document.createElement("input");
-let enemyBody = document.createElement("input");
-let enemyLegs = document.createElement("input");
-let heroHeadText = document.createElement("p");
-let heroBodyText = document.createElement("p");
-let heroLegsText = document.createElement("p");
-let enemyHeadText = document.createElement("p");
-let enemyBodyText = document.createElement("p");
-let enemyLegsText = document.createElement("p");
-let buttonFight = document.createElement("input");
-let buttonFightText = document.createElement("p");
-let youDiedText = document.createElement("p");
-let buttonDeadEnemy = document.createElement("button");
-let healtButtleButton = document.createElement("button");
-body.append(healtButtleButton);
-let goldDustButton = document.createElement("button");
-body.append(goldDustButton);
-let jugButton = document.createElement("button");
-body.append(jugButton);
-let balualText = document.createElement("p");
-let balualTextButtonNext = document.createElement("button");
-let balual = document.createElement("img");
-let divBalualText = document.createElement("div");
-let mapImage = document.createElement("img");
-let mapButton = document.createElement("button");
-let seal_1 = document.createElement("button");
-let seal_2 = document.createElement("button");
-let seal_3 = document.createElement("button");
-let sealNumberImg_0 = document.createElement("img");
-let sealNumberImg_1 = document.createElement("img");
-let sealNumberImg_2 = document.createElement("img");
-let sealNumberImg_3 = document.createElement("img");
-let sealNumberImg_4 = document.createElement("img");
-let sealNumberImg_5 = document.createElement("img");
-let sealNumberImg_6 = document.createElement("img");
-let sealNumberImg_7 = document.createElement("img");
-let sealNumberImg_8 = document.createElement("img");
-let sealNumberImg_9 = document.createElement("img");
-let falseSeal = document.createElement("button");
-let buttonDealerDemon = document.createElement("button");
-let dealerDemonText = document.createElement("p");
-let divDealerDemonText = document.createElement("div");
-let yesStore = document.createElement("button");
-let noStore = document.createElement("button");
-let storeImg = document.createElement("button");
-let healtButtleStore = document.createElement("button");
-let knifeStore = document.createElement("button");
-let knifeStore2 = document.createElement("button");
-let chainMail = document.createElement("button");
-let tunic = document.createElement("button");
-let armorStore = document.createElement("button");
-let sceletBoss = document.createElement("button");
-let blueDemonBoss = document.createElement("button");
-let redDemonBoss = document.createElement("button");
-let buttonTomb = document.createElement("button");
-
-body.append(mapImage);
-body.append(mapButton);
-body.append(balual);
-body.append(divBalualText);
-body.append(seal_1);
-body.append(seal_2);
-body.append(seal_3);
-body.append(sealNumberImg_0);
-body.append(sealNumberImg_1);
-body.append(sealNumberImg_2);
-body.append(sealNumberImg_3);
-body.append(sealNumberImg_4);
-body.append(sealNumberImg_5);
-body.append(sealNumberImg_6);
-body.append(sealNumberImg_7);
-body.append(sealNumberImg_8);
-body.append(sealNumberImg_9);
-body.append(falseSeal);
-body.append(buttonDealerDemon);
-body.append(sceletBoss);
-body.append(blueDemonBoss);
-body.append(redDemonBoss);
-body.append(buttonTomb);
-
-let br = document.createElement("br");
-let enemy = new Object();
-let hero = new Object();
-//   СОЗДАНИЕ DOM ОБЬЕКТОВ   >>>>>>>
-
-sealNumberImg_0.setAttribute("class", "sealNumberImg_0");
-sealNumberImg_1.setAttribute("class", "sealNumberImg_1");
-sealNumberImg_2.setAttribute("class", "sealNumberImg_2");
-sealNumberImg_3.setAttribute("class", "sealNumberImg_3");
-sealNumberImg_4.setAttribute("class", "sealNumberImg_4");
-sealNumberImg_5.setAttribute("class", "sealNumberImg_5");
-sealNumberImg_6.setAttribute("class", "sealNumberImg_6");
-sealNumberImg_7.setAttribute("class", "sealNumberImg_7");
-sealNumberImg_8.setAttribute("class", "sealNumberImg_8");
-sealNumberImg_9.setAttribute("class", "sealNumberImg_9");
-falseSeal.setAttribute("onclick", "falsePushSeal()");
-buttonDealerDemon.setAttribute("class", "dealerDemon");
-
-sealNumberImg_0.hidden = true;
-sealNumberImg_1.hidden = true;
-sealNumberImg_2.hidden = true;
-sealNumberImg_3.hidden = true;
-sealNumberImg_4.hidden = true;
-sealNumberImg_5.hidden = true;
-sealNumberImg_6.hidden = true;
-sealNumberImg_7.hidden = true;
-sealNumberImg_8.hidden = true;
-sealNumberImg_9.hidden = true;
-falseSeal.hidden = true;
-buttonDealerDemon.hidden = true;
-
-//   Создание персонажа   >>>>>>>
-hero.gold = 999;
-hero.power = 9919;
-hero.healt = 91;
-hero.armor = 0;
-//   Создание персонажа   >>>>>>>
-//   Создание монстра   >>>>>>>
-enemy.healt = 0;
-enemy.power = 0;
-//   Создание монстра   >>>>>>>
-
-let roomArray = []; //   Создание массива.
-
-const createRoomArray = () => {
-  //   Функция создания массива комнат лабиринта   >>>>>>>
-  let rows = 8;
-  let cols = 13;
-
-  for (let i = 0; i < rows; i++) {
-    roomArray[i] = [];
-    for (let j = 0; j < cols; j++) {
-      roomArray[i][j] = new Object();
-      roomArray[i][j].gold = Math.round(Math.random() * (5 - 0) + 0);
-      roomArray[i][j].water = Math.round(Math.random() * (9 - 1) + 0);
-      roomArray[i][j].enemy = Math.round(Math.random() * (5 - 0) + 0);
-      roomArray[i][j].stash = Math.round(Math.random() * (10 - 0) + 0);
-      roomArray[i][j].healtButtle = Math.round(Math.random() * (3 - 1) + 1);
-      roomArray[i][j].goldDust = Math.round(Math.random() * (1 - 0) + 0);
-    }
-  }
-  roomArray[4][0].stash = 9;
-  roomArray[4][0].water = 9;
-  roomArray[4][0].enemy = 0;
-  roomArray[4][0].healtButtle = 1;
-  roomArray[4][0].goldDust = 1;
-  roomArray[4][1].goldDust = 1;
-  console.dir(roomArray);
-}; //   Функция создания массива комнат лабиринта   >>>>>>>
-createRoomArray(); //   Вызов функции заполнения массива обьектами комнат.
-
-const openStash = () => {
-  //   Функция открытия тайника   >>>>>>>
-  buttonE.hidden = true;
-  buttonN.hidden = true;
-  buttonS.hidden = true;
-  buttonW.hidden = true;
-  goldDustButton.setAttribute("onclick", "");
-  healtButtleButton.setAttribute("onclick", "");
-  jugButton.setAttribute("onclick", "");
-  seal_1.setAttribute("onclick", "");
-  seal_2.setAttribute("onclick", "");
-  seal_3.setAttribute("onclick", "");
-  heroTextBlock.innerText = "";
-  falseSeal.setAttribute("onclick", "");
-  buttonDealerDemon.setAttribute("onclick", "");
-  buttonTomb.setAttribute("onclick", "");
-
-  let x = X;
-  let y = Y;
-
-  if (roomArray[x][y].stash <= 2) {
-    infoTextBlock.innerText = " Здесь ничего нет ...";
-    buttonE.hidden = false;
-    buttonN.hidden = false;
-    buttonS.hidden = false;
-    buttonW.hidden = false;
-    buttonNo.hidden = true;
-    buttonYes.hidden = true;
-    buttonStash.hidden = false;
-    goldDustButton.setAttribute("onclick", "takeGoldDust()");
-    healtButtleButton.setAttribute("onclick", "drinkHealtButtle()");
-    jugButton.setAttribute("onclick", "startJugButton()");
-    if (SEAL_1 == false) seal_1.setAttribute("onclick", "pushSeal()");
-    if (SEAL_2 == false) seal_2.setAttribute("onclick", "pushSeal()");
-    if (SEAL_3 == false) seal_3.setAttribute("onclick", "pushSeal()");
-    falseSeal.setAttribute("onclick", "falsePushSeal()");
-    buttonDealerDemon.setAttribute("onclick", "dealerDemon()");
-    buttonTomb.setAttribute("onclick", "openTomb()");
-    return;
+  // Еда: -1 каждые 350 пикселей
+  const foodLoss = Math.floor(distance / 450);
+  const prevFoodLoss = Math.floor(lastDistance / 450);
+  if (foodLoss > prevFoodLoss) {
+    me.food = Math.max(0, me.food - (foodLoss - prevFoodLoss));
+    console.log(`Food reduced to ${me.food}`);
   }
 
-  roomArray[x][y].stash = 0;
-
-  hero.gold = hero.gold + roomArray[x][y].gold;
-  let goldStr =
-    "Вы нащупали в полумраке тайник, найдено : " +
-    roomArray[x][y].gold +
-    " золота ...";
-  infoTextBlock.innerText = goldStr;
-  gold.innerText = hero.gold;
-
-  const water = () => {
-    buttonYes.hidden = false;
-    buttonNo.hidden = false;
-    if (roomArray[x][y].water !== 0) {
-      let waterTextStr = "Вы находите сосуд с водой ... Выпить?";
-      infoTextBlock.innerText = waterTextStr;
-      buttonYes.setAttribute("class", "buttonYes");
-      buttonYes.setAttribute("onclick", "buttonYesFunc()");
-      buttonYes.innerText = "Да";
-      body.append(buttonYes);
-
-      buttonNo.setAttribute("class", "buttonNo");
-      buttonNo.setAttribute("onclick", "buttonNoFunc()");
-      buttonNo.innerText = "Нет";
-      body.append(buttonNo);
-    }
-  };
-  buttonStash.hidden = true;
-  setTimeout(water, 5000);
-}; //   Функция открытия тайника   >>>>>>>
-
-const goStrange = () => {
-  //   Функция хотьбы прямо   >>>>>>>
-  heroTextBlock.innerText = "";
-  infoTextBlock.innerText = "";
-  let x = X;
-  let y = Y;
-
-  buttonStash.hidden = false;
-
-  if (STEP == 0 && roomArray[x][y].stash > 0) {
-    heroTextBlock.innerText = " Не спеши, стоит лучше осмотреть эту комнату!";
-    return;
+  // Вода: -1 каждые 200 пикселей
+  const waterLoss = Math.floor(distance / 250);
+  const prevWaterLoss = Math.floor(lastDistance / 250);
+  if (waterLoss > prevWaterLoss) {
+    me.water = Math.max(0, me.water - (waterLoss - prevWaterLoss));
+    console.log(`Water reduced to ${me.water}`);
   }
 
-  if (Y == 12) {
-    infoTextBlock.hidden = false;
-    infoTextBlock.innerText = "Стены лабиринта мешают вам пройти!";
-    heroTextBlock.innerText = "Я не могу идти дальше ...";
-    heroTextBlock.hidden = false;
-    return;
+  // Здоровье: -1 каждые 50 пикселей, если ресурсы на нуле
+  if (me.energy === 0 || me.food === 0 || me.water === 0) {
+    const healthLoss = Math.floor(distance / 150);
+    const prevHealthLoss = Math.floor(lastDistance / 150);
+    if (healthLoss > prevHealthLoss) {
+      me.health = Math.max(0, me.health - (healthLoss - prevHealthLoss));
+      console.log(`Health reduced to ${me.health}`);
+    }
   }
 
-  Y++;
-  STEP++;
+  lastDistance = distance; // Обновляем lastDistance для следующего вызова
+  updateStatsDisplay();
+}
 
-  if (
-    (X == 1 && Y == 1) ||
-    (X == 3 && Y == 1) ||
-    (X == 5 && Y == 1) ||
-    (X == 6 && Y == 1) ||
-    (X == 1 && Y == 2) ||
-    (X == 6 && Y == 2) ||
-    (X == 2 && Y == 3) ||
-    (X == 3 && Y == 3) ||
-    (X == 6 && Y == 3) ||
-    (X == 0 && Y == 4) ||
-    (X == 2 && Y == 4) ||
-    (X == 4 && Y == 4) ||
-    (X == 5 && Y == 4) ||
-    (X == 6 && Y == 4) ||
-    (X == 2 && Y == 5) ||
-    (X == 6 && Y == 5) ||
-    (X == 2 && Y == 6) ||
-    (X == 4 && Y == 6) ||
-    (X == 6 && Y == 6) ||
-    (X == 3 && Y == 7) ||
-    (X == 6 && Y == 7) ||
-    (X == 2 && Y == 8) ||
-    (X == 6 && Y == 8) ||
-    (X == 3 && Y == 9) ||
-    (X == 4 && Y == 9) ||
-    (X == 1 && Y == 10) ||
-    (X == 3 && Y == 10) ||
-    (X == 6 && Y == 10) ||
-    (X == 1 && Y == 11) ||
-    (X == 5 && Y == 11) ||
-    (X == 6 && Y == 11) ||
-    (X == 2 && Y == 12) ||
-    (X == 4 && Y == 12)
-  ) {
-    infoTextBlock.hidden = false;
-    heroTextBlock.hidden = false;
-    infoTextBlock.innerText = "Вы не видите куда идти и остаетесь на месте!";
-    heroTextBlock.innerText = "Я не могу идти в этом направлении ...";
-    Y--;
-    return;
+function updateStatsDisplay() {
+  const me = players.get(myId);
+  if (!me) return;
+  statsEl.innerHTML = `
+    <span class="health">Здоровье: ${me.health}</span><br>
+    <span class="energy">Энергия: ${me.energy}</span><br>
+    <span class="food">Еда: ${me.food}</span><br>
+    <span class="water">Вода: ${me.water}</span><br>
+    <span class="armor">Броня: ${me.armor}</span>
+  `;
+  document.getElementById("coords").innerHTML = `X: ${Math.floor(
+    me.x
+  )}<br>Y: ${Math.floor(me.y)}`;
+}
+
+function updateInventoryDisplay() {
+  if (!isInventoryOpen) return;
+  const inventoryGrid = document.getElementById("inventoryGrid");
+  const slots = inventoryGrid.children;
+  const screen = document.getElementById("inventoryScreen");
+  const useBtn = document.getElementById("useBtn");
+  const dropBtn = document.getElementById("dropBtn");
+
+  // Проверяем, была ли уже показана форма выброса "Баляр"
+  const isBalyaryFormActive =
+    selectedSlot !== null &&
+    inventory[selectedSlot] &&
+    inventory[selectedSlot].type === "balyary" &&
+    screen.querySelector(".balyary-drop-form");
+
+  if (isBalyaryFormActive) {
+    // Сохраняем форму, если выбраны "Баляры" и форма уже есть
+    // Ничего не делаем с содержимым экрана
+  } else if (selectedSlot === null) {
+    screen.innerHTML = "";
+  } else if (inventory[selectedSlot]) {
+    screen.textContent = ITEM_CONFIG[inventory[selectedSlot].type].description;
   }
 
-  buttonDeadEnemy.hidden = true;
-  body.style.background = "black";
-  buttonE.hidden = true;
-  buttonN.hidden = true;
-  buttonS.hidden = true;
-  buttonW.hidden = true;
-  buttonStash.hidden = true;
-  map.hidden = true;
-  healtButtleButton.hidden = true;
-  goldDustButton.hidden = true;
-  jugButton.hidden = true;
-  jugButton.setAttribute("onclick", "");
-  mapButton.hidden = true;
-  seal_1.hidden = true;
-  seal_2.hidden = true;
-  seal_3.hidden = true;
-  sealNumberImg_0.hidden = true;
-  sealNumberImg_1.hidden = true;
-  sealNumberImg_2.hidden = true;
-  sealNumberImg_3.hidden = true;
-  sealNumberImg_4.hidden = true;
-  sealNumberImg_5.hidden = true;
-  sealNumberImg_6.hidden = true;
-  sealNumberImg_7.hidden = true;
-  sealNumberImg_8.hidden = true;
-  sealNumberImg_9.hidden = true;
-  falseSeal.hidden = true;
-  buttonDealerDemon.hidden = true;
-  divDealerDemonText.hidden = true;
-  buttonTomb.hidden = true;
+  for (let i = 0; i < slots.length; i++) {
+    const slot = slots[i];
+    slot.innerHTML = "";
+    if (inventory[i]) {
+      const img = document.createElement("img");
+      img.src = ITEM_CONFIG[inventory[i].type].image.src;
+      img.style.width = "100%";
+      img.style.height = "100%";
+      slot.appendChild(img);
 
-  const roomsImg = () => {
-    if (X == 4 && Y == 0) {
-      body.style.background = "url(rooms/startRoom.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash");
-      jugButton.hidden = false;
-      mapImage.setAttribute("class", "mapImage40");
-    }
-
-    if (X == 4 && Y == 1) {
-      body.style.background = "url(rooms/41.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash41");
-      mapImage.setAttribute("class", "mapImage41");
-    }
-
-    if (X == 3 && Y == 0) {
-      body.style.background = "url(rooms/30.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash30");
-      mapImage.setAttribute("class", "mapImage30");
-    }
-
-    if (X == 5 && Y == 0) {
-      body.style.background = "url(rooms/50.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash50");
-      mapImage.setAttribute("class", "mapImage50");
-    }
-
-    if (X == 4 && Y == 2) {
-      body.style.background = "url(rooms/42.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash42");
-      mapImage.setAttribute("class", "mapImage42");
-    }
-
-    if (X == 2 && Y == 0) {
-      body.style.background = "url(rooms/20.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash20");
-      mapImage.setAttribute("class", "mapImage20");
-    }
-
-    if (X == 1 && Y == 0) {
-      body.style.background = "url(rooms/10.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash10");
-      mapImage.setAttribute("class", "mapImage10");
-    }
-
-    if (X == 6 && Y == 0) {
-      body.style.background = "url(rooms/60.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash60");
-      mapImage.setAttribute("class", "mapImage60");
-    }
-
-    if (X == 2 && Y == 1) {
-      body.style.background = "url(rooms/21.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash21");
-      mapImage.setAttribute("class", "mapImage21");
-    }
-
-    if (X == 3 && Y == 2) {
-      body.style.background = "url(rooms/32.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash32");
-      mapImage.setAttribute("class", "mapImage32");
-      buttonTomb.setAttribute("class", "buttonTomb");
-      buttonTomb.setAttribute("onclick", "openTomb()");
-      buttonTomb.hidden = false;
-    }
-
-    if (X == 2 && Y == 2) {
-      body.style.background = "url(rooms/22.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash22");
-      mapImage.setAttribute("class", "mapImage22");
-    }
-
-    if (X == 5 && Y == 2) {
-      body.style.background = "url(rooms/52.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash52");
-      mapImage.setAttribute("class", "mapImage52");
-      if (MAP === false) {
-        mapButton.setAttribute("class", "mapButton");
-        mapButton.setAttribute("onclick", "showMap()");
-        mapButton.hidden = false;
+      if (inventory[i].type === "balyary" && inventory[i].quantity > 1) {
+        const quantityEl = document.createElement("div");
+        quantityEl.textContent = inventory[i].quantity;
+        quantityEl.style.position = "absolute";
+        quantityEl.style.top = "0";
+        quantityEl.style.right = "0";
+        quantityEl.style.color = "#00ffff";
+        quantityEl.style.fontSize = "14px";
+        quantityEl.style.textShadow = "0 0 5px rgba(0, 255, 255, 0.7)";
+        slot.appendChild(quantityEl);
       }
-    }
 
-    if (X == 0 && Y == 0) {
-      body.style.background = "url(rooms/00.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash00");
-      mapImage.setAttribute("class", "mapImage00");
-    }
-
-    if (X == 7 && Y == 0) {
-      body.style.background = "url(rooms/70.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash70");
-      mapImage.setAttribute("class", "mapImage70");
-    }
-
-    if (X == 7 && Y == 1) {
-      body.style.background = "url(rooms/71.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash71");
-      mapImage.setAttribute("class", "mapImage71");
-    }
-
-    if (X == 7 && Y == 2) {
-      body.style.background = "url(rooms/72.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash72");
-      mapImage.setAttribute("class", "mapImage72");
-    }
-
-    if (X == 7 && Y == 3) {
-      body.style.background = "url(rooms/73.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash73");
-      mapImage.setAttribute("class", "mapImage73");
-    }
-
-    if (X == 0 && Y == 1) {
-      body.style.background = "url(rooms/01.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash01");
-      mapImage.setAttribute("class", "mapImage01");
-    }
-
-    if (X == 0 && Y == 2) {
-      body.style.background = "url(rooms/02.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash02");
-      mapImage.setAttribute("class", "mapImage02");
-    }
-
-    if (X == 3 && Y == 4) {
-      body.style.background = "url(rooms/34.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash34");
-      mapImage.setAttribute("class", "mapImage34");
-      falseSeal.setAttribute("class", "falseSeal34");
-      falseSeal.hidden = false;
-    }
-
-    if (X == 3 && Y == 6) {
-      body.style.background = "url(rooms/36.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash36");
-      mapImage.setAttribute("class", "mapImage36");
-    }
-
-    if (X == 1 && Y == 6) {
-      body.style.background = "url(rooms/16.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash16");
-      mapImage.setAttribute("class", "mapImage16");
-    }
-
-    if (X == 3 && Y == 12) {
-      body.style.background = "url(rooms/312.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash312");
-      mapImage.setAttribute("class", "mapImage312");
-    }
-
-    if (X == 7 && Y == 6) {
-      body.style.background = "url(rooms/76.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash76");
-      mapImage.setAttribute("class", "mapImage76");
-    }
-
-    if (X == 6 && Y == 9) {
-      body.style.background = "url(rooms/69.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash69");
-      mapImage.setAttribute("class", "mapImage69");
-      buttonDealerDemon.setAttribute("onclick", "");
-      if (DEALERDEMON === true) {
-        buttonDealerDemon.hidden = false;
-        setTimeout(dealerDemonOnclick, 1501);
-      }
-    }
-
-    if (X == 1 && Y == 12) {
-      body.style.background = "url(rooms/112.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash112");
-      mapImage.setAttribute("class", "mapImage112");
-    }
-
-    if (X == 5 && Y == 3) {
-      body.style.background = "url(rooms/53.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash53");
-      mapImage.setAttribute("class", "mapImage53");
-    }
-
-    if (X == 4 && Y == 3) {
-      body.style.background = "url(rooms/43.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash43");
-      mapImage.setAttribute("class", "mapImage43");
-    }
-
-    if (X == 0 && Y == 3) {
-      body.style.background = "url(rooms/03.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash03");
-      mapImage.setAttribute("class", "mapImage03");
-    }
-
-    if (X == 1 && Y == 3) {
-      body.style.background = "url(rooms/13.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash13");
-      mapImage.setAttribute("class", "mapImage13");
-    }
-
-    if (X == 1 && Y == 4) {
-      body.style.background = "url(rooms/14.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash14");
-      mapImage.setAttribute("class", "mapImage14");
-    }
-
-    if (X == 7 && Y == 4) {
-      body.style.background = "url(rooms/74.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash74");
-      mapImage.setAttribute("class", "mapImage74");
-    }
-
-    if (X == 7 && Y == 5) {
-      body.style.background = "url(rooms/75.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash75");
-      mapImage.setAttribute("class", "mapImage75");
-    }
-
-    if (X == 7 && Y == 8) {
-      body.style.background = "url(rooms/78.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash78");
-      mapImage.setAttribute("class", "mapImage78");
-    }
-
-    if (X == 7 && Y == 7) {
-      body.style.background = "url(rooms/77.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash77");
-      mapImage.setAttribute("class", "mapImage77");
-    }
-
-    if (X == 0 && Y == 5) {
-      body.style.background = "url(rooms/05.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash05");
-      mapImage.setAttribute("class", "mapImage05");
-    }
-
-    if (X == 1 && Y == 5) {
-      body.style.background = "url(rooms/15.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash15");
-      mapImage.setAttribute("class", "mapImage15");
-    }
-
-    if (X == 0 && Y == 6) {
-      body.style.background = "url(rooms/06.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash06");
-      mapImage.setAttribute("class", "mapImage06");
-    }
-
-    if (X == 1 && Y == 6) {
-      body.style.background = "url(rooms/16.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash16");
-      mapImage.setAttribute("class", "mapImage16");
-    }
-
-    if (X == 2 && Y == 7) {
-      body.style.background = "url(rooms/27.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash27");
-      mapImage.setAttribute("class", "mapImage27");
-      if (SCELETBOSS === true) {
-        buttonStash.setAttribute("onclick", "");
-        setTimeout(fight, 1501);
-      }
-      if (SEAL_1 === false) {
-        seal_1.setAttribute("class", "seal_1");
-        seal_1.setAttribute("onclick", "pushSeal()");
-      } else if (SEAL_1 == true) {
-        seal_1.setAttribute("class", "pushSeal_1");
-      }
-      seal_1.hidden = false;
-      if (SEAL_1 == true) {
-        if (SEAL_1numberRandom == 0) {
-          sealNumberImg_0.hidden = false;
-          sealNumberImg_0.setAttribute("class", "sealNumberImg_0");
+      slot.onmouseover = () => {
+        if (inventory[i] && selectedSlot !== i) {
+          if (
+            inventory[selectedSlot] &&
+            inventory[selectedSlot].type === "balyary" &&
+            screen.querySelector(".balyary-drop-form")
+          ) {
+            // Сохраняем форму выброса "Баляр" при наведении на другие слоты
+            return;
+          }
+          screen.textContent = ITEM_CONFIG[inventory[i].type].description;
         }
-        if (SEAL_1numberRandom == 1) {
-          sealNumberImg_1.hidden = false;
-          sealNumberImg_1.setAttribute("class", "sealNumberImg_1");
+      };
+      slot.onmouseout = () => {
+        if (
+          selectedSlot === null ||
+          (inventory[selectedSlot] &&
+            inventory[selectedSlot].type === "balyary" &&
+            screen.querySelector(".balyary-drop-form"))
+        ) {
+          // Ничего не очищаем, если форма "Баляр" активна
+          return;
         }
-        if (SEAL_1numberRandom == 2) {
-          sealNumberImg_2.hidden = false;
-          sealNumberImg_2.setAttribute("class", "sealNumberImg_2");
-        }
-        if (SEAL_1numberRandom == 3) {
-          sealNumberImg_3.hidden = false;
-          sealNumberImg_3.setAttribute("class", "sealNumberImg_3");
-        }
-        if (SEAL_1numberRandom == 4) {
-          sealNumberImg_4.hidden = false;
-          sealNumberImg_4.setAttribute("class", "sealNumberImg_4");
-        }
-        if (SEAL_1numberRandom == 5) {
-          sealNumberImg_5.hidden = false;
-          sealNumberImg_5.setAttribute("class", "sealNumberImg_5");
-        }
-        if (SEAL_1numberRandom == 6) {
-          sealNumberImg_6.hidden = false;
-          sealNumberImg_6.setAttribute("class", "sealNumberImg_6");
-        }
-        if (SEAL_1numberRandom == 7) {
-          sealNumberImg_7.hidden = false;
-          sealNumberImg_7.setAttribute("class", "sealNumberImg_7");
-        }
-        if (SEAL_1numberRandom == 8) {
-          sealNumberImg_8.hidden = false;
-          sealNumberImg_8.setAttribute("class", "sealNumberImg_8");
-        }
-        if (SEAL_1numberRandom == 9) {
-          sealNumberImg_9.hidden = false;
-          sealNumberImg_9.setAttribute("class", "sealNumberImg_9");
-        }
-      }
-    }
+        screen.textContent =
+          inventory[selectedSlot] && selectedSlot !== null
+            ? ITEM_CONFIG[inventory[selectedSlot].type].description
+            : "";
+      };
+      slot.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log(`Клик по слоту ${i}, предмет: ${inventory[i].type}`);
+        selectSlot(i, slot);
+      };
 
-    if (X == 1 && Y == 7) {
-      body.style.background = "url(rooms/17.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash17");
-      mapImage.setAttribute("class", "mapImage17");
-    }
-
-    if (X == 0 && Y == 7) {
-      body.style.background = "url(rooms/07.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash07");
-      mapImage.setAttribute("class", "mapImage07");
-    }
-
-    if (X == 7 && Y == 9) {
-      body.style.background = "url(rooms/79.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash79");
-      mapImage.setAttribute("class", "mapImage79");
-    }
-
-    if (X == 0 && Y == 8) {
-      body.style.background = "url(rooms/08.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash08");
-      mapImage.setAttribute("class", "mapImage08");
-    }
-
-    if (X == 1 && Y == 8) {
-      body.style.background = "url(rooms/18.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash18");
-      mapImage.setAttribute("class", "mapImage18");
-    }
-
-    if (X == 0 && Y == 10) {
-      body.style.background = "url(rooms/010.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash010");
-      mapImage.setAttribute("class", "mapImage010");
-    }
-
-    if (X == 0 && Y == 11) {
-      body.style.background = "url(rooms/011.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash011");
-      mapImage.setAttribute("class", "mapImage011");
-    }
-
-    if (X == 0 && Y == 12) {
-      body.style.background = "url(rooms/012.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash012");
-      mapImage.setAttribute("class", "mapImage012");
-      falseSeal.setAttribute("class", "falseSeal");
-      falseSeal.hidden = false;
-    }
-
-    if (X == 1 && Y == 12) {
-      body.style.background = "url(rooms/112.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash112");
-      mapImage.setAttribute("class", "mapImage112");
-    }
-
-    if (X == 7 && Y == 12) {
-      body.style.background = "url(rooms/712.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash712");
-      mapImage.setAttribute("class", "mapImage712");
-      if (BLUEDEMONBOSS === true) {
-        buttonStash.setAttribute("onclick", "");
-        setTimeout(fight, 1501);
-      }
-      if (SEAL_3 === false) {
-        seal_3.setAttribute("class", "seal_3");
-        seal_3.setAttribute("onclick", "pushSeal()");
-      } else if (SEAL_3 == true) {
-        seal_3.setAttribute("class", "pushSeal_3");
-      }
-      seal_3.hidden = false;
-      if (SEAL_3 == true) {
-        if (SEAL_3numberRandom == 0) {
-          sealNumberImg_0.hidden = false;
-          sealNumberImg_0.setAttribute("class", "seal_3NumberImg_0");
-        }
-        if (SEAL_3numberRandom == 1) {
-          sealNumberImg_1.hidden = false;
-          sealNumberImg_1.setAttribute("class", "seal_3NumberImg_1");
-        }
-        if (SEAL_3numberRandom == 2) {
-          sealNumberImg_2.hidden = false;
-          sealNumberImg_2.setAttribute("class", "seal_3NumberImg_2");
-        }
-        if (SEAL_3numberRandom == 3) {
-          sealNumberImg_3.hidden = false;
-          sealNumberImg_3.setAttribute("class", "seal_3NumberImg_3");
-        }
-        if (SEAL_3numberRandom == 4) {
-          sealNumberImg_4.hidden = false;
-          sealNumberImg_4.setAttribute("class", "seal_3NumberImg_4");
-        }
-        if (SEAL_3numberRandom == 5) {
-          sealNumberImg_5.hidden = false;
-          sealNumberImg_5.setAttribute("class", "seal_3NumberImg_5");
-        }
-        if (SEAL_3numberRandom == 6) {
-          sealNumberImg_6.hidden = false;
-          sealNumberImg_6.setAttribute("class", "seal_3NumberImg_6");
-        }
-        if (SEAL_3numberRandom == 7) {
-          sealNumberImg_7.hidden = false;
-          sealNumberImg_7.setAttribute("class", "seal_3NumberImg_7");
-        }
-        if (SEAL_3numberRandom == 8) {
-          sealNumberImg_8.hidden = false;
-          sealNumberImg_8.setAttribute("class", "seal_3NumberImg_8");
-        }
-        if (SEAL_3numberRandom == 9) {
-          sealNumberImg_9.hidden = false;
-          sealNumberImg_9.setAttribute("class", "seal_3NumberImg_9");
-        }
-      }
-    }
-
-    if (X == 6 && Y == 12) {
-      body.style.background = "url(rooms/612.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash612");
-      mapImage.setAttribute("class", "mapImage612");
-    }
-
-    if (X == 5 && Y == 12) {
-      body.style.background = "url(rooms/512.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash512");
-      mapImage.setAttribute("class", "mapImage512");
-      falseSeal.setAttribute("class", "falseSeal512");
-      falseSeal.hidden = false;
-    }
-
-    if (X == 7 && Y == 10) {
-      body.style.background = "url(rooms/710.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash710");
-      mapImage.setAttribute("class", "mapImage710");
-    }
-
-    if (X == 7 && Y == 11) {
-      body.style.background = "url(rooms/711.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash711");
-      mapImage.setAttribute("class", "mapImage711");
-    }
-
-    if (X == 0 && Y == 9) {
-      body.style.background = "url(rooms/09.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash09");
-      mapImage.setAttribute("class", "mapImage09");
-    }
-
-    if (X == 1 && Y == 9) {
-      body.style.background = "url(rooms/19.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash19");
-      mapImage.setAttribute("class", "mapImage19");
-    }
-
-    if (X == 2 && Y == 9) {
-      body.style.background = "url(rooms/29.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash29");
-      mapImage.setAttribute("class", "mapImage29");
-      buttonDealerDemon.setAttribute("onclick", "");
-      if (DEALERDEMON === true) {
-        buttonDealerDemon.hidden = false;
-        setTimeout(dealerDemonOnclick, 1501);
-      }
-    }
-
-    if (X == 2 && Y == 10) {
-      body.style.background = "url(rooms/210.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash210");
-      mapImage.setAttribute("class", "mapImage210");
-    }
-
-    if (X == 2 && Y == 11) {
-      body.style.background = "url(rooms/211.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash211");
-      mapImage.setAttribute("class", "mapImage211");
-    }
-
-    if (X == 3 && Y == 11) {
-      body.style.background = "url(rooms/311.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash311");
-      mapImage.setAttribute("class", "mapImage311");
-    }
-
-    if (X == 4 && Y == 11) {
-      body.style.background = "url(rooms/411.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash411");
-      mapImage.setAttribute("class", "mapImage411");
-    }
-
-    if (X == 3 && Y == 12) {
-      body.style.background = "url(rooms/312.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash312");
-      mapImage.setAttribute("class", "mapImage312");
-      if (REDDEMONBOSS === true) {
-        buttonStash.setAttribute("onclick", "");
-        setTimeout(fight, 1501);
-      }
-      if (SEAL_2 === false) {
-        seal_2.setAttribute("class", "seal_2");
-        seal_2.setAttribute("onclick", "pushSeal()");
-      } else if (SEAL_2 == true) {
-        seal_2.setAttribute("class", "pushSeal_2");
-      }
-      seal_2.hidden = false;
-      if (SEAL_2 == true) {
-        if (SEAL_2numberRandom == 0) {
-          sealNumberImg_0.hidden = false;
-          sealNumberImg_0.setAttribute("class", "seal_2NumberImg_0");
-        }
-        if (SEAL_2numberRandom == 1) {
-          sealNumberImg_1.hidden = false;
-          sealNumberImg_1.setAttribute("class", "seal_2NumberImg_1");
-        }
-        if (SEAL_2numberRandom == 2) {
-          sealNumberImg_2.hidden = false;
-          sealNumberImg_2.setAttribute("class", "seal_2NumberImg_2");
-        }
-        if (SEAL_2numberRandom == 3) {
-          sealNumberImg_3.hidden = false;
-          sealNumberImg_3.setAttribute("class", "seal_2NumberImg_3");
-        }
-        if (SEAL_2numberRandom == 4) {
-          sealNumberImg_4.hidden = false;
-          sealNumberImg_4.setAttribute("class", "seal_2NumberImg_4");
-        }
-        if (SEAL_2numberRandom == 5) {
-          sealNumberImg_5.hidden = false;
-          sealNumberImg_5.setAttribute("class", "seal_2NumberImg_5");
-        }
-        if (SEAL_2numberRandom == 6) {
-          sealNumberImg_6.hidden = false;
-          sealNumberImg_6.setAttribute("class", "seal_2NumberImg_6");
-        }
-        if (SEAL_2numberRandom == 7) {
-          sealNumberImg_7.hidden = false;
-          sealNumberImg_7.setAttribute("class", "seal_2NumberImg_7");
-        }
-        if (SEAL_2numberRandom == 8) {
-          sealNumberImg_8.hidden = false;
-          sealNumberImg_8.setAttribute("class", "seal_2NumberImg_8");
-        }
-        if (SEAL_2numberRandom == 9) {
-          sealNumberImg_9.hidden = false;
-          sealNumberImg_9.setAttribute("class", "seal_2NumberImg_9");
-        }
-      }
-    }
-
-    if (X == 3 && Y == 4) {
-      body.style.background = "url(rooms/34.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash34");
-      mapImage.setAttribute("class", "mapImage34");
-    }
-
-    if (X == 3 && Y == 6) {
-      body.style.background = "url(rooms/36.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash36");
-      mapImage.setAttribute("class", "mapImage36");
-    }
-
-    if (X == 5 && Y == 10) {
-      body.style.background = "url(rooms/510.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash510");
-      mapImage.setAttribute("class", "mapImage510");
-    }
-
-    if (X == 4 && Y == 10) {
-      body.style.background = "url(rooms/410.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash410");
-      mapImage.setAttribute("class", "mapImage410");
-    }
-
-    if (X == 6 && Y == 9) {
-      body.style.background = "url(rooms/69.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash69");
-      mapImage.setAttribute("class", "mapImage69");
-    }
-
-    if (X == 5 && Y == 9) {
-      body.style.background = "url(rooms/59.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash59");
-      mapImage.setAttribute("class", "mapImage59");
-    }
-
-    if (X == 5 && Y == 8) {
-      body.style.background = "url(rooms/58.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash58");
-      mapImage.setAttribute("class", "mapImage58");
-    }
-
-    if (X == 5 && Y == 7) {
-      body.style.background = "url(rooms/57.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash57");
-      mapImage.setAttribute("class", "mapImage57");
-    }
-
-    if (X == 3 && Y == 8) {
-      body.style.background = "url(rooms/38.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash38");
-      mapImage.setAttribute("class", "mapImage38");
-    }
-
-    if (X == 4 && Y == 8) {
-      body.style.background = "url(rooms/48.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash48");
-      mapImage.setAttribute("class", "mapImage48");
-    }
-
-    if (X == 5 && Y == 6) {
-      body.style.background = "url(rooms/56.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash56");
-      mapImage.setAttribute("class", "mapImage56");
-    }
-
-    if (X == 3 && Y == 5) {
-      body.style.background = "url(rooms/35.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash35");
-      mapImage.setAttribute("class", "mapImage35");
-    }
-
-    if (X == 4 && Y == 5) {
-      body.style.background = "url(rooms/45.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash45");
-      mapImage.setAttribute("class", "mapImage45");
-    }
-
-    if (X == 5 && Y == 5) {
-      body.style.background = "url(rooms/55.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash55");
-      mapImage.setAttribute("class", "mapImage55");
-    }
-
-    if (X == 4 && Y == 7) {
-      body.style.background = "url(rooms/47.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash47");
-      mapImage.setAttribute("class", "mapImage47");
-    }
-
-    if (ENEMYCOUNT == 4 && BALUALHEALT === false && BALUAL === true) {
-      buttonStash.setAttribute("onclick", "");
-      setTimeout(balualHealt, 1501);
-    }
-
-    if (roomArray[X][Y].healtButtle === 1 && roomArray[X][Y].stash === 0) {
-      healtButtleButton.hidden = false;
-      healtButtleButton.setAttribute("class", "healtButtleButton");
-      healtButtleButton.setAttribute("onclick", "drinkHealtButtle()");
-    } else if (
-      roomArray[X][Y].healtButtle === 2 &&
-      roomArray[X][Y].stash === 0
-    ) {
-      healtButtleButton.hidden = false;
-      healtButtleButton.setAttribute("class", "healtButtleButton2");
-      healtButtleButton.setAttribute("onclick", "drinkHealtButtle()");
+      img.style.pointerEvents = "none";
     } else {
-      healtButtleButton.hidden = true;
+      slot.onmouseover = null;
+      slot.onmouseout = null;
+      slot.onclick = null;
     }
+  }
+}
 
-    if (roomArray[X][Y].goldDust === 1) {
-      goldDustButton.setAttribute("onclick", "takeGoldDust()");
-      goldDustButton.hidden = false;
-      let randClassGoldDustButton = Math.round(Math.random() * (10 - 1) + 1);
-      if (randClassGoldDustButton === 1 || randClassGoldDustButton === 6) {
-        goldDustButton.setAttribute("class", "goldDustButton");
-      } else if (
-        randClassGoldDustButton === 2 ||
-        randClassGoldDustButton === 7
-      ) {
-        goldDustButton.setAttribute("class", "goldDustButton2");
-      } else if (
-        randClassGoldDustButton === 3 ||
-        randClassGoldDustButton === 8
-      ) {
-        goldDustButton.setAttribute("class", "goldDustButton3");
-      } else if (
-        randClassGoldDustButton === 4 ||
-        randClassGoldDustButton === 9
-      ) {
-        goldDustButton.setAttribute("class", "goldDustButton4");
-      } else if (
-        randClassGoldDustButton === 5 ||
-        randClassGoldDustButton === 10
-      ) {
-        goldDustButton.setAttribute("class", "goldDustButton5");
+function handleGameMessage(event) {
+  try {
+    const data = JSON.parse(event.data);
+    switch (data.type) {
+      case "newPlayer":
+        players.set(data.player.id, { ...data.player, frameTime: 0 });
+        updateOnlineCount(); // Обновляем при входе нового игрока
+        break;
+      case "playerLeft":
+        players.delete(data.id);
+        updateOnlineCount(); // Обновляем при выходе игрока
+        break;
+      case "syncItems":
+        // Очищаем старые предметы
+        items.clear();
+        // Заполняем актуальными предметами из сервера
+        data.items.forEach((item) =>
+          items.set(item.itemId, {
+            x: item.x,
+            y: item.y,
+            type: item.type,
+            spawnTime: item.spawnTime,
+          })
+        );
+        // Очищаем pendingPickups для предметов, которые всё ещё существуют
+        data.items.forEach((item) => {
+          if (pendingPickups.has(item.itemId)) {
+            console.log(
+              `Предмет ${item.itemId} всё ещё в мире, убираем из pendingPickups`
+            );
+            pendingPickups.delete(item.itemId);
+          }
+        });
+        break;
+      case "itemPicked":
+        items.delete(data.itemId);
+        pendingPickups.delete(data.itemId);
+        console.log(`Предмет ${data.itemId} удалён из мира (itemPicked)`);
+        const me = players.get(myId);
+        if (me && data.playerId === myId && data.item) {
+          if (data.item.type === "balyary") {
+            // Проверяем, есть ли уже "Баляры" в инвентаре
+            const balyarySlot = inventory.findIndex(
+              (slot) => slot && slot.type === "balyary"
+            );
+            if (balyarySlot !== -1) {
+              // Увеличиваем количество
+              inventory[balyarySlot].quantity =
+                (inventory[balyarySlot].quantity || 1) + 1;
+              console.log(
+                `Добавлено 1 Баляр, теперь их ${inventory[balyarySlot].quantity}`
+              );
+            } else {
+              // Добавляем в новый слот
+              const freeSlot = inventory.findIndex((slot) => slot === null);
+              if (freeSlot !== -1) {
+                inventory[freeSlot] = {
+                  type: "balyary",
+                  quantity: 1,
+                  itemId: data.itemId,
+                };
+                console.log(
+                  `Баляры добавлены в слот ${freeSlot}, количество: 1`
+                );
+              }
+            }
+          } else {
+            // Обычная логика для других предметов
+            const freeSlot = inventory.findIndex((slot) => slot === null);
+            if (freeSlot !== -1) {
+              inventory[freeSlot] = data.item;
+              console.log(
+                `Предмет ${data.item.type} добавлен в слот ${freeSlot}`
+              );
+            }
+          }
+          updateInventoryDisplay();
+        }
+        updateStatsDisplay();
+        break;
+      case "itemNotFound":
+        items.delete(data.itemId); // Удаляем предмет из локального items
+        pendingPickups.delete(data.itemId); // Убираем из ожидающих
+        console.log(
+          `Предмет ${data.itemId} не найден на сервере, удалён из локального items`
+        );
+        break;
+      case "inventoryFull":
+        // Инвентарь полон, уведомляем игрока и убираем предмет из pendingPickups
+        console.log(`Инвентарь полон, предмет ${data.itemId} не поднят`);
+        pendingPickups.delete(data.itemId); // Очищаем из pendingPickups
+        // Можно добавить визуальное уведомление, например:
+        // alert("Инвентарь полон!");
+        break;
+      case "update":
+        const existingPlayer = players.get(data.player.id);
+        players.set(data.player.id, {
+          ...existingPlayer,
+          ...data.player,
+          frameTime: existingPlayer.frameTime || 0,
+        });
+        if (data.player.id === myId) {
+          inventory = data.player.inventory || inventory;
+          updateStatsDisplay();
+          updateInventoryDisplay();
+        }
+        break;
+      case "itemDropped":
+        console.log(
+          `Получено itemDropped: itemId=${data.itemId}, type=${data.type}, x=${data.x}, y=${data.y}`
+        );
+        items.set(data.itemId, {
+          x: data.x,
+          y: data.y,
+          type: data.type,
+          spawnTime: data.spawnTime,
+        });
+        updateInventoryDisplay();
+        break;
+      case "chat":
+        const messageEl = document.createElement("div");
+        messageEl.textContent = `${data.id}: ${data.message}`;
+        chatMessages.appendChild(messageEl);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+        break;
+      case "newPlayer":
+        players.set(data.player.id, { ...data.player, frameTime: 0 });
+        break;
+      case "playerLeft":
+        players.delete(data.id);
+        break;
+      case "shoot":
+        console.log(`Получена пуля ${data.bulletId} от ${data.shooterId}`);
+        bullets.set(data.bulletId, {
+          x: data.x,
+          y: data.y,
+          dx: data.dx,
+          dy: data.dy,
+          spawnTime: Date.now(),
+          life: GAME_CONFIG.BULLET_LIFE,
+          shooterId: data.shooterId,
+        });
+        break;
+      case "bulletRemoved":
+        bullets.delete(data.bulletId);
+        console.log(`Пуля ${data.bulletId} удалена`);
+        break;
+    }
+  } catch (error) {
+    console.error("Ошибка в handleGameMessage:", error);
+  }
+}
+
+// Адаптация размеров канваса
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight; // 100% высоты
+  updateCamera();
+}
+
+// Обновление камеры
+function updateCamera() {
+  const me = players.get(myId);
+  if (!me) return;
+  camera.x = me.x - canvas.width / 2;
+  camera.y = me.y - canvas.height / 2;
+  camera.x = Math.max(0, Math.min(camera.x, worldWidth - canvas.width));
+  camera.y = Math.max(0, Math.min(camera.y, worldHeight - canvas.height));
+}
+
+function shoot() {
+  const me = players.get(myId);
+  if (!me || me.health <= 0) return;
+
+  if (ws.readyState !== WebSocket.OPEN) {
+    console.error("WebSocket не открыт. Пытаемся переподключиться...");
+    reconnectWebSocket();
+    return;
+  }
+
+  let dx = 0,
+    dy = 0;
+  switch (me.direction) {
+    case "up":
+      dy = -1;
+      break;
+    case "down":
+      dy = 1;
+      break;
+    case "left":
+      dx = -1;
+      break;
+    case "right":
+      dx = 1;
+      break;
+  }
+  const magnitude = Math.sqrt(dx * dx + dy * dy);
+  if (magnitude !== 0) {
+    dx = (dx / magnitude) * GAME_CONFIG.BULLET_SPEED;
+    dy = (dy / magnitude) * GAME_CONFIG.BULLET_SPEED;
+  }
+  sendWhenReady(
+    ws,
+    JSON.stringify({
+      type: "shoot",
+      x: me.x + 20,
+      y: me.y + 20,
+      dx: dx,
+      dy: dy,
+    })
+  );
+}
+
+function update(deltaTime) {
+  const me = players.get(myId);
+  if (!me || me.health <= 0) return;
+
+  console.log(`DeltaTime: ${deltaTime}, FPS: ${1000 / deltaTime}`); // Для отладки
+
+  if (isMoving) {
+    const dx = targetX - me.x;
+    const dy = targetY - me.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    if (distance > 5) {
+      const moveSpeed = GAME_CONFIG.PLAYER_SPEED * (deltaTime / 1000);
+      const moveX = (dx / distance) * moveSpeed;
+      const moveY = (dy / distance) * moveSpeed;
+
+      const prevX = me.x;
+      const prevY = me.y;
+
+      me.x += moveX;
+      me.y += moveY;
+
+      me.x = Math.max(0, Math.min(worldWidth - 40, me.x));
+      me.y = Math.max(0, Math.min(worldHeight - 40, me.y));
+
+      if (checkCollision(me.x, me.y)) {
+        me.x = prevX;
+        me.y = prevY;
+        me.state = "idle";
+        me.frame = 0;
+        me.frameTime = 0;
+        isMoving = false; // Останавливаем движение
       } else {
-        goldDustButton.hidden = true;
+        me.state = "walking";
+        if (Math.abs(dx) > Math.abs(dy)) {
+          me.direction = dx > 0 ? "right" : "left";
+        } else {
+          me.direction = dy > 0 ? "down" : "up";
+        }
+
+        const traveled = Math.sqrt(
+          Math.pow(me.x - prevX, 2) + Math.pow(me.y - prevY, 2)
+        );
+        me.distanceTraveled = (me.distanceTraveled || 0) + traveled;
+
+        me.frameTime += deltaTime;
+        if (me.frameTime >= GAME_CONFIG.FRAME_DURATION / 7) {
+          me.frameTime -= GAME_CONFIG.FRAME_DURATION / 7;
+          me.frame = (me.frame + 1) % 7;
+        }
+
+        updateResources();
+        updateCamera();
+        checkCollisions();
       }
-    }
 
-    body.style.backgroundSize = userSizeStr;
-    if (userWidth < 500) {
-      body.style.backgroundSize = "100% 100%";
-    }
-    setTimeout(nextRoom, 1500);
-  };
-  setTimeout(roomsImg, 2000);
-}; //   Функция хотьбы прямо   >>>>>>>
-
-const goRight = () => {
-  //   Функция хотьбы в право   >>>>>>>
-  heroTextBlock.innerText = "";
-  infoTextBlock.innerText = "";
-  let x = X;
-  let y = Y;
-
-  buttonStash.hidden = false;
-
-  if (STEP == 0 && roomArray[x][y].stash > 0) {
-    heroTextBlock.innerText = " Не спеши, стоит лучше осмотреть эту комнату!";
-    return;
-  }
-
-  if (X == 7) {
-    infoTextBlock.hidden = false;
-    heroTextBlock.hidden = false;
-    infoTextBlock.innerText = "Стены лабиринта мешают вам пройти!";
-    heroTextBlock.innerText = "Я не могу идти дальше ...";
-    return;
-  }
-
-  X++;
-  STEP++;
-
-  if (
-    (X == 1 && Y == 1) ||
-    (X == 3 && Y == 1) ||
-    (X == 5 && Y == 1) ||
-    (X == 6 && Y == 1) ||
-    (X == 1 && Y == 2) ||
-    (X == 6 && Y == 2) ||
-    (X == 2 && Y == 3) ||
-    (X == 3 && Y == 3) ||
-    (X == 6 && Y == 3) ||
-    (X == 0 && Y == 4) ||
-    (X == 2 && Y == 4) ||
-    (X == 4 && Y == 4) ||
-    (X == 5 && Y == 4) ||
-    (X == 6 && Y == 4) ||
-    (X == 2 && Y == 5) ||
-    (X == 6 && Y == 5) ||
-    (X == 2 && Y == 6) ||
-    (X == 4 && Y == 6) ||
-    (X == 6 && Y == 6) ||
-    (X == 3 && Y == 7) ||
-    (X == 6 && Y == 7) ||
-    (X == 2 && Y == 8) ||
-    (X == 6 && Y == 8) ||
-    (X == 3 && Y == 9) ||
-    (X == 4 && Y == 9) ||
-    (X == 1 && Y == 10) ||
-    (X == 3 && Y == 10) ||
-    (X == 6 && Y == 10) ||
-    (X == 1 && Y == 11) ||
-    (X == 5 && Y == 11) ||
-    (X == 6 && Y == 11) ||
-    (X == 2 && Y == 12) ||
-    (X == 4 && Y == 12)
-  ) {
-    infoTextBlock.hidden = false;
-    heroTextBlock.hidden = false;
-    infoTextBlock.innerText = "Вы не видите куда идти и остаетесь на месте!";
-    heroTextBlock.innerText = "Я не могу идти в этом направлении ...";
-    X--;
-    return;
-  }
-
-  buttonDeadEnemy.hidden = true;
-  body.style.background = "black";
-  buttonE.hidden = true;
-  buttonN.hidden = true;
-  buttonS.hidden = true;
-  buttonW.hidden = true;
-  buttonStash.hidden = true;
-  map.hidden = true;
-  healtButtleButton.hidden = true;
-  goldDustButton.hidden = true;
-  jugButton.hidden = true;
-  jugButton.setAttribute("onclick", "");
-  mapButton.hidden = true;
-  seal_1.hidden = true;
-  seal_2.hidden = true;
-  seal_3.hidden = true;
-  sealNumberImg_0.hidden = true;
-  sealNumberImg_1.hidden = true;
-  sealNumberImg_2.hidden = true;
-  sealNumberImg_3.hidden = true;
-  sealNumberImg_4.hidden = true;
-  sealNumberImg_5.hidden = true;
-  sealNumberImg_6.hidden = true;
-  sealNumberImg_7.hidden = true;
-  sealNumberImg_8.hidden = true;
-  sealNumberImg_9.hidden = true;
-  falseSeal.hidden = true;
-  buttonDealerDemon.hidden = true;
-  divDealerDemonText.hidden = true;
-  buttonTomb.hidden = true;
-
-  const roomsImg = () => {
-    if (X == 4 && Y == 0) {
-      body.style.background = "url(rooms/startRoom.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash");
-      jugButton.hidden = false;
-      mapImage.setAttribute("class", "mapImage40");
-    }
-
-    if (X == 4 && Y == 1) {
-      body.style.background = "url(rooms/41.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash41");
-      mapImage.setAttribute("class", "mapImage41");
-    }
-
-    if (X == 3 && Y == 0) {
-      body.style.background = "url(rooms/30.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash30");
-      mapImage.setAttribute("class", "mapImage30");
-    }
-
-    if (X == 5 && Y == 0) {
-      body.style.background = "url(rooms/50.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash50");
-      mapImage.setAttribute("class", "mapImage50");
-    }
-
-    if (X == 4 && Y == 2) {
-      body.style.background = "url(rooms/42.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash42");
-      mapImage.setAttribute("class", "mapImage42");
-    }
-
-    if (X == 2 && Y == 0) {
-      body.style.background = "url(rooms/20.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash20");
-      mapImage.setAttribute("class", "mapImage20");
-    }
-
-    if (X == 1 && Y == 0) {
-      body.style.background = "url(rooms/10.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash10");
-      mapImage.setAttribute("class", "mapImage10");
-    }
-
-    if (X == 6 && Y == 0) {
-      body.style.background = "url(rooms/60.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash60");
-      mapImage.setAttribute("class", "mapImage60");
-    }
-
-    if (X == 2 && Y == 1) {
-      body.style.background = "url(rooms/21.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash21");
-      mapImage.setAttribute("class", "mapImage21");
-    }
-
-    if (X == 3 && Y == 2) {
-      body.style.background = "url(rooms/32.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash32");
-      mapImage.setAttribute("class", "mapImage32");
-      buttonTomb.setAttribute("class", "buttonTomb");
-      buttonTomb.setAttribute("onclick", "openTomb()");
-      buttonTomb.hidden = false;
-    }
-
-    if (X == 2 && Y == 2) {
-      body.style.background = "url(rooms/22.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash22");
-      mapImage.setAttribute("class", "mapImage22");
-    }
-
-    if (X == 5 && Y == 2) {
-      body.style.background = "url(rooms/52.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash52");
-      mapImage.setAttribute("class", "mapImage52");
-      if (MAP === false) {
-        mapButton.setAttribute("class", "mapButton");
-        mapButton.setAttribute("onclick", "showMap()");
-        mapButton.hidden = false;
-      }
-    }
-
-    if (X == 0 && Y == 0) {
-      body.style.background = "url(rooms/00.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash00");
-      mapImage.setAttribute("class", "mapImage00");
-    }
-
-    if (X == 7 && Y == 0) {
-      body.style.background = "url(rooms/70.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash70");
-      mapImage.setAttribute("class", "mapImage70");
-    }
-
-    if (X == 7 && Y == 1) {
-      body.style.background = "url(rooms/71.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash71");
-      mapImage.setAttribute("class", "mapImage71");
-    }
-
-    if (X == 7 && Y == 2) {
-      body.style.background = "url(rooms/72.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash72");
-      mapImage.setAttribute("class", "mapImage72");
-    }
-
-    if (X == 7 && Y == 3) {
-      body.style.background = "url(rooms/73.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash73");
-      mapImage.setAttribute("class", "mapImage73");
-    }
-
-    if (X == 0 && Y == 1) {
-      body.style.background = "url(rooms/01.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash01");
-      mapImage.setAttribute("class", "mapImage01");
-    }
-
-    if (X == 0 && Y == 2) {
-      body.style.background = "url(rooms/02.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash02");
-      mapImage.setAttribute("class", "mapImage02");
-    }
-
-    if (X == 3 && Y == 4) {
-      body.style.background = "url(rooms/34.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash34");
-      mapImage.setAttribute("class", "mapImage34");
-      falseSeal.setAttribute("class", "falseSeal34");
-      falseSeal.hidden = false;
-    }
-
-    if (X == 3 && Y == 6) {
-      body.style.background = "url(rooms/36.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash36");
-      mapImage.setAttribute("class", "mapImage36");
-    }
-
-    if (X == 1 && Y == 6) {
-      body.style.background = "url(rooms/16.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash16");
-      mapImage.setAttribute("class", "mapImage16");
-    }
-
-    if (X == 3 && Y == 12) {
-      body.style.background = "url(rooms/312.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash312");
-      mapImage.setAttribute("class", "mapImage312");
-    }
-
-    if (X == 7 && Y == 6) {
-      body.style.background = "url(rooms/76.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash76");
-      mapImage.setAttribute("class", "mapImage76");
-    }
-
-    if (X == 6 && Y == 9) {
-      body.style.background = "url(rooms/69.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash69");
-      mapImage.setAttribute("class", "mapImage69");
-      buttonDealerDemon.setAttribute("onclick", "");
-      if (DEALERDEMON === true) {
-        buttonDealerDemon.hidden = false;
-        setTimeout(dealerDemonOnclick, 1501);
-      }
-    }
-
-    if (X == 1 && Y == 12) {
-      body.style.background = "url(rooms/112.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash112");
-      mapImage.setAttribute("class", "mapImage112");
-    }
-
-    if (X == 5 && Y == 3) {
-      body.style.background = "url(rooms/53.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash53");
-      mapImage.setAttribute("class", "mapImage53");
-    }
-
-    if (X == 4 && Y == 3) {
-      body.style.background = "url(rooms/43.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash43");
-      mapImage.setAttribute("class", "mapImage43");
-    }
-
-    if (X == 0 && Y == 3) {
-      body.style.background = "url(rooms/03.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash03");
-      mapImage.setAttribute("class", "mapImage03");
-    }
-
-    if (X == 1 && Y == 3) {
-      body.style.background = "url(rooms/13.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash13");
-      mapImage.setAttribute("class", "mapImage13");
-    }
-
-    if (X == 1 && Y == 4) {
-      body.style.background = "url(rooms/14.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash14");
-      mapImage.setAttribute("class", "mapImage14");
-    }
-
-    if (X == 7 && Y == 4) {
-      body.style.background = "url(rooms/74.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash74");
-      mapImage.setAttribute("class", "mapImage74");
-    }
-
-    if (X == 7 && Y == 5) {
-      body.style.background = "url(rooms/75.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash75");
-      mapImage.setAttribute("class", "mapImage75");
-    }
-
-    if (X == 7 && Y == 8) {
-      body.style.background = "url(rooms/78.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash78");
-      mapImage.setAttribute("class", "mapImage78");
-    }
-
-    if (X == 7 && Y == 7) {
-      body.style.background = "url(rooms/77.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash77");
-      mapImage.setAttribute("class", "mapImage77");
-    }
-
-    if (X == 0 && Y == 5) {
-      body.style.background = "url(rooms/05.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash05");
-      mapImage.setAttribute("class", "mapImage05");
-    }
-
-    if (X == 1 && Y == 5) {
-      body.style.background = "url(rooms/15.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash15");
-      mapImage.setAttribute("class", "mapImage15");
-    }
-
-    if (X == 0 && Y == 6) {
-      body.style.background = "url(rooms/06.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash06");
-      mapImage.setAttribute("class", "mapImage06");
-    }
-
-    if (X == 1 && Y == 6) {
-      body.style.background = "url(rooms/16.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash16");
-      mapImage.setAttribute("class", "mapImage16");
-    }
-
-    if (X == 2 && Y == 7) {
-      body.style.background = "url(rooms/27.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash27");
-      mapImage.setAttribute("class", "mapImage27");
-      if (SCELETBOSS === true) {
-        sceletBoss.setAttribute("class", "sceletBoss");
-        body.append(sceletBoss);
-        buttonStash.setAttribute("onclick", "");
-        setTimeout(fight, 1501);
-      }
-      if (SEAL_1 === false) {
-        seal_1.setAttribute("class", "seal_1");
-        seal_1.setAttribute("onclick", "pushSeal()");
-      } else if (SEAL_1 == true) {
-        seal_1.setAttribute("class", "pushSeal_1");
-      }
-      seal_1.hidden = false;
-      if (SEAL_1 == true) {
-        if (SEAL_1numberRandom == 0) {
-          sealNumberImg_0.hidden = false;
-          sealNumberImg_0.setAttribute("class", "sealNumberImg_0");
-        }
-        if (SEAL_1numberRandom == 1) {
-          sealNumberImg_1.hidden = false;
-          sealNumberImg_1.setAttribute("class", "sealNumberImg_1");
-        }
-        if (SEAL_1numberRandom == 2) {
-          sealNumberImg_2.hidden = false;
-          sealNumberImg_2.setAttribute("class", "sealNumberImg_2");
-        }
-        if (SEAL_1numberRandom == 3) {
-          sealNumberImg_3.hidden = false;
-          sealNumberImg_3.setAttribute("class", "sealNumberImg_3");
-        }
-        if (SEAL_1numberRandom == 4) {
-          sealNumberImg_4.hidden = false;
-          sealNumberImg_4.setAttribute("class", "sealNumberImg_4");
-        }
-        if (SEAL_1numberRandom == 5) {
-          sealNumberImg_5.hidden = false;
-          sealNumberImg_5.setAttribute("class", "sealNumberImg_5");
-        }
-        if (SEAL_1numberRandom == 6) {
-          sealNumberImg_6.hidden = false;
-          sealNumberImg_6.setAttribute("class", "sealNumberImg_6");
-        }
-        if (SEAL_1numberRandom == 7) {
-          sealNumberImg_7.hidden = false;
-          sealNumberImg_7.setAttribute("class", "sealNumberImg_7");
-        }
-        if (SEAL_1numberRandom == 8) {
-          sealNumberImg_8.hidden = false;
-          sealNumberImg_8.setAttribute("class", "sealNumberImg_8");
-        }
-        if (SEAL_1numberRandom == 9) {
-          sealNumberImg_9.hidden = false;
-          sealNumberImg_9.setAttribute("class", "sealNumberImg_9");
-        }
-      }
-    }
-
-    if (X == 1 && Y == 7) {
-      body.style.background = "url(rooms/17.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash17");
-      mapImage.setAttribute("class", "mapImage17");
-    }
-
-    if (X == 0 && Y == 7) {
-      body.style.background = "url(rooms/07.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash07");
-      mapImage.setAttribute("class", "mapImage07");
-    }
-
-    if (X == 7 && Y == 9) {
-      body.style.background = "url(rooms/79.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash79");
-      mapImage.setAttribute("class", "mapImage79");
-    }
-
-    if (X == 0 && Y == 8) {
-      body.style.background = "url(rooms/08.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash08");
-      mapImage.setAttribute("class", "mapImage08");
-    }
-
-    if (X == 1 && Y == 8) {
-      body.style.background = "url(rooms/18.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash18");
-      mapImage.setAttribute("class", "mapImage18");
-    }
-
-    if (X == 0 && Y == 10) {
-      body.style.background = "url(rooms/010.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash010");
-      mapImage.setAttribute("class", "mapImage010");
-    }
-
-    if (X == 0 && Y == 11) {
-      body.style.background = "url(rooms/011.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash011");
-      mapImage.setAttribute("class", "mapImage011");
-    }
-
-    if (X == 0 && Y == 12) {
-      body.style.background = "url(rooms/012.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash012");
-      mapImage.setAttribute("class", "mapImage012");
-      falseSeal.setAttribute("class", "falseSeal");
-      falseSeal.hidden = false;
-    }
-
-    if (X == 1 && Y == 12) {
-      body.style.background = "url(rooms/112.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash112");
-      mapImage.setAttribute("class", "mapImage112");
-    }
-
-    if (X == 7 && Y == 12) {
-      body.style.background = "url(rooms/712.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash712");
-      mapImage.setAttribute("class", "mapImage712");
-      if (BLUEDEMONBOSS === true) {
-        buttonStash.setAttribute("onclick", "");
-        setTimeout(fight, 1501);
-      }
-      if (SEAL_3 === false) {
-        seal_3.setAttribute("class", "seal_3");
-        seal_3.setAttribute("onclick", "pushSeal()");
-      } else if (SEAL_3 == true) {
-        seal_3.setAttribute("class", "pushSeal_3");
-      }
-      seal_3.hidden = false;
-      if (SEAL_3 == true) {
-        if (SEAL_3numberRandom == 0) {
-          sealNumberImg_0.hidden = false;
-          sealNumberImg_0.setAttribute("class", "seal_3NumberImg_0");
-        }
-        if (SEAL_3numberRandom == 1) {
-          sealNumberImg_1.hidden = false;
-          sealNumberImg_1.setAttribute("class", "seal_3NumberImg_1");
-        }
-        if (SEAL_3numberRandom == 2) {
-          sealNumberImg_2.hidden = false;
-          sealNumberImg_2.setAttribute("class", "seal_3NumberImg_2");
-        }
-        if (SEAL_3numberRandom == 3) {
-          sealNumberImg_3.hidden = false;
-          sealNumberImg_3.setAttribute("class", "seal_3NumberImg_3");
-        }
-        if (SEAL_3numberRandom == 4) {
-          sealNumberImg_4.hidden = false;
-          sealNumberImg_4.setAttribute("class", "seal_3NumberImg_4");
-        }
-        if (SEAL_3numberRandom == 5) {
-          sealNumberImg_5.hidden = false;
-          sealNumberImg_5.setAttribute("class", "seal_3NumberImg_5");
-        }
-        if (SEAL_3numberRandom == 6) {
-          sealNumberImg_6.hidden = false;
-          sealNumberImg_6.setAttribute("class", "seal_3NumberImg_6");
-        }
-        if (SEAL_3numberRandom == 7) {
-          sealNumberImg_7.hidden = false;
-          sealNumberImg_7.setAttribute("class", "seal_3NumberImg_7");
-        }
-        if (SEAL_3numberRandom == 8) {
-          sealNumberImg_8.hidden = false;
-          sealNumberImg_8.setAttribute("class", "seal_3NumberImg_8");
-        }
-        if (SEAL_3numberRandom == 9) {
-          sealNumberImg_9.hidden = false;
-          sealNumberImg_9.setAttribute("class", "seal_3NumberImg_9");
-        }
-      }
-    }
-
-    if (X == 6 && Y == 12) {
-      body.style.background = "url(rooms/612.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash612");
-      mapImage.setAttribute("class", "mapImage612");
-    }
-
-    if (X == 5 && Y == 12) {
-      body.style.background = "url(rooms/512.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash512");
-      mapImage.setAttribute("class", "mapImage512");
-      falseSeal.setAttribute("class", "falseSeal512");
-      falseSeal.hidden = false;
-    }
-
-    if (X == 7 && Y == 10) {
-      body.style.background = "url(rooms/710.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash710");
-      mapImage.setAttribute("class", "mapImage710");
-    }
-
-    if (X == 7 && Y == 11) {
-      body.style.background = "url(rooms/711.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash711");
-      mapImage.setAttribute("class", "mapImage711");
-    }
-
-    if (X == 0 && Y == 9) {
-      body.style.background = "url(rooms/09.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash09");
-      mapImage.setAttribute("class", "mapImage09");
-    }
-
-    if (X == 1 && Y == 9) {
-      body.style.background = "url(rooms/19.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash19");
-      mapImage.setAttribute("class", "mapImage19");
-    }
-
-    if (X == 2 && Y == 9) {
-      body.style.background = "url(rooms/29.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash29");
-      mapImage.setAttribute("class", "mapImage29");
-      buttonDealerDemon.setAttribute("onclick", "");
-      if (DEALERDEMON === true) {
-        buttonDealerDemon.hidden = false;
-        setTimeout(dealerDemonOnclick, 1501);
-      }
-    }
-
-    if (X == 2 && Y == 10) {
-      body.style.background = "url(rooms/210.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash210");
-      mapImage.setAttribute("class", "mapImage210");
-    }
-
-    if (X == 2 && Y == 11) {
-      body.style.background = "url(rooms/211.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash211");
-      mapImage.setAttribute("class", "mapImage211");
-    }
-
-    if (X == 3 && Y == 11) {
-      body.style.background = "url(rooms/311.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash311");
-      mapImage.setAttribute("class", "mapImage311");
-    }
-
-    if (X == 4 && Y == 11) {
-      body.style.background = "url(rooms/411.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash411");
-      mapImage.setAttribute("class", "mapImage411");
-    }
-
-    if (X == 3 && Y == 12) {
-      body.style.background = "url(rooms/312.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash312");
-      mapImage.setAttribute("class", "mapImage312");
-      if (REDDEMONBOSS === true) {
-        buttonStash.setAttribute("onclick", "");
-        setTimeout(fight, 1501);
-      }
-      if (SEAL_2 === false) {
-        seal_2.setAttribute("class", "seal_2");
-        seal_2.setAttribute("onclick", "pushSeal()");
-      } else if (SEAL_2 == true) {
-        seal_2.setAttribute("class", "pushSeal_2");
-      }
-      seal_2.hidden = false;
-      if (SEAL_2 == true) {
-        if (SEAL_2numberRandom == 0) {
-          sealNumberImg_0.hidden = false;
-          sealNumberImg_0.setAttribute("class", "seal_2NumberImg_0");
-        }
-        if (SEAL_2numberRandom == 1) {
-          sealNumberImg_1.hidden = false;
-          sealNumberImg_1.setAttribute("class", "seal_2NumberImg_1");
-        }
-        if (SEAL_2numberRandom == 2) {
-          sealNumberImg_2.hidden = false;
-          sealNumberImg_2.setAttribute("class", "seal_2NumberImg_2");
-        }
-        if (SEAL_2numberRandom == 3) {
-          sealNumberImg_3.hidden = false;
-          sealNumberImg_3.setAttribute("class", "seal_2NumberImg_3");
-        }
-        if (SEAL_2numberRandom == 4) {
-          sealNumberImg_4.hidden = false;
-          sealNumberImg_4.setAttribute("class", "seal_2NumberImg_4");
-        }
-        if (SEAL_2numberRandom == 5) {
-          sealNumberImg_5.hidden = false;
-          sealNumberImg_5.setAttribute("class", "seal_2NumberImg_5");
-        }
-        if (SEAL_2numberRandom == 6) {
-          sealNumberImg_6.hidden = false;
-          sealNumberImg_6.setAttribute("class", "seal_2NumberImg_6");
-        }
-        if (SEAL_2numberRandom == 7) {
-          sealNumberImg_7.hidden = false;
-          sealNumberImg_7.setAttribute("class", "seal_2NumberImg_7");
-        }
-        if (SEAL_2numberRandom == 8) {
-          sealNumberImg_8.hidden = false;
-          sealNumberImg_8.setAttribute("class", "seal_2NumberImg_8");
-        }
-        if (SEAL_2numberRandom == 9) {
-          sealNumberImg_9.hidden = false;
-          sealNumberImg_9.setAttribute("class", "seal_2NumberImg_9");
-        }
-      }
-    }
-
-    if (X == 3 && Y == 4) {
-      body.style.background = "url(rooms/34.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash34");
-      mapImage.setAttribute("class", "mapImage34");
-    }
-
-    if (X == 3 && Y == 6) {
-      body.style.background = "url(rooms/36.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash36");
-      mapImage.setAttribute("class", "mapImage36");
-    }
-
-    if (X == 5 && Y == 10) {
-      body.style.background = "url(rooms/510.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash510");
-      mapImage.setAttribute("class", "mapImage510");
-    }
-
-    if (X == 4 && Y == 10) {
-      body.style.background = "url(rooms/410.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash410");
-      mapImage.setAttribute("class", "mapImage410");
-    }
-
-    if (X == 6 && Y == 9) {
-      body.style.background = "url(rooms/69.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash69");
-      mapImage.setAttribute("class", "mapImage69");
-    }
-
-    if (X == 5 && Y == 9) {
-      body.style.background = "url(rooms/59.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash59");
-      mapImage.setAttribute("class", "mapImage59");
-    }
-
-    if (X == 5 && Y == 8) {
-      body.style.background = "url(rooms/58.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash58");
-      mapImage.setAttribute("class", "mapImage58");
-    }
-
-    if (X == 5 && Y == 7) {
-      body.style.background = "url(rooms/57.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash57");
-      mapImage.setAttribute("class", "mapImage57");
-    }
-
-    if (X == 3 && Y == 8) {
-      body.style.background = "url(rooms/38.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash38");
-      mapImage.setAttribute("class", "mapImage38");
-    }
-
-    if (X == 4 && Y == 8) {
-      body.style.background = "url(rooms/48.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash48");
-      mapImage.setAttribute("class", "mapImage48");
-    }
-
-    if (X == 5 && Y == 6) {
-      body.style.background = "url(rooms/56.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash56");
-      mapImage.setAttribute("class", "mapImage56");
-    }
-
-    if (X == 3 && Y == 5) {
-      body.style.background = "url(rooms/35.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash35");
-      mapImage.setAttribute("class", "mapImage35");
-    }
-
-    if (X == 4 && Y == 5) {
-      body.style.background = "url(rooms/45.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash45");
-      mapImage.setAttribute("class", "mapImage45");
-    }
-
-    if (X == 5 && Y == 5) {
-      body.style.background = "url(rooms/55.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash55");
-      mapImage.setAttribute("class", "mapImage55");
-    }
-
-    if (X == 4 && Y == 7) {
-      body.style.background = "url(rooms/47.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash47");
-      mapImage.setAttribute("class", "mapImage47");
-    }
-
-    if (ENEMYCOUNT == 4 && BALUALHEALT === false && BALUAL === true) {
-      buttonStash.setAttribute("onclick", "");
-      setTimeout(balualHealt, 1501);
-    }
-
-    if (roomArray[X][Y].healtButtle === 1 && roomArray[X][Y].stash === 0) {
-      healtButtleButton.hidden = false;
-      healtButtleButton.setAttribute("class", "healtButtleButton");
-      healtButtleButton.setAttribute("onclick", "drinkHealtButtle()");
-    } else if (
-      roomArray[X][Y].healtButtle === 2 &&
-      roomArray[X][Y].stash === 0
-    ) {
-      healtButtleButton.hidden = false;
-      healtButtleButton.setAttribute("class", "healtButtleButton2");
-      healtButtleButton.setAttribute("onclick", "drinkHealtButtle()");
+      sendWhenReady(
+        ws,
+        JSON.stringify({
+          type: "move",
+          x: me.x,
+          y: me.y,
+          health: me.health,
+          energy: me.energy,
+          food: me.food,
+          water: me.water,
+          armor: me.armor,
+          distanceTraveled: me.distanceTraveled,
+          direction: me.direction,
+          state: me.state,
+          frame: me.frame,
+        })
+      );
     } else {
-      healtButtleButton.hidden = true;
+      me.state = "idle";
+      me.frame = 0;
+      me.frameTime = 0;
+      isMoving = false;
+      ws.send(
+        JSON.stringify({
+          type: "move",
+          x: me.x,
+          y: me.y,
+          health: me.health,
+          energy: me.energy,
+          food: me.food,
+          water: me.water,
+          armor: me.armor,
+          distanceTraveled: me.distanceTraveled,
+          direction: me.direction,
+          state: me.state,
+          frame: me.frame,
+        })
+      );
     }
-
-    if (roomArray[X][Y].goldDust === 1) {
-      goldDustButton.setAttribute("onclick", "takeGoldDust()");
-      goldDustButton.hidden = false;
-      let randClassGoldDustButton = Math.round(Math.random() * (10 - 1) + 1);
-      if (randClassGoldDustButton === 1 || randClassGoldDustButton === 6) {
-        goldDustButton.setAttribute("class", "goldDustButton");
-      } else if (
-        randClassGoldDustButton === 2 ||
-        randClassGoldDustButton === 7
-      ) {
-        goldDustButton.setAttribute("class", "goldDustButton2");
-      } else if (
-        randClassGoldDustButton === 3 ||
-        randClassGoldDustButton === 8
-      ) {
-        goldDustButton.setAttribute("class", "goldDustButton3");
-      } else if (
-        randClassGoldDustButton === 4 ||
-        randClassGoldDustButton === 9
-      ) {
-        goldDustButton.setAttribute("class", "goldDustButton4");
-      } else if (
-        randClassGoldDustButton === 5 ||
-        randClassGoldDustButton === 10
-      ) {
-        goldDustButton.setAttribute("class", "goldDustButton5");
-      } else {
-        goldDustButton.hidden = true;
-      }
+  } else if (me.state === "dying") {
+    me.frameTime += deltaTime;
+    if (me.frameTime >= GAME_CONFIG.FRAME_DURATION / 7) {
+      me.frameTime -= GAME_CONFIG.FRAME_DURATION / 7;
+      if (me.frame < 6) me.frame += 1;
     }
-
-    body.style.backgroundSize = userSizeStr;
-    if (userWidth < 500) {
-      body.style.backgroundSize = "100% 100%";
-    }
-    setTimeout(nextRoom, 1500);
-  };
-  setTimeout(roomsImg, 2000);
-}; //   Функция хотьбы в право   >>>>>>>
-
-const goDown = () => {
-  //   Функция хотьбы назад   >>>>>>>
-  heroTextBlock.innerText = "";
-  infoTextBlock.innerText = "";
-  let x = X;
-  let y = Y;
-
-  buttonStash.hidden = false;
-
-  if (STEP == 0 && roomArray[x][y].stash > 0) {
-    heroTextBlock.innerText = " Не спеши, стоит лучше осмотреть эту комнату!";
-    return;
+    ws.send(
+      JSON.stringify({
+        type: "move",
+        x: me.x,
+        y: me.y,
+        health: me.health,
+        energy: me.energy,
+        food: me.food,
+        water: me.water,
+        armor: me.armor,
+        distanceTraveled: me.distanceTraveled,
+        direction: me.direction,
+        state: me.state,
+        frame: me.frame,
+      })
+    );
   }
 
-  if (Y == 0) {
-    infoTextBlock.innerText = "Стены лабиринта мешают вам пройти!";
-    heroTextBlock.innerText = "Я не могу идти дальше ...";
-    heroTextBlock.hidden = false;
-    infoTextBlock.hidden = false;
-    return;
-  }
-
-  Y--;
-  STEP++;
-
-  if (
-    (X == 1 && Y == 1) ||
-    (X == 3 && Y == 1) ||
-    (X == 5 && Y == 1) ||
-    (X == 6 && Y == 1) ||
-    (X == 1 && Y == 2) ||
-    (X == 6 && Y == 2) ||
-    (X == 2 && Y == 3) ||
-    (X == 3 && Y == 3) ||
-    (X == 6 && Y == 3) ||
-    (X == 0 && Y == 4) ||
-    (X == 2 && Y == 4) ||
-    (X == 4 && Y == 4) ||
-    (X == 5 && Y == 4) ||
-    (X == 6 && Y == 4) ||
-    (X == 2 && Y == 5) ||
-    (X == 6 && Y == 5) ||
-    (X == 2 && Y == 6) ||
-    (X == 4 && Y == 6) ||
-    (X == 6 && Y == 6) ||
-    (X == 3 && Y == 7) ||
-    (X == 6 && Y == 7) ||
-    (X == 2 && Y == 8) ||
-    (X == 6 && Y == 8) ||
-    (X == 3 && Y == 9) ||
-    (X == 4 && Y == 9) ||
-    (X == 1 && Y == 10) ||
-    (X == 3 && Y == 10) ||
-    (X == 6 && Y == 10) ||
-    (X == 1 && Y == 11) ||
-    (X == 5 && Y == 11) ||
-    (X == 6 && Y == 11) ||
-    (X == 2 && Y == 12) ||
-    (X == 4 && Y == 12)
-  ) {
-    infoTextBlock.hidden = false;
-    heroTextBlock.hidden = false;
-    infoTextBlock.innerText = "Вы не видите куда идти и остаетесь на месте!";
-    heroTextBlock.innerText = "Я не могу идти в этом направлении ...";
-    Y++;
-    return;
-  }
-
-  buttonDeadEnemy.hidden = true;
-  body.style.background = "black";
-  buttonE.hidden = true;
-  buttonN.hidden = true;
-  buttonS.hidden = true;
-  buttonW.hidden = true;
-  buttonStash.hidden = true;
-  map.hidden = true;
-  healtButtleButton.hidden = true;
-  goldDustButton.hidden = true;
-  jugButton.hidden = true;
-  jugButton.setAttribute("onclick", "");
-  mapButton.hidden = true;
-  seal_1.hidden = true;
-  seal_2.hidden = true;
-  seal_3.hidden = true;
-  sealNumberImg_0.hidden = true;
-  sealNumberImg_1.hidden = true;
-  sealNumberImg_2.hidden = true;
-  sealNumberImg_3.hidden = true;
-  sealNumberImg_4.hidden = true;
-  sealNumberImg_5.hidden = true;
-  sealNumberImg_6.hidden = true;
-  sealNumberImg_7.hidden = true;
-  sealNumberImg_8.hidden = true;
-  sealNumberImg_9.hidden = true;
-  falseSeal.hidden = true;
-  buttonDealerDemon.hidden = true;
-  divDealerDemonText.hidden = true;
-  buttonTomb.hidden = true;
-
-  const roomsImg = () => {
-    if (X == 4 && Y == 0) {
-      body.style.background = "url(rooms/startRoom.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash");
-      jugButton.hidden = false;
-      mapImage.setAttribute("class", "mapImage40");
-    }
-
-    if (X == 4 && Y == 1) {
-      body.style.background = "url(rooms/41.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash41");
-      mapImage.setAttribute("class", "mapImage41");
-    }
-
-    if (X == 3 && Y == 0) {
-      body.style.background = "url(rooms/30.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash30");
-      mapImage.setAttribute("class", "mapImage30");
-    }
-
-    if (X == 5 && Y == 0) {
-      body.style.background = "url(rooms/50.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash50");
-      mapImage.setAttribute("class", "mapImage50");
-    }
-
-    if (X == 4 && Y == 2) {
-      body.style.background = "url(rooms/42.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash42");
-      mapImage.setAttribute("class", "mapImage42");
-    }
-
-    if (X == 2 && Y == 0) {
-      body.style.background = "url(rooms/20.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash20");
-      mapImage.setAttribute("class", "mapImage20");
-    }
-
-    if (X == 1 && Y == 0) {
-      body.style.background = "url(rooms/10.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash10");
-      mapImage.setAttribute("class", "mapImage10");
-    }
-
-    if (X == 6 && Y == 0) {
-      body.style.background = "url(rooms/60.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash60");
-      mapImage.setAttribute("class", "mapImage60");
-    }
-
-    if (X == 2 && Y == 1) {
-      body.style.background = "url(rooms/21.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash21");
-      mapImage.setAttribute("class", "mapImage21");
-    }
-
-    if (X == 3 && Y == 2) {
-      body.style.background = "url(rooms/32.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash32");
-      mapImage.setAttribute("class", "mapImage32");
-      buttonTomb.setAttribute("class", "buttonTomb");
-      buttonTomb.setAttribute("onclick", "openTomb()");
-      buttonTomb.hidden = false;
-    }
-
-    if (X == 2 && Y == 2) {
-      body.style.background = "url(rooms/22.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash22");
-      mapImage.setAttribute("class", "mapImage22");
-    }
-
-    if (X == 5 && Y == 2) {
-      body.style.background = "url(rooms/52.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash52");
-      mapImage.setAttribute("class", "mapImage52");
-      if (MAP === false) {
-        mapButton.setAttribute("class", "mapButton");
-        mapButton.setAttribute("onclick", "showMap()");
-        mapButton.hidden = false;
-      }
-    }
-
-    if (X == 0 && Y == 0) {
-      body.style.background = "url(rooms/00.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash00");
-      mapImage.setAttribute("class", "mapImage00");
-    }
-
-    if (X == 7 && Y == 0) {
-      body.style.background = "url(rooms/70.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash70");
-      mapImage.setAttribute("class", "mapImage70");
-    }
-
-    if (X == 7 && Y == 1) {
-      body.style.background = "url(rooms/71.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash71");
-      mapImage.setAttribute("class", "mapImage71");
-    }
-
-    if (X == 7 && Y == 2) {
-      body.style.background = "url(rooms/72.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash72");
-      mapImage.setAttribute("class", "mapImage72");
-    }
-
-    if (X == 7 && Y == 3) {
-      body.style.background = "url(rooms/73.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash73");
-      mapImage.setAttribute("class", "mapImage73");
-    }
-
-    if (X == 0 && Y == 1) {
-      body.style.background = "url(rooms/01.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash01");
-      mapImage.setAttribute("class", "mapImage01");
-    }
-
-    if (X == 0 && Y == 2) {
-      body.style.background = "url(rooms/02.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash02");
-      mapImage.setAttribute("class", "mapImage02");
-    }
-
-    if (X == 3 && Y == 4) {
-      body.style.background = "url(rooms/34.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash34");
-      mapImage.setAttribute("class", "mapImage34");
-      falseSeal.setAttribute("class", "falseSeal34");
-      falseSeal.hidden = false;
-    }
-
-    if (X == 3 && Y == 6) {
-      body.style.background = "url(rooms/36.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash36");
-      mapImage.setAttribute("class", "mapImage36");
-    }
-
-    if (X == 1 && Y == 6) {
-      body.style.background = "url(rooms/16.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash16");
-      mapImage.setAttribute("class", "mapImage16");
-    }
-
-    if (X == 3 && Y == 12) {
-      body.style.background = "url(rooms/312.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash312");
-      mapImage.setAttribute("class", "mapImage312");
-    }
-
-    if (X == 7 && Y == 6) {
-      body.style.background = "url(rooms/76.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash76");
-      mapImage.setAttribute("class", "mapImage76");
-    }
-
-    if (X == 6 && Y == 9) {
-      body.style.background = "url(rooms/69.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash69");
-      mapImage.setAttribute("class", "mapImage69");
-      buttonDealerDemon.setAttribute("onclick", "");
-      if (DEALERDEMON === true) {
-        buttonDealerDemon.hidden = false;
-        setTimeout(dealerDemonOnclick, 1501);
-      }
-    }
-
-    if (X == 1 && Y == 12) {
-      body.style.background = "url(rooms/112.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash112");
-      mapImage.setAttribute("class", "mapImage112");
-    }
-
-    if (X == 5 && Y == 3) {
-      body.style.background = "url(rooms/53.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash53");
-      mapImage.setAttribute("class", "mapImage53");
-    }
-
-    if (X == 4 && Y == 3) {
-      body.style.background = "url(rooms/43.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash43");
-      mapImage.setAttribute("class", "mapImage43");
-    }
-
-    if (X == 0 && Y == 3) {
-      body.style.background = "url(rooms/03.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash03");
-      mapImage.setAttribute("class", "mapImage03");
-    }
-
-    if (X == 1 && Y == 3) {
-      body.style.background = "url(rooms/13.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash13");
-      mapImage.setAttribute("class", "mapImage13");
-    }
-
-    if (X == 1 && Y == 4) {
-      body.style.background = "url(rooms/14.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash14");
-      mapImage.setAttribute("class", "mapImage14");
-    }
-
-    if (X == 7 && Y == 4) {
-      body.style.background = "url(rooms/74.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash74");
-      mapImage.setAttribute("class", "mapImage74");
-    }
-
-    if (X == 7 && Y == 5) {
-      body.style.background = "url(rooms/75.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash75");
-      mapImage.setAttribute("class", "mapImage75");
-    }
-
-    if (X == 7 && Y == 8) {
-      body.style.background = "url(rooms/78.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash78");
-      mapImage.setAttribute("class", "mapImage78");
-    }
-
-    if (X == 7 && Y == 7) {
-      body.style.background = "url(rooms/77.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash77");
-      mapImage.setAttribute("class", "mapImage77");
-    }
-
-    if (X == 0 && Y == 5) {
-      body.style.background = "url(rooms/05.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash05");
-      mapImage.setAttribute("class", "mapImage05");
-    }
-
-    if (X == 1 && Y == 5) {
-      body.style.background = "url(rooms/15.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash15");
-      mapImage.setAttribute("class", "mapImage15");
-    }
-
-    if (X == 0 && Y == 6) {
-      body.style.background = "url(rooms/06.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash06");
-      mapImage.setAttribute("class", "mapImage06");
-    }
-
-    if (X == 1 && Y == 6) {
-      body.style.background = "url(rooms/16.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash16");
-      mapImage.setAttribute("class", "mapImage16");
-    }
-
-    if (X == 2 && Y == 7) {
-      body.style.background = "url(rooms/27.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash27");
-      mapImage.setAttribute("class", "mapImage27");
-      if (SCELETBOSS === true) {
-        buttonStash.setAttribute("onclick", "");
-        setTimeout(fight, 1501);
-      }
-      if (SEAL_1 === false) {
-        seal_1.setAttribute("class", "seal_1");
-        seal_1.setAttribute("onclick", "pushSeal()");
-      } else if (SEAL_1 == true) {
-        seal_1.setAttribute("class", "pushSeal_1");
-      }
-      seal_1.hidden = false;
-      if (SEAL_1 == true) {
-        if (SEAL_1numberRandom == 0) {
-          sealNumberImg_0.hidden = false;
-          sealNumberImg_0.setAttribute("class", "sealNumberImg_0");
-        }
-        if (SEAL_1numberRandom == 1) {
-          sealNumberImg_1.hidden = false;
-          sealNumberImg_1.setAttribute("class", "sealNumberImg_1");
-        }
-        if (SEAL_1numberRandom == 2) {
-          sealNumberImg_2.hidden = false;
-          sealNumberImg_2.setAttribute("class", "sealNumberImg_2");
-        }
-        if (SEAL_1numberRandom == 3) {
-          sealNumberImg_3.hidden = false;
-          sealNumberImg_3.setAttribute("class", "sealNumberImg_3");
-        }
-        if (SEAL_1numberRandom == 4) {
-          sealNumberImg_4.hidden = false;
-          sealNumberImg_4.setAttribute("class", "sealNumberImg_4");
-        }
-        if (SEAL_1numberRandom == 5) {
-          sealNumberImg_5.hidden = false;
-          sealNumberImg_5.setAttribute("class", "sealNumberImg_5");
-        }
-        if (SEAL_1numberRandom == 6) {
-          sealNumberImg_6.hidden = false;
-          sealNumberImg_6.setAttribute("class", "sealNumberImg_6");
-        }
-        if (SEAL_1numberRandom == 7) {
-          sealNumberImg_7.hidden = false;
-          sealNumberImg_7.setAttribute("class", "sealNumberImg_7");
-        }
-        if (SEAL_1numberRandom == 8) {
-          sealNumberImg_8.hidden = false;
-          sealNumberImg_8.setAttribute("class", "sealNumberImg_8");
-        }
-        if (SEAL_1numberRandom == 9) {
-          sealNumberImg_9.hidden = false;
-          sealNumberImg_9.setAttribute("class", "sealNumberImg_9");
-        }
-      }
-    }
-
-    if (X == 1 && Y == 7) {
-      body.style.background = "url(rooms/17.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash17");
-      mapImage.setAttribute("class", "mapImage17");
-    }
-
-    if (X == 0 && Y == 7) {
-      body.style.background = "url(rooms/07.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash07");
-      mapImage.setAttribute("class", "mapImage07");
-    }
-
-    if (X == 7 && Y == 9) {
-      body.style.background = "url(rooms/79.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash79");
-      mapImage.setAttribute("class", "mapImage79");
-    }
-
-    if (X == 0 && Y == 8) {
-      body.style.background = "url(rooms/08.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash08");
-      mapImage.setAttribute("class", "mapImage08");
-    }
-
-    if (X == 1 && Y == 8) {
-      body.style.background = "url(rooms/18.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash18");
-      mapImage.setAttribute("class", "mapImage18");
-    }
-
-    if (X == 0 && Y == 10) {
-      body.style.background = "url(rooms/010.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash010");
-      mapImage.setAttribute("class", "mapImage010");
-    }
-
-    if (X == 0 && Y == 11) {
-      body.style.background = "url(rooms/011.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash011");
-      mapImage.setAttribute("class", "mapImage011");
-    }
-
-    if (X == 0 && Y == 12) {
-      body.style.background = "url(rooms/012.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash012");
-      mapImage.setAttribute("class", "mapImage012");
-      falseSeal.setAttribute("class", "falseSeal");
-      falseSeal.hidden = false;
-    }
-
-    if (X == 1 && Y == 12) {
-      body.style.background = "url(rooms/112.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash112");
-      mapImage.setAttribute("class", "mapImage112");
-    }
-
-    if (X == 7 && Y == 12) {
-      body.style.background = "url(rooms/712.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash712");
-      mapImage.setAttribute("class", "mapImage712");
-      if (BLUEDEMONBOSS === true) {
-        buttonStash.setAttribute("onclick", "");
-        setTimeout(fight, 1501);
-      }
-      if (SEAL_3 === false) {
-        seal_3.setAttribute("class", "seal_3");
-        seal_3.setAttribute("onclick", "pushSeal()");
-      } else if (SEAL_3 == true) {
-        seal_3.setAttribute("class", "pushSeal_3");
-      }
-      seal_3.hidden = false;
-      if (SEAL_3 == true) {
-        if (SEAL_3numberRandom == 0) {
-          sealNumberImg_0.hidden = false;
-          sealNumberImg_0.setAttribute("class", "seal_3NumberImg_0");
-        }
-        if (SEAL_3numberRandom == 1) {
-          sealNumberImg_1.hidden = false;
-          sealNumberImg_1.setAttribute("class", "seal_3NumberImg_1");
-        }
-        if (SEAL_3numberRandom == 2) {
-          sealNumberImg_2.hidden = false;
-          sealNumberImg_2.setAttribute("class", "seal_3NumberImg_2");
-        }
-        if (SEAL_3numberRandom == 3) {
-          sealNumberImg_3.hidden = false;
-          sealNumberImg_3.setAttribute("class", "seal_3NumberImg_3");
-        }
-        if (SEAL_3numberRandom == 4) {
-          sealNumberImg_4.hidden = false;
-          sealNumberImg_4.setAttribute("class", "seal_3NumberImg_4");
-        }
-        if (SEAL_3numberRandom == 5) {
-          sealNumberImg_5.hidden = false;
-          sealNumberImg_5.setAttribute("class", "seal_3NumberImg_5");
-        }
-        if (SEAL_3numberRandom == 6) {
-          sealNumberImg_6.hidden = false;
-          sealNumberImg_6.setAttribute("class", "seal_3NumberImg_6");
-        }
-        if (SEAL_3numberRandom == 7) {
-          sealNumberImg_7.hidden = false;
-          sealNumberImg_7.setAttribute("class", "seal_3NumberImg_7");
-        }
-        if (SEAL_3numberRandom == 8) {
-          sealNumberImg_8.hidden = false;
-          sealNumberImg_8.setAttribute("class", "seal_3NumberImg_8");
-        }
-        if (SEAL_3numberRandom == 9) {
-          sealNumberImg_9.hidden = false;
-          sealNumberImg_9.setAttribute("class", "seal_3NumberImg_9");
-        }
-      }
-    }
-
-    if (X == 6 && Y == 12) {
-      body.style.background = "url(rooms/612.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash612");
-      mapImage.setAttribute("class", "mapImage612");
-    }
-
-    if (X == 5 && Y == 12) {
-      body.style.background = "url(rooms/512.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash512");
-      mapImage.setAttribute("class", "mapImage512");
-      falseSeal.setAttribute("class", "falseSeal512");
-      falseSeal.hidden = false;
-    }
-
-    if (X == 7 && Y == 10) {
-      body.style.background = "url(rooms/710.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash710");
-      mapImage.setAttribute("class", "mapImage710");
-    }
-
-    if (X == 7 && Y == 11) {
-      body.style.background = "url(rooms/711.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash711");
-      mapImage.setAttribute("class", "mapImage711");
-    }
-
-    if (X == 0 && Y == 9) {
-      body.style.background = "url(rooms/09.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash09");
-      mapImage.setAttribute("class", "mapImage09");
-    }
-
-    if (X == 1 && Y == 9) {
-      body.style.background = "url(rooms/19.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash19");
-      mapImage.setAttribute("class", "mapImage19");
-    }
-
-    if (X == 2 && Y == 9) {
-      body.style.background = "url(rooms/29.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash29");
-      mapImage.setAttribute("class", "mapImage29");
-      buttonDealerDemon.setAttribute("onclick", "");
-      if (DEALERDEMON === true) {
-        buttonDealerDemon.hidden = false;
-        setTimeout(dealerDemonOnclick, 1501);
-      }
-    }
-
-    if (X == 2 && Y == 10) {
-      body.style.background = "url(rooms/210.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash210");
-      mapImage.setAttribute("class", "mapImage210");
-    }
-
-    if (X == 2 && Y == 11) {
-      body.style.background = "url(rooms/211.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash211");
-      mapImage.setAttribute("class", "mapImage211");
-    }
-
-    if (X == 3 && Y == 11) {
-      body.style.background = "url(rooms/311.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash311");
-      mapImage.setAttribute("class", "mapImage311");
-    }
-
-    if (X == 4 && Y == 11) {
-      body.style.background = "url(rooms/411.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash411");
-      mapImage.setAttribute("class", "mapImage411");
-    }
-
-    if (X == 3 && Y == 12) {
-      body.style.background = "url(rooms/312.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash312");
-      mapImage.setAttribute("class", "mapImage312");
-      if (REDDEMONBOSS === true) {
-        buttonStash.setAttribute("onclick", "");
-        setTimeout(fight, 1501);
-      }
-      if (SEAL_2 === false) {
-        seal_2.setAttribute("class", "seal_2");
-        seal_2.setAttribute("onclick", "pushSeal()");
-      } else if (SEAL_2 == true) {
-        seal_2.setAttribute("class", "pushSeal_2");
-      }
-      seal_2.hidden = false;
-      if (SEAL_2 == true) {
-        if (SEAL_2numberRandom == 0) {
-          sealNumberImg_0.hidden = false;
-          sealNumberImg_0.setAttribute("class", "seal_2NumberImg_0");
-        }
-        if (SEAL_2numberRandom == 1) {
-          sealNumberImg_1.hidden = false;
-          sealNumberImg_1.setAttribute("class", "seal_2NumberImg_1");
-        }
-        if (SEAL_2numberRandom == 2) {
-          sealNumberImg_2.hidden = false;
-          sealNumberImg_2.setAttribute("class", "seal_2NumberImg_2");
-        }
-        if (SEAL_2numberRandom == 3) {
-          sealNumberImg_3.hidden = false;
-          sealNumberImg_3.setAttribute("class", "seal_2NumberImg_3");
-        }
-        if (SEAL_2numberRandom == 4) {
-          sealNumberImg_4.hidden = false;
-          sealNumberImg_4.setAttribute("class", "seal_2NumberImg_4");
-        }
-        if (SEAL_2numberRandom == 5) {
-          sealNumberImg_5.hidden = false;
-          sealNumberImg_5.setAttribute("class", "seal_2NumberImg_5");
-        }
-        if (SEAL_2numberRandom == 6) {
-          sealNumberImg_6.hidden = false;
-          sealNumberImg_6.setAttribute("class", "seal_2NumberImg_6");
-        }
-        if (SEAL_2numberRandom == 7) {
-          sealNumberImg_7.hidden = false;
-          sealNumberImg_7.setAttribute("class", "seal_2NumberImg_7");
-        }
-        if (SEAL_2numberRandom == 8) {
-          sealNumberImg_8.hidden = false;
-          sealNumberImg_8.setAttribute("class", "seal_2NumberImg_8");
-        }
-        if (SEAL_2numberRandom == 9) {
-          sealNumberImg_9.hidden = false;
-          sealNumberImg_9.setAttribute("class", "seal_2NumberImg_9");
-        }
-      }
-    }
-
-    if (X == 3 && Y == 4) {
-      body.style.background = "url(rooms/34.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash34");
-      mapImage.setAttribute("class", "mapImage34");
-    }
-
-    if (X == 3 && Y == 6) {
-      body.style.background = "url(rooms/36.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash36");
-      mapImage.setAttribute("class", "mapImage36");
-    }
-
-    if (X == 5 && Y == 10) {
-      body.style.background = "url(rooms/510.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash510");
-      mapImage.setAttribute("class", "mapImage510");
-    }
-
-    if (X == 4 && Y == 10) {
-      body.style.background = "url(rooms/410.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash410");
-      mapImage.setAttribute("class", "mapImage410");
-    }
-
-    if (X == 6 && Y == 9) {
-      body.style.background = "url(rooms/69.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash69");
-      mapImage.setAttribute("class", "mapImage69");
-    }
-
-    if (X == 5 && Y == 9) {
-      body.style.background = "url(rooms/59.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash59");
-      mapImage.setAttribute("class", "mapImage59");
-    }
-
-    if (X == 5 && Y == 8) {
-      body.style.background = "url(rooms/58.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash58");
-      mapImage.setAttribute("class", "mapImage58");
-    }
-
-    if (X == 5 && Y == 7) {
-      body.style.background = "url(rooms/57.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash57");
-      mapImage.setAttribute("class", "mapImage57");
-    }
-
-    if (X == 3 && Y == 8) {
-      body.style.background = "url(rooms/38.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash38");
-      mapImage.setAttribute("class", "mapImage38");
-    }
-
-    if (X == 4 && Y == 8) {
-      body.style.background = "url(rooms/48.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash48");
-      mapImage.setAttribute("class", "mapImage48");
-    }
-
-    if (X == 5 && Y == 6) {
-      body.style.background = "url(rooms/56.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash56");
-      mapImage.setAttribute("class", "mapImage56");
-    }
-
-    if (X == 3 && Y == 5) {
-      body.style.background = "url(rooms/35.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash35");
-      mapImage.setAttribute("class", "mapImage35");
-    }
-
-    if (X == 4 && Y == 5) {
-      body.style.background = "url(rooms/45.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash45");
-      mapImage.setAttribute("class", "mapImage45");
-    }
-
-    if (X == 5 && Y == 5) {
-      body.style.background = "url(rooms/55.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash55");
-      mapImage.setAttribute("class", "mapImage55");
-    }
-
-    if (X == 4 && Y == 7) {
-      body.style.background = "url(rooms/47.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash47");
-      mapImage.setAttribute("class", "mapImage47");
-    }
-
-    if (ENEMYCOUNT == 4 && BALUALHEALT === false && BALUAL === true) {
-      buttonStash.setAttribute("onclick", "");
-      setTimeout(balualHealt, 1501);
-    }
-
-    if (roomArray[X][Y].healtButtle === 1 && roomArray[X][Y].stash === 0) {
-      healtButtleButton.hidden = false;
-      healtButtleButton.setAttribute("class", "healtButtleButton");
-      healtButtleButton.setAttribute("onclick", "drinkHealtButtle()");
-    } else if (
-      roomArray[X][Y].healtButtle === 2 &&
-      roomArray[X][Y].stash === 0
+  // Обновление пуль
+  bullets.forEach((bullet, bulletId) => {
+    bullet.x += bullet.dx * (deltaTime / 1000);
+    bullet.y += bullet.dy * (deltaTime / 1000);
+
+    const currentTime = Date.now();
+    if (currentTime - bullet.spawnTime > bullet.life) {
+      bullets.delete(bulletId);
+    }
+
+    if (checkBulletCollision(bullet)) {
+      bullets.delete(bulletId);
+    }
+  });
+
+  // Удаление предметов по таймауту (без изменений)
+  const currentTime = Date.now();
+  items.forEach((item, itemId) => {
+    const screenX = item.x - camera.x;
+    const screenY = item.y - camera.y;
+    if (
+      screenX >= -40 &&
+      screenX <= canvas.width + 40 &&
+      screenY >= -40 &&
+      screenY <= canvas.height + 40
     ) {
-      healtButtleButton.hidden = false;
-      healtButtleButton.setAttribute("class", "healtButtleButton2");
-      healtButtleButton.setAttribute("onclick", "drinkHealtButtle()");
-    } else {
-      healtButtleButton.hidden = true;
-    }
-
-    if (roomArray[X][Y].goldDust === 1) {
-      goldDustButton.setAttribute("onclick", "takeGoldDust()");
-      goldDustButton.hidden = false;
-      let randClassGoldDustButton = Math.round(Math.random() * (10 - 1) + 1);
-      if (randClassGoldDustButton === 1 || randClassGoldDustButton === 6) {
-        goldDustButton.setAttribute("class", "goldDustButton");
-      } else if (
-        randClassGoldDustButton === 2 ||
-        randClassGoldDustButton === 7
-      ) {
-        goldDustButton.setAttribute("class", "goldDustButton2");
-      } else if (
-        randClassGoldDustButton === 3 ||
-        randClassGoldDustButton === 8
-      ) {
-        goldDustButton.setAttribute("class", "goldDustButton3");
-      } else if (
-        randClassGoldDustButton === 4 ||
-        randClassGoldDustButton === 9
-      ) {
-        goldDustButton.setAttribute("class", "goldDustButton4");
-      } else if (
-        randClassGoldDustButton === 5 ||
-        randClassGoldDustButton === 10
-      ) {
-        goldDustButton.setAttribute("class", "goldDustButton5");
+      const itemImage = ITEM_CONFIG[item.type]?.image;
+      if (itemImage && itemImage.complete) {
+        ctx.drawImage(itemImage, screenX, screenY, 40, 40);
       } else {
-        goldDustButton.hidden = true;
+        console.warn(
+          `Изображение для ${item.type} не загружено, рисую заглушку`
+        );
+        ctx.fillStyle = "yellow";
+        ctx.fillRect(screenX, screenY, 10, 10);
       }
     }
-
-    body.style.backgroundSize = userSizeStr;
-    if (userWidth < 500) {
-      body.style.backgroundSize = "100% 100%";
-    }
-    setTimeout(nextRoom, 1500);
-  };
-  setTimeout(roomsImg, 2000);
-}; //   Функция хотьбы назад   >>>>>>>
-
-const goLeft = () => {
-  //   Функция хотьбы в лево   >>>>>>>
-  heroTextBlock.innerText = "";
-  infoTextBlock.innerText = "";
-  let x = X;
-  let y = Y;
-
-  buttonStash.hidden = false;
-
-  if (STEP == 0 && roomArray[x][y].stash > 0) {
-    heroTextBlock.innerText = " Не спеши, стоит лучше осмотреть эту комнату!";
-    return;
-  }
-
-  if (X == 0) {
-    infoTextBlock.hidden = false;
-    infoTextBlock.innerText = "Стены лабиринта мешают вам пройти!";
-    heroTextBlock.innerText = "Я не могу идти дальше ...";
-    heroTextBlock.hidden = false;
-    return;
-  }
-
-  X--;
-  STEP++;
-
-  if (
-    (X == 1 && Y == 1) ||
-    (X == 3 && Y == 1) ||
-    (X == 5 && Y == 1) ||
-    (X == 6 && Y == 1) ||
-    (X == 1 && Y == 2) ||
-    (X == 6 && Y == 2) ||
-    (X == 2 && Y == 3) ||
-    (X == 3 && Y == 3) ||
-    (X == 6 && Y == 3) ||
-    (X == 0 && Y == 4) ||
-    (X == 2 && Y == 4) ||
-    (X == 4 && Y == 4) ||
-    (X == 5 && Y == 4) ||
-    (X == 6 && Y == 4) ||
-    (X == 2 && Y == 5) ||
-    (X == 6 && Y == 5) ||
-    (X == 2 && Y == 6) ||
-    (X == 4 && Y == 6) ||
-    (X == 6 && Y == 6) ||
-    (X == 3 && Y == 7) ||
-    (X == 6 && Y == 7) ||
-    (X == 2 && Y == 8) ||
-    (X == 6 && Y == 8) ||
-    (X == 3 && Y == 9) ||
-    (X == 4 && Y == 9) ||
-    (X == 1 && Y == 10) ||
-    (X == 3 && Y == 10) ||
-    (X == 6 && Y == 10) ||
-    (X == 1 && Y == 11) ||
-    (X == 5 && Y == 11) ||
-    (X == 6 && Y == 11) ||
-    (X == 2 && Y == 12) ||
-    (X == 4 && Y == 12)
-  ) {
-    infoTextBlock.hidden = false;
-    heroTextBlock.hidden = false;
-    infoTextBlock.innerText = "Вы не видите куда идти и остаетесь на месте!";
-    heroTextBlock.innerText = "Я не могу идти в этом направлении ...";
-    X++;
-    return;
-  }
-
-  buttonDeadEnemy.hidden = true;
-  body.style.background = "black";
-  buttonE.hidden = true;
-  buttonN.hidden = true;
-  buttonS.hidden = true;
-  buttonW.hidden = true;
-  buttonStash.hidden = true;
-  map.hidden = true;
-  healtButtleButton.hidden = true;
-  goldDustButton.hidden = true;
-  jugButton.hidden = true;
-  jugButton.setAttribute("onclick", "");
-  mapButton.hidden = true;
-  seal_1.hidden = true;
-  seal_2.hidden = true;
-  seal_3.hidden = true;
-  sealNumberImg_0.hidden = true;
-  sealNumberImg_1.hidden = true;
-  sealNumberImg_2.hidden = true;
-  sealNumberImg_3.hidden = true;
-  sealNumberImg_4.hidden = true;
-  sealNumberImg_5.hidden = true;
-  sealNumberImg_6.hidden = true;
-  sealNumberImg_7.hidden = true;
-  sealNumberImg_8.hidden = true;
-  sealNumberImg_9.hidden = true;
-  falseSeal.hidden = true;
-  buttonDealerDemon.hidden = true;
-  divDealerDemonText.hidden = true;
-  buttonTomb.hidden = true;
-
-  const roomsImg = () => {
-    if (X == 4 && Y == 0) {
-      body.style.background = "url(rooms/startRoom.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash");
-      jugButton.hidden = false;
-      mapImage.setAttribute("class", "mapImage40");
-    }
-
-    if (X == 4 && Y == 1) {
-      body.style.background = "url(rooms/41.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash41");
-      mapImage.setAttribute("class", "mapImage41");
-    }
-
-    if (X == 3 && Y == 0) {
-      body.style.background = "url(rooms/30.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash30");
-      mapImage.setAttribute("class", "mapImage30");
-    }
-
-    if (X == 5 && Y == 0) {
-      body.style.background = "url(rooms/50.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash50");
-      mapImage.setAttribute("class", "mapImage50");
-    }
-
-    if (X == 4 && Y == 2) {
-      body.style.background = "url(rooms/42.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash42");
-      mapImage.setAttribute("class", "mapImage42");
-    }
-
-    if (X == 2 && Y == 0) {
-      body.style.background = "url(rooms/20.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash20");
-      mapImage.setAttribute("class", "mapImage20");
-    }
-
-    if (X == 1 && Y == 0) {
-      body.style.background = "url(rooms/10.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash10");
-      mapImage.setAttribute("class", "mapImage10");
-    }
-
-    if (X == 6 && Y == 0) {
-      body.style.background = "url(rooms/60.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash60");
-      mapImage.setAttribute("class", "mapImage60");
-    }
-
-    if (X == 2 && Y == 1) {
-      body.style.background = "url(rooms/21.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash21");
-      mapImage.setAttribute("class", "mapImage21");
-    }
-
-    if (X == 3 && Y == 2) {
-      body.style.background = "url(rooms/32.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash32");
-      mapImage.setAttribute("class", "mapImage32");
-      buttonTomb.setAttribute("class", "buttonTomb");
-      buttonTomb.setAttribute("onclick", "openTomb()");
-      buttonTomb.hidden = false;
-    }
-
-    if (X == 2 && Y == 2) {
-      body.style.background = "url(rooms/22.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash22");
-      mapImage.setAttribute("class", "mapImage22");
-    }
-
-    if (X == 5 && Y == 2) {
-      body.style.background = "url(rooms/52.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash52");
-      mapImage.setAttribute("class", "mapImage52");
-      if (MAP === false) {
-        mapButton.setAttribute("class", "mapButton");
-        mapButton.setAttribute("onclick", "showMap()");
-        mapButton.hidden = false;
-      }
-    }
-
-    if (X == 0 && Y == 0) {
-      body.style.background = "url(rooms/00.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash00");
-      mapImage.setAttribute("class", "mapImage00");
-    }
-
-    if (X == 7 && Y == 0) {
-      body.style.background = "url(rooms/70.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash70");
-      mapImage.setAttribute("class", "mapImage70");
-    }
-
-    if (X == 7 && Y == 1) {
-      body.style.background = "url(rooms/71.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash71");
-      mapImage.setAttribute("class", "mapImage71");
-    }
-
-    if (X == 7 && Y == 2) {
-      body.style.background = "url(rooms/72.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash72");
-      mapImage.setAttribute("class", "mapImage72");
-    }
-
-    if (X == 7 && Y == 3) {
-      body.style.background = "url(rooms/73.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash73");
-      mapImage.setAttribute("class", "mapImage73");
-    }
-
-    if (X == 0 && Y == 1) {
-      body.style.background = "url(rooms/01.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash01");
-      mapImage.setAttribute("class", "mapImage01");
-    }
-
-    if (X == 0 && Y == 2) {
-      body.style.background = "url(rooms/02.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash02");
-      mapImage.setAttribute("class", "mapImage02");
-    }
-
-    if (X == 3 && Y == 4) {
-      body.style.background = "url(rooms/34.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash34");
-      mapImage.setAttribute("class", "mapImage34");
-      falseSeal.setAttribute("class", "falseSeal34");
-      falseSeal.hidden = false;
-    }
-
-    if (X == 3 && Y == 6) {
-      body.style.background = "url(rooms/36.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash36");
-      mapImage.setAttribute("class", "mapImage36");
-    }
-
-    if (X == 1 && Y == 6) {
-      body.style.background = "url(rooms/16.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash16");
-      mapImage.setAttribute("class", "mapImage16");
-    }
-
-    if (X == 3 && Y == 12) {
-      body.style.background = "url(rooms/312.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash312");
-      mapImage.setAttribute("class", "mapImage312");
-    }
-
-    if (X == 7 && Y == 6) {
-      body.style.background = "url(rooms/76.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash76");
-      mapImage.setAttribute("class", "mapImage76");
-    }
-
-    if (X == 6 && Y == 9) {
-      body.style.background = "url(rooms/69.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash69");
-      mapImage.setAttribute("class", "mapImage69");
-      buttonDealerDemon.setAttribute("onclick", "");
-      if (DEALERDEMON === true) {
-        buttonDealerDemon.hidden = false;
-        setTimeout(dealerDemonOnclick, 1501);
-      }
-    }
-
-    if (X == 1 && Y == 12) {
-      body.style.background = "url(rooms/112.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash112");
-      mapImage.setAttribute("class", "mapImage112");
-    }
-
-    if (X == 5 && Y == 3) {
-      body.style.background = "url(rooms/53.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash53");
-      mapImage.setAttribute("class", "mapImage53");
-    }
-
-    if (X == 4 && Y == 3) {
-      body.style.background = "url(rooms/43.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash43");
-      mapImage.setAttribute("class", "mapImage43");
-    }
-
-    if (X == 0 && Y == 3) {
-      body.style.background = "url(rooms/03.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash03");
-      mapImage.setAttribute("class", "mapImage03");
-    }
-
-    if (X == 1 && Y == 3) {
-      body.style.background = "url(rooms/13.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash13");
-      mapImage.setAttribute("class", "mapImage13");
-    }
-
-    if (X == 1 && Y == 4) {
-      body.style.background = "url(rooms/14.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash14");
-      mapImage.setAttribute("class", "mapImage14");
-    }
-
-    if (X == 7 && Y == 4) {
-      body.style.background = "url(rooms/74.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash74");
-      mapImage.setAttribute("class", "mapImage74");
-    }
-
-    if (X == 7 && Y == 5) {
-      body.style.background = "url(rooms/75.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash75");
-      mapImage.setAttribute("class", "mapImage75");
-    }
-
-    if (X == 7 && Y == 8) {
-      body.style.background = "url(rooms/78.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash78");
-      mapImage.setAttribute("class", "mapImage78");
-    }
-
-    if (X == 7 && Y == 7) {
-      body.style.background = "url(rooms/77.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash77");
-      mapImage.setAttribute("class", "mapImage77");
-    }
-
-    if (X == 0 && Y == 5) {
-      body.style.background = "url(rooms/05.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash05");
-      mapImage.setAttribute("class", "mapImage05");
-    }
-
-    if (X == 1 && Y == 5) {
-      body.style.background = "url(rooms/15.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash15");
-      mapImage.setAttribute("class", "mapImage15");
-    }
-
-    if (X == 0 && Y == 6) {
-      body.style.background = "url(rooms/06.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash06");
-      mapImage.setAttribute("class", "mapImage06");
-    }
-
-    if (X == 1 && Y == 6) {
-      body.style.background = "url(rooms/16.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash16");
-      mapImage.setAttribute("class", "mapImage16");
-    }
-
-    if (X == 2 && Y == 7) {
-      body.style.background = "url(rooms/27.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash27");
-      mapImage.setAttribute("class", "mapImage27");
-      if (SCELETBOSS === true) {
-        buttonStash.setAttribute("onclick", "");
-        setTimeout(fight, 1501);
-      }
-      if (SEAL_1 === false) {
-        seal_1.setAttribute("class", "seal_1");
-        seal_1.setAttribute("onclick", "pushSeal()");
-      } else if (SEAL_1 == true) {
-        seal_1.setAttribute("class", "pushSeal_1");
-      }
-      seal_1.hidden = false;
-      if (SEAL_1 == true) {
-        if (SEAL_1numberRandom == 0) {
-          sealNumberImg_0.hidden = false;
-          sealNumberImg_0.setAttribute("class", "sealNumberImg_0");
-        }
-        if (SEAL_1numberRandom == 1) {
-          sealNumberImg_1.hidden = false;
-          sealNumberImg_1.setAttribute("class", "sealNumberImg_1");
-        }
-        if (SEAL_1numberRandom == 2) {
-          sealNumberImg_2.hidden = false;
-          sealNumberImg_2.setAttribute("class", "sealNumberImg_2");
-        }
-        if (SEAL_1numberRandom == 3) {
-          sealNumberImg_3.hidden = false;
-          sealNumberImg_3.setAttribute("class", "sealNumberImg_3");
-        }
-        if (SEAL_1numberRandom == 4) {
-          sealNumberImg_4.hidden = false;
-          sealNumberImg_4.setAttribute("class", "sealNumberImg_4");
-        }
-        if (SEAL_1numberRandom == 5) {
-          sealNumberImg_5.hidden = false;
-          sealNumberImg_5.setAttribute("class", "sealNumberImg_5");
-        }
-        if (SEAL_1numberRandom == 6) {
-          sealNumberImg_6.hidden = false;
-          sealNumberImg_6.setAttribute("class", "sealNumberImg_6");
-        }
-        if (SEAL_1numberRandom == 7) {
-          sealNumberImg_7.hidden = false;
-          sealNumberImg_7.setAttribute("class", "sealNumberImg_7");
-        }
-        if (SEAL_1numberRandom == 8) {
-          sealNumberImg_8.hidden = false;
-          sealNumberImg_8.setAttribute("class", "sealNumberImg_8");
-        }
-        if (SEAL_1numberRandom == 9) {
-          sealNumberImg_9.hidden = false;
-          sealNumberImg_9.setAttribute("class", "sealNumberImg_9");
-        }
-      }
-    }
-
-    if (X == 1 && Y == 7) {
-      body.style.background = "url(rooms/17.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash17");
-      mapImage.setAttribute("class", "mapImage17");
-    }
-
-    if (X == 0 && Y == 7) {
-      body.style.background = "url(rooms/07.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash07");
-      mapImage.setAttribute("class", "mapImage07");
-    }
-
-    if (X == 7 && Y == 9) {
-      body.style.background = "url(rooms/79.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash79");
-      mapImage.setAttribute("class", "mapImage79");
-    }
-
-    if (X == 0 && Y == 8) {
-      body.style.background = "url(rooms/08.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash08");
-      mapImage.setAttribute("class", "mapImage08");
-    }
-
-    if (X == 1 && Y == 8) {
-      body.style.background = "url(rooms/18.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash18");
-      mapImage.setAttribute("class", "mapImage18");
-    }
-
-    if (X == 0 && Y == 10) {
-      body.style.background = "url(rooms/010.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash010");
-      mapImage.setAttribute("class", "mapImage010");
-    }
-
-    if (X == 0 && Y == 11) {
-      body.style.background = "url(rooms/011.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash011");
-      mapImage.setAttribute("class", "mapImage011");
-    }
-
-    if (X == 0 && Y == 12) {
-      body.style.background = "url(rooms/012.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash012");
-      mapImage.setAttribute("class", "mapImage012");
-      falseSeal.setAttribute("class", "falseSeal");
-      falseSeal.hidden = false;
-    }
-
-    if (X == 1 && Y == 12) {
-      body.style.background = "url(rooms/112.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash112");
-      mapImage.setAttribute("class", "mapImage112");
-    }
-
-    if (X == 7 && Y == 12) {
-      body.style.background = "url(rooms/712.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash712");
-      mapImage.setAttribute("class", "mapImage712");
-      if (BLUEDEMONBOSS === true) {
-        buttonStash.setAttribute("onclick", "");
-        setTimeout(fight, 1501);
-      }
-      if (SEAL_3 === false) {
-        seal_3.setAttribute("class", "seal_3");
-        seal_3.setAttribute("onclick", "pushSeal()");
-      } else if (SEAL_3 == true) {
-        seal_3.setAttribute("class", "pushSeal_3");
-      }
-      seal_3.hidden = false;
-      if (SEAL_3 == true) {
-        if (SEAL_3numberRandom == 0) {
-          sealNumberImg_0.hidden = false;
-          sealNumberImg_0.setAttribute("class", "seal_3NumberImg_0");
-        }
-        if (SEAL_3numberRandom == 1) {
-          sealNumberImg_1.hidden = false;
-          sealNumberImg_1.setAttribute("class", "seal_3NumberImg_1");
-        }
-        if (SEAL_3numberRandom == 2) {
-          sealNumberImg_2.hidden = false;
-          sealNumberImg_2.setAttribute("class", "seal_3NumberImg_2");
-        }
-        if (SEAL_3numberRandom == 3) {
-          sealNumberImg_3.hidden = false;
-          sealNumberImg_3.setAttribute("class", "seal_3NumberImg_3");
-        }
-        if (SEAL_3numberRandom == 4) {
-          sealNumberImg_4.hidden = false;
-          sealNumberImg_4.setAttribute("class", "seal_3NumberImg_4");
-        }
-        if (SEAL_3numberRandom == 5) {
-          sealNumberImg_5.hidden = false;
-          sealNumberImg_5.setAttribute("class", "seal_3NumberImg_5");
-        }
-        if (SEAL_3numberRandom == 6) {
-          sealNumberImg_6.hidden = false;
-          sealNumberImg_6.setAttribute("class", "seal_3NumberImg_6");
-        }
-        if (SEAL_3numberRandom == 7) {
-          sealNumberImg_7.hidden = false;
-          sealNumberImg_7.setAttribute("class", "seal_3NumberImg_7");
-        }
-        if (SEAL_3numberRandom == 8) {
-          sealNumberImg_8.hidden = false;
-          sealNumberImg_8.setAttribute("class", "seal_3NumberImg_8");
-        }
-        if (SEAL_3numberRandom == 9) {
-          sealNumberImg_9.hidden = false;
-          sealNumberImg_9.setAttribute("class", "seal_3NumberImg_9");
-        }
-      }
-    }
-
-    if (X == 6 && Y == 12) {
-      body.style.background = "url(rooms/612.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash612");
-      mapImage.setAttribute("class", "mapImage612");
-    }
-
-    if (X == 5 && Y == 12) {
-      body.style.background = "url(rooms/512.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash512");
-      mapImage.setAttribute("class", "mapImage512");
-      falseSeal.setAttribute("class", "falseSeal512");
-      falseSeal.hidden = false;
-    }
-
-    if (X == 7 && Y == 10) {
-      body.style.background = "url(rooms/710.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash710");
-      mapImage.setAttribute("class", "mapImage710");
-    }
-
-    if (X == 7 && Y == 11) {
-      body.style.background = "url(rooms/711.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash711");
-      mapImage.setAttribute("class", "mapImage711");
-    }
-
-    if (X == 0 && Y == 9) {
-      body.style.background = "url(rooms/09.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash09");
-      mapImage.setAttribute("class", "mapImage09");
-    }
-
-    if (X == 1 && Y == 9) {
-      body.style.background = "url(rooms/19.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash19");
-      mapImage.setAttribute("class", "mapImage19");
-    }
-
-    if (X == 2 && Y == 9) {
-      body.style.background = "url(rooms/29.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash29");
-      mapImage.setAttribute("class", "mapImage29");
-      buttonDealerDemon.setAttribute("onclick", "");
-      if (DEALERDEMON === true) {
-        buttonDealerDemon.hidden = false;
-        setTimeout(dealerDemonOnclick, 1501);
-      }
-    }
-
-    if (X == 2 && Y == 10) {
-      body.style.background = "url(rooms/210.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash210");
-      mapImage.setAttribute("class", "mapImage210");
-    }
-
-    if (X == 2 && Y == 11) {
-      body.style.background = "url(rooms/211.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash211");
-      mapImage.setAttribute("class", "mapImage211");
-    }
-
-    if (X == 3 && Y == 11) {
-      body.style.background = "url(rooms/311.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash311");
-      mapImage.setAttribute("class", "mapImage311");
-    }
-
-    if (X == 4 && Y == 11) {
-      body.style.background = "url(rooms/411.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash411");
-      mapImage.setAttribute("class", "mapImage411");
-    }
-
-    if (X == 3 && Y == 12) {
-      body.style.background = "url(rooms/312.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash312");
-      mapImage.setAttribute("class", "mapImage312");
-      if (REDDEMONBOSS === true) {
-        buttonStash.setAttribute("onclick", "");
-        setTimeout(fight, 1501);
-      }
-      if (SEAL_2 === false) {
-        seal_2.setAttribute("class", "seal_2");
-        seal_2.setAttribute("onclick", "pushSeal()");
-      } else if (SEAL_2 == true) {
-        seal_2.setAttribute("class", "pushSeal_2");
-      }
-      seal_2.hidden = false;
-      if (SEAL_2 == true) {
-        if (SEAL_2numberRandom == 0) {
-          sealNumberImg_0.hidden = false;
-          sealNumberImg_0.setAttribute("class", "seal_2NumberImg_0");
-        }
-        if (SEAL_2numberRandom == 1) {
-          sealNumberImg_1.hidden = false;
-          sealNumberImg_1.setAttribute("class", "seal_2NumberImg_1");
-        }
-        if (SEAL_2numberRandom == 2) {
-          sealNumberImg_2.hidden = false;
-          sealNumberImg_2.setAttribute("class", "seal_2NumberImg_2");
-        }
-        if (SEAL_2numberRandom == 3) {
-          sealNumberImg_3.hidden = false;
-          sealNumberImg_3.setAttribute("class", "seal_2NumberImg_3");
-        }
-        if (SEAL_2numberRandom == 4) {
-          sealNumberImg_4.hidden = false;
-          sealNumberImg_4.setAttribute("class", "seal_2NumberImg_4");
-        }
-        if (SEAL_2numberRandom == 5) {
-          sealNumberImg_5.hidden = false;
-          sealNumberImg_5.setAttribute("class", "seal_2NumberImg_5");
-        }
-        if (SEAL_2numberRandom == 6) {
-          sealNumberImg_6.hidden = false;
-          sealNumberImg_6.setAttribute("class", "seal_2NumberImg_6");
-        }
-        if (SEAL_2numberRandom == 7) {
-          sealNumberImg_7.hidden = false;
-          sealNumberImg_7.setAttribute("class", "seal_2NumberImg_7");
-        }
-        if (SEAL_2numberRandom == 8) {
-          sealNumberImg_8.hidden = false;
-          sealNumberImg_8.setAttribute("class", "seal_2NumberImg_8");
-        }
-        if (SEAL_2numberRandom == 9) {
-          sealNumberImg_9.hidden = false;
-          sealNumberImg_9.setAttribute("class", "seal_2NumberImg_9");
-        }
-      }
-    }
-
-    if (X == 3 && Y == 4) {
-      body.style.background = "url(rooms/34.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash34");
-      mapImage.setAttribute("class", "mapImage34");
-    }
-
-    if (X == 3 && Y == 6) {
-      body.style.background = "url(rooms/36.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash36");
-      mapImage.setAttribute("class", "mapImage36");
-    }
-
-    if (X == 5 && Y == 10) {
-      body.style.background = "url(rooms/510.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash510");
-      mapImage.setAttribute("class", "mapImage510");
-    }
-
-    if (X == 4 && Y == 10) {
-      body.style.background = "url(rooms/410.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash410");
-      mapImage.setAttribute("class", "mapImage410");
-    }
-
-    if (X == 6 && Y == 9) {
-      body.style.background = "url(rooms/69.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash69");
-      mapImage.setAttribute("class", "mapImage69");
-    }
-
-    if (X == 5 && Y == 9) {
-      body.style.background = "url(rooms/59.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash59");
-      mapImage.setAttribute("class", "mapImage59");
-    }
-
-    if (X == 5 && Y == 8) {
-      body.style.background = "url(rooms/58.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash58");
-      mapImage.setAttribute("class", "mapImage58");
-    }
-
-    if (X == 5 && Y == 7) {
-      body.style.background = "url(rooms/57.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash57");
-      mapImage.setAttribute("class", "mapImage57");
-    }
-
-    if (X == 3 && Y == 8) {
-      body.style.background = "url(rooms/38.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash38");
-      mapImage.setAttribute("class", "mapImage38");
-    }
-
-    if (X == 4 && Y == 8) {
-      body.style.background = "url(rooms/48.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash48");
-      mapImage.setAttribute("class", "mapImage48");
-    }
-
-    if (X == 5 && Y == 6) {
-      body.style.background = "url(rooms/56.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash56");
-      mapImage.setAttribute("class", "mapImage56");
-    }
-
-    if (X == 3 && Y == 5) {
-      body.style.background = "url(rooms/35.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash35");
-      mapImage.setAttribute("class", "mapImage35");
-    }
-
-    if (X == 4 && Y == 5) {
-      body.style.background = "url(rooms/45.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash45");
-      mapImage.setAttribute("class", "mapImage45");
-    }
-
-    if (X == 5 && Y == 5) {
-      body.style.background = "url(rooms/55.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash55");
-      mapImage.setAttribute("class", "mapImage55");
-    }
-
-    if (X == 4 && Y == 7) {
-      body.style.background = "url(rooms/47.jpg) no-repeat center";
-      buttonStash.setAttribute("class", "stash47");
-      mapImage.setAttribute("class", "mapImage47");
-    }
-
-    if (ENEMYCOUNT == 4 && BALUALHEALT === false && BALUAL === true) {
-      buttonStash.setAttribute("onclick", "");
-      setTimeout(balualHealt, 1501);
-    }
-
-    if (roomArray[X][Y].healtButtle === 1 && roomArray[X][Y].stash === 0) {
-      healtButtleButton.hidden = false;
-      healtButtleButton.setAttribute("class", "healtButtleButton");
-      healtButtleButton.setAttribute("onclick", "drinkHealtButtle()");
-    } else if (
-      roomArray[X][Y].healtButtle === 2 &&
-      roomArray[X][Y].stash === 0
+  });
+}
+
+function draw(deltaTime) {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "rgba(10, 20, 40, 0.8)"; // Ночной эффект
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const groundSpeed = 1.0,
+    vegetationSpeed = 0.8,
+    rocksSpeed = 0.6,
+    cloudsSpeed = 0.3;
+  const groundOffsetX = camera.x * groundSpeed;
+  const vegetationOffsetX = camera.x * vegetationSpeed;
+  const rocksOffsetX = camera.x * rocksSpeed;
+  const cloudsOffsetX = camera.x * cloudsSpeed;
+
+  // Рисуем фон с учётом смещения камеры
+  ctx.fillStyle = ctx.createPattern(backgroundImage, "repeat");
+  ctx.save();
+  ctx.translate(
+    -groundOffsetX % backgroundImage.width,
+    (-camera.y * groundSpeed) % backgroundImage.height
+  );
+  ctx.fillRect(
+    (groundOffsetX % backgroundImage.width) - backgroundImage.width,
+    ((camera.y * groundSpeed) % backgroundImage.height) -
+      backgroundImage.height,
+    worldWidth + backgroundImage.width,
+    worldHeight + backgroundImage.height
+  );
+  ctx.restore();
+
+  lights.forEach((light) => {
+    const screenX = light.x - camera.x;
+    const screenY = light.y - camera.y;
+    if (
+      screenX + light.radius > 0 &&
+      screenX - light.radius < canvas.width &&
+      screenY + light.radius > 0 &&
+      screenY - light.radius < canvas.height
     ) {
-      healtButtleButton.hidden = false;
-      healtButtleButton.setAttribute("class", "healtButtleButton2");
-      healtButtleButton.setAttribute("onclick", "drinkHealtButtle()");
-    } else {
-      healtButtleButton.hidden = true;
+      const gradient = ctx.createRadialGradient(
+        screenX,
+        screenY,
+        0,
+        screenX,
+        screenY,
+        light.radius
+      );
+      gradient.addColorStop(0, light.color);
+      gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(screenX, screenY, light.radius, 0, Math.PI * 2);
+      ctx.fill();
     }
+  });
 
-    if (roomArray[X][Y].goldDust === 1) {
-      goldDustButton.setAttribute("onclick", "takeGoldDust()");
-      goldDustButton.hidden = false;
-      let randClassGoldDustButton = Math.round(Math.random() * (10 - 1) + 1);
-      if (randClassGoldDustButton === 1 || randClassGoldDustButton === 6) {
-        goldDustButton.setAttribute("class", "goldDustButton");
-      } else if (
-        randClassGoldDustButton === 2 ||
-        randClassGoldDustButton === 7
-      ) {
-        goldDustButton.setAttribute("class", "goldDustButton2");
-      } else if (
-        randClassGoldDustButton === 3 ||
-        randClassGoldDustButton === 8
-      ) {
-        goldDustButton.setAttribute("class", "goldDustButton3");
-      } else if (
-        randClassGoldDustButton === 4 ||
-        randClassGoldDustButton === 9
-      ) {
-        goldDustButton.setAttribute("class", "goldDustButton4");
-      } else if (
-        randClassGoldDustButton === 5 ||
-        randClassGoldDustButton === 10
-      ) {
-        goldDustButton.setAttribute("class", "goldDustButton5");
+  ctx.drawImage(
+    rocksImage,
+    rocksOffsetX,
+    camera.y * rocksSpeed,
+    canvas.width,
+    canvas.height,
+    0,
+    0,
+    canvas.width,
+    canvas.height
+  );
+
+  players.forEach((player) => {
+    const screenX = player.x - camera.x;
+    const screenY = player.y - camera.y;
+
+    if (player.id !== myId) {
+      if (player.state === "walking") {
+        player.frameTime += deltaTime;
+        if (player.frameTime >= GAME_CONFIG.FRAME_DURATION / 7) {
+          player.frameTime -= GAME_CONFIG.FRAME_DURATION / 7; // Плавное вычитание
+          player.frame = (player.frame + 1) % 7;
+        }
+      } else if (player.state === "dying") {
+        player.frameTime += deltaTime;
+        if (player.frameTime >= GAME_CONFIG.FRAME_DURATION / 7) {
+          player.frameTime = 0;
+          if (player.frame < 6) player.frame += 1;
+        }
       } else {
-        goldDustButton.hidden = true;
+        player.frame = 0;
+        player.frameTime = 0;
       }
     }
 
-    body.style.backgroundSize = userSizeStr;
-    if (userWidth < 500) {
-      body.style.backgroundSize = "100% 100%";
+    let spriteX = player.frame * 40;
+    let spriteY =
+      player.state === "dying"
+        ? 160
+        : { up: 0, down: 40, left: 80, right: 120 }[player.direction] || 40;
+
+    ctx.drawImage(
+      playerSprite,
+      spriteX,
+      spriteY,
+      40,
+      40,
+      screenX,
+      screenY,
+      40,
+      40
+    );
+    ctx.fillStyle = "white";
+    ctx.font = "12px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText(player.id, screenX + 20, screenY - 20);
+    ctx.fillStyle = "red";
+    ctx.fillRect(screenX, screenY - 15, 40, 5);
+    ctx.fillStyle = "green";
+    ctx.fillRect(screenX, screenY - 15, (player.health / 100) * 40, 5);
+  });
+
+  wolves.forEach((wolf) => {
+    const screenX = wolf.x - camera.x;
+    const screenY = wolf.y - camera.y;
+    let spriteX = wolf.frame * 40;
+    let spriteY =
+      wolf.state === "dying"
+        ? 160
+        : { up: 0, down: 40, left: 80, right: 120 }[wolf.direction] || 40;
+    ctx.drawImage(
+      wolfSprite,
+      spriteX,
+      spriteY,
+      40,
+      40,
+      screenX,
+      screenY,
+      15,
+      15
+    );
+  });
+
+  items.forEach((item, itemId) => {
+    if (!items.has(itemId)) {
+      console.log(
+        `Предмет ${itemId} пропущен при отрисовке, так как уже удалён`
+      );
+      return;
     }
-    setTimeout(nextRoom, 1500);
-  };
-  setTimeout(roomsImg, 2000);
-}; //   Функция хотьбы в лево   >>>>>>>
-
-const startGame = () => {
-  //   СТАРТ ИГРЫ   >>>>>>>
-
-  enemyImg.hidden = true;
-  infoTextBlock.hidden = false;
-  infoTextBlock.innerHTML = "";
-  heroTextBlock.hidden = false;
-  youDiedText.hidden = true;
-  BALUAL = false;
-  mapImage.hidden = true;
-
-  audio.setAttribute("src", "mp3/LA.mp3");
-
-  let h1 = document.querySelector(".nameGame"); //   Получение абзаца.
-  h1.hidden = true; //   Скрытие абзаца.
-
-  startButton.hidden = true; //   Скрытие кнопки старта игры.
-  let pCorp = document.querySelector(".corp"); //   Получение параграфа corp.
-  pCorp.hidden = true; //   Скрытие параграфа corp.
-  let pStartGame = document.querySelector(".start"); //   Получение параграфа Начать игру...
-  pStartGame.hidden = true; //   Скрытие параграфа начать игру.
-
-  let bodyWidth = userWidth + " px";
-  let bodyHeight = userHeight + " px";
-  body.style.width = bodyWidth;
-  body.style.height = bodyHeight;
-  body.style.background = "black"; //   Черный фон (эффект пробуждения).
-  heroTextBlock.innerText =
-    "Господи как же больно! Наконец-то все закончилось! Сан-Франциско 70х - встречай меня!"; //   Заполнение коментария героя.
-  heroTextBlock.setAttribute("class", "heroTextBlock"); //   Подключение сss к тексту героя.
-  body.append(heroTextBlock); //   Добавление блока комментария в html.
-
-  const wakeUp = () => {
-    //   Функция пробуждения героя в лабиринте   >>>>>>>
-
-    setTimeout(
-      (dreamsImg = () => {
-        //   Замена изображения.
-        body.style.background = "url(la/1.jpg) center no-repeat";
-        body.style.backgroundSize = userSizeStr;
-        if (userWidth < 500) {
-          body.style.backgroundSize = "100% 100%";
-        }
-        heroTextBlock.style.color = "red";
-      }),
-      9000
-    );
-
-    setTimeout(
-      (dreamsImg = () => {
-        //   Замена изображения.
-        body.style.background = "url(la/2.jpg) center no-repeat";
-        body.style.backgroundSize = userSizeStr;
-        if (userWidth < 500) {
-          body.style.backgroundSize = "100% 100%";
-        }
-      }),
-      9400
-    );
-
-    setTimeout(
-      (dreamsImg = () => {
-        //   Замена изображения.
-        body.style.background = "url(la/3.jpg) center no-repeat";
-        body.style.backgroundSize = userSizeStr;
-        if (userWidth < 500) {
-          body.style.backgroundSize = "100% 100%";
-        }
-        heroTextBlock.style.color = "blue";
-      }),
-      9800
-    );
-
-    setTimeout(
-      (dreamsImg = () => {
-        //   Замена изображения.
-        body.style.background = "url(la/4.jpg) center no-repeat";
-        body.style.backgroundSize = userSizeStr;
-        if (userWidth < 500) {
-          body.style.backgroundSize = "100% 100%";
-        }
-      }),
-      10200
-    );
-
-    setTimeout(
-      (dreamsImg = () => {
-        //   Замена изображения.
-        body.style.background = "url(la/5.jpeg) center no-repeat";
-        body.style.backgroundSize = userSizeStr;
-        if (userWidth < 500) {
-          body.style.backgroundSize = "100% 100%";
-        }
-        heroTextBlock.style.color = "yellow";
-      }),
-      10600
-    );
-
-    setTimeout(
-      (dreamsImg = () => {
-        //   Замена изображения.
-        body.style.background = "url(la/6.jpg) center no-repeat";
-        body.style.backgroundSize = userSizeStr;
-        if (userWidth < 500) {
-          body.style.backgroundSize = "100% 100%";
-        }
-      }),
-      11000
-    );
-
-    setTimeout(
-      (dreamsImg = () => {
-        //   Замена изображения.
-        body.style.background = "url(la/7.jpg) center no-repeat";
-        body.style.backgroundSize = userSizeStr;
-        if (userWidth < 500) {
-          body.style.backgroundSize = "100% 100%";
-        }
-        heroTextBlock.style.color = "green";
-      }),
-      11400
-    );
-
-    setTimeout(
-      (dreamsImg = () => {
-        //   Замена изображения.
-        body.style.background = "url(la/8.jpg) center no-repeat";
-        body.style.backgroundSize = userSizeStr;
-        if (userWidth < 500) {
-          body.style.backgroundSize = "100% 100%";
-        }
-      }),
-      11800
-    );
-
-    setTimeout(
-      (dreamsImg = () => {
-        //   Замена изображения.
-        body.style.background = "url(la/9.jpg) center no-repeat";
-        body.style.backgroundSize = userSizeStr;
-        if (userWidth < 500) {
-          body.style.backgroundSize = "100% 100%";
-        }
-        heroTextBlock.style.color = "white";
-      }),
-      12200
-    );
-
-    setTimeout(
-      (dreamsImg = () => {
-        //   Замена изображения.
-        body.style.background = "url(la/10.jpg) center no-repeat";
-        body.style.backgroundSize = userSizeStr;
-        if (userWidth < 500) {
-          body.style.backgroundSize = "100% 100%";
-        }
-      }),
-      12600
-    );
-
-    setTimeout(
-      (dreamsImg = () => {
-        //   Замена изображения.
-        audio.setAttribute("src", "#");
-        body.style.background = "black";
-        body.style.backgroundSize = userSizeStr;
-        heroTextBlock.innerHTML = "";
-        heroTextBlock.style.color = "rgb(255, 94, 0)";
-      }),
-      13000
-    );
-    setTimeout(
-      (x = () => {
-        body.style.background = "url(rooms/startRoom.jpg) center no-repeat"; //   Изменение изображения фона.
-        body.style.backgroundSize = userSizeStr; //   Изменение размера изображения фона.})
-        jugButton.hidden = false;
-        jugButton.setAttribute("class", "jugButton");
-        if (userWidth < 500) {
-          body.style.backgroundSize = "100% 100%";
-        }
-        audio.setAttribute("src", "mp3/tomb.mp3");
-      }),
-      15000
-    );
-
-    setTimeout(
-      (x = () => {
-        heroTextBlock.innerText =
-          "Ааа -ааа! Что происходит? Что за... Нет - нет только не это! Где я?! Проклятье! Вот дерьмо! Ааа - ааа!";
-      }),
-      18000
-    ); //   Изменение текста героя с отсрочкой по времени.
-
-    setTimeout(
-      (x = () => {
-        heroTextBlock.innerText =
-          "Нужно осмотреться... В таком говнище я точно не бывал! Какой-то жуткий кошмар! Проклятье! Черт!";
-      }),
-      24000
-    ); //   Изменение текста героя с отсрочкой по времени.
-  };
-
-  wakeUp();
-
-  const showUser = () => {
-    //   Функция показа пользователя   >>>>>>>
-    printHealt.hidden = false;
-    printPower.hidden = false;
-    printGold.hidden = false;
-    healt.hidden = false;
-    power.hidden = false;
-    gold.hidden = false;
-
-    heroTextBlock.innerText = "";
-
-    let goldStr = "Gold : "; //   Строка золото.
-    let healtStr = "Healt : "; //   Строка жизни.
-    let powerStr = "Power : "; //   Строка силы.
-    let armorStr = "Armor : ";
-
-    printGold.setAttribute("class", "userPrintGold"); //   Добавление стилей.
-    printHealt.setAttribute("class", "userPrintHealt"); //   Добавление стилей.
-    printPower.setAttribute("class", "userPrintPower"); //   Добавление стилей.
-    printArmor.setAttribute("class", "userPrintArmor");
-
-    printGold.innerText = goldStr; //   Текст золота.
-    printHealt.innerText = healtStr; //   Текст жизни.
-    printPower.innerText = powerStr; //   Текст силы.
-    printArmor.innerText = armorStr;
-
-    body.append(printGold); //   Вставка золота.
-    body.append(printHealt); //   Вставка жизни.
-    body.append(printPower); //   Вставка силы.
-    body.append(printArmor);
-
-    gold.setAttribute("class", "userGold"); //   Добавление стилей.
-    healt.setAttribute("class", "userHealt"); //   Добавление стилей.
-    power.setAttribute("class", "userPower"); //   Добавление стилей.
-    armor.setAttribute("class", "userArmor");
-
-    gold.innerText = hero.gold; //   Текст золота.
-    healt.innerText = hero.healt; //   Текст жизни.
-    power.innerText = hero.power; //   Текст силы.
-    armor.innerText = hero.armor;
-
-    body.append(gold); //   Вставка золота.
-    body.append(healt); //   Вставка жизни.
-    body.append(power); //   Вставка силы.
-    body.append(armor);
-
-    if (hero.armor == 0) {
-      armor.hidden = true;
-      printArmor.hidden = true;
+    const screenX = item.x - camera.x;
+    const screenY = item.y - camera.y;
+    // Уменьшаем область проверки видимости, так как размер теперь 20x20
+    if (
+      screenX >= -20 &&
+      screenX <= canvas.width + 20 &&
+      screenY >= -20 &&
+      screenY <= canvas.height + 20
+    ) {
+      const itemImage = ITEM_CONFIG[item.type]?.image;
+      if (itemImage && itemImage.complete) {
+        // Меняем размер отрисовки с 40x40 на 20x20 и корректируем позицию,
+        // чтобы центр предмета оставался на месте
+        ctx.drawImage(itemImage, screenX + 10, screenY + 10, 20, 20);
+      } else {
+        // Уменьшаем заглушку до 5x5 для согласованности
+        ctx.fillStyle = "yellow";
+        ctx.fillRect(screenX + 7.5, screenY + 7.5, 5, 5);
+      }
     }
-  };
-  setTimeout(showUser, 32000); //   Функция показа пользователя   >>>>>>>
+  });
 
-  const textInfo = () => {
-    //   Функция Text Info   >>>>>>>
-    infoTextBlock.innerText =
-      "Найди способ выбраться. Обыскивай комнаты, осматривай стены и будь осторожен!";
+  obstacles.forEach((obstacle) => {
+    if (obstacle.isLine) {
+      const startX = obstacle.x1 - camera.x;
+      const startY = obstacle.y1 - camera.y;
+      const endX = obstacle.x2 - camera.x;
+      const endY = obstacle.y2 - camera.y;
+      if (
+        (startX > 0 || endX > 0) &&
+        (startX < canvas.width || endX < canvas.width) &&
+        (startY > 0 || endY > 0) &&
+        (startY < canvas.height || endY < canvas.height)
+      ) {
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(endX, endY);
+        ctx.lineWidth = obstacle.thickness;
+        ctx.strokeStyle = "rgba(255, 0, 150, 0.5)";
+        ctx.stroke();
+      }
+    }
+  });
 
-    infoTextBlock.setAttribute("class", "textInfo");
-    body.append(infoTextBlock);
-  };
-  setTimeout(textInfo, 34000); //   Функция Text Info   >>>>>>>
+  bullets.forEach((bullet) => {
+    const screenX = bullet.x - camera.x;
+    const screenY = bullet.y - camera.y;
+    console.log(`Отрисовка пули ${bullet.id} на x:${screenX}, y:${screenY}`);
+    drawBullet(screenX, screenY);
+  });
 
-  const createMap = () => {
-    //   Функция создания ссылки на карту   >>>>>>>
-    map.hidden = false;
-    map.setAttribute("href", "map/map.jpg");
-    map.setAttribute("class", "map");
-    map.setAttribute("target", "_blank");
-    body.append(map);
-  };
-  setTimeout(createMap, 35000); //   Функция создания ссылки на карту   >>>>>>>
+  ctx.drawImage(
+    vegetationImage,
+    vegetationOffsetX,
+    camera.y * vegetationSpeed,
+    canvas.width,
+    canvas.height,
+    0,
+    0,
+    canvas.width,
+    canvas.height
+  );
+  ctx.drawImage(
+    cloudsImage,
+    cloudsOffsetX,
+    camera.y * cloudsSpeed,
+    canvas.width,
+    canvas.height,
+    0,
+    0,
+    canvas.width,
+    canvas.height
+  );
+}
 
-  const createButtonStash = () => {
-    //   Функция создания кнопки тайника   >>>>>>>
-    buttonStash.hidden = false;
-    buttonStash.setAttribute("class", "stash");
-    buttonStash.setAttribute("onclick", "openStash()");
-    body.append(buttonStash);
-    jugButton.setAttribute("onclick", "startJugButton()");
-  };
-  setTimeout(createButtonStash, 35000); //   Функция создания кнопки тайника   >>>>>>>
+function drawBullet(x, y) {
+  const gradient = ctx.createRadialGradient(x, y, 2, x, y, 5);
+  gradient.addColorStop(0, "rgb(0, 75, 75)");
+  gradient.addColorStop(1, "rgba(0, 255, 255, 0)");
+  ctx.fillStyle = gradient;
+  ctx.beginPath();
+  ctx.arc(x, y, 5, 0, Math.PI * 2);
+  ctx.fill();
+}
 
-  createButtonGo = () => {
-    //   Функция создания кнопок ходьбы   >>>>>>>
+function checkCollisions() {
+  const me = players.get(myId);
+  if (!me || me.health <= 0) return;
 
-    buttonN.hidden = false;
-    buttonE.hidden = false;
-    buttonS.hidden = false;
-    buttonW.hidden = false;
+  items.forEach((item, id) => {
+    // Проверяем, существует ли предмет и не отправляли ли мы уже запрос
+    if (!items.has(id)) {
+      console.log(`Предмет ${id} уже удалён из items, пропускаем`);
+      return;
+    }
+    if (pendingPickups.has(id)) {
+      console.log(
+        `Предмет ${id} в процессе поднятия (pendingPickups), пропускаем`
+      );
+      return;
+    }
+    // Центр предмета теперь смещён, так как размер 20x20
+    const dx = me.x + 20 - (item.x + 10);
+    const dy = me.y + 20 - (item.y + 10);
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    console.log(
+      `Проверка столкновения с ${item.type} (ID: ${id}), расстояние: ${distance}`
+    );
+    if (distance < 30) {
+      // Уменьшено с 40 до 30
+      console.log(
+        `Игрок ${myId} пытается подобрать предмет ${item.type} (ID: ${id})`
+      );
+      if (ws.readyState === WebSocket.OPEN) {
+        pendingPickups.add(id);
+        sendWhenReady(ws, JSON.stringify({ type: "pickup", itemId: id }));
+        console.log(`Отправлено сообщение pickup для ${id}`);
+      } else {
+        console.error("WebSocket не открыт, предмет не отправлен на сервер");
+      }
+    }
+  });
+}
 
-    buttonN.setAttribute("class", "buttonLeft");
-    buttonE.setAttribute("class", "buttonStraight");
-    buttonS.setAttribute("class", "buttonRight");
-    buttonW.setAttribute("class", "buttonBack");
+function gameLoop(timestamp) {
+  if (!lastTime) lastTime = timestamp;
+  const deltaTime = timestamp - lastTime;
+  lastTime = timestamp;
 
-    buttonN.setAttribute("onclick", "goStrange()");
-    buttonE.setAttribute("onclick", "goRight()");
-    buttonS.setAttribute("onclick", "goDown()");
-    buttonW.setAttribute("onclick", "goLeft()");
+  update(deltaTime);
+  draw(deltaTime);
+  requestAnimationFrame(gameLoop);
+}
 
-    buttonN.innerText = "N";
-    buttonE.innerText = "E";
-    buttonS.innerText = "S";
-    buttonW.innerText = "W";
-
-    body.append(buttonN);
-    body.append(buttonE);
-    body.append(buttonS);
-    body.append(buttonW);
-  };
-  setTimeout(createButtonGo, 35000); //   Функция создания кнопок ходьбы   >>>>>>>
-}; //   СТАРТ ИГРЫ   >>>>>>>
+// Инициализация изображений (без изменений)
+let imagesLoaded = 0;
+function onImageLoad() {
+  imagesLoaded++;
+  if (imagesLoaded === 21) window.addEventListener("resize", resizeCanvas);
+}
