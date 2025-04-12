@@ -29,13 +29,6 @@ let wolves = new Map();
 const items = new Map();
 const lights = [];
 const obstacles = [];
-
-// Пример создания препятствий
-createLineObstacle(10, 10, 10, 90, 5); // Вертикальная стена слева
-createLineObstacle(90, 10, 90, 90, 5); // Вертикальная стена справа
-createLineObstacle(10, 10, 90, 10, 5); // Горизонтальная стена сверху
-createLineObstacle(10, 90, 90, 90, 5); // Горизонтальная стена снизу
-
 const bullets = new Map();
 // Хранилище предметов, для которых уже отправлен запрос pickup
 const pendingPickups = new Set();
