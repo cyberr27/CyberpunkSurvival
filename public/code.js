@@ -1713,42 +1713,33 @@ function update(deltaTime) {
 
 function draw(deltaTime) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = "rgba(10, 20, 40, 0.8)"; // Ночной эффект
+  // Ночной эффект
+  ctx.fillStyle = "rgba(10, 20, 40, 0.8)";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  const groundSpeed = 1.0,
-    vegetationSpeed = 0.8,
-    rocksSpeed = 0.6,
-    cloudsSpeed = 0.3;
-  const groundOffsetX = camera.x * groundSpeed;
-  const vegetationOffsetX = camera.x * vegetationSpeed;
-  const rocksOffsetX = camera.x * rocksSpeed;
-  const cloudsOffsetX = camera.x * cloudsSpeed;
+  // Масштаб для преобразования мировых координат в экранные
+  const scaleX = canvas.width / worldWidth;
+  const scaleY = canvas.height / worldHeight;
 
-  // Рисуем фон с учётом смещения камеры
-  ctx.fillStyle = ctx.createPattern(backgroundImage, "repeat");
-  ctx.save();
-  ctx.translate(
-    -groundOffsetX % backgroundImage.width,
-    (-camera.y * groundSpeed) % backgroundImage.height
-  );
-  ctx.fillRect(
-    (groundOffsetX % backgroundImage.width) - backgroundImage.width,
-    ((camera.y * groundSpeed) % backgroundImage.height) -
-      backgroundImage.height,
-    worldWidth + backgroundImage.width,
-    worldHeight + backgroundImage.height
-  );
-  ctx.restore();
+  if (backgroundImage.complete) {
+    ctx.drawImage(
+      backgroundImage,
+      -camera.x * scaleX,
+      -camera.y * scaleY,
+      worldWidth * scaleX,
+      worldHeight * scaleY
+    );
+  }
 
+  // Источники света
   lights.forEach((light) => {
-    const screenX = light.x - camera.x;
-    const screenY = light.y - camera.y;
+    const screenX = light.x * scaleX - camera.x * scaleX;
+    const screenY = light.y * scaleY - camera.y * scaleY;
     if (
-      screenX + light.radius > 0 &&
-      screenX - light.radius < canvas.width &&
-      screenY + light.radius > 0 &&
-      screenY - light.radius < canvas.height
+      screenX + light.radius * scaleX > 0 &&
+      screenX - light.radius * scaleX < canvas.width &&
+      screenY + light.radius * scaleY > 0 &&
+      screenY - light.radius * scaleY < canvas.height
     ) {
       const gradient = ctx.createRadialGradient(
         screenX,
@@ -1756,28 +1747,38 @@ function draw(deltaTime) {
         0,
         screenX,
         screenY,
-        light.radius
+        light.radius * scaleX
       );
       gradient.addColorStop(0, light.color);
       gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
       ctx.fillStyle = gradient;
       ctx.beginPath();
-      ctx.arc(screenX, screenY, light.radius, 0, Math.PI * 2);
+      ctx.arc(screenX, screenY, light.radius * scaleX, 0, Math.PI * 2);
       ctx.fill();
     }
   });
 
-  ctx.drawImage(
-    rocksImage,
-    rocksOffsetX,
-    camera.y * rocksSpeed,
-    canvas.width,
-    canvas.height,
-    0,
-    0,
-    canvas.width,
-    canvas.height
-  );
+  // Камни (rocksImage)
+  if (rocksImage.complete) {
+    ctx.drawImage(
+      rocksImage,
+      -camera.x * scaleX * 0.6,
+      -camera.y * scaleY * 0.6,
+      worldWidth * scaleX,
+      worldHeight * scaleY
+    );
+  }
+
+  // Вегетация (vegetationImage)
+  if (vegetationImage.complete) {
+    ctx.drawImage(
+      vegetationImage,
+      -camera.x * scaleX * 0.8,
+      -camera.y * scaleY * 0.8,
+      worldWidth * scaleX,
+      worldHeight * scaleY
+    );
+  }
 
   players.forEach((player) => {
     const screenX = player.x - camera.x;
@@ -1918,35 +1919,6 @@ function draw(deltaTime) {
     console.log(`Отрисовка пули ${bullet.id} на x:${screenX}, y:${screenY}`);
     drawBullet(screenX, screenY);
   });
-
-  // Масштабируем vegetationImage под размер мира
-  // Масштаб для преобразования мировых координат в экранные
-  const scaleX = canvas.width / worldWidth;
-  const scaleY = canvas.height / worldHeight;
-
-  // Отрисовываем vegetationImage в масштабе мира
-  ctx.drawImage(
-    vegetationImage,
-    0,
-    0,
-    vegetationImage.width,
-    vegetationImage.height,
-    -camera.x * scaleX,
-    -camera.y * scaleY,
-    worldWidth * scaleX,
-    worldHeight * scaleY
-  );
-  ctx.drawImage(
-    cloudsImage,
-    cloudsOffsetX,
-    camera.y * cloudsSpeed,
-    canvas.width,
-    canvas.height,
-    0,
-    0,
-    canvas.width,
-    canvas.height
-  );
 }
 
 function drawBullet(x, y) {
