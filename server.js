@@ -264,7 +264,8 @@ function createLineObstacleServer(x1, y1, x2, y2, thickness = 5) {
 }
 
 // Создаём препятствия после определения функции
-createLineObstacleServer(314, 330, 314, 2970, 5);
+createLineObstacleServer(0, 3241, 249, 3131, 5);
+createLineObstacleServer(249, 3131, 0, 3050);
 
 // Функция вычисления расстояния от точки до линии (взята из одиночной игры)
 function pointToLineDistance(px, py, x1, y1, x2, y2) {
