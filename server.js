@@ -826,17 +826,21 @@ wss.on("connection", (ws) => {
         const player = players.get(id);
         const partner = players.get(data.targetId);
 
-        // Добавляем предметы в инвентари
+        // Добавляем предметы в инвентари (или ничего, если ячейка пуста)
         if (session.myItem) {
           const freeSlot = partner.inventory.findIndex((slot) => slot === null);
           if (freeSlot !== -1) {
             partner.inventory[freeSlot] = { ...session.myItem };
+          } else {
+            console.log(`У партнёра ${data.targetId} нет свободных слотов`);
           }
         }
         if (partnerSession.myItem) {
           const freeSlot = player.inventory.findIndex((slot) => slot === null);
           if (freeSlot !== -1) {
             player.inventory[freeSlot] = { ...partnerSession.myItem };
+          } else {
+            console.log(`У игрока ${id} нет свободных слотов`);
           }
         }
 
@@ -867,7 +871,13 @@ wss.on("connection", (ws) => {
         // Очищаем сессию
         tradeSessions.delete(id);
         tradeSessions.delete(data.targetId);
-        console.log(`Обмен между ${id} и ${data.targetId} успешно завершён`);
+        console.log(
+          `Обмен между ${id} и ${
+            data.targetId
+          } завершён. Предметы: ${JSON.stringify(
+            session.myItem
+          )} <-> ${JSON.stringify(partnerSession.myItem)}`
+        );
       }
     } else if (data.type === "tradeCancelled") {
       const id = clients.get(ws);

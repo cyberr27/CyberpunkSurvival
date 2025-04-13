@@ -668,6 +668,31 @@ button:active {
   cursor: not-allowed;
   box-shadow: none;
 }
+#tradeContainer {
+  display: flex;
+  align-items: center;
+}
+
+.trade-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.trade-slot img {
+  width: 100%;
+  height: 100%;
+}
+
+.trade-slot .quantity {
+  position: absolute;
+  top: 0;
+  right: 0;
+  color: #00ffff;
+  font-size: 14px;
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.7);
+}
 /* Адаптация для мобильных устройств (max-width: 500px) */
 @media (max-width: 500px) {
   body {

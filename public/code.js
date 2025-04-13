@@ -709,6 +709,38 @@ function startGame() {
         return; // Прерываем, если клик в инвентаре, но не по слоту
       }
 
+      // Создаём контейнер для ячеек обмена
+      const tradeContainer = document.createElement("div");
+      tradeContainer.id = "tradeContainer";
+      tradeContainer.style.position = "absolute";
+      tradeContainer.style.top = "50%";
+      tradeContainer.style.left = "50%";
+      tradeContainer.style.transform = "translate(-50%, -50%)";
+      tradeContainer.style.display = "none";
+      tradeContainer.style.zIndex = "200";
+      document.body.appendChild(tradeContainer);
+
+      // Создаём ячейку для своего предмета
+      const tradeSlot = document.createElement("div");
+      tradeSlot.id = "tradeSlot";
+      tradeSlot.className = "inventory-slot trade-slot";
+      tradeSlot.style.width = "60px";
+      tradeSlot.style.height = "60px";
+      tradeSlot.style.background = "rgba(0, 255, 255, 0.2)";
+      tradeSlot.style.border = "2px solid #00ffff";
+      tradeSlot.style.marginRight = "20px";
+      tradeContainer.appendChild(tradeSlot);
+
+      // Создаём ячейку для предмета партнёра
+      const partnerTradeSlot = document.createElement("div");
+      partnerTradeSlot.id = "partnerTradeSlot";
+      partnerTradeSlot.className = "inventory-slot trade-slot";
+      partnerTradeSlot.style.width = "60px";
+      partnerTradeSlot.style.height = "60px";
+      partnerTradeSlot.style.background = "rgba(255, 0, 255, 0.2)";
+      partnerTradeSlot.style.border = "2px solid #ff00ff";
+      tradeContainer.appendChild(partnerTradeSlot);
+
       isMoving = true;
       targetX = e.clientX + camera.x;
       targetY = e.clientY + camera.y;
@@ -1008,12 +1040,20 @@ function startGame() {
 
   useBtn.addEventListener("click", (e) => {
     e.preventDefault();
-    if (selectedSlot !== null) useItem(selectedSlot);
+    if (selectedSlot !== null) {
+      useItem(selectedSlot);
+    } else if (tradeSession && tradeSession.myItem) {
+      useItem(null); // Подтверждаем обмен
+    }
   });
 
   dropBtn.addEventListener("click", (e) => {
     e.preventDefault();
-    if (selectedSlot !== null) dropItem(selectedSlot);
+    if (selectedSlot !== null) {
+      dropItem(selectedSlot);
+    } else {
+      dropItem(null); // Отмена или возврат предмета
+    }
   });
 
   // Настройка кнопки Trade
@@ -1074,7 +1114,7 @@ function selectSlot(slotIndex, slotElement) {
   const dropBtn = document.getElementById("dropBtn");
 
   if (tradeSession && !tradeSession.myItem) {
-    // Размещаем предмет в ячейку обмена
+    // Переносим предмет в ячейку обмена
     tradeSession.myItem = { ...inventory[slotIndex], slotIndex };
     inventory[slotIndex] = null;
     sendWhenReady(
@@ -1090,7 +1130,7 @@ function selectSlot(slotIndex, slotElement) {
     screen.innerHTML = "";
     useBtn.textContent = "Обмен";
     useBtn.disabled = tradeSession.myConfirmed;
-    dropBtn.textContent = "Не согласен";
+    dropBtn.textContent = "Отмена";
     dropBtn.disabled = false;
   } else {
     // Обычная логика выбора слота
@@ -1118,7 +1158,7 @@ function hideActionButtons() {
 // Подтверждение обмена
 function useItem(slotIndex) {
   if (tradeSession) {
-    if (tradeSession.myItem && !tradeSession.myConfirmed) {
+    if (!tradeSession.myConfirmed) {
       tradeSession.myConfirmed = true;
       sendWhenReady(
         ws,
@@ -1170,68 +1210,95 @@ function useItem(slotIndex) {
 
 // Выкинуть предмет
 function dropItem(slotIndex) {
-  const item = inventory[slotIndex];
-  if (!item) return;
-  const me = players.get(myId);
-  const screen = document.getElementById("inventoryScreen");
-  const useBtn = document.getElementById("useBtn");
-  const dropBtn = document.getElementById("dropBtn");
+  if (!tradeSession) {
+    const item = inventory[slotIndex];
+    if (!item) return;
+    const me = players.get(myId);
+    const screen = document.getElementById("inventoryScreen");
+    const useBtn = document.getElementById("useBtn");
+    const dropBtn = document.getElementById("dropBtn");
 
-  if (item.type === "balyary") {
-    // Логика для "Баляр" с формой ввода количества
-    screen.innerHTML = `
-      <div class="balyary-drop-form">
-        <p class="cyber-text">Сколько выкинуть?</p>
-        <input type="number" id="balyaryAmount" class="cyber-input" min="1" max="${
-          item.quantity || 1
-        }" placeholder="0" value="" autofocus />
-        <p id="balyaryError" class="error-text"></p>
-      </div>
-    `;
-    const input = document.getElementById("balyaryAmount");
-    const errorEl = document.getElementById("balyaryError");
+    if (item.type === "balyary") {
+      // Логика для "Баляр" с формой ввода количества
+      screen.innerHTML = `
+        <div class="balyary-drop-form">
+          <p class="cyber-text">Сколько выкинуть?</p>
+          <input type="number" id="balyaryAmount" class="cyber-input" min="1" max="${
+            item.quantity || 1
+          }" placeholder="0" value="" autofocus />
+          <p id="balyaryError" class="error-text"></p>
+        </div>
+      `;
+      const input = document.getElementById("balyaryAmount");
+      const errorEl = document.getElementById("balyaryError");
 
-    requestAnimationFrame(() => {
-      input.focus();
-      input.select();
-    });
+      requestAnimationFrame(() => {
+        input.focus();
+        input.select();
+      });
 
-    input.addEventListener("input", () => {
-      console.log("Ввод в balyaryAmount:", input.value);
-      input.value = input.value.replace(/[^0-9]/g, "");
-      if (input.value === "") input.value = "";
-    });
+      input.addEventListener("input", () => {
+        input.value = input.value.replace(/[^0-9]/g, "");
+        if (input.value === "") input.value = "";
+      });
 
-    useBtn.textContent = "Подтвердить";
-    useBtn.disabled = false;
-    dropBtn.disabled = true;
+      useBtn.textContent = "Подтвердить";
+      useBtn.disabled = false;
+      dropBtn.disabled = true;
 
-    input.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          confirmDrop();
+        }
+      });
+
+      useBtn.onclick = (e) => {
         e.preventDefault();
         confirmDrop();
+      };
+
+      function confirmDrop() {
+        const amount = parseInt(input.value) || 0;
+        const currentQuantity = item.quantity || 1;
+
+        if (amount <= 0) {
+          errorEl.textContent = "Введи нормальное число, братишка!";
+          return;
+        }
+
+        if (amount > currentQuantity) {
+          errorEl.textContent = "Не хватает Баляр!";
+          return;
+        }
+
+        sendWhenReady(
+          ws,
+          JSON.stringify({
+            type: "dropItem",
+            slotIndex,
+            x: me.x,
+            y: me.y,
+            quantity: amount,
+          })
+        );
+
+        if (amount === currentQuantity) {
+          inventory[slotIndex] = null;
+        } else {
+          inventory[slotIndex].quantity -= amount;
+        }
+
+        useBtn.textContent = "Использовать";
+        useBtn.disabled = true;
+        dropBtn.disabled = true;
+        useBtn.onclick = () => useItem(slotIndex);
+        selectedSlot = null;
+        screen.innerHTML = "";
+        updateInventoryDisplay();
       }
-    });
-
-    useBtn.onclick = (e) => {
-      e.preventDefault();
-      confirmDrop();
-    };
-
-    function confirmDrop() {
-      const amount = parseInt(input.value) || 0;
-      const currentQuantity = item.quantity || 1;
-
-      if (amount <= 0) {
-        errorEl.textContent = "Введи нормальное число, братишка!";
-        return;
-      }
-
-      if (amount > currentQuantity) {
-        errorEl.textContent = "Не хватает Баляр!";
-        return;
-      }
-
+    } else {
+      // Логика для остальных предметов
       sendWhenReady(
         ws,
         JSON.stringify({
@@ -1239,46 +1306,46 @@ function dropItem(slotIndex) {
           slotIndex,
           x: me.x,
           y: me.y,
-          quantity: amount,
+          quantity: 1,
         })
       );
 
-      if (amount === currentQuantity) {
-        inventory[slotIndex] = null;
-      } else {
-        inventory[slotIndex].quantity -= amount;
-      }
-
-      useBtn.textContent = "Использовать";
+      inventory[slotIndex] = null;
+      selectedSlot = null;
       useBtn.disabled = true;
       dropBtn.disabled = true;
-      useBtn.onclick = () => useItem(slotIndex);
-      selectedSlot = null;
       screen.innerHTML = "";
       updateInventoryDisplay();
     }
   } else {
-    // Логика для остальных предметов: выкидываем один предмет
-    sendWhenReady(
-      ws,
-      JSON.stringify({
-        type: "dropItem",
-        slotIndex,
-        x: me.x,
-        y: me.y,
-        quantity: 1, // Выкидываем ровно один предмет
-      })
-    );
-
-    // Очищаем слот инвентаря
-    inventory[slotIndex] = null;
-
-    // Сбрасываем выбранный слот и кнопки
-    selectedSlot = null;
-    useBtn.disabled = true;
-    dropBtn.disabled = true;
-    screen.innerHTML = "";
-    updateInventoryDisplay();
+    // Логика кнопки "Отмена" во время торговли
+    if (tradeSession.myItem) {
+      // Возвращаем предмет в инвентарь
+      const freeSlot = inventory.findIndex((slot) => slot === null);
+      if (freeSlot !== -1) {
+        inventory[freeSlot] = { ...tradeSession.myItem };
+        tradeSession.myItem = null;
+        sendWhenReady(
+          ws,
+          JSON.stringify({
+            type: "tradeItemPlaced",
+            targetId: tradeSession.partnerId,
+            item: null,
+          })
+        );
+        updateTradeInventory();
+        selectedSlot = null;
+        document.getElementById("inventoryScreen").textContent = "";
+        console.log("Предмет возвращён в инвентарь");
+      } else {
+        console.log("Нет свободных слотов для возврата предмета");
+        // Можно добавить уведомление, например:
+        // alert("Инвентарь полон, освободите слот!");
+      }
+    } else {
+      // Завершаем торг
+      cancelTrade();
+    }
   }
 }
 
@@ -1510,33 +1577,31 @@ function openTradeInventory() {
   inventoryContainer.style.display = "grid";
   document.getElementById("inventoryBtn").classList.add("active");
 
-  // Добавляем ячейку обмена
-  const tradeSlot = document.createElement("div");
-  tradeSlot.id = "tradeSlot";
-  tradeSlot.className = "inventory-slot trade-slot";
-  tradeSlot.style.gridColumn = "1 / 3";
-  tradeSlot.style.gridRow = "1";
-  tradeSlot.style.background = "rgba(255, 0, 255, 0.2)"; // Лёгкая розовая подсветка
-  document.getElementById("inventoryGrid").prepend(tradeSlot);
+  // Показываем контейнер обмена
+  const tradeContainer = document.getElementById("tradeContainer");
+  tradeContainer.style.display = "flex";
 
   updateTradeInventory();
 }
 
 // Обновить интерфейс обмена
 function updateTradeInventory() {
-  if (!isInventoryOpen || !tradeSession) return;
+  if (!tradeSession) return;
 
   const tradeSlot = document.getElementById("tradeSlot");
-  tradeSlot.innerHTML = "";
+  const partnerTradeSlot = document.getElementById("partnerTradeSlot");
   const screen = document.getElementById("inventoryScreen");
   const useBtn = document.getElementById("useBtn");
   const dropBtn = document.getElementById("dropBtn");
 
+  // Очищаем ячейки
+  tradeSlot.innerHTML = "";
+  partnerTradeSlot.innerHTML = "";
+
+  // Отображаем свой предмет
   if (tradeSession.myItem) {
     const img = document.createElement("img");
     img.src = ITEM_CONFIG[tradeSession.myItem.type].image.src;
-    img.style.width = "100%";
-    img.style.height = "100%";
     tradeSlot.appendChild(img);
 
     if (
@@ -1544,35 +1609,55 @@ function updateTradeInventory() {
       tradeSession.myItem.quantity > 1
     ) {
       const quantityEl = document.createElement("div");
+      quantityEl.className = "quantity";
       quantityEl.textContent = tradeSession.myItem.quantity;
-      quantityEl.style.position = "absolute";
-      quantityEl.style.top = "0";
-      quantityEl.style.right = "0";
-      quantityEl.style.color = "#00ffff";
-      quantityEl.style.fontSize = "14px";
-      quantityEl.style.textShadow = "0 0 5px rgba(0, 255, 255, 0.7)";
       tradeSlot.appendChild(quantityEl);
     }
+
+    tradeSlot.onmouseover = () => {
+      screen.textContent = ITEM_CONFIG[tradeSession.myItem.type].description;
+    };
+    tradeSlot.onmouseout = () => {
+      screen.textContent = "";
+    };
+  } else {
+    tradeSlot.onmouseover = null;
+    tradeSlot.onmouseout = null;
   }
 
-  screen.textContent = tradeSession.partnerItem
-    ? `Партнёр предлагает: ${
-        ITEM_CONFIG[tradeSession.partnerItem.type].description
-      }`
-    : "Ожидаем предмет от партнёра...";
+  // Отображаем предмет партнёра
+  if (tradeSession.partnerItem) {
+    const img = document.createElement("img");
+    img.src = ITEM_CONFIG[tradeSession.partnerItem.type].image.src;
+    partnerTradeSlot.appendChild(img);
+
+    if (
+      tradeSession.partnerItem.type === "balyary" &&
+      tradeSession.partnerItem.quantity > 1
+    ) {
+      const quantityEl = document.createElement("div");
+      quantityEl.className = "quantity";
+      quantityEl.textContent = tradeSession.partnerItem.quantity;
+      partnerTradeSlot.appendChild(quantityEl);
+    }
+
+    partnerTradeSlot.onmouseover = () => {
+      screen.textContent =
+        ITEM_CONFIG[tradeSession.partnerItem.type].description;
+    };
+    partnerTradeSlot.onmouseout = () => {
+      screen.textContent = "";
+    };
+  } else {
+    partnerTradeSlot.onmouseover = null;
+    partnerTradeSlot.onmouseout = null;
+  }
 
   // Обновляем кнопки
-  if (tradeSession.myItem || tradeSession.partnerItem) {
-    useBtn.textContent = "Обмен";
-    useBtn.disabled = !tradeSession.myItem || tradeSession.myConfirmed;
-    dropBtn.textContent = "Не согласен";
-    dropBtn.disabled = false;
-  } else {
-    useBtn.textContent = "Использовать";
-    useBtn.disabled = true;
-    dropBtn.textContent = "Выкинуть";
-    dropBtn.disabled = true;
-  }
+  useBtn.textContent = tradeSession.myItem ? "Обмен" : "Использовать";
+  useBtn.disabled = !tradeSession.myItem && selectedSlot === null;
+  dropBtn.textContent = "Отмена";
+  dropBtn.disabled = false;
 
   updateInventoryDisplay();
 }
@@ -1599,8 +1684,8 @@ function cancelTrade() {
   tradeSession = null;
   selectedPlayerId = null;
   document.getElementById("tradeBtn").disabled = true;
-  const tradeSlot = document.getElementById("tradeSlot");
-  if (tradeSlot) tradeSlot.remove();
+  const tradeContainer = document.getElementById("tradeContainer");
+  tradeContainer.style.display = "none";
   if (isInventoryOpen) {
     toggleInventory();
     toggleInventory(); // Переоткрываем, чтобы сбросить интерфейс
@@ -1612,37 +1697,25 @@ function cancelTrade() {
 function finalizeTrade() {
   if (!tradeSession) return;
 
-  // Обмениваем предметы
-  if (tradeSession.myItem) {
+  // Обмениваем предметы (или ничего, если ячейка пуста)
+  if (tradeSession.partnerItem) {
     const freeSlot = inventory.findIndex((slot) => slot === null);
     if (freeSlot !== -1) {
       inventory[freeSlot] = { ...tradeSession.partnerItem };
     }
   }
-  if (tradeSession.partnerItem) {
+  if (tradeSession.myItem) {
     const freeSlot = inventory.findIndex((slot) => slot === null);
     if (freeSlot !== -1) {
       inventory[freeSlot] = { ...tradeSession.myItem };
     }
   }
 
-  // Отправляем серверу обновлённый инвентарь
-  sendWhenReady(
-    ws,
-    JSON.stringify({
-      type: "update",
-      player: {
-        id: myId,
-        inventory: inventory,
-      },
-    })
-  );
-
   tradeSession = null;
   selectedPlayerId = null;
   document.getElementById("tradeBtn").disabled = true;
-  const tradeSlot = document.getElementById("tradeSlot");
-  if (tradeSlot) tradeSlot.remove();
+  const tradeContainer = document.getElementById("tradeContainer");
+  tradeContainer.style.display = "none";
   if (isInventoryOpen) {
     toggleInventory();
     toggleInventory(); // Переоткрываем, чтобы сбросить интерфейс
@@ -1798,46 +1871,18 @@ function handleGameMessage(event) {
         bullets.delete(data.bulletId);
         console.log(`Пуля ${data.bulletId} удалена`);
         break;
-      case "tradeRequest":
-        // Получено приглашение на обмен
-        if (data.targetId === myId && !tradeSession) {
-          showTradeRequest(data.fromId);
-        }
-        break;
-      case "tradeAccepted":
-        // Партнёр принял обмен
-        if (data.fromId === selectedPlayerId && !tradeSession) {
-          tradeSession = {
-            partnerId: data.fromId,
-            myItem: null,
-            partnerItem: null,
-          };
-          openTradeInventory();
-          console.log(`Обмен начат с ${data.fromId}`);
-        }
-        break;
-      case "tradeDeclined":
-        // Партнёр отклонил обмен
-        if (data.fromId === selectedPlayerId) {
-          selectedPlayerId = null;
-          document.getElementById("tradeBtn").disabled = true;
-          console.log(`Игрок ${data.fromId} отклонил обмен`);
-          // Можно добавить уведомление, например:
-          // alert(`Игрок ${data.fromId} отклонил ваш запрос на обмен`);
-        }
-        break;
       case "tradeItemPlaced":
-        // Партнёр положил предмет в ячейку обмена
         if (tradeSession && tradeSession.partnerId === data.fromId) {
           tradeSession.partnerItem = data.item;
           updateTradeInventory();
           console.log(
-            `Партнёр ${data.fromId} предложил предмет: ${data.item?.type}`
+            `Партнёр ${data.fromId} предложил предмет: ${
+              data.item?.type || "ничего"
+            }`
           );
         }
         break;
       case "tradeConfirmed":
-        // Партнёр подтвердил обмен
         if (tradeSession && tradeSession.partnerId === data.fromId) {
           tradeSession.partnerConfirmed = true;
           if (tradeSession.myConfirmed) {
@@ -1847,7 +1892,6 @@ function handleGameMessage(event) {
         }
         break;
       case "tradeCancelled":
-        // Обмен отменён
         if (tradeSession && tradeSession.partnerId === data.fromId) {
           cancelTrade();
           console.log(`Обмен с ${data.fromId} отменён`);
