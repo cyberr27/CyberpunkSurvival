@@ -553,7 +553,12 @@ button:active {
 /* Отключаем курсор для кнопок, чтобы не мешал */
 .cyber-btn,
 .action-btn {
-  cursor: pointer; /* Стандартный курсор для кнопок */
+  padding: 10px 20px;
+  cursor: pointer;
+  background: rgba(0, 255, 255, 0.2);
+  border: 2px solid #00ffff;
+  color: #00ffff;
+  font-family: "Courier New", monospace;
 }
 /* Форма выброса Баляр */
 .balyary-drop-form {
@@ -668,30 +673,11 @@ button:active {
   cursor: not-allowed;
   box-shadow: none;
 }
-#tradeContainer {
-  display: flex;
-  align-items: center;
+.use-btn:hover {
+  background: rgba(0, 255, 255, 0.5);
 }
-
-.trade-slot {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-}
-
-.trade-slot img {
-  width: 100%;
-  height: 100%;
-}
-
-.trade-slot .quantity {
-  position: absolute;
-  top: 0;
-  right: 0;
-  color: #00ffff;
-  font-size: 14px;
-  text-shadow: 0 0 5px rgba(0, 255, 255, 0.7);
+.drop-btn:hover {
+  background: rgba(255, 0, 255, 0.5);
 }
 /* Адаптация для мобильных устройств (max-width: 500px) */
 @media (max-width: 500px) {

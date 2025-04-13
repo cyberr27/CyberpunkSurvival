@@ -1871,6 +1871,31 @@ function handleGameMessage(event) {
         bullets.delete(data.bulletId);
         console.log(`Пуля ${data.bulletId} удалена`);
         break;
+      case "tradeRequest":
+        console.log(`Получен запрос на обмен от ${data.fromId}`);
+        showTradeRequest(data.fromId);
+        break;
+      case "tradeDeclined":
+        if (data.fromId === selectedPlayerId) {
+          console.log(`Игрок ${data.fromId} отклонил обмен`);
+          document.getElementById("tradeBtn").disabled = false; // Активируем кнопку
+          selectedPlayerId = null; // Сбрасываем выбор игрока
+        }
+        break;
+      case "tradeAccepted":
+        if (data.fromId === selectedPlayerId) {
+          console.log(`Игрок ${data.fromId} принял обмен`);
+          tradeSession = {
+            partnerId: data.fromId,
+            myItem: null,
+            partnerItem: null,
+            myConfirmed: false,
+            partnerConfirmed: false,
+          };
+          openTradeInventory();
+          document.getElementById("tradeBtn").disabled = true; // Кнопка остаётся отключённой во время обмена
+        }
+        break;
       case "tradeItemPlaced":
         if (tradeSession && tradeSession.partnerId === data.fromId) {
           tradeSession.partnerItem = data.item;
