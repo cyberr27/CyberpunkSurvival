@@ -77,7 +77,13 @@ condensedMilkImage.src = "condensed_milk.png";
 const driedFishImage = new Image();
 driedFishImage.src = "dried_fish.png";
 const balyaryImage = new Image();
-balyaryImage.src = "balyary.png"; // Укажи правильный путь к файлу
+balyaryImage.src = "balyary.png";
+const appleImage = new Image();
+appleImage.src = "apple.png";
+const berriesImage = new Image();
+berriesImage.src = "berry.png";
+const carrotImage = new Image();
+carrotImage.src = "carrot.png";
 
 // Инвентарь игрока (массив на 20 слотов, изначально пустой)
 let inventory = Array(20).fill(null);
@@ -98,6 +104,24 @@ const ITEM_CONFIG = {
     effect: { water: 30 },
     image: waterBottleImage,
     description: "Вода: +30 воды.",
+  },
+  apple: {
+    effect: { food: 8, water: 5 },
+    image: appleImage,
+    description: "Яблоко: +8 еды, +5 воды.",
+    rarity: 3,
+  },
+  berries: {
+    effect: { food: 6, water: 6 },
+    image: berriesImage,
+    description: "Ягоды: +6 еды, +6 воды.",
+    rarity: 3,
+  },
+  carrot: {
+    effect: { food: 5, energy: 3 },
+    image: carrotImage,
+    description: "Морковь: +5 еды, +3 энергии.",
+    rarity: 3,
   },
   canned_meat: {
     effect: { food: 20 },
@@ -1888,5 +1912,5 @@ function gameLoop(timestamp) {
 let imagesLoaded = 0;
 function onImageLoad() {
   imagesLoaded++;
-  if (imagesLoaded === 21) window.addEventListener("resize", resizeCanvas);
+  if (imagesLoaded === 24) window.addEventListener("resize", resizeCanvas);
 }

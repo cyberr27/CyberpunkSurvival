@@ -46,6 +46,9 @@ const ITEM_CONFIG = {
   // Частые (уровень 3)
   water_bottle: { effect: { water: 30 }, rarity: 3 },
   nut: { effect: { food: 7 }, rarity: 3 },
+  apple: { effect: { food: 8, water: 5 }, rarity: 3 },
+  berries: { effect: { food: 6, water: 6 }, rarity: 3 },
+  carrot: { effect: { food: 5, energy: 3 }, rarity: 3 },
 };
 
 // Получаем строку подключения только из переменной окружения
@@ -868,39 +871,42 @@ setInterval(() => {
     .map(([type]) => type); // blood_pack, canned_meat, mushroom
   const mediumItems = Object.entries(ITEM_CONFIG)
     .filter(([_, config]) => config.rarity === 2)
-    .map(([type]) => type); // dried_fish, condensed_milk, и т.д.
+    .map(([type]) => type); // dried_fish, condensed_milk, milk, и т.д.
   const commonItems = Object.entries(ITEM_CONFIG)
     .filter(([_, config]) => config.rarity === 3)
-    .map(([type]) => type); // water_bottle, nut
+    .map(([type]) => type); // water_bottle, nut, apple, berries, carrot
 
-  // Цель: 6 предметов на игрока (например, 1 редкий, 2 средних, 3 частых)
-  const desiredTotalItems = playerCount * 6;
+  // Цель: 10 предметов на игрока (2 редких, 3 средних, 5 частых)
+  const desiredTotalItems = playerCount * 10;
   const currentTotalItems = Array.from(items.values()).length;
 
   if (currentTotalItems < desiredTotalItems) {
     const itemsToSpawn = desiredTotalItems - currentTotalItems;
 
-    // Распределяем предметы: 1 редкий, 2 средних, 3 частых на игрока
-    let rareCount = playerCount; // 1 редкий на игрока
-    let mediumCount = playerCount * 2; // 2 средних на игрока
-    let commonCount = playerCount * 3; // 3 частых на игрока
+    // Распределяем предметы: 2 редких, 3 средних, 5 частых на игрока
+    let rareCount = playerCount * 2; // 2 редких на игрока
+    let mediumCount = playerCount * 3; // 3 средних на игрока
+    let commonCount = playerCount * 5; // 5 частых на игрока
 
     for (let i = 0; i < itemsToSpawn; i++) {
       let type;
       if (
         rareCount > 0 &&
+        rareItems.length > 0 &&
         itemCounts[rareItems[rareCount % rareItems.length]] < rareCount
       ) {
         type = rareItems[Math.floor(Math.random() * rareItems.length)];
         rareCount--;
       } else if (
         mediumCount > 0 &&
+        mediumItems.length > 0 &&
         itemCounts[mediumItems[mediumCount % mediumItems.length]] < mediumCount
       ) {
         type = mediumItems[Math.floor(Math.random() * mediumItems.length)];
         mediumCount--;
       } else if (
         commonCount > 0 &&
+        commonItems.length > 0 &&
         itemCounts[commonItems[commonCount % commonItems.length]] < commonCount
       ) {
         type = commonItems[Math.floor(Math.random() * commonItems.length)];
@@ -911,32 +917,46 @@ setInterval(() => {
         type = allTypes[Math.floor(Math.random() * allTypes.length)];
       }
 
-      const itemId = `${type}_${Date.now()}_${i}`;
-      const newItem = {
-        x: Math.random() * worldWidth,
-        y: Math.random() * worldHeight,
-        type: type,
-        spawnTime: currentTime,
-      };
-      items.set(itemId, newItem);
-      console.log(
-        `Создан предмет ${type} (${itemId}) на x:${newItem.x}, y:${newItem.y}`
-      );
+      let x,
+        y,
+        attempts = 0;
+      const maxAttempts = 10;
+      do {
+        x = Math.random() * worldWidth;
+        y = Math.random() * worldHeight;
+        attempts++;
+      } while (checkCollisionServer(x, y) && attempts < maxAttempts);
 
-      wss.clients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(
-            JSON.stringify({
-              type: "newItem",
-              itemId: itemId,
-              x: newItem.x,
-              y: newItem.y,
-              type: newItem.type,
-              spawnTime: newItem.spawnTime,
-            })
-          );
-        }
-      });
+      if (attempts < maxAttempts) {
+        const itemId = `${type}_${Date.now()}_${i}`;
+        const newItem = {
+          x,
+          y,
+          type,
+          spawnTime: currentTime,
+        };
+        items.set(itemId, newItem);
+        console.log(
+          `Создан предмет ${type} (${itemId}) на x:${newItem.x}, y:${newItem.y}`
+        );
+
+        wss.clients.forEach((client) => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(
+              JSON.stringify({
+                type: "newItem",
+                itemId: itemId,
+                x: newItem.x,
+                y: newItem.y,
+                type: newItem.type,
+                spawnTime: newItem.spawnTime,
+              })
+            );
+          }
+        });
+      } else {
+        console.log(`Не удалось найти место для спавна предмета ${type}`);
+      }
     }
   }
 
