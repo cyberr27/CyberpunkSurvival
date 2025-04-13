@@ -482,6 +482,17 @@ button:active {
   grid-row: 2; /* Второй ряд в контейнере */
 }
 
+/* Ячейка обмена */
+.trade-slot {
+  background: rgba(255, 0, 255, 0.2) !important;
+  border: 2px solid #ff00ff !important;
+  box-shadow: 0 0 10px rgba(255, 0, 255, 0.5) !important;
+}
+
+.trade-slot:hover {
+  box-shadow: 0 0 15px rgba(255, 0, 255, 0.7) !important;
+}
+
 /* Подсказка */
 .tooltip {
   position: absolute;
@@ -638,6 +649,25 @@ button:active {
     box-shadow: 0 0 20px rgba(255, 0, 255, 1), 0 0 30px rgba(0, 255, 255, 0.8);
   }
 }
+
+/* Кнопка Trade */
+#tradeBtn {
+  bottom: 20px;
+  right: 220px; /* Левее кнопки Inventory */
+  width: 60px;
+  height: 60px;
+}
+
+#tradeBtn.active {
+  background: linear-gradient(135deg, #ff00cc, #00ff99);
+  box-shadow: 0 0 20px rgba(255, 0, 204, 1);
+}
+
+#tradeBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
 /* Адаптация для мобильных устройств (max-width: 500px) */
 @media (max-width: 500px) {
   body {
@@ -761,5 +791,15 @@ button:active {
   .error-text {
     font-size: 10px;
     margin-top: 3px;
+  }
+  #tradeBtn {
+    bottom: 15px;
+    right: 190px; /* Левее Inventory */
+    width: 50px;
+    height: 50px;
+  }
+  .trade-slot {
+    width: 100px !important;
+    height: 50px !important;
   }
 }

@@ -11,6 +11,7 @@ const wss = new WebSocket.Server({ server });
 const clients = new Map();
 const players = new Map();
 const userDatabase = new Map();
+const tradeSessions = new Map();
 
 // В начало файла, после определения констант
 INACTIVITY_TIMEOUT = 15 * 60 * 1000;
@@ -684,6 +685,247 @@ wss.on("connection", (ws) => {
           }
         }
       }
+    } else if (data.type === "tradeRequest") {
+      const id = clients.get(ws);
+      if (
+        !id ||
+        !data.targetId ||
+        id === data.targetId ||
+        tradeSessions.has(id)
+      )
+        return;
+
+      const targetWs = Array.from(clients.entries()).find(
+        ([client, clientId]) => clientId === data.targetId
+      )?.[0];
+      if (targetWs && targetWs.readyState === WebSocket.OPEN) {
+        targetWs.send(
+          JSON.stringify({
+            type: "tradeRequest",
+            fromId: id,
+            targetId: data.targetId,
+          })
+        );
+        console.log(
+          `Приглашение на обмен от ${id} отправлено игроку ${data.targetId}`
+        );
+      }
+    } else if (data.type === "tradeAccepted") {
+      const id = clients.get(ws);
+      if (!id || !data.targetId || tradeSessions.has(id)) return;
+
+      const targetWs = Array.from(clients.entries()).find(
+        ([client, clientId]) => clientId === data.targetId
+      )?.[0];
+      if (targetWs && targetWs.readyState === WebSocket.OPEN) {
+        tradeSessions.set(id, {
+          partnerId: data.targetId,
+          myItem: null,
+          partnerItem: null,
+          myConfirmed: false,
+          partnerConfirmed: false,
+        });
+        tradeSessions.set(data.targetId, {
+          partnerId: id,
+          myItem: null,
+          partnerItem: null,
+          myConfirmed: false,
+          partnerConfirmed: false,
+        });
+        targetWs.send(
+          JSON.stringify({
+            type: "tradeAccepted",
+            fromId: id,
+            targetId: data.targetId,
+          })
+        );
+        ws.send(
+          JSON.stringify({
+            type: "tradeAccepted",
+            fromId: id,
+            targetId: data.targetId,
+          })
+        );
+        console.log(`Обмен начат между ${id} и ${data.targetId}`);
+      }
+    } else if (data.type === "tradeDeclined") {
+      const id = clients.get(ws);
+      if (!id || !data.targetId) return;
+
+      const targetWs = Array.from(clients.entries()).find(
+        ([client, clientId]) => clientId === data.targetId
+      )?.[0];
+      if (targetWs && targetWs.readyState === WebSocket.OPEN) {
+        targetWs.send(
+          JSON.stringify({
+            type: "tradeDeclined",
+            fromId: id,
+            targetId: data.targetId,
+          })
+        );
+        console.log(`Игрок ${id} отклонил обмен с ${data.targetId}`);
+      }
+    } else if (data.type === "tradeItemPlaced") {
+      const id = clients.get(ws);
+      if (!id || !data.targetId || !tradeSessions.has(id)) return;
+
+      const session = tradeSessions.get(id);
+      if (session.partnerId !== data.targetId) return;
+
+      session.myItem = data.item;
+      tradeSessions.set(id, { ...session });
+
+      const partnerSession = tradeSessions.get(data.targetId);
+      partnerSession.partnerItem = data.item;
+      tradeSessions.set(data.targetId, { ...partnerSession });
+
+      const targetWs = Array.from(clients.entries()).find(
+        ([client, clientId]) => clientId === data.targetId
+      )?.[0];
+      if (targetWs && targetWs.readyState === WebSocket.OPEN) {
+        targetWs.send(
+          JSON.stringify({
+            type: "tradeItemPlaced",
+            fromId: id,
+            item: data.item,
+          })
+        );
+        console.log(
+          `Игрок ${id} предложил предмет ${data.item?.type} для обмена`
+        );
+      }
+    } else if (data.type === "tradeConfirmed") {
+      const id = clients.get(ws);
+      if (!id || !data.targetId || !tradeSessions.has(id)) return;
+
+      const session = tradeSessions.get(id);
+      if (session.partnerId !== data.targetId) return;
+
+      session.myConfirmed = true;
+      tradeSessions.set(id, { ...session });
+
+      const partnerSession = tradeSessions.get(data.targetId);
+      partnerSession.partnerConfirmed = true;
+      tradeSessions.set(data.targetId, { ...partnerSession });
+
+      const targetWs = Array.from(clients.entries()).find(
+        ([client, clientId]) => clientId === data.targetId
+      )?.[0];
+      if (targetWs && targetWs.readyState === WebSocket.OPEN) {
+        targetWs.send(
+          JSON.stringify({
+            type: "tradeConfirmed",
+            fromId: id,
+          })
+        );
+        console.log(`Игрок ${id} подтвердил обмен`);
+      }
+
+      // Если оба подтвердили, выполняем обмен
+      if (session.myConfirmed && partnerSession.myConfirmed) {
+        const player = players.get(id);
+        const partner = players.get(data.targetId);
+
+        // Добавляем предметы в инвентари
+        if (session.myItem) {
+          const freeSlot = partner.inventory.findIndex((slot) => slot === null);
+          if (freeSlot !== -1) {
+            partner.inventory[freeSlot] = { ...session.myItem };
+          }
+        }
+        if (partnerSession.myItem) {
+          const freeSlot = player.inventory.findIndex((slot) => slot === null);
+          if (freeSlot !== -1) {
+            player.inventory[freeSlot] = { ...partnerSession.myItem };
+          }
+        }
+
+        // Сохраняем обновлённые данные
+        players.set(id, { ...player });
+        players.set(data.targetId, { ...partner });
+        userDatabase.set(id, { ...player });
+        userDatabase.set(data.targetId, { ...partner });
+        await saveUserDatabase(dbCollection, id, player);
+        await saveUserDatabase(dbCollection, data.targetId, partner);
+
+        // Уведомляем клиентов
+        ws.send(
+          JSON.stringify({
+            type: "update",
+            player: player,
+          })
+        );
+        if (targetWs && targetWs.readyState === WebSocket.OPEN) {
+          targetWs.send(
+            JSON.stringify({
+              type: "update",
+              player: partner,
+            })
+          );
+        }
+
+        // Очищаем сессию
+        tradeSessions.delete(id);
+        tradeSessions.delete(data.targetId);
+        console.log(`Обмен между ${id} и ${data.targetId} успешно завершён`);
+      }
+    } else if (data.type === "tradeCancelled") {
+      const id = clients.get(ws);
+      if (!id || !data.targetId || !tradeSessions.has(id)) return;
+
+      const session = tradeSessions.get(id);
+      if (session.partnerId !== data.targetId) return;
+
+      // Возвращаем предметы
+      if (session.myItem) {
+        const player = players.get(id);
+        const freeSlot = player.inventory.findIndex((slot) => slot === null);
+        if (freeSlot !== -1) {
+          player.inventory[freeSlot] = { ...session.myItem };
+          players.set(id, { ...player });
+          userDatabase.set(id, { ...player });
+          await saveUserDatabase(dbCollection, id, player);
+          ws.send(
+            JSON.stringify({
+              type: "update",
+              player: player,
+            })
+          );
+        }
+      }
+
+      const targetWs = Array.from(clients.entries()).find(
+        ([client, clientId]) => clientId === data.targetId
+      )?.[0];
+      if (targetWs && targetWs.readyState === WebSocket.OPEN) {
+        const partnerSession = tradeSessions.get(data.targetId);
+        if (partnerSession.myItem) {
+          const partner = players.get(data.targetId);
+          const freeSlot = partner.inventory.findIndex((slot) => slot === null);
+          if (freeSlot !== -1) {
+            partner.inventory[freeSlot] = { ...partnerSession.myItem };
+            players.set(data.targetId, { ...partner });
+            userDatabase.set(data.targetId, { ...partner });
+            await saveUserDatabase(dbCollection, data.targetId, partner);
+            targetWs.send(
+              JSON.stringify({
+                type: "update",
+                player: partner,
+              })
+            );
+          }
+        }
+        targetWs.send(
+          JSON.stringify({
+            type: "tradeCancelled",
+            fromId: id,
+          })
+        );
+      }
+
+      tradeSessions.delete(id);
+      tradeSessions.delete(data.targetId);
+      console.log(`Обмен между ${id} и ${data.targetId} отменён`);
     }
   });
 
@@ -720,6 +962,47 @@ wss.on("connection", (ws) => {
             }
           });
         });
+        if (tradeSessions.has(id)) {
+          const session = tradeSessions.get(id);
+          const targetWs = Array.from(clients.entries()).find(
+            ([client, clientId]) => clientId === session.partnerId
+          )?.[0];
+          if (targetWs && targetWs.readyState === WebSocket.OPEN) {
+            // Возвращаем предмет партнёра
+            const partnerSession = tradeSessions.get(session.partnerId);
+            if (partnerSession.myItem) {
+              const partner = players.get(session.partnerId);
+              const freeSlot = partner.inventory.findIndex(
+                (slot) => slot === null
+              );
+              if (freeSlot !== -1) {
+                partner.inventory[freeSlot] = { ...partnerSession.myItem };
+                players.set(session.partnerId, { ...partner });
+                userDatabase.set(session.partnerId, { ...partner });
+                await saveUserDatabase(
+                  dbCollection,
+                  session.partnerId,
+                  partner
+                );
+                targetWs.send(
+                  JSON.stringify({
+                    type: "update",
+                    player: partner,
+                  })
+                );
+              }
+            }
+            targetWs.send(
+              JSON.stringify({
+                type: "tradeCancelled",
+                fromId: id,
+              })
+            );
+          }
+          tradeSessions.delete(id);
+          tradeSessions.delete(session.partnerId);
+          console.log(`Торговая сессия для ${id} очищена из-за отключения`);
+        }
       }
       clients.delete(ws);
       players.delete(id);
