@@ -32,6 +32,16 @@ const obstacles = [];
 const bullets = new Map();
 // Хранилище предметов, для которых уже отправлен запрос pickup
 const pendingPickups = new Set();
+let tradeState = {
+  active: false,
+  partnerId: null,
+  playerOffer: null,
+  otherOffer: null,
+  playerAccepted: false,
+  otherAccepted: false,
+};
+// Игрок, на которого наведён курсор
+let hoveredPlayerId = null;
 
 // Загрузка изображений
 const backgroundImage = new Image();
@@ -827,6 +837,274 @@ function startGame() {
     }
   });
 
+  // Обработчик ПКМ для контекстного меню
+  canvas.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+    const me = players.get(myId);
+    if (!me || me.health <= 0) return;
+
+    // Проверяем, наведён ли курсор на игрока
+    const mouseX = e.clientX + camera.x;
+    const mouseY = e.clientY + camera.y;
+    hoveredPlayerId = null;
+
+    players.forEach((player, id) => {
+      if (id !== myId && player.health > 0) {
+        const dx = mouseX - (player.x + 20);
+        const dy = mouseY - (player.y + 20);
+        if (Math.sqrt(dx * dx + dy * dy) < 20) {
+          hoveredPlayerId = id;
+        }
+      }
+    });
+
+    if (hoveredPlayerId) {
+      const contextMenu = document.getElementById("contextMenu");
+      contextMenu.style.display = "block";
+      contextMenu.style.left = `${e.clientX}px`;
+      contextMenu.style.top = `${e.clientY}px`;
+    }
+  });
+
+  // Закрытие контекстного меню при клике вне его
+  document.addEventListener("click", (e) => {
+    const contextMenu = document.getElementById("contextMenu");
+    if (
+      contextMenu.style.display === "block" &&
+      !contextMenu.contains(e.target)
+    ) {
+      contextMenu.style.display = "none";
+      hoveredPlayerId = null;
+    }
+  });
+
+  // Обработчик выбора "Торг"
+  document.getElementById("tradeOption").addEventListener("click", () => {
+    if (hoveredPlayerId) {
+      sendWhenReady(
+        ws,
+        JSON.stringify({
+          type: "tradeRequest",
+          targetId: hoveredPlayerId,
+        })
+      );
+      document.getElementById("contextMenu").style.display = "none";
+    }
+  });
+
+  // Окно предложения торговли для второго игрока
+  function showTradePrompt(partnerId) {
+    const prompt = document.createElement("div");
+    prompt.id = "tradePrompt";
+    prompt.innerHTML = `
+    <div class="trade-prompt-box">
+      <p class="neon-text">Вам предлагает торг ${partnerId}</p>
+      <button id="acceptPromptBtn" class="action-btn use-btn">Торг</button>
+      <button id="declinePromptBtn" class="action-btn drop-btn">Отказать</button>
+    </div>
+  `;
+    document.getElementById("gameContainer").appendChild(prompt);
+
+    document.getElementById("acceptPromptBtn").addEventListener("click", () => {
+      sendWhenReady(
+        ws,
+        JSON.stringify({
+          type: "tradeAccept",
+          partnerId,
+        })
+      );
+      prompt.remove();
+    });
+
+    document
+      .getElementById("declinePromptBtn")
+      .addEventListener("click", () => {
+        sendWhenReady(
+          ws,
+          JSON.stringify({
+            type: "tradeDecline",
+            partnerId,
+          })
+        );
+        prompt.remove();
+      });
+  }
+
+  // Стили для окна предложения
+  const tradePromptStyles = `
+.trade-prompt-box {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(26, 26, 26, 0.9);
+  border: 2px solid #00ffff;
+  border-radius: 10px;
+  padding: 20px;
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+  text-align: center;
+  z-index: 200;
+}
+.trade-prompt-box .action-btn {
+  margin: 10px;
+}
+`;
+  const styleSheet = document.createElement("style");
+  styleSheet.innerText = tradePromptStyles;
+  document.head.appendChild(styleSheet);
+
+  // Открытие окна торговли
+  function openTradeWindow(partnerId) {
+    tradeState.active = true;
+    tradeState.partnerId = partnerId;
+    tradeState.playerOffer = null;
+    tradeState.otherOffer = null;
+    tradeState.playerAccepted = false;
+    tradeState.otherAccepted = false;
+
+    const tradeContainer = document.getElementById("tradeContainer");
+    tradeContainer.style.display = "flex";
+
+    updateTradeInventory();
+    updateTradeSlots();
+
+    const acceptBtn = document.getElementById("acceptTradeBtn");
+    const cancelBtn = document.getElementById("cancelTradeBtn");
+
+    acceptBtn.disabled = true;
+    acceptBtn.onclick = () => {
+      tradeState.playerAccepted = !tradeState.playerAccepted;
+      sendWhenReady(
+        ws,
+        JSON.stringify({
+          type: "tradeAcceptToggle",
+          partnerId,
+          accepted: tradeState.playerAccepted,
+        })
+      );
+      updateTradeButtons();
+    };
+
+    cancelBtn.onclick = () => {
+      sendWhenReady(
+        ws,
+        JSON.stringify({
+          type: "tradeCancel",
+          partnerId,
+        })
+      );
+      closeTradeWindow();
+    };
+  }
+
+  // Обновление инвентаря в окне торговли
+  function updateTradeInventory() {
+    const playerInventory = document.getElementById("playerInventory");
+    playerInventory.innerHTML = "";
+    inventory.forEach((item, index) => {
+      const slot = document.createElement("div");
+      slot.className = "inventory-slot";
+      if (item) {
+        const img = document.createElement("img");
+        img.src = ITEM_CONFIG[item.type].image.src;
+        slot.appendChild(img);
+        if (item.type === "balyary" && item.quantity > 1) {
+          const quantityEl = document.createElement("div");
+          quantityEl.textContent = item.quantity;
+          quantityEl.style.position = "absolute";
+          quantityEl.style.top = "0";
+          quantityEl.style.right = "0";
+          quantityEl.style.color = "#00ffff";
+          quantityEl.style.fontSize = "14px";
+          slot.appendChild(quantityEl);
+        }
+        slot.onclick = () => {
+          if (!tradeState.playerAccepted) {
+            tradeState.playerOffer = { slotIndex: index, item };
+            sendWhenReady(
+              ws,
+              JSON.stringify({
+                type: "tradeOffer",
+                partnerId: tradeState.partnerId,
+                offer: tradeState.playerOffer,
+              })
+            );
+            updateTradeSlots();
+          }
+        };
+      }
+      playerInventory.appendChild(slot);
+    });
+  }
+
+  // Обновление слотов предложения
+  function updateTradeSlots() {
+    const playerOfferSlot = document.getElementById("playerOffer");
+    const otherOfferSlot = document.getElementById("otherOffer");
+    playerOfferSlot.innerHTML = "";
+    otherOfferSlot.innerHTML = "";
+
+    if (tradeState.playerOffer && tradeState.playerOffer.item) {
+      const img = document.createElement("img");
+      img.src = ITEM_CONFIG[tradeState.playerOffer.item.type].image.src;
+      playerOfferSlot.appendChild(img);
+      if (
+        tradeState.playerOffer.item.type === "balyary" &&
+        tradeState.playerOffer.item.quantity > 1
+      ) {
+        const quantityEl = document.createElement("div");
+        quantityEl.textContent = tradeState.playerOffer.item.quantity;
+        quantityEl.style.position = "absolute";
+        quantityEl.style.top = "0";
+        quantityEl.style.right = "0";
+        quantityEl.style.color = "#00ffff";
+        quantityEl.style.fontSize = "14px";
+        playerOfferSlot.appendChild(quantityEl);
+      }
+    }
+
+    if (tradeState.otherOffer && tradeState.otherOffer.item) {
+      const img = document.createElement("img");
+      img.src = ITEM_CONFIG[tradeState.otherOffer.item.type].image.src;
+      otherOfferSlot.appendChild(img);
+      if (
+        tradeState.otherOffer.item.type === "balyary" &&
+        tradeState.otherOffer.item.quantity > 1
+      ) {
+        const quantityEl = document.createElement("div");
+        quantityEl.textContent = tradeState.otherOffer.item.quantity;
+        quantityEl.style.position = "absolute";
+        quantityEl.style.top = "0";
+        quantityEl.style.right = "0";
+        quantityEl.style.color = "#00ffff";
+        quantityEl.style.fontSize = "14px";
+        otherOfferSlot.appendChild(quantityEl);
+      }
+    }
+
+    updateTradeButtons();
+  }
+
+  // Обновление кнопок "Согласен"
+  function updateTradeButtons() {
+    const acceptBtn = document.getElementById("acceptTradeBtn");
+    acceptBtn.disabled = !tradeState.playerOffer || !tradeState.otherOffer;
+    acceptBtn.textContent = tradeState.playerAccepted ? "Отменить" : "Согласен";
+  }
+
+  // Закрытие окна торговли
+  function closeTradeWindow() {
+    tradeState.active = false;
+    tradeState.partnerId = null;
+    tradeState.playerOffer = null;
+    tradeState.otherOffer = null;
+    tradeState.playerAccepted = false;
+    tradeState.otherAccepted = false;
+    document.getElementById("tradeContainer").style.display = "none";
+    document.getElementById("playerInventory").innerHTML = "";
+    updateTradeSlots();
+  }
+
   // Настройка кнопки Fire
   const fireBtn = document.getElementById("fireBtn");
   fireBtn.addEventListener("click", (e) => {
@@ -1260,6 +1538,46 @@ function handleGameMessage(event) {
   try {
     const data = JSON.parse(event.data);
     switch (data.type) {
+      case "tradeRequest":
+        showTradePrompt(data.requesterId);
+        break;
+      case "tradeAccept":
+        openTradeWindow(data.partnerId);
+        break;
+      case "tradeDecline":
+        console.log(`Торговля с ${data.partnerId} отклонена`);
+        break;
+      case "tradeOffer":
+        if (tradeState.active && tradeState.partnerId === data.playerId) {
+          tradeState.otherOffer = data.offer;
+          updateTradeSlots();
+        }
+        break;
+      case "tradeAcceptToggle":
+        if (tradeState.active && tradeState.partnerId === data.playerId) {
+          tradeState.otherAccepted = data.accepted;
+          if (tradeState.playerAccepted && tradeState.otherAccepted) {
+            // Обмен подтверждён
+            sendWhenReady(
+              ws,
+              JSON.stringify({
+                type: "tradeConfirm",
+                partnerId: tradeState.partnerId,
+              })
+            );
+          }
+        }
+        break;
+      case "tradeCancel":
+        if (tradeState.active && tradeState.partnerId === data.playerId) {
+          closeTradeWindow();
+        }
+        break;
+      case "tradeComplete":
+        inventory = data.player.inventory;
+        updateInventoryDisplay();
+        closeTradeWindow();
+        break;
       case "newPlayer":
         players.set(data.player.id, { ...data.player, frameTime: 0 });
         updateOnlineCount(); // Обновляем при входе нового игрока

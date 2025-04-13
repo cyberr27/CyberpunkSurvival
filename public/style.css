@@ -638,6 +638,87 @@ button:active {
     box-shadow: 0 0 20px rgba(255, 0, 255, 1), 0 0 30px rgba(0, 255, 255, 0.8);
   }
 }
+#tradeContainer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 200;
+}
+
+#tradeWindow {
+  background: rgba(26, 26, 26, 0.9);
+  border: 2px solid #00ffff;
+  border-radius: 10px;
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+  width: 600px;
+  padding: 20px;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 10px;
+}
+
+#playerInventory {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.trade-slot {
+  width: 60px;
+  height: 60px;
+  background: rgba(0, 0, 0, 0.8);
+  border: 2px solid #ff00ff;
+  box-shadow: 0 0 5px rgba(255, 0, 255, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 10px;
+}
+
+#tradeSlots {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+#tradeActions {
+  display: flex;
+  justify-content: space-between;
+}
+
+.trade-slot img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+#contextMenu {
+  position: absolute;
+  background: rgba(0, 0, 0, 0.95);
+  border: 1px solid #00ffff;
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+  z-index: 150;
+  border-radius: 5px;
+}
+
+.context-option {
+  padding: 8px 16px;
+  color: #00ffff;
+  font-size: 14px;
+  font-family: "Courier New", monospace;
+  cursor: pointer;
+}
+
+.context-option:hover {
+  background: linear-gradient(135deg, #00ffff, #ff00ff);
+  color: #000;
+}
 /* Адаптация для мобильных устройств (max-width: 500px) */
 @media (max-width: 500px) {
   body {

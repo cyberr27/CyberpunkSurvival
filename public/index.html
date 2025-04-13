@@ -76,6 +76,27 @@
       </div>
       <div id="inventoryContainer">
         <div id="inventoryScreen"></div>
+        <div id="tradeContainer" style="display: none">
+          <div id="tradeWindow">
+            <h2 class="neon-text">Торговля</h2>
+            <div id="playerInventory" class="inventory-grid"></div>
+            <div id="tradeSlots">
+              <div id="playerOffer" class="trade-slot"></div>
+              <div id="otherOffer" class="trade-slot"></div>
+            </div>
+            <div id="tradeActions">
+              <button id="acceptTradeBtn" class="action-btn use-btn" disabled>
+                Согласен
+              </button>
+              <button id="cancelTradeBtn" class="action-btn drop-btn">
+                Отказать
+              </button>
+            </div>
+          </div>
+        </div>
+        <div id="contextMenu" style="display: none">
+          <div id="tradeOption" class="context-option">Торг</div>
+        </div>
         <!-- Ячейки будут добавляться через JS как раньше -->
         <div id="inventoryActions">
           <button id="useBtn" class="action-btn use-btn" disabled>

@@ -137,7 +137,7 @@ initializeServer()
 const items = new Map();
 const obstacles = [];
 const bullets = new Map(); // Хранилище пуль на сервере
-
+const tradeSessions = new Map();
 const lights = [
   {
     id: "light1",
@@ -289,19 +289,227 @@ wss.on("connection", (ws) => {
   }, INACTIVITY_TIMEOUT);
 
   ws.on("message", async (message) => {
-    // Сбрасываем таймер неактивности при получении любого сообщения
-    clearTimeout(inactivityTimer);
-    inactivityTimer = setTimeout(() => {
-      console.log("Клиент отключён из-за неактивности");
-      ws.close(4999, "Inactivity timeout");
-    }, INACTIVITY_TIMEOUT);
-
     let data;
     try {
       data = JSON.parse(message);
     } catch (e) {
       console.error("Неверный JSON:", e);
       return;
+    }
+
+    const id = clients.get(ws);
+    if (!id) return;
+
+    if (data.type === "tradeRequest") {
+      const targetId = data.targetId;
+      if (
+        players.has(targetId) &&
+        !tradeSessions.has(id) &&
+        !tradeSessions.has(targetId)
+      ) {
+        wss.clients.forEach((client) => {
+          if (
+            clients.get(client) === targetId &&
+            client.readyState === WebSocket.OPEN
+          ) {
+            client.send(
+              JSON.stringify({
+                type: "tradeRequest",
+                requesterId: id,
+              })
+            );
+          }
+        });
+      }
+    } else if (data.type === "tradeAccept") {
+      const partnerId = data.partnerId;
+      if (
+        players.has(partnerId) &&
+        !tradeSessions.has(id) &&
+        !tradeSessions.has(partnerId)
+      ) {
+        tradeSessions.set(id, {
+          partnerId,
+          player1Offer: null,
+          player2Offer: null,
+          player1Accepted: false,
+          player2Accepted: false,
+        });
+        tradeSessions.set(partnerId, {
+          partnerId: id,
+          player1Offer: null,
+          player2Offer: null,
+          player1Accepted: false,
+          player2Accepted: false,
+        });
+        wss.clients.forEach((client) => {
+          if (
+            (clients.get(client) === id || clients.get(client) === partnerId) &&
+            client.readyState === WebSocket.OPEN
+          ) {
+            client.send(
+              JSON.stringify({
+                type: "tradeAccept",
+                partnerId: clients.get(client) === id ? partnerId : id,
+              })
+            );
+          }
+        });
+      }
+    } else if (data.type === "tradeDecline") {
+      const partnerId = data.partnerId;
+      wss.clients.forEach((client) => {
+        if (
+          clients.get(client) === partnerId &&
+          client.readyState === WebSocket.OPEN
+        ) {
+          client.send(
+            JSON.stringify({
+              type: "tradeDecline",
+              partnerId: id,
+            })
+          );
+        }
+      });
+    } else if (data.type === "tradeOffer") {
+      const partnerId = data.partnerId;
+      if (
+        tradeSessions.has(id) &&
+        tradeSessions.get(id).partnerId === partnerId
+      ) {
+        const session = tradeSessions.get(id);
+        session.player1Offer = data.offer;
+        tradeSessions.set(partnerId, {
+          ...tradeSessions.get(partnerId),
+          player2Offer: data.offer,
+        });
+        wss.clients.forEach((client) => {
+          if (
+            clients.get(client) === partnerId &&
+            client.readyState === WebSocket.OPEN
+          ) {
+            client.send(
+              JSON.stringify({
+                type: "tradeOffer",
+                playerId: id,
+                offer: data.offer,
+              })
+            );
+          }
+        });
+      }
+    } else if (data.type === "tradeAcceptToggle") {
+      const partnerId = data.partnerId;
+      if (
+        tradeSessions.has(id) &&
+        tradeSessions.get(id).partnerId === partnerId
+      ) {
+        const session = tradeSessions.get(id);
+        session.player1Accepted = data.accepted;
+        tradeSessions.set(partnerId, {
+          ...tradeSessions.get(partnerId),
+          player2Accepted: data.accepted,
+        });
+        wss.clients.forEach((client) => {
+          if (
+            clients.get(client) === partnerId &&
+            client.readyState === WebSocket.OPEN
+          ) {
+            client.send(
+              JSON.stringify({
+                type: "tradeAcceptToggle",
+                playerId: id,
+                accepted: data.accepted,
+              })
+            );
+          }
+        });
+
+        // Проверяем, оба ли игрока приняли
+        if (
+          session.player1Accepted &&
+          tradeSessions.get(partnerId).player1Accepted
+        ) {
+          const player1 = players.get(id);
+          const player2 = players.get(partnerId);
+          const player1Offer = session.player1Offer;
+          const player2Offer = tradeSessions.get(partnerId).player1Offer;
+
+          // Проверяем валидность
+          if (
+            player1Offer &&
+            player2Offer &&
+            player1.inventory[player1Offer.slotIndex] &&
+            player2.inventory[player2Offer.slotIndex]
+          ) {
+            // Обмен предметами
+            const player1Item = player1.inventory[player1Offer.slotIndex];
+            const player2Item = player2.inventory[player2Offer.slotIndex];
+
+            player1.inventory[player1Offer.slotIndex] = player2Item;
+            player2.inventory[player2Offer.slotIndex] = player1Item;
+
+            // Обновляем данные игроков
+            players.set(id, { ...player1 });
+            players.set(partnerId, { ...player2 });
+            userDatabase.set(id, { ...player1 });
+            userDatabase.set(partnerId, { ...player2 });
+            await saveUserDatabase(dbCollection, id, player1);
+            await saveUserDatabase(dbCollection, partnerId, player2);
+
+            // Уведомляем клиентов
+            wss.clients.forEach((client) => {
+              if (
+                clients.get(client) === id &&
+                client.readyState === WebSocket.OPEN
+              ) {
+                client.send(
+                  JSON.stringify({
+                    type: "tradeComplete",
+                    player: { id, ...player1 },
+                  })
+                );
+              } else if (
+                clients.get(client) === partnerId &&
+                client.readyState === WebSocket.OPEN
+              ) {
+                client.send(
+                  JSON.stringify({
+                    type: "tradeComplete",
+                    player: { id: partnerId, ...player2 },
+                  })
+                );
+              }
+            });
+
+            // Очищаем сессию
+            tradeSessions.delete(id);
+            tradeSessions.delete(partnerId);
+          }
+        }
+      }
+    } else if (data.type === "tradeCancel") {
+      const partnerId = data.partnerId;
+      if (
+        tradeSessions.has(id) &&
+        tradeSessions.get(id).partnerId === partnerId
+      ) {
+        wss.clients.forEach((client) => {
+          if (
+            clients.get(client) === partnerId &&
+            client.readyState === WebSocket.OPEN
+          ) {
+            client.send(
+              JSON.stringify({
+                type: "tradeCancel",
+                playerId: id,
+              })
+            );
+          }
+        });
+        tradeSessions.delete(id);
+        tradeSessions.delete(partnerId);
+      }
     }
     if (data.type === "register") {
       if (userDatabase.has(data.username)) {
@@ -691,6 +899,24 @@ wss.on("connection", (ws) => {
     const id = clients.get(ws);
     if (id) {
       const player = players.get(id);
+      if (tradeSessions.has(id)) {
+        const partnerId = tradeSessions.get(id).partnerId;
+        wss.clients.forEach((client) => {
+          if (
+            clients.get(client) === partnerId &&
+            client.readyState === WebSocket.OPEN
+          ) {
+            client.send(
+              JSON.stringify({
+                type: "tradeCancel",
+                playerId: id,
+              })
+            );
+          }
+        });
+        tradeSessions.delete(id);
+        tradeSessions.delete(partnerId);
+      }
       if (player) {
         userDatabase.set(id, { ...player });
         await saveUserDatabase(dbCollection, id, player);
