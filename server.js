@@ -368,14 +368,60 @@ wss.on("connection", (ws) => {
       } else {
         ws.send(JSON.stringify({ type: "loginFail" }));
       }
-    } else if (data.type === "move") {
+    }
+    if (data.type === "move") {
       const id = clients.get(ws);
       if (id) {
         const existingPlayer = players.get(id);
+        const newX = data.x;
+        const newY = data.y;
+
+        // Проверяем границы мира
+        if (
+          newX < 0 ||
+          newX > worldWidth - 40 ||
+          newY < 0 ||
+          newY > worldHeight - 40
+        ) {
+          console.log(`Игрок ${id} пытался выйти за границы мира`);
+          return; // Отклоняем движение
+        }
+
+        // Проверяем коллизии
+        if (checkCollisionServer(newX, newY)) {
+          console.log(
+            `Игрок ${id} столкнулся с препятствием на x:${newX}, y:${newY}`
+          );
+          return; // Отклоняем движение
+        }
+
+        // Проверяем допустимость перемещения (защита от телепортации)
+        const maxSpeed = 100; // Максимальная скорость (пикселей/сек)
+        const maxDistance = maxSpeed * (16 / 1000); // Максимальное перемещение за 16 мс
+        const dx = newX - existingPlayer.x;
+        const dy = newY - existingPlayer.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        if (distance > maxDistance) {
+          console.log(
+            `Игрок ${id} попытался переместиться слишком далеко: ${distance}`
+          );
+          return; // Отклоняем движение
+        }
+
         const updatedPlayer = {
           ...existingPlayer,
-          ...data,
-          inventory: existingPlayer.inventory || Array(20).fill(null), // Сохраняем или инициализируем inventory
+          x: newX,
+          y: newY,
+          health: data.health,
+          energy: data.energy,
+          food: data.food,
+          water: data.water,
+          armor: data.armor,
+          distanceTraveled: data.distanceTraveled,
+          direction: data.direction,
+          state: data.state,
+          frame: data.frame,
+          inventory: existingPlayer.inventory || Array(20).fill(null),
         };
         players.set(id, updatedPlayer);
         userDatabase.set(id, updatedPlayer);
@@ -406,6 +452,26 @@ wss.on("connection", (ws) => {
       const player = players.get(id);
       if (!player.inventory) player.inventory = Array(20).fill(null);
 
+      // Проверяем расстояние до предмета
+      const dx = player.x + 20 - (item.x + 10);
+      const dy = player.y + 20 - (item.y + 10);
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      if (distance > 25) {
+        console.log(`Игрок ${id} слишком далеко от предмета ${data.itemId}`);
+        ws.send(JSON.stringify({ type: "itemNotFound", itemId: data.itemId }));
+        return;
+      }
+
+      // Блокируем предмет, чтобы избежать гонки
+      if (item.lockedBy && item.lockedBy !== id) {
+        console.log(
+          `Предмет ${data.itemId} уже заблокирован игроком ${item.lockedBy}`
+        );
+        ws.send(JSON.stringify({ type: "itemNotFound", itemId: data.itemId }));
+        return;
+      }
+      item.lockedBy = id;
+
       if (item.type === "balyary") {
         const quantityToAdd = item.quantity || 1;
         const balyarySlot = player.inventory.findIndex(
@@ -426,6 +492,7 @@ wss.on("connection", (ws) => {
             ws.send(
               JSON.stringify({ type: "inventoryFull", itemId: data.itemId })
             );
+            delete item.lockedBy;
             return;
           }
         }
@@ -437,6 +504,7 @@ wss.on("connection", (ws) => {
           ws.send(
             JSON.stringify({ type: "inventoryFull", itemId: data.itemId })
           );
+          delete item.lockedBy;
           return;
         }
       }
@@ -468,31 +536,43 @@ wss.on("connection", (ws) => {
         }
       });
 
+      // Спавн нового предмета через 10 минут
       setTimeout(() => {
-        const worldWidth = 2800;
+        const worldWidth = 3135;
         const worldHeight = 3300;
         const newItemId = `${item.type}_${Date.now()}`;
-        const newItem = {
-          x: Math.random() * worldWidth,
-          y: Math.random() * worldHeight,
-          type: item.type,
-          spawnTime: Date.now(),
-        };
-        items.set(newItemId, newItem);
-        wss.clients.forEach((client) => {
-          if (client.readyState === WebSocket.OPEN) {
-            client.send(
-              JSON.stringify({
-                type: "newItem",
-                itemId: newItemId,
-                x: newItem.x,
-                y: newItem.y,
-                type: newItem.type,
-                spawnTime: newItem.spawnTime,
-              })
-            );
-          }
-        });
+        let x,
+          y,
+          attempts = 0;
+        const maxAttempts = 10;
+        do {
+          x = Math.random() * worldWidth;
+          y = Math.random() * worldHeight;
+          attempts++;
+        } while (checkCollisionServer(x, y) && attempts < maxAttempts);
+        if (attempts < maxAttempts) {
+          const newItem = {
+            x: x,
+            y: y,
+            type: item.type,
+            spawnTime: Date.now(),
+          };
+          items.set(newItemId, newItem);
+          wss.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+              client.send(
+                JSON.stringify({
+                  type: "newItem",
+                  itemId: newItemId,
+                  x: newItem.x,
+                  y: newItem.y,
+                  type: newItem.type,
+                  spawnTime: newItem.spawnTime,
+                })
+              );
+            }
+          });
+        }
       }, 10 * 60 * 1000);
     } else if (data.type === "chat") {
       const id = clients.get(ws);
@@ -747,6 +827,28 @@ setInterval(async () => {
     bullet.x += bullet.dx * (16 / 1000);
     bullet.y += bullet.dy * (16 / 1000);
 
+    // Проверка выхода за границы мира
+    if (
+      bullet.x < 0 ||
+      bullet.x > worldWidth ||
+      bullet.y < 0 ||
+      bullet.y > worldHeight
+    ) {
+      bullets.delete(bulletId);
+      console.log(`Пуля ${bulletId} вышла за границы мира`);
+      wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(
+            JSON.stringify({
+              type: "bulletRemoved",
+              bulletId: bulletId,
+            })
+          );
+        }
+      });
+      return;
+    }
+
     let bulletCollided = false;
     for (const obstacle of obstacles) {
       if (obstacle.isLine) {
@@ -808,6 +910,12 @@ setInterval(async () => {
                     JSON.stringify({
                       type: "update",
                       player: { id: playerId, ...player },
+                    })
+                  );
+                  client.send(
+                    JSON.stringify({
+                      type: "bulletRemoved",
+                      bulletId: bulletId,
                     })
                   );
                 }

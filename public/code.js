@@ -623,8 +623,25 @@ function updateOnlineCount() {
 
 function startGame() {
   updateOnlineCount();
-  // Обработчик клавиш (только для стрельбы и чата)
-  document.addEventListener("keydown", (e) => {
+
+  // Удаляем существующие слушатели, чтобы избежать дублирования
+  const fireBtn = document.getElementById("fireBtn");
+  const chatBtn = document.getElementById("chatBtn");
+  const inventoryBtn = document.getElementById("inventoryBtn");
+  fireBtn.replaceWith(fireBtn.cloneNode(true));
+  chatBtn.replaceWith(chatBtn.cloneNode(true));
+  inventoryBtn.replaceWith(inventoryBtn.cloneNode(true));
+
+  // Переопределяем кнопки после клонирования
+  const newFireBtn = document.getElementById("fireBtn");
+  const newChatBtn = document.getElementById("chatBtn");
+  const newInventoryBtn = document.getElementById("inventoryBtn");
+
+  // Обработчик клавиш
+  document.removeEventListener("keydown", handleKeydown);
+  document.addEventListener("keydown", handleKeydown);
+
+  function handleKeydown(e) {
     const me = players.get(myId);
     if (!me || me.health <= 0) return;
 
@@ -644,7 +661,6 @@ function startGame() {
       document.activeElement === chatInput ||
       document.activeElement === document.getElementById("balyaryAmount")
     ) {
-      console.log("Фокус на balyaryAmount, пропускаем keydown:", e.key);
       return;
     }
 
@@ -656,6 +672,7 @@ function startGame() {
       case "c":
         const isChatVisible = chatContainer.style.display === "flex";
         chatContainer.style.display = isChatVisible ? "none" : "flex";
+        newChatBtn.classList.toggle("active", !isChatVisible);
         if (!isChatVisible) chatInput.focus();
         else chatInput.blur();
         e.preventDefault();
@@ -665,207 +682,37 @@ function startGame() {
         e.preventDefault();
         break;
     }
-  });
-  // Обработчик нажатия мыши
-  canvas.addEventListener("mousedown", (e) => {
-    if (e.button === 0) {
-      const me = players.get(myId);
-      if (!me || me.health <= 0) return;
-
-      const inventoryContainer = document.getElementById("inventoryContainer");
-      const rect = inventoryContainer.getBoundingClientRect();
-      if (
-        isInventoryOpen &&
-        e.clientX >= rect.left &&
-        e.clientX <= rect.right &&
-        e.clientY >= rect.top &&
-        e.clientY <= rect.bottom
-      ) {
-        const slots = inventoryContainer.children;
-        for (let i = 0; i < slots.length; i++) {
-          const slotRect = slots[i].getBoundingClientRect();
-          if (
-            e.clientX >= slotRect.left &&
-            e.clientX <= slotRect.right &&
-            e.clientY >= slotRect.top &&
-            e.clientY <= slotRect.bottom &&
-            inventory[i]
-          ) {
-            console.log(
-              `Клик по слоту ${i} (x:${e.clientX}, y:${e.clientY}), предмет: ${inventory[i].type}`
-            );
-            selectSlot(i, slots[i]);
-            return;
-          }
-        }
-        console.log(
-          `Клик вне слотов инвентаря (x:${e.clientX}, y:${e.clientY})`
-        );
-        return; // Прерываем, если клик в инвентаре, но не по слоту
-      }
-
-      isMoving = true;
-      targetX = e.clientX + camera.x;
-      targetY = e.clientY + camera.y;
-    }
-  });
-
-  // Обработчик движения мыши (обновляем цель, если кнопка зажата)
-  canvas.addEventListener("mousemove", (e) => {
-    if (isMoving) {
-      targetX = e.clientX + camera.x;
-      targetY = e.clientY + camera.y;
-    }
-  });
-
-  // Обработчик отпускания мыши
-  canvas.addEventListener("mouseup", (e) => {
-    if (e.button === 0) {
-      isMoving = false;
-      const me = players.get(myId);
-      if (me) {
-        me.state = "idle";
-        me.frame = 0;
-        me.frameTime = 0;
-        sendWhenReady(
-          ws,
-          JSON.stringify({
-            type: "move",
-            x: me.x,
-            y: me.y,
-            health: me.health,
-            energy: me.energy,
-            food: me.food,
-            water: me.water,
-            armor: me.armor,
-            distanceTraveled: me.distanceTraveled,
-            direction: me.direction,
-            state: me.state,
-            frame: me.frame,
-          })
-        );
-      }
-    }
-  });
-
-  // Обработчик тач-событий для мобильных устройств
-  canvas.addEventListener("touchstart", (e) => {
-    e.preventDefault();
-    const me = players.get(myId);
-    if (!me || me.health <= 0) return;
-
-    const touch = e.touches[0];
-    const inventoryContainer = document.getElementById("inventoryContainer");
-    const rect = inventoryContainer.getBoundingClientRect();
-
-    if (
-      isInventoryOpen &&
-      touch.clientX >= rect.left &&
-      touch.clientX <= rect.right &&
-      touch.clientY >= rect.top &&
-      touch.clientY <= rect.bottom
-    ) {
-      const slots = inventoryContainer.children;
-      for (let i = 0; i < slots.length; i++) {
-        const slotRect = slots[i].getBoundingClientRect();
-        if (
-          touch.clientX >= slotRect.left &&
-          touch.clientX <= slotRect.right &&
-          touch.clientY >= slotRect.top &&
-          touch.clientY <= slotRect.bottom &&
-          inventory[i]
-        ) {
-          console.log(
-            `Тач по слоту ${i} (x:${touch.clientX}, y:${touch.clientY}), предмет: ${inventory[i].type}`
-          );
-          selectSlot(i, slots[i]);
-          return;
-        }
-      }
-      console.log(
-        `Тач вне слотов инвентаря (x:${touch.clientX}, y:${touch.clientY})`
-      );
-    } else {
-      isMoving = true;
-      targetX = touch.clientX + camera.x;
-      targetY = touch.clientY + camera.y;
-    }
-  });
-
-  canvas.addEventListener("touchmove", (e) => {
-    e.preventDefault();
-    const touch = e.touches[0];
-    targetX = touch.clientX + camera.x;
-    targetY = touch.clientY + camera.y;
-  });
-
-  canvas.addEventListener("touchend", (e) => {
-    e.preventDefault();
-    isMoving = false;
-    const me = players.get(myId);
-    if (me) {
-      me.state = "idle";
-      me.frame = 0;
-      me.frameTime = 0;
-      sendWhenReady(
-        ws,
-        JSON.stringify({
-          type: "move",
-          x: me.x,
-          y: me.y,
-          health: me.health,
-          energy: me.energy,
-          food: me.food,
-          water: me.water,
-          armor: me.armor,
-          distanceTraveled: me.distanceTraveled,
-          direction: me.direction,
-          state: me.state,
-          frame: me.frame,
-        })
-      );
-    }
-  });
+  }
 
   // Настройка кнопки Fire
-  const fireBtn = document.getElementById("fireBtn");
-  fireBtn.addEventListener("click", (e) => {
+  let lastFireTime = 0;
+  const fireCooldown = 500; // 500 мс между выстрелами
+  newFireBtn.addEventListener("click", (e) => {
     e.preventDefault();
+    const now = Date.now();
+    const me = players.get(myId);
+    if (!me || me.health <= 0 || now - lastFireTime < fireCooldown) return;
+    lastFireTime = now;
     shoot();
   });
 
   // Настройка кнопки Chat
-  const chatBtn = document.getElementById("chatBtn");
-  chatBtn.addEventListener("click", (e) => {
+  newChatBtn.addEventListener("click", (e) => {
     e.preventDefault();
+    const me = players.get(myId);
+    if (!me || me.health <= 0) return;
     const isChatVisible = chatContainer.style.display === "flex";
     chatContainer.style.display = isChatVisible ? "none" : "flex";
-    chatBtn.classList.toggle("active", !isChatVisible);
+    newChatBtn.classList.toggle("active", !isChatVisible);
     if (!isChatVisible) chatInput.focus();
     else chatInput.blur();
   });
 
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && chatContainer.style.display === "flex") {
-      chatContainer.style.display = "none";
-      chatInput.blur();
-    }
-  });
-
-  chatInput.addEventListener("keypress", (e) => {
-    if (e.key === "Enter" && chatInput.value.trim()) {
-      sendWhenReady(
-        ws,
-        JSON.stringify({ type: "chat", message: chatInput.value.trim() })
-      );
-      chatInput.value = "";
-    }
-  });
-
   // Настройка кнопки Inventory
-  const inventoryBtn = document.getElementById("inventoryBtn");
-  inventoryBtn.addEventListener("click", (e) => {
+  newInventoryBtn.addEventListener("click", (e) => {
     e.preventDefault();
+    const me = players.get(myId);
+    if (!me || me.health <= 0) return;
     toggleInventory();
   });
 
@@ -904,6 +751,9 @@ function startGame() {
 
 // Функция переключения инвентаря
 function toggleInventory() {
+  const me = players.get(myId);
+  if (!me || me.health <= 0) return;
+
   isInventoryOpen = !isInventoryOpen;
   const inventoryContainer = document.getElementById("inventoryContainer");
   inventoryContainer.style.display = isInventoryOpen ? "grid" : "none";
@@ -925,7 +775,9 @@ function toggleInventory() {
 
 // Выбрать слот и показать кнопки
 function selectSlot(slotIndex, slotElement) {
-  if (!inventory[slotIndex]) return;
+  const me = players.get(myId);
+  if (!me || me.health <= 0 || !inventory[slotIndex]) return;
+
   console.log(
     `Выбран слот ${slotIndex}, предмет: ${inventory[slotIndex].type}`
   );
@@ -936,17 +788,16 @@ function selectSlot(slotIndex, slotElement) {
   if (selectedSlot === slotIndex) {
     selectedSlot = null;
     screen.innerHTML = "";
-    useBtn.textContent = "Использовать"; // Возвращаем текст
+    useBtn.textContent = "Использовать";
     useBtn.disabled = true;
     dropBtn.disabled = true;
     return;
   }
 
   selectedSlot = slotIndex;
-  // Если ранее была форма "Баляр", убираем её и показываем описание
   screen.textContent = ITEM_CONFIG[inventory[slotIndex].type].description;
-  useBtn.textContent = "Использовать"; // Сбрасываем текст
-  useBtn.disabled = inventory[slotIndex].type === "balyary"; // Отключаем для "Баляр"
+  useBtn.textContent = "Использовать";
+  useBtn.disabled = inventory[slotIndex].type === "balyary";
   dropBtn.disabled = false;
 }
 
@@ -1350,19 +1201,40 @@ function handleGameMessage(event) {
         // Можно добавить визуальное уведомление, например:
         // alert("Инвентарь полон!");
         break;
-      case "update":
-        const existingPlayer = players.get(data.player.id);
-        players.set(data.player.id, {
-          ...existingPlayer,
-          ...data.player,
-          frameTime: existingPlayer.frameTime || 0,
-        });
-        if (data.player.id === myId) {
-          inventory = data.player.inventory || inventory;
-          updateStatsDisplay();
-          updateInventoryDisplay();
-        }
-        break;
+        case "update":
+          const existingPlayer = players.get(data.player.id);
+          if (data.player.id === myId) {
+            // Корректируем позицию, если сервер отклонил движение
+            if (
+              Math.abs(data.player.x - existingPlayer.x) > 5 ||
+              Math.abs(data.player.y - existingPlayer.y) > 5
+            ) {
+              console.log(
+                `Коррекция позиции игрока ${myId}: x:${existingPlayer.x}→${data.player.x}, y:${existingPlayer.y}→${data.player.y}`
+              );
+              existingPlayer.x = data.player.x;
+              existingPlayer.y = data.player.y;
+            }
+            existingPlayer.health = data.player.health;
+            existingPlayer.energy = data.player.energy;
+            existingPlayer.food = data.player.food;
+            existingPlayer.water = data.player.water;
+            existingPlayer.armor = data.player.armor;
+            existingPlayer.distanceTraveled = data.player.distanceTraveled;
+            existingPlayer.direction = data.player.direction;
+            existingPlayer.state = data.player.state;
+            existingPlayer.frame = data.player.frame;
+            inventory = data.player.inventory || inventory;
+            updateStatsDisplay();
+            updateInventoryDisplay();
+          } else {
+            players.set(data.player.id, {
+              ...existingPlayer,
+              ...data.player,
+              frameTime: existingPlayer.frameTime || 0,
+            });
+          }
+          break;
       case "itemDropped":
         console.log(
           `Получено itemDropped: itemId=${data.itemId}, type=${data.type}, x=${data.x}, y=${data.y}`
@@ -1473,8 +1345,6 @@ function update(deltaTime) {
   const me = players.get(myId);
   if (!me || me.health <= 0) return;
 
-  console.log(`DeltaTime: ${deltaTime}, FPS: ${1000 / deltaTime}`); // Для отладки
-
   if (isMoving) {
     const dx = targetX - me.x;
     const dy = targetY - me.y;
@@ -1488,12 +1358,15 @@ function update(deltaTime) {
       const prevX = me.x;
       const prevY = me.y;
 
-      me.x += moveX;
-      me.y += moveY;
+      // Проверяем новое положение
+      const newX = me.x + moveX;
+      const newY = me.y + moveY;
 
-      me.x = Math.max(0, Math.min(worldWidth - 40, me.x));
-      me.y = Math.max(0, Math.min(worldHeight - 40, me.y));
+      // Ограничиваем координаты границами мира
+      me.x = Math.max(0, Math.min(worldWidth - 40, newX));
+      me.y = Math.max(0, Math.min(worldHeight - 40, newY));
 
+      // Проверяем коллизии
       if (checkCollision(me.x, me.y)) {
         me.x = prevX;
         me.y = prevY;
@@ -1525,6 +1398,7 @@ function update(deltaTime) {
         checkCollisions();
       }
 
+      // Отправляем данные на сервер
       sendWhenReady(
         ws,
         JSON.stringify({
@@ -1547,7 +1421,8 @@ function update(deltaTime) {
       me.frame = 0;
       me.frameTime = 0;
       isMoving = false;
-      ws.send(
+      sendWhenReady(
+        ws,
         JSON.stringify({
           type: "move",
           x: me.x,
@@ -1595,6 +1470,16 @@ function update(deltaTime) {
 
     const currentTime = Date.now();
     if (currentTime - bullet.spawnTime > bullet.life) {
+      bullets.delete(bulletId);
+    }
+
+    // Проверка выхода за границы мира
+    if (
+      bullet.x < 0 ||
+      bullet.x > worldWidth ||
+      bullet.y < 0 ||
+      bullet.y > worldHeight
+    ) {
       bullets.delete(bulletId);
     }
 
@@ -1864,7 +1749,6 @@ function checkCollisions() {
   if (!me || me.health <= 0) return;
 
   items.forEach((item, id) => {
-    // Проверяем, существует ли предмет и не отправляли ли мы уже запрос
     if (!items.has(id)) {
       console.log(`Предмет ${id} уже удалён из items, пропускаем`);
       return;
@@ -1875,15 +1759,11 @@ function checkCollisions() {
       );
       return;
     }
-    // Центр предмета теперь смещён, так как размер 20x20
     const dx = me.x + 20 - (item.x + 10);
     const dy = me.y + 20 - (item.y + 10);
     const distance = Math.sqrt(dx * dx + dy * dy);
-    console.log(
-      `Проверка столкновения с ${item.type} (ID: ${id}), расстояние: ${distance}`
-    );
-    if (distance < 30) {
-      // Уменьшено с 40 до 30
+    if (distance < 25) {
+      // Уменьшено с 30 до 25 для точности
       console.log(
         `Игрок ${myId} пытается подобрать предмет ${item.type} (ID: ${id})`
       );
