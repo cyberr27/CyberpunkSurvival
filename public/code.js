@@ -489,7 +489,7 @@ const { pixelX: px3, pixelY: py3 } = convertToPixelCoords(245, 3130);
 const { pixelX: px4, pixelY: py4 } = convertToPixelCoords(0, 3041);
 createLineObstacle(px3, py3, px4, py4, 5);
 
-const { pixelX: px5, pixelY: py5 } = convertToPixelCoords(860, 3300);
+const { pixelX: px5, pixelY: py5 } = convertToPixelCoords(860, 3280);
 const { pixelX: px6, pixelY: py6 } = convertToPixelCoords(700, 3170);
 createLineObstacle(px5, py5, px6, py6, 5);
 const { pixelX: px7, pixelY: py7 } = convertToPixelCoords(700, 3170);
@@ -499,8 +499,28 @@ const { pixelX: px9, pixelY: py9 } = convertToPixelCoords(1079, 3007);
 const { pixelX: px0, pixelY: py0 } = convertToPixelCoords(1441, 3173);
 createLineObstacle(px9, py9, px0, py0, 5);
 const { pixelX: px10, pixelY: py10 } = convertToPixelCoords(1441, 3173);
-const { pixelX: px11, pixelY: py11 } = convertToPixelCoords(1317, 3300);
+const { pixelX: px11, pixelY: py11 } = convertToPixelCoords(1317, 3280);
 createLineObstacle(px10, py10, px11, py11, 5);
+
+const { pixelX: px12, pixelY: py12 } = convertToPixelCoords(2297, 3088);
+const { pixelX: px13, pixelY: py13 } = convertToPixelCoords(1909, 2847);
+createLineObstacle(px12, py12, px13, py13, 5);
+const { pixelX: px14, pixelY: py14 } = convertToPixelCoords(1909, 2847);
+const { pixelX: px15, pixelY: py15 } = convertToPixelCoords(2299, 2662);
+createLineObstacle(px14, py14, px15, py15, 5);
+const { pixelX: px16, pixelY: py16 } = convertToPixelCoords(2299, 2662);
+const { pixelX: px17, pixelY: py17 } = convertToPixelCoords(2640, 2831);
+createLineObstacle(px16, py16, px17, py17, 5);
+const { pixelX: px18, pixelY: py18 } = convertToPixelCoords(2640, 2831);
+const { pixelX: px19, pixelY: py19 } = convertToPixelCoords(2297, 3088);
+createLineObstacle(px18, py18, px19, py19, 5);
+
+const { pixelX: px20, pixelY: py20 } = convertToPixelCoords(3095, 2611);
+const { pixelX: px21, pixelY: py21 } = convertToPixelCoords(2767, 2344);
+createLineObstacle(px20, py20, px21, py21, 5);
+const { pixelX: px22, pixelY: py22 } = convertToPixelCoords(2767, 2344);
+const { pixelX: px23, pixelY: py23 } = convertToPixelCoords(3095, 2103);
+createLineObstacle(px22, py22, px23, py23, 5);
 
 function lineIntersects(x1, y1, x2, y2, x3, y3, x4, y4) {
   const denominator = (y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1);
