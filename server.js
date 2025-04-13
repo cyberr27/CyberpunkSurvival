@@ -11,7 +11,6 @@ const wss = new WebSocket.Server({ server });
 const clients = new Map();
 const players = new Map();
 const userDatabase = new Map();
-const tradeSessions = new Map();
 
 // В начало файла, после определения констант
 INACTIVITY_TIMEOUT = 15 * 60 * 1000;
@@ -791,7 +790,9 @@ wss.on("connection", (ws) => {
           })
         );
         console.log(
-          `Игрок ${id} предложил предмет ${data.item?.type} для обмена`
+          `Игрок ${id} предложил предмет ${
+            data.item?.type || "ничего"
+          } для обмена`
         );
       }
     } else if (data.type === "tradeConfirmed") {

@@ -1129,9 +1129,9 @@ function selectSlot(slotIndex, slotElement) {
     selectedSlot = null;
     screen.innerHTML = "";
     useBtn.textContent = "Обмен";
-    useBtn.disabled = tradeSession.myConfirmed;
+    useBtn.disabled = false; // Активируем кнопку "Обмен" сразу после размещения
     dropBtn.textContent = "Отмена";
-    dropBtn.disabled = false; // Кнопка "Отмена" активна
+    dropBtn.disabled = false;
   } else {
     // Обычная логика выбора слота
     if (selectedSlot === slotIndex) {
@@ -1139,7 +1139,7 @@ function selectSlot(slotIndex, slotElement) {
       screen.innerHTML = "";
       useBtn.textContent = tradeSession ? "Обмен" : "Использовать";
       useBtn.disabled = true;
-      dropBtn.disabled = tradeSession ? false : true; // В режиме торговли "Отмена" активна
+      dropBtn.disabled = tradeSession ? false : true;
       return;
     }
 
@@ -1147,9 +1147,10 @@ function selectSlot(slotIndex, slotElement) {
     screen.textContent = ITEM_CONFIG[inventory[slotIndex].type].description;
     useBtn.textContent = tradeSession ? "Обмен" : "Использовать";
     useBtn.disabled = inventory[slotIndex].type === "balyary" && !tradeSession;
-    dropBtn.disabled = tradeSession ? false : true; // В режиме торговли "Отмена" активна
+    dropBtn.disabled = tradeSession ? false : true;
   }
 }
+
 // Скрыть кнопки действий
 function hideActionButtons() {
   document.querySelectorAll(".action-btn").forEach((btn) => btn.remove());
@@ -1693,11 +1694,13 @@ function updateTradeInventory() {
     partnerTradeSlot.onmouseout = null;
   }
 
-  // Управляем кнопками
+  // Управляем кнопками: активируем "Обмен", если есть хотя бы один предмет
   useBtn.textContent = "Обмен";
-  useBtn.disabled = !tradeSession.myItem || tradeSession.myConfirmed; // Обмен доступен, если есть предмет и не подтверждено
+  useBtn.disabled =
+    tradeSession.myConfirmed ||
+    (!tradeSession.myItem && !tradeSession.partnerItem);
   dropBtn.textContent = "Отмена";
-  dropBtn.disabled = false; // Кнопка "Отмена" всегда активна
+  dropBtn.disabled = false;
 
   updateInventoryDisplay();
 }
@@ -1991,18 +1994,15 @@ function handleGameMessage(event) {
               data.item?.type || "ничего"
             }`
           );
+          // Активируем кнопку "Обмен", если есть хотя бы один предмет
+          const useBtn = document.getElementById("useBtn");
+          useBtn.disabled =
+            tradeSession.myConfirmed || (!tradeSession.myItem && !data.item);
         }
         break;
       case "tradeConfirmed":
         if (tradeSession && tradeSession.partnerId === data.fromId) {
           tradeSession.partnerConfirmed = true;
-          // Активируем кнопки, если партнёр подтвердил
-          const useBtn = document.getElementById("useBtn");
-          const dropBtn = document.getElementById("dropBtn");
-          useBtn.textContent = "Обмен";
-          useBtn.disabled = tradeSession.myConfirmed;
-          dropBtn.textContent = "Отмена";
-          dropBtn.disabled = false;
           updateTradeInventory();
           if (tradeSession.myConfirmed) {
             finalizeTrade();
