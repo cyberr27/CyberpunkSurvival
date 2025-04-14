@@ -835,25 +835,29 @@ wss.on("connection", (ws) => {
 
         // Проверяем и добавляем предмет партнёра игроку
         if (partnerSession.myItem) {
-          // Удаляем дубликаты предмета с таким же itemId или типом
+          // Проверяем, нет ли предмета с таким же типом (для нестакаемых)
           for (let i = 0; i < player.inventory.length; i++) {
             if (
               player.inventory[i] &&
-              (player.inventory[i].itemId === partnerSession.myItem.itemId ||
-                (player.inventory[i].type === partnerSession.myItem.type &&
-                  !ITEM_CONFIG[player.inventory[i].type].stackable))
+              player.inventory[i].type === partnerSession.myItem.type &&
+              !ITEM_CONFIG[player.inventory[i].type].stackable
             ) {
               console.log(
-                `Удалён дубликат предмета ${player.inventory[i].type} (ID: ${player.inventory[i].itemId}) у ${id} из слота ${i}`
+                `Предмет ${player.inventory[i].type} уже есть у ${id} в слоте ${i}, пропускаем дубликат`
               );
-              player.inventory[i] = null;
+              // Не очищаем слот, просто пропускаем дубликат
             }
           }
           const freeSlot = player.inventory.findIndex((slot) => slot === null);
           if (freeSlot !== -1) {
-            player.inventory[freeSlot] = { ...partnerSession.myItem };
+            player.inventory[freeSlot] = {
+              ...partnerSession.myItem,
+              itemId:
+                partnerSession.myItem.itemId ||
+                `${partnerSession.myItem.type}_${Date.now()}_${freeSlot}`,
+            };
             console.log(
-              `Предмет ${partnerSession.myItem.type} (ID: ${partnerSession.myItem.itemId}) добавлен в инвентарь ${id} в слот ${freeSlot}`
+              `Предмет ${partnerSession.myItem.type} (ID: ${player.inventory[freeSlot].itemId}) добавлен в инвентарь ${id} в слот ${freeSlot}`
             );
           } else {
             console.log(`У игрока ${id} нет свободных слотов`);
@@ -862,25 +866,29 @@ wss.on("connection", (ws) => {
 
         // Проверяем и добавляем предмет игрока партнёру
         if (session.myItem) {
-          // Удаляем дубликаты предмета с таким же itemId или типом
+          // Проверяем, нет ли предмета с таким же типом (для нестакаемых)
           for (let i = 0; i < partner.inventory.length; i++) {
             if (
               partner.inventory[i] &&
-              (partner.inventory[i].itemId === session.myItem.itemId ||
-                (partner.inventory[i].type === session.myItem.type &&
-                  !ITEM_CONFIG[partner.inventory[i].type].stackable))
+              partner.inventory[i].type === session.myItem.type &&
+              !ITEM_CONFIG[partner.inventory[i].type].stackable
             ) {
               console.log(
-                `Удалён дубликат предмета ${partner.inventory[i].type} (ID: ${partner.inventory[i].itemId}) у ${data.targetId} из слота ${i}`
+                `Предмет ${partner.inventory[i].type} уже есть у ${data.targetId} в слоте ${i}, пропускаем дубликат`
               );
-              partner.inventory[i] = null;
+              // Не очищаем слот, просто пропускаем дубликат
             }
           }
           const freeSlot = partner.inventory.findIndex((slot) => slot === null);
           if (freeSlot !== -1) {
-            partner.inventory[freeSlot] = { ...session.myItem };
+            partner.inventory[freeSlot] = {
+              ...session.myItem,
+              itemId:
+                session.myItem.itemId ||
+                `${session.myItem.type}_${Date.now()}_${freeSlot}`,
+            };
             console.log(
-              `Предмет ${session.myItem.type} (ID: ${session.myItem.itemId}) добавлен в инвентарь ${data.targetId} в слот ${freeSlot}`
+              `Предмет ${session.myItem.type} (ID: ${partner.inventory[freeSlot].itemId}) добавлен в инвентарь ${data.targetId} в слот ${freeSlot}`
             );
           } else {
             console.log(`У партнёра ${data.targetId} нет свободных слотов`);
