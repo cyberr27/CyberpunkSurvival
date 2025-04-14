@@ -1108,7 +1108,7 @@ function toggleInventory() {
 function selectSlot(slotIndex, slotElement) {
   if (!inventory[slotIndex]) return;
   console.log(
-    `Выбран слот ${slotIndex}, предмет: ${inventory[slotIndex].type}`
+    `Выбран слот ${slotIndex}, предмет: ${inventory[slotIndex].type}, ID: ${inventory[slotIndex].itemId}`
   );
   const screen = document.getElementById("inventoryScreen");
   const useBtn = document.getElementById("useBtn");
@@ -1742,27 +1742,31 @@ function finalizeTrade() {
 
   // Добавляем предмет партнёра в инвентарь
   if (tradeSession.partnerItem) {
-    // Проверяем, нет ли предмета с таким itemId
-    if (
-      !inventory.some(
-        (slot) => slot && slot.itemId === tradeSession.partnerItem.itemId
-      )
-    ) {
-      const freeSlot = inventory.findIndex((slot) => slot === null);
-      if (freeSlot !== -1) {
-        inventory[freeSlot] = { ...tradeSession.partnerItem };
+    // Проверяем, нет ли предмета с таким же itemId или типом
+    for (let i = 0; i < inventory.length; i++) {
+      if (
+        inventory[i] &&
+        (inventory[i].itemId === tradeSession.partnerItem.itemId ||
+          (inventory[i].type === tradeSession.partnerItem.type &&
+            !ITEM_CONFIG[inventory[i].type].stackable))
+      ) {
         console.log(
-          `Получен предмет ${tradeSession.partnerItem.type} (ID: ${tradeSession.partnerItem.itemId}) в слот ${freeSlot}`
+          `Удалён дубликат предмета ${inventory[i].type} (ID: ${inventory[i].itemId}) из слота ${i}`
         );
-      } else {
-        console.warn("Инвентарь полон, предмет партнёра не добавлен!");
-        document.getElementById("inventoryScreen").textContent =
-          "Инвентарь полон, освободите слот!";
+        inventory[i] = null;
       }
-    } else {
-      console.warn(
-        `Предмет с itemId ${tradeSession.partnerItem.itemId} уже есть в инвентаре, пропускаем`
+    }
+
+    const freeSlot = inventory.findIndex((slot) => slot === null);
+    if (freeSlot !== -1) {
+      inventory[freeSlot] = { ...tradeSession.partnerItem };
+      console.log(
+        `Получен предмет ${tradeSession.partnerItem.type} (ID: ${tradeSession.partnerItem.itemId}) в слот ${freeSlot}`
       );
+    } else {
+      console.warn("Инвентарь полон, предмет партнёра не добавлен!");
+      document.getElementById("inventoryScreen").textContent =
+        "Инвентарь полон, освободите слот!";
     }
   }
 
@@ -2165,8 +2169,6 @@ function shoot() {
 function update(deltaTime) {
   const me = players.get(myId);
   if (!me || me.health <= 0) return;
-
-  console.log(`DeltaTime: ${deltaTime}, FPS: ${1000 / deltaTime}`); // Для отладки
 
   if (isMoving) {
     const dx = targetX - me.x;

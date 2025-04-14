@@ -835,11 +835,13 @@ wss.on("connection", (ws) => {
 
         // Проверяем и добавляем предмет партнёра игроку
         if (partnerSession.myItem) {
-          // Удаляем дубликаты предмета с таким же itemId у игрока
+          // Удаляем дубликаты предмета с таким же itemId или типом
           for (let i = 0; i < player.inventory.length; i++) {
             if (
               player.inventory[i] &&
-              player.inventory[i].itemId === partnerSession.myItem.itemId
+              (player.inventory[i].itemId === partnerSession.myItem.itemId ||
+                (player.inventory[i].type === partnerSession.myItem.type &&
+                  !ITEM_CONFIG[player.inventory[i].type].stackable))
             ) {
               console.log(
                 `Удалён дубликат предмета ${player.inventory[i].type} (ID: ${player.inventory[i].itemId}) у ${id} из слота ${i}`
@@ -860,11 +862,13 @@ wss.on("connection", (ws) => {
 
         // Проверяем и добавляем предмет игрока партнёру
         if (session.myItem) {
-          // Удаляем дубликаты предмета с таким же itemId у партнёра
+          // Удаляем дубликаты предмета с таким же itemId или типом
           for (let i = 0; i < partner.inventory.length; i++) {
             if (
               partner.inventory[i] &&
-              partner.inventory[i].itemId === session.myItem.itemId
+              (partner.inventory[i].itemId === session.myItem.itemId ||
+                (partner.inventory[i].type === session.myItem.type &&
+                  !ITEM_CONFIG[partner.inventory[i].type].stackable))
             ) {
               console.log(
                 `Удалён дубликат предмета ${partner.inventory[i].type} (ID: ${partner.inventory[i].itemId}) у ${data.targetId} из слота ${i}`
