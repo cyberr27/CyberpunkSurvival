@@ -2015,9 +2015,13 @@ function handleGameMessage(event) {
           const useBtn = document.getElementById("useBtn");
           const dropBtn = document.getElementById("dropBtn");
           useBtn.textContent = "Обмен";
-          useBtn.disabled = !tradeSession.myItem || tradeSession.myConfirmed; // Активируем, если есть мой предмет и я не подтвердил
+          useBtn.disabled = !(
+            tradeSession.myItem &&
+            !tradeSession.myConfirmed &&
+            tradeSession.partnerConfirmed
+          );
           dropBtn.textContent = "Отмена";
-          dropBtn.disabled = false;
+          dropBtn.disabled = false; // Кнопка "Отмена" всегда активна
           updateTradeInventory();
           if (tradeSession.myConfirmed && tradeSession.partnerConfirmed) {
             finalizeTrade();
