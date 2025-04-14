@@ -1114,7 +1114,7 @@ function selectSlot(slotIndex, slotElement) {
   const dropBtn = document.getElementById("dropBtn");
 
   if (tradeSession && !tradeSession.myTradeItem) {
-    // Помещаем предмет в ячейку обмена, удаляя из инвентаря
+    // Помещаем предмет в ячейку обмена
     tradeSession.myTradeItem = { ...inventory[slotIndex] }; // Сохраняем копию предмета
     inventory[slotIndex] = null; // Удаляем из инвентаря
     sendWhenReady(
@@ -1126,19 +1126,19 @@ function selectSlot(slotIndex, slotElement) {
       })
     );
     updateTradeInventory();
+    updateInventoryDisplay(); // Обновляем инвентарь сразу
     selectedSlot = null;
     screen.innerHTML = "";
-    useBtn.textContent = "Обмен";
-    useBtn.disabled = tradeSession.myConfirmed;
+    useBtn.textContent = "Подтвердить";
+    useBtn.disabled = false;
     dropBtn.textContent = "Отмена";
     dropBtn.disabled = false;
-    updateInventoryDisplay();
   } else {
     // Обычная логика выбора слота
     if (selectedSlot === slotIndex) {
       selectedSlot = null;
       screen.innerHTML = "";
-      useBtn.textContent = tradeSession ? "Обмен" : "Использовать";
+      useBtn.textContent = tradeSession ? "Подтвердить" : "Использовать";
       useBtn.disabled = true;
       dropBtn.textContent = tradeSession ? "Отмена" : "Выкинуть";
       dropBtn.disabled = tradeSession ? false : true;
@@ -1148,15 +1148,16 @@ function selectSlot(slotIndex, slotElement) {
 
     selectedSlot = slotIndex;
     screen.textContent = ITEM_CONFIG[inventory[slotIndex].type].description;
-    useBtn.textContent = tradeSession ? "Обмен" : "Использовать";
+    useBtn.textContent = tradeSession ? "Подтвердить" : "Использовать";
     useBtn.disabled = tradeSession
-      ? !tradeSession.myTradeItem
+      ? false
       : inventory[slotIndex].type === "balyary";
     dropBtn.textContent = tradeSession ? "Отмена" : "Выкинуть";
-    dropBtn.disabled = tradeSession ? false : false;
+    dropBtn.disabled = false;
     updateInventoryDisplay();
   }
 }
+
 // Скрыть кнопки действий
 function hideActionButtons() {
   document.querySelectorAll(".action-btn").forEach((btn) => btn.remove());
@@ -1166,9 +1167,8 @@ function hideActionButtons() {
 function useItem(slotIndex) {
   if (tradeSession) {
     if (!tradeSession.myTradeItem && !tradeSession.partnerTradeItem) {
-      // Если никто не положил предмет, ничего не делаем
       document.getElementById("inventoryScreen").textContent =
-        "Оба игрока должны предложить предметы или хотя бы один предмет должен быть предложен!";
+        "Хотя бы один игрок должен предложить предмет!";
       return;
     }
     if (!tradeSession.myConfirmed) {
@@ -1181,6 +1181,8 @@ function useItem(slotIndex) {
         })
       );
       document.getElementById("useBtn").disabled = true;
+      document.getElementById("inventoryScreen").textContent =
+        "Ожидание подтверждения партнёра...";
       console.log("Обмен подтверждён");
       updateTradeInventory();
       updateInventoryDisplay();
@@ -1668,6 +1670,8 @@ function updateTradeInventory() {
   if (tradeSession.myTradeItem) {
     const img = document.createElement("img");
     img.src = ITEM_CONFIG[tradeSession.myTradeItem.type].image.src;
+    img.style.width = "100%";
+    img.style.height = "100%";
     tradeSlot.appendChild(img);
 
     if (
@@ -1677,7 +1681,20 @@ function updateTradeInventory() {
       const quantityEl = document.createElement("div");
       quantityEl.className = "quantity";
       quantityEl.textContent = tradeSession.myTradeItem.quantity;
+      quantityEl.style.position = "absolute";
+      quantityEl.style.top = "0";
+      quantityEl.style.right = "0";
+      quantityEl.style.color = "#00ffff";
+      quantityEl.style.fontSize = "14px";
       tradeSlot.appendChild(quantityEl);
+    }
+
+    // Индикатор подтверждения
+    if (tradeSession.myConfirmed) {
+      tradeSlot.style.border = "2px solid #00ff00"; // Зелёная рамка
+      screen.textContent = "Вы подтвердили обмен";
+    } else {
+      tradeSlot.style.border = "2px solid #00ffff";
     }
 
     tradeSlot.onmouseover = () => {
@@ -1685,9 +1702,12 @@ function updateTradeInventory() {
         ITEM_CONFIG[tradeSession.myTradeItem.type].description;
     };
     tradeSlot.onmouseout = () => {
-      screen.textContent = "";
+      screen.textContent = tradeSession.myConfirmed
+        ? "Вы подтвердили обмен"
+        : "";
     };
   } else {
+    tradeSlot.style.border = "2px solid #00ffff";
     tradeSlot.onmouseover = null;
     tradeSlot.onmouseout = null;
   }
@@ -1696,6 +1716,8 @@ function updateTradeInventory() {
   if (tradeSession.partnerTradeItem) {
     const img = document.createElement("img");
     img.src = ITEM_CONFIG[tradeSession.partnerTradeItem.type].image.src;
+    img.style.width = "100%";
+    img.style.height = "100%";
     partnerTradeSlot.appendChild(img);
 
     if (
@@ -1705,7 +1727,19 @@ function updateTradeInventory() {
       const quantityEl = document.createElement("div");
       quantityEl.className = "quantity";
       quantityEl.textContent = tradeSession.partnerTradeItem.quantity;
+      quantityEl.style.position = "absolute";
+      quantityEl.style.top = "0";
+      quantityEl.style.right = "0";
+      quantityEl.style.color = "#ff00ff";
+      quantityEl.style.fontSize = "14px";
       partnerTradeSlot.appendChild(quantityEl);
+    }
+
+    // Индикатор подтверждения партнёра
+    if (tradeSession.partnerConfirmed) {
+      partnerTradeSlot.style.border = "2px solid #00ff00"; // Зелёная рамка
+    } else {
+      partnerTradeSlot.style.border = "2px solid #ff00ff";
     }
 
     partnerTradeSlot.onmouseover = () => {
@@ -1713,19 +1747,19 @@ function updateTradeInventory() {
         ITEM_CONFIG[tradeSession.partnerTradeItem.type].description;
     };
     partnerTradeSlot.onmouseout = () => {
-      screen.textContent = "";
+      screen.textContent = tradeSession.myConfirmed
+        ? "Вы подтвердили обмен"
+        : "";
     };
   } else {
+    partnerTradeSlot.style.border = "2px solid #ff00ff";
     partnerTradeSlot.onmouseover = null;
     partnerTradeSlot.onmouseout = null;
   }
 
   // Управляем кнопками
-  useBtn.textContent = "Обмен";
-  useBtn.disabled = !(
-    (tradeSession.myTradeItem && !tradeSession.myConfirmed) ||
-    (tradeSession.partnerTradeItem && !tradeSession.myConfirmed)
-  );
+  useBtn.textContent = "Подтвердить";
+  useBtn.disabled = tradeSession.myConfirmed;
   dropBtn.textContent = "Отмена";
   dropBtn.disabled = false;
 
@@ -1777,9 +1811,54 @@ function finalizeTrade() {
   console.log("Обмен успешно завершён, интерфейс обновлён");
 }
 
+function finalizeTrade() {
+  if (!tradeSession) return;
+
+  // Получаем предмет партнёра
+  if (tradeSession.partnerTradeItem) {
+    const freeSlot = inventory.findIndex((slot) => slot === null);
+    if (freeSlot !== -1) {
+      inventory[freeSlot] = { ...tradeSession.partnerTradeItem };
+      console.log(
+        `Получен предмет ${tradeSession.partnerTradeItem.type} в слот ${freeSlot}`
+      );
+    } else {
+      console.warn("Инвентарь полон, предмет не добавлен");
+      document.getElementById("inventoryScreen").textContent =
+        "Инвентарь полон, предмет не получен!";
+    }
+  }
+
+  // Очищаем сессию
+  tradeSession = null;
+  selectedPlayerId = null;
+  document.getElementById("tradeBtn").disabled = true;
+  const tradeContainer = document.getElementById("tradeContainer");
+  tradeContainer.style.display = "none";
+
+  // Закрываем инвентарь
+  isInventoryOpen = false;
+  const inventoryContainer = document.getElementById("inventoryContainer");
+  inventoryContainer.style.display = "none";
+  document.getElementById("inventoryBtn").classList.remove("active");
+
+  // Сбрасываем кнопки
+  selectedSlot = null;
+  document.getElementById("inventoryScreen").innerHTML = "";
+  const useBtn = document.getElementById("useBtn");
+  const dropBtn = document.getElementById("dropBtn");
+  useBtn.textContent = "Использовать";
+  useBtn.disabled = true;
+  dropBtn.textContent = "Выкинуть";
+  dropBtn.disabled = true;
+
+  updateInventoryDisplay();
+  console.log("Обмен успешно завершён");
+}
+
 function cancelTrade() {
   if (tradeSession && tradeSession.myTradeItem) {
-    // Возвращаем свой предмет в инвентарь
+    // Возвращаем предмет в инвентарь
     const freeSlot = inventory.findIndex((slot) => slot === null);
     if (freeSlot !== -1) {
       inventory[freeSlot] = { ...tradeSession.myTradeItem };
@@ -1788,6 +1867,8 @@ function cancelTrade() {
       );
     } else {
       console.warn("Инвентарь полон, предмет не возвращён!");
+      document.getElementById("inventoryScreen").textContent =
+        "Инвентарь полон, предмет не возвращён!";
     }
   }
 
@@ -1826,7 +1907,7 @@ function cancelTrade() {
   dropBtn.textContent = "Выкинуть";
   dropBtn.disabled = true;
 
-  console.log("Обмен отменён, интерфейс закрыт");
+  console.log("Обмен отменён");
   updateInventoryDisplay();
 }
 
@@ -1978,6 +2059,26 @@ function handleGameMessage(event) {
           console.log(`Обмен не удался: ${data.reason}`);
         }
         break;
+      case "tradeItemPlaced":
+        if (tradeSession && tradeSession.partnerId === data.fromId) {
+          tradeSession.partnerTradeItem = data.item; // Сохраняем предмет партнёра
+          updateTradeInventory();
+          updateInventoryDisplay();
+          console.log(
+            `Партнёр ${data.fromId} предложил предмет: ${
+              data.item?.type || "ничего"
+            }`
+          );
+        }
+        break;
+      case "tradeConfirmed":
+        if (tradeSession && tradeSession.partnerId === data.fromId) {
+          tradeSession.partnerConfirmed = true;
+          updateTradeInventory();
+          updateInventoryDisplay();
+          console.log(`Партнёр ${data.fromId} подтвердил обмен`);
+        }
+        break;
       case "tradeRequest":
         console.log(`Получен запрос на обмен от ${data.fromId}`);
         showTradeRequest(data.fromId);
@@ -2001,30 +2102,6 @@ function handleGameMessage(event) {
           };
           openTradeInventory();
           document.getElementById("tradeBtn").disabled = true;
-        }
-        break;
-      case "tradeItemPlaced":
-        if (tradeSession && tradeSession.partnerId === data.fromId) {
-          tradeSession.partnerTradeItem = data.item; // Сохраняем предмет партнёра
-          updateTradeInventory();
-          updateInventoryDisplay();
-          console.log(
-            `Партнёр ${data.fromId} предложил предмет: ${
-              data.item?.type || "ничего"
-            }`
-          );
-        }
-        break;
-      case "tradeConfirmed":
-        if (tradeSession && tradeSession.partnerId === data.fromId) {
-          tradeSession.partnerConfirmed = true;
-          updateTradeInventory();
-          updateInventoryDisplay();
-          if (tradeSession.myConfirmed && tradeSession.partnerConfirmed) {
-            // Ждём ответа сервера вместо немедленного завершения
-            console.log("Оба игрока подтвердили обмен, ждём сервер");
-          }
-          console.log(`Партнёр ${data.fromId} подтвердил обмен`);
         }
         break;
       case "tradeCancelled":
