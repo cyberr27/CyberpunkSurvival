@@ -772,11 +772,11 @@ wss.on("connection", (ws) => {
       const session = tradeSessions.get(id);
       if (session.partnerId !== data.targetId) return;
 
-      session.myItem = data.item;
+      session.myItem = data.item; // Может быть null
       tradeSessions.set(id, { ...session });
 
       const partnerSession = tradeSessions.get(data.targetId);
-      partnerSession.partnerItem = data.item;
+      partnerSession.partnerItem = data.item; // Передаём null, если предмет не положен
       tradeSessions.set(data.targetId, { ...partnerSession });
 
       const targetWs = Array.from(clients.entries()).find(
@@ -791,7 +791,9 @@ wss.on("connection", (ws) => {
           })
         );
         console.log(
-          `Игрок ${id} предложил предмет ${data.item?.type} для обмена`
+          `Игрок ${id} предложил предмет ${
+            data.item?.type || "ничего"
+          } для обмена`
         );
       }
     } else if (data.type === "tradeConfirmed") {
@@ -821,8 +823,8 @@ wss.on("connection", (ws) => {
         console.log(`Игрок ${id} подтвердил обмен`);
       }
 
-      // Если оба подтвердили, выполняем обмен
-      if (session.myConfirmed && partnerSession.myConfirmed) {
+      // Если оба подтвердили и А положил предмет, выполняем обмен
+      if (session.myConfirmed && partnerSession.myConfirmed && session.myItem) {
         const player = players.get(id);
         const partner = players.get(data.targetId);
 
@@ -845,11 +847,26 @@ wss.on("connection", (ws) => {
               reason: `У партнёра ${data.targetId} нет свободных слотов`,
             })
           );
+          if (targetWs && targetWs.readyState === WebSocket.OPEN) {
+            targetWs.send(
+              JSON.stringify({
+                type: "tradeFailed",
+                reason: `У партнёра ${data.targetId} нет свободных слотов`,
+              })
+            );
+          }
         }
+        // Если В положил предмет, проверяем слот А
         if (partnerSession.myItem && playerFreeSlot === -1) {
           console.warn(`У игрока ${id} нет свободных слотов`);
           canTrade = false;
           targetWs.send(
+            JSON.stringify({
+              type: "tradeFailed",
+              reason: `У игрока ${id} нет свободных слотов`,
+            })
+          );
+          ws.send(
             JSON.stringify({
               type: "tradeFailed",
               reason: `У игрока ${id} нет свободных слотов`,

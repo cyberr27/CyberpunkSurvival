@@ -1162,8 +1162,8 @@ function hideActionButtons() {
 // Подтверждение обмена
 function useItem(slotIndex) {
   if (tradeSession) {
-    if (!tradeSession.myItem) {
-      // Если предмет ещё не помещён, ничего не делаем (предмет уже кладётся в selectSlot)
+    if (!tradeSession.myItem && !tradeSession.partnerItem) {
+      // Если никто не положил предмет, ничего не делаем
       return;
     }
     if (!tradeSession.myConfirmed) {
@@ -1179,6 +1179,7 @@ function useItem(slotIndex) {
       console.log("Обмен подтверждён");
     }
   } else {
+    // Существующая логика использования предмета
     const item = inventory[slotIndex];
     if (!item || item.type === "balyary") return;
     const me = players.get(myId);
@@ -1711,9 +1712,13 @@ function updateTradeInventory() {
 
   // Управляем кнопками
   useBtn.textContent = "Обмен";
+  // Активируем кнопку "Обмен" для А, если он положил предмет и не подтвердил
+  // Активируем для В, если А положил предмет (partnerItem для В — это myItem А)
   useBtn.disabled = !(
-    (tradeSession.myItem && !tradeSession.myConfirmed) ||
-    (tradeSession.partnerItem && tradeSession.partnerConfirmed)
+    (
+      (tradeSession.myItem && !tradeSession.myConfirmed) || // Для А
+      (tradeSession.partnerItem && !tradeSession.myConfirmed)
+    ) // Для В
   );
   dropBtn.textContent = "Отмена";
   dropBtn.disabled = false;
@@ -1724,7 +1729,7 @@ function updateTradeInventory() {
 function finalizeTrade() {
   if (!tradeSession) return;
 
-  // Предмет партнёра уже добавлен сервером, просто обновляем интерфейс
+  // Обновляем инвентарь из серверного ответа
   tradeSession = null;
   selectedPlayerId = null;
   document.getElementById("tradeBtn").disabled = true;
