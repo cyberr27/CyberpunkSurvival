@@ -482,15 +482,40 @@ button:active {
   grid-row: 2; /* Второй ряд в контейнере */
 }
 
-/* Ячейка обмена */
-.trade-slot {
-  background: rgba(255, 0, 255, 0.2) !important;
-  border: 2px solid #ff00ff !important;
-  box-shadow: 0 0 10px rgba(255, 0, 255, 0.5) !important;
+#tradeContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(26, 26, 26, 0.9);
+  border: 2px solid #00ffff;
+  border-radius: 10px;
+  padding: 10px;
 }
 
+/* Ячейка обмена */
+.trade-slot {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.3s;
+}
+.trade-slot img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
 .trade-slot:hover {
   box-shadow: 0 0 15px rgba(255, 0, 255, 0.7) !important;
+}
+
+.quantity {
+  position: absolute;
+  top: 0;
+  right: 0;
+  color: #00ffff;
+  font-size: 14px;
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.7);
 }
 
 /* Подсказка */
