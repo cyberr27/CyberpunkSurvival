@@ -835,21 +835,20 @@ wss.on("connection", (ws) => {
 
         // Проверяем и добавляем предмет партнёра игроку
         if (partnerSession.myItem) {
-          // Проверяем, нет ли предмета с таким же типом (для нестакаемых)
-          for (let i = 0; i < player.inventory.length; i++) {
-            if (
-              player.inventory[i] &&
-              player.inventory[i].type === partnerSession.myItem.type &&
-              !ITEM_CONFIG[player.inventory[i].type].stackable
-            ) {
-              console.log(
-                `Предмет ${player.inventory[i].type} уже есть у ${id} в слоте ${i}, пропускаем дубликат`
-              );
-              // Не очищаем слот, просто пропускаем дубликат
-            }
-          }
           const freeSlot = player.inventory.findIndex((slot) => slot === null);
           if (freeSlot !== -1) {
+            // Проверяем только itemId на дубликат
+            for (let i = 0; i < player.inventory.length; i++) {
+              if (
+                player.inventory[i] &&
+                player.inventory[i].itemId === partnerSession.myItem.itemId
+              ) {
+                console.log(
+                  `Предмет с itemId ${partnerSession.myItem.itemId} уже есть у ${id}, пропускаем`
+                );
+                return; // Пропускаем, если такой itemId уже есть
+              }
+            }
             player.inventory[freeSlot] = {
               ...partnerSession.myItem,
               itemId:
@@ -866,21 +865,20 @@ wss.on("connection", (ws) => {
 
         // Проверяем и добавляем предмет игрока партнёру
         if (session.myItem) {
-          // Проверяем, нет ли предмета с таким же типом (для нестакаемых)
-          for (let i = 0; i < partner.inventory.length; i++) {
-            if (
-              partner.inventory[i] &&
-              partner.inventory[i].type === session.myItem.type &&
-              !ITEM_CONFIG[partner.inventory[i].type].stackable
-            ) {
-              console.log(
-                `Предмет ${partner.inventory[i].type} уже есть у ${data.targetId} в слоте ${i}, пропускаем дубликат`
-              );
-              // Не очищаем слот, просто пропускаем дубликат
-            }
-          }
           const freeSlot = partner.inventory.findIndex((slot) => slot === null);
           if (freeSlot !== -1) {
+            // Проверяем только itemId на дубликат
+            for (let i = 0; i < partner.inventory.length; i++) {
+              if (
+                partner.inventory[i] &&
+                partner.inventory[i].itemId === session.myItem.itemId
+              ) {
+                console.log(
+                  `Предмет с itemId ${session.myItem.itemId} уже есть у ${data.targetId}, пропускаем`
+                );
+                return; // Пропускаем, если такой itemId уже есть
+              }
+            }
             partner.inventory[freeSlot] = {
               ...session.myItem,
               itemId:
