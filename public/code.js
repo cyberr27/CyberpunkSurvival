@@ -2012,7 +2012,7 @@ function handleGameMessage(event) {
       case "tradeConfirmed":
         if (tradeSession && tradeSession.partnerId === data.fromId) {
           tradeSession.partnerConfirmed = true;
-          // Активируем кнопки для партнёра
+          // Обновляем кнопки сразу
           const useBtn = document.getElementById("useBtn");
           const dropBtn = document.getElementById("dropBtn");
           useBtn.textContent = "Обмен";
