@@ -828,6 +828,27 @@ wss.on("connection", (ws) => {
         const player = players.get(id);
         const partner = players.get(data.targetId);
 
+        // Проверяем, есть ли хотя бы один предмет
+        if (!session.myTradeItem && !partnerSession.myTradeItem) {
+          ws.send(
+            JSON.stringify({
+              type: "tradeFailed",
+              reason: "Оба игрока должны предложить хотя бы один предмет",
+            })
+          );
+          if (targetWs && targetWs.readyState === WebSocket.OPEN) {
+            targetWs.send(
+              JSON.stringify({
+                type: "tradeFailed",
+                reason: "Оба игрока должны предложить хотя бы один предмет",
+              })
+            );
+          }
+          tradeSessions.delete(id);
+          tradeSessions.delete(data.targetId);
+          return;
+        }
+
         // Проверяем наличие свободных слотов
         const playerFreeSlot = player.inventory.findIndex(
           (slot) => slot === null
