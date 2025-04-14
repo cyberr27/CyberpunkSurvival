@@ -628,6 +628,39 @@ function updateOnlineCount() {
 
 function startGame() {
   updateOnlineCount();
+
+  // Создаём контейнер для ячеек обмена один раз
+  const tradeContainer = document.createElement("div");
+  tradeContainer.id = "tradeContainer";
+  tradeContainer.style.position = "absolute";
+  tradeContainer.style.top = "50%";
+  tradeContainer.style.left = "50%";
+  tradeContainer.style.transform = "translate(-50%, -50%)";
+  tradeContainer.style.display = "none";
+  tradeContainer.style.zIndex = "200";
+  document.body.appendChild(tradeContainer);
+
+  // Создаём ячейку для своего предмета
+  const tradeSlot = document.createElement("div");
+  tradeSlot.id = "tradeSlot";
+  tradeSlot.className = "inventory-slot trade-slot";
+  tradeSlot.style.width = "60px";
+  tradeSlot.style.height = "60px";
+  tradeSlot.style.background = "rgba(0, 255, 255, 0.2)";
+  tradeSlot.style.border = "2px solid #00ffff";
+  tradeSlot.style.marginRight = "20px";
+  tradeContainer.appendChild(tradeSlot);
+
+  // Создаём ячейку для предмета партнёра
+  const partnerTradeSlot = document.createElement("div");
+  partnerTradeSlot.id = "partnerTradeSlot";
+  partnerTradeSlot.className = "inventory-slot trade-slot";
+  partnerTradeSlot.style.width = "60px";
+  partnerTradeSlot.style.height = "60px";
+  partnerTradeSlot.style.background = "rgba(255, 0, 255, 0.2)";
+  partnerTradeSlot.style.border = "2px solid #ff00ff";
+  tradeContainer.appendChild(partnerTradeSlot);
+
   // Обработчик клавиш (только для стрельбы и чата)
   document.addEventListener("keydown", (e) => {
     const me = players.get(myId);
@@ -672,80 +705,6 @@ function startGame() {
     }
   });
   // Обработчик нажатия мыши
-  canvas.addEventListener("mousedown", (e) => {
-    if (e.button === 0) {
-      const me = players.get(myId);
-      if (!me || me.health <= 0) return;
-
-      const inventoryContainer = document.getElementById("inventoryContainer");
-      const rect = inventoryContainer.getBoundingClientRect();
-      if (
-        isInventoryOpen &&
-        e.clientX >= rect.left &&
-        e.clientX <= rect.right &&
-        e.clientY >= rect.top &&
-        e.clientY <= rect.bottom
-      ) {
-        const slots = inventoryContainer.children;
-        for (let i = 0; i < slots.length; i++) {
-          const slotRect = slots[i].getBoundingClientRect();
-          if (
-            e.clientX >= slotRect.left &&
-            e.clientX <= slotRect.right &&
-            e.clientY >= slotRect.top &&
-            e.clientY <= slotRect.bottom &&
-            inventory[i]
-          ) {
-            console.log(
-              `Клик по слоту ${i} (x:${e.clientX}, y:${e.clientY}), предмет: ${inventory[i].type}`
-            );
-            selectSlot(i, slots[i]);
-            return;
-          }
-        }
-        console.log(
-          `Клик вне слотов инвентаря (x:${e.clientX}, y:${e.clientY})`
-        );
-        return; // Прерываем, если клик в инвентаре, но не по слоту
-      }
-
-      // Создаём контейнер для ячеек обмена
-      const tradeContainer = document.createElement("div");
-      tradeContainer.id = "tradeContainer";
-      tradeContainer.style.position = "absolute";
-      tradeContainer.style.top = "50%";
-      tradeContainer.style.left = "50%";
-      tradeContainer.style.transform = "translate(-50%, -50%)";
-      tradeContainer.style.display = "none";
-      tradeContainer.style.zIndex = "200";
-      document.body.appendChild(tradeContainer);
-
-      // Создаём ячейку для своего предмета
-      const tradeSlot = document.createElement("div");
-      tradeSlot.id = "tradeSlot";
-      tradeSlot.className = "inventory-slot trade-slot";
-      tradeSlot.style.width = "60px";
-      tradeSlot.style.height = "60px";
-      tradeSlot.style.background = "rgba(0, 255, 255, 0.2)";
-      tradeSlot.style.border = "2px solid #00ffff";
-      tradeSlot.style.marginRight = "20px";
-      tradeContainer.appendChild(tradeSlot);
-
-      // Создаём ячейку для предмета партнёра
-      const partnerTradeSlot = document.createElement("div");
-      partnerTradeSlot.id = "partnerTradeSlot";
-      partnerTradeSlot.className = "inventory-slot trade-slot";
-      partnerTradeSlot.style.width = "60px";
-      partnerTradeSlot.style.height = "60px";
-      partnerTradeSlot.style.background = "rgba(255, 0, 255, 0.2)";
-      partnerTradeSlot.style.border = "2px solid #ff00ff";
-      tradeContainer.appendChild(partnerTradeSlot);
-
-      isMoving = true;
-      targetX = e.clientX + camera.x;
-      targetY = e.clientY + camera.y;
-    }
-  });
 
   // Обработчик движения мыши (обновляем цель, если кнопка зажата)
   canvas.addEventListener("mousemove", (e) => {
@@ -1642,6 +1601,8 @@ function updateTradeInventory() {
   if (tradeSession.myItem) {
     const img = document.createElement("img");
     img.src = ITEM_CONFIG[tradeSession.myItem.type].image.src;
+    img.style.width = "100%";
+    img.style.height = "100%";
     tradeSlot.appendChild(img);
 
     if (
@@ -1669,6 +1630,8 @@ function updateTradeInventory() {
   if (tradeSession.partnerItem) {
     const img = document.createElement("img");
     img.src = ITEM_CONFIG[tradeSession.partnerItem.type].image.src;
+    img.style.width = "100%";
+    img.style.height = "100%";
     partnerTradeSlot.appendChild(img);
 
     if (
@@ -1699,7 +1662,9 @@ function updateTradeInventory() {
   dropBtn.textContent = "Отмена";
   dropBtn.disabled = false; // Кнопка "Отмена" всегда активна
 
+  // Обновляем инвентарь для отображения изменений
   updateInventoryDisplay();
+  console.log("Интерфейс обмена обновлён");
 }
 
 function finalizeTrade() {
@@ -1715,26 +1680,15 @@ function finalizeTrade() {
       );
     } else {
       console.warn("Инвентарь полон, предмет партнёра не добавлен!");
-    }
-  }
-
-  // Удаляем свой предмет из инвентаря
-  if (tradeSession.myItem) {
-    const slotIndex = inventory.findIndex(
-      (slot) => slot && slot.itemId === tradeSession.myItem.itemId
-    );
-    if (slotIndex !== -1) {
-      inventory[slotIndex] = null;
-      console.log(`Предмет ${tradeSession.myItem.type} удалён из инвентаря`);
+      document.getElementById("inventoryScreen").textContent =
+        "Инвентарь полон, освободите слот!";
     }
   }
 
   // Закрываем интерфейс
-  tradeSession = null;
-  selectedPlayerId = null;
-  document.getElementById("tradeBtn").disabled = true;
   const tradeContainer = document.getElementById("tradeContainer");
   tradeContainer.style.display = "none";
+  tradeContainer.innerHTML = ""; // Очищаем ячейки обмена
 
   // Закрываем инвентарь
   if (isInventoryOpen) {
@@ -1744,7 +1698,7 @@ function finalizeTrade() {
     document.getElementById("inventoryBtn").classList.remove("active");
   }
 
-  // Сбрасываем кнопки в исходное состояние
+  // Сбрасываем кнопки и сессию
   selectedSlot = null;
   document.getElementById("inventoryScreen").innerHTML = "";
   const useBtn = document.getElementById("useBtn");
@@ -1753,7 +1707,13 @@ function finalizeTrade() {
   useBtn.disabled = true;
   dropBtn.textContent = "Выкинуть";
   dropBtn.disabled = true;
+  selectedPlayerId = null;
+  document.getElementById("tradeBtn").disabled = true;
 
+  // Очищаем tradeSession, чтобы избежать дублирования
+  tradeSession = null;
+
+  // Обновляем инвентарь
   updateInventoryDisplay();
   console.log("Обмен успешно завершён");
 }
@@ -1956,6 +1916,12 @@ function handleGameMessage(event) {
       case "bulletRemoved":
         bullets.delete(data.bulletId);
         console.log(`Пуля ${data.bulletId} удалена`);
+        break;
+      case "tradeCompleted":
+        if (tradeSession && tradeSession.partnerId === data.partnerId) {
+          finalizeTrade();
+          console.log(`Обмен с ${data.partnerId} завершён на клиенте`);
+        }
         break;
       case "tradeRequest":
         console.log(`Получен запрос на обмен от ${data.fromId}`);
