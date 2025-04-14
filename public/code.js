@@ -1115,6 +1115,12 @@ function selectSlot(slotIndex, slotElement) {
   const dropBtn = document.getElementById("dropBtn");
 
   if (tradeSession && !tradeSession.myItem) {
+    // Генерируем itemId, если его нет
+    if (!inventory[slotIndex].itemId) {
+      inventory[slotIndex].itemId = `${
+        inventory[slotIndex].type
+      }_${Date.now()}`;
+    }
     // Переносим предмет в ячейку обмена
     tradeSession.myItem = { ...inventory[slotIndex], slotIndex };
     inventory[slotIndex] = null;
@@ -1704,7 +1710,7 @@ function updateTradeInventory() {
   dropBtn.textContent = "Отмена";
   dropBtn.disabled = false; // Кнопка "Отмена" всегда активна
 
-  // Обновляем инвентарь для отображения изменений
+  // Обновляем инвентарь
   updateInventoryDisplay();
   console.log("Интерфейс обмена обновлён");
 }
@@ -1712,20 +1718,37 @@ function updateTradeInventory() {
 function finalizeTrade() {
   if (!tradeSession) return;
 
-  // Обрабатываем предмет партнёра
+  // Добавляем предмет партнёра в инвентарь
   if (tradeSession.partnerItem) {
     const freeSlot = inventory.findIndex((slot) => slot === null);
     if (freeSlot !== -1) {
-      inventory[freeSlot] = { ...tradeSession.partnerItem };
-      console.log(
-        `Получен предмет ${tradeSession.partnerItem.type} в слот ${freeSlot}`
-      );
+      // Проверяем, нет ли предмета с таким itemId в инвентаре
+      if (
+        !inventory.some(
+          (slot) => slot && slot.itemId === tradeSession.partnerItem.itemId
+        )
+      ) {
+        inventory[freeSlot] = { ...tradeSession.partnerItem };
+        console.log(
+          `Получен предмет ${tradeSession.partnerItem.type} (ID: ${tradeSession.partnerItem.itemId}) в слот ${freeSlot}`
+        );
+      } else {
+        console.warn(
+          `Предмет ${tradeSession.partnerItem.itemId} уже есть в инвентаре, пропускаем`
+        );
+      }
     } else {
       console.warn("Инвентарь полон, предмет партнёра не добавлен!");
       document.getElementById("inventoryScreen").textContent =
         "Инвентарь полон, освободите слот!";
     }
   }
+
+  // Очищаем сессию обмена
+  tradeSession.myItem = null;
+  tradeSession.partnerItem = null;
+  tradeSession.myConfirmed = false;
+  tradeSession.partnerConfirmed = false;
 
   // Закрываем интерфейс
   const tradeContainer = document.getElementById("tradeContainer");
@@ -1740,7 +1763,7 @@ function finalizeTrade() {
     document.getElementById("inventoryBtn").classList.remove("active");
   }
 
-  // Сбрасываем кнопки и сессию
+  // Сбрасываем кнопки и состояние
   selectedSlot = null;
   document.getElementById("inventoryScreen").innerHTML = "";
   const useBtn = document.getElementById("useBtn");
@@ -1752,12 +1775,12 @@ function finalizeTrade() {
   selectedPlayerId = null;
   document.getElementById("tradeBtn").disabled = true;
 
-  // Очищаем tradeSession, чтобы избежать дублирования
+  // Полностью очищаем tradeSession
   tradeSession = null;
 
-  // Обновляем инвентарь
+  // Обновляем отображение инвентаря
   updateInventoryDisplay();
-  console.log("Обмен успешно завершён");
+  console.log("Обмен успешно завершён, ячейки очищены");
 }
 
 function cancelTrade() {
@@ -1772,6 +1795,8 @@ function cancelTrade() {
         );
       } else {
         console.warn("Инвентарь полон, предмет не возвращён!");
+        document.getElementById("inventoryScreen").textContent =
+          "Инвентарь полон, освободите слот!";
       }
     }
     sendWhenReady(
@@ -1783,11 +1808,9 @@ function cancelTrade() {
     );
   }
 
-  // Закрываем интерфейс
-  tradeSession = null;
-  selectedPlayerId = null;
-  document.getElementById("tradeBtn").disabled = true;
+  // Очищаем ячейки обмена
   const tradeContainer = document.getElementById("tradeContainer");
+  tradeContainer.innerHTML = "";
   tradeContainer.style.display = "none";
 
   // Закрываем инвентарь, если открыт
@@ -1798,7 +1821,12 @@ function cancelTrade() {
     document.getElementById("inventoryBtn").classList.remove("active");
   }
 
-  // Сбрасываем кнопки в исходное состояние
+  // Сбрасываем состояние
+  tradeSession = null;
+  selectedPlayerId = null;
+  document.getElementById("tradeBtn").disabled = true;
+
+  // Сбрасываем кнопки
   selectedSlot = null;
   document.getElementById("inventoryScreen").innerHTML = "";
   const useBtn = document.getElementById("useBtn");
@@ -1809,7 +1837,7 @@ function cancelTrade() {
   dropBtn.disabled = true;
 
   updateInventoryDisplay();
-  console.log("Обмен отменён, интерфейс закрыт");
+  console.log("Обмен отменён, интерфейс и ячейки очищены");
 }
 
 function handleGameMessage(event) {

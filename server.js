@@ -826,34 +826,11 @@ wss.on("connection", (ws) => {
         const player = players.get(id);
         const partner = players.get(data.targetId);
 
-        // Проверяем, чтобы предметы не дублировались
-        if (session.myItem) {
-          const freeSlot = partner.inventory.findIndex((slot) => slot === null);
-          if (freeSlot !== -1) {
-            // Проверяем, нет ли уже этого itemId в инвентаре партнёра
-            if (
-              !partner.inventory.some(
-                (slot) => slot && slot.itemId === session.myItem.itemId
-              )
-            ) {
-              partner.inventory[freeSlot] = { ...session.myItem };
-              console.log(
-                `Предмет ${session.myItem.type} добавлен в инвентарь ${data.targetId} в слот ${freeSlot}`
-              );
-            } else {
-              console.warn(
-                `Предмет ${session.myItem.itemId} уже есть у ${data.targetId}, пропускаем`
-              );
-            }
-          } else {
-            console.log(`У партнёра ${data.targetId} нет свободных слотов`);
-          }
-        }
-
+        // Проверяем и добавляем предмет партнёра игроку
         if (partnerSession.myItem) {
           const freeSlot = player.inventory.findIndex((slot) => slot === null);
           if (freeSlot !== -1) {
-            // Проверяем, нет ли уже этого itemId в инвентаре игрока
+            // Проверяем, что предмет с таким itemId ещё не существует в инвентаре
             if (
               !player.inventory.some(
                 (slot) => slot && slot.itemId === partnerSession.myItem.itemId
@@ -861,7 +838,7 @@ wss.on("connection", (ws) => {
             ) {
               player.inventory[freeSlot] = { ...partnerSession.myItem };
               console.log(
-                `Предмет ${partnerSession.myItem.type} добавлен в инвентарь ${id} в слот ${freeSlot}`
+                `Предмет ${partnerSession.myItem.type} (ID: ${partnerSession.myItem.itemId}) добавлен в инвентарь ${id} в слот ${freeSlot}`
               );
             } else {
               console.warn(
@@ -873,13 +850,56 @@ wss.on("connection", (ws) => {
           }
         }
 
-        // Очищаем предметы из ячеек обмена в сессии
+        // Проверяем и добавляем предмет игрока партнёру
+        if (session.myItem) {
+          const freeSlot = partner.inventory.findIndex((slot) => slot === null);
+          if (freeSlot !== -1) {
+            // Проверяем, что предмет с таким itemId ещё не существует в инвентаре партнёра
+            if (
+              !partner.inventory.some(
+                (slot) => slot && slot.itemId === session.myItem.itemId
+              )
+            ) {
+              partner.inventory[freeSlot] = { ...session.myItem };
+              console.log(
+                `Предмет ${session.myItem.type} (ID: ${session.myItem.itemId}) добавлен в инвентарь ${data.targetId} в слот ${freeSlot}`
+              );
+            } else {
+              console.warn(
+                `Предмет ${session.myItem.itemId} уже есть у ${data.targetId}, пропускаем`
+              );
+            }
+          } else {
+            console.log(`У партнёра ${data.targetId} нет свободных слотов`);
+          }
+        }
+
+        // Очищаем ячейки обмена
         session.myItem = null;
+        session.partnerItem = null;
         partnerSession.myItem = null;
+        partnerSession.partnerItem = null;
+
+        // Очищаем исходные слоты в инвентарях, если предметы ещё там (защита от дублирования)
+        if (session.myItem && session.myItem.slotIndex !== undefined) {
+          player.inventory[session.myItem.slotIndex] = null;
+          console.log(`Очищен слот ${session.myItem.slotIndex} у игрока ${id}`);
+        }
+        if (
+          partnerSession.myItem &&
+          partnerSession.myItem.slotIndex !== undefined
+        ) {
+          partner.inventory[partnerSession.myItem.slotIndex] = null;
+          console.log(
+            `Очищен слот ${partnerSession.myItem.slotIndex} у игрока ${data.targetId}`
+          );
+        }
+
+        // Сохраняем сессии
         tradeSessions.set(id, { ...session });
         tradeSessions.set(data.targetId, { ...partnerSession });
 
-        // Сохраняем обновлённые данные
+        // Сохраняем обновлённые данные игроков
         players.set(id, { ...player });
         players.set(data.targetId, { ...partner });
         userDatabase.set(id, { ...player });
@@ -922,13 +942,7 @@ wss.on("connection", (ws) => {
         // Очищаем сессию
         tradeSessions.delete(id);
         tradeSessions.delete(data.targetId);
-        console.log(
-          `Обмен между ${id} и ${
-            data.targetId
-          } завершён. Предметы: ${JSON.stringify(
-            session.myItem
-          )} <-> ${JSON.stringify(partnerSession.myItem)}`
-        );
+        console.log(`Обмен между ${id} и ${data.targetId} завершён`);
       }
     } else if (data.type === "tradeCancelled") {
       const id = clients.get(ws);
