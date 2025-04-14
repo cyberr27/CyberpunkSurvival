@@ -415,6 +415,8 @@ wss.on("connection", (ws) => {
         if (balyarySlot !== -1) {
           player.inventory[balyarySlot].quantity =
             (player.inventory[balyarySlot].quantity || 1) + quantityToAdd;
+          player.inventory[balyarySlot].itemId =
+            player.inventory[balyarySlot].itemId || data.itemId;
         } else {
           const freeSlot = player.inventory.findIndex((slot) => slot === null);
           if (freeSlot !== -1) {
@@ -433,7 +435,10 @@ wss.on("connection", (ws) => {
       } else {
         const freeSlot = player.inventory.findIndex((slot) => slot === null);
         if (freeSlot !== -1) {
-          player.inventory[freeSlot] = { type: item.type, itemId: data.itemId };
+          player.inventory[freeSlot] = {
+            type: item.type,
+            itemId: data.itemId,
+          };
         } else {
           ws.send(
             JSON.stringify({ type: "inventoryFull", itemId: data.itemId })
@@ -469,8 +474,9 @@ wss.on("connection", (ws) => {
         }
       });
 
+      // Спавн нового предмета
       setTimeout(() => {
-        const worldWidth = 2800;
+        const worldWidth = 3135;
         const worldHeight = 3300;
         const newItemId = `${item.type}_${Date.now()}`;
         const newItem = {
@@ -794,7 +800,8 @@ wss.on("connection", (ws) => {
           `Игрок ${id} предложил предмет ${data.item?.type} для обмена`
         );
       }
-    } else if (data.type === "tradeConfirmed") {
+    }
+    if (data.type === "tradeConfirmed") {
       const id = clients.get(ws);
       if (!id || !data.targetId || !tradeSessions.has(id)) return;
 
@@ -828,23 +835,24 @@ wss.on("connection", (ws) => {
 
         // Проверяем и добавляем предмет партнёра игроку
         if (partnerSession.myItem) {
+          // Удаляем дубликаты предмета с таким же itemId у игрока
+          for (let i = 0; i < player.inventory.length; i++) {
+            if (
+              player.inventory[i] &&
+              player.inventory[i].itemId === partnerSession.myItem.itemId
+            ) {
+              console.log(
+                `Удалён дубликат предмета ${player.inventory[i].type} (ID: ${player.inventory[i].itemId}) у ${id} из слота ${i}`
+              );
+              player.inventory[i] = null;
+            }
+          }
           const freeSlot = player.inventory.findIndex((slot) => slot === null);
           if (freeSlot !== -1) {
-            // Проверяем, что предмет с таким itemId ещё не существует в инвентаре
-            if (
-              !player.inventory.some(
-                (slot) => slot && slot.itemId === partnerSession.myItem.itemId
-              )
-            ) {
-              player.inventory[freeSlot] = { ...partnerSession.myItem };
-              console.log(
-                `Предмет ${partnerSession.myItem.type} (ID: ${partnerSession.myItem.itemId}) добавлен в инвентарь ${id} в слот ${freeSlot}`
-              );
-            } else {
-              console.warn(
-                `Предмет ${partnerSession.myItem.itemId} уже есть у ${id}, пропускаем`
-              );
-            }
+            player.inventory[freeSlot] = { ...partnerSession.myItem };
+            console.log(
+              `Предмет ${partnerSession.myItem.type} (ID: ${partnerSession.myItem.itemId}) добавлен в инвентарь ${id} в слот ${freeSlot}`
+            );
           } else {
             console.log(`У игрока ${id} нет свободных слотов`);
           }
@@ -852,35 +860,30 @@ wss.on("connection", (ws) => {
 
         // Проверяем и добавляем предмет игрока партнёру
         if (session.myItem) {
+          // Удаляем дубликаты предмета с таким же itemId у партнёра
+          for (let i = 0; i < partner.inventory.length; i++) {
+            if (
+              partner.inventory[i] &&
+              partner.inventory[i].itemId === session.myItem.itemId
+            ) {
+              console.log(
+                `Удалён дубликат предмета ${partner.inventory[i].type} (ID: ${partner.inventory[i].itemId}) у ${data.targetId} из слота ${i}`
+              );
+              partner.inventory[i] = null;
+            }
+          }
           const freeSlot = partner.inventory.findIndex((slot) => slot === null);
           if (freeSlot !== -1) {
-            // Проверяем, что предмет с таким itemId ещё не существует в инвентаре партнёра
-            if (
-              !partner.inventory.some(
-                (slot) => slot && slot.itemId === session.myItem.itemId
-              )
-            ) {
-              partner.inventory[freeSlot] = { ...session.myItem };
-              console.log(
-                `Предмет ${session.myItem.type} (ID: ${session.myItem.itemId}) добавлен в инвентарь ${data.targetId} в слот ${freeSlot}`
-              );
-            } else {
-              console.warn(
-                `Предмет ${session.myItem.itemId} уже есть у ${data.targetId}, пропускаем`
-              );
-            }
+            partner.inventory[freeSlot] = { ...session.myItem };
+            console.log(
+              `Предмет ${session.myItem.type} (ID: ${session.myItem.itemId}) добавлен в инвентарь ${data.targetId} в слот ${freeSlot}`
+            );
           } else {
             console.log(`У партнёра ${data.targetId} нет свободных слотов`);
           }
         }
 
-        // Очищаем ячейки обмена
-        session.myItem = null;
-        session.partnerItem = null;
-        partnerSession.myItem = null;
-        partnerSession.partnerItem = null;
-
-        // Очищаем исходные слоты в инвентарях, если предметы ещё там (защита от дублирования)
+        // Очищаем исходные слоты
         if (session.myItem && session.myItem.slotIndex !== undefined) {
           player.inventory[session.myItem.slotIndex] = null;
           console.log(`Очищен слот ${session.myItem.slotIndex} у игрока ${id}`);
@@ -944,31 +947,48 @@ wss.on("connection", (ws) => {
         tradeSessions.delete(data.targetId);
         console.log(`Обмен между ${id} и ${data.targetId} завершён`);
       }
-    } else if (data.type === "tradeCancelled") {
+    }
+    if (data.type === "tradeCancelled") {
       const id = clients.get(ws);
       if (!id || !data.targetId || !tradeSessions.has(id)) return;
 
       const session = tradeSessions.get(id);
       if (session.partnerId !== data.targetId) return;
 
-      // Возвращаем предметы
+      // Возвращаем предмет игрока
       if (session.myItem) {
         const player = players.get(id);
+        // Проверяем, нет ли дубликатов
+        for (let i = 0; i < player.inventory.length; i++) {
+          if (
+            player.inventory[i] &&
+            player.inventory[i].itemId === session.myItem.itemId
+          ) {
+            console.log(
+              `Дубликат предмета ${player.inventory[i].type} (ID: ${player.inventory[i].itemId}) найден у ${id}, очищаем слот ${i}`
+            );
+            player.inventory[i] = null;
+          }
+        }
         const freeSlot = player.inventory.findIndex((slot) => slot === null);
         if (freeSlot !== -1) {
           player.inventory[freeSlot] = { ...session.myItem };
+          console.log(
+            `Предмет ${session.myItem.type} (ID: ${session.myItem.itemId}) возвращён игроку ${id} в слот ${freeSlot}`
+          );
           players.set(id, { ...player });
           userDatabase.set(id, { ...player });
           await saveUserDatabase(dbCollection, id, player);
           ws.send(
             JSON.stringify({
               type: "update",
-              player: player,
+              player: { id, ...player },
             })
           );
         }
       }
 
+      // Уведомляем партнёра и возвращаем его предмет
       const targetWs = Array.from(clients.entries()).find(
         ([client, clientId]) => clientId === data.targetId
       )?.[0];
@@ -976,16 +996,31 @@ wss.on("connection", (ws) => {
         const partnerSession = tradeSessions.get(data.targetId);
         if (partnerSession.myItem) {
           const partner = players.get(data.targetId);
+          // Проверяем, нет ли дубликатов
+          for (let i = 0; i < partner.inventory.length; i++) {
+            if (
+              partner.inventory[i] &&
+              partner.inventory[i].itemId === partnerSession.myItem.itemId
+            ) {
+              console.log(
+                `Дубликат предмета ${partner.inventory[i].type} (ID: ${partner.inventory[i].itemId}) найден у ${data.targetId}, очищаем слот ${i}`
+              );
+              partner.inventory[i] = null;
+            }
+          }
           const freeSlot = partner.inventory.findIndex((slot) => slot === null);
           if (freeSlot !== -1) {
             partner.inventory[freeSlot] = { ...partnerSession.myItem };
+            console.log(
+              `Предмет ${partnerSession.myItem.type} (ID: ${partnerSession.myItem.itemId}) возвращён игроку ${data.targetId} в слот ${freeSlot}`
+            );
             players.set(data.targetId, { ...partner });
             userDatabase.set(data.targetId, { ...partner });
             await saveUserDatabase(dbCollection, data.targetId, partner);
             targetWs.send(
               JSON.stringify({
                 type: "update",
-                player: partner,
+                player: { id: data.targetId, ...partner },
               })
             );
           }

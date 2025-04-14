@@ -1119,8 +1119,23 @@ function selectSlot(slotIndex, slotElement) {
     if (!inventory[slotIndex].itemId) {
       inventory[slotIndex].itemId = `${
         inventory[slotIndex].type
-      }_${Date.now()}`;
+      }_${Date.now()}_${slotIndex}`;
     }
+
+    // Проверяем и удаляем дубликаты предмета с таким же itemId
+    for (let i = 0; i < inventory.length; i++) {
+      if (
+        i !== slotIndex &&
+        inventory[i] &&
+        inventory[i].itemId === inventory[slotIndex].itemId
+      ) {
+        console.log(
+          `Удалён дубликат предмета ${inventory[i].type} с itemId ${inventory[i].itemId} из слота ${i}`
+        );
+        inventory[i] = null;
+      }
+    }
+
     // Переносим предмет в ячейку обмена
     tradeSession.myItem = { ...inventory[slotIndex], slotIndex };
     inventory[slotIndex] = null;
@@ -1138,7 +1153,7 @@ function selectSlot(slotIndex, slotElement) {
     useBtn.textContent = "Обмен";
     useBtn.disabled = tradeSession.myConfirmed;
     dropBtn.textContent = "Отмена";
-    dropBtn.disabled = false; // Кнопка "Отмена" активна
+    dropBtn.disabled = false;
   } else {
     // Обычная логика выбора слота
     if (selectedSlot === slotIndex) {
@@ -1146,7 +1161,7 @@ function selectSlot(slotIndex, slotElement) {
       screen.innerHTML = "";
       useBtn.textContent = tradeSession ? "Обмен" : "Использовать";
       useBtn.disabled = true;
-      dropBtn.disabled = tradeSession ? false : true; // В режиме торговли "Отмена" активна
+      dropBtn.disabled = tradeSession ? false : true;
       return;
     }
 
@@ -1154,7 +1169,7 @@ function selectSlot(slotIndex, slotElement) {
     screen.textContent = ITEM_CONFIG[inventory[slotIndex].type].description;
     useBtn.textContent = tradeSession ? "Обмен" : "Использовать";
     useBtn.disabled = inventory[slotIndex].type === "balyary" && !tradeSession;
-    dropBtn.disabled = tradeSession ? false : true; // В режиме торговли "Отмена" активна
+    dropBtn.disabled = tradeSession ? false : true;
   }
 }
 // Скрыть кнопки действий
@@ -1706,13 +1721,20 @@ function updateTradeInventory() {
 
   // Управляем кнопками
   useBtn.textContent = "Обмен";
-  useBtn.disabled = !tradeSession.myItem || tradeSession.myConfirmed; // Обмен доступен, если есть предмет и не подтверждено
+  useBtn.disabled =
+    !tradeSession.myItem ||
+    tradeSession.myConfirmed ||
+    !tradeSession.partnerItem;
   dropBtn.textContent = "Отмена";
-  dropBtn.disabled = false; // Кнопка "Отмена" всегда активна
+  dropBtn.disabled = false;
 
   // Обновляем инвентарь
   updateInventoryDisplay();
-  console.log("Интерфейс обмена обновлён");
+  console.log(
+    `Интерфейс обмена обновлён: мой предмет=${
+      tradeSession.myItem?.type || "нет"
+    }, предмет партнёра=${tradeSession.partnerItem?.type || "нет"}`
+  );
 }
 
 function finalizeTrade() {
@@ -1720,27 +1742,27 @@ function finalizeTrade() {
 
   // Добавляем предмет партнёра в инвентарь
   if (tradeSession.partnerItem) {
-    const freeSlot = inventory.findIndex((slot) => slot === null);
-    if (freeSlot !== -1) {
-      // Проверяем, нет ли предмета с таким itemId в инвентаре
-      if (
-        !inventory.some(
-          (slot) => slot && slot.itemId === tradeSession.partnerItem.itemId
-        )
-      ) {
+    // Проверяем, нет ли предмета с таким itemId
+    if (
+      !inventory.some(
+        (slot) => slot && slot.itemId === tradeSession.partnerItem.itemId
+      )
+    ) {
+      const freeSlot = inventory.findIndex((slot) => slot === null);
+      if (freeSlot !== -1) {
         inventory[freeSlot] = { ...tradeSession.partnerItem };
         console.log(
           `Получен предмет ${tradeSession.partnerItem.type} (ID: ${tradeSession.partnerItem.itemId}) в слот ${freeSlot}`
         );
       } else {
-        console.warn(
-          `Предмет ${tradeSession.partnerItem.itemId} уже есть в инвентаре, пропускаем`
-        );
+        console.warn("Инвентарь полон, предмет партнёра не добавлен!");
+        document.getElementById("inventoryScreen").textContent =
+          "Инвентарь полон, освободите слот!";
       }
     } else {
-      console.warn("Инвентарь полон, предмет партнёра не добавлен!");
-      document.getElementById("inventoryScreen").textContent =
-        "Инвентарь полон, освободите слот!";
+      console.warn(
+        `Предмет с itemId ${tradeSession.partnerItem.itemId} уже есть в инвентаре, пропускаем`
+      );
     }
   }
 
@@ -1753,7 +1775,12 @@ function finalizeTrade() {
   // Закрываем интерфейс
   const tradeContainer = document.getElementById("tradeContainer");
   tradeContainer.style.display = "none";
-  tradeContainer.innerHTML = ""; // Очищаем ячейки обмена
+
+  // Очищаем ячейки обмена
+  const tradeSlot = document.getElementById("tradeSlot");
+  const partnerTradeSlot = document.getElementById("partnerTradeSlot");
+  tradeSlot.innerHTML = "";
+  partnerTradeSlot.innerHTML = "";
 
   // Закрываем инвентарь
   if (isInventoryOpen) {
@@ -1787,16 +1814,27 @@ function cancelTrade() {
   if (tradeSession) {
     // Возвращаем свой предмет в инвентарь
     if (tradeSession.myItem) {
-      const freeSlot = inventory.findIndex((slot) => slot === null);
-      if (freeSlot !== -1) {
-        inventory[freeSlot] = { ...tradeSession.myItem };
-        console.log(
-          `Предмет ${tradeSession.myItem.type} возвращён в слот ${freeSlot}`
-        );
+      // Проверяем, нет ли уже предмета с таким itemId
+      if (
+        !inventory.some(
+          (slot) => slot && slot.itemId === tradeSession.myItem.itemId
+        )
+      ) {
+        const freeSlot = inventory.findIndex((slot) => slot === null);
+        if (freeSlot !== -1) {
+          inventory[freeSlot] = { ...tradeSession.myItem };
+          console.log(
+            `Предмет ${tradeSession.myItem.type} (ID: ${tradeSession.myItem.itemId}) возвращён в слот ${freeSlot}`
+          );
+        } else {
+          console.warn("Инвентарь полон, предмет не возвращён!");
+          document.getElementById("inventoryScreen").textContent =
+            "Инвентарь полон, освободите слот!";
+        }
       } else {
-        console.warn("Инвентарь полон, предмет не возвращён!");
-        document.getElementById("inventoryScreen").textContent =
-          "Инвентарь полон, освободите слот!";
+        console.warn(
+          `Предмет с itemId ${tradeSession.myItem.itemId} уже есть в инвентаре, пропускаем возврат`
+        );
       }
     }
     sendWhenReady(
@@ -1810,8 +1848,11 @@ function cancelTrade() {
 
   // Очищаем ячейки обмена
   const tradeContainer = document.getElementById("tradeContainer");
-  tradeContainer.innerHTML = "";
   tradeContainer.style.display = "none";
+  const tradeSlot = document.getElementById("tradeSlot");
+  const partnerTradeSlot = document.getElementById("partnerTradeSlot");
+  tradeSlot.innerHTML = "";
+  partnerTradeSlot.innerHTML = "";
 
   // Закрываем инвентарь, если открыт
   if (isInventoryOpen) {
@@ -1881,38 +1922,41 @@ function handleGameMessage(event) {
         const me = players.get(myId);
         if (me && data.playerId === myId && data.item) {
           if (data.item.type === "balyary") {
-            // Проверяем, есть ли уже "Баляры" в инвентаре
             const balyarySlot = inventory.findIndex(
               (slot) => slot && slot.type === "balyary"
             );
             if (balyarySlot !== -1) {
-              // Увеличиваем количество
               inventory[balyarySlot].quantity =
                 (inventory[balyarySlot].quantity || 1) + 1;
               console.log(
                 `Добавлено 1 Баляр, теперь их ${inventory[balyarySlot].quantity}`
               );
             } else {
-              // Добавляем в новый слот
               const freeSlot = inventory.findIndex((slot) => slot === null);
               if (freeSlot !== -1) {
                 inventory[freeSlot] = {
                   type: "balyary",
                   quantity: 1,
-                  itemId: data.itemId,
+                  itemId:
+                    data.itemId ||
+                    `${data.item.type}_${Date.now()}_${freeSlot}`,
                 };
                 console.log(
-                  `Баляры добавлены в слот ${freeSlot}, количество: 1`
+                  `Баляры добавлены в слот ${freeSlot}, количество: 1, ID: ${inventory[freeSlot].itemId}`
                 );
               }
             }
           } else {
-            // Обычная логика для других предметов
             const freeSlot = inventory.findIndex((slot) => slot === null);
             if (freeSlot !== -1) {
-              inventory[freeSlot] = data.item;
+              inventory[freeSlot] = {
+                type: data.item.type,
+                itemId:
+                  data.item.itemId ||
+                  `${data.item.type}_${Date.now()}_${freeSlot}`,
+              };
               console.log(
-                `Предмет ${data.item.type} добавлен в слот ${freeSlot}`
+                `Предмет ${data.item.type} добавлен в слот ${freeSlot}, ID: ${inventory[freeSlot].itemId}`
               );
             }
           }
