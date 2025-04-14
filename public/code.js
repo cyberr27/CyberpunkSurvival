@@ -2016,7 +2016,7 @@ function handleGameMessage(event) {
           const useBtn = document.getElementById("useBtn");
           const dropBtn = document.getElementById("dropBtn");
           useBtn.textContent = "Обмен";
-          useBtn.disabled = false; // Активируем даже без предмета
+          useBtn.disabled = !tradeSession.myItem; // Активируем, если есть мой предмет
           dropBtn.textContent = "Отмена";
           dropBtn.disabled = false;
           updateTradeInventory();
