@@ -826,64 +826,124 @@ wss.on("connection", (ws) => {
         const player = players.get(id);
         const partner = players.get(data.targetId);
 
-        // Добавляем предметы в инвентари (или ничего, если ячейка пуста)
-        if (session.myItem) {
-          const freeSlot = partner.inventory.findIndex((slot) => slot === null);
-          if (freeSlot !== -1) {
-            partner.inventory[freeSlot] = { ...session.myItem };
-            console.log(
-              `Предмет ${session.myItem.type} добавлен в инвентарь ${data.targetId} в слот ${freeSlot}`
-            );
-          } else {
-            console.warn(`У партнёра ${data.targetId} нет свободных слотов`);
-          }
-        }
-        if (partnerSession.myItem) {
-          const freeSlot = player.inventory.findIndex((slot) => slot === null);
-          if (freeSlot !== -1) {
-            player.inventory[freeSlot] = { ...partnerSession.myItem };
-            console.log(
-              `Предмет ${partnerSession.myItem.type} добавлен в инвентарь ${id} в слот ${freeSlot}`
-            );
-          } else {
-            console.warn(`У игрока ${id} нет свободных слотов`);
-          }
-        }
-
-        // Сохраняем обновлённые данные
-        players.set(id, { ...player });
-        players.set(data.targetId, { ...partner });
-        userDatabase.set(id, { ...player });
-        userDatabase.set(data.targetId, { ...partner });
-        await saveUserDatabase(dbCollection, id, player);
-        await saveUserDatabase(dbCollection, data.targetId, partner);
-
-        // Уведомляем клиентов
-        ws.send(
-          JSON.stringify({
-            type: "update",
-            player: player,
-          })
+        // Проверяем наличие свободных слотов
+        const playerFreeSlot = player.inventory.findIndex(
+          (slot) => slot === null
         );
-        if (targetWs && targetWs.readyState === WebSocket.OPEN) {
-          targetWs.send(
+        const partnerFreeSlot = partner.inventory.findIndex(
+          (slot) => slot === null
+        );
+
+        // Проверяем, можно ли выполнить обмен
+        let canTrade = true;
+        if (session.myItem && partnerFreeSlot === -1) {
+          console.warn(`У партнёра ${data.targetId} нет свободных слотов`);
+          canTrade = false;
+          ws.send(
             JSON.stringify({
-              type: "update",
-              player: partner,
+              type: "tradeFailed",
+              reason: `У партнёра ${data.targetId} нет свободных слотов`,
             })
           );
+        }
+        if (partnerSession.myItem && playerFreeSlot === -1) {
+          console.warn(`У игрока ${id} нет свободных слотов`);
+          canTrade = false;
+          targetWs.send(
+            JSON.stringify({
+              type: "tradeFailed",
+              reason: `У игрока ${id} нет свободных слотов`,
+            })
+          );
+        }
+
+        if (canTrade) {
+          // Выполняем обмен
+          if (session.myItem && partnerFreeSlot !== -1) {
+            partner.inventory[partnerFreeSlot] = { ...session.myItem };
+            console.log(
+              `Предмет ${session.myItem.type} добавлен в инвентарь ${data.targetId} в слот ${partnerFreeSlot}`
+            );
+          }
+          if (partnerSession.myItem && playerFreeSlot !== -1) {
+            player.inventory[playerFreeSlot] = { ...partnerSession.myItem };
+            console.log(
+              `Предмет ${partnerSession.myItem.type} добавлен в инвентарь ${id} в слот ${playerFreeSlot}`
+            );
+          }
+
+          // Сохраняем обновлённые данные
+          players.set(id, { ...player });
+          players.set(data.targetId, { ...partner });
+          userDatabase.set(id, { ...player });
+          userDatabase.set(data.targetId, { ...partner });
+          await saveUserDatabase(dbCollection, id, player);
+          await saveUserDatabase(dbCollection, data.targetId, partner);
+
+          // Уведомляем клиентов
+          ws.send(
+            JSON.stringify({
+              type: "tradeSuccess",
+              player: player,
+            })
+          );
+          if (targetWs && targetWs.readyState === WebSocket.OPEN) {
+            targetWs.send(
+              JSON.stringify({
+                type: "tradeSuccess",
+                player: partner,
+              })
+            );
+          }
+
+          console.log(
+            `Обмен между ${id} и ${
+              data.targetId
+            } завершён. Предметы: ${JSON.stringify(
+              session.myItem
+            )} <-> ${JSON.stringify(partnerSession.myItem)}`
+          );
+        } else {
+          // Отменяем обмен, если слоты заняты
+          if (session.myItem) {
+            const freeSlot = player.inventory.findIndex(
+              (slot) => slot === null
+            );
+            if (freeSlot !== -1) {
+              player.inventory[freeSlot] = { ...session.myItem };
+            }
+          }
+          if (partnerSession.myItem) {
+            const freeSlot = partner.inventory.findIndex(
+              (slot) => slot === null
+            );
+            if (freeSlot !== -1) {
+              partner.inventory[freeSlot] = { ...partnerSession.myItem };
+            }
+          }
+
+          // Сохраняем данные
+          players.set(id, { ...player });
+          players.set(data.targetId, { ...partner });
+          userDatabase.set(id, { ...player });
+          userDatabase.set(data.targetId, { ...partner });
+          await saveUserDatabase(dbCollection, id, player);
+          await saveUserDatabase(dbCollection, data.targetId, partner);
+
+          // Уведомляем об отмене
+          ws.send(
+            JSON.stringify({ type: "tradeCancelled", fromId: data.targetId })
+          );
+          if (targetWs && targetWs.readyState === WebSocket.OPEN) {
+            targetWs.send(
+              JSON.stringify({ type: "tradeCancelled", fromId: id })
+            );
+          }
         }
 
         // Очищаем сессию
         tradeSessions.delete(id);
         tradeSessions.delete(data.targetId);
-        console.log(
-          `Обмен между ${id} и ${
-            data.targetId
-          } завершён. Предметы: ${JSON.stringify(
-            session.myItem
-          )} <-> ${JSON.stringify(partnerSession.myItem)}`
-        );
       }
     } else if (data.type === "tradeCancelled") {
       const id = clients.get(ws);

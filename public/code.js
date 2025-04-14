@@ -1711,15 +1711,12 @@ function updateTradeInventory() {
 
   // Управляем кнопками
   useBtn.textContent = "Обмен";
-  // Кнопка активна, если:
-  // 1. Партнёр подтвердил и у него есть предмет
-  // 2. Или у игрока есть свой предмет и он ещё не подтвердил
   useBtn.disabled = !(
-    (tradeSession.partnerConfirmed && tradeSession.partnerItem) ||
-    (tradeSession.myItem && !tradeSession.myConfirmed)
+    (tradeSession.myItem && !tradeSession.myConfirmed) ||
+    (tradeSession.partnerItem && tradeSession.partnerConfirmed)
   );
   dropBtn.textContent = "Отмена";
-  dropBtn.disabled = false; // Кнопка "Отмена" всегда активна
+  dropBtn.disabled = false;
 
   updateInventoryDisplay();
 }
@@ -1727,27 +1724,7 @@ function updateTradeInventory() {
 function finalizeTrade() {
   if (!tradeSession) return;
 
-  // Обрабатываем предмет партнёра
-  if (tradeSession.partnerItem) {
-    const freeSlot = inventory.findIndex((slot) => slot === null);
-    if (freeSlot !== -1) {
-      inventory[freeSlot] = { ...tradeSession.partnerItem };
-      console.log(
-        `Получен предмет ${tradeSession.partnerItem.type} в слот ${freeSlot}`
-      );
-    } else {
-      console.warn("Инвентарь полон, предмет партнёра не добавлен!");
-      document.getElementById("inventoryScreen").textContent =
-        "Инвентарь полон, освободите слот!";
-    }
-  } else {
-    console.log("Партнёр не предложил предмет, получаем ничего");
-  }
-
-  // Очищаем свой предмет (он уже передан партнёру)
-  tradeSession.myItem = null;
-
-  // Закрываем интерфейс
+  // Предмет партнёра уже добавлен сервером, просто обновляем интерфейс
   tradeSession = null;
   selectedPlayerId = null;
   document.getElementById("tradeBtn").disabled = true;
@@ -1762,7 +1739,7 @@ function finalizeTrade() {
     document.getElementById("inventoryBtn").classList.remove("active");
   }
 
-  // Сбрасываем кнопки в исходное состояние
+  // Сбрасываем кнопки
   selectedSlot = null;
   document.getElementById("inventoryScreen").innerHTML = "";
   const useBtn = document.getElementById("useBtn");
@@ -1773,7 +1750,7 @@ function finalizeTrade() {
   dropBtn.disabled = true;
 
   updateInventoryDisplay();
-  console.log("Обмен успешно завершён");
+  console.log("Обмен успешно завершён, интерфейс обновлён");
 }
 
 function cancelTrade() {
@@ -1975,6 +1952,22 @@ function handleGameMessage(event) {
       case "bulletRemoved":
         bullets.delete(data.bulletId);
         console.log(`Пуля ${data.bulletId} удалена`);
+        break;
+      case "tradeSuccess":
+        if (tradeSession && tradeSession.partnerId === data.player.id) {
+          finalizeTrade();
+          inventory = data.player.inventory || inventory;
+          updateInventoryDisplay();
+          updateStatsDisplay();
+          console.log(`Обмен с ${data.player.id} успешно завершён`);
+        }
+        break;
+      case "tradeFailed":
+        if (tradeSession) {
+          document.getElementById("inventoryScreen").textContent = data.reason;
+          cancelTrade();
+          console.log(`Обмен не удался: ${data.reason}`);
+        }
         break;
       case "tradeRequest":
         console.log(`Получен запрос на обмен от ${data.fromId}`);
