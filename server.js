@@ -772,11 +772,11 @@ wss.on("connection", (ws) => {
       const session = tradeSessions.get(id);
       if (session.partnerId !== data.targetId) return;
 
-      session.myItem = data.item; // Может быть null
+      session.myTradeItem = data.item; // Сохраняем предмет (или null)
       tradeSessions.set(id, { ...session });
 
       const partnerSession = tradeSessions.get(data.targetId);
-      partnerSession.partnerItem = data.item; // Передаём null, если предмет не положен
+      partnerSession.partnerTradeItem = data.item; // Передаём предмет партнёру
       tradeSessions.set(data.targetId, { ...partnerSession });
 
       const targetWs = Array.from(clients.entries()).find(
@@ -823,8 +823,8 @@ wss.on("connection", (ws) => {
         console.log(`Игрок ${id} подтвердил обмен`);
       }
 
-      // Если оба подтвердили и А положил предмет, выполняем обмен
-      if (session.myConfirmed && partnerSession.myConfirmed && session.myItem) {
+      // Если оба подтвердили, выполняем обмен
+      if (session.myConfirmed && partnerSession.myConfirmed) {
         const player = players.get(id);
         const partner = players.get(data.targetId);
 
@@ -836,9 +836,8 @@ wss.on("connection", (ws) => {
           (slot) => slot === null
         );
 
-        // Проверяем, можно ли выполнить обмен
         let canTrade = true;
-        if (session.myItem && partnerFreeSlot === -1) {
+        if (session.myTradeItem && partnerFreeSlot === -1) {
           console.warn(`У партнёра ${data.targetId} нет свободных слотов`);
           canTrade = false;
           ws.send(
@@ -856,36 +855,39 @@ wss.on("connection", (ws) => {
             );
           }
         }
-        // Если В положил предмет, проверяем слот А
-        if (partnerSession.myItem && playerFreeSlot === -1) {
+        if (partnerSession.myTradeItem && playerFreeSlot === -1) {
           console.warn(`У игрока ${id} нет свободных слотов`);
           canTrade = false;
-          targetWs.send(
-            JSON.stringify({
-              type: "tradeFailed",
-              reason: `У игрока ${id} нет свободных слотов`,
-            })
-          );
           ws.send(
             JSON.stringify({
               type: "tradeFailed",
               reason: `У игрока ${id} нет свободных слотов`,
             })
           );
+          if (targetWs && targetWs.readyState === WebSocket.OPEN) {
+            targetWs.send(
+              JSON.stringify({
+                type: "tradeFailed",
+                reason: `У игрока ${id} нет свободных слотов`,
+              })
+            );
+          }
         }
 
         if (canTrade) {
           // Выполняем обмен
-          if (session.myItem && partnerFreeSlot !== -1) {
-            partner.inventory[partnerFreeSlot] = { ...session.myItem };
+          if (session.myTradeItem && partnerFreeSlot !== -1) {
+            partner.inventory[partnerFreeSlot] = { ...session.myTradeItem };
             console.log(
-              `Предмет ${session.myItem.type} добавлен в инвентарь ${data.targetId} в слот ${partnerFreeSlot}`
+              `Предмет ${session.myTradeItem.type} добавлен в инвентарь ${data.targetId} в слот ${partnerFreeSlot}`
             );
           }
-          if (partnerSession.myItem && playerFreeSlot !== -1) {
-            player.inventory[playerFreeSlot] = { ...partnerSession.myItem };
+          if (partnerSession.myTradeItem && playerFreeSlot !== -1) {
+            player.inventory[playerFreeSlot] = {
+              ...partnerSession.myTradeItem,
+            };
             console.log(
-              `Предмет ${partnerSession.myItem.type} добавлен в инвентарь ${id} в слот ${playerFreeSlot}`
+              `Предмет ${partnerSession.myTradeItem.type} добавлен в инвентарь ${id} в слот ${playerFreeSlot}`
             );
           }
 
@@ -901,14 +903,14 @@ wss.on("connection", (ws) => {
           ws.send(
             JSON.stringify({
               type: "tradeSuccess",
-              player: player,
+              player: { id, ...player },
             })
           );
           if (targetWs && targetWs.readyState === WebSocket.OPEN) {
             targetWs.send(
               JSON.stringify({
                 type: "tradeSuccess",
-                player: partner,
+                player: { id: data.targetId, ...partner },
               })
             );
           }
@@ -917,25 +919,31 @@ wss.on("connection", (ws) => {
             `Обмен между ${id} и ${
               data.targetId
             } завершён. Предметы: ${JSON.stringify(
-              session.myItem
-            )} <-> ${JSON.stringify(partnerSession.myItem)}`
+              session.myTradeItem
+            )} <-> ${JSON.stringify(partnerSession.myTradeItem)}`
           );
         } else {
-          // Отменяем обмен, если слоты заняты
-          if (session.myItem) {
+          // Возвращаем предметы в инвентарь
+          if (session.myTradeItem) {
             const freeSlot = player.inventory.findIndex(
               (slot) => slot === null
             );
             if (freeSlot !== -1) {
-              player.inventory[freeSlot] = { ...session.myItem };
+              player.inventory[freeSlot] = { ...session.myTradeItem };
+              console.log(
+                `Предмет ${session.myTradeItem.type} возвращён игроку ${id}`
+              );
             }
           }
-          if (partnerSession.myItem) {
+          if (partnerSession.myTradeItem) {
             const freeSlot = partner.inventory.findIndex(
               (slot) => slot === null
             );
             if (freeSlot !== -1) {
-              partner.inventory[freeSlot] = { ...partnerSession.myItem };
+              partner.inventory[freeSlot] = { ...partnerSession.myTradeItem };
+              console.log(
+                `Предмет ${partnerSession.myTradeItem.type} возвращён игроку ${data.targetId}`
+              );
             }
           }
 
@@ -970,19 +978,26 @@ wss.on("connection", (ws) => {
       if (session.partnerId !== data.targetId) return;
 
       // Возвращаем предметы
-      if (session.myItem) {
+      if (session.myTradeItem) {
         const player = players.get(id);
         const freeSlot = player.inventory.findIndex((slot) => slot === null);
         if (freeSlot !== -1) {
-          player.inventory[freeSlot] = { ...session.myItem };
+          player.inventory[freeSlot] = { ...session.myTradeItem };
+          console.log(
+            `Предмет ${session.myTradeItem.type} возвращён игроку ${id}`
+          );
           players.set(id, { ...player });
           userDatabase.set(id, { ...player });
           await saveUserDatabase(dbCollection, id, player);
           ws.send(
             JSON.stringify({
               type: "update",
-              player: player,
+              player: { id, ...player },
             })
+          );
+        } else {
+          console.warn(
+            `Инвентарь игрока ${id} полон, предмет ${session.myTradeItem.type} не возвращён`
           );
         }
       }
@@ -992,19 +1007,26 @@ wss.on("connection", (ws) => {
       )?.[0];
       if (targetWs && targetWs.readyState === WebSocket.OPEN) {
         const partnerSession = tradeSessions.get(data.targetId);
-        if (partnerSession.myItem) {
+        if (partnerSession.myTradeItem) {
           const partner = players.get(data.targetId);
           const freeSlot = partner.inventory.findIndex((slot) => slot === null);
           if (freeSlot !== -1) {
-            partner.inventory[freeSlot] = { ...partnerSession.myItem };
+            partner.inventory[freeSlot] = { ...partnerSession.myTradeItem };
+            console.log(
+              `Предмет ${partnerSession.myTradeItem.type} возвращён игроку ${data.targetId}`
+            );
             players.set(data.targetId, { ...partner });
             userDatabase.set(data.targetId, { ...partner });
             await saveUserDatabase(dbCollection, data.targetId, partner);
             targetWs.send(
               JSON.stringify({
                 type: "update",
-                player: partner,
+                player: { id: data.targetId, ...partner },
               })
+            );
+          } else {
+            console.warn(
+              `Инвентарь игрока ${data.targetId} полон, предмет ${partnerSession.myTradeItem.type} не возвращён`
             );
           }
         }
@@ -1033,28 +1055,7 @@ wss.on("connection", (ws) => {
           `Данные игрока ${id} сохранены перед отключением. Код: ${code}, Причина: ${reason}`
         );
 
-        // Удаляем предметы, связанные с этим игроком, если они не были подняты
-        const itemsToRemove = [];
-        items.forEach((item, itemId) => {
-          if (item.spawnedBy === id) {
-            itemsToRemove.push(itemId);
-          }
-        });
-
-        itemsToRemove.forEach((itemId) => {
-          items.delete(itemId);
-          console.log(`Предмет ${itemId} удалён из-за отключения игрока ${id}`);
-          wss.clients.forEach((client) => {
-            if (client.readyState === WebSocket.OPEN) {
-              client.send(
-                JSON.stringify({
-                  type: "itemPicked",
-                  itemId: itemId,
-                })
-              );
-            }
-          });
-        });
+        // Обрабатываем торговую сессию
         if (tradeSessions.has(id)) {
           const session = tradeSessions.get(id);
           const targetWs = Array.from(clients.entries()).find(
@@ -1063,13 +1064,13 @@ wss.on("connection", (ws) => {
           if (targetWs && targetWs.readyState === WebSocket.OPEN) {
             // Возвращаем предмет партнёра
             const partnerSession = tradeSessions.get(session.partnerId);
-            if (partnerSession.myItem) {
+            if (partnerSession.myTradeItem) {
               const partner = players.get(session.partnerId);
               const freeSlot = partner.inventory.findIndex(
                 (slot) => slot === null
               );
               if (freeSlot !== -1) {
-                partner.inventory[freeSlot] = { ...partnerSession.myItem };
+                partner.inventory[freeSlot] = { ...partnerSession.myTradeItem };
                 players.set(session.partnerId, { ...partner });
                 userDatabase.set(session.partnerId, { ...partner });
                 await saveUserDatabase(
@@ -1080,7 +1081,7 @@ wss.on("connection", (ws) => {
                 targetWs.send(
                   JSON.stringify({
                     type: "update",
-                    player: partner,
+                    player: { id: session.partnerId, ...partner },
                   })
                 );
               }
@@ -1106,7 +1107,6 @@ wss.on("connection", (ws) => {
         }
       });
     }
-    // Очищаем таймер при закрытии соединения
     clearTimeout(inactivityTimer);
   });
 
