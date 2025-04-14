@@ -1132,6 +1132,7 @@ function selectSlot(slotIndex, slotElement) {
     useBtn.disabled = tradeSession.myConfirmed;
     dropBtn.textContent = "Отмена";
     dropBtn.disabled = false;
+    updateInventoryDisplay(); // Добавляем обновление инвентаря
   } else {
     // Обычная логика выбора слота
     if (selectedSlot === slotIndex) {
@@ -1141,6 +1142,7 @@ function selectSlot(slotIndex, slotElement) {
       useBtn.disabled = true;
       dropBtn.textContent = tradeSession ? "Отмена" : "Выкинуть";
       dropBtn.disabled = tradeSession ? false : true;
+      updateInventoryDisplay(); // Обновляем, если снимаем выбор
       return;
     }
 
@@ -1149,9 +1151,10 @@ function selectSlot(slotIndex, slotElement) {
     useBtn.textContent = tradeSession ? "Обмен" : "Использовать";
     useBtn.disabled = tradeSession
       ? !tradeSession.myItem
-      : inventory[slotIndex].type === "balyary"; // Активна в обычном режиме, кроме "balyary"
+      : inventory[slotIndex].type === "balyary";
     dropBtn.textContent = tradeSession ? "Отмена" : "Выкинуть";
-    dropBtn.disabled = tradeSession ? false : false; // Активна в обоих режимах
+    dropBtn.disabled = tradeSession ? false : false;
+    updateInventoryDisplay(); // Обновляем при выборе слота
   }
 }
 // Скрыть кнопки действий
@@ -1177,6 +1180,7 @@ function useItem(slotIndex) {
       );
       document.getElementById("useBtn").disabled = true;
       console.log("Обмен подтверждён");
+      updateInventoryDisplay(); // Добавляем обновление инвентаря
     }
   } else {
     // Существующая логика использования предмета
@@ -1346,6 +1350,7 @@ function dropItem(slotIndex) {
         selectedSlot = null;
         document.getElementById("inventoryScreen").textContent = "";
         console.log("Предмет возвращён в инвентарь");
+        updateInventoryDisplay(); // Добавляем обновление инвентаря
       } else {
         console.log("Нет свободных слотов для возврата предмета");
         document.getElementById("inventoryScreen").textContent =
@@ -1382,7 +1387,7 @@ function dropItem(slotIndex) {
       dropBtn.textContent = "Выкинуть";
       dropBtn.disabled = true;
 
-      updateInventoryDisplay();
+      // НЕ вызываем updateInventoryDisplay() при полной отмене
       console.log("Торговля завершена");
     }
   }
@@ -1754,7 +1759,7 @@ function finalizeTrade() {
   dropBtn.textContent = "Выкинуть";
   dropBtn.disabled = true;
 
-  updateInventoryDisplay();
+  updateInventoryDisplay(); // Убедимся, что инвентарь обновлён
   console.log("Обмен успешно завершён, интерфейс обновлён");
 }
 
@@ -1777,7 +1782,6 @@ function cancelTrade() {
       JSON.stringify({
         type: "tradeCancelled",
         targetId: tradeSession.partnerId,
-        Q,
       })
     );
   }
@@ -1807,7 +1811,7 @@ function cancelTrade() {
   dropBtn.textContent = "Выкинуть";
   dropBtn.disabled = true;
 
-  updateInventoryDisplay();
+  // НЕ вызываем updateInventoryDisplay() при полной отмене обмена
   console.log("Обмен отменён, интерфейс закрыт");
 }
 
@@ -1817,16 +1821,14 @@ function handleGameMessage(event) {
     switch (data.type) {
       case "newPlayer":
         players.set(data.player.id, { ...data.player, frameTime: 0 });
-        updateOnlineCount(); // Обновляем при входе нового игрока
+        updateOnlineCount();
         break;
       case "playerLeft":
         players.delete(data.id);
-        updateOnlineCount(); // Обновляем при выходе игрока
+        updateOnlineCount();
         break;
       case "syncItems":
-        // Очищаем старые предметы
         items.clear();
-        // Заполняем актуальными предметами из сервера
         data.items.forEach((item) =>
           items.set(item.itemId, {
             x: item.x,
@@ -1835,7 +1837,6 @@ function handleGameMessage(event) {
             spawnTime: item.spawnTime,
           })
         );
-        // Очищаем pendingPickups для предметов, которые всё ещё существуют
         data.items.forEach((item) => {
           if (pendingPickups.has(item.itemId)) {
             console.log(
@@ -1852,19 +1853,16 @@ function handleGameMessage(event) {
         const me = players.get(myId);
         if (me && data.playerId === myId && data.item) {
           if (data.item.type === "balyary") {
-            // Проверяем, есть ли уже "Баляры" в инвентаре
             const balyarySlot = inventory.findIndex(
               (slot) => slot && slot.type === "balyary"
             );
             if (balyarySlot !== -1) {
-              // Увеличиваем количество
               inventory[balyarySlot].quantity =
                 (inventory[balyarySlot].quantity || 1) + 1;
               console.log(
                 `Добавлено 1 Баляр, теперь их ${inventory[balyarySlot].quantity}`
               );
             } else {
-              // Добавляем в новый слот
               const freeSlot = inventory.findIndex((slot) => slot === null);
               if (freeSlot !== -1) {
                 inventory[freeSlot] = {
@@ -1878,7 +1876,6 @@ function handleGameMessage(event) {
               }
             }
           } else {
-            // Обычная логика для других предметов
             const freeSlot = inventory.findIndex((slot) => slot === null);
             if (freeSlot !== -1) {
               inventory[freeSlot] = data.item;
@@ -1892,18 +1889,15 @@ function handleGameMessage(event) {
         updateStatsDisplay();
         break;
       case "itemNotFound":
-        items.delete(data.itemId); // Удаляем предмет из локального items
-        pendingPickups.delete(data.itemId); // Убираем из ожидающих
+        items.delete(data.itemId);
+        pendingPickups.delete(data.itemId);
         console.log(
           `Предмет ${data.itemId} не найден на сервере, удалён из локального items`
         );
         break;
       case "inventoryFull":
-        // Инвентарь полон, уведомляем игрока и убираем предмет из pendingPickups
         console.log(`Инвентарь полон, предмет ${data.itemId} не поднят`);
-        pendingPickups.delete(data.itemId); // Очищаем из pendingPickups
-        // Можно добавить визуальное уведомление, например:
-        // alert("Инвентарь полон!");
+        pendingPickups.delete(data.itemId);
         break;
       case "update":
         const existingPlayer = players.get(data.player.id);
@@ -1935,12 +1929,6 @@ function handleGameMessage(event) {
         messageEl.textContent = `${data.id}: ${data.message}`;
         chatMessages.appendChild(messageEl);
         chatMessages.scrollTop = chatMessages.scrollHeight;
-        break;
-      case "newPlayer":
-        players.set(data.player.id, { ...data.player, frameTime: 0 });
-        break;
-      case "playerLeft":
-        players.delete(data.id);
         break;
       case "shoot":
         console.log(`Получена пуля ${data.bulletId} от ${data.shooterId}`);
@@ -1981,8 +1969,8 @@ function handleGameMessage(event) {
       case "tradeDeclined":
         if (data.fromId === selectedPlayerId) {
           console.log(`Игрок ${data.fromId} отклонил обмен`);
-          document.getElementById("tradeBtn").disabled = false; // Активируем кнопку
-          selectedPlayerId = null; // Сбрасываем выбор игрока
+          document.getElementById("tradeBtn").disabled = false;
+          selectedPlayerId = null;
         }
         break;
       case "tradeAccepted":
@@ -1996,13 +1984,14 @@ function handleGameMessage(event) {
             partnerConfirmed: false,
           };
           openTradeInventory();
-          document.getElementById("tradeBtn").disabled = true; // Кнопка остаётся отключённой во время обмена
+          document.getElementById("tradeBtn").disabled = true;
         }
         break;
       case "tradeItemPlaced":
         if (tradeSession && tradeSession.partnerId === data.fromId) {
           tradeSession.partnerItem = data.item;
           updateTradeInventory();
+          updateInventoryDisplay(); // Добавляем обновление инвентаря
           console.log(
             `Партнёр ${data.fromId} предложил предмет: ${
               data.item?.type || "ничего"
@@ -2015,7 +2004,6 @@ function handleGameMessage(event) {
           tradeSession.partnerConfirmed = true;
           const useBtn = document.getElementById("useBtn");
           const dropBtn = document.getElementById("dropBtn");
-          // Обновляем состояние кнопки
           useBtn.textContent = "Обмен";
           useBtn.disabled = !(
             (tradeSession.partnerConfirmed && tradeSession.partnerItem) ||
@@ -2024,6 +2012,7 @@ function handleGameMessage(event) {
           dropBtn.textContent = "Отмена";
           dropBtn.disabled = false;
           updateTradeInventory();
+          updateInventoryDisplay(); // Добавляем обновление инвентаря
           if (tradeSession.myConfirmed && tradeSession.partnerConfirmed) {
             finalizeTrade();
           }
