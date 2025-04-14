@@ -1131,7 +1131,7 @@ function selectSlot(slotIndex, slotElement) {
     useBtn.textContent = "Обмен";
     useBtn.disabled = tradeSession.myConfirmed;
     dropBtn.textContent = "Отмена";
-    dropBtn.disabled = false; // Кнопка "Отмена" активна
+    dropBtn.disabled = false;
   } else {
     // Обычная логика выбора слота
     if (selectedSlot === slotIndex) {
@@ -1139,15 +1139,19 @@ function selectSlot(slotIndex, slotElement) {
       screen.innerHTML = "";
       useBtn.textContent = tradeSession ? "Обмен" : "Использовать";
       useBtn.disabled = true;
-      dropBtn.disabled = tradeSession ? false : true; // В режиме торговли "Отмена" активна
+      dropBtn.textContent = tradeSession ? "Отмена" : "Выкинуть";
+      dropBtn.disabled = tradeSession ? false : true;
       return;
     }
 
     selectedSlot = slotIndex;
     screen.textContent = ITEM_CONFIG[inventory[slotIndex].type].description;
     useBtn.textContent = tradeSession ? "Обмен" : "Использовать";
-    useBtn.disabled = inventory[slotIndex].type === "balyary" && !tradeSession;
-    dropBtn.disabled = tradeSession ? false : true; // В режиме торговли "Отмена" активна
+    useBtn.disabled = tradeSession
+      ? !tradeSession.myItem
+      : inventory[slotIndex].type === "balyary"; // Активна в обычном режиме, кроме "balyary"
+    dropBtn.textContent = tradeSession ? "Отмена" : "Выкинуть";
+    dropBtn.disabled = tradeSession ? false : false; // Активна в обоих режимах
   }
 }
 // Скрыть кнопки действий
@@ -1158,6 +1162,10 @@ function hideActionButtons() {
 // Подтверждение обмена
 function useItem(slotIndex) {
   if (tradeSession) {
+    if (!tradeSession.myItem) {
+      // Если предмет ещё не помещён, ничего не делаем (предмет уже кладётся в selectSlot)
+      return;
+    }
     if (!tradeSession.myConfirmed) {
       tradeSession.myConfirmed = true;
       sendWhenReady(
@@ -1456,7 +1464,6 @@ function updateInventoryDisplay() {
 
   if (isBalyaryFormActive) {
     // Сохраняем форму, если выбраны "Баляры" и форма уже есть
-    // Ничего не делаем с содержимым экрана
   } else if (selectedSlot === null) {
     screen.innerHTML = "";
   } else if (inventory[selectedSlot]) {
@@ -1492,10 +1499,15 @@ function updateInventoryDisplay() {
             inventory[selectedSlot].type === "balyary" &&
             screen.querySelector(".balyary-drop-form")
           ) {
-            // Сохраняем форму выброса "Баляр" при наведении на другие слоты
             return;
           }
           screen.textContent = ITEM_CONFIG[inventory[i].type].description;
+          if (!tradeSession && selectedSlot === null) {
+            useBtn.textContent = "Использовать";
+            useBtn.disabled = inventory[i].type === "balyary";
+            dropBtn.textContent = "Выкинуть";
+            dropBtn.disabled = false;
+          }
         }
       };
       slot.onmouseout = () => {
@@ -1505,13 +1517,16 @@ function updateInventoryDisplay() {
             inventory[selectedSlot].type === "balyary" &&
             screen.querySelector(".balyary-drop-form"))
         ) {
-          // Ничего не очищаем, если форма "Баляр" активна
           return;
         }
         screen.textContent =
           inventory[selectedSlot] && selectedSlot !== null
             ? ITEM_CONFIG[inventory[selectedSlot].type].description
             : "";
+        if (!tradeSession && selectedSlot === null) {
+          useBtn.disabled = true;
+          dropBtn.disabled = true;
+        }
       };
       slot.onclick = (e) => {
         e.preventDefault();
@@ -1777,6 +1792,7 @@ function cancelTrade() {
       JSON.stringify({
         type: "tradeCancelled",
         targetId: tradeSession.partnerId,
+        Q,
       })
     );
   }
@@ -1996,15 +2012,15 @@ function handleGameMessage(event) {
       case "tradeConfirmed":
         if (tradeSession && tradeSession.partnerId === data.fromId) {
           tradeSession.partnerConfirmed = true;
-          // Активируем кнопки, если партнёр подтвердил
+          // Активируем кнопки для партнёра
           const useBtn = document.getElementById("useBtn");
           const dropBtn = document.getElementById("dropBtn");
           useBtn.textContent = "Обмен";
-          useBtn.disabled = tradeSession.myConfirmed;
+          useBtn.disabled = false; // Активируем даже без предмета
           dropBtn.textContent = "Отмена";
           dropBtn.disabled = false;
           updateTradeInventory();
-          if (tradeSession.myConfirmed) {
+          if (tradeSession.myConfirmed && tradeSession.partnerConfirmed) {
             finalizeTrade();
           }
           console.log(`Партнёр ${data.fromId} подтвердил обмен`);
