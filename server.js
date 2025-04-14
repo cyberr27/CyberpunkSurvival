@@ -831,16 +831,22 @@ wss.on("connection", (ws) => {
           const freeSlot = partner.inventory.findIndex((slot) => slot === null);
           if (freeSlot !== -1) {
             partner.inventory[freeSlot] = { ...session.myItem };
+            console.log(
+              `Предмет ${session.myItem.type} добавлен в инвентарь ${data.targetId} в слот ${freeSlot}`
+            );
           } else {
-            console.log(`У партнёра ${data.targetId} нет свободных слотов`);
+            console.warn(`У партнёра ${data.targetId} нет свободных слотов`);
           }
         }
         if (partnerSession.myItem) {
           const freeSlot = player.inventory.findIndex((slot) => slot === null);
           if (freeSlot !== -1) {
             player.inventory[freeSlot] = { ...partnerSession.myItem };
+            console.log(
+              `Предмет ${partnerSession.myItem.type} добавлен в инвентарь ${id} в слот ${freeSlot}`
+            );
           } else {
-            console.log(`У игрока ${id} нет свободных слотов`);
+            console.warn(`У игрока ${id} нет свободных слотов`);
           }
         }
 

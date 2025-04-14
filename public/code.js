@@ -1640,6 +1640,7 @@ function openTradeInventory() {
 }
 
 // Обновить интерфейс обмена
+
 function updateTradeInventory() {
   if (!tradeSession) return;
 
@@ -1710,7 +1711,13 @@ function updateTradeInventory() {
 
   // Управляем кнопками
   useBtn.textContent = "Обмен";
-  useBtn.disabled = !tradeSession.myItem || tradeSession.myConfirmed; // Обмен доступен, если есть предмет и не подтверждено
+  // Кнопка активна, если:
+  // 1. Партнёр подтвердил и у него есть предмет
+  // 2. Или у игрока есть свой предмет и он ещё не подтвердил
+  useBtn.disabled = !(
+    (tradeSession.partnerConfirmed && tradeSession.partnerItem) ||
+    (tradeSession.myItem && !tradeSession.myConfirmed)
+  );
   dropBtn.textContent = "Отмена";
   dropBtn.disabled = false; // Кнопка "Отмена" всегда активна
 
@@ -1730,19 +1737,15 @@ function finalizeTrade() {
       );
     } else {
       console.warn("Инвентарь полон, предмет партнёра не добавлен!");
+      document.getElementById("inventoryScreen").textContent =
+        "Инвентарь полон, освободите слот!";
     }
+  } else {
+    console.log("Партнёр не предложил предмет, получаем ничего");
   }
 
-  // Удаляем свой предмет из инвентаря
-  if (tradeSession.myItem) {
-    const slotIndex = inventory.findIndex(
-      (slot) => slot && slot.itemId === tradeSession.myItem.itemId
-    );
-    if (slotIndex !== -1) {
-      inventory[slotIndex] = null;
-      console.log(`Предмет ${tradeSession.myItem.type} удалён из инвентаря`);
-    }
-  }
+  // Очищаем свой предмет (он уже передан партнёру)
+  tradeSession.myItem = null;
 
   // Закрываем интерфейс
   tradeSession = null;
@@ -2014,14 +2017,14 @@ function handleGameMessage(event) {
           tradeSession.partnerConfirmed = true;
           const useBtn = document.getElementById("useBtn");
           const dropBtn = document.getElementById("dropBtn");
+          // Обновляем состояние кнопки
           useBtn.textContent = "Обмен";
           useBtn.disabled = !(
-            tradeSession.myItem &&
-            !tradeSession.myConfirmed &&
-            tradeSession.partnerConfirmed
+            (tradeSession.partnerConfirmed && tradeSession.partnerItem) ||
+            (tradeSession.myItem && !tradeSession.myConfirmed)
           );
           dropBtn.textContent = "Отмена";
-          dropBtn.disabled = false; // Кнопка "Отмена" всегда активна
+          dropBtn.disabled = false;
           updateTradeInventory();
           if (tradeSession.myConfirmed && tradeSession.partnerConfirmed) {
             finalizeTrade();
