@@ -705,6 +705,48 @@ function startGame() {
     }
   });
   // Обработчик нажатия мыши
+  canvas.addEventListener("mousedown", (e) => {
+    if (e.button === 0) {
+      const me = players.get(myId);
+      if (!me || me.health <= 0) return;
+
+      const inventoryContainer = document.getElementById("inventoryContainer");
+      const rect = inventoryContainer.getBoundingClientRect();
+      if (
+        isInventoryOpen &&
+        e.clientX >= rect.left &&
+        e.clientX <= rect.right &&
+        e.clientY >= rect.top &&
+        e.clientY <= rect.bottom
+      ) {
+        const slots = inventoryContainer.children;
+        for (let i = 0; i < slots.length; i++) {
+          const slotRect = slots[i].getBoundingClientRect();
+          if (
+            e.clientX >= slotRect.left &&
+            e.clientX <= slotRect.right &&
+            e.clientY >= slotRect.top &&
+            e.clientY <= slotRect.bottom &&
+            inventory[i]
+          ) {
+            console.log(
+              `Клик по слоту ${i} (x:${e.clientX}, y:${e.clientY}), предмет: ${inventory[i].type}`
+            );
+            selectSlot(i, slots[i]);
+            return;
+          }
+        }
+        console.log(
+          `Клик вне слотов инвентаря (x:${e.clientX}, y:${e.clientY})`
+        );
+        return;
+      }
+
+      isMoving = true;
+      targetX = e.clientX + camera.x;
+      targetY = e.clientY + camera.y;
+    }
+  });
 
   // Обработчик движения мыши (обновляем цель, если кнопка зажата)
   canvas.addEventListener("mousemove", (e) => {
