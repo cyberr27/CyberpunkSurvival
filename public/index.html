@@ -1,83 +1,60 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="stylesheet" href="style.css" />
-    <title>2D Cyberpunk Survival</title>
+    <title>Cyberpunk Survival</title>
+    <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <!-- Окно авторизации/регистрации -->
-    <div id="authContainer" class="auth-container">
-      <div class="auth-box">
-        <h1 class="neon-text">Cyberpunk Survival</h1>
-        <div id="loginForm" class="form">
-          <h2>Вход</h2>
-          <input
-            type="text"
-            id="loginUsername"
-            placeholder="Имя пользователя"
-            class="neon-input"
-          />
-          <input
-            type="password"
-            id="loginPassword"
-            placeholder="Пароль"
-            class="neon-input"
-          />
-          <button id="loginBtn" class="neon-btn">Войти</button>
-          <p class="switch-text">
-            Нет аккаунта? <span id="toRegister">Зарегистрироваться</span>
-          </p>
-          <p id="loginError" class="error-text"></p>
-        </div>
-        <div id="registerForm" class="form" style="display: none">
-          <h2>Регистрация</h2>
-          <input
-            type="text"
-            id="registerUsername"
-            placeholder="Имя пользователя"
-            class="neon-input"
-          />
-          <input
-            type="password"
-            id="registerPassword"
-            placeholder="Пароль"
-            class="neon-input"
-          />
-          <button id="registerBtn" class="neon-btn">Зарегистрироваться</button>
-          <p class="switch-text">
-            Уже есть аккаунт? <span id="toLogin">Войти</span>
-          </p>
-          <p id="registerError" class="error-text"></p>
-        </div>
-      </div>
+    <div id="authContainer">
+      <form id="loginForm">
+        <h2>Вход</h2>
+        <input
+          type="text"
+          id="loginUsername"
+          placeholder="Ник"
+          class="cyber-input"
+        />
+        <input
+          type="password"
+          id="loginPassword"
+          placeholder="Пароль"
+          class="cyber-input"
+        />
+        <button type="button" id="loginBtn" class="cyber-btn">Войти</button>
+        <p id="loginError" class="error-text"></p>
+        <p><a href="#" id="toRegister">Регистрация</a></p>
+      </form>
+      <form id="registerForm" style="display: none">
+        <h2>Регистрация</h2>
+        <input
+          type="text"
+          id="registerUsername"
+          placeholder="Ник"
+          class="cyber-input"
+        />
+        <input
+          type="password"
+          id="registerPassword"
+          placeholder="Пароль"
+          class="cyber-input"
+        />
+        <button type="button" id="registerBtn" class="cyber-btn">
+          Создать
+        </button>
+        <p id="registerError" class="error-text"></p>
+        <p><a href="#" id="toLogin">Вход</a></p>
+      </form>
     </div>
 
-    <!-- Игровой контейнер (скрыт по умолчанию) -->
     <div id="gameContainer" style="display: none">
       <canvas id="gameCanvas"></canvas>
-      <div id="stats">
-        <span id="health"></span><br />
-        <span id="energy"></span><br />
-        <span id="food"></span><br />
-        <span id="water"></span><br />
-        <span id="armor"></span>
-      </div>
-      <div id="coords"></div>
-      <div id="onlineCount" class="cyber-text"></div>
-      <button id="fireBtn" class="cyber-btn">Fire</button>
-      <button id="chatBtn" class="cyber-btn">Chat</button>
-      <button id="inventoryBtn" class="cyber-btn">Inv</button>
-      <button id="tradeBtn" class="cyber-btn" disabled>Trade</button>
-      <!-- Новая кнопка -->
-      <div id="chatContainer">
-        <div id="chatMessages"></div>
-        <input type="text" id="chatInput" placeholder="Сообщение..." />
-      </div>
+      <div id="stats" class="stats"></div>
+      <div id="coords" class="coords"></div>
+      <div id="onlineCount" class="online-count">Онлайн: 0</div>
       <div id="inventoryContainer">
         <div id="inventoryScreen"></div>
-        <!-- Ячейки будут добавляться через JS как раньше -->
         <div id="inventoryActions">
           <button id="useBtn" class="action-btn use-btn" disabled>
             Использовать
@@ -87,7 +64,24 @@
           </button>
         </div>
       </div>
-      <script src="code.js"></script>
+      <div id="chatContainer">
+        <div id="chatMessages"></div>
+        <input
+          type="text"
+          id="chatInput"
+          class="cyber-input"
+          placeholder="Сообщение..."
+        />
+      </div>
+      <div id="controls">
+        <button id="fireBtn" class="control-btn fire-btn">🔫</button>
+        <button id="chatBtn" class="control-btn chat-btn">💬</button>
+        <button id="inventoryBtn" class="control-btn inventory-btn">🎒</button>
+        <button id="tradeBtn" class="control-btn trade-btn" disabled>🤝</button>
+      </div>
     </div>
+
+    <script src="inventory.js"></script>
+    <script src="code.js"></script>
   </body>
 </html>
