@@ -41,8 +41,6 @@ const chatContainer = document.getElementById("chatContainer");
 const chatMessages = document.getElementById("chatMessages");
 const chatInput = document.getElementById("chatInput");
 
-// WebSocket соединение
-let ws;
 // Хранилища данных
 let players = new Map();
 let myId;
