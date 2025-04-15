@@ -195,3 +195,10 @@ export function handleNPCClick(event) {
     showMissionDialog();
   }
 }
+export function updateNPC(data) {
+  NPC_CONFIG.id = data.id || NPC_CONFIG.id;
+  NPC_CONFIG.x = data.x || NPC_CONFIG.x;
+  NPC_CONFIG.y = data.y || NPC_CONFIG.y;
+  NPC_CONFIG.missions = data.missions || NPC_CONFIG.missions;
+  console.log("NPC обновлён:", NPC_CONFIG);
+}

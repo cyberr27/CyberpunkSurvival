@@ -10,6 +10,7 @@ import {
   updateMissionStatus,
   drawNPC,
   handleNPCClick,
+  updateNPC,
 } from "./npc.js";
 
 // Получаем элементы DOM
@@ -446,9 +447,9 @@ function handleAuthMessage(event) {
       ws.onmessage = handleGameMessage;
       console.log("Переключен обработчик на handleGameMessage");
       startGame();
-      updateOnlineCount(); // Добавляем вызов
+      updateOnlineCount();
       if (data.npc) {
-        updateNPC(data.npc);
+        updateNPC(data.npc); // Теперь это будет работать
       }
       break;
     case "registerSuccess":
