@@ -1,3 +1,24 @@
+import {
+  NPC_CONFIG,
+  activeMission,
+  isNearNPC,
+  isCursorOverNPC,
+  showMissionDialog,
+  selectMission,
+  checkMissionCompletion,
+  completeMission,
+  updateMissionStatus,
+  drawNPC,
+  handleNPCClick,
+} from "./npc.js";
+
+export let inventory = Array(20).fill(null);
+export let players = new Map();
+export let myId;
+export const camera = { x: 0, y: 0 };
+export const ctx = canvas.getContext("2d");
+export let ws;
+
 // Получаем элементы DOM
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
@@ -86,6 +107,7 @@ const carrotImage = new Image();
 carrotImage.src = "carrot.png";
 const npcSprite = new Image();
 npcSprite.src = "npc_sprite.png";
+NPC_CONFIG.sprite = npcSprite;
 
 // Инвентарь игрока (массив на 20 слотов, изначально пустой)
 let inventory = Array(20).fill(null);
@@ -435,6 +457,9 @@ function handleAuthMessage(event) {
       console.log("Переключен обработчик на handleGameMessage");
       startGame();
       updateOnlineCount(); // Добавляем вызов
+      if (data.npc) {
+        updateNPC(data.npc);
+      }
       break;
     case "registerSuccess":
       registerError.textContent = "Регистрация успешна! Войдите.";
@@ -1655,7 +1680,7 @@ function update(deltaTime) {
 
 function draw(deltaTime) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = "rgba(10, 20, 40, 0.8)"; // Ночной эффект
+  ctx.fillStyle = "rgba(10, 20, 40, 0.8)";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   const groundSpeed = 1.0,
@@ -1667,7 +1692,6 @@ function draw(deltaTime) {
   const rocksOffsetX = camera.x * rocksSpeed;
   const cloudsOffsetX = camera.x * cloudsSpeed;
 
-  // Рисуем фон с учётом смещения камеры
   ctx.fillStyle = ctx.createPattern(backgroundImage, "repeat");
   ctx.save();
   ctx.translate(

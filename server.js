@@ -54,8 +54,8 @@ const ITEM_CONFIG = {
 // В начало файла, после ITEM_CONFIG
 const NPC_CONFIG = {
   id: "npc_1",
-  x: 1500,
-  y: 1500,
+  x: 591,
+  y: 3100,
   missions: [
     {
       id: "mission_1",

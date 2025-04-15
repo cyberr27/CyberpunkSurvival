@@ -1,11 +1,10 @@
-// npc.js
-NPC_CONFIG.sprite = npcSprite;
+import { inventory, players, myId, camera, ctx, ws } from "./code.js";
 
-const NPC_CONFIG = {
+export const NPC_CONFIG = {
   id: "npc_1",
-  x: 591, // Позиция NPC в мире
+  x: 591,
   y: 3100,
-  sprite: null, // Будем использовать спрайт
+  sprite: null, // Устанавливаем позже
   missions: [
     {
       id: "mission_1",
@@ -24,7 +23,7 @@ const NPC_CONFIG = {
       title: "Убей волка",
       description: "Найди и уничтожь одного волка.",
       reward: { balyary: 20 },
-      condition: () => false, // Пока заглушка, нужно добавить счётчик убийств
+      condition: () => false,
     },
     {
       id: "mission_3",
@@ -39,24 +38,16 @@ const NPC_CONFIG = {
   ],
 };
 
-// Загрузка спрайта NPC
-const npcSprite = new Image();
-npcSprite.src = "npc_sprite.png"; // Нужно добавить спрайт NPC в папку public
-NPC_CONFIG.sprite = npcSprite;
+export let activeMission = null;
 
-// Хранилище активных миссий игрока
-let activeMission = null;
-
-// Функция проверки расстояния до NPC
-function isNearNPC(playerX, playerY) {
+export function isNearNPC(playerX, playerY) {
   const dx = playerX - NPC_CONFIG.x;
   const dy = playerY - NPC_CONFIG.y;
   const distance = Math.sqrt(dx * dx + dy * dy);
-  return distance <= 200; // 200 пикселей
+  return distance <= 200;
 }
 
-// Функция проверки, находится ли курсор над NPC
-function isCursorOverNPC(cursorX, cursorY) {
+export function isCursorOverNPC(cursorX, cursorY) {
   const screenX = NPC_CONFIG.x - camera.x;
   const screenY = NPC_CONFIG.y - camera.y;
   return (
@@ -67,8 +58,7 @@ function isCursorOverNPC(cursorX, cursorY) {
   );
 }
 
-// Отображение диалогового окна
-function showMissionDialog() {
+export function showMissionDialog() {
   const dialog = document.getElementById("missionDialog");
   const missionList = document.getElementById("missionList");
   missionList.innerHTML = "";
@@ -97,21 +87,18 @@ function showMissionDialog() {
   dialog.style.display = "flex";
 }
 
-// Выбор миссии
-function selectMission(missionId) {
+export function selectMission(missionId) {
   const mission = NPC_CONFIG.missions.find((m) => m.id === missionId);
   if (mission) {
     activeMission = mission;
     console.log(`Миссия выбрана: ${mission.title}`);
     document.getElementById("missionDialog").style.display = "none";
     updateMissionStatus();
-    // Отправляем на сервер
     sendWhenReady(ws, JSON.stringify({ type: "selectMission", missionId }));
   }
 }
 
-// Проверка выполнения миссии
-function checkMissionCompletion() {
+export function checkMissionCompletion() {
   if (!activeMission) return;
   if (activeMission.condition()) {
     console.log(`Миссия ${activeMission.title} выполнена!`);
@@ -119,14 +106,12 @@ function checkMissionCompletion() {
   }
 }
 
-// Завершение миссии
-function completeMission() {
+export function completeMission() {
   if (!activeMission) return;
   const reward = activeMission.reward;
   const me = players.get(myId);
   if (!me) return;
 
-  // Добавляем награду (Баляры) в инвентарь
   const balyarySlot = inventory.findIndex(
     (slot) => slot && slot.type === "balyary"
   );
@@ -158,8 +143,7 @@ function completeMission() {
   updateMissionStatus();
 }
 
-// Обновление статуса миссии на экране
-function updateMissionStatus() {
+export function updateMissionStatus() {
   const missionStatus = document.getElementById("missionStatus");
   if (activeMission) {
     missionStatus.textContent = `Миссия: ${activeMission.title}`;
@@ -168,8 +152,7 @@ function updateMissionStatus() {
   }
 }
 
-// Рендеринг NPC
-function drawNPC() {
+export function drawNPC() {
   const screenX = NPC_CONFIG.x - camera.x;
   const screenY = NPC_CONFIG.y - camera.y;
   if (
@@ -178,13 +161,12 @@ function drawNPC() {
     screenY >= -40 &&
     screenY <= canvas.height + 40
   ) {
-    if (npcSprite.complete) {
-      ctx.drawImage(npcSprite, screenX, screenY, 40, 40);
+    if (NPC_CONFIG.sprite && NPC_CONFIG.sprite.complete) {
+      ctx.drawImage(NPC_CONFIG.sprite, screenX, screenY, 40, 40);
     } else {
       ctx.fillStyle = "purple";
       ctx.fillRect(screenX, screenY, 40, 40);
     }
-    // Отображаем имя NPC
     ctx.fillStyle = "white";
     ctx.font = "12px Arial";
     ctx.textAlign = "center";
@@ -192,8 +174,7 @@ function drawNPC() {
   }
 }
 
-// Обработка событий NPC
-function handleNPCClick(event) {
+export function handleNPCClick(event) {
   const me = players.get(myId);
   if (!me || me.health <= 0) return;
 
