@@ -249,9 +249,6 @@ const frameDuration = 200; // Длительность одного кадра �
 const worldWidth = 3135;
 const worldHeight = 3300;
 
-// Камера
-const camera = { x: 0, y: 0 };
-
 createLight(2445, 1540, "rgba(0, 255, 255, 0.4)", 1000); // 1
 createLight(1314, 332, "rgba(255, 0, 255, 0.4)", 1000); // 2
 createLight(506, 2246, "rgba(148, 0, 211, 0.4)", 1000); // 3
