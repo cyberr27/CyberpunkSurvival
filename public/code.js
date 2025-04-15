@@ -105,9 +105,6 @@ const npcSprite = new Image();
 npcSprite.src = "npc_sprite.png";
 NPC_CONFIG.sprite = npcSprite;
 
-// Инвентарь игрока (массив на 20 слотов, изначально пустой)
-let inventory = Array(20).fill(null);
-
 // Конфигурация эффектов предметов (расширяем ITEM_CONFIG)
 const ITEM_CONFIG = {
   energy_drink: {
