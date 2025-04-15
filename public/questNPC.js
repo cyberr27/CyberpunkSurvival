@@ -1,3 +1,5 @@
+// questNPC.js
+
 // Конфигурация NPC
 const NPC_CONFIG = {
   id: "questGiver1",
@@ -8,21 +10,20 @@ const NPC_CONFIG = {
   quests: [
     {
       id: "quest1",
-      title: "Собери 5 орехов",
-      description: "Найди и подбери 5 орехов (nut) в мире.",
-      reward: { type: "balyary", quantity: 10 },
+      title: "Собери 2 ореха",
+      description: "Найди и подбери 2 орехов в мире.",
+      reward: { type: "balyary", quantity: 5 },
       condition: () => {
         const nuts = inventory.filter(
           (item) => item && item.type === "nut"
         ).length;
-        return nuts >= 5;
+        return nuts >= 2;
       },
       onComplete: () => {
-        // Удаляем 5 орехов из инвентаря
-        let nutsToRemove = 5;
+        let nutsToRemove = 2;
         for (let i = 0; i < inventory.length && nutsToRemove > 0; i++) {
           if (inventory[i] && inventory[i].type === "nut") {
-            inventory[i] = null;
+            _inventory[i] = null;
             nutsToRemove--;
           }
         }
@@ -31,11 +32,11 @@ const NPC_CONFIG = {
     {
       id: "quest2",
       title: "Путешественник",
-      description: "Пройди 10000 пикселей по миру.",
-      reward: { type: "balyary", quantity: 15 },
+      description: "Пройди 100000 пикселей по миру.",
+      reward: { type: "balyary", quantity: 10 },
       condition: () => {
         const me = players.get(myId);
-        return me.distanceTraveled >= 10000;
+        return me.distanceTraveled >= 100000;
       },
       onComplete: () => {
         // Ничего не удаляем, просто проверяем дистанцию
@@ -45,7 +46,7 @@ const NPC_CONFIG = {
       id: "quest3",
       title: "Охотник за водой",
       description: "Собери 3 бутылки воды (water_bottle).",
-      reward: { type: "balyary", quantity: 12 },
+      reward: { type: "balyary", quantity: 9 },
       condition: () => {
         const waterBottles = inventory.filter(
           (item) => item && item.type === "water_bottle"
@@ -53,7 +54,6 @@ const NPC_CONFIG = {
         return waterBottles >= 3;
       },
       onComplete: () => {
-        // Удаляем 3 бутылки воды
         let bottlesToRemove = 3;
         for (let i = 0; i < inventory.length && bottlesToRemove > 0; i++) {
           if (inventory[i] && inventory[i].type === "water_bottle") {
@@ -73,6 +73,9 @@ NPC_CONFIG.sprite.src = "questNPC.png"; // Убедись, что у тебя е
 let activeQuest = null;
 let questDialogOpen = false;
 let questDialogEl = null;
+
+// Отслеживание первого взаимодействия для каждого игрока
+const firstInteraction = {};
 
 // Создание диалогового окна
 function createQuestDialog() {
@@ -106,45 +109,67 @@ function updateQuestDialog() {
   questDialogEl.style.display = "block";
 
   let content = `<h2>${NPC_CONFIG.name}</h2>`;
-  if (activeQuest) {
-    const quest = NPC_CONFIG.quests.find((q) => q.id === activeQuest);
-    content += `<p><strong>${quest.title}</strong></p>`;
-    content += `<p>${quest.description}</p>`;
-    if (quest.condition()) {
-      content += `<button id="claimReward" class="action-btn use-btn">Забрать награду</button>`;
-    } else {
-      content += `<p>Задание ещё не выполнено.</p>`;
-    }
-    content += `<button id="abandonQuest" class="action-btn drop-btn">Отказаться</button>`;
+
+  // Проверяем, первое ли это взаимодействие
+  if (firstInteraction[myId] === undefined) {
+    // МЕСТО ДЛЯ ВАШЕГО ТЕКСТА
+    // Вставьте ваш начальный текст здесь, например:
+    // content += `<p>Привет, я Джон! Впервые здесь? Давай я расскажу тебе, что к чему...</p>`;
+    content += `<p>Привет, как зовут? Что то не видал тебя здесь раньше...</p>`;
+    content += `<button id="continueBtn" class="action-btn use-btn">Продолжить</button>`;
   } else {
-    content += `<p>Выбери задание:</p>`;
-    NPC_CONFIG.quests.forEach((quest) => {
-      content += `<button class="quest-btn" data-quest-id="${quest.id}">${quest.title}</button>`;
-    });
+    // Стандартная логика для последующих взаимодействий
+    if (activeQuest) {
+      const quest = NPC_CONFIG.quests.find((q) => q.id === activeQuest);
+      content += `<p><strong>${quest.title}</strong></p>`;
+      content += `<p>${quest.description}</p>`;
+      if (quest.condition()) {
+        content += `<button id="claimReward" class="action-btn use-btn">Забрать награду</button>`;
+      } else {
+        content += `<p>Задание ещё не выполнено.</p>`;
+      }
+      content += `<button id="abandonQuest" class="action-btn drop-btn">Отказаться</button>`;
+    } else {
+      content += `<p>Выбери задание:</p>`;
+      NPC_CONFIG.quests.forEach((quest) => {
+        content += `<button class="quest-btn" data-quest-id="${quest.id}">${quest.title}</button>`;
+      });
+    }
   }
+
   questDialogEl.innerHTML = content;
 
   // Обработчики кнопок
-  const claimBtn = questDialogEl.querySelector("#claimReward");
-  if (claimBtn) {
-    claimBtn.addEventListener("click", () => {
-      claimQuestReward();
+  if (firstInteraction[myId] === undefined) {
+    const continueBtn = questDialogEl.querySelector("#continueBtn");
+    if (continueBtn) {
+      continueBtn.addEventListener("click", () => {
+        firstInteraction[myId] = true; // Отмечаем, что первое взаимодействие завершено
+        updateQuestDialog(); // Переключаемся на стандартное окно заданий
+      });
+    }
+  } else {
+    const claimBtn = questDialogEl.querySelector("#claimReward");
+    if (claimBtn) {
+      claimBtn.addEventListener("click", () => {
+        claimQuestReward();
+      });
+    }
+    const abandonBtn = questDialogEl.querySelector("#abandonQuest");
+    if (abandonBtn) {
+      abandonBtn.addEventListener("click", () => {
+        activeQuest = null;
+        updateQuestDialog();
+      });
+    }
+    const questButtons = questDialogEl.querySelectorAll(".quest-btn");
+    questButtons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        activeQuest = btn.dataset.questId;
+        updateQuestDialog();
+      });
     });
   }
-  const abandonBtn = questDialogEl.querySelector("#abandonQuest");
-  if (abandonBtn) {
-    abandonBtn.addEventListener("click", () => {
-      activeQuest = null;
-      updateQuestDialog();
-    });
-  }
-  const questButtons = questDialogEl.querySelectorAll(".quest-btn");
-  questButtons.forEach((btn) => {
-    btn.addEventListener("click", () => {
-      activeQuest = btn.dataset.questId;
-      updateQuestDialog();
-    });
-  });
 }
 
 // Получение награды
