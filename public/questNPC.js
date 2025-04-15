@@ -1,10 +1,10 @@
 // Конфигурация NPC
 const NPC_CONFIG = {
   id: "questGiver1",
-  x: 1500,
-  y: 1500,
+  x: 590,
+  y: 3100,
   sprite: new Image(),
-  name: "Дядя Баляр",
+  name: "John",
   quests: [
     {
       id: "quest1",
@@ -31,11 +31,11 @@ const NPC_CONFIG = {
     {
       id: "quest2",
       title: "Путешественник",
-      description: "Пройди 1000 пикселей по миру.",
+      description: "Пройди 10000 пикселей по миру.",
       reward: { type: "balyary", quantity: 15 },
       condition: () => {
         const me = players.get(myId);
-        return me.distanceTraveled >= 1000;
+        return me.distanceTraveled >= 10000;
       },
       onComplete: () => {
         // Ничего не удаляем, просто проверяем дистанцию
