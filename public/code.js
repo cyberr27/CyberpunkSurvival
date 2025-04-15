@@ -87,6 +87,7 @@ carrotImage.src = "carrot.png";
 
 // Инвентарь игрока (массив на 20 слотов, изначально пустой)
 let inventory = Array(20).fill(null);
+let myTradeOffer = [];
 
 // Конфигурация эффектов предметов (расширяем ITEM_CONFIG)
 const ITEM_CONFIG = {
@@ -622,6 +623,7 @@ function updateOnlineCount() {
 }
 
 function startGame() {
+  initTrade();
   updateOnlineCount();
   // Обработчик клавиш (только для стрельбы и чата)
   document.addEventListener("keydown", (e) => {
@@ -1402,6 +1404,46 @@ function handleGameMessage(event) {
       case "bulletRemoved":
         bullets.delete(data.bulletId);
         console.log(`Пуля ${data.bulletId} удалена`);
+        break;
+      case "requestTrade":
+        showTradeRequest(data.requesterId);
+        break;
+      case "acceptTradeRequest":
+        openTradeWindow(data.requesterId);
+        break;
+      case "declineTradeRequest":
+        tradeRequestContainer.style.display = "none";
+        break;
+      case "cancelTrade":
+        closeTradeWindow();
+        break;
+      case "updateTradeOffer":
+        if (data.playerId === currentTradePartner) {
+          partnerTradeOffer = data.offer;
+          updateTradeInterface();
+        }
+        break;
+      case "acceptTrade":
+        if (data.playerId === currentTradePartner) {
+          tradeStatus.textContent = "Партнёр подтвердил обмен!";
+          if (tradeAccepted) {
+            // Обмен завершён
+            sendWhenReady(
+              ws,
+              JSON.stringify({
+                type: "completeTrade",
+                partnerId: currentTradePartner,
+                myOffer: myTradeOffer,
+                partnerOffer: partnerTradeOffer,
+              })
+            );
+          }
+        }
+        break;
+      case "tradeCompleted":
+        inventory = data.inventory;
+        closeTradeWindow();
+        updateInventoryDisplay();
         break;
     }
   } catch (error) {

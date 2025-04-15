@@ -11,6 +11,7 @@ const wss = new WebSocket.Server({ server });
 const clients = new Map();
 const players = new Map();
 const userDatabase = new Map();
+const activeTrades = new Map();
 
 // В начало файла, после определения констант
 INACTIVITY_TIMEOUT = 15 * 60 * 1000;
@@ -684,6 +685,359 @@ wss.on("connection", (ws) => {
           }
         }
       }
+    }
+    if (data.type === "requestTrade") {
+      const id = clients.get(ws);
+      if (!id || !players.has(id) || !players.has(data.targetId)) return;
+      const player = players.get(id);
+      const target = players.get(data.targetId);
+      if (!player || !target || player.health <= 0 || target.health <= 0)
+        return;
+
+      // Проверяем расстояние
+      const dx = player.x - target.x;
+      const dy = player.y - target.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      if (distance > 100) return;
+
+      wss.clients.forEach((client) => {
+        if (
+          clients.get(client) === data.targetId &&
+          client.readyState === WebSocket.OPEN
+        ) {
+          client.send(
+            JSON.stringify({ type: "requestTrade", requesterId: id })
+          );
+        }
+      });
+    } else if (data.type === "acceptTradeRequest") {
+      const id = clients.get(ws);
+      if (!id || !players.has(id) || !players.has(data.requesterId)) return;
+      const player = players.get(id);
+      const requester = players.get(data.requesterId);
+      if (!player || !requester || player.health <= 0 || requester.health <= 0)
+        return;
+
+      // Проверяем расстояние
+      const dx = player.x - requester.x;
+      const dy = player.y - requester.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      if (distance > 100) return;
+
+      activeTrades.set(id, {
+        partnerId: data.requesterId,
+        myOffer: [],
+        partnerOffer: [],
+        myAccepted: false,
+        partnerAccepted: false,
+      });
+      activeTrades.set(data.requesterId, {
+        partnerId: id,
+        myOffer: [],
+        partnerOffer: [],
+        myAccepted: false,
+        partnerAccepted: false,
+      });
+
+      wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          if (clients.get(client) === id) {
+            client.send(
+              JSON.stringify({
+                type: "acceptTradeRequest",
+                requesterId: data.requesterId,
+              })
+            );
+          } else if (clients.get(client) === data.requesterId) {
+            client.send(
+              JSON.stringify({ type: "acceptTradeRequest", requesterId: id })
+            );
+          }
+        }
+      });
+    } else if (data.type === "declineTradeRequest") {
+      const id = clients.get(ws);
+      if (!id || !players.has(data.requesterId)) return;
+      wss.clients.forEach((client) => {
+        if (
+          clients.get(client) === data.requesterId &&
+          client.readyState === WebSocket.OPEN
+        ) {
+          client.send(
+            JSON.stringify({ type: "declineTradeRequest", playerId: id })
+          );
+        }
+      });
+    } else if (data.type === "updateTradeOffer") {
+      const id = clients.get(ws);
+      if (
+        !id ||
+        !activeTrades.has(id) ||
+        activeTrades.get(id).partnerId !== data.partnerId
+      )
+        return;
+      const trade = activeTrades.get(id);
+      trade.myOffer = data.offer;
+
+      const partnerId = trade.partnerId;
+      const partnerTrade = activeTrades.get(partnerId);
+      partnerTrade.partnerOffer = data.offer;
+
+      // Сбрасываем статус принятия
+      trade.myAccepted = false;
+      trade.partnerAccepted = false;
+      partnerTrade.myAccepted = false;
+      partnerTrade.partnerAccepted = false;
+
+      wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          if (clients.get(client) === partnerId) {
+            client.send(
+              JSON.stringify({
+                type: "updateTradeOffer",
+                playerId: id,
+                offer: data.offer,
+              })
+            );
+          } else if (clients.get(client) === id) {
+            client.send(
+              JSON.stringify({
+                type: "updateTradeOffer",
+                playerId: partnerId,
+                offer: partnerTrade.myOffer,
+              })
+            );
+          }
+        }
+      });
+    } else if (data.type === "acceptTrade") {
+      const id = clients.get(ws);
+      if (
+        !id ||
+        !activeTrades.has(id) ||
+        activeTrades.get(id).partnerId !== data.partnerId
+      )
+        return;
+      const trade = activeTrades.get(id);
+      trade.myAccepted = true;
+
+      const partnerId = trade.partnerId;
+      const partnerTrade = activeTrades.get(partnerId);
+      partnerTrade.partnerAccepted = true;
+
+      wss.clients.forEach((client) => {
+        if (
+          clients.get(client) === partnerId &&
+          client.readyState === WebSocket.OPEN
+        ) {
+          client.send(JSON.stringify({ type: "acceptTrade", playerId: id }));
+        }
+      });
+
+      if (trade.myAccepted && partnerTrade.myAccepted) {
+        // Проверяем расстояние перед завершением
+        const player = players.get(id);
+        const partner = players.get(partnerId);
+        const dx = player.x - partner.x;
+        const dy = player.y - partner.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        if (distance > 100) {
+          wss.clients.forEach((client) => {
+            if (
+              client.readyState === WebSocket.OPEN &&
+              (clients.get(client) === id || clients.get(client) === partnerId)
+            ) {
+              client.send(JSON.stringify({ type: "cancelTrade" }));
+            }
+          });
+          activeTrades.delete(id);
+          activeTrades.delete(partnerId);
+          return;
+        }
+
+        // Выполняем обмен
+        const playerInventory = [...player.inventory];
+        const partnerInventory = [...partner.inventory];
+
+        // Проверяем, что предметы всё ещё в инвентаре
+        let validTrade = true;
+        for (const item of trade.myOffer) {
+          const slotIndex = item.slotIndex;
+          if (
+            !playerInventory[slotIndex] ||
+            playerInventory[slotIndex].type !== item.type
+          ) {
+            validTrade = false;
+            break;
+          }
+          if (
+            item.type === "balyary" &&
+            playerInventory[slotIndex].quantity < item.quantity
+          ) {
+            validTrade = false;
+            break;
+          }
+        }
+        for (const item of trade.partnerOffer) {
+          const slotIndex = item.slotIndex;
+          if (
+            !partnerInventory[slotIndex] ||
+            partnerInventory[slotIndex].type !== item.type
+          ) {
+            validTrade = false;
+            break;
+          }
+          if (
+            item.type === "balyary" &&
+            partnerInventory[slotIndex].quantity < item.quantity
+          ) {
+            validTrade = false;
+            break;
+          }
+        }
+
+        if (!validTrade) {
+          wss.clients.forEach((client) => {
+            if (
+              client.readyState === WebSocket.OPEN &&
+              (clients.get(client) === id || clients.get(client) === partnerId)
+            ) {
+              client.send(JSON.stringify({ type: "cancelTrade" }));
+            }
+          });
+          activeTrades.delete(id);
+          activeTrades.delete(partnerId);
+          return;
+        }
+
+        // Выполняем обмен предметов
+        trade.myOffer.forEach((item) => {
+          const slotIndex = item.slotIndex;
+          if (item.type === "balyary") {
+            playerInventory[slotIndex].quantity -= item.quantity;
+            if (playerInventory[slotIndex].quantity <= 0) {
+              playerInventory[slotIndex] = null;
+            }
+            const partnerBalyarySlot = partnerInventory.findIndex(
+              (slot) => slot && slot.type === "balyary"
+            );
+            if (partnerBalyarySlot !== -1) {
+              partnerInventory[partnerBalyarySlot].quantity =
+                (partnerInventory[partnerBalyarySlot].quantity || 0) +
+                item.quantity;
+            } else {
+              const freeSlot = partnerInventory.findIndex(
+                (slot) => slot === null
+              );
+              if (freeSlot !== -1) {
+                partnerInventory[freeSlot] = {
+                  type: "balyary",
+                  quantity: item.quantity,
+                };
+              }
+            }
+          } else {
+            const freeSlot = partnerInventory.findIndex(
+              (slot) => slot === null
+            );
+            if (freeSlot !== -1) {
+              partnerInventory[freeSlot] = { type: item.type };
+            }
+            playerInventory[slotIndex] = null;
+          }
+        });
+
+        trade.partnerOffer.forEach((item) => {
+          const slotIndex = item.slotIndex;
+          if (item.type === "balyary") {
+            partnerInventory[slotIndex].quantity -= item.quantity;
+            if (partnerInventory[slotIndex].quantity <= 0) {
+              partnerInventory[slotIndex] = null;
+            }
+            const playerBalyarySlot = playerInventory.findIndex(
+              (slot) => slot && slot.type === "balyary"
+            );
+            if (playerBalyarySlot !== -1) {
+              playerInventory[playerBalyarySlot].quantity =
+                (playerInventory[playerBalyarySlot].quantity || 0) +
+                item.quantity;
+            } else {
+              const freeSlot = playerInventory.findIndex(
+                (slot) => slot === null
+              );
+              if (freeSlot !== -1) {
+                playerInventory[freeSlot] = {
+                  type: "balyary",
+                  quantity: item.quantity,
+                };
+              }
+            }
+          } else {
+            const freeSlot = playerInventory.findIndex((slot) => slot === null);
+            if (freeSlot !== -1) {
+              playerInventory[freeSlot] = { type: item.type };
+            }
+            partnerInventory[slotIndex] = null;
+          }
+        });
+
+        // Обновляем инвентари
+        player.inventory = playerInventory;
+        partner.inventory = partnerInventory;
+
+        // Сохраняем изменения
+        players.set(id, { ...player });
+        players.set(partnerId, { ...partner });
+        userDatabase.set(id, { ...player });
+        userDatabase.set(partnerId, { ...partner });
+        await saveUserDatabase(dbCollection, id, player);
+        await saveUserDatabase(dbCollection, partnerId, partner);
+
+        // Уведомляем клиентов
+        wss.clients.forEach((client) => {
+          if (client.readyState === WebSocket.OPEN) {
+            if (clients.get(client) === id) {
+              client.send(
+                JSON.stringify({
+                  type: "tradeCompleted",
+                  inventory: playerInventory,
+                })
+              );
+            } else if (clients.get(client) === partnerId) {
+              client.send(
+                JSON.stringify({
+                  type: "tradeCompleted",
+                  inventory: partnerInventory,
+                })
+              );
+            }
+          }
+        });
+
+        activeTrades.delete(id);
+        activeTrades.delete(partnerId);
+      }
+    } else if (data.type === "cancelTrade") {
+      const id = clients.get(ws);
+      if (
+        !id ||
+        !activeTrades.has(id) ||
+        activeTrades.get(id).partnerId !== data.partnerId
+      )
+        return;
+      const partnerId = activeTrades.get(id).partnerId;
+      activeTrades.delete(id);
+      activeTrades.delete(partnerId);
+      wss.clients.forEach((client) => {
+        if (
+          client.readyState === WebSocket.OPEN &&
+          (clients.get(client) === id || clients.get(client) === partnerId)
+        ) {
+          client.send(JSON.stringify({ type: "cancelTrade" }));
+        }
+      });
+    } else if (data.type === "completeTrade") {
+      // Этот тип обрабатывается в "acceptTrade", но оставим на случай прямого вызова
     }
   });
 
