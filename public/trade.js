@@ -4,7 +4,6 @@ let tradeContainer = null;
 let tradeRequestContainer = null;
 let isTradeWindowOpen = false;
 let currentTradePartner = null;
-let myTradeOffer = [];
 let partnerTradeOffer = [];
 let tradeAccepted = false;
 
