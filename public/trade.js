@@ -130,46 +130,6 @@ function createTradeInterface() {
 // Инициализация интерфейса обмена
 function initTrade() {
   createTradeInterface();
-
-  // Обработчик клавиши для открытия запроса обмена
-  document.addEventListener("keydown", (e) => {
-    if (
-      e.key === "t" &&
-      !isInventoryOpen &&
-      chatContainer.style.display !== "flex" &&
-      !isTradeWindowOpen // Добавляем, чтобы нельзя было отправить запрос во время активного обмена
-    ) {
-      const me = players.get(myId);
-      if (!me || me.health <= 0) {
-        console.log("Игрок мёртв или не найден, обмен невозможен");
-        return;
-      }
-      // Находим ближайшего игрока
-      let closestPlayer = null;
-      let minDistance = Infinity;
-      players.forEach((player, id) => {
-        if (id !== myId && player.health > 0) {
-          const dx = player.x - me.x;
-          const dy = player.y - me.y;
-          const distance = Math.sqrt(dx * dx + dy * dy);
-          console.log(`Игрок ${id}, расстояние: ${distance}`); // Лог для отладки
-          if (distance < minDistance && distance < 100) {
-            minDistance = distance;
-            closestPlayer = id;
-          }
-        }
-      });
-      if (closestPlayer) {
-        console.log(`Отправка запроса обмена игроку ${closestPlayer}`);
-        sendWhenReady(
-          ws,
-          JSON.stringify({ type: "requestTrade", targetId: closestPlayer })
-        );
-      } else {
-        console.log("Подходящий игрок для обмена не найден");
-      }
-    }
-  });
 }
 
 // Обновление интерфейса обмена
@@ -379,12 +339,20 @@ function closeTradeWindow() {
 
 // Обработка входящих запросов на обмен
 function showTradeRequest(requesterId) {
-  console.log(`Получен запрос обмена от ${requesterId}`); // Лог для отладки
+  if (isTradeWindowOpen) {
+    console.log(`Обмен уже активен, игнорируем запрос от ${requesterId}`);
+    sendWhenReady(
+      ws,
+      JSON.stringify({ type: "declineTradeRequest", requesterId })
+    );
+    return;
+  }
+  console.log(`Получен запрос обмена от ${requesterId}`);
   tradeRequestContainer.innerHTML = `
-        <p>Игрок ${requesterId} предлагает обмен</p>
-        <button id="acceptRequestBtn" class="action-btn">Принять</button>
-        <button id="declineRequestBtn" class="action-btn">Отклонить</button>
-    `;
+      <p>Игрок ${requesterId} предлагает обмен</p>
+      <button id="acceptRequestBtn" class="action-btn">Принять</button>
+      <button id="declineRequestBtn" class="action-btn">Отклонить</button>
+  `;
   tradeRequestContainer.style.display = "block";
 
   document.getElementById("acceptRequestBtn").onclick = () => {
