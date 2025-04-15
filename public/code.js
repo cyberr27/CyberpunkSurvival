@@ -899,6 +899,7 @@ function startGame() {
     if (selectedSlot !== null) dropItem(selectedSlot);
   });
 
+  initNPC();
   requestAnimationFrame(gameLoop);
 }
 
@@ -1523,6 +1524,7 @@ function update(deltaTime) {
         updateResources();
         updateCamera();
         checkCollisions();
+        checkNPCCollision();
       }
 
       sendWhenReady(
@@ -1766,6 +1768,8 @@ function draw(deltaTime) {
       15
     );
   });
+
+  drawNPC();
 
   items.forEach((item, itemId) => {
     if (!items.has(itemId)) {
