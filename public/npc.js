@@ -39,7 +39,7 @@ const NPC_CONFIG = {
 
 // Загрузка спрайта NPC
 const npcSprite = new Image();
-npcSprite.src = "npcSprite.png"; // Нужно добавить спрайт NPC в папку public
+npcSprite.src = "npc_sprite.png"; // Нужно добавить спрайт NPC в папку public
 NPC_CONFIG.sprite = npcSprite;
 
 // Хранилище активных миссий игрока
