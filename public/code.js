@@ -42,8 +42,6 @@ const chatMessages = document.getElementById("chatMessages");
 const chatInput = document.getElementById("chatInput");
 
 // Хранилища данных
-let players = new Map();
-let myId;
 let wolves = new Map();
 const items = new Map();
 const lights = [];
