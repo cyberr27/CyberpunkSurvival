@@ -136,10 +136,14 @@ function initTrade() {
     if (
       e.key === "t" &&
       !isInventoryOpen &&
-      chatContainer.style.display !== "flex"
+      chatContainer.style.display !== "flex" &&
+      !isTradeWindowOpen // Добавляем, чтобы нельзя было отправить запрос во время активного обмена
     ) {
       const me = players.get(myId);
-      if (!me || me.health <= 0) return;
+      if (!me || me.health <= 0) {
+        console.log("Игрок мёртв или не найден, обмен невозможен");
+        return;
+      }
       // Находим ближайшего игрока
       let closestPlayer = null;
       let minDistance = Infinity;
@@ -148,18 +152,21 @@ function initTrade() {
           const dx = player.x - me.x;
           const dy = player.y - me.y;
           const distance = Math.sqrt(dx * dx + dy * dy);
+          console.log(`Игрок ${id}, расстояние: ${distance}`); // Лог для отладки
           if (distance < minDistance && distance < 100) {
-            // Радиус 100 пикселей
             minDistance = distance;
             closestPlayer = id;
           }
         }
       });
       if (closestPlayer) {
+        console.log(`Отправка запроса обмена игроку ${closestPlayer}`);
         sendWhenReady(
           ws,
           JSON.stringify({ type: "requestTrade", targetId: closestPlayer })
         );
+      } else {
+        console.log("Подходящий игрок для обмена не найден");
       }
     }
   });
@@ -372,6 +379,7 @@ function closeTradeWindow() {
 
 // Обработка входящих запросов на обмен
 function showTradeRequest(requesterId) {
+  console.log(`Получен запрос обмена от ${requesterId}`); // Лог для отладки
   tradeRequestContainer.innerHTML = `
         <p>Игрок ${requesterId} предлагает обмен</p>
         <button id="acceptRequestBtn" class="action-btn">Принять</button>
@@ -380,6 +388,7 @@ function showTradeRequest(requesterId) {
   tradeRequestContainer.style.display = "block";
 
   document.getElementById("acceptRequestBtn").onclick = () => {
+    console.log(`Игрок принял запрос обмена от ${requesterId}`);
     sendWhenReady(
       ws,
       JSON.stringify({ type: "acceptTradeRequest", requesterId })
@@ -388,6 +397,7 @@ function showTradeRequest(requesterId) {
   };
 
   document.getElementById("declineRequestBtn").onclick = () => {
+    console.log(`Игрок отклонил запрос обмена от ${requesterId}`);
     sendWhenReady(
       ws,
       JSON.stringify({ type: "declineTradeRequest", requesterId })

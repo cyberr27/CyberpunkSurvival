@@ -688,28 +688,46 @@ wss.on("connection", (ws) => {
     }
     if (data.type === "requestTrade") {
       const id = clients.get(ws);
-      if (!id || !players.has(id) || !players.has(data.targetId)) return;
+      console.log(`Получен запрос обмена от ${id} для ${data.targetId}`); // Лог
+      if (!id || !players.has(id) || !players.has(data.targetId)) {
+        console.log("Ошибка: Игрок или цель не найдены");
+        return;
+      }
       const player = players.get(id);
       const target = players.get(data.targetId);
-      if (!player || !target || player.health <= 0 || target.health <= 0)
+      if (!player || !target || player.health <= 0 || target.health <= 0) {
+        console.log("Ошибка: Игрок или цель мертвы");
         return;
+      }
 
       // Проверяем расстояние
       const dx = player.x - target.x;
       const dy = player.y - target.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
-      if (distance > 100) return;
+      console.log(`Расстояние между ${id} и ${data.targetId}: ${distance}`); // Лог
+      if (distance > 100) {
+        console.log("Ошибка: Игроки слишком далеко");
+        return;
+      }
 
+      let targetClient = null;
       wss.clients.forEach((client) => {
         if (
           clients.get(client) === data.targetId &&
           client.readyState === WebSocket.OPEN
         ) {
-          client.send(
-            JSON.stringify({ type: "requestTrade", requesterId: id })
-          );
+          targetClient = client;
         }
       });
+
+      if (targetClient) {
+        console.log(`Отправка запроса обмена игроку ${data.targetId}`);
+        targetClient.send(
+          JSON.stringify({ type: "requestTrade", requesterId: id })
+        );
+      } else {
+        console.log(`Клиент ${data.targetId} не найден или неактивен`);
+      }
     } else if (data.type === "acceptTradeRequest") {
       const id = clients.get(ws);
       if (!id || !players.has(id) || !players.has(data.requesterId)) return;

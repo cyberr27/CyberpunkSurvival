@@ -1515,8 +1515,6 @@ function update(deltaTime) {
   const me = players.get(myId);
   if (!me || me.health <= 0) return;
 
-  console.log(`DeltaTime: ${deltaTime}, FPS: ${1000 / deltaTime}`); // Для отладки
-
   if (isMoving) {
     const dx = targetX - me.x;
     const dy = targetY - me.y;
