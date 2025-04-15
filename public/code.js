@@ -493,6 +493,7 @@ function updateOnlineCount() {
 
 function startGame() {
   updateOnlineCount();
+  initInventory(ws, myId, players); // Инициализируем инвентарь
 
   // Обработчик клавиш (только для стрельбы и чата)
   document.addEventListener("keydown", (e) => {
@@ -515,7 +516,6 @@ function startGame() {
       document.activeElement === chatInput ||
       document.activeElement === document.getElementById("balyaryAmount")
     ) {
-      console.log("Фокус на balyaryAmount, пропускаем keydown:", e.key);
       return;
     }
 
@@ -562,16 +562,10 @@ function startGame() {
             e.clientY <= slotRect.bottom &&
             inventory[i]
           ) {
-            console.log(
-              `Клик по слоту ${i} (x:${e.clientX}, y:${e.clientY}), предмет: ${inventory[i].type}`
-            );
             selectSlot(i, slots[i]);
             return;
           }
         }
-        console.log(
-          `Клик вне слотов инвентаря (x:${e.clientX}, y:${e.clientY})`
-        );
         return;
       }
 
@@ -625,7 +619,6 @@ function startGame() {
     const me = players.get(myId);
     if (!me || me.health <= 0) return;
 
-    // Проверяем, не кликнули ли по интерфейсу
     const inventoryContainer = document.getElementById("inventoryContainer");
     const chatContainer = document.getElementById("chatContainer");
     if (
@@ -642,7 +635,6 @@ function startGame() {
     let closestPlayer = null;
     let minDistance = Infinity;
 
-    // Ищем ближайшего игрока
     players.forEach((player, id) => {
       if (id === myId || player.health <= 0) return;
       const dx = clickX - (player.x + 20);
@@ -657,11 +649,9 @@ function startGame() {
     if (closestPlayer) {
       selectedPlayerId = closestPlayer;
       document.getElementById("tradeBtn").disabled = false;
-      console.log(`Выбран игрок для обмена: ${selectedPlayerId}`);
     } else {
       selectedPlayerId = null;
       document.getElementById("tradeBtn").disabled = true;
-      console.log("Игрок для обмена не выбран");
     }
   });
 
@@ -708,13 +698,11 @@ function startGame() {
       if (closestPlayer) {
         selectedPlayerId = closestPlayer;
         document.getElementById("tradeBtn").disabled = false;
-        console.log(`Выбран игрок для обмена (тач): ${selectedPlayerId}`);
       } else {
         selectedPlayerId = null;
         document.getElementById("tradeBtn").disabled = true;
-        console.log("Игрок для обмена не выбран (тач)");
       }
-    }, 500); // 500 мс для длительного касания
+    }, 500);
   });
 
   canvas.addEventListener("touchend", () => {
@@ -810,14 +798,12 @@ function startGame() {
     }
   });
 
-  // Настройка кнопки Fire
   const fireBtn = document.getElementById("fireBtn");
   fireBtn.addEventListener("click", (e) => {
     e.preventDefault();
     shoot();
   });
 
-  // Настройка кнопки Chat
   const chatBtn = document.getElementById("chatBtn");
   chatBtn.addEventListener("click", (e) => {
     e.preventDefault();
@@ -917,133 +903,17 @@ function handleGameMessage(event) {
     switch (data.type) {
       case "newPlayer":
         players.set(data.player.id, { ...data.player, frameTime: 0 });
-        updateOnlineCount(); // Обновляем при входе нового игрока
+        updateOnlineCount();
         break;
       case "playerLeft":
         players.delete(data.id);
-        updateOnlineCount(); // Обновляем при выходе игрока
-        break;
-      case "syncItems":
-        // Очищаем старые предметы
-        items.clear();
-        // Заполняем актуальными предметами из сервера
-        data.items.forEach((item) =>
-          items.set(item.itemId, {
-            x: item.x,
-            y: item.y,
-            type: item.type,
-            spawnTime: item.spawnTime,
-          })
-        );
-        // Очищаем pendingPickups для предметов, которые всё ещё существуют
-        data.items.forEach((item) => {
-          if (pendingPickups.has(item.itemId)) {
-            console.log(
-              `Предмет ${item.itemId} всё ещё в мире, убираем из pendingPickups`
-            );
-            pendingPickups.delete(item.itemId);
-          }
-        });
-        break;
-      case "itemPicked":
-        items.delete(data.itemId);
-        pendingPickups.delete(data.itemId);
-        console.log(`Предмет ${data.itemId} удалён из мира (itemPicked)`);
-        const me = players.get(myId);
-        if (me && data.playerId === myId && data.item) {
-          if (data.item.type === "balyary") {
-            const balyarySlot = inventory.findIndex(
-              (slot) => slot && slot.type === "balyary"
-            );
-            if (balyarySlot !== -1) {
-              inventory[balyarySlot].quantity =
-                (inventory[balyarySlot].quantity || 1) + 1;
-              console.log(
-                `Добавлено 1 Баляр, теперь их ${inventory[balyarySlot].quantity}`
-              );
-            } else {
-              const freeSlot = inventory.findIndex((slot) => slot === null);
-              if (freeSlot !== -1) {
-                inventory[freeSlot] = {
-                  type: "balyary",
-                  quantity: 1,
-                  itemId:
-                    data.itemId ||
-                    `${data.item.type}_${Date.now()}_${freeSlot}`,
-                };
-                console.log(
-                  `Баляры добавлены в слот ${freeSlot}, количество: 1, ID: ${inventory[freeSlot].itemId}`
-                );
-              }
-            }
-          } else {
-            const freeSlot = inventory.findIndex((slot) => slot === null);
-            if (freeSlot !== -1) {
-              inventory[freeSlot] = {
-                type: data.item.type,
-                itemId:
-                  data.item.itemId ||
-                  `${data.item.type}_${Date.now()}_${freeSlot}`,
-              };
-              console.log(
-                `Предмет ${data.item.type} добавлен в слот ${freeSlot}, ID: ${inventory[freeSlot].itemId}`
-              );
-            }
-          }
-          updateInventoryDisplay();
-        }
-        updateStatsDisplay();
-        break;
-      case "itemNotFound":
-        items.delete(data.itemId); // Удаляем предмет из локального items
-        pendingPickups.delete(data.itemId); // Убираем из ожидающих
-        console.log(
-          `Предмет ${data.itemId} не найден на сервере, удалён из локального items`
-        );
-        break;
-      case "inventoryFull":
-        // Инвентарь полон, уведомляем игрока и убираем предмет из pendingPickups
-        console.log(`Инвентарь полон, предмет ${data.itemId} не поднят`);
-        pendingPickups.delete(data.itemId); // Очищаем из pendingPickups
-        // Можно добавить визуальное уведомление, например:
-        // alert("Инвентарь полон!");
-        break;
-      case "update":
-        const existingPlayer = players.get(data.player.id);
-        players.set(data.player.id, {
-          ...existingPlayer,
-          ...data.player,
-          frameTime: existingPlayer.frameTime || 0,
-        });
-        if (data.player.id === myId) {
-          inventory = data.player.inventory || inventory;
-          updateStatsDisplay();
-          updateInventoryDisplay();
-        }
-        break;
-      case "itemDropped":
-        console.log(
-          `Получено itemDropped: itemId=${data.itemId}, type=${data.type}, x=${data.x}, y=${data.y}`
-        );
-        items.set(data.itemId, {
-          x: data.x,
-          y: data.y,
-          type: data.type,
-          spawnTime: data.spawnTime,
-        });
-        updateInventoryDisplay();
+        updateOnlineCount();
         break;
       case "chat":
         const messageEl = document.createElement("div");
         messageEl.textContent = `${data.id}: ${data.message}`;
         chatMessages.appendChild(messageEl);
         chatMessages.scrollTop = chatMessages.scrollHeight;
-        break;
-      case "newPlayer":
-        players.set(data.player.id, { ...data.player, frameTime: 0 });
-        break;
-      case "playerLeft":
-        players.delete(data.id);
         break;
       case "shoot":
         console.log(`Получена пуля ${data.bulletId} от ${data.shooterId}`);
@@ -1067,64 +937,8 @@ function handleGameMessage(event) {
           console.log(`Обмен с ${data.partnerId} завершён на клиенте`);
         }
         break;
-      case "tradeRequest":
-        console.log(`Получен запрос на обмен от ${data.fromId}`);
-        showTradeRequest(data.fromId);
-        break;
-      case "tradeDeclined":
-        if (data.fromId === selectedPlayerId) {
-          console.log(`Игрок ${data.fromId} отклонил обмен`);
-          document.getElementById("tradeBtn").disabled = false; // Активируем кнопку
-          selectedPlayerId = null; // Сбрасываем выбор игрока
-        }
-        break;
-      case "tradeAccepted":
-        if (data.fromId === selectedPlayerId) {
-          console.log(`Игрок ${data.fromId} принял обмен`);
-          tradeSession = {
-            partnerId: data.fromId,
-            myItem: null,
-            partnerItem: null,
-            myConfirmed: false,
-            partnerConfirmed: false,
-          };
-          openTradeInventory();
-          document.getElementById("tradeBtn").disabled = true; // Кнопка остаётся отключённой во время обмена
-        }
-        break;
-      case "tradeItemPlaced":
-        if (tradeSession && tradeSession.partnerId === data.fromId) {
-          tradeSession.partnerItem = data.item;
-          updateTradeInventory();
-          console.log(
-            `Партнёр ${data.fromId} предложил предмет: ${
-              data.item?.type || "ничего"
-            }`
-          );
-        }
-        break;
-      case "tradeConfirmed":
-        if (tradeSession && tradeSession.partnerId === data.fromId) {
-          tradeSession.partnerConfirmed = true;
-          // Активируем кнопки, если партнёр подтвердил
-          const useBtn = document.getElementById("useBtn");
-          const dropBtn = document.getElementById("dropBtn");
-          useBtn.textContent = "Обмен";
-          useBtn.disabled = tradeSession.myConfirmed;
-          dropBtn.textContent = "Отмена";
-          dropBtn.disabled = false;
-          updateTradeInventory();
-          if (tradeSession.myConfirmed) {
-            finalizeTrade();
-          }
-          console.log(`Партнёр ${data.fromId} подтвердил обмен`);
-        }
-        break;
-      case "tradeCancelled":
-        if (tradeSession && tradeSession.partnerId === data.fromId) {
-          cancelTrade();
-          console.log(`Обмен с ${data.fromId} отменён`);
-        }
+      default:
+        handleInventoryMessages(data, ws, myId, players, items); // Делегируем обработку инвентаря
         break;
     }
   } catch (error) {
@@ -1351,7 +1165,7 @@ function update(deltaTime) {
 
 function draw(deltaTime) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = "rgba(10, 20, 40, 0.8)"; // Ночной эффект
+  ctx.fillStyle = "rgba(10, 20, 40, 0.8)";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   const groundSpeed = 1.0,
@@ -1363,7 +1177,6 @@ function draw(deltaTime) {
   const rocksOffsetX = camera.x * rocksSpeed;
   const cloudsOffsetX = camera.x * cloudsSpeed;
 
-  // Рисуем фон с учётом смещения камеры
   ctx.fillStyle = ctx.createPattern(backgroundImage, "repeat");
   ctx.save();
   ctx.translate(
@@ -1425,7 +1238,7 @@ function draw(deltaTime) {
       if (player.state === "walking") {
         player.frameTime += deltaTime;
         if (player.frameTime >= GAME_CONFIG.FRAME_DURATION / 7) {
-          player.frameTime -= GAME_CONFIG.FRAME_DURATION / 7; // Плавное вычитание
+          player.frameTime -= GAME_CONFIG.FRAME_DURATION / 7;
           player.frame = (player.frame + 1) % 7;
         }
       } else if (player.state === "dying") {
@@ -1446,7 +1259,6 @@ function draw(deltaTime) {
         ? 160
         : { up: 0, down: 40, left: 80, right: 120 }[player.direction] || 40;
 
-    // Подсветка выбранного игрока
     if (player.id === selectedPlayerId) {
       ctx.beginPath();
       ctx.arc(screenX + 20, screenY + 20, 25, 0, Math.PI * 2);
@@ -1498,15 +1310,9 @@ function draw(deltaTime) {
   });
 
   items.forEach((item, itemId) => {
-    if (!items.has(itemId)) {
-      console.log(
-        `Предмет ${itemId} пропущен при отрисовке, так как уже удалён`
-      );
-      return;
-    }
+    if (!items.has(itemId)) return;
     const screenX = item.x - camera.x;
     const screenY = item.y - camera.y;
-    // Уменьшаем область проверки видимости, так как размер теперь 20x20
     if (
       screenX >= -20 &&
       screenX <= canvas.width + 20 &&
@@ -1515,11 +1321,8 @@ function draw(deltaTime) {
     ) {
       const itemImage = ITEM_CONFIG[item.type]?.image;
       if (itemImage && itemImage.complete) {
-        // Меняем размер отрисовки с 40x40 на 20x20 и корректируем позицию,
-        // чтобы центр предмета оставался на месте
         ctx.drawImage(itemImage, screenX + 10, screenY + 10, 20, 20);
       } else {
-        // Уменьшаем заглушку до 5x5 для согласованности
         ctx.fillStyle = "yellow";
         ctx.fillRect(screenX + 7.5, screenY + 7.5, 5, 5);
       }
@@ -1551,7 +1354,6 @@ function draw(deltaTime) {
   bullets.forEach((bullet) => {
     const screenX = bullet.x - camera.x;
     const screenY = bullet.y - camera.y;
-    console.log(`Отрисовка пули ${bullet.id} на x:${screenX}, y:${screenY}`);
     drawBullet(screenX, screenY);
   });
 
@@ -1589,41 +1391,20 @@ function drawBullet(x, y) {
   ctx.fill();
 }
 
+// Обновляем checkCollisions
 function checkCollisions() {
   const me = players.get(myId);
   if (!me || me.health <= 0) return;
 
   items.forEach((item, id) => {
-    // Проверяем, существует ли предмет и не отправляли ли мы уже запрос
-    if (!items.has(id)) {
-      console.log(`Предмет ${id} уже удалён из items, пропускаем`);
-      return;
-    }
-    if (pendingPickups.has(id)) {
-      console.log(
-        `Предмет ${id} в процессе поднятия (pendingPickups), пропускаем`
-      );
-      return;
-    }
-    // Центр предмета теперь смещён, так как размер 20x20
+    if (!items.has(id)) return;
+    if (pendingPickups.has(id)) return;
     const dx = me.x + 20 - (item.x + 10);
     const dy = me.y + 20 - (item.y + 10);
     const distance = Math.sqrt(dx * dx + dy * dy);
-    console.log(
-      `Проверка столкновения с ${item.type} (ID: ${id}), расстояние: ${distance}`
-    );
     if (distance < 30) {
-      // Уменьшено с 40 до 30
-      console.log(
-        `Игрок ${myId} пытается подобрать предмет ${item.type} (ID: ${id})`
-      );
-      if (ws.readyState === WebSocket.OPEN) {
-        pendingPickups.add(id);
-        sendWhenReady(ws, JSON.stringify({ type: "pickup", itemId: id }));
-        console.log(`Отправлено сообщение pickup для ${id}`);
-      } else {
-        console.error("WebSocket не открыт, предмет не отправлен на сервер");
-      }
+      pendingPickups.add(id);
+      sendWhenReady(ws, JSON.stringify({ type: "pickup", itemId: id }));
     }
   });
 }
