@@ -2,7 +2,7 @@
 const NPC_CONFIG = {
   id: "npc_1",
   x: 591, // Позиция NPC в мире
-  y: 3198,
+  y: 3100,
   sprite: null, // Будем использовать спрайт
   missions: [
     {
