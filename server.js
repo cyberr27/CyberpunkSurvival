@@ -51,6 +51,30 @@ const ITEM_CONFIG = {
   carrot: { effect: { food: 5, energy: 3 }, rarity: 3 },
 };
 
+// В начало файла, после ITEM_CONFIG
+const NPC_CONFIG = {
+  id: "npc_1",
+  x: 1500,
+  y: 1500,
+  missions: [
+    {
+      id: "mission_1",
+      title: "Собери 5 орехов",
+      reward: { balyary: 10 },
+    },
+    {
+      id: "mission_2",
+      title: "Убей волка",
+      reward: { balyary: 20 },
+    },
+    {
+      id: "mission_3",
+      title: "Путешественник",
+      reward: { balyary: 15 },
+    },
+  ],
+};
+
 // Получаем строку подключения только из переменной окружения
 const uri = process.env.MONGO_URI;
 console.log(
@@ -352,7 +376,8 @@ wss.on("connection", (ws) => {
             })),
             obstacles: obstacles,
             lights: lights,
-            inventory: playerData.inventory, // Отправляем гарантированно существующий inventory
+            inventory: playerData.inventory, // Отправляем гарантированtory
+            npc: NPC_CONFIG, // Добавляем NPC
           })
         );
         wss.clients.forEach((client) => {
@@ -682,6 +707,66 @@ wss.on("connection", (ws) => {
           } else {
             console.log(`Не удалось найти место для выброса ${item.type}`);
           }
+        }
+      }
+    } else if (data.type === "selectMission") {
+      const id = clients.get(ws);
+      if (id) {
+        const player = players.get(id);
+        player.activeMission = data.missionId;
+        players.set(id, { ...player });
+        userDatabase.set(id, { ...player });
+        await saveUserDatabase(dbCollection, id, player);
+        ws.send(
+          JSON.stringify({ type: "selectMission", missionId: data.missionId })
+        );
+      }
+    } else if (data.type === "completeMission") {
+      const id = clients.get(ws);
+      if (id) {
+        const player = players.get(id);
+        const mission = NPC_CONFIG.missions.find(
+          (m) => m.id === data.missionId
+        );
+        if (player.activeMission === data.missionId && mission) {
+          const reward = mission.reward;
+          if (!player.inventory) player.inventory = Array(20).fill(null);
+          const balyarySlot = player.inventory.findIndex(
+            (slot) => slot && slot.type === "balyary"
+          );
+          if (balyarySlot !== -1) {
+            player.inventory[balyarySlot].quantity =
+              (player.inventory[balyarySlot].quantity || 1) + reward.balyary;
+          } else {
+            const freeSlot = player.inventory.findIndex(
+              (slot) => slot === null
+            );
+            if (freeSlot !== -1) {
+              player.inventory[freeSlot] = {
+                type: "balyary",
+                quantity: reward.balyary,
+                itemId: `balyary_${Date.now()}`,
+              };
+            }
+          }
+          player.activeMission = null;
+          players.set(id, { ...player });
+          userDatabase.set(id, { ...player });
+          await saveUserDatabase(dbCollection, id, player);
+          wss.clients.forEach((client) => {
+            if (
+              client.readyState === WebSocket.OPEN &&
+              clients.get(client) === id
+            ) {
+              client.send(
+                JSON.stringify({
+                  type: "completeMission",
+                  missionId: data.missionId,
+                  inventory: player.inventory,
+                })
+              );
+            }
+          });
         }
       }
     }

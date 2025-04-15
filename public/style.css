@@ -638,6 +638,86 @@ button:active {
     box-shadow: 0 0 20px rgba(255, 0, 255, 1), 0 0 30px rgba(0, 255, 255, 0.8);
   }
 }
+
+/* Статус миссии */
+#missionStatus {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  color: #00ffff;
+  font-size: 16px;
+  font-family: "Courier New", monospace;
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.7);
+  z-index: 50;
+}
+
+/* Диалоговое окно миссий */
+#missionDialog {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 300px;
+  max-height: 400px;
+  background: rgba(26, 26, 26, 0.9);
+  border: 2px solid #00ffff;
+  border-radius: 10px;
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+  display: none;
+  flex-direction: column;
+  padding: 20px;
+  z-index: 200;
+  color: #00ffff;
+  font-family: "Courier New", monospace;
+}
+
+#missionList {
+  overflow-y: auto;
+  flex-grow: 1;
+  margin-bottom: 10px;
+}
+
+.mission-item {
+  border-bottom: 1px solid #ff00ff;
+  padding: 10px 0;
+  cursor: pointer;
+}
+
+.mission-item:hover {
+  background: rgba(255, 0, 255, 0.1);
+}
+
+.mission-item h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #00ffff;
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.7);
+}
+
+.mission-item p {
+  margin: 5px 0;
+  font-size: 14px;
+  color: #ffffff;
+}
+
+.mission-item .mission-status {
+  color: #00ff00;
+  font-weight: bold;
+}
+
+.select-btn {
+  background: linear-gradient(135deg, #00ffff, #ff00ff);
+  border: 1px solid #ff00ff;
+  color: #000;
+  padding: 5px 10px;
+  font-size: 12px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.select-btn:hover {
+  box-shadow: 0 0 10px rgba(255, 0, 255, 0.7);
+}
 /* Адаптация для мобильных устройств (max-width: 500px) */
 @media (max-width: 500px) {
   body {
@@ -761,5 +841,28 @@ button:active {
   .error-text {
     font-size: 10px;
     margin-top: 3px;
+  }
+  #missionDialog {
+    width: 80%;
+    max-height: 300px;
+    padding: 15px;
+  }
+
+  .mission-item h3 {
+    font-size: 14px;
+  }
+
+  .mission-item p {
+    font-size: 12px;
+  }
+
+  .select-btn {
+    font-size: 10px;
+    padding: 4px 8px;
+  }
+
+  #missionStatus {
+    font-size: 14px;
+    bottom: 5px;
   }
 }

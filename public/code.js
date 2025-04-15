@@ -30,8 +30,8 @@ const items = new Map();
 const lights = [];
 const obstacles = [];
 const bullets = new Map();
-// Хранилище предметов, для которых уже отправлен запрос pickup
 const pendingPickups = new Set();
+const missionStatus = document.getElementById("missionStatus");
 
 // Загрузка изображений
 const backgroundImage = new Image();
@@ -84,6 +84,10 @@ const berriesImage = new Image();
 berriesImage.src = "berry.png";
 const carrotImage = new Image();
 carrotImage.src = "carrot.png";
+
+// После загрузки изображений
+npcSprite.onload = onImageLoad; // Увеличиваем счётчик загрузки изображений
+imagesLoaded++; // Учитываем NPC спрайт
 
 // Инвентарь игрока (массив на 20 слотов, изначально пустой)
 let inventory = Array(20).fill(null);
@@ -647,7 +651,6 @@ function startGame() {
       console.log("Фокус на balyaryAmount, пропускаем keydown:", e.key);
       return;
     }
-
     switch (e.key) {
       case " ":
         shoot();
@@ -897,6 +900,16 @@ function startGame() {
   dropBtn.addEventListener("click", (e) => {
     e.preventDefault();
     if (selectedSlot !== null) dropItem(selectedSlot);
+  });
+
+  canvas.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+    handleNPCClick(e);
+  });
+
+  canvas.addEventListener("touchstart", (e) => {
+    e.preventDefault();
+    handleNPCClick(e);
   });
 
   requestAnimationFrame(gameLoop);
@@ -1403,6 +1416,21 @@ function handleGameMessage(event) {
         bullets.delete(data.bulletId);
         console.log(`Пуля ${data.bulletId} удалена`);
         break;
+      case "selectMission":
+        const mission = NPC_CONFIG.missions.find(
+          (m) => m.id === data.missionId
+        );
+        if (mission) {
+          activeMission = mission;
+          updateMissionStatus();
+        }
+        break;
+      case "completeMission":
+        activeMission = null;
+        inventory = data.inventory || inventory;
+        updateInventoryDisplay();
+        updateMissionStatus();
+        break;
     }
   } catch (error) {
     console.error("Ошибка в handleGameMessage:", error);
@@ -1473,8 +1501,6 @@ function update(deltaTime) {
   const me = players.get(myId);
   if (!me || me.health <= 0) return;
 
-  console.log(`DeltaTime: ${deltaTime}, FPS: ${1000 / deltaTime}`); // Для отладки
-
   if (isMoving) {
     const dx = targetX - me.x;
     const dy = targetY - me.y;
@@ -1523,6 +1549,7 @@ function update(deltaTime) {
         updateResources();
         updateCamera();
         checkCollisions();
+        checkMissionCompletion();
       }
 
       sendWhenReady(
@@ -1695,6 +1722,8 @@ function draw(deltaTime) {
     canvas.width,
     canvas.height
   );
+
+  drawNPC();
 
   players.forEach((player) => {
     const screenX = player.x - camera.x;
