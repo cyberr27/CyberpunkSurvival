@@ -688,7 +688,7 @@ wss.on("connection", (ws) => {
     }
     if (data.type === "requestTrade") {
       const id = clients.get(ws);
-      console.log(`Получен запрос обмена от ${id} для ${data.targetId}`); // Лог
+      console.log(`Получен запрос обмена от ${id} для ${data.targetId}`);
       if (!id || !players.has(id) || !players.has(data.targetId)) {
         console.log("Ошибка: Игрок или цель не найдены");
         return;
@@ -700,11 +700,19 @@ wss.on("connection", (ws) => {
         return;
       }
 
+      // Проверяем, не участвует ли игрок уже в обмене
+      if (activeTrades.has(id) || activeTrades.has(data.targetId)) {
+        console.log(
+          `Ошибка: Один из игроков (${id} или ${data.targetId}) уже в обмене`
+        );
+        return;
+      }
+
       // Проверяем расстояние
       const dx = player.x - target.x;
       const dy = player.y - target.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
-      console.log(`Расстояние между ${id} и ${data.targetId}: ${distance}`); // Лог
+      console.log(`Расстояние между ${id} и ${data.targetId}: ${distance}`);
       if (distance > 100) {
         console.log("Ошибка: Игроки слишком далеко");
         return;

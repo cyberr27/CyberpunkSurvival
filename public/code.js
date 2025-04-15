@@ -85,6 +85,30 @@ berriesImage.src = "berry.png";
 const carrotImage = new Image();
 carrotImage.src = "carrot.png";
 
+const style = document.createElement("style");
+style.textContent = `
+    .control-btn {
+        background: #333;
+        color: #00ffff;
+        border: 1px solid #00ffff;
+        padding: 5px 10px;
+        margin: 5px;
+        cursor: pointer;
+        font-family: 'Courier New', monospace;
+    }
+    .control-btn:hover {
+        background: #00ffff;
+        color: #000;
+    }
+    .control-btn:disabled {
+        background: #555;
+        color: #888;
+        border: 1px solid #888;
+        cursor: not-allowed;
+    }
+`;
+document.head.appendChild(style);
+
 // Инвентарь игрока (массив на 20 слотов, изначально пустой)
 let inventory = Array(20).fill(null);
 let myTradeOffer = [];
@@ -194,6 +218,7 @@ let isInventoryOpen = false;
 let tooltip = null;
 // Выбранный слот инвентаря
 let selectedSlot = null;
+let selectedPlayerId = null;
 
 // Глобальные настройки игры
 const GAME_CONFIG = {
@@ -712,6 +737,41 @@ function startGame() {
     }
   });
 
+  canvas.addEventListener("mousedown", (e) => {
+    if (e.button === 0) {
+      // ... существующий код для левого клика ...
+    } else if (e.button === 2) {
+      // Правый клик
+      e.preventDefault();
+      const me = players.get(myId);
+      if (!me || me.health <= 0) return;
+
+      const clickX = e.clientX + camera.x;
+      const clickY = e.clientY + camera.y;
+
+      let newSelectedPlayerId = null;
+      players.forEach((player, id) => {
+        if (id !== myId && player.health > 0) {
+          const dx = clickX - (player.x + 20);
+          const dy = clickY - (player.y + 20);
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          if (distance < 40) {
+            // Радиус клика около игрока
+            newSelectedPlayerId = id;
+          }
+        }
+      });
+
+      selectedPlayerId = newSelectedPlayerId;
+      const tradeBtn = document.getElementById("tradeBtn");
+      tradeBtn.disabled = !selectedPlayerId; // Активируем кнопку, если игрок выбран
+      console.log(`Выбран игрок: ${selectedPlayerId || "никто"}`);
+    }
+  });
+
+  // Отключаем контекстное меню на правый клик
+  canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+
   // Обработчик движения мыши (обновляем цель, если кнопка зажата)
   canvas.addEventListener("mousemove", (e) => {
     if (isMoving) {
@@ -901,6 +961,25 @@ function startGame() {
     if (selectedSlot !== null) dropItem(selectedSlot);
   });
 
+  // Настройка кнопки Trade
+  const tradeBtn = document.createElement("button");
+  tradeBtn.id = "tradeBtn";
+  tradeBtn.className = "control-btn";
+  tradeBtn.textContent = "Trade";
+  tradeBtn.disabled = true; // Изначально неактивна
+  document.getElementById("controls").appendChild(tradeBtn);
+
+  tradeBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    if (selectedPlayerId && ws.readyState === WebSocket.OPEN) {
+      console.log(`Отправка запроса обмена игроку ${selectedPlayerId}`);
+      sendWhenReady(
+        ws,
+        JSON.stringify({ type: "requestTrade", targetId: selectedPlayerId })
+      );
+    }
+  });
+
   requestAnimationFrame(gameLoop);
 }
 
@@ -923,7 +1002,27 @@ function toggleInventory() {
     useBtn.disabled = true;
     dropBtn.disabled = true;
   }
+
+  // Сбрасываем выбор игрока
+  selectedPlayerId = null;
+  const tradeBtn = document.getElementById("tradeBtn");
+  tradeBtn.disabled = true;
 }
+
+// В обработчике chatBtn:
+chatBtn.addEventListener("click", (e) => {
+  e.preventDefault();
+  const isChatVisible = chatContainer.style.display === "flex";
+  chatContainer.style.display = isChatVisible ? "none" : "flex";
+  chatBtn.classList.toggle("active", !isChatVisible);
+  if (!isChatVisible) chatInput.focus();
+  else chatInput.blur();
+
+  // Сбрасываем выбор игрока
+  selectedPlayerId = null;
+  const tradeBtn = document.getElementById("tradeBtn");
+  tradeBtn.disabled = true;
+});
 
 // Выбрать слот и показать кнопки
 function selectSlot(slotIndex, slotElement) {
@@ -1739,6 +1838,13 @@ function draw(deltaTime) {
   players.forEach((player) => {
     const screenX = player.x - camera.x;
     const screenY = player.y - camera.y;
+
+    // Выделение выбранного игрока
+    if (player.id === selectedPlayerId) {
+      ctx.strokeStyle = "#00ffff";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(screenX - 2, screenY - 2, 44, 44);
+    }
 
     if (player.id !== myId) {
       if (player.state === "walking") {
