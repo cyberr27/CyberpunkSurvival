@@ -1,4 +1,6 @@
 // npc.js
+NPC_CONFIG.sprite = npcSprite;
+
 const NPC_CONFIG = {
   id: "npc_1",
   x: 591, // Позиция NPC в мире

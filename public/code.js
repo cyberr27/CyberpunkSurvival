@@ -84,10 +84,8 @@ const berriesImage = new Image();
 berriesImage.src = "berry.png";
 const carrotImage = new Image();
 carrotImage.src = "carrot.png";
-
-// После загрузки изображений
-npcSprite.onload = onImageLoad; // Увеличиваем счётчик загрузки изображений
-imagesLoaded++; // Учитываем NPC спрайт
+const npcSprite = new Image();
+npcSprite.src = "npc_sprite.png";
 
 // Инвентарь игрока (массив на 20 слотов, изначально пустой)
 let inventory = Array(20).fill(null);
@@ -1941,5 +1939,5 @@ function gameLoop(timestamp) {
 let imagesLoaded = 0;
 function onImageLoad() {
   imagesLoaded++;
-  if (imagesLoaded === 24) window.addEventListener("resize", resizeCanvas);
+  if (imagesLoaded === 25) window.addEventListener("resize", resizeCanvas);
 }
