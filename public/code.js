@@ -47,7 +47,6 @@ const berriesImage = new Image();
 berriesImage.src = "berry.png";
 const carrotImage = new Image();
 carrotImage.src = "carrot.png";
-
 // Добавляем зависимость от inventoryModule
 function startGame() {
   updateOnlineCount();
