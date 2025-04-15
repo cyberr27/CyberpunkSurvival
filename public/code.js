@@ -12,6 +12,9 @@ import {
   handleNPCClick,
 } from "./npc.js";
 
+// Получаем элементы DOM
+export const canvas = document.getElementById("gameCanvas");
+
 export let inventory = Array(20).fill(null);
 export let players = new Map();
 export let myId;
@@ -19,9 +22,6 @@ export const camera = { x: 0, y: 0 };
 export const ctx = canvas.getContext("2d");
 export let ws;
 
-// Получаем элементы DOM
-const canvas = document.getElementById("gameCanvas");
-const ctx = canvas.getContext("2d");
 const inventoryEl = document.getElementById("items");
 const statsEl = document.getElementById("stats");
 

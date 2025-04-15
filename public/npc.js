@@ -1,4 +1,4 @@
-import { inventory, players, myId, camera, ctx, ws } from "./code.js";
+import { inventory, players, myId, camera, ctx, ws, canvas } from "./code.js";
 
 export const NPC_CONFIG = {
   id: "npc_1",
