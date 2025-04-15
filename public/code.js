@@ -1,19 +1,3 @@
-// code.js
-import {
-  inventory,
-  isInventoryOpen,
-  selectedSlot,
-  selectedPlayerId,
-  tradeSession,
-  pendingPickups,
-  ITEM_CONFIG,
-  initInventory,
-  toggleInventory,
-  selectSlot,
-  updateInventoryDisplay,
-  handleInventoryMessages,
-} from "./inventory.js";
-
 // Получаем элементы DOM
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
@@ -46,6 +30,8 @@ const items = new Map();
 const lights = [];
 const obstacles = [];
 const bullets = new Map();
+// Хранилище предметов, для которых уже отправлен запрос pickup
+const pendingPickups = new Set();
 
 // Загрузка изображений
 const backgroundImage = new Image();
@@ -60,9 +46,158 @@ const playerSprite = new Image();
 playerSprite.src = "playerSprite.png";
 const wolfSprite = new Image();
 wolfSprite.src = "wolfSprite.png";
+const energyDrinkImage = new Image();
+energyDrinkImage.src = "energy_drink.png";
+const nutImage = new Image();
+nutImage.src = "nut.png";
+const waterBottleImage = new Image();
+waterBottleImage.src = "water_bottle.png";
 
+// Добавляем новые изображения
+const cannedMeatImage = new Image();
+cannedMeatImage.src = "canned_meat.png";
+const mushroomImage = new Image();
+mushroomImage.src = "mushroom.png";
+const sausageImage = new Image();
+sausageImage.src = "sausage.png";
+const bloodPackImage = new Image();
+bloodPackImage.src = "blood_pack.png";
+const breadImage = new Image();
+breadImage.src = "bread.png";
+const vodkaBottleImage = new Image();
+vodkaBottleImage.src = "vodka_bottle.png";
+const meatChunkImage = new Image();
+meatChunkImage.src = "meat_chunk.png";
+const bloodSyringeImage = new Image();
+bloodSyringeImage.src = "blood_syringe.png";
+const milkImage = new Image();
+milkImage.src = "milk.png";
+const condensedMilkImage = new Image();
+condensedMilkImage.src = "condensed_milk.png";
+const driedFishImage = new Image();
+driedFishImage.src = "dried_fish.png";
+const balyaryImage = new Image();
+balyaryImage.src = "balyary.png";
+const appleImage = new Image();
+appleImage.src = "apple.png";
+const berriesImage = new Image();
+berriesImage.src = "berry.png";
+const carrotImage = new Image();
+carrotImage.src = "carrot.png";
+
+// Инвентарь игрока (массив на 20 слотов, изначально пустой)
+let inventory = Array(20).fill(null);
+
+// Конфигурация эффектов предметов (расширяем ITEM_CONFIG)
+const ITEM_CONFIG = {
+  energy_drink: {
+    effect: { energy: 20, water: 5 },
+    image: energyDrinkImage,
+    description: "Энергетик: +20 эн. +5 воды.",
+  },
+  nut: {
+    effect: { food: 7 },
+    image: nutImage,
+    description: "Орех: +7 еды.",
+  },
+  water_bottle: {
+    effect: { water: 30 },
+    image: waterBottleImage,
+    description: "Вода: +30 воды.",
+  },
+  apple: {
+    effect: { food: 8, water: 5 },
+    image: appleImage,
+    description: "Яблоко: +8 еды, +5 воды.",
+    rarity: 3,
+  },
+  berries: {
+    effect: { food: 6, water: 6 },
+    image: berriesImage,
+    description: "Ягоды: +6 еды, +6 воды.",
+    rarity: 3,
+  },
+  carrot: {
+    effect: { food: 5, energy: 3 },
+    image: carrotImage,
+    description: "Морковь: +5 еды, +3 энергии.",
+    rarity: 3,
+  },
+  canned_meat: {
+    effect: { food: 20 },
+    image: cannedMeatImage,
+    description: "Банка тушёнки: +20 еды.",
+  },
+  mushroom: {
+    effect: { food: 5, energy: 15 },
+    image: mushroomImage,
+    description: "Гриб прущий: +15 энергии. +5 еды.",
+  },
+  sausage: {
+    effect: { food: 16, energy: 3 },
+    image: sausageImage,
+    description: "Колбаса: +16 еды, +3 энергии.",
+  },
+  blood_pack: {
+    effect: { health: 40 },
+    image: bloodPackImage,
+    description: "Пакет крови: +40 здоровья.",
+  },
+  bread: {
+    effect: { food: 13, water: -2 },
+    image: breadImage,
+    description: "Хлеб: +13 еды, -2 воды.",
+  },
+  vodka_bottle: {
+    effect: { health: 5, energy: -2, water: 1, food: 2 },
+    image: vodkaBottleImage,
+    description: "Водка: +5 здоровья, -2 эн. +1 воды, +2 еды.",
+  },
+  meat_chunk: {
+    effect: { food: 20, energy: 5, water: -2 },
+    image: meatChunkImage,
+    description: "Кусок мяса: +20 еды, +5 эн. -2 воды.",
+  },
+  blood_syringe: {
+    effect: { health: 10 },
+    image: bloodSyringeImage,
+    description: "Шприц с кровью: +10 здоровья.",
+  },
+  milk: {
+    effect: { water: 15, food: 5 },
+    image: milkImage,
+    description: "Молоко: +15 воды, +5 еды.",
+  },
+  condensed_milk: {
+    effect: { water: 5, food: 11, energy: 2 },
+    image: condensedMilkImage,
+    description: "Сгущёнка: +11 еды, +5 воды, +2 эн.",
+  },
+  dried_fish: {
+    effect: { food: 10, water: -3 },
+    image: driedFishImage,
+    description: "Сушёная рыба: +10 еды, -3 воды.",
+  },
+  balyary: {
+    effect: {}, // Эффекта нет, это валюта
+    image: balyaryImage,
+    description: "Баляр: игровая валюта.",
+    stackable: true, // Указываем, что предмет складывается
+    rarity: 2,
+  },
+};
+
+// Состояние инвентаря (открыт или закрыт)
+let isInventoryOpen = false;
 // Элемент подсказки
 let tooltip = null;
+// Выбранный слот инвентаря
+let selectedSlot = null;
+// Торговля
+let selectedPlayerId = null; // ID выбранного игрока для обмена
+let tradeSession = null; // Объект сессии обмена { partnerId, myItem, partnerItem }
+let tradeRequestTimeout = null; // Таймер для автоматического закрытия приглашения
+const TRADE_REQUEST_TIMEOUT = 30000; // 30 секунд
 
 // Глобальные настройки игры
 const GAME_CONFIG = {
@@ -493,8 +628,40 @@ function updateOnlineCount() {
 
 function startGame() {
   updateOnlineCount();
-  initInventory(ws, myId, players); // Инициализируем инвентарь
 
+  // Создаём контейнер для ячеек обмена один раз
+  const tradeContainer = document.createElement("div");
+  tradeContainer.id = "tradeContainer";
+  tradeContainer.style.position = "absolute";
+  tradeContainer.style.top = "50%";
+  tradeContainer.style.left = "50%";
+  tradeContainer.style.transform = "translate(-50%, -50%)";
+  tradeContainer.style.display = "none";
+  tradeContainer.style.zIndex = "200";
+  document.body.appendChild(tradeContainer);
+
+  // Создаём ячейку для своего предмета
+  const tradeSlot = document.createElement("div");
+  tradeSlot.id = "tradeSlot";
+  tradeSlot.className = "inventory-slot trade-slot";
+  tradeSlot.style.width = "60px";
+  tradeSlot.style.height = "60px";
+  tradeSlot.style.background = "rgba(0, 255, 255, 0.2)";
+  tradeSlot.style.border = "2px solid #00ffff";
+  tradeSlot.style.marginRight = "20px";
+  tradeContainer.appendChild(tradeSlot);
+
+  // Создаём ячейку для предмета партнёра
+  const partnerTradeSlot = document.createElement("div");
+  partnerTradeSlot.id = "partnerTradeSlot";
+  partnerTradeSlot.className = "inventory-slot trade-slot";
+  partnerTradeSlot.style.width = "60px";
+  partnerTradeSlot.style.height = "60px";
+  partnerTradeSlot.style.background = "rgba(255, 0, 255, 0.2)";
+  partnerTradeSlot.style.border = "2px solid #ff00ff";
+  tradeContainer.appendChild(partnerTradeSlot);
+
+  // Обработчик клавиш (только для стрельбы и чата)
   document.addEventListener("keydown", (e) => {
     const me = players.get(myId);
     if (!me || me.health <= 0) return;
@@ -515,6 +682,7 @@ function startGame() {
       document.activeElement === chatInput ||
       document.activeElement === document.getElementById("balyaryAmount")
     ) {
+      console.log("Фокус на balyaryAmount, пропускаем keydown:", e.key);
       return;
     }
 
@@ -536,7 +704,7 @@ function startGame() {
         break;
     }
   });
-
+  // Обработчик нажатия мыши
   canvas.addEventListener("mousedown", (e) => {
     if (e.button === 0) {
       const me = players.get(myId);
@@ -561,10 +729,16 @@ function startGame() {
             e.clientY <= slotRect.bottom &&
             inventory[i]
           ) {
+            console.log(
+              `Клик по слоту ${i} (x:${e.clientX}, y:${e.clientY}), предмет: ${inventory[i].type}`
+            );
             selectSlot(i, slots[i]);
             return;
           }
         }
+        console.log(
+          `Клик вне слотов инвентаря (x:${e.clientX}, y:${e.clientY})`
+        );
         return;
       }
 
@@ -574,6 +748,7 @@ function startGame() {
     }
   });
 
+  // Обработчик движения мыши (обновляем цель, если кнопка зажата)
   canvas.addEventListener("mousemove", (e) => {
     if (isMoving) {
       targetX = e.clientX + camera.x;
@@ -581,6 +756,7 @@ function startGame() {
     }
   });
 
+  // Обработчик отпускания мыши
   canvas.addEventListener("mouseup", (e) => {
     if (e.button === 0) {
       isMoving = false;
@@ -610,11 +786,13 @@ function startGame() {
     }
   });
 
+  // Обработчик правого клика для выбора игрока
   canvas.addEventListener("contextmenu", (e) => {
     e.preventDefault();
     const me = players.get(myId);
     if (!me || me.health <= 0) return;
 
+    // Проверяем, не кликнули ли по интерфейсу
     const inventoryContainer = document.getElementById("inventoryContainer");
     const chatContainer = document.getElementById("chatContainer");
     if (
@@ -631,6 +809,7 @@ function startGame() {
     let closestPlayer = null;
     let minDistance = Infinity;
 
+    // Ищем ближайшего игрока
     players.forEach((player, id) => {
       if (id === myId || player.health <= 0) return;
       const dx = clickX - (player.x + 20);
@@ -645,12 +824,15 @@ function startGame() {
     if (closestPlayer) {
       selectedPlayerId = closestPlayer;
       document.getElementById("tradeBtn").disabled = false;
+      console.log(`Выбран игрок для обмена: ${selectedPlayerId}`);
     } else {
       selectedPlayerId = null;
       document.getElementById("tradeBtn").disabled = true;
+      console.log("Игрок для обмена не выбран");
     }
   });
 
+  // Обработчик длительного касания для мобильных устройств
   let touchTimer = null;
   canvas.addEventListener("touchstart", (e) => {
     const me = players.get(myId);
@@ -693,11 +875,13 @@ function startGame() {
       if (closestPlayer) {
         selectedPlayerId = closestPlayer;
         document.getElementById("tradeBtn").disabled = false;
+        console.log(`Выбран игрок для обмена (тач): ${selectedPlayerId}`);
       } else {
         selectedPlayerId = null;
         document.getElementById("tradeBtn").disabled = true;
+        console.log("Игрок для обмена не выбран (тач)");
       }
-    }, 500);
+    }, 500); // 500 мс для длительного касания
   });
 
   canvas.addEventListener("touchend", () => {
@@ -714,6 +898,7 @@ function startGame() {
     }
   });
 
+  // Обработчик тач-событий для мобильных устройств
   canvas.addEventListener("touchstart", (e) => {
     e.preventDefault();
     const me = players.get(myId);
@@ -740,10 +925,16 @@ function startGame() {
           touch.clientY <= slotRect.bottom &&
           inventory[i]
         ) {
+          console.log(
+            `Тач по слоту ${i} (x:${touch.clientX}, y:${touch.clientY}), предмет: ${inventory[i].type}`
+          );
           selectSlot(i, slots[i]);
           return;
         }
       }
+      console.log(
+        `Тач вне слотов инвентаря (x:${touch.clientX}, y:${touch.clientY})`
+      );
     } else {
       isMoving = true;
       targetX = touch.clientX + camera.x;
@@ -786,12 +977,14 @@ function startGame() {
     }
   });
 
+  // Настройка кнопки Fire
   const fireBtn = document.getElementById("fireBtn");
   fireBtn.addEventListener("click", (e) => {
     e.preventDefault();
     shoot();
   });
 
+  // Настройка кнопки Chat
   const chatBtn = document.getElementById("chatBtn");
   chatBtn.addEventListener("click", (e) => {
     e.preventDefault();
@@ -819,9 +1012,166 @@ function startGame() {
     }
   });
 
+  // Настройка кнопки Inventory
+  const inventoryBtn = document.getElementById("inventoryBtn");
+  inventoryBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    toggleInventory();
+  });
+
+  // Создаём контейнер для ячеек инвентаря
+  const inventoryContainer = document.getElementById("inventoryContainer");
+  inventoryContainer.style.display = "none";
+
+  const inventoryGrid = document.createElement("div");
+  inventoryGrid.id = "inventoryGrid";
+  inventoryContainer.insertBefore(
+    inventoryGrid,
+    document.getElementById("inventoryActions")
+  );
+
+  for (let i = 0; i < 20; i++) {
+    const slot = document.createElement("div");
+    slot.className = "inventory-slot";
+    inventoryGrid.appendChild(slot);
+  }
+
+  const useBtn = document.getElementById("useBtn");
+  const dropBtn = document.getElementById("dropBtn");
+
+  useBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    if (selectedSlot !== null) {
+      useItem(selectedSlot);
+    } else if (tradeSession && tradeSession.myItem) {
+      useItem(null); // Подтверждаем обмен
+    }
+  });
+
+  dropBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    if (selectedSlot !== null) {
+      dropItem(selectedSlot);
+    } else {
+      dropItem(null); // Отмена или возврат предмета
+    }
+  });
+
+  // Настройка кнопки Trade
+  const tradeBtn = document.getElementById("tradeBtn");
+  tradeBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    if (!selectedPlayerId || tradeSession) return;
+
+    const me = players.get(myId);
+    if (!me || me.health <= 0) return;
+
+    sendWhenReady(
+      ws,
+      JSON.stringify({
+        type: "tradeRequest",
+        targetId: selectedPlayerId,
+      })
+    );
+    console.log(`Отправлено приглашение на обмен игроку ${selectedPlayerId}`);
+    tradeBtn.disabled = true; // Отключаем кнопку до ответа
+  });
+
   requestAnimationFrame(gameLoop);
 }
 
+// Функция переключения инвентаря
+function toggleInventory() {
+  if (tradeSession) {
+    cancelTrade();
+  }
+  isInventoryOpen = !isInventoryOpen;
+  const inventoryContainer = document.getElementById("inventoryContainer");
+  inventoryContainer.style.display = isInventoryOpen ? "grid" : "none";
+  if (isInventoryOpen) updateInventoryDisplay();
+  const inventoryBtn = document.getElementById("inventoryBtn");
+  inventoryBtn.classList.toggle("active", isInventoryOpen);
+
+  if (!isInventoryOpen) {
+    const screen = document.getElementById("inventoryScreen");
+    screen.innerHTML = "";
+    selectedSlot = null;
+    const useBtn = document.getElementById("useBtn");
+    const dropBtn = document.getElementById("dropBtn");
+    useBtn.textContent = "Использовать";
+    useBtn.disabled = true;
+    dropBtn.disabled = true;
+  }
+}
+
+// Размещение предмета в ячейку обмена
+function selectSlot(slotIndex, slotElement) {
+  if (!inventory[slotIndex]) return;
+  console.log(
+    `Выбран слот ${slotIndex}, предмет: ${inventory[slotIndex].type}, ID: ${inventory[slotIndex].itemId}`
+  );
+  const screen = document.getElementById("inventoryScreen");
+  const useBtn = document.getElementById("useBtn");
+  const dropBtn = document.getElementById("dropBtn");
+
+  if (tradeSession && !tradeSession.myItem) {
+    // Генерируем itemId, если его нет
+    if (!inventory[slotIndex].itemId) {
+      inventory[slotIndex].itemId = `${
+        inventory[slotIndex].type
+      }_${Date.now()}_${slotIndex}`;
+    }
+
+    // Проверяем и удаляем дубликаты предмета с таким же itemId
+    for (let i = 0; i < inventory.length; i++) {
+      if (
+        i !== slotIndex &&
+        inventory[i] &&
+        inventory[i].itemId === inventory[slotIndex].itemId
+      ) {
+        console.log(
+          `Удалён дубликат предмета ${inventory[i].type} с itemId ${inventory[i].itemId} из слота ${i}`
+        );
+        inventory[i] = null;
+      }
+    }
+
+    // Переносим предмет в ячейку обмена
+    tradeSession.myItem = { ...inventory[slotIndex], slotIndex };
+    inventory[slotIndex] = null;
+    sendWhenReady(
+      ws,
+      JSON.stringify({
+        type: "tradeItemPlaced",
+        targetId: tradeSession.partnerId,
+        item: tradeSession.myItem,
+      })
+    );
+    updateTradeInventory();
+    selectedSlot = null;
+    screen.innerHTML = "";
+    useBtn.textContent = "Обмен";
+    useBtn.disabled = tradeSession.myConfirmed;
+    dropBtn.textContent = "Отмена";
+    dropBtn.disabled = false;
+  } else {
+    // Обычная логика выбора слота
+    if (selectedSlot === slotIndex) {
+      selectedSlot = null;
+      screen.innerHTML = "";
+      useBtn.textContent = tradeSession ? "Обмен" : "Использовать";
+      useBtn.disabled = true;
+      dropBtn.disabled = tradeSession ? false : true;
+      return;
+    }
+
+    selectedSlot = slotIndex;
+    screen.textContent = ITEM_CONFIG[inventory[slotIndex].type].description;
+    useBtn.textContent = tradeSession ? "Обмен" : "Использовать";
+    useBtn.disabled = inventory[slotIndex].type === "balyary" && !tradeSession;
+    dropBtn.disabled = tradeSession ? false : true;
+  }
+}
 // Скрыть кнопки действий
 function hideActionButtons() {
   document.querySelectorAll(".action-btn").forEach((btn) => btn.remove());
@@ -877,6 +1227,177 @@ function useItem(slotIndex) {
     document.getElementById("inventoryScreen").textContent = "";
     updateStatsDisplay();
     updateInventoryDisplay();
+  }
+}
+
+// Выкинуть предмет
+function dropItem(slotIndex) {
+  if (!tradeSession) {
+    const item = inventory[slotIndex];
+    if (!item) return;
+    const me = players.get(myId);
+    const screen = document.getElementById("inventoryScreen");
+    const useBtn = document.getElementById("useBtn");
+    const dropBtn = document.getElementById("dropBtn");
+
+    if (item.type === "balyary") {
+      // Логика для "Баляр" с формой ввода количества
+      screen.innerHTML = `
+        <div class="balyary-drop-form">
+          <p class="cyber-text">Сколько выкинуть?</p>
+          <input type="number" id="balyaryAmount" class="cyber-input" min="1" max="${
+            item.quantity || 1
+          }" placeholder="0" value="" autofocus />
+          <p id="balyaryError" class="error-text"></p>
+        </div>
+      `;
+      const input = document.getElementById("balyaryAmount");
+      const errorEl = document.getElementById("balyaryError");
+
+      requestAnimationFrame(() => {
+        input.focus();
+        input.select();
+      });
+
+      input.addEventListener("input", () => {
+        input.value = input.value.replace(/[^0-9]/g, "");
+        if (input.value === "") input.value = "";
+      });
+
+      useBtn.textContent = "Подтвердить";
+      useBtn.disabled = false;
+      dropBtn.disabled = true;
+
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          confirmDrop();
+        }
+      });
+
+      useBtn.onclick = (e) => {
+        e.preventDefault();
+        confirmDrop();
+      };
+
+      function confirmDrop() {
+        const amount = parseInt(input.value) || 0;
+        const currentQuantity = item.quantity || 1;
+
+        if (amount <= 0) {
+          errorEl.textContent = "Введи нормальное число, братишка!";
+          return;
+        }
+
+        if (amount > currentQuantity) {
+          errorEl.textContent = "Не хватает Баляр!";
+          return;
+        }
+
+        sendWhenReady(
+          ws,
+          JSON.stringify({
+            type: "dropItem",
+            slotIndex,
+            x: me.x,
+            y: me.y,
+            quantity: amount,
+          })
+        );
+
+        if (amount === currentQuantity) {
+          inventory[slotIndex] = null;
+        } else {
+          inventory[slotIndex].quantity -= amount;
+        }
+
+        useBtn.textContent = "Использовать";
+        useBtn.disabled = true;
+        dropBtn.disabled = true;
+        useBtn.onclick = () => useItem(slotIndex);
+        selectedSlot = null;
+        screen.innerHTML = "";
+        updateInventoryDisplay();
+      }
+    } else {
+      // Логика для остальных предметов
+      sendWhenReady(
+        ws,
+        JSON.stringify({
+          type: "dropItem",
+          slotIndex,
+          x: me.x,
+          y: me.y,
+          quantity: 1,
+        })
+      );
+
+      inventory[slotIndex] = null;
+      selectedSlot = null;
+      useBtn.disabled = true;
+      dropBtn.disabled = true;
+      screen.innerHTML = "";
+      updateInventoryDisplay();
+    }
+  } else {
+    // Логика кнопки "Отмена" во время торговли
+    if (tradeSession.myItem) {
+      // Возвращаем предмет в инвентарь
+      const freeSlot = inventory.findIndex((slot) => slot === null);
+      if (freeSlot !== -1) {
+        inventory[freeSlot] = { ...tradeSession.myItem };
+        tradeSession.myItem = null;
+        sendWhenReady(
+          ws,
+          JSON.stringify({
+            type: "tradeItemPlaced",
+            targetId: tradeSession.partnerId,
+            item: null,
+          })
+        );
+        updateTradeInventory();
+        selectedSlot = null;
+        document.getElementById("inventoryScreen").textContent = "";
+        console.log("Предмет возвращён в инвентарь");
+      } else {
+        console.log("Нет свободных слотов для возврата предмета");
+        document.getElementById("inventoryScreen").textContent =
+          "Инвентарь полон, освободите слот!";
+      }
+    } else {
+      // Завершаем торговлю
+      sendWhenReady(
+        ws,
+        JSON.stringify({
+          type: "tradeCancelled",
+          targetId: tradeSession.partnerId,
+        })
+      );
+      tradeSession = null;
+      selectedPlayerId = null;
+      document.getElementById("tradeBtn").disabled = true;
+      const tradeContainer = document.getElementById("tradeContainer");
+      tradeContainer.style.display = "none";
+
+      // Закрываем инвентарь
+      isInventoryOpen = false;
+      const inventoryContainer = document.getElementById("inventoryContainer");
+      inventoryContainer.style.display = "none";
+      document.getElementById("inventoryBtn").classList.remove("active");
+
+      // Сбрасываем кнопки
+      selectedSlot = null;
+      document.getElementById("inventoryScreen").innerHTML = "";
+      const useBtn = document.getElementById("useBtn");
+      const dropBtn = document.getElementById("dropBtn");
+      useBtn.textContent = "Использовать";
+      useBtn.disabled = true;
+      dropBtn.textContent = "Выкинуть";
+      dropBtn.disabled = true;
+
+      updateInventoryDisplay();
+      console.log("Торговля завершена");
+    }
   }
 }
 
@@ -938,6 +1459,96 @@ function updateStatsDisplay() {
   document.getElementById("coords").innerHTML = `X: ${Math.floor(
     me.x
   )}<br>Y: ${Math.floor(me.y)}`;
+}
+
+function updateInventoryDisplay() {
+  if (!isInventoryOpen) return;
+  const inventoryGrid = document.getElementById("inventoryGrid");
+  const slots = inventoryGrid.children;
+  const screen = document.getElementById("inventoryScreen");
+  const useBtn = document.getElementById("useBtn");
+  const dropBtn = document.getElementById("dropBtn");
+
+  // Проверяем, была ли уже показана форма выброса "Баляр"
+  const isBalyaryFormActive =
+    selectedSlot !== null &&
+    inventory[selectedSlot] &&
+    inventory[selectedSlot].type === "balyary" &&
+    screen.querySelector(".balyary-drop-form");
+
+  if (isBalyaryFormActive) {
+    // Сохраняем форму, если выбраны "Баляры" и форма уже есть
+    // Ничего не делаем с содержимым экрана
+  } else if (selectedSlot === null) {
+    screen.innerHTML = "";
+  } else if (inventory[selectedSlot]) {
+    screen.textContent = ITEM_CONFIG[inventory[selectedSlot].type].description;
+  }
+
+  for (let i = 0; i < slots.length; i++) {
+    const slot = slots[i];
+    slot.innerHTML = "";
+    if (inventory[i]) {
+      const img = document.createElement("img");
+      img.src = ITEM_CONFIG[inventory[i].type].image.src;
+      img.style.width = "100%";
+      img.style.height = "100%";
+      slot.appendChild(img);
+
+      if (inventory[i].type === "balyary" && inventory[i].quantity > 1) {
+        const quantityEl = document.createElement("div");
+        quantityEl.textContent = inventory[i].quantity;
+        quantityEl.style.position = "absolute";
+        quantityEl.style.top = "0";
+        quantityEl.style.right = "0";
+        quantityEl.style.color = "#00ffff";
+        quantityEl.style.fontSize = "14px";
+        quantityEl.style.textShadow = "0 0 5px rgba(0, 255, 255, 0.7)";
+        slot.appendChild(quantityEl);
+      }
+
+      slot.onmouseover = () => {
+        if (inventory[i] && selectedSlot !== i) {
+          if (
+            inventory[selectedSlot] &&
+            inventory[selectedSlot].type === "balyary" &&
+            screen.querySelector(".balyary-drop-form")
+          ) {
+            // Сохраняем форму выброса "Баляр" при наведении на другие слоты
+            return;
+          }
+          screen.textContent = ITEM_CONFIG[inventory[i].type].description;
+        }
+      };
+      slot.onmouseout = () => {
+        if (
+          selectedSlot === null ||
+          (inventory[selectedSlot] &&
+            inventory[selectedSlot].type === "balyary" &&
+            screen.querySelector(".balyary-drop-form"))
+        ) {
+          // Ничего не очищаем, если форма "Баляр" активна
+          return;
+        }
+        screen.textContent =
+          inventory[selectedSlot] && selectedSlot !== null
+            ? ITEM_CONFIG[inventory[selectedSlot].type].description
+            : "";
+      };
+      slot.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log(`Клик по слоту ${i}, предмет: ${inventory[i].type}`);
+        selectSlot(i, slot);
+      };
+
+      img.style.pointerEvents = "none";
+    } else {
+      slot.onmouseover = null;
+      slot.onmouseout = null;
+      slot.onclick = null;
+    }
+  }
 }
 
 // Показать приглашение на обмен
@@ -1011,19 +1622,405 @@ function showTradeRequest(fromId) {
   }, TRADE_REQUEST_TIMEOUT);
 }
 
+// Открыть инвентарь с ячейкой обмена
+function openTradeInventory() {
+  isInventoryOpen = true;
+  const inventoryContainer = document.getElementById("inventoryContainer");
+  inventoryContainer.style.display = "grid";
+  document.getElementById("inventoryBtn").classList.add("active");
+
+  // Показываем контейнер обмена
+  const tradeContainer = document.getElementById("tradeContainer");
+  tradeContainer.style.display = "flex";
+
+  // Сбрасываем выбранный слот и очищаем экран
+  selectedSlot = null;
+  document.getElementById("inventoryScreen").innerHTML = "";
+  const useBtn = document.getElementById("useBtn");
+  const dropBtn = document.getElementById("dropBtn");
+  useBtn.textContent = "Обмен";
+  useBtn.disabled = true; // Обмен пока не доступен
+  dropBtn.textContent = "Отмена";
+  dropBtn.disabled = false; // Кнопка "Отмена" всегда активна
+
+  updateTradeInventory();
+}
+
+// Обновить интерфейс обмена
+function updateTradeInventory() {
+  if (!tradeSession) return;
+
+  const tradeSlot = document.getElementById("tradeSlot");
+  const partnerTradeSlot = document.getElementById("partnerTradeSlot");
+  const screen = document.getElementById("inventoryScreen");
+  const useBtn = document.getElementById("useBtn");
+  const dropBtn = document.getElementById("dropBtn");
+
+  // Очищаем ячейки
+  tradeSlot.innerHTML = "";
+  partnerTradeSlot.innerHTML = "";
+
+  // Отображаем свой предмет
+  if (tradeSession.myItem) {
+    const img = document.createElement("img");
+    img.src = ITEM_CONFIG[tradeSession.myItem.type].image.src;
+    img.style.width = "100%";
+    img.style.height = "100%";
+    tradeSlot.appendChild(img);
+
+    if (
+      tradeSession.myItem.type === "balyary" &&
+      tradeSession.myItem.quantity > 1
+    ) {
+      const quantityEl = document.createElement("div");
+      quantityEl.className = "quantity";
+      quantityEl.textContent = tradeSession.myItem.quantity;
+      tradeSlot.appendChild(quantityEl);
+    }
+
+    tradeSlot.onmouseover = () => {
+      screen.textContent = ITEM_CONFIG[tradeSession.myItem.type].description;
+    };
+    tradeSlot.onmouseout = () => {
+      screen.textContent = "";
+    };
+  } else {
+    tradeSlot.onmouseover = null;
+    tradeSlot.onmouseout = null;
+  }
+
+  // Отображаем предмет партнёра
+  if (tradeSession.partnerItem) {
+    const img = document.createElement("img");
+    img.src = ITEM_CONFIG[tradeSession.partnerItem.type].image.src;
+    img.style.width = "100%";
+    img.style.height = "100%";
+    partnerTradeSlot.appendChild(img);
+
+    if (
+      tradeSession.partnerItem.type === "balyary" &&
+      tradeSession.partnerItem.quantity > 1
+    ) {
+      const quantityEl = document.createElement("div");
+      quantityEl.className = "quantity";
+      quantityEl.textContent = tradeSession.partnerItem.quantity;
+      partnerTradeSlot.appendChild(quantityEl);
+    }
+
+    partnerTradeSlot.onmouseover = () => {
+      screen.textContent =
+        ITEM_CONFIG[tradeSession.partnerItem.type].description;
+    };
+    partnerTradeSlot.onmouseout = () => {
+      screen.textContent = "";
+    };
+  } else {
+    partnerTradeSlot.onmouseover = null;
+    partnerTradeSlot.onmouseout = null;
+  }
+
+  // Управляем кнопками
+  useBtn.textContent = "Обмен";
+  useBtn.disabled =
+    !tradeSession.myItem ||
+    tradeSession.myConfirmed ||
+    !tradeSession.partnerItem;
+  dropBtn.textContent = "Отмена";
+  dropBtn.disabled = false;
+
+  // Обновляем инвентарь
+  updateInventoryDisplay();
+  console.log(
+    `Интерфейс обмена обновлён: мой предмет=${
+      tradeSession.myItem?.type || "нет"
+    }, предмет партнёра=${tradeSession.partnerItem?.type || "нет"}`
+  );
+}
+
+function finalizeTrade() {
+  if (!tradeSession) return;
+
+  // Добавляем предмет партнёра в инвентарь
+  if (tradeSession.partnerItem) {
+    // Проверяем, нет ли предмета с таким же itemId или типом
+    for (let i = 0; i < inventory.length; i++) {
+      if (
+        inventory[i] &&
+        (inventory[i].itemId === tradeSession.partnerItem.itemId ||
+          (inventory[i].type === tradeSession.partnerItem.type &&
+            !ITEM_CONFIG[inventory[i].type].stackable))
+      ) {
+        console.log(
+          `Удалён дубликат предмета ${inventory[i].type} (ID: ${inventory[i].itemId}) из слота ${i}`
+        );
+        inventory[i] = null;
+      }
+    }
+
+    const freeSlot = inventory.findIndex((slot) => slot === null);
+    if (freeSlot !== -1) {
+      inventory[freeSlot] = { ...tradeSession.partnerItem };
+      console.log(
+        `Получен предмет ${tradeSession.partnerItem.type} (ID: ${tradeSession.partnerItem.itemId}) в слот ${freeSlot}`
+      );
+    } else {
+      console.warn("Инвентарь полон, предмет партнёра не добавлен!");
+      document.getElementById("inventoryScreen").textContent =
+        "Инвентарь полон, освободите слот!";
+    }
+  }
+
+  // Очищаем сессию обмена
+  tradeSession.myItem = null;
+  tradeSession.partnerItem = null;
+  tradeSession.myConfirmed = false;
+  tradeSession.partnerConfirmed = false;
+
+  // Закрываем интерфейс
+  const tradeContainer = document.getElementById("tradeContainer");
+  tradeContainer.style.display = "none";
+
+  // Очищаем ячейки обмена
+  const tradeSlot = document.getElementById("tradeSlot");
+  const partnerTradeSlot = document.getElementById("partnerTradeSlot");
+  tradeSlot.innerHTML = "";
+  partnerTradeSlot.innerHTML = "";
+
+  // Закрываем инвентарь
+  if (isInventoryOpen) {
+    isInventoryOpen = false;
+    const inventoryContainer = document.getElementById("inventoryContainer");
+    inventoryContainer.style.display = "none";
+    document.getElementById("inventoryBtn").classList.remove("active");
+  }
+
+  // Сбрасываем кнопки и состояние
+  selectedSlot = null;
+  document.getElementById("inventoryScreen").innerHTML = "";
+  const useBtn = document.getElementById("useBtn");
+  const dropBtn = document.getElementById("dropBtn");
+  useBtn.textContent = "Использовать";
+  useBtn.disabled = true;
+  dropBtn.textContent = "Выкинуть";
+  dropBtn.disabled = true;
+  selectedPlayerId = null;
+  document.getElementById("tradeBtn").disabled = true;
+
+  // Полностью очищаем tradeSession
+  tradeSession = null;
+
+  // Обновляем отображение инвентаря
+  updateInventoryDisplay();
+  console.log("Обмен успешно завершён, ячейки очищены");
+}
+
+function cancelTrade() {
+  if (tradeSession) {
+    // Возвращаем свой предмет в инвентарь
+    if (tradeSession.myItem) {
+      // Проверяем, нет ли уже предмета с таким itemId
+      if (
+        !inventory.some(
+          (slot) => slot && slot.itemId === tradeSession.myItem.itemId
+        )
+      ) {
+        const freeSlot = inventory.findIndex((slot) => slot === null);
+        if (freeSlot !== -1) {
+          inventory[freeSlot] = { ...tradeSession.myItem };
+          console.log(
+            `Предмет ${tradeSession.myItem.type} (ID: ${tradeSession.myItem.itemId}) возвращён в слот ${freeSlot}`
+          );
+        } else {
+          console.warn("Инвентарь полон, предмет не возвращён!");
+          document.getElementById("inventoryScreen").textContent =
+            "Инвентарь полон, освободите слот!";
+        }
+      } else {
+        console.warn(
+          `Предмет с itemId ${tradeSession.myItem.itemId} уже есть в инвентаре, пропускаем возврат`
+        );
+      }
+    }
+    sendWhenReady(
+      ws,
+      JSON.stringify({
+        type: "tradeCancelled",
+        targetId: tradeSession.partnerId,
+      })
+    );
+  }
+
+  // Очищаем ячейки обмена
+  const tradeContainer = document.getElementById("tradeContainer");
+  tradeContainer.style.display = "none";
+  const tradeSlot = document.getElementById("tradeSlot");
+  const partnerTradeSlot = document.getElementById("partnerTradeSlot");
+  tradeSlot.innerHTML = "";
+  partnerTradeSlot.innerHTML = "";
+
+  // Закрываем инвентарь, если открыт
+  if (isInventoryOpen) {
+    isInventoryOpen = false;
+    const inventoryContainer = document.getElementById("inventoryContainer");
+    inventoryContainer.style.display = "none";
+    document.getElementById("inventoryBtn").classList.remove("active");
+  }
+
+  // Сбрасываем состояние
+  tradeSession = null;
+  selectedPlayerId = null;
+  document.getElementById("tradeBtn").disabled = true;
+
+  // Сбрасываем кнопки
+  selectedSlot = null;
+  document.getElementById("inventoryScreen").innerHTML = "";
+  const useBtn = document.getElementById("useBtn");
+  const dropBtn = document.getElementById("dropBtn");
+  useBtn.textContent = "Использовать";
+  useBtn.disabled = true;
+  dropBtn.textContent = "Выкинуть";
+  dropBtn.disabled = true;
+
+  updateInventoryDisplay();
+  console.log("Обмен отменён, интерфейс и ячейки очищены");
+}
+
 function handleGameMessage(event) {
   try {
     const data = JSON.parse(event.data);
     switch (data.type) {
       case "newPlayer":
         players.set(data.player.id, { ...data.player, frameTime: 0 });
-        updateOnlineCount();
+        updateOnlineCount(); // Обновляем при входе нового игрока
         break;
       case "playerLeft":
         players.delete(data.id);
-        updateOnlineCount();
+        updateOnlineCount(); // Обновляем при выходе игрока
+        break;
+      case "syncItems":
+        // Очищаем старые предметы
+        items.clear();
+        // Заполняем актуальными предметами из сервера
+        data.items.forEach((item) =>
+          items.set(item.itemId, {
+            x: item.x,
+            y: item.y,
+            type: item.type,
+            spawnTime: item.spawnTime,
+          })
+        );
+        // Очищаем pendingPickups для предметов, которые всё ещё существуют
+        data.items.forEach((item) => {
+          if (pendingPickups.has(item.itemId)) {
+            console.log(
+              `Предмет ${item.itemId} всё ещё в мире, убираем из pendingPickups`
+            );
+            pendingPickups.delete(item.itemId);
+          }
+        });
+        break;
+      case "itemPicked":
+        items.delete(data.itemId);
+        pendingPickups.delete(data.itemId);
+        console.log(`Предмет ${data.itemId} удалён из мира (itemPicked)`);
+        const me = players.get(myId);
+        if (me && data.playerId === myId && data.item) {
+          if (data.item.type === "balyary") {
+            const balyarySlot = inventory.findIndex(
+              (slot) => slot && slot.type === "balyary"
+            );
+            if (balyarySlot !== -1) {
+              inventory[balyarySlot].quantity =
+                (inventory[balyarySlot].quantity || 1) + 1;
+              console.log(
+                `Добавлено 1 Баляр, теперь их ${inventory[balyarySlot].quantity}`
+              );
+            } else {
+              const freeSlot = inventory.findIndex((slot) => slot === null);
+              if (freeSlot !== -1) {
+                inventory[freeSlot] = {
+                  type: "balyary",
+                  quantity: 1,
+                  itemId:
+                    data.itemId ||
+                    `${data.item.type}_${Date.now()}_${freeSlot}`,
+                };
+                console.log(
+                  `Баляры добавлены в слот ${freeSlot}, количество: 1, ID: ${inventory[freeSlot].itemId}`
+                );
+              }
+            }
+          } else {
+            const freeSlot = inventory.findIndex((slot) => slot === null);
+            if (freeSlot !== -1) {
+              inventory[freeSlot] = {
+                type: data.item.type,
+                itemId:
+                  data.item.itemId ||
+                  `${data.item.type}_${Date.now()}_${freeSlot}`,
+              };
+              console.log(
+                `Предмет ${data.item.type} добавлен в слот ${freeSlot}, ID: ${inventory[freeSlot].itemId}`
+              );
+            }
+          }
+          updateInventoryDisplay();
+        }
+        updateStatsDisplay();
+        break;
+      case "itemNotFound":
+        items.delete(data.itemId); // Удаляем предмет из локального items
+        pendingPickups.delete(data.itemId); // Убираем из ожидающих
+        console.log(
+          `Предмет ${data.itemId} не найден на сервере, удалён из локального items`
+        );
+        break;
+      case "inventoryFull":
+        // Инвентарь полон, уведомляем игрока и убираем предмет из pendingPickups
+        console.log(`Инвентарь полон, предмет ${data.itemId} не поднят`);
+        pendingPickups.delete(data.itemId); // Очищаем из pendingPickups
+        // Можно добавить визуальное уведомление, например:
+        // alert("Инвентарь полон!");
+        break;
+      case "update":
+        const existingPlayer = players.get(data.player.id);
+        players.set(data.player.id, {
+          ...existingPlayer,
+          ...data.player,
+          frameTime: existingPlayer.frameTime || 0,
+        });
+        if (data.player.id === myId) {
+          inventory = data.player.inventory || inventory;
+          updateStatsDisplay();
+          updateInventoryDisplay();
+        }
+        break;
+      case "itemDropped":
+        console.log(
+          `Получено itemDropped: itemId=${data.itemId}, type=${data.type}, x=${data.x}, y=${data.y}`
+        );
+        items.set(data.itemId, {
+          x: data.x,
+          y: data.y,
+          type: data.type,
+          spawnTime: data.spawnTime,
+        });
+        updateInventoryDisplay();
+        break;
+      case "chat":
+        const messageEl = document.createElement("div");
+        messageEl.textContent = `${data.id}: ${data.message}`;
+        chatMessages.appendChild(messageEl);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+        break;
+      case "newPlayer":
+        players.set(data.player.id, { ...data.player, frameTime: 0 });
+        break;
+      case "playerLeft":
+        players.delete(data.id);
         break;
       case "shoot":
+        console.log(`Получена пуля ${data.bulletId} от ${data.shooterId}`);
         bullets.set(data.bulletId, {
           x: data.x,
           y: data.y,
@@ -1036,15 +2033,72 @@ function handleGameMessage(event) {
         break;
       case "bulletRemoved":
         bullets.delete(data.bulletId);
+        console.log(`Пуля ${data.bulletId} удалена`);
         break;
-      case "chat":
-        const messageEl = document.createElement("div");
-        messageEl.textContent = `${data.id}: ${data.message}`;
-        chatMessages.appendChild(messageEl);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
+      case "tradeCompleted":
+        if (tradeSession && tradeSession.partnerId === data.partnerId) {
+          finalizeTrade();
+          console.log(`Обмен с ${data.partnerId} завершён на клиенте`);
+        }
         break;
-      default:
-        handleInventoryMessages(data, ws, myId, players, items); // Делегируем обработку инвентаря
+      case "tradeRequest":
+        console.log(`Получен запрос на обмен от ${data.fromId}`);
+        showTradeRequest(data.fromId);
+        break;
+      case "tradeDeclined":
+        if (data.fromId === selectedPlayerId) {
+          console.log(`Игрок ${data.fromId} отклонил обмен`);
+          document.getElementById("tradeBtn").disabled = false; // Активируем кнопку
+          selectedPlayerId = null; // Сбрасываем выбор игрока
+        }
+        break;
+      case "tradeAccepted":
+        if (data.fromId === selectedPlayerId) {
+          console.log(`Игрок ${data.fromId} принял обмен`);
+          tradeSession = {
+            partnerId: data.fromId,
+            myItem: null,
+            partnerItem: null,
+            myConfirmed: false,
+            partnerConfirmed: false,
+          };
+          openTradeInventory();
+          document.getElementById("tradeBtn").disabled = true; // Кнопка остаётся отключённой во время обмена
+        }
+        break;
+      case "tradeItemPlaced":
+        if (tradeSession && tradeSession.partnerId === data.fromId) {
+          tradeSession.partnerItem = data.item;
+          updateTradeInventory();
+          console.log(
+            `Партнёр ${data.fromId} предложил предмет: ${
+              data.item?.type || "ничего"
+            }`
+          );
+        }
+        break;
+      case "tradeConfirmed":
+        if (tradeSession && tradeSession.partnerId === data.fromId) {
+          tradeSession.partnerConfirmed = true;
+          // Активируем кнопки, если партнёр подтвердил
+          const useBtn = document.getElementById("useBtn");
+          const dropBtn = document.getElementById("dropBtn");
+          useBtn.textContent = "Обмен";
+          useBtn.disabled = tradeSession.myConfirmed;
+          dropBtn.textContent = "Отмена";
+          dropBtn.disabled = false;
+          updateTradeInventory();
+          if (tradeSession.myConfirmed) {
+            finalizeTrade();
+          }
+          console.log(`Партнёр ${data.fromId} подтвердил обмен`);
+        }
+        break;
+      case "tradeCancelled":
+        if (tradeSession && tradeSession.partnerId === data.fromId) {
+          cancelTrade();
+          console.log(`Обмен с ${data.fromId} отменён`);
+        }
         break;
     }
   } catch (error) {
@@ -1269,10 +2323,9 @@ function update(deltaTime) {
   });
 }
 
-// Обновляем draw для использования ITEM_CONFIG из inventory.js
 function draw(deltaTime) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = "rgba(10, 20, 40, 0.8)";
+  ctx.fillStyle = "rgba(10, 20, 40, 0.8)"; // Ночной эффект
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   const groundSpeed = 1.0,
@@ -1284,6 +2337,7 @@ function draw(deltaTime) {
   const rocksOffsetX = camera.x * rocksSpeed;
   const cloudsOffsetX = camera.x * cloudsSpeed;
 
+  // Рисуем фон с учётом смещения камеры
   ctx.fillStyle = ctx.createPattern(backgroundImage, "repeat");
   ctx.save();
   ctx.translate(
@@ -1345,7 +2399,7 @@ function draw(deltaTime) {
       if (player.state === "walking") {
         player.frameTime += deltaTime;
         if (player.frameTime >= GAME_CONFIG.FRAME_DURATION / 7) {
-          player.frameTime -= GAME_CONFIG.FRAME_DURATION / 7;
+          player.frameTime -= GAME_CONFIG.FRAME_DURATION / 7; // Плавное вычитание
           player.frame = (player.frame + 1) % 7;
         }
       } else if (player.state === "dying") {
@@ -1366,6 +2420,7 @@ function draw(deltaTime) {
         ? 160
         : { up: 0, down: 40, left: 80, right: 120 }[player.direction] || 40;
 
+    // Подсветка выбранного игрока
     if (player.id === selectedPlayerId) {
       ctx.beginPath();
       ctx.arc(screenX + 20, screenY + 20, 25, 0, Math.PI * 2);
@@ -1417,9 +2472,15 @@ function draw(deltaTime) {
   });
 
   items.forEach((item, itemId) => {
-    if (!items.has(itemId)) return;
+    if (!items.has(itemId)) {
+      console.log(
+        `Предмет ${itemId} пропущен при отрисовке, так как уже удалён`
+      );
+      return;
+    }
     const screenX = item.x - camera.x;
     const screenY = item.y - camera.y;
+    // Уменьшаем область проверки видимости, так как размер теперь 20x20
     if (
       screenX >= -20 &&
       screenX <= canvas.width + 20 &&
@@ -1428,8 +2489,11 @@ function draw(deltaTime) {
     ) {
       const itemImage = ITEM_CONFIG[item.type]?.image;
       if (itemImage && itemImage.complete) {
+        // Меняем размер отрисовки с 40x40 на 20x20 и корректируем позицию,
+        // чтобы центр предмета оставался на месте
         ctx.drawImage(itemImage, screenX + 10, screenY + 10, 20, 20);
       } else {
+        // Уменьшаем заглушку до 5x5 для согласованности
         ctx.fillStyle = "yellow";
         ctx.fillRect(screenX + 7.5, screenY + 7.5, 5, 5);
       }
@@ -1461,6 +2525,7 @@ function draw(deltaTime) {
   bullets.forEach((bullet) => {
     const screenX = bullet.x - camera.x;
     const screenY = bullet.y - camera.y;
+    console.log(`Отрисовка пули ${bullet.id} на x:${screenX}, y:${screenY}`);
     drawBullet(screenX, screenY);
   });
 
@@ -1503,14 +2568,36 @@ function checkCollisions() {
   if (!me || me.health <= 0) return;
 
   items.forEach((item, id) => {
-    if (!items.has(id)) return;
-    if (pendingPickups.has(id)) return;
+    // Проверяем, существует ли предмет и не отправляли ли мы уже запрос
+    if (!items.has(id)) {
+      console.log(`Предмет ${id} уже удалён из items, пропускаем`);
+      return;
+    }
+    if (pendingPickups.has(id)) {
+      console.log(
+        `Предмет ${id} в процессе поднятия (pendingPickups), пропускаем`
+      );
+      return;
+    }
+    // Центр предмета теперь смещён, так как размер 20x20
     const dx = me.x + 20 - (item.x + 10);
     const dy = me.y + 20 - (item.y + 10);
     const distance = Math.sqrt(dx * dx + dy * dy);
+    console.log(
+      `Проверка столкновения с ${item.type} (ID: ${id}), расстояние: ${distance}`
+    );
     if (distance < 30) {
-      pendingPickups.add(id);
-      sendWhenReady(ws, JSON.stringify({ type: "pickup", itemId: id }));
+      // Уменьшено с 40 до 30
+      console.log(
+        `Игрок ${myId} пытается подобрать предмет ${item.type} (ID: ${id})`
+      );
+      if (ws.readyState === WebSocket.OPEN) {
+        pendingPickups.add(id);
+        sendWhenReady(ws, JSON.stringify({ type: "pickup", itemId: id }));
+        console.log(`Отправлено сообщение pickup для ${id}`);
+      } else {
+        console.error("WebSocket не открыт, предмет не отправлен на сервер");
+      }
     }
   });
 }
