@@ -1,92 +1,86 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cyberpunk Survival</title>
     <link rel="stylesheet" href="style.css" />
-    <title>2D Cyberpunk Survival</title>
   </head>
   <body>
-    <!-- Окно авторизации/регистрации -->
     <div id="authContainer" class="auth-container">
       <div class="auth-box">
         <h1 class="neon-text">Cyberpunk Survival</h1>
-        <div id="loginForm" class="form">
-          <h2>Вход</h2>
+        <form id="loginForm" class="form">
           <input
             type="text"
             id="loginUsername"
-            placeholder="Имя пользователя"
             class="neon-input"
+            placeholder="Username"
+            autocomplete="username"
           />
           <input
             type="password"
             id="loginPassword"
-            placeholder="Пароль"
             class="neon-input"
+            placeholder="Password"
+            autocomplete="current-password"
           />
-          <button id="loginBtn" class="neon-btn">Войти</button>
-          <p class="switch-text">
-            Нет аккаунта? <span id="toRegister">Зарегистрироваться</span>
-          </p>
+          <button type="button" id="loginBtn" class="neon-btn">Login</button>
           <p id="loginError" class="error-text"></p>
-        </div>
-        <div id="registerForm" class="form" style="display: none">
-          <h2>Регистрация</h2>
+          <p class="switch-text">
+            No account? <span id="toRegister">Register</span>
+          </p>
+        </form>
+        <form id="registerForm" class="form" style="display: none">
           <input
             type="text"
             id="registerUsername"
-            placeholder="Имя пользователя"
             class="neon-input"
+            placeholder="Username"
+            autocomplete="username"
           />
           <input
             type="password"
             id="registerPassword"
-            placeholder="Пароль"
             class="neon-input"
+            placeholder="Password"
+            autocomplete="new-password"
           />
-          <button id="registerBtn" class="neon-btn">Зарегистрироваться</button>
-          <p class="switch-text">
-            Уже есть аккаунт? <span id="toLogin">Войти</span>
-          </p>
+          <button type="button" id="registerBtn" class="neon-btn">
+            Register
+          </button>
           <p id="registerError" class="error-text"></p>
-        </div>
+          <p class="switch-text">
+            Have an account? <span id="toLogin">Login</span>
+          </p>
+        </form>
       </div>
     </div>
-
-    <!-- Игровой контейнер (скрыт по умолчанию) -->
     <div id="gameContainer" style="display: none">
       <canvas id="gameCanvas"></canvas>
-      <div id="stats">
-        <span id="health"></span><br />
-        <span id="energy"></span><br />
-        <span id="food"></span><br />
-        <span id="water"></span><br />
-        <span id="armor"></span>
-      </div>
+      <div id="stats"></div>
       <div id="coords"></div>
-      <div id="onlineCount" class="cyber-text"></div>
-      <button id="fireBtn" class="cyber-btn">Fire</button>
-      <button id="chatBtn" class="cyber-btn">Chat</button>
-      <button id="inventoryBtn" class="cyber-btn">Inv</button>
-      <!-- Новая кнопка -->
+      <div id="onlineCount">Онлайн: 0</div>
       <div id="chatContainer">
         <div id="chatMessages"></div>
         <input type="text" id="chatInput" placeholder="Сообщение..." />
       </div>
       <div id="inventoryContainer">
         <div id="inventoryScreen"></div>
-        <!-- Ячейки будут добавляться через JS как раньше -->
         <div id="inventoryActions">
           <button id="useBtn" class="action-btn use-btn" disabled>
             Использовать
           </button>
           <button id="dropBtn" class="action-btn drop-btn" disabled>
-            Выкинуть
+            Выбросить
           </button>
         </div>
       </div>
-      <script src="code.js"></script>
+      <button id="fireBtn" class="cyber-btn">🔫</button>
+      <button id="chatBtn" class="cyber-btn">💬</button>
+      <button id="inventoryBtn" class="cyber-btn">🎒</button>
     </div>
+    <script src="code.js"></script>
+    <script src="npc.js"></script>
   </body>
 </html>

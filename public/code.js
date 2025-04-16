@@ -1,10 +1,8 @@
-// Получаем элементы DOM
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 const inventoryEl = document.getElementById("items");
 const statsEl = document.getElementById("stats");
 
-// Элементы авторизации
 const authContainer = document.getElementById("authContainer");
 const loginForm = document.getElementById("loginForm");
 const registerForm = document.getElementById("registerForm");
@@ -20,19 +18,15 @@ const chatContainer = document.getElementById("chatContainer");
 const chatMessages = document.getElementById("chatMessages");
 const chatInput = document.getElementById("chatInput");
 
-// WebSocket соединение
 let ws;
-// Хранилища данных
 let players = new Map();
 let myId;
 const items = new Map();
 const lights = [];
 const obstacles = [];
 const bullets = new Map();
-// Хранилище предметов, для которых уже отправлен запрос pickup
 const pendingPickups = new Set();
 
-// Загрузка изображений
 const backgroundImage = new Image();
 backgroundImage.src = "backgr.png";
 const vegetationImage = new Image();
@@ -50,7 +44,6 @@ nutImage.src = "nut.png";
 const waterBottleImage = new Image();
 waterBottleImage.src = "water_bottle.png";
 
-// Добавляем новые изображения
 const cannedMeatImage = new Image();
 cannedMeatImage.src = "canned_meat.png";
 const mushroomImage = new Image();
@@ -82,21 +75,15 @@ berriesImage.src = "berry.png";
 const carrotImage = new Image();
 carrotImage.src = "carrot.png";
 
-// Инвентарь игрока (массив на 20 слотов, изначально пустой)
 let inventory = Array(20).fill(null);
 
-// Конфигурация эффектов предметов (расширяем ITEM_CONFIG)
 const ITEM_CONFIG = {
   energy_drink: {
     effect: { energy: 20, water: 5 },
     image: energyDrinkImage,
     description: "Энергетик: +20 эн. +5 воды.",
   },
-  nut: {
-    effect: { food: 7 },
-    image: nutImage,
-    description: "Орех: +7 еды.",
-  },
+  nut: { effect: { food: 7 }, image: nutImage, description: "Орех: +7 еды." },
   water_bottle: {
     effect: { water: 30 },
     image: waterBottleImage,
@@ -176,25 +163,21 @@ const ITEM_CONFIG = {
     description: "Сушёная рыба: +10 еды, -3 воды.",
   },
   balyary: {
-    effect: {}, // Эффекта нет, это валюта
+    effect: {},
     image: balyaryImage,
     description: "Баляр: игровая валюта.",
-    stackable: true, // Указываем, что предмет складывается
+    stackable: true,
     rarity: 2,
   },
 };
 
-// Состояние инвентаря (открыт или закрыт)
 let isInventoryOpen = false;
-// Элемент подсказки
 let tooltip = null;
-// Выбранный слот инвентаря
 let selectedSlot = null;
 
-// Глобальные настройки игры
 const GAME_CONFIG = {
   PLAYER_SPEED: 100,
-  FRAME_DURATION: 200, // 700 мс на весь цикл (≈100 мс на кадр)
+  FRAME_DURATION: 200,
   BULLET_SPEED: 500,
   BULLET_LIFE: 1000,
   BULLET_DAMAGE: 10,
@@ -202,18 +185,14 @@ const GAME_CONFIG = {
 
 let reconnectAttempts = 0;
 const maxReconnectAttempts = 5;
-const reconnectDelay = 2000; // 2 секунды
+const reconnectDelay = 2000;
 
-let lastDistance = 0; // Добавляем глобальную переменную
-// Флаг, указывающий, что персонаж должен двигаться к цели
+let lastDistance = 0;
 let isMoving = false;
-// Целевая позиция в мировых координатах
 let targetX = 0;
 let targetY = 0;
-// Базовая скорость в пикселях в секунду (одинакова для всех устройств)
-const baseSpeed = 100; // пикселей в секунду
+const baseSpeed = 100;
 
-// Флаги для управления движением
 const movement = {
   up: false,
   down: false,
@@ -221,32 +200,28 @@ const movement = {
   right: false,
 };
 
-// Добавляем переменные для управления анимацией
-let lastTime = 0; // Время последнего кадра для расчета deltaTime
-const frameDuration = 200; // Длительность одного кадра в миллисекундах (настраиваемая скорость анимации)
+let lastTime = 0;
+const frameDuration = 200;
 
-// Размеры мира
 const worldWidth = 3135;
 const worldHeight = 3300;
 
-// Камера
 const camera = { x: 0, y: 0 };
 
-createLight(2445, 1540, "rgba(0, 255, 255, 0.4)", 1000); // 1
-createLight(1314, 332, "rgba(255, 0, 255, 0.4)", 1000); // 2
-createLight(506, 2246, "rgba(148, 0, 211, 0.4)", 1000); // 3
-createLight(950, 3115, "rgba(255, 0, 255, 0.4)", 850); // 4
-createLight(50, 3120, "rgba(214, 211, 4, 0.5)", 850); // 5
-createLight(264, 1173, "rgba(214, 211, 4, 0.4)", 950); // 6
-createLight(2314, 2756, "rgba(194, 0, 10, 0.4)", 850); // 7
-createLight(1605, 2151, "rgba(2, 35, 250, 0.4)", 950); // 8
-createLight(3095, 2335, "rgba(28, 186, 55, 0.4)", 950); // 9
-createLight(2605, 509, "rgba(2, 35, 250, 0.4)", 950); // 10
-createLight(1083, 1426, "rgba(109, 240, 194, 0.4)", 750); // 11
-createLight(2000, 900, "rgba(240, 109, 240, 0.4)", 850); // 12
-createLight(133, 373, "rgba(240, 109, 240, 0.4)", 850); // 13
+createLight(2445, 1540, "rgba(0, 255, 255, 0.4)", 1000);
+createLight(1314, 332, "rgba(255, 0, 255, 0.4)", 1000);
+createLight(506, 2246, "rgba(148, 0, 211, 0.4)", 1000);
+createLight(950, 3115, "rgba(255, 0, 255, 0.4)", 850);
+createLight(50, 3120, "rgba(214, 211, 4, 0.5)", 850);
+createLight(264, 1173, "rgba(214, 211, 4, 0.4)", 950);
+createLight(2314, 2756, "rgba(194, 0, 10, 0.4)", 850);
+createLight(1605, 2151, "rgba(2, 35, 250, 0.4)", 950);
+createLight(3095, 2335, "rgba(28, 186, 55, 0.4)", 950);
+createLight(2605, 509, "rgba(2, 35, 250, 0.4)", 950);
+createLight(1083, 1426, "rgba(109, 240, 194, 0.4)", 750);
+createLight(2000, 900, "rgba(240, 109, 240, 0.4)", 850);
+createLight(133, 373, "rgba(240, 109, 240, 0.4)", 850);
 
-// Переключение форм
 toRegister.addEventListener("click", () => {
   loginForm.style.display = "none";
   registerForm.style.display = "block";
@@ -311,7 +286,6 @@ function reconnectWebSocket() {
         event.code,
         event.reason
       );
-      // Если код 4000, не переподключаемся
       if (event.code === 4000) {
         console.log(
           "Отключён из-за неактивности, переподключение не требуется"
@@ -326,12 +300,11 @@ function reconnectWebSocket() {
   }, reconnectDelay);
 }
 
-// Инициализация WebSocket
 function initializeWebSocket() {
   ws = new WebSocket("wss://cyberpunksurvival.onrender.com");
   ws.onopen = () => {
     console.log("WebSocket соединение установлено");
-    reconnectAttempts = 0; // Сбрасываем попытки переподключения
+    reconnectAttempts = 0;
   };
   ws.onmessage = (event) => {
     try {
@@ -352,18 +325,14 @@ function initializeWebSocket() {
   };
   ws.onclose = (event) => {
     console.log("WebSocket закрыт:", event.code, event.reason);
-    // Показываем окно авторизации
     authContainer.style.display = "flex";
     document.getElementById("gameContainer").style.display = "none";
-    // Очищаем данные игрока
     players.clear();
     myId = null;
-    // Если код 4000 (неактивность), не пытаемся переподключиться
     if (event.code === 4000) {
       console.log("Отключён из-за неактивности, переподключение не требуется");
       return;
     }
-    // Иначе пробуем переподключиться
     reconnectWebSocket();
   };
 }
@@ -385,7 +354,6 @@ registerBtn.addEventListener("click", () => {
   }
 });
 
-// Вход
 loginBtn.addEventListener("click", () => {
   const username = document.getElementById("loginUsername").value.trim();
   const password = document.getElementById("loginPassword").value.trim();
@@ -424,11 +392,18 @@ function handleAuthMessage(event) {
         lights.length = 0;
         data.lights.forEach((light) => lights.push(light));
       }
+      if (data.npc) {
+        NPC.firstInteraction = data.npc.firstInteraction;
+        NPC.currentQuests = data.npc.currentQuests;
+        NPC.completedQuests = data.npc.completedQuests;
+        NPC.acceptedQuests = data.npc.acceptedQuests;
+      }
+      inventory = data.inventory || inventory;
       resizeCanvas();
       ws.onmessage = handleGameMessage;
       console.log("Переключен обработчик на handleGameMessage");
       startGame();
-      updateOnlineCount(); // Добавляем вызов
+      updateOnlineCount();
       break;
     case "registerSuccess":
       registerError.textContent = "Регистрация успешна! Войдите.";
@@ -488,7 +463,6 @@ function lineIntersects(x1, y1, x2, y2, x3, y3, x4, y4) {
   return ua >= 0 && ua <= 1 && ub >= 0 && ub <= 1;
 }
 
-// Добавляем функцию pointToLineDistance (если её ещё нет)
 function pointToLineDistance(px, py, x1, y1, x2, y2) {
   const dx = x2 - x1;
   const dy = y2 - y1;
@@ -505,7 +479,6 @@ function pointToLineDistance(px, py, x1, y1, x2, y2) {
 
 function checkBulletCollision(bullet) {
   for (const obstacle of obstacles) {
-    // Убираем деструктуризацию [, obstacle]
     if (obstacle.isLine) {
       const distance = pointToLineDistance(
         bullet.x,
@@ -523,7 +496,6 @@ function checkBulletCollision(bullet) {
   return false;
 }
 
-// Функция создания источника света
 function createLight(x, y, color, radius) {
   lights.push({ x, y, color, radius });
 }
@@ -538,7 +510,6 @@ function checkCollision(newX, newY) {
   const playerBottom = newY + 40;
 
   for (const obstacle of obstacles) {
-    // Убираем деструктуризацию [, obstacle]
     if (obstacle.isLine) {
       const lineX1 = obstacle.x1;
       const lineY1 = obstacle.y1;
@@ -594,7 +565,6 @@ function checkCollision(newX, newY) {
   return false;
 }
 
-// Функция для отправки данных, когда WebSocket готов
 function sendWhenReady(ws, message) {
   if (ws.readyState === WebSocket.OPEN) {
     ws.send(message);
@@ -604,8 +574,8 @@ function sendWhenReady(ws, message) {
         ws.send(message);
         clearInterval(checkInterval);
       }
-    }, 100); // Проверяем каждые 100 мс
-    setTimeout(() => clearInterval(checkInterval), 5000); // Таймаут 5 секунд
+    }, 100);
+    setTimeout(() => clearInterval(checkInterval), 5000);
   } else {
     console.error("WebSocket не готов для отправки:", ws.readyState);
   }
@@ -613,13 +583,12 @@ function sendWhenReady(ws, message) {
 
 function updateOnlineCount() {
   const onlineCountEl = document.getElementById("onlineCount");
-  const playerCount = players.size; // Количество игроков из Map
+  const playerCount = players.size;
   onlineCountEl.textContent = `Онлайн: ${playerCount}`;
 }
 
 function startGame() {
   updateOnlineCount();
-  // Обработчик клавиш (только для стрельбы и чата)
   document.addEventListener("keydown", (e) => {
     const me = players.get(myId);
     if (!me || me.health <= 0) return;
@@ -662,7 +631,7 @@ function startGame() {
         break;
     }
   });
-  // Обработчик нажатия мыши
+
   canvas.addEventListener("mousedown", (e) => {
     if (e.button === 0) {
       const me = players.get(myId);
@@ -697,7 +666,7 @@ function startGame() {
         console.log(
           `Клик вне слотов инвентаря (x:${e.clientX}, y:${e.clientY})`
         );
-        return; // Прерываем, если клик в инвентаре, но не по слоту
+        return;
       }
 
       isMoving = true;
@@ -706,7 +675,6 @@ function startGame() {
     }
   });
 
-  // Обработчик движения мыши (обновляем цель, если кнопка зажата)
   canvas.addEventListener("mousemove", (e) => {
     if (isMoving) {
       targetX = e.clientX + camera.x;
@@ -714,7 +682,6 @@ function startGame() {
     }
   });
 
-  // Обработчик отпускания мыши
   canvas.addEventListener("mouseup", (e) => {
     if (e.button === 0) {
       isMoving = false;
@@ -744,7 +711,6 @@ function startGame() {
     }
   });
 
-  // Обработчик тач-событий для мобильных устройств
   canvas.addEventListener("touchstart", (e) => {
     e.preventDefault();
     const me = players.get(myId);
@@ -823,14 +789,12 @@ function startGame() {
     }
   });
 
-  // Настройка кнопки Fire
   const fireBtn = document.getElementById("fireBtn");
   fireBtn.addEventListener("click", (e) => {
     e.preventDefault();
     shoot();
   });
 
-  // Настройка кнопки Chat
   const chatBtn = document.getElementById("chatBtn");
   chatBtn.addEventListener("click", (e) => {
     e.preventDefault();
@@ -858,14 +822,12 @@ function startGame() {
     }
   });
 
-  // Настройка кнопки Inventory
   const inventoryBtn = document.getElementById("inventoryBtn");
   inventoryBtn.addEventListener("click", (e) => {
     e.preventDefault();
     toggleInventory();
   });
 
-  // Создаём контейнер для ячеек инвентаря
   const inventoryContainer = document.getElementById("inventoryContainer");
   inventoryContainer.style.display = "none";
 
@@ -898,7 +860,6 @@ function startGame() {
   requestAnimationFrame(gameLoop);
 }
 
-// Функция переключения инвентаря
 function toggleInventory() {
   isInventoryOpen = !isInventoryOpen;
   const inventoryContainer = document.getElementById("inventoryContainer");
@@ -919,7 +880,6 @@ function toggleInventory() {
   }
 }
 
-// Выбрать слот и показать кнопки
 function selectSlot(slotIndex, slotElement) {
   if (!inventory[slotIndex]) return;
   console.log(
@@ -932,29 +892,33 @@ function selectSlot(slotIndex, slotElement) {
   if (selectedSlot === slotIndex) {
     selectedSlot = null;
     screen.innerHTML = "";
-    useBtn.textContent = "Использовать"; // Возвращаем текст
+    useBtn.textContent = "Использовать";
     useBtn.disabled = true;
     dropBtn.disabled = true;
     return;
   }
 
   selectedSlot = slotIndex;
-  // Если ранее была форма "Баляр", убираем её и показываем описание
+  if (
+    inventory[selectedSlot] &&
+    inventory[selectedSlot].type === "balyary" &&
+    screen.querySelector(".balyary-drop-form")
+  ) {
+    return;
+  }
   screen.textContent = ITEM_CONFIG[inventory[slotIndex].type].description;
-  useBtn.textContent = "Использовать"; // Сбрасываем текст
-  useBtn.disabled = inventory[slotIndex].type === "balyary"; // Отключаем для "Баляр"
+  useBtn.textContent = "Использовать";
+  useBtn.disabled = inventory[slotIndex].type === "balyary";
   dropBtn.disabled = false;
 }
 
-// Скрыть кнопки действий
 function hideActionButtons() {
   document.querySelectorAll(".action-btn").forEach((btn) => btn.remove());
 }
 
-// Использовать предмет
 function useItem(slotIndex) {
   const item = inventory[slotIndex];
-  if (!item || item.type === "balyary") return; // Ничего не делаем для Баляр
+  if (!item || item.type === "balyary") return;
   const me = players.get(myId);
   const effect = ITEM_CONFIG[item.type].effect;
 
@@ -988,7 +952,6 @@ function useItem(slotIndex) {
   updateInventoryDisplay();
 }
 
-// Выкинуть предмет
 function dropItem(slotIndex) {
   const item = inventory[slotIndex];
   if (!item) return;
@@ -998,7 +961,6 @@ function dropItem(slotIndex) {
   const dropBtn = document.getElementById("dropBtn");
 
   if (item.type === "balyary") {
-    // Логика для "Баляр" с формой ввода количества
     screen.innerHTML = `
       <div class="balyary-drop-form">
         <p class="cyber-text">Сколько выкинуть?</p>
@@ -1078,7 +1040,6 @@ function dropItem(slotIndex) {
       updateInventoryDisplay();
     }
   } else {
-    // Логика для остальных предметов: выкидываем один предмет
     sendWhenReady(
       ws,
       JSON.stringify({
@@ -1086,14 +1047,12 @@ function dropItem(slotIndex) {
         slotIndex,
         x: me.x,
         y: me.y,
-        quantity: 1, // Выкидываем ровно один предмет
+        quantity: 1,
       })
     );
 
-    // Очищаем слот инвентаря
     inventory[slotIndex] = null;
 
-    // Сбрасываем выбранный слот и кнопки
     selectedSlot = null;
     useBtn.disabled = true;
     dropBtn.disabled = true;
@@ -1102,14 +1061,12 @@ function dropItem(slotIndex) {
   }
 }
 
-// Логика расхода ресурсов
 function updateResources() {
   const me = players.get(myId);
   if (!me) return;
 
   const distance = Math.floor(me.distanceTraveled || 0);
 
-  // Энергия: -1 каждые 600 пикселей
   const energyLoss = Math.floor(distance / 800);
   const prevEnergyLoss = Math.floor(lastDistance / 800);
   if (energyLoss > prevEnergyLoss) {
@@ -1117,7 +1074,6 @@ function updateResources() {
     console.log(`Energy reduced to ${me.energy}`);
   }
 
-  // Еда: -1 каждые 350 пикселей
   const foodLoss = Math.floor(distance / 450);
   const prevFoodLoss = Math.floor(lastDistance / 450);
   if (foodLoss > prevFoodLoss) {
@@ -1125,7 +1081,6 @@ function updateResources() {
     console.log(`Food reduced to ${me.food}`);
   }
 
-  // Вода: -1 каждые 200 пикселей
   const waterLoss = Math.floor(distance / 250);
   const prevWaterLoss = Math.floor(lastDistance / 250);
   if (waterLoss > prevWaterLoss) {
@@ -1133,7 +1088,6 @@ function updateResources() {
     console.log(`Water reduced to ${me.water}`);
   }
 
-  // Здоровье: -1 каждые 50 пикселей, если ресурсы на нуле
   if (me.energy === 0 || me.food === 0 || me.water === 0) {
     const healthLoss = Math.floor(distance / 150);
     const prevHealthLoss = Math.floor(lastDistance / 150);
@@ -1143,7 +1097,7 @@ function updateResources() {
     }
   }
 
-  lastDistance = distance; // Обновляем lastDistance для следующего вызова
+  lastDistance = distance;
   updateStatsDisplay();
 }
 
@@ -1170,7 +1124,6 @@ function updateInventoryDisplay() {
   const useBtn = document.getElementById("useBtn");
   const dropBtn = document.getElementById("dropBtn");
 
-  // Проверяем, была ли уже показана форма выброса "Баляр"
   const isBalyaryFormActive =
     selectedSlot !== null &&
     inventory[selectedSlot] &&
@@ -1178,8 +1131,6 @@ function updateInventoryDisplay() {
     screen.querySelector(".balyary-drop-form");
 
   if (isBalyaryFormActive) {
-    // Сохраняем форму, если выбраны "Баляры" и форма уже есть
-    // Ничего не делаем с содержимым экрана
   } else if (selectedSlot === null) {
     screen.innerHTML = "";
   } else if (inventory[selectedSlot]) {
@@ -1215,7 +1166,6 @@ function updateInventoryDisplay() {
             inventory[selectedSlot].type === "balyary" &&
             screen.querySelector(".balyary-drop-form")
           ) {
-            // Сохраняем форму выброса "Баляр" при наведении на другие слоты
             return;
           }
           screen.textContent = ITEM_CONFIG[inventory[i].type].description;
@@ -1228,7 +1178,6 @@ function updateInventoryDisplay() {
             inventory[selectedSlot].type === "balyary" &&
             screen.querySelector(".balyary-drop-form"))
         ) {
-          // Ничего не очищаем, если форма "Баляр" активна
           return;
         }
         screen.textContent =
@@ -1241,6 +1190,7 @@ function updateInventoryDisplay() {
         e.stopPropagation();
         console.log(`Клик по слоту ${i}, предмет: ${inventory[i].type}`);
         selectSlot(i, slot);
+        checkQuests(); // Проверка заданий при клике на инвентарь
       };
 
       img.style.pointerEvents = "none";
@@ -1258,16 +1208,14 @@ function handleGameMessage(event) {
     switch (data.type) {
       case "newPlayer":
         players.set(data.player.id, { ...data.player, frameTime: 0 });
-        updateOnlineCount(); // Обновляем при входе нового игрока
+        updateOnlineCount();
         break;
       case "playerLeft":
         players.delete(data.id);
-        updateOnlineCount(); // Обновляем при выходе игрока
+        updateOnlineCount();
         break;
       case "syncItems":
-        // Очищаем старые предметы
         items.clear();
-        // Заполняем актуальными предметами из сервера
         data.items.forEach((item) =>
           items.set(item.itemId, {
             x: item.x,
@@ -1276,7 +1224,6 @@ function handleGameMessage(event) {
             spawnTime: item.spawnTime,
           })
         );
-        // Очищаем pendingPickups для предметов, которые всё ещё существуют
         data.items.forEach((item) => {
           if (pendingPickups.has(item.itemId)) {
             console.log(
@@ -1293,19 +1240,16 @@ function handleGameMessage(event) {
         const me = players.get(myId);
         if (me && data.playerId === myId && data.item) {
           if (data.item.type === "balyary") {
-            // Проверяем, есть ли уже "Баляры" в инвентаре
             const balyarySlot = inventory.findIndex(
               (slot) => slot && slot.type === "balyary"
             );
             if (balyarySlot !== -1) {
-              // Увеличиваем количество
               inventory[balyarySlot].quantity =
                 (inventory[balyarySlot].quantity || 1) + 1;
               console.log(
                 `Добавлено 1 Баляр, теперь их ${inventory[balyarySlot].quantity}`
               );
             } else {
-              // Добавляем в новый слот
               const freeSlot = inventory.findIndex((slot) => slot === null);
               if (freeSlot !== -1) {
                 inventory[freeSlot] = {
@@ -1319,7 +1263,6 @@ function handleGameMessage(event) {
               }
             }
           } else {
-            // Обычная логика для других предметов
             const freeSlot = inventory.findIndex((slot) => slot === null);
             if (freeSlot !== -1) {
               inventory[freeSlot] = data.item;
@@ -1329,22 +1272,20 @@ function handleGameMessage(event) {
             }
           }
           updateInventoryDisplay();
+          checkQuests(); // Проверка заданий при подборе предмета
         }
         updateStatsDisplay();
         break;
       case "itemNotFound":
-        items.delete(data.itemId); // Удаляем предмет из локального items
-        pendingPickups.delete(data.itemId); // Убираем из ожидающих
+        items.delete(data.itemId);
+        pendingPickups.delete(data.itemId);
         console.log(
           `Предмет ${data.itemId} не найден на сервере, удалён из локального items`
         );
         break;
       case "inventoryFull":
-        // Инвентарь полон, уведомляем игрока и убираем предмет из pendingPickups
         console.log(`Инвентарь полон, предмет ${data.itemId} не поднят`);
-        pendingPickups.delete(data.itemId); // Очищаем из pendingPickups
-        // Можно добавить визуальное уведомление, например:
-        // alert("Инвентарь полон!");
+        pendingPickups.delete(data.itemId);
         break;
       case "update":
         const existingPlayer = players.get(data.player.id);
@@ -1370,18 +1311,13 @@ function handleGameMessage(event) {
           spawnTime: data.spawnTime,
         });
         updateInventoryDisplay();
+        checkQuests(); // Проверка заданий при выбросе предмета
         break;
       case "chat":
         const messageEl = document.createElement("div");
         messageEl.textContent = `${data.id}: ${data.message}`;
         chatMessages.appendChild(messageEl);
         chatMessages.scrollTop = chatMessages.scrollHeight;
-        break;
-      case "newPlayer":
-        players.set(data.player.id, { ...data.player, frameTime: 0 });
-        break;
-      case "playerLeft":
-        players.delete(data.id);
         break;
       case "shoot":
         console.log(`Получена пуля ${data.bulletId} от ${data.shooterId}`);
@@ -1399,20 +1335,32 @@ function handleGameMessage(event) {
         bullets.delete(data.bulletId);
         console.log(`Пуля ${data.bulletId} удалена`);
         break;
+      case "updateQuests":
+        if (data.npcId === NPC.id) {
+          NPC.firstInteraction = data.firstInteraction;
+          NPC.currentQuests = data.currentQuests;
+          NPC.completedQuests = data.completedQuests;
+          NPC.acceptedQuests = data.acceptedQuests;
+          updateDialog();
+        }
+        break;
+      case "updateInventory":
+        inventory = data.inventory || inventory;
+        updateInventoryDisplay();
+        checkQuests();
+        break;
     }
   } catch (error) {
     console.error("Ошибка в handleGameMessage:", error);
   }
 }
 
-// Адаптация размеров канваса
 function resizeCanvas() {
   canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight; // 100% высоты
+  canvas.height = window.innerHeight;
   updateCamera();
 }
 
-// Обновление камеры
 function updateCamera() {
   const me = players.get(myId);
   if (!me) return;
@@ -1469,7 +1417,7 @@ function update(deltaTime) {
   const me = players.get(myId);
   if (!me || me.health <= 0) return;
 
-  console.log(`DeltaTime: ${deltaTime}, FPS: ${1000 / deltaTime}`); // Для отладки
+  console.log(`DeltaTime: ${deltaTime}, FPS: ${1000 / deltaTime}`);
 
   if (isMoving) {
     const dx = targetX - me.x;
@@ -1496,7 +1444,7 @@ function update(deltaTime) {
         me.state = "idle";
         me.frame = 0;
         me.frameTime = 0;
-        isMoving = false; // Останавливаем движение
+        isMoving = false;
       } else {
         me.state = "walking";
         if (Math.abs(dx) > Math.abs(dy)) {
@@ -1519,6 +1467,7 @@ function update(deltaTime) {
         updateResources();
         updateCamera();
         checkCollisions();
+        checkNPCDistance(); // Проверка расстояния до NPC
       }
 
       sendWhenReady(
@@ -1563,7 +1512,7 @@ function update(deltaTime) {
   } else if (me.state === "dying") {
     me.frameTime += deltaTime;
     if (me.frameTime >= GAME_CONFIG.FRAME_DURATION / 7) {
-      me.frameTime -= GAME_CONFIG.FRAME_DURATION / 7;
+      me.frameTime = 0;
       if (me.frame < 6) me.frame += 1;
     }
     ws.send(
@@ -1584,214 +1533,8 @@ function update(deltaTime) {
     );
   }
 
-  // Обновление пуль
-  bullets.forEach((bullet, bulletId) => {
-    bullet.x += bullet.dx * (deltaTime / 1000);
-    bullet.y += bullet.dy * (deltaTime / 1000);
-
-    const currentTime = Date.now();
-    if (currentTime - bullet.spawnTime > bullet.life) {
-      bullets.delete(bulletId);
-    }
-
-    if (checkBulletCollision(bullet)) {
-      bullets.delete(bulletId);
-    }
-  });
-
-  // Удаление предметов по таймауту (без изменений)
-  const currentTime = Date.now();
-  items.forEach((item, itemId) => {
-    const screenX = item.x - camera.x;
-    const screenY = item.y - camera.y;
-    if (
-      screenX >= -40 &&
-      screenX <= canvas.width + 40 &&
-      screenY >= -40 &&
-      screenY <= canvas.height + 40
-    ) {
-      const itemImage = ITEM_CONFIG[item.type]?.image;
-      if (itemImage && itemImage.complete) {
-        ctx.drawImage(itemImage, screenX, screenY, 40, 40);
-      } else {
-        console.warn(
-          `Изображение для ${item.type} не загружено, рисую заглушку`
-        );
-        ctx.fillStyle = "yellow";
-        ctx.fillRect(screenX, screenY, 10, 10);
-      }
-    }
-  });
-}
-
-function draw(deltaTime) {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = "rgba(10, 20, 40, 0.8)"; // Ночной эффект
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  const groundSpeed = 1.0,
-    vegetationSpeed = 0.8,
-    rocksSpeed = 0.6,
-    cloudsSpeed = 0.3;
-  const groundOffsetX = camera.x * groundSpeed;
-  const vegetationOffsetX = camera.x * vegetationSpeed;
-  const rocksOffsetX = camera.x * rocksSpeed;
-  const cloudsOffsetX = camera.x * cloudsSpeed;
-
-  // Рисуем фон с учётом смещения камеры
-  ctx.fillStyle = ctx.createPattern(backgroundImage, "repeat");
-  ctx.save();
-  ctx.translate(
-    -groundOffsetX % backgroundImage.width,
-    (-camera.y * groundSpeed) % backgroundImage.height
-  );
-  ctx.fillRect(
-    (groundOffsetX % backgroundImage.width) - backgroundImage.width,
-    ((camera.y * groundSpeed) % backgroundImage.height) -
-      backgroundImage.height,
-    worldWidth + backgroundImage.width,
-    worldHeight + backgroundImage.height
-  );
-  ctx.restore();
-
-  lights.forEach((light) => {
-    const screenX = light.x - camera.x;
-    const screenY = light.y - camera.y;
-    if (
-      screenX + light.radius > 0 &&
-      screenX - light.radius < canvas.width &&
-      screenY + light.radius > 0 &&
-      screenY - light.radius < canvas.height
-    ) {
-      const gradient = ctx.createRadialGradient(
-        screenX,
-        screenY,
-        0,
-        screenX,
-        screenY,
-        light.radius
-      );
-      gradient.addColorStop(0, light.color);
-      gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
-      ctx.fillStyle = gradient;
-      ctx.beginPath();
-      ctx.arc(screenX, screenY, light.radius, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  });
-
-  ctx.drawImage(
-    rocksImage,
-    rocksOffsetX,
-    camera.y * rocksSpeed,
-    canvas.width,
-    canvas.height,
-    0,
-    0,
-    canvas.width,
-    canvas.height
-  );
-
-  players.forEach((player) => {
-    const screenX = player.x - camera.x;
-    const screenY = player.y - camera.y;
-
-    if (player.id !== myId) {
-      if (player.state === "walking") {
-        player.frameTime += deltaTime;
-        if (player.frameTime >= GAME_CONFIG.FRAME_DURATION / 7) {
-          player.frameTime -= GAME_CONFIG.FRAME_DURATION / 7; // Плавное вычитание
-          player.frame = (player.frame + 1) % 7;
-        }
-      } else if (player.state === "dying") {
-        player.frameTime += deltaTime;
-        if (player.frameTime >= GAME_CONFIG.FRAME_DURATION / 7) {
-          player.frameTime = 0;
-          if (player.frame < 6) player.frame += 1;
-        }
-      } else {
-        player.frame = 0;
-        player.frameTime = 0;
-      }
-    }
-
-    let spriteX = player.frame * 40;
-    let spriteY =
-      player.state === "dying"
-        ? 160
-        : { up: 0, down: 40, left: 80, right: 120 }[player.direction] || 40;
-
-    ctx.drawImage(
-      playerSprite,
-      spriteX,
-      spriteY,
-      40,
-      40,
-      screenX,
-      screenY,
-      40,
-      40
-    );
-    ctx.fillStyle = "white";
-    ctx.font = "12px Arial";
-    ctx.textAlign = "center";
-    ctx.fillText(player.id, screenX + 20, screenY - 20);
-    ctx.fillStyle = "red";
-    ctx.fillRect(screenX, screenY - 15, 40, 5);
-    ctx.fillStyle = "green";
-    ctx.fillRect(screenX, screenY - 15, (player.health / 100) * 40, 5);
-  });
-
-  items.forEach((item, itemId) => {
-    if (!items.has(itemId)) {
-      console.log(
-        `Предмет ${itemId} пропущен при отрисовке, так как уже удалён`
-      );
-      return;
-    }
-    const screenX = item.x - camera.x;
-    const screenY = item.y - camera.y;
-    // Уменьшаем область проверки видимости, так как размер теперь 20x20
-    if (
-      screenX >= -20 &&
-      screenX <= canvas.width + 20 &&
-      screenY >= -20 &&
-      screenY <= canvas.height + 20
-    ) {
-      const itemImage = ITEM_CONFIG[item.type]?.image;
-      if (itemImage && itemImage.complete) {
-        // Меняем размер отрисовки с 40x40 на 20x20 и корректируем позицию,
-        // чтобы центр предмета оставался на месте
-        ctx.drawImage(itemImage, screenX + 10, screenY + 10, 20, 20);
-      } else {
-        // Уменьшаем заглушку до 5x5 для согласованности
-        ctx.fillStyle = "yellow";
-        ctx.fillRect(screenX + 7.5, screenY + 7.5, 5, 5);
-      }
-    }
-  });
-
-  obstacles.forEach((obstacle) => {
-    if (obstacle.isLine) {
-      const startX = obstacle.x1 - camera.x;
-      const startY = obstacle.y1 - camera.y;
-      const endX = obstacle.x2 - camera.x;
-      const endY = obstacle.y2 - camera.y;
-      if (
-        (startX > 0 || endX > 0) &&
-        (startX < canvas.width || endX < canvas.width) &&
-        (startY > 0 || endY > 0) &&
-        (startY < canvas.height || endY < canvas.height)
-      ) {
-        ctx.beginPath();
-        ctx.moveTo(startX, startY);
-        ctx.lineTo(endX, endY);
-        ctx.lineWidth = obstacle.thickness;
-        ctx.strokeStyle = "rgba(255, 0, 150, 0.5)";
-        ctx.stroke();
-      }
-    }
-  });
+  checkNPCDistance(); // Проверка расстояния до NPC
+  checkQuests(); // Проверка заданий
 
   bullets.forEach((bullet) => {
     const screenX = bullet.x - camera.x;
