@@ -623,6 +623,9 @@ function updateOnlineCount() {
 
 function startGame() {
   updateOnlineCount();
+  // Создаём NPC (например, один NPC в фиксированной точке)
+  createNPC("npc1", 590, 3150, "Вася Сталкер"); // Добавляем NPC
+
   // Обработчик клавиш (только для стрельбы и чата)
   document.addEventListener("keydown", (e) => {
     const me = players.get(myId);
@@ -635,6 +638,9 @@ function startGame() {
       }
       if (isInventoryOpen) {
         toggleInventory();
+      }
+      if (isQuestDialogOpen) {
+        closeQuestDialog(); // Закрываем диалоговое окно NPC
       }
       e.preventDefault();
       return;
@@ -1333,6 +1339,7 @@ function handleGameMessage(event) {
             }
           }
           updateInventoryDisplay();
+          checkQuestProgress(data.item); // Проверяем прогресс квеста
         }
         updateStatsDisplay();
         break;
@@ -1473,7 +1480,7 @@ function update(deltaTime) {
   const me = players.get(myId);
   if (!me || me.health <= 0) return;
 
-  console.log(`DeltaTime: ${deltaTime}, FPS: ${1000 / deltaTime}`); // Для отладки
+  checkNPCProximity();
 
   if (isMoving) {
     const dx = targetX - me.x;
@@ -1746,26 +1753,7 @@ function draw(deltaTime) {
     ctx.fillRect(screenX, screenY - 15, (player.health / 100) * 40, 5);
   });
 
-  wolves.forEach((wolf) => {
-    const screenX = wolf.x - camera.x;
-    const screenY = wolf.y - camera.y;
-    let spriteX = wolf.frame * 40;
-    let spriteY =
-      wolf.state === "dying"
-        ? 160
-        : { up: 0, down: 40, left: 80, right: 120 }[wolf.direction] || 40;
-    ctx.drawImage(
-      wolfSprite,
-      spriteX,
-      spriteY,
-      40,
-      40,
-      screenX,
-      screenY,
-      15,
-      15
-    );
-  });
+  drawNPCs(deltaTime); // Отрисовываем NPC
 
   items.forEach((item, itemId) => {
     if (!items.has(itemId)) {

@@ -289,7 +289,6 @@ wss.on("connection", (ws) => {
   }, INACTIVITY_TIMEOUT);
 
   ws.on("message", async (message) => {
-    // Сбрасываем таймер неактивности при получении любого сообщения
     clearTimeout(inactivityTimer);
     inactivityTimer = setTimeout(() => {
       console.log("Клиент отключён из-за неактивности");
@@ -303,6 +302,7 @@ wss.on("connection", (ws) => {
       console.error("Неверный JSON:", e);
       return;
     }
+
     if (data.type === "register") {
       if (userDatabase.has(data.username)) {
         ws.send(JSON.stringify({ type: "registerFail" }));
@@ -321,11 +321,12 @@ wss.on("connection", (ws) => {
           direction: "down",
           state: "idle",
           frame: 0,
-          inventory: Array(20).fill(null), // Добавляем инвентарь
+          inventory: Array(20).fill(null),
+          npcQuests: {}, // Добавляем поле для квестов NPC
         };
 
         userDatabase.set(data.username, newPlayer);
-        await saveUserDatabase(dbCollection, data.username, newPlayer); // Сохраняем в MongoDB
+        await saveUserDatabase(dbCollection, data.username, newPlayer);
         ws.send(JSON.stringify({ type: "registerSuccess" }));
       }
     } else if (data.type === "login") {
@@ -334,7 +335,8 @@ wss.on("connection", (ws) => {
         clients.set(ws, data.username);
         const playerData = {
           ...player,
-          inventory: player.inventory || Array(20).fill(null), // Гарантируем наличие inventory
+          inventory: player.inventory || Array(20).fill(null),
+          npcQuests: player.npcQuests || {}, // Гарантируем наличие npcQuests
         };
         players.set(data.username, playerData);
         ws.send(
@@ -352,7 +354,8 @@ wss.on("connection", (ws) => {
             })),
             obstacles: obstacles,
             lights: lights,
-            inventory: playerData.inventory, // Отправляем гарантированно существующий inventory
+            inventory: playerData.inventory,
+            npcQuests: playerData.npcQuests, // Отправляем квесты
           })
         );
         wss.clients.forEach((client) => {
@@ -367,6 +370,34 @@ wss.on("connection", (ws) => {
         });
       } else {
         ws.send(JSON.stringify({ type: "loginFail" }));
+      }
+    } else if (data.type === "update") {
+      const id = clients.get(ws);
+      if (id) {
+        const existingPlayer = players.get(id);
+        const updatedPlayer = {
+          ...existingPlayer,
+          ...data.player,
+          inventory:
+            data.player.inventory ||
+            existingPlayer.inventory ||
+            Array(20).fill(null),
+          npcQuests: data.player.npcQuests || existingPlayer.npcQuests || {}, // Сохраняем или инициализируем npcQuests
+        };
+        players.set(id, updatedPlayer);
+        userDatabase.set(id, updatedPlayer);
+        let lastSaved = new Map();
+        if (!lastSaved.has(id) || Date.now() - lastSaved.get(id) > 5000) {
+          await saveUserDatabase(dbCollection, id, updatedPlayer);
+          lastSaved.set(id, Date.now());
+        }
+        wss.clients.forEach((client) => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(
+              JSON.stringify({ type: "update", player: updatedPlayer })
+            );
+          }
+        });
       }
     } else if (data.type === "move") {
       const id = clients.get(ws);
