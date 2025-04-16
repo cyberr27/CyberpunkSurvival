@@ -500,6 +500,8 @@ button:active {
 
 /* Кнопки действий */
 .action-btn {
+  position: absolute;
+  top: 83%;
   padding: 8px 16px;
   font-size: 14px;
   font-family: "Courier New", monospace;
@@ -641,6 +643,7 @@ button:active {
 
 #questDialog {
   position: absolute;
+  height: 50%;
   background: rgba(26, 26, 26, 0.9);
   border: 2px solid #00ffff;
   border-radius: 10px;
@@ -659,6 +662,8 @@ button:active {
 }
 
 #questDialog p {
+  position: absolute;
+  top: 25%;
   margin: 5px 0;
   font-size: 14px;
 }
@@ -678,21 +683,21 @@ button:active {
   box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
   transition: all 0.3s;
 }
-
 .quest-btn:hover {
   box-shadow: 0 0 15px rgba(0, 255, 255, 0.7);
   transform: scale(1.05);
 }
 .npc-portrait {
   position: absolute;
-  top: 10px;
-  left: 10px;
+  top: 6%;
+  left: 6%;
 }
 
 .npc-portrait img {
   object-fit: cover; /* Убедимся, что изображение заполняет контейнер */
   box-shadow: 0 0 10px rgba(0, 255, 255, 0.7); /* Неоновое свечение */
 }
+
 /* Адаптация для мобильных устройств (max-width: 500px) */
 @media (max-width: 500px) {
   body {
