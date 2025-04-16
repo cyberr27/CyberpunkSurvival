@@ -1,13 +1,11 @@
-// Данные NPC
 const NPC = {
-  x: 590, // Позиция NPC на карте (можно настроить)
+  x: 590,
   y: 3150,
   width: 40,
   height: 40,
-  interactionRadius: 50, // Радиус взаимодействия (50 пикселей)
+  interactionRadius: 50,
 };
 
-// Список заданий
 const QUESTS = [
   {
     id: 1,
@@ -39,15 +37,194 @@ const QUESTS = [
     reward: { type: "balyary", quantity: 1 },
     target: { type: "carrot", quantity: 1 },
   },
+  {
+    id: 6,
+    title: "Собери 2 банки тушёнки",
+    reward: { type: "balyary", quantity: 3 },
+    target: { type: "canned_meat", quantity: 2 },
+  },
+  {
+    id: 7,
+    title: "Собери 3 гриба",
+    reward: { type: "balyary", quantity: 2 },
+    target: { type: "mushroom", quantity: 3 },
+  },
+  {
+    id: 8,
+    title: "Собери 1 колбасу",
+    reward: { type: "balyary", quantity: 2 },
+    target: { type: "sausage", quantity: 1 },
+  },
+  {
+    id: 9,
+    title: "Собери 1 пакет крови",
+    reward: { type: "balyary", quantity: 4 },
+    target: { type: "blood_pack", quantity: 1 },
+  },
+  {
+    id: 10,
+    title: "Собери 2 куска хлеба",
+    reward: { type: "balyary", quantity: 2 },
+    target: { type: "bread", quantity: 2 },
+  },
+  {
+    id: 11,
+    title: "Собери 1 бутылку водки",
+    reward: { type: "balyary", quantity: 3 },
+    target: { type: "vodka_bottle", quantity: 1 },
+  },
+  {
+    id: 12,
+    title: "Собери 2 куска мяса",
+    reward: { type: "balyary", quantity: 3 },
+    target: { type: "meat_chunk", quantity: 2 },
+  },
+  {
+    id: 13,
+    title: "Собери 3 шприца с кровью",
+    reward: { type: "balyary", quantity: 2 },
+    target: { type: "blood_syringe", quantity: 3 },
+  },
+  {
+    id: 14,
+    title: "Собери 2 бутылки молока",
+    reward: { type: "balyary", quantity: 2 },
+    target: { type: "milk", quantity: 2 },
+  },
+  {
+    id: 15,
+    title: "Собери 1 банку сгущёнки",
+    reward: { type: "balyary", quantity: 3 },
+    target: { type: "condensed_milk", quantity: 1 },
+  },
+  {
+    id: 16,
+    title: "Собери 3 сушёной рыбы",
+    reward: { type: "balyary", quantity: 2 },
+    target: { type: "dried_fish", quantity: 3 },
+  },
+  {
+    id: 17,
+    title: "Собери 1 энергетик",
+    reward: { type: "balyary", quantity: 3 },
+    target: { type: "energy_drink", quantity: 1 },
+  },
+  {
+    id: 18,
+    title: "Собери 4 ореха",
+    reward: { type: "balyary", quantity: 3 },
+    target: { type: "nut", quantity: 4 },
+  },
+  {
+    id: 19,
+    title: "Собери 3 яблока",
+    reward: { type: "balyary", quantity: 3 },
+    target: { type: "apple", quantity: 3 },
+  },
+  {
+    id: 20,
+    title: "Собери 5 ягод",
+    reward: { type: "balyary", quantity: 3 },
+    target: { type: "berries", quantity: 5 },
+  },
+  {
+    id: 21,
+    title: "Собери 2 моркови",
+    reward: { type: "balyary", quantity: 2 },
+    target: { type: "carrot", quantity: 2 },
+  },
+  {
+    id: 22,
+    title: "Собери 2 бутылки воды",
+    reward: { type: "balyary", quantity: 4 },
+    target: { type: "water_bottle", quantity: 2 },
+  },
+  {
+    id: 23,
+    title: "Собери 3 банки тушёнки",
+    reward: { type: "balyary", quantity: 4 },
+    target: { type: "canned_meat", quantity: 3 },
+  },
+  {
+    id: 24,
+    title: "Собери 4 гриба",
+    reward: { type: "balyary", quantity: 3 },
+    target: { type: "mushroom", quantity: 4 },
+  },
+  {
+    id: 25,
+    title: "Собери 2 колбасы",
+    reward: { type: "balyary", quantity: 3 },
+    target: { type: "sausage", quantity: 2 },
+  },
+  {
+    id: 26,
+    title: "Собери 2 пакета крови",
+    reward: { type: "balyary", quantity: 5 },
+    target: { type: "blood_pack", quantity: 2 },
+  },
+  {
+    id: 27,
+    title: "Собери 3 куска хлеба",
+    reward: { type: "balyary", quantity: 3 },
+    target: { type: "bread", quantity: 3 },
+  },
+  {
+    id: 28,
+    title: "Собери 2 бутылки водки",
+    reward: { type: "balyary", quantity: 4 },
+    target: { type: "vodka_bottle", quantity: 2 },
+  },
+  {
+    id: 29,
+    title: "Собери 3 куска мяса",
+    reward: { type: "balyary", quantity: 4 },
+    target: { type: "meat_chunk", quantity: 3 },
+  },
+  {
+    id: 30,
+    title: "Собери 4 шприца с кровью",
+    reward: { type: "balyary", quantity: 3 },
+    target: { type: "blood_syringe", quantity: 4 },
+  },
+  {
+    id: 31,
+    title: "Собери 3 бутылки молока",
+    reward: { type: "balyary", quantity: 3 },
+    target: { type: "milk", quantity: 3 },
+  },
+  {
+    id: 32,
+    title: "Собери 2 банки сгущёнки",
+    reward: { type: "balyary", quantity: 4 },
+    target: { type: "condensed_milk", quantity: 2 },
+  },
+  {
+    id: 33,
+    title: "Собери 4 сушёной рыбы",
+    reward: { type: "balyary", quantity: 3 },
+    target: { type: "dried_fish", quantity: 4 },
+  },
+  {
+    id: 34,
+    title: "Собери 2 энергетика",
+    reward: { type: "balyary", quantity: 4 },
+    target: { type: "energy_drink", quantity: 2 },
+  },
+  {
+    id: 35,
+    title: "Собери 5 орехов",
+    reward: { type: "balyary", quantity: 4 },
+    target: { type: "nut", quantity: 5 },
+  },
 ];
 
-// Текущее состояние NPC
 let isNPCDialogOpen = false;
-let isNPCMet = false; // Флаг знакомства (будет синхронизироваться с сервером)
-let selectedQuest = null; // Выбранное задание
-let dialogStage = "greeting"; // Этапы диалога: greeting, questSelection
+let isNPCMet = false;
+let selectedQuest = null;
+let dialogStage = "greeting";
+let availableQuests = [];
 
-// Отрисовка NPC на карте
 function drawNPC() {
   const screenX = NPC.x - camera.x;
   const screenY = NPC.y - camera.y;
@@ -59,7 +236,6 @@ function drawNPC() {
   }
 }
 
-// Проверка расстояния до NPC
 function checkNPCProximity() {
   const me = players.get(myId);
   if (!me || me.health <= 0) return;
@@ -75,7 +251,6 @@ function checkNPCProximity() {
   }
 }
 
-// Открытие диалогового окна
 function openNPCDialog() {
   isNPCDialogOpen = true;
   const dialogContainer = document.createElement("div");
@@ -91,7 +266,6 @@ function openNPCDialog() {
   }
 }
 
-// Закрытие диалогового окна
 function closeNPCDialog() {
   isNPCDialogOpen = false;
   const dialogContainer = document.getElementById("npcDialog");
@@ -100,7 +274,6 @@ function closeNPCDialog() {
   }
 }
 
-// Диалог знакомства
 function showGreetingDialog(container) {
   dialogStage = "greeting";
   container.innerHTML = `
@@ -116,15 +289,23 @@ function showGreetingDialog(container) {
   });
 }
 
-// Диалог выбора задания
+function getRandomQuests(count) {
+  const shuffled = QUESTS.sort(() => 0.5 - Math.random());
+  return shuffled.slice(0, count);
+}
+
 function showQuestSelectionDialog(container) {
+  if (availableQuests.length === 0) {
+    availableQuests = getRandomQuests(5);
+  }
+
   container.innerHTML = `
       <img src="fotoQuestNPC.png" alt="NPC Photo" class="npc-photo">
       <p class="npc-text">Квестер: Выбери задание, братишка!</p>
       <div id="questList" class="quest-list"></div>
   `;
   const questList = document.getElementById("questList");
-  QUESTS.forEach((quest) => {
+  availableQuests.forEach((quest) => {
     const questItem = document.createElement("div");
     questItem.className = "quest-item";
     questItem.innerHTML = `<p>${quest.title} (Награда: ${quest.reward.quantity} баляр)</p>`;
@@ -136,13 +317,18 @@ function showQuestSelectionDialog(container) {
   });
 }
 
-// Выбор задания
 function selectQuest(quest) {
   selectedQuest = quest;
   console.log(`Выбрано задание: ${quest.title}`);
+  sendWhenReady(
+    ws,
+    JSON.stringify({
+      type: "selectQuest",
+      questId: quest.id,
+    })
+  );
 }
 
-// Проверка выполнения задания
 function checkQuestCompletion() {
   if (!selectedQuest) return;
 
@@ -153,7 +339,6 @@ function checkQuestCompletion() {
   const requiredQuantity = targetItem.quantity;
   let currentQuantity = 0;
 
-  // Проверяем инвентарь на наличие нужных предметов
   inventory.forEach((slot) => {
     if (slot && slot.type === targetItem.type) {
       currentQuantity += slot.quantity || 1;
@@ -165,23 +350,29 @@ function checkQuestCompletion() {
   }
 }
 
-// Выполнение задания
 function completeQuest() {
   if (!selectedQuest) return;
 
   const me = players.get(myId);
   if (!me) return;
 
-  // Удаляем требуемые предметы из инвентаря
   let itemsToRemove = selectedQuest.target.quantity;
   for (let i = 0; i < inventory.length && itemsToRemove > 0; i++) {
     if (inventory[i] && inventory[i].type === selectedQuest.target.type) {
-      inventory[i] = null;
-      itemsToRemove--;
+      if (inventory[i].quantity && inventory[i].quantity > 1) {
+        const removeFromSlot = Math.min(itemsToRemove, inventory[i].quantity);
+        inventory[i].quantity -= removeFromSlot;
+        itemsToRemove -= removeFromSlot;
+        if (inventory[i].quantity <= 0) {
+          inventory[i] = null;
+        }
+      } else {
+        inventory[i] = null;
+        itemsToRemove--;
+      }
     }
   }
 
-  // Добавляем награду
   const reward = selectedQuest.reward;
   const balyarySlot = inventory.findIndex(
     (slot) => slot && slot.type === "balyary"
@@ -196,7 +387,6 @@ function completeQuest() {
     }
   }
 
-  // Отправляем обновление инвентаря на сервер
   sendWhenReady(
     ws,
     JSON.stringify({
@@ -205,14 +395,36 @@ function completeQuest() {
     })
   );
 
+  const previousQuestId = selectedQuest.id;
+  availableQuests = availableQuests.filter((q) => q.id !== previousQuestId);
+
+  let newQuest;
+  do {
+    newQuest = QUESTS[Math.floor(Math.random() * QUESTS.length)];
+  } while (
+    newQuest.id === previousQuestId ||
+    availableQuests.some((q) => q.id === newQuest.id)
+  );
+
+  availableQuests.push(newQuest);
   console.log(
     `Задание "${selectedQuest.title}" выполнено! Получено ${reward.quantity} баляр.`
   );
+
   selectedQuest = null;
   updateInventoryDisplay();
 }
 
-// Функция для установки флага знакомства
 function setNPCMet(met) {
   isNPCMet = met;
+}
+
+function setSelectedQuest(questId) {
+  selectedQuest = QUESTS.find((q) => q.id === questId) || null;
+}
+
+function setAvailableQuests(questIds) {
+  availableQuests = questIds
+    .map((id) => QUESTS.find((q) => q.id === id))
+    .filter((q) => q);
 }
