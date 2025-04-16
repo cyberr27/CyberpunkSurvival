@@ -1,3 +1,4 @@
+// Получаем элементы DOM
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 const inventoryEl = document.getElementById("items");
@@ -27,6 +28,7 @@ const obstacles = [];
 const bullets = new Map();
 const pendingPickups = new Set();
 
+// Загрузка изображений
 const backgroundImage = new Image();
 backgroundImage.src = "backgr.png";
 const vegetationImage = new Image();
@@ -75,8 +77,10 @@ berriesImage.src = "berry.png";
 const carrotImage = new Image();
 carrotImage.src = "carrot.png";
 
+// Инвентарь игрока
 let inventory = Array(20).fill(null);
 
+// Конфигурация предметов
 const ITEM_CONFIG = {
   energy_drink: {
     effect: { energy: 20, water: 5 },
@@ -208,6 +212,7 @@ const worldHeight = 3300;
 
 const camera = { x: 0, y: 0 };
 
+// Создание источников света
 createLight(2445, 1540, "rgba(0, 255, 255, 0.4)", 1000);
 createLight(1314, 332, "rgba(255, 0, 255, 0.4)", 1000);
 createLight(506, 2246, "rgba(148, 0, 211, 0.4)", 1000);
@@ -222,6 +227,7 @@ createLight(1083, 1426, "rgba(109, 240, 194, 0.4)", 750);
 createLight(2000, 900, "rgba(240, 109, 240, 0.4)", 850);
 createLight(133, 373, "rgba(240, 109, 240, 0.4)", 850);
 
+// Переключение форм
 toRegister.addEventListener("click", () => {
   loginForm.style.display = "none";
   registerForm.style.display = "block";
@@ -1190,7 +1196,7 @@ function updateInventoryDisplay() {
         e.stopPropagation();
         console.log(`Клик по слоту ${i}, предмет: ${inventory[i].type}`);
         selectSlot(i, slot);
-        checkQuests(); // Проверка заданий при клике на инвентарь
+        checkQuests();
       };
 
       img.style.pointerEvents = "none";
@@ -1272,7 +1278,7 @@ function handleGameMessage(event) {
             }
           }
           updateInventoryDisplay();
-          checkQuests(); // Проверка заданий при подборе предмета
+          checkQuests();
         }
         updateStatsDisplay();
         break;
@@ -1311,7 +1317,7 @@ function handleGameMessage(event) {
           spawnTime: data.spawnTime,
         });
         updateInventoryDisplay();
-        checkQuests(); // Проверка заданий при выбросе предмета
+        checkQuests();
         break;
       case "chat":
         const messageEl = document.createElement("div");
@@ -1467,7 +1473,7 @@ function update(deltaTime) {
         updateResources();
         updateCamera();
         checkCollisions();
-        checkNPCDistance(); // Проверка расстояния до NPC
+        checkNPCDistance();
       }
 
       sendWhenReady(
@@ -1533,8 +1539,8 @@ function update(deltaTime) {
     );
   }
 
-  checkNPCDistance(); // Проверка расстояния до NPC
-  checkQuests(); // Проверка заданий
+  checkNPCDistance();
+  checkQuests();
 
   bullets.forEach((bullet) => {
     const screenX = bullet.x - camera.x;
@@ -1542,6 +1548,12 @@ function update(deltaTime) {
     console.log(`Отрисовка пули ${bullet.id} на x:${screenX}, y:${screenY}`);
     drawBullet(screenX, screenY);
   });
+
+  // Добавляем недостающие переменные для parallax-эффекта
+  const vegetationSpeed = 0.8;
+  const cloudsSpeed = 0.3;
+  const vegetationOffsetX = camera.x * vegetationSpeed;
+  const cloudsOffsetX = camera.x * cloudsSpeed;
 
   ctx.drawImage(
     vegetationImage,
@@ -1582,7 +1594,6 @@ function checkCollisions() {
   if (!me || me.health <= 0) return;
 
   items.forEach((item, id) => {
-    // Проверяем, существует ли предмет и не отправляли ли мы уже запрос
     if (!items.has(id)) {
       console.log(`Предмет ${id} уже удалён из items, пропускаем`);
       return;
@@ -1593,7 +1604,6 @@ function checkCollisions() {
       );
       return;
     }
-    // Центр предмета теперь смещён, так как размер 20x20
     const dx = me.x + 20 - (item.x + 10);
     const dy = me.y + 20 - (item.y + 10);
     const distance = Math.sqrt(dx * dx + dy * dy);
@@ -1601,7 +1611,6 @@ function checkCollisions() {
       `Проверка столкновения с ${item.type} (ID: ${id}), расстояние: ${distance}`
     );
     if (distance < 30) {
-      // Уменьшено с 40 до 30
       console.log(
         `Игрок ${myId} пытается подобрать предмет ${item.type} (ID: ${id})`
       );
@@ -1626,9 +1635,33 @@ function gameLoop(timestamp) {
   requestAnimationFrame(gameLoop);
 }
 
-// Инициализация изображений (без изменений)
+// Инициализация изображений
 let imagesLoaded = 0;
 function onImageLoad() {
   imagesLoaded++;
   if (imagesLoaded === 23) window.addEventListener("resize", resizeCanvas);
+}
+
+// Заглушка для NPC и квестов, так как они упомянуты, но не определены
+const NPC = {
+  id: "defaultNPC",
+  firstInteraction: true,
+  currentQuests: [],
+  completedQuests: [],
+  acceptedQuests: [],
+};
+
+function checkNPCDistance() {
+  // Заглушка, чтобы избежать ошибок
+  console.log("checkNPCDistance called (stub)");
+}
+
+function checkQuests() {
+  // Заглушка, чтобы избежать ошибок
+  console.log("checkQuests called (stub)");
+}
+
+function updateDialog() {
+  // Заглушка, чтобы избежать ошибок
+  console.log("updateDialog called (stub)");
 }
