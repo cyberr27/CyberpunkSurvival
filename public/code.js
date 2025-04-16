@@ -414,10 +414,39 @@ function handleAuthMessage(event) {
       myId = data.id;
       authContainer.style.display = "none";
       document.getElementById("gameContainer").style.display = "block";
-      data.players.forEach((p) => players.set(p.id, p));
-      lastDistance = players.get(myId).distanceTraveled || 0;
-      data.wolves.forEach((w) => wolves.set(w.id, w));
-      data.obstacles.forEach((o) => obstacles.push(o));
+
+      // Добавляем текущего игрока в players
+      const me = {
+        id: data.id,
+        x: data.x || 222, // Координаты по умолчанию, если сервер не прислал
+        y: data.y || 3205,
+        health: data.health || 100,
+        energy: data.energy || 100,
+        food: data.food || 100,
+        water: data.water || 100,
+        armor: data.armor || 0,
+        distanceTraveled: data.distanceTraveled || 0,
+        direction: data.direction || "down",
+        state: data.state || "idle",
+        frame: data.frame || 0,
+        inventory: data.inventory || Array(20).fill(null),
+        npcMet: data.npcMet || false,
+      };
+      players.set(myId, me);
+
+      // Добавляем остальных игроков
+      if (data.players) {
+        data.players.forEach((p) => {
+          if (p.id !== myId) {
+            // Избегаем перезаписи текущего игрока
+            players.set(p.id, p);
+          }
+        });
+      }
+
+      lastDistance = me.distanceTraveled || 0; // Теперь безопасно
+      data.wolves?.forEach((w) => wolves.set(w.id, w));
+      data.obstacles?.forEach((o) => obstacles.push(o));
       if (data.items) {
         data.items.forEach((item) =>
           items.set(item.itemId, {

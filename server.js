@@ -317,12 +317,12 @@ wss.on("connection", (ws) => {
           food: 100,
           water: 100,
           armor: 0,
-          distanceTraveled: 0,
+          distanceTraveled: 0, // Явно инициализируем
           direction: "down",
           state: "idle",
           frame: 0,
           inventory: Array(20).fill(null),
-          npcMet: false, // Добавляем флаг знакомства
+          npcMet: false,
         };
 
         userDatabase.set(data.username, newPlayer);
@@ -338,11 +338,28 @@ wss.on("connection", (ws) => {
           inventory: player.inventory || Array(20).fill(null),
           npcMet: player.npcMet || false, // Гарантируем наличие npcMet
         };
+        // Добавляем игрока в players, если его там ещё нет
+        players.set(data.username, playerData);
         ws.send(
           JSON.stringify({
             type: "loginSuccess",
             id: data.username,
-            players: Array.from(players.values()),
+            x: playerData.x,
+            y: playerData.y,
+            health: playerData.health,
+            energy: playerData.energy,
+            food: playerData.food,
+            water: playerData.water,
+            armor: playerData.armor,
+            distanceTraveled: playerData.distanceTraveled || 0, // Гарантируем наличие
+            direction: playerData.direction || "down",
+            state: playerData.state || "idle",
+            frame: playerData.frame || 0,
+            inventory: playerData.inventory,
+            npcMet: playerData.npcMet,
+            players: Array.from(players.values()).filter(
+              (p) => p.id !== data.username
+            ), // Исключаем текущего игрока
             wolves: [],
             items: Array.from(items.entries()).map(([itemId, item]) => ({
               itemId,
@@ -353,8 +370,6 @@ wss.on("connection", (ws) => {
             })),
             obstacles: obstacles,
             lights: lights,
-            inventory: playerData.inventory,
-            npcMet: playerData.npcMet, // Отправляем npcMet
           })
         );
         wss.clients.forEach((client) => {
