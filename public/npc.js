@@ -278,7 +278,7 @@ function showGreetingDialog(container) {
   dialogStage = "greeting";
   container.innerHTML = `
       <img src="fotoQuestNPC.png" alt="NPC Photo" class="npc-photo">
-      <p class="npc-text">Привет, я Квестер! Хочешь заработать баляры? Я дам тебе задания!</p>
+      <p class="npc-text">Привет, ого! Ни когда еще не видел человека без модернизаций! Видимо с деньгами у тебя совсем туго... Ну ничего можещь заработать у меня не много Баляр. Мои работники только и знают как шкерится в темных углах города. Находи предметы, если они мне нужны я заберу. До встречи хм... человек!</p>
       <button id="npcAgreeBtn" class="cyber-btn">Хорошо</button>
   `;
   document.getElementById("npcAgreeBtn").addEventListener("click", () => {
