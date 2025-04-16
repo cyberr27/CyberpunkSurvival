@@ -342,7 +342,6 @@ wss.on("connection", (ws) => {
             type: "loginSuccess",
             id: data.username,
             players: Array.from(players.values()),
-            wolves: [],
             items: Array.from(items.entries()).map(([itemId, item]) => ({
               itemId,
               x: item.x,
