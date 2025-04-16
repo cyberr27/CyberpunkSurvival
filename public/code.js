@@ -626,6 +626,11 @@ function startGame() {
   // Создаём NPC (например, один NPC в фиксированной точке)
   createNPC("npc1", 590, 3150, "Вася Сталкер"); // Добавляем NPC
 
+  // Запрашиваем статус взаимодействий
+  if (ws.readyState === WebSocket.OPEN) {
+    sendWhenReady(ws, JSON.stringify({ type: "getNPCInteractions" }));
+  }
+
   // Обработчик клавиш (только для стрельбы и чата)
   document.addEventListener("keydown", (e) => {
     const me = players.get(myId);
@@ -1409,6 +1414,34 @@ function handleGameMessage(event) {
       case "bulletRemoved":
         bullets.delete(data.bulletId);
         console.log(`Пуля ${data.bulletId} удалена`);
+        break;
+      case "npcInteractionUpdate":
+        const npc = npcs.get(data.npcId);
+        if (npc) {
+          npc.hasInteracted = data.hasInteracted;
+          console.log(
+            `Статус NPC ${npc.id} обновлён: hasInteracted=${npc.hasInteracted}`
+          );
+        }
+        break;
+      case "npcInteractions":
+        Object.entries(data.interactions).forEach(([npcId, hasInteracted]) => {
+          const npc = npcs.get(npcId);
+          if (npc) {
+            npc.hasInteracted = hasInteracted;
+            console.log(
+              `Инициализация NPC ${npcId}: hasInteracted=${hasInteracted}`
+            );
+          }
+        });
+        break;
+      case "getNPCInteractions":
+        Object.entries(data.interactions).forEach(([npcId, hasInteracted]) => {
+          const npc = npcs.get(npcId);
+          if (npc) {
+            npc.hasInteracted = hasInteracted;
+          }
+        });
         break;
     }
   } catch (error) {

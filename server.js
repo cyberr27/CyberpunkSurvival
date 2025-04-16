@@ -11,6 +11,42 @@ const wss = new WebSocket.Server({ server });
 const clients = new Map();
 const players = new Map();
 const userDatabase = new Map();
+const npcInteractions = new Map();
+
+wss.on("connection", (ws) => {
+  ws.on("message", (message) => {
+    const data = JSON.parse(message);
+    switch (data.type) {
+      case "npcInteraction":
+        const key = `${ws.playerId}_${data.npcId}`;
+        npcInteractions.set(key, data.hasInteracted);
+        ws.send(
+          JSON.stringify({
+            type: "npcInteractionUpdate",
+            npcId: data.npcId,
+            hasInteracted: data.hasInteracted,
+          })
+        );
+        break;
+      case "getNPCInteractions":
+        const interactions = {};
+        ["npc1"].forEach((npcId) => {
+          // Список всех NPC
+          const key = `${ws.playerId}_${npcId}`;
+          if (npcInteractions.has(key)) {
+            interactions[npcId] = npcInteractions.get(key);
+          }
+        });
+        ws.send(
+          JSON.stringify({
+            type: "npcInteractions",
+            interactions,
+          })
+        );
+        break;
+    }
+  });
+});
 
 // В начало файла, после определения констант
 INACTIVITY_TIMEOUT = 15 * 60 * 1000;
@@ -344,7 +380,6 @@ wss.on("connection", (ws) => {
             type: "loginSuccess",
             id: data.username,
             players: Array.from(players.values()),
-            wolves: [],
             items: Array.from(items.entries()).map(([itemId, item]) => ({
               itemId,
               x: item.x,

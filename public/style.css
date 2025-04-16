@@ -694,6 +694,11 @@ button:active {
   color: #00ffff;
   text-shadow: 0 0 5px rgba(0, 255, 255, 0.7);
 }
+.quest-progress {
+  color: #00ffff;
+  font-size: 12px;
+  margin-left: 10px;
+}
 /* Адаптация для мобильных устройств (max-width: 500px) */
 @media (max-width: 500px) {
   body {
