@@ -84,6 +84,10 @@ const berriesImage = new Image();
 berriesImage.src = "berry.png";
 const carrotImage = new Image();
 carrotImage.src = "carrot.png";
+const npcSpriteImage = new Image();
+npcSpriteImage.src = "npc_sprite.png";
+const npcPhotoImage = new Image();
+npcPhotoImage.src = "fotoQuestNPC.png";
 
 // Инвентарь игрока (массив на 20 слотов, изначально пустой)
 let inventory = Array(20).fill(null);
@@ -428,11 +432,13 @@ function handleAuthMessage(event) {
         lights.length = 0;
         data.lights.forEach((light) => lights.push(light));
       }
+      inventory = data.inventory || Array(20).fill(null); // Инициализация инвентаря
+      setNPCMet(data.npcMet || false); // Устанавливаем флаг знакомства
       resizeCanvas();
       ws.onmessage = handleGameMessage;
       console.log("Переключен обработчик на handleGameMessage");
       startGame();
-      updateOnlineCount(); // Добавляем вызов
+      updateOnlineCount();
       break;
     case "registerSuccess":
       registerError.textContent = "Регистрация успешна! Войдите.";
@@ -530,6 +536,10 @@ function checkBulletCollision(bullet) {
 // Функция создания источника света
 function createLight(x, y, color, radius) {
   lights.push({ x, y, color, radius });
+}
+
+function setNPCMet(met) {
+  isNPCMet = met;
 }
 
 function checkCollision(newX, newY) {
@@ -1359,6 +1369,7 @@ function handleGameMessage(event) {
         });
         if (data.player.id === myId) {
           inventory = data.player.inventory || inventory;
+          setNPCMet(data.player.npcMet || false); // Обновляем npcMet
           updateStatsDisplay();
           updateInventoryDisplay();
         }
@@ -1473,8 +1484,6 @@ function update(deltaTime) {
   const me = players.get(myId);
   if (!me || me.health <= 0) return;
 
-  console.log(`DeltaTime: ${deltaTime}, FPS: ${1000 / deltaTime}`); // Для отладки
-
   if (isMoving) {
     const dx = targetX - me.x;
     const dy = targetY - me.y;
@@ -1523,6 +1532,8 @@ function update(deltaTime) {
         updateResources();
         updateCamera();
         checkCollisions();
+        checkNPCProximity(); // Проверка близости к NPC
+        checkQuestCompletion(); // Проверка выполнения заданий
       }
 
       sendWhenReady(
@@ -1695,6 +1706,8 @@ function draw(deltaTime) {
     canvas.width,
     canvas.height
   );
+
+  drawNPC();
 
   players.forEach((player) => {
     const screenX = player.x - camera.x;

@@ -321,7 +321,8 @@ wss.on("connection", (ws) => {
           direction: "down",
           state: "idle",
           frame: 0,
-          inventory: Array(20).fill(null), // Добавляем инвентарь
+          inventory: Array(20).fill(null),
+          npcMet: false, // Добавляем флаг знакомства
         };
 
         userDatabase.set(data.username, newPlayer);
@@ -334,9 +335,9 @@ wss.on("connection", (ws) => {
         clients.set(ws, data.username);
         const playerData = {
           ...player,
-          inventory: player.inventory || Array(20).fill(null), // Гарантируем наличие inventory
+          inventory: player.inventory || Array(20).fill(null),
+          npcMet: player.npcMet || false, // Гарантируем наличие npcMet
         };
-        players.set(data.username, playerData);
         ws.send(
           JSON.stringify({
             type: "loginSuccess",
@@ -352,7 +353,8 @@ wss.on("connection", (ws) => {
             })),
             obstacles: obstacles,
             lights: lights,
-            inventory: playerData.inventory, // Отправляем гарантированно существующий inventory
+            inventory: playerData.inventory,
+            npcMet: playerData.npcMet, // Отправляем npcMet
           })
         );
         wss.clients.forEach((client) => {
@@ -368,6 +370,16 @@ wss.on("connection", (ws) => {
       } else {
         ws.send(JSON.stringify({ type: "loginFail" }));
       }
+    } else if (data.type === "meetNPC") {
+      const id = clients.get(ws);
+      if (id) {
+        const player = players.get(id);
+        player.npcMet = data.npcMet;
+        players.set(id, { ...player });
+        userDatabase.set(id, { ...player });
+        await saveUserDatabase(dbCollection, id, player);
+        console.log(`Игрок ${id} познакомился с NPC: npcMet=${data.npcMet}`);
+      }
     } else if (data.type === "move") {
       const id = clients.get(ws);
       if (id) {
@@ -375,7 +387,8 @@ wss.on("connection", (ws) => {
         const updatedPlayer = {
           ...existingPlayer,
           ...data,
-          inventory: existingPlayer.inventory || Array(20).fill(null), // Сохраняем или инициализируем inventory
+          inventory: existingPlayer.inventory || Array(20).fill(null),
+          npcMet: existingPlayer.npcMet || false, // Сохраняем npcMet
         };
         players.set(id, updatedPlayer);
         userDatabase.set(id, updatedPlayer);
@@ -392,8 +405,27 @@ wss.on("connection", (ws) => {
           }
         });
       }
-    }
-    if (data.type === "pickup") {
+    } else if (data.type === "updateInventory") {
+      const id = clients.get(ws);
+      if (id) {
+        const player = players.get(id);
+        player.inventory = data.inventory;
+        players.set(id, { ...player });
+        userDatabase.set(id, { ...player });
+        await saveUserDatabase(dbCollection, id, player);
+        wss.clients.forEach((client) => {
+          if (
+            client.readyState === WebSocket.OPEN &&
+            clients.get(client) === id
+          ) {
+            client.send(
+              JSON.stringify({ type: "update", player: { id, ...player } })
+            );
+          }
+        });
+        console.log(`Инвентарь игрока ${id} обновлён`);
+      }
+    } else if (data.type === "pickup") {
       const id = clients.get(ws);
       if (!id) return;
 
