@@ -1404,6 +1404,9 @@ function handleGameMessage(event) {
         bullets.delete(data.bulletId);
         console.log(`Пуля ${data.bulletId} удалена`);
         break;
+      case "interactionResponse":
+        window.handleInteractionResponse(data);
+        break;
     }
   } catch (error) {
     console.error("Ошибка в handleGameMessage:", error);

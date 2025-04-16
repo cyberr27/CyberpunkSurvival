@@ -7,10 +7,11 @@ const NPC_CONFIG = {
   portrait: new Image(),
   name: "John",
   quests: [
+    // Существующие задания
     {
       id: "quest1",
       title: "Собери 2 ореха",
-      description: "Найди и подбери 2 орехов в мире.",
+      description: "Найди и подбери 2 ореха в мире.",
       reward: { type: "balyary", quantity: 5 },
       condition: () => {
         const nuts = inventory.filter(
@@ -62,8 +63,114 @@ const NPC_CONFIG = {
         }
       },
     },
+    // Новые задания
+    {
+      id: "quest4",
+      title: "Найти бутылку воды",
+      description: "Найди и подбери 1 бутылку воды (water_bottle).",
+      reward: { type: "balyary", quantity: 1 },
+      condition: () => {
+        return inventory.some((item) => item && item.type === "water_bottle");
+      },
+      onComplete: () => {
+        for (let i = 0; i < inventory.length; i++) {
+          if (inventory[i] && inventory[i].type === "water_bottle") {
+            inventory[i] = null;
+            break;
+          }
+        }
+      },
+    },
+    {
+      id: "quest5",
+      title: "Найти молоко",
+      description: "Найди и подбери 1 молоко (milk).",
+      reward: { type: "balyary", quantity: 2 },
+      condition: () => {
+        return inventory.some((item) => item && item.type === "milk");
+      },
+      onComplete: () => {
+        for (let i = 0; i < inventory.length; i++) {
+          if (inventory[i] && inventory[i].type === "milk") {
+            inventory[i] = null;
+            break;
+          }
+        }
+      },
+    },
+    {
+      id: "quest6",
+      title: "Найти колбасу",
+      description: "Найди и подбери 1 колбасу (sausage).",
+      reward: { type: "balyary", quantity: 1 },
+      condition: () => {
+        return inventory.some((item) => item && item.type === "sausage");
+      },
+      onComplete: () => {
+        for (let i = 0; i < inventory.length; i++) {
+          if (inventory[i] && inventory[i].type === "sausage") {
+            inventory[i] = null;
+            break;
+          }
+        }
+      },
+    },
+    {
+      id: "quest7",
+      title: "Найти энергетик",
+      description: "Найди и подбери 1 энергетик (energy_drink).",
+      reward: { type: "balyary", quantity: 1 },
+      condition: () => {
+        return inventory.some((item) => item && item.type === "energy_drink");
+      },
+      onComplete: () => {
+        for (let i = 0; i < inventory.length; i++) {
+          if (inventory[i] && inventory[i].type === "energy_drink") {
+            inventory[i] = null;
+            break;
+          }
+        }
+      },
+    },
+    {
+      id: "quest8",
+      title: "Найти сушёную рыбу",
+      description: "Найди и подбери 1 сушёную рыбу (dried_fish).",
+      reward: { type: "balyary", quantity: 1 },
+      condition: () => {
+        return inventory.some((item) => item && item.type === "dried_fish");
+      },
+      onComplete: () => {
+        for (let i = 0; i < inventory.length; i++) {
+          if (inventory[i] && inventory[i].type === "dried_fish") {
+            inventory[i] = null;
+            break;
+          }
+        }
+      },
+    },
+    {
+      id: "quest9",
+      title: "Найти кусок мяса",
+      description: "Найди и подбери 1 кусок мяса (meat_chunk).",
+      reward: { type: "balyary", quantity: 2 },
+      condition: () => {
+        return inventory.some((item) => item && item.type === "meat_chunk");
+      },
+      onComplete: () => {
+        for (let i = 0; i < inventory.length; i++) {
+          if (inventory[i] && inventory[i].type === "meat_chunk") {
+            inventory[i] = null;
+            break;
+          }
+        }
+      },
+    },
   ],
 };
+
+// Пул всех возможных заданий для замены
+const QUEST_POOL = NPC_CONFIG.quests;
 
 // Загрузка спрайта и портрета NPC
 NPC_CONFIG.sprite.src = "questNPC.png";
@@ -73,9 +180,20 @@ NPC_CONFIG.portrait.src = "fotoQuestNPC.png";
 let activeQuest = null;
 let questDialogOpen = false;
 let questDialogEl = null;
+let currentQuests = []; // Текущие 5 заданий для отображения
+let hasInteracted = false; // Флаг первого взаимодействия (будет загружаться с сервера)
 
-// Отслеживание первого взаимодействия для каждого игрока
-const firstInteraction = {};
+// Инициализация текущих заданий (выбираем 5 случайных)
+function initializeQuests() {
+  currentQuests = [];
+  const availableQuests = [...QUEST_POOL];
+  for (let i = 0; i < 5; i++) {
+    if (availableQuests.length === 0) break;
+    const randomIndex = Math.floor(Math.random() * availableQuests.length);
+    currentQuests.push(availableQuests[randomIndex]);
+    availableQuests.splice(randomIndex, 1);
+  }
+}
 
 // Создание диалогового окна
 function createQuestDialog() {
@@ -99,6 +217,20 @@ function createQuestDialog() {
   document.getElementById("gameContainer").appendChild(questDialogEl);
 }
 
+// Запрос состояния взаимодействия с сервера
+function fetchInteractionStatus() {
+  if (ws.readyState === WebSocket.OPEN) {
+    sendWhenReady(
+      ws,
+      JSON.stringify({
+        type: "fetchInteraction",
+        playerId: myId,
+        npcId: NPC_CONFIG.id,
+      })
+    );
+  }
+}
+
 // Обновление диалогового окна
 function updateQuestDialog() {
   if (!questDialogEl) return;
@@ -110,22 +242,26 @@ function updateQuestDialog() {
 
   let content = `<h2>${NPC_CONFIG.name}</h2>`;
 
-  // Добавляем портрет NPC в левом верхнем углу диалогового окна
+  // Добавляем портрет NPC
   content += `
     <div class="npc-portrait">
       <img src="${NPC_CONFIG.portrait.src}" alt="${NPC_CONFIG.name}" style="width: 60px; height: 60px; border: 2px solid #00ffff; border-radius: 5px;" />
     </div>
   `;
 
-  // Проверяем, первое ли это взаимодействие
-  if (firstInteraction[myId] === undefined) {
-    // Начальный текст
+  // Проверяем первое взаимодействие
+  if (!hasInteracted) {
     content += `<p id="JohnText">Привет, ого! Никогда в жизни не видел человека на котором было бы столько мяса! Видимо с деньгами у тебя совсем туго раз не можешь позволить себе модернизацию... Ну ничего можешь подзаработать у меня пару - тройку Баляр. Я поставляю продукты в местный магазин - можешь попробовать достать их для меня, мои работники только и знают как шкерится. Если условия устраивают, бери задание, выполняй и возвращайся за наградой!</p>`;
     content += `<button id="continueBtn" class="action-btn use-btn">Продолжить</button>`;
   } else {
-    // Стандартная логика для последующих взаимодействий
+    // Стандартная логика
     if (activeQuest) {
-      const quest = NPC_CONFIG.quests.find((q) => q.id === activeQuest);
+      const quest = currentQuests.find((q) => q.id === activeQuest);
+      if (!quest) {
+        activeQuest = null; // Сбрасываем, если квест больше не в списке
+        updateQuestDialog();
+        return;
+      }
       content += `<p><strong>${quest.title}</strong></p>`;
       content += `<p>${quest.description}</p>`;
       if (quest.condition()) {
@@ -136,7 +272,7 @@ function updateQuestDialog() {
       content += `<button id="abandonQuest" class="action-btn drop-btn">Отказаться</button>`;
     } else {
       content += `<p>Выбери задание:</p>`;
-      NPC_CONFIG.quests.forEach((quest) => {
+      currentQuests.forEach((quest) => {
         content += `<button class="quest-btn" data-quest-id="${quest.id}">${quest.title}</button>`;
       });
     }
@@ -145,11 +281,23 @@ function updateQuestDialog() {
   questDialogEl.innerHTML = content;
 
   // Обработчики кнопок
-  if (firstInteraction[myId] === undefined) {
+  if (!hasInteracted) {
     const continueBtn = questDialogEl.querySelector("#continueBtn");
     if (continueBtn) {
       continueBtn.addEventListener("click", () => {
-        firstInteraction[myId] = true;
+        hasInteracted = true;
+        // Отправляем серверу информацию о первом взаимодействии
+        if (ws.readyState === WebSocket.OPEN) {
+          sendWhenReady(
+            ws,
+            JSON.stringify({
+              type: "setInteraction",
+              playerId: myId,
+              npcId: NPC_CONFIG.id,
+              hasInteracted: true,
+            })
+          );
+        }
         updateQuestDialog();
       });
     }
@@ -177,9 +325,9 @@ function updateQuestDialog() {
   }
 }
 
-// Получение награды
+// Получение награды и замена задания
 function claimQuestReward() {
-  const quest = NPC_CONFIG.quests.find((q) => q.id === activeQuest);
+  const quest = currentQuests.find((q) => q.id === activeQuest);
   if (!quest || !quest.condition()) return;
 
   // Выполняем логику завершения
@@ -204,6 +352,21 @@ function claimQuestReward() {
         };
       }
     }
+  }
+
+  // Заменяем выполненное задание на новое
+  const availableQuests = QUEST_POOL.filter(
+    (q) => !currentQuests.some((cq) => cq.id === q.id)
+  );
+  if (availableQuests.length > 0) {
+    const randomIndex = Math.floor(Math.random() * availableQuests.length);
+    const newQuest = availableQuests[randomIndex];
+    const questIndex = currentQuests.findIndex((q) => q.id === activeQuest);
+    currentQuests[questIndex] = newQuest;
+  } else {
+    // Если нет доступных заданий, просто удаляем текущее
+    const questIndex = currentQuests.findIndex((q) => q.id === activeQuest);
+    currentQuests.splice(questIndex, 1);
   }
 
   // Обновляем инвентарь
@@ -281,9 +444,20 @@ function drawNPC() {
 // Инициализация NPC
 function initNPC() {
   createQuestDialog();
+  initializeQuests();
+  fetchInteractionStatus();
 }
 
-// Экспортируем функции для использования в code.js
+// Обработка ответа от сервера о состоянии взаимодействия
+function handleInteractionResponse(data) {
+  if (data.playerId === myId && data.npcId === NPC_CONFIG.id) {
+    hasInteracted = data.hasInteracted || false;
+    updateQuestDialog();
+  }
+}
+
+// Экспортируем функции
 window.initNPC = initNPC;
 window.checkNPCCollision = checkNPCCollision;
 window.drawNPC = drawNPC;
+window.handleInteractionResponse = handleInteractionResponse;

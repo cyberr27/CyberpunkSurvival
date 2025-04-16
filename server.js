@@ -82,7 +82,11 @@ async function connectToDatabase() {
   try {
     await mongoClient.connect();
     console.log("Подключено к MongoDB");
-    return mongoClient.db("cyberpunk_survival").collection("users");
+    const db = mongoClient.db("cyberpunk_survival");
+    return {
+      users: db.collection("users"),
+      npcInteractions: db.collection("npc_interactions"), // Новая коллекция
+    };
   } catch (error) {
     console.error("Ошибка подключения к MongoDB:", error);
     process.exit(1);
@@ -114,17 +118,17 @@ async function saveUserDatabase(collection, username, player) {
 
 // Добавляем функцию initializeServer
 async function initializeServer() {
-  const collection = await connectToDatabase();
-  await loadUserDatabase(collection);
+  const collections = await connectToDatabase();
+  await loadUserDatabase(collections.users);
   console.log("Сервер готов к работе после загрузки базы данных");
-  return collection;
+  return collections;
 }
 
 // Теперь вызов функции будет работать
-let dbCollection; // Объявляем переменную для коллекции
+let dbCollections; // Обновляем переменную
 initializeServer()
-  .then((collection) => {
-    dbCollection = collection;
+  .then((collections) => {
+    dbCollections = collections;
     server.listen(PORT, () => {
       console.log(`WebSocket server running on ws://localhost:${PORT}`);
     });
@@ -682,6 +686,47 @@ wss.on("connection", (ws) => {
           } else {
             console.log(`Не удалось найти место для выброса ${item.type}`);
           }
+        }
+      }
+    } else if (data.type === "fetchInteraction") {
+      const id = clients.get(ws);
+      if (id && data.playerId === id && data.npcId) {
+        try {
+          const interaction = await dbCollections.npcInteractions.findOne({
+            playerId: id,
+            npcId: data.npcId,
+          });
+          ws.send(
+            JSON.stringify({
+              type: "interactionResponse",
+              playerId: id,
+              npcId: data.npcId,
+              hasInteracted: interaction ? interaction.hasInteracted : false,
+            })
+          );
+        } catch (error) {
+          console.error("Ошибка при получении данных взаимодействия:", error);
+        }
+      }
+    } else if (data.type === "setInteraction") {
+      const id = clients.get(ws);
+      if (
+        id &&
+        data.playerId === id &&
+        data.npcId &&
+        typeof data.hasInteracted === "boolean"
+      ) {
+        try {
+          await dbCollections.npcInteractions.updateOne(
+            { playerId: id, npcId: data.npcId },
+            { $set: { hasInteracted: data.hasInteracted } },
+            { upsert: true }
+          );
+          console.log(
+            `Взаимодействие ${id} с NPC ${data.npcId} сохранено: ${data.hasInteracted}`
+          );
+        } catch (error) {
+          console.error("Ошибка при сохранении данных взаимодействия:", error);
         }
       }
     }
