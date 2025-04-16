@@ -1641,27 +1641,3 @@ function onImageLoad() {
   imagesLoaded++;
   if (imagesLoaded === 23) window.addEventListener("resize", resizeCanvas);
 }
-
-// Заглушка для NPC и квестов, так как они упомянуты, но не определены
-const NPC = {
-  id: "defaultNPC",
-  firstInteraction: true,
-  currentQuests: [],
-  completedQuests: [],
-  acceptedQuests: [],
-};
-
-function checkNPCDistance() {
-  // Заглушка, чтобы избежать ошибок
-  console.log("checkNPCDistance called (stub)");
-}
-
-function checkQuests() {
-  // Заглушка, чтобы избежать ошибок
-  console.log("checkQuests called (stub)");
-}
-
-function updateDialog() {
-  // Заглушка, чтобы избежать ошибок
-  console.log("updateDialog called (stub)");
-}

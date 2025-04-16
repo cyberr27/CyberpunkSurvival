@@ -638,6 +638,63 @@ button:active {
     box-shadow: 0 0 20px rgba(255, 0, 255, 1), 0 0 30px rgba(0, 255, 255, 0.8);
   }
 }
+.npc-dialog {
+  position: absolute;
+  top: 20%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  border: 2px solid #00ffff;
+  padding: 20px;
+  display: flex;
+  color: #00ffff;
+  font-family: "Courier New", monospace;
+}
+
+.npc-photo-frame {
+  margin-right: 20px;
+}
+
+.npc-photo {
+  width: 100px;
+  height: 100px;
+}
+
+.npc-dialog-content {
+  flex: 1;
+}
+
+.npc-name {
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+
+.npc-text {
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+
+.npc-btn {
+  background: #00ffff;
+  color: #000;
+  border: none;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+.quest-list {
+  list-style: none;
+  padding: 0;
+}
+
+.quest-item {
+  cursor: pointer;
+  margin: 5px 0;
+}
+
+.quest-item:hover {
+  color: #ff00ff;
+}
 /* Адаптация для мобильных устройств (max-width: 500px) */
 @media (max-width: 500px) {
   body {
