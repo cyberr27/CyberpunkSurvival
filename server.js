@@ -111,21 +111,29 @@ async function saveUserDatabase(collection, username, player) {
       { $set: player },
       { upsert: true }
     );
+    console.log(`Данные игрока ${username} сохранены в MongoDB`);
   } catch (error) {
-    console.error("Ошибка при сохранении данных в MongoDB:", error);
+    console.error(
+      `Ошибка при сохранении данных игрока ${username} в MongoDB:`,
+      error
+    );
   }
 }
 
+let dbCollections = null;
 // Добавляем функцию initializeServer
 async function initializeServer() {
-  const collections = await connectToDatabase();
-  await loadUserDatabase(collections.users);
-  console.log("Сервер готов к работе после загрузки базы данных");
-  return collections;
+  try {
+    const collections = await connectToDatabase();
+    await loadUserDatabase(collections.users);
+    console.log("Сервер готов к работе после загрузки базы данных");
+    return collections;
+  } catch (error) {
+    console.error("Ошибка при инициализации сервера:", error);
+    throw error;
+  }
 }
-
 // Теперь вызов функции будет работать
-let dbCollections; // Обновляем переменную
 initializeServer()
   .then((collections) => {
     dbCollections = collections;
@@ -134,7 +142,7 @@ initializeServer()
     });
   })
   .catch((error) => {
-    console.error("Ошибка при инициализации сервера:", error);
+    console.error("Ошибка при запуске сервера:", error);
     process.exit(1);
   });
 
@@ -329,7 +337,7 @@ wss.on("connection", (ws) => {
         };
 
         userDatabase.set(data.username, newPlayer);
-        await saveUserDatabase(dbCollection, data.username, newPlayer); // Сохраняем в MongoDB
+        await saveUserDatabase(dbCollections.users, id, updatedPlayer);
         ws.send(JSON.stringify({ type: "registerSuccess" }));
       }
     } else if (data.type === "login") {
@@ -385,7 +393,7 @@ wss.on("connection", (ws) => {
         userDatabase.set(id, updatedPlayer);
         let lastSaved = new Map();
         if (!lastSaved.has(id) || Date.now() - lastSaved.get(id) > 5000) {
-          await saveUserDatabase(dbCollection, id, updatedPlayer);
+          await saveUserDatabase(dbCollections.users, id, updatedPlayer);
           lastSaved.set(id, Date.now());
         }
         wss.clients.forEach((client) => {
@@ -448,7 +456,7 @@ wss.on("connection", (ws) => {
       items.delete(data.itemId);
       players.set(id, { ...player });
       userDatabase.set(id, { ...player });
-      await saveUserDatabase(dbCollection, id, player);
+      await saveUserDatabase(dbCollections.users, id, updatedPlayer);
 
       wss.clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN) {
@@ -573,7 +581,7 @@ wss.on("connection", (ws) => {
           player.inventory[slotIndex] = null;
           players.set(id, { ...player });
           userDatabase.set(id, { ...player });
-          await saveUserDatabase(dbCollection, id, player);
+          await saveUserDatabase(dbCollections.users, id, updatedPlayer);
 
           wss.clients.forEach((client) => {
             if (client.readyState === WebSocket.OPEN) {
@@ -654,7 +662,7 @@ wss.on("connection", (ws) => {
 
             players.set(id, { ...player });
             userDatabase.set(id, { ...player });
-            await saveUserDatabase(dbCollection, id, player);
+            await saveUserDatabase(dbCollections.users, id, updatedPlayer);
 
             wss.clients.forEach((client) => {
               if (client.readyState === WebSocket.OPEN) {
@@ -738,7 +746,7 @@ wss.on("connection", (ws) => {
       const player = players.get(id);
       if (player) {
         userDatabase.set(id, { ...player });
-        await saveUserDatabase(dbCollection, id, player);
+        await saveUserDatabase(dbCollections.users, id, updatedPlayer);
         console.log(
           `Данные игрока ${id} сохранены перед отключением. Код: ${code}, Причина: ${reason}`
         );
