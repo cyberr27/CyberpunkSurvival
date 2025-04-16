@@ -410,7 +410,7 @@ function handleAuthMessage(event) {
       myId = data.id;
       authContainer.style.display = "none";
       document.getElementById("gameContainer").style.display = "block";
-      data.players.forEach((p) => players.set(p.id, p));
+      data.players.forEach((p) => players.set(p.id, p)); // Строка 415
       lastDistance = players.get(myId).distanceTraveled || 0;
       data.wolves.forEach((w) => wolves.set(w.id, w));
       data.obstacles.forEach((o) => obstacles.push(o));
@@ -432,7 +432,7 @@ function handleAuthMessage(event) {
       ws.onmessage = handleGameMessage;
       console.log("Переключен обработчик на handleGameMessage");
       startGame();
-      updateOnlineCount(); // Добавляем вызов
+      updateOnlineCount();
       break;
     case "registerSuccess":
       registerError.textContent = "Регистрация успешна! Войдите.";
