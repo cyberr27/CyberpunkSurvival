@@ -683,6 +683,40 @@ button:active {
   box-shadow: 0 0 15px rgba(0, 255, 255, 0.7);
   transform: scale(1.05);
 }
+.npc-portrait {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+}
+
+.npc-portrait img {
+  object-fit: cover; /* Убедимся, что изображение заполняет контейнер */
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.7); /* Неоновое свечение */
+}
+
+/* Стили для списка квестов */
+#questList {
+  position: absolute;
+  background: rgba(26, 26, 26, 0.9);
+  border: 2px solid #00ffff;
+  border-radius: 10px;
+  padding: 10px;
+  color: #00ffff;
+  font-family: "Courier New", monospace;
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.7);
+  z-index: 100;
+}
+
+#questList h3 {
+  margin: 0 0 10px;
+  font-size: 16px;
+  text-align: center;
+}
+
+#questList p {
+  margin: 5px 0;
+  font-size: 12px;
+}
 /* Адаптация для мобильных устройств (max-width: 500px) */
 @media (max-width: 500px) {
   body {

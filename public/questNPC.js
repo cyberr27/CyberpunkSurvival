@@ -6,6 +6,7 @@ const NPC_CONFIG = {
   x: 590,
   y: 3100,
   sprite: new Image(),
+  portrait: new Image(), // Добавляем изображение портрета NPC
   name: "John",
   quests: [
     {
@@ -23,7 +24,7 @@ const NPC_CONFIG = {
         let nutsToRemove = 2;
         for (let i = 0; i < inventory.length && nutsToRemove > 0; i++) {
           if (inventory[i] && inventory[i].type === "nut") {
-            _inventory[i] = null;
+            inventory[i] = null;
             nutsToRemove--;
           }
         }
@@ -66,8 +67,9 @@ const NPC_CONFIG = {
   ],
 };
 
-// Загрузка спрайта NPC
-NPC_CONFIG.sprite.src = "questNPC.png"; // Убедись, что у тебя есть этот спрайт в папке public
+// Загрузка спрайта и портрета NPC
+NPC_CONFIG.sprite.src = "questNPC.png"; // Спрайт для игрового поля
+NPC_CONFIG.portrait.src = "fotoQuestNPC.png"; // Портрет для диалогового окна и списка миссий
 
 // Состояние квестов
 let activeQuest = null;
@@ -112,10 +114,14 @@ function updateQuestDialog() {
 
   // Проверяем, первое ли это взаимодействие
   if (firstInteraction[myId] === undefined) {
-    // МЕСТО ДЛЯ ВАШЕГО ТЕКСТА
-    // Вставьте ваш начальный текст здесь, например:
-    // content += `<p>Привет, я Джон! Впервые здесь? Давай я расскажу тебе, что к чему...</p>`;
-    content += `<p>Привет, как зовут? Что то не видал тебя здесь раньше...</p>`;
+    // Добавляем портрет NPC в левом верхнем углу диалогового окна
+    content += `
+      <div class="npc-portrait">
+        <img src="${NPC_CONFIG.portrait.src}" alt="${NPC_CONFIG.name}" style="width: 60px; height: 60px; border: 2px solid #00ffff; border-radius: 5px;" />
+      </div>
+    `;
+    // Начальный текст
+    content += `<p>Привет, как зовут? Что-то не видал тебя здесь раньше...</p>`;
     content += `<button id="continueBtn" class="action-btn use-btn">Продолжить</button>`;
   } else {
     // Стандартная логика для последующих взаимодействий
@@ -273,12 +279,64 @@ function drawNPC() {
   }
 }
 
-// Инициализация NPC
+// Создание контейнера для списка квестов
+function createQuestList() {
+  let questListEl = document.getElementById("questList");
+  if (questListEl) return;
+
+  questListEl = document.createElement("div");
+  questListEl.id = "questList";
+  questListEl.style.position = "absolute";
+  questListEl.style.top = "150px"; // Под статистикой
+  questListEl.style.left = "10px";
+  questListEl.style.width = "250px";
+  questListEl.style.background = "rgba(26, 26, 26, 0.9)";
+  questListEl.style.border = "2px solid #00ffff";
+  questListEl.style.borderRadius = "10px";
+  questListEl.style.padding = "10px";
+  questListEl.style.color = "#00ffff";
+  questListEl.style.fontFamily = '"Courier New", monospace';
+  questListEl.style.textShadow = "0 0 5px rgba(0, 255, 255, 0.7)";
+  questListEl.style.zIndex = "100";
+  document.getElementById("gameContainer").appendChild(questListEl);
+}
+
+// Обновление списка квестов
+function updateQuestList() {
+  const questListEl = document.getElementById("questList");
+  if (!questListEl) return;
+
+  let content = `<h3>Активные квесты</h3>`;
+  // Добавляем портрет NPC над списком квестов
+  content += `
+    <div class="npc-portrait">
+      <img src="${NPC_CONFIG.portrait.src}" alt="${NPC_CONFIG.name}" style="width: 40px; height: 40px; border: 2px solid #00ffff; border-radius: 5px; margin-bottom: 10px;" />
+    </div>
+  `;
+  if (activeQuest) {
+    const quest = NPC_CONFIG.quests.find((q) => q.id === activeQuest);
+    content += `<p><strong>${quest.title}</strong></p>`;
+    content += `<p>${quest.description}</p>`;
+    content += quest.condition()
+      ? `<p style="color: #00ff00;">Готово к сдаче</p>`
+      : `<p>В процессе...</p>`;
+  } else {
+    content += `<p>Нет активных квестов.</p>`;
+  }
+
+  questListEl.innerHTML = content;
+}
+
+// Инициализация NPC и списка квестов
 function initNPC() {
   createQuestDialog();
+  createQuestList();
+  // Обновляем список квестов при инициализации
+  updateQuestList();
 }
 
 // Экспортируем функции для использования в code.js
 window.initNPC = initNPC;
 window.checkNPCCollision = checkNPCCollision;
 window.drawNPC = drawNPC;
+window.updateQuestList = updateQuestList;
