@@ -1,9 +1,3 @@
-// Загрузка изображений NPC
-const npcSpriteImage = new Image();
-npcSpriteImage.src = "npc_sprite.png";
-const npcPhotoImage = new Image();
-npcPhotoImage.src = "fotoQuestNPC.png";
-
 // Данные NPC
 const NPC = {
   x: 500, // Позиция NPC на карте (можно настроить)
@@ -110,10 +104,10 @@ function closeNPCDialog() {
 function showGreetingDialog(container) {
   dialogStage = "greeting";
   container.innerHTML = `
-        <img src="fotoQuestNPC.png" alt="NPC Photo" class="npc-photo">
-        <p class="npc-text">Привет, я Квестер! Хочешь заработать баляры? Я дам тебе задания!</p>
-        <button id="npcAgreeBtn" class="cyber-btn">Хорошо</button>
-    `;
+      <img src="fotoQuestNPC.png" alt="NPC Photo" class="npc-photo">
+      <p class="npc-text">Привет, я Квестер! Хочешь заработать баляры? Я дам тебе задания!</p>
+      <button id="npcAgreeBtn" class="cyber-btn">Хорошо</button>
+  `;
   document.getElementById("npcAgreeBtn").addEventListener("click", () => {
     isNPCMet = true;
     dialogStage = "questSelection";
@@ -125,10 +119,10 @@ function showGreetingDialog(container) {
 // Диалог выбора задания
 function showQuestSelectionDialog(container) {
   container.innerHTML = `
-        <img src="fotoQuestNPC.png" alt="NPC Photo" class="npc-photo">
-        <p class="npc-text">Квестер: Выбери задание, братишка!</p>
-        <div id="questList" class="quest-list"></div>
-    `;
+      <img src="fotoQuestNPC.png" alt="NPC Photo" class="npc-photo">
+      <p class="npc-text">Квестер: Выбери задание, братишка!</p>
+      <div id="questList" class="quest-list"></div>
+  `;
   const questList = document.getElementById("questList");
   QUESTS.forEach((quest) => {
     const questItem = document.createElement("div");
@@ -218,5 +212,7 @@ function completeQuest() {
   updateInventoryDisplay();
 }
 
-// Экспортируем функции для использования в code.js
-export { drawNPC, checkNPCProximity, checkQuestCompletion, setNPCMet };
+// Функция для установки флага знакомства
+function setNPCMet(met) {
+  isNPCMet = met;
+}
