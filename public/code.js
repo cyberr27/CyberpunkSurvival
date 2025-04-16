@@ -1909,7 +1909,6 @@ function gameLoop(timestamp) {
 
   update(deltaTime);
   draw(deltaTime);
-  window.updateQuestList();
   requestAnimationFrame(gameLoop);
 }
 
