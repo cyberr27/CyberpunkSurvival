@@ -625,7 +625,11 @@ button:active {
   box-shadow: 0 0 20px rgba(255, 0, 255, 1), 0 0 30px rgba(0, 255, 255, 0.8);
   transform: scale(1.05);
 }
-
+#stats .level,
+#stats .xp {
+  color: #f2ff00;
+  text-shadow: 0 0 5px rgba(12, 48, 48, 0.7);
+}
 /* Анимация пульсации в стиле киберпанк */
 @keyframes neonPulse {
   0% {

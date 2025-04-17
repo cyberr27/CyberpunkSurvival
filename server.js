@@ -3,6 +3,7 @@ const http = require("http");
 const WebSocket = require("ws");
 const path = require("path");
 const { MongoClient } = require("mongodb");
+const levelSystem = require("./levelSystem.js");
 
 const app = express();
 const server = http.createServer(app);
@@ -317,12 +318,15 @@ wss.on("connection", (ws) => {
           food: 100,
           water: 100,
           armor: 0,
-          distanceTraveled: 0, // Явно инициализируем
+          distanceTraveled: 0,
           direction: "down",
           state: "idle",
           frame: 0,
           inventory: Array(20).fill(null),
           npcMet: false,
+          xp: 0, // Начальный опыт
+          level: 0, // Начальный уровень
+          levelProgress: "0 / 100xp", // Начальный прогресс
         };
 
         userDatabase.set(data.username, newPlayer);
@@ -336,8 +340,11 @@ wss.on("connection", (ws) => {
         const playerData = {
           ...player,
           inventory: player.inventory || Array(20).fill(null),
-          npcMet: player.npcMet || false, // Гарантируем наличие npcMet
-          selectedQuestId: player.selectedQuestId || null, // Добавляем
+          npcMet: player.npcMet || false,
+          selectedQuestId: player.selectedQuestId || null,
+          xp: player.xp || 0, // Гарантируем наличие опыта
+          level: player.level || 0, // Гарантируем наличие уровня
+          levelProgress: player.levelProgress || "0 / 100xp", // Гарантируем наличие прогресса
         };
         // Добавляем игрока в players, если его там ещё нет
         players.set(data.username, playerData);
@@ -359,6 +366,9 @@ wss.on("connection", (ws) => {
             inventory: playerData.inventory,
             npcMet: playerData.npcMet, // Убедимся, что отправляем npcMet
             selectedQuestId: playerData.selectedQuestId,
+            xp: playerData.xp, // Отправляем опыт
+            level: playerData.level, // Отправляем уровень
+            levelProgress: playerData.levelProgress, // Отправляем прогресс
             players: Array.from(players.values()).filter(
               (p) => p.id !== data.username
             ), // Исключаем текущего игрока
@@ -511,7 +521,16 @@ wss.on("connection", (ws) => {
           );
           if (clients.get(client) === id) {
             client.send(
-              JSON.stringify({ type: "update", player: { id, ...player } })
+              JSON.stringify({
+                type: "update",
+                player: {
+                  id,
+                  ...player,
+                  xp: player.xp, // Обновляем опыт
+                  level: player.level, // Обновляем уровень
+                  levelProgress: player.levelProgress, // Обновляем прогресс
+                },
+              })
             );
           }
         }

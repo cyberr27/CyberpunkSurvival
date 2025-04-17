@@ -32,6 +32,10 @@ const obstacles = [];
 const bullets = new Map();
 // Хранилище предметов, для которых уже отправлен запрос pickup
 const pendingPickups = new Set();
+// Хранилище данных уровня
+let level = 0;
+let xp = 0;
+let levelProgress = "0 / 100xp";
 
 // Загрузка изображений
 const backgroundImage = new Image();
@@ -431,8 +435,14 @@ function handleAuthMessage(event) {
         inventory: data.inventory || Array(20).fill(null),
         npcMet: data.npcMet || false,
         selectedQuestId: data.selectedQuestId || null,
+        xp: data.xp || 0, // Добавляем опыт
+        level: data.level || 0, // Добавляем уровень
+        levelProgress: data.levelProgress || "0 / 100xp", // Добавляем прогресс
       };
       players.set(myId, me);
+      xp = me.xp;
+      level = me.level;
+      levelProgress = me.levelProgress;
 
       if (data.players) {
         data.players.forEach((p) => {
@@ -1197,7 +1207,9 @@ function updateStatsDisplay() {
     <span class="energy">Энергия: ${me.energy}</span><br>
     <span class="food">Еда: ${me.food}</span><br>
     <span class="water">Вода: ${me.water}</span><br>
-    <span class="armor">Броня: ${me.armor}</span>
+    <span class="armor">Броня: ${me.armor}</span><br>
+    <span class="level">Уровень: ${me.level}</span><br>
+    <span class="xp">Опыт: ${me.levelProgress}</span>
   `;
   document.getElementById("coords").innerHTML = `X: ${Math.floor(
     me.x
@@ -1396,7 +1408,10 @@ function handleGameMessage(event) {
         });
         if (data.player.id === myId) {
           inventory = data.player.inventory || inventory;
-          setNPCMet(data.player.npcMet || false); // Обновляем npcMet
+          setNPCMet(data.player.npcMet || false);
+          xp = data.player.xp || xp; // Обновляем опыт
+          level = data.player.level || level; // Обновляем уровень
+          levelProgress = data.player.levelProgress || levelProgress; // Обновляем прогресс
           updateStatsDisplay();
           updateInventoryDisplay();
         }
@@ -1694,6 +1709,13 @@ function draw(deltaTime) {
     worldWidth + backgroundImage.width,
     worldHeight + backgroundImage.height
   );
+
+  // Отрисовка строки опыта в левом нижнем углу
+  ctx.fillStyle = "#00ffff";
+  ctx.font = "16px Arial";
+  ctx.textAlign = "left";
+  ctx.fillText(`Lvl ${level}: ${levelProgress}`, 10, canvas.height - 10);
+
   ctx.restore();
 
   lights.forEach((light) => {
