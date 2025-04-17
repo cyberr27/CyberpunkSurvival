@@ -8,6 +8,31 @@ for (let i = 2; i <= 100; i++) {
   LEVELS[i] = LEVELS[i - 1] + prevLevelXP * 2; // Текущий уровень = предыдущий + удвоенный опыт
 }
 
+// Константы редкости предметов (синхронизированы с server.js)
+const ITEM_RARITY = {
+  // Редкие (rarity 1)
+  blood_pack: 1,
+  canned_meat: 1,
+  mushroom: 1,
+  // Средние (rarity 2)
+  dried_fish: 2,
+  condensed_milk: 2,
+  milk: 2,
+  blood_syringe: 2,
+  meat_chunk: 2,
+  vodka_bottle: 2,
+  bread: 2,
+  sausage: 2,
+  energy_drink: 2,
+  balyary: 2,
+  // Частые (rarity 3)
+  water_bottle: 3,
+  nut: 3,
+  apple: 3,
+  berries: 3,
+  carrot: 3,
+};
+
 // Функция для получения текущего уровня на основе опыта
 function getLevelFromXP(xp) {
   for (let i = 1; i <= 100; i++) {
@@ -29,6 +54,29 @@ function getLevelProgress(xp) {
   return { currentXP, requiredXP, progress: `${currentXP} / ${requiredXP}xp` };
 }
 
+// Функция для начисления опыта за поднятие предмета
+function awardExperienceForItem(player, itemType, dbCollection) {
+  const rarity = ITEM_RARITY[itemType] || 3; // По умолчанию частый предмет
+  let xpToAdd = 0;
+  switch (rarity) {
+    case 1: // Редкий
+      xpToAdd = 3;
+      break;
+    case 2: // Средний
+      xpToAdd = 2;
+      break;
+    case 3: // Частый
+      xpToAdd = 1;
+      break;
+    default:
+      xpToAdd = 1;
+  }
+  console.log(
+    `Игрок ${player.id} получил ${xpToAdd} XP за предмет ${itemType} (редкость ${rarity})`
+  );
+  return addExperience(player, xpToAdd, dbCollection);
+}
+
 // Функция для добавления опыта игроку
 function addExperience(player, xp, dbCollection) {
   player.xp = (player.xp || 0) + xp; // Добавляем опыт
@@ -41,7 +89,13 @@ function addExperience(player, xp, dbCollection) {
   player.levelProgress = progress.progress; // Сохраняем строку прогресса
   // Сохраняем в базе данных
   savePlayerToDB(player, dbCollection);
-  return progress;
+  // Возвращаем обновлённые данные игрока
+  return {
+    xp: player.xp,
+    level: player.level,
+    levelProgress: player.levelProgress,
+    progress: progress,
+  };
 }
 
 // Сохранение данных игрока в MongoDB
@@ -71,4 +125,5 @@ module.exports = {
   addExperience,
   getLevelProgress,
   getLevelFromXP,
+  awardExperienceForItem,
 };

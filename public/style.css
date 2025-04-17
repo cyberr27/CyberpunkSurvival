@@ -625,11 +625,7 @@ button:active {
   box-shadow: 0 0 20px rgba(255, 0, 255, 1), 0 0 30px rgba(0, 255, 255, 0.8);
   transform: scale(1.05);
 }
-#stats .level,
-#stats .xp {
-  color: #f2ff00;
-  text-shadow: 0 0 5px rgba(12, 48, 48, 0.7);
-}
+
 /* Анимация пульсации в стиле киберпанк */
 @keyframes neonPulse {
   0% {
@@ -641,6 +637,21 @@ button:active {
   100% {
     box-shadow: 0 0 20px rgba(255, 0, 255, 1), 0 0 30px rgba(0, 255, 255, 0.8);
   }
+}
+#stats .level {
+  font-weight: 700;
+  position: absolute;
+  top: 430%;
+  color: #000000;
+  text-shadow: 0 0 5px rgba(12, 48, 48, 0.7);
+  
+}
+#stats .xp {
+  position: absolute;
+  top: 423%;
+  color: #c0c0b9;
+  text-shadow: 0 0 5px rgba(12, 48, 48, 0.7);
+  font-size: 10px;
 }
 /* Адаптация для мобильных устройств (max-width: 500px) */
 @media (max-width: 500px) {

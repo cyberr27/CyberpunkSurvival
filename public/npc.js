@@ -281,13 +281,51 @@ function completeQuest() {
     }
   }
 
-  // Отправляем обновление инвентаря на сервер
+  // Начисляем опыт за выполнение задания
+  const targetItemType = selectedQuest.target.type;
+  // Определяем редкость предмета задания
+  const itemRarity =
+    {
+      // Редкие (rarity 1)
+      blood_pack: 1,
+      canned_meat: 1,
+      mushroom: 1,
+      // Средние (rarity 2)
+      sausage: 2,
+      energy_drink: 2,
+      // Частые (rarity 3)
+      nut: 3,
+      water_bottle: 3,
+      apple: 3,
+      berries: 3,
+      carrot: 3,
+    }[targetItemType] || 3; // По умолчанию частый предмет
+  let xpToAdd = 0;
+  switch (itemRarity) {
+    case 1: // Редкий предмет
+      xpToAdd = 15;
+      break;
+    case 2: // Средний предмет
+      xpToAdd = 10;
+      break;
+    case 3: // Частый предмет
+      xpToAdd = 5;
+      break;
+    default:
+      xpToAdd = 5;
+  }
+  console.log(
+    `Игрок ${myId} получил ${xpToAdd} XP за выполнение задания "${selectedQuest.title}"`
+  );
+
+  // Отправляем обновление инвентаря и опыта на сервер
   sendWhenReady(
     ws,
     JSON.stringify({
-      type: "updateInventory",
+      type: "completeQuest",
       questId: selectedQuest.id,
       inventory: inventory,
+      xpToAdd: xpToAdd,
     })
   );
 
@@ -308,7 +346,7 @@ function completeQuest() {
 
   availableQuests.push(newQuest);
   console.log(
-    `Задание "${selectedQuest.title}" выполнено! Получено ${reward.quantity} баляр. Новое задание: ${newQuest.title}`
+    `Задание "${selectedQuest.title}" выполнено! Получено ${reward.quantity} баляр и ${xpToAdd} XP. Новое задание: ${newQuest.title}`
   );
 
   // Сбрасываем выбранное задание
