@@ -145,7 +145,7 @@ function showGreetingDialog(container) {
         <img src="fotoQuestNPC.png" alt="NPC Photo" class="npc-photo">
         <h2 class="npc-title">${NPC.name}</h2>
       </div>
-      <p class="npc-text">Привет, ого! Ни когда еще не видел человека без модернизаций! Видимо с деньгами у тебя совсем туго... Меня зовут ${NPC.name}. Ну ничего, можешь заработать у меня немного Баляр. Мои работники только и знают, как шкериться в темных углах города. Находи предметы, если они мне нужны, я заберу. До встречи, человек!</p>
+      <p class="npc-text">Привет, ого! Ни когда еще не видел человека без модернизаций! Видимо с деньгами у тебя совсем туго... Меня зовут ${NPC.name}. Ну ничего, можешь заработать у меня немного... Мои работники только и знают, как шкериться в темных углах города. Находи предметы, если они мне нужны, я заберу. До встречи, человек!</p>
       <button id="npcAgreeBtn" class="neon-btn">Хорошо</button>
   `;
   document.getElementById("npcAgreeBtn").addEventListener("click", () => {
@@ -171,7 +171,7 @@ function showQuestSelectionDialog(container) {
         <img src="fotoQuestNPC.png" alt="NPC Photo" class="npc-photo">
         <h2 class="npc-title">${NPC.name}</h2>
       </div>
-      <p class="npc-text">Выбери задание, братишка!</p>
+      <p class="npc-text">Что из этого ты сумеешь достать?</p>
       <div id="questList" class="quest-list"></div>
   `;
   const questList = document.getElementById("questList");
@@ -180,7 +180,7 @@ function showQuestSelectionDialog(container) {
     questItem.className = "quest-item";
     questItem.innerHTML = `
       <span class="quest-marker">></span>
-      <p>${quest.title} <span class="quest-reward">(Награда: ${quest.reward.quantity} баляр)</span></p>
+      <p>${quest.title} <span class="quest-reward">[Награда: ${quest.reward.quantity} баляр]</span></p>
     `;
     questItem.addEventListener("click", () => {
       selectQuest(quest);
