@@ -9,212 +9,212 @@ const NPC = {
 const QUESTS = [
   {
     id: 1,
-    title: "Собери 1 орех",
+    title: "Принеси один орех.",
     reward: { type: "balyary", quantity: 1 },
     target: { type: "nut", quantity: 1 },
   },
   {
     id: 2,
-    title: "Собери 2 яблока",
-    reward: { type: "balyary", quantity: 2 },
+    title: "Принеси 2 яблока.",
+    reward: { type: "balyary", quantity: 3 },
     target: { type: "apple", quantity: 2 },
   },
   {
     id: 3,
-    title: "Собери 1 бутылку воды",
-    reward: { type: "balyary", quantity: 3 },
+    title: "Принеси одну бутылку воды.",
+    reward: { type: "balyary", quantity: 2 },
     target: { type: "water_bottle", quantity: 1 },
   },
   {
     id: 4,
-    title: "Собери 3 ягоды",
-    reward: { type: "balyary", quantity: 2 },
+    title: "Принеси три ягоды.",
+    reward: { type: "balyary", quantity: 4 },
     target: { type: "berries", quantity: 3 },
   },
   {
     id: 5,
-    title: "Собери 1 морковь",
+    title: "Принеси одну морковь.",
     reward: { type: "balyary", quantity: 1 },
     target: { type: "carrot", quantity: 1 },
   },
   {
     id: 6,
-    title: "Собери 2 банки тушёнки",
-    reward: { type: "balyary", quantity: 3 },
+    title: "Принеси две банки тушёнки.",
+    reward: { type: "balyary", quantity: 4 },
     target: { type: "canned_meat", quantity: 2 },
   },
   {
     id: 7,
-    title: "Собери 3 гриба",
-    reward: { type: "balyary", quantity: 2 },
+    title: "Принеси три гриба.",
+    reward: { type: "balyary", quantity: 5 },
     target: { type: "mushroom", quantity: 3 },
   },
   {
     id: 8,
-    title: "Собери 1 колбасу",
+    title: "Принеси одну колбасу.",
     reward: { type: "balyary", quantity: 2 },
     target: { type: "sausage", quantity: 1 },
   },
   {
     id: 9,
-    title: "Собери 1 пакет крови",
+    title: "Принеси дву бутылки водки.",
     reward: { type: "balyary", quantity: 4 },
-    target: { type: "blood_pack", quantity: 1 },
+    target: { type: "vodka_bottle", quantity: 2 },
   },
   {
     id: 10,
-    title: "Собери 2 куска хлеба",
-    reward: { type: "balyary", quantity: 2 },
+    title: "Принеси два куска хлеба.",
+    reward: { type: "balyary", quantity: 3 },
     target: { type: "bread", quantity: 2 },
   },
   {
     id: 11,
-    title: "Собери 1 бутылку водки",
+    title: "Принеси одну бутылку водки.",
     reward: { type: "balyary", quantity: 3 },
     target: { type: "vodka_bottle", quantity: 1 },
   },
   {
     id: 12,
-    title: "Собери 2 куска мяса",
-    reward: { type: "balyary", quantity: 3 },
+    title: "Принеси два куска мяса.",
+    reward: { type: "balyary", quantity: 4 },
     target: { type: "meat_chunk", quantity: 2 },
   },
   {
     id: 13,
-    title: "Собери 3 шприца с кровью",
+    title: "Принеси один кусок мяса.",
     reward: { type: "balyary", quantity: 2 },
-    target: { type: "blood_syringe", quantity: 3 },
+    target: { type: "meat_chunk", quantity: 1 },
   },
   {
     id: 14,
-    title: "Собери 2 бутылки молока",
-    reward: { type: "balyary", quantity: 2 },
+    title: "Принеси две бутылки молока.",
+    reward: { type: "balyary", quantity: 4 },
     target: { type: "milk", quantity: 2 },
   },
   {
     id: 15,
-    title: "Собери 1 банку сгущёнки",
-    reward: { type: "balyary", quantity: 3 },
+    title: "Принеси одну банку сгущёнки.",
+    reward: { type: "balyary", quantity: 2 },
     target: { type: "condensed_milk", quantity: 1 },
   },
   {
     id: 16,
-    title: "Собери 3 сушёной рыбы",
-    reward: { type: "balyary", quantity: 2 },
+    title: "Принеси три сушёной рыбы.",
+    reward: { type: "balyary", quantity: 5 },
     target: { type: "dried_fish", quantity: 3 },
   },
   {
     id: 17,
-    title: "Собери 1 энергетик",
-    reward: { type: "balyary", quantity: 3 },
+    title: "Принеси один энергетик.",
+    reward: { type: "balyary", quantity: 2 },
     target: { type: "energy_drink", quantity: 1 },
   },
   {
     id: 18,
-    title: "Собери 4 ореха",
-    reward: { type: "balyary", quantity: 3 },
+    title: "Принеси четыре ореха.",
+    reward: { type: "balyary", quantity: 5 },
     target: { type: "nut", quantity: 4 },
   },
   {
     id: 19,
-    title: "Собери 3 яблока",
+    title: "Принеси два яблока.",
     reward: { type: "balyary", quantity: 3 },
-    target: { type: "apple", quantity: 3 },
+    target: { type: "apple", quantity: 2 },
   },
   {
     id: 20,
-    title: "Собери 5 ягод",
-    reward: { type: "balyary", quantity: 3 },
-    target: { type: "berries", quantity: 5 },
+    title: "Принеси две ягоды.",
+    reward: { type: "balyary", quantity: 2 },
+    target: { type: "berries", quantity: 2 },
   },
   {
     id: 21,
-    title: "Собери 2 моркови",
+    title: "Принеси две моркови.",
     reward: { type: "balyary", quantity: 2 },
     target: { type: "carrot", quantity: 2 },
   },
   {
     id: 22,
-    title: "Собери 2 бутылки воды",
-    reward: { type: "balyary", quantity: 4 },
+    title: "Принеси две бутылки воды.",
+    reward: { type: "balyary", quantity: 5 },
     target: { type: "water_bottle", quantity: 2 },
   },
   {
     id: 23,
-    title: "Собери 3 банки тушёнки",
-    reward: { type: "balyary", quantity: 4 },
+    title: "Принеси три банки тушёнки.",
+    reward: { type: "balyary", quantity: 6 },
     target: { type: "canned_meat", quantity: 3 },
   },
   {
     id: 24,
-    title: "Собери 4 гриба",
-    reward: { type: "balyary", quantity: 3 },
-    target: { type: "mushroom", quantity: 4 },
+    title: "Принеси одну банку тушенки.",
+    reward: { type: "balyary", quantity: 1 },
+    target: { type: "canned_meat", quantity: 1 },
   },
   {
     id: 25,
-    title: "Собери 2 колбасы",
-    reward: { type: "balyary", quantity: 3 },
+    title: "Принеси две колбасы.",
+    reward: { type: "balyary", quantity: 5 },
     target: { type: "sausage", quantity: 2 },
   },
   {
-    id: 26,
-    title: "Собери 2 пакета крови",
-    reward: { type: "balyary", quantity: 5 },
-    target: { type: "blood_pack", quantity: 2 },
+    id: 24,
+    title: "Принеси три банки тушенки.",
+    reward: { type: "balyary", quantity: 10 },
+    target: { type: "canned_meat", quantity: 3 },
   },
   {
     id: 27,
-    title: "Собери 3 куска хлеба",
-    reward: { type: "balyary", quantity: 3 },
+    title: "Принеси три куска хлеба.",
+    reward: { type: "balyary", quantity: 9 },
     target: { type: "bread", quantity: 3 },
   },
   {
     id: 28,
-    title: "Собери 2 бутылки водки",
-    reward: { type: "balyary", quantity: 4 },
+    title: "Принеси две бутылки водки",
+    reward: { type: "balyary", quantity: 5 },
     target: { type: "vodka_bottle", quantity: 2 },
   },
   {
     id: 29,
-    title: "Собери 3 куска мяса",
-    reward: { type: "balyary", quantity: 4 },
+    title: "Принеси три куска мяса.",
+    reward: { type: "balyary", quantity: 11 },
     target: { type: "meat_chunk", quantity: 3 },
   },
   {
-    id: 30,
-    title: "Собери 4 шприца с кровью",
-    reward: { type: "balyary", quantity: 3 },
-    target: { type: "blood_syringe", quantity: 4 },
+    id: 31,
+    title: "Принеси две бутылки молока.",
+    reward: { type: "balyary", quantity: 7 },
+    target: { type: "milk", quantity: 2 },
   },
   {
     id: 31,
-    title: "Собери 3 бутылки молока",
-    reward: { type: "balyary", quantity: 3 },
+    title: "Принеси три бутылки молока.",
+    reward: { type: "balyary", quantity: 10 },
     target: { type: "milk", quantity: 3 },
   },
   {
     id: 32,
-    title: "Собери 2 банки сгущёнки",
-    reward: { type: "balyary", quantity: 4 },
+    title: "Принеси две банки сгущёнки.",
+    reward: { type: "balyary", quantity: 6 },
     target: { type: "condensed_milk", quantity: 2 },
   },
   {
     id: 33,
-    title: "Собери 4 сушёной рыбы",
-    reward: { type: "balyary", quantity: 3 },
+    title: "Принеси четыре сушёной рыбы.",
+    reward: { type: "balyary", quantity: 15 },
     target: { type: "dried_fish", quantity: 4 },
   },
   {
     id: 34,
-    title: "Собери 2 энергетика",
-    reward: { type: "balyary", quantity: 4 },
+    title: "Принеси два энергетика.",
+    reward: { type: "balyary", quantity: 6 },
     target: { type: "energy_drink", quantity: 2 },
   },
   {
     id: 35,
-    title: "Собери 5 орехов",
-    reward: { type: "balyary", quantity: 4 },
+    title: "Принеси пять орехов.",
+    reward: { type: "balyary", quantity: 10 },
     target: { type: "nut", quantity: 5 },
   },
 ];
@@ -356,10 +356,11 @@ function completeQuest() {
   const me = players.get(myId);
   if (!me) return;
 
+  // Удаляем ровно то количество предметов, которое указано в задании
   let itemsToRemove = selectedQuest.target.quantity;
   for (let i = 0; i < inventory.length && itemsToRemove > 0; i++) {
     if (inventory[i] && inventory[i].type === selectedQuest.target.type) {
-      if (inventory[i].quantity && inventory[i].quantity > 1) {
+      if (inventory[i].quantity && inventory[i].quantity >= 1) {
         const removeFromSlot = Math.min(itemsToRemove, inventory[i].quantity);
         inventory[i].quantity -= removeFromSlot;
         itemsToRemove -= removeFromSlot;
@@ -373,6 +374,7 @@ function completeQuest() {
     }
   }
 
+  // Добавляем награду
   const reward = selectedQuest.reward;
   const balyarySlot = inventory.findIndex(
     (slot) => slot && slot.type === "balyary"
@@ -387,6 +389,7 @@ function completeQuest() {
     }
   }
 
+  // Отправляем обновлённый инвентарь на сервер
   sendWhenReady(
     ws,
     JSON.stringify({
@@ -395,6 +398,7 @@ function completeQuest() {
     })
   );
 
+  // Удаляем выполненное задание из доступных и добавляем новое
   const previousQuestId = selectedQuest.id;
   availableQuests = availableQuests.filter((q) => q.id !== previousQuestId);
 
@@ -411,8 +415,14 @@ function completeQuest() {
     `Задание "${selectedQuest.title}" выполнено! Получено ${reward.quantity} баляр.`
   );
 
+  // Сбрасываем выбранное задание
   selectedQuest = null;
+
+  // Немедленно обновляем отображение инвентаря
   updateInventoryDisplay();
+
+  // Обновляем отображение статистики
+  updateStatsDisplay();
 }
 
 function setNPCMet(met) {
