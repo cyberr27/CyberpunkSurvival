@@ -158,7 +158,7 @@ const QUESTS = [
     target: { type: "sausage", quantity: 2 },
   },
   {
-    id: 24,
+    id: 26,
     title: "Принеси три банки тушенки.",
     reward: { type: "balyary", quantity: 10 },
     target: { type: "canned_meat", quantity: 3 },
@@ -182,7 +182,7 @@ const QUESTS = [
     target: { type: "meat_chunk", quantity: 3 },
   },
   {
-    id: 31,
+    id: 30,
     title: "Принеси две бутылки молока.",
     reward: { type: "balyary", quantity: 7 },
     target: { type: "milk", quantity: 2 },
@@ -420,16 +420,19 @@ function completeQuest() {
 
   // Немедленно обновляем отображение инвентаря с принудительным рендерингом
   if (isInventoryOpen) {
-    setTimeout(() => {
+    requestAnimationFrame(() => {
       updateInventoryDisplay();
-      // Дополнительно обновляем DOM, чтобы гарантировать перерисовку
+      // Принудительно вызываем перерисовку DOM
       const inventoryGrid = document.getElementById("inventoryGrid");
       if (inventoryGrid) {
-        inventoryGrid.style.display = "none";
+        // Сбрасываем содержимое и перерисовываем
+        inventoryGrid.style.opacity = "0"; // Кратковременное скрытие для рефреша
         inventoryGrid.offsetHeight; // Принудительный reflow
-        inventoryGrid.style.display = "grid";
+        inventoryGrid.style.opacity = "1";
+        // Перестраиваем содержимое слотов
+        updateInventoryDisplay();
       }
-    }, 0);
+    });
   }
 
   // Обновляем отображение статистики
