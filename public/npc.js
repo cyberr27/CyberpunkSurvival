@@ -1,6 +1,6 @@
 const NPC = {
-  x: 590,
-  y: 3150,
+  x: 200,
+  y: 2992,
   width: 70,
   height: 70,
   interactionRadius: 50,
