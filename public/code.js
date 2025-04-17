@@ -430,7 +430,7 @@ function handleAuthMessage(event) {
         frame: data.frame || 0,
         inventory: data.inventory || Array(20).fill(null),
         npcMet: data.npcMet || false,
-        selectedQuestId: data.selectedQuestId || null, // Добавляем
+        selectedQuestId: data.selectedQuestId || null,
       };
       players.set(myId, me);
 
@@ -461,7 +461,7 @@ function handleAuthMessage(event) {
       }
       inventory = data.inventory || Array(20).fill(null);
       setNPCMet(data.npcMet || false);
-      setSelectedQuest(data.selectedQuestId || null); // Устанавливаем выбранное задание
+      setSelectedQuest(data.selectedQuestId || null);
       resizeCanvas();
       ws.onmessage = handleGameMessage;
       console.log("Переключен обработчик на handleGameMessage");

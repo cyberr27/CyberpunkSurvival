@@ -337,6 +337,7 @@ wss.on("connection", (ws) => {
           ...player,
           inventory: player.inventory || Array(20).fill(null),
           npcMet: player.npcMet || false, // Гарантируем наличие npcMet
+          selectedQuestId: player.selectedQuestId || null, // Добавляем
         };
         // Добавляем игрока в players, если его там ещё нет
         players.set(data.username, playerData);
@@ -356,7 +357,8 @@ wss.on("connection", (ws) => {
             state: playerData.state || "idle",
             frame: playerData.frame || 0,
             inventory: playerData.inventory,
-            npcMet: playerData.npcMet,
+            npcMet: playerData.npcMet, // Убедимся, что отправляем npcMet
+            selectedQuestId: playerData.selectedQuestId,
             players: Array.from(players.values()).filter(
               (p) => p.id !== data.username
             ), // Исключаем текущего игрока
