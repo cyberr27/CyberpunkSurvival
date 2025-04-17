@@ -1,1060 +1,598 @@
-const express = require("express");
-const http = require("http");
-const WebSocket = require("ws");
-const path = require("path");
-const { MongoClient } = require("mongodb");
-const levelSystem = require("./levelSystem.js");
-
-const app = express();
-const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
-
-const clients = new Map();
-const players = new Map();
-const userDatabase = new Map();
-
-// В начало файла, после определения констант
-INACTIVITY_TIMEOUT = 15 * 60 * 1000;
-
-const GAME_CONFIG = {
-  BULLET_DAMAGE: 10,
-  BULLET_LIFE: 1000,
+const NPC = {
+  x: 200,
+  y: 2992,
+  width: 70,
+  height: 70,
+  interactionRadius: 50,
+  name: "John", // Имя NPC
 };
 
-const ITEM_CONFIG = {
-  // Редкие (уровень 1)
-  blood_pack: { effect: { health: 40 }, rarity: 1 },
-  canned_meat: { effect: { food: 20 }, rarity: 1 },
-  mushroom: { effect: { food: 5, energy: 15 }, rarity: 1 },
-  // Средние (уровень 2)
-  dried_fish: { effect: { food: 10, water: -3 }, rarity: 2 },
-  condensed_milk: { effect: { water: 5, food: 11, energy: 2 }, rarity: 2 },
-  milk: { effect: { water: 15, food: 5 }, rarity: 2 },
-  blood_syringe: { effect: { health: 10 }, rarity: 2 },
-  meat_chunk: { effect: { food: 20, energy: 5, water: -2 }, rarity: 2 },
-  vodka_bottle: {
-    effect: { health: 5, energy: -2, water: 1, food: 2 },
-    rarity: 2,
-  },
-  bread: { effect: { food: 13, water: -2 }, rarity: 2 },
-  sausage: { effect: { food: 16, energy: 3 }, rarity: 2 },
-  energy_drink: { effect: { energy: 20, water: 5 }, rarity: 2 },
-  balyary: {
-    effect: {}, // Без эффекта
-    rarity: 2,
-    stackable: true, // Указываем, что предмет складывается
-  },
-  // Частые (уровень 3)
-  water_bottle: { effect: { water: 30 }, rarity: 3 },
-  nut: { effect: { food: 7 }, rarity: 3 },
-  apple: { effect: { food: 8, water: 5 }, rarity: 3 },
-  berries: { effect: { food: 6, water: 6 }, rarity: 3 },
-  carrot: { effect: { food: 5, energy: 3 }, rarity: 3 },
-};
-
-// Получаем строку подключения только из переменной окружения
-const uri = process.env.MONGO_URI;
-console.log(
-  "Значение MONGO_URI из окружения:",
-  uri ? uri.replace(/:([^:@]+)@/, ":<password>@") : "не определено"
-);
-
-if (!uri || typeof uri !== "string" || !uri.trim()) {
-  console.error(
-    "Ошибка: Переменная окружения MONGO_URI не определена или пуста!"
-  );
-  process.exit(1);
-}
-
-if (!uri.startsWith("mongodb://") && !uri.startsWith("mongodb+srv://")) {
-  console.error(
-    "Ошибка: Некорректная схема в MONGO_URI. Ожидается 'mongodb://' или 'mongodb+srv://'"
-  );
-  process.exit(1);
-}
-
-console.log(
-  "Используемая строка подключения MongoDB:",
-  uri.replace(/:([^:@]+)@/, ":<password>@")
-);
-const mongoClient = new MongoClient(uri);
-
-async function connectToDatabase() {
-  try {
-    await mongoClient.connect();
-    console.log("Подключено к MongoDB");
-    return mongoClient.db("cyberpunk_survival").collection("users");
-  } catch (error) {
-    console.error("Ошибка подключения к MongoDB:", error);
-    process.exit(1);
-  }
-}
-
-// Остальной код остается без изменений...
-async function loadUserDatabase(collection) {
-  try {
-    const users = await collection.find({}).toArray();
-    users.forEach((user) => userDatabase.set(user.id, user));
-    console.log("База данных пользователей загружена из MongoDB");
-  } catch (error) {
-    console.error("Ошибка при загрузке базы данных из MongoDB:", error);
-  }
-}
-
-async function saveUserDatabase(collection, username, player) {
-  try {
-    await collection.updateOne(
-      { id: username },
-      { $set: player },
-      { upsert: true }
-    );
-  } catch (error) {
-    console.error("Ошибка при сохранении данных в MongoDB:", error);
-  }
-}
-
-// Добавляем функцию initializeServer
-async function initializeServer() {
-  const collection = await connectToDatabase();
-  await loadUserDatabase(collection);
-  console.log("Сервер готов к работе после загрузки базы данных");
-  return collection;
-}
-
-// Теперь вызов функции будет работать
-let dbCollection; // Объявляем переменную для коллекции
-initializeServer()
-  .then((collection) => {
-    dbCollection = collection;
-    server.listen(PORT, () => {
-      console.log(`WebSocket server running on ws://localhost:${PORT}`);
-    });
-  })
-  .catch((error) => {
-    console.error("Ошибка при инициализации сервера:", error);
-    process.exit(1);
-  });
-
-const items = new Map();
-const obstacles = [];
-const bullets = new Map(); // Хранилище пуль на сервере
-
-const lights = [
+// Список всех возможных заданий
+const QUESTS = [
   {
-    id: "light1",
-    x: 2445,
-    y: 1540,
-    color: "rgba(0, 255, 255, 0.4)",
-    radius: 1000,
+    id: 1,
+    title: "Принеси один орех.",
+    reward: { type: "balyary", quantity: 1 },
+    target: { type: "nut", quantity: 1 },
   },
   {
-    id: "light2",
-    x: 1314,
-    y: 332,
-    color: "rgba(255, 0, 255, 0.4)",
-    radius: 1000,
+    id: 2,
+    title: "Найди бутылку воды.",
+    reward: { type: "balyary", quantity: 2 },
+    target: { type: "water_bottle", quantity: 1 },
   },
   {
-    id: "light3",
-    x: 506,
-    y: 2246,
-    color: "rgba(148, 0, 211, 0.4)",
-    radius: 1000,
+    id: 3,
+    title: "Собери энергетик.",
+    reward: { type: "balyary", quantity: 2 },
+    target: { type: "energy_drink", quantity: 1 },
   },
   {
-    id: "light4",
-    x: 950,
-    y: 3115,
-    color: "rgba(255, 0, 255, 0.4)",
-    radius: 850,
+    id: 4,
+    title: "Достань яблоко.",
+    reward: { type: "balyary", quantity: 1 },
+    target: { type: "apple", quantity: 1 },
   },
   {
-    id: "light5",
-    x: 50,
-    y: 3120,
-    color: "rgba(214, 211, 4, 0.4)",
-    radius: 850,
+    id: 5,
+    title: "Принеси ягоды.",
+    reward: { type: "balyary", quantity: 1 },
+    target: { type: "berries", quantity: 1 },
   },
   {
-    id: "light6",
-    x: 50,
-    y: 1173,
-    color: "rgba(214, 211, 4, 0.4)",
-    radius: 950,
+    id: 6,
+    title: "Найди морковь.",
+    reward: { type: "balyary", quantity: 1 },
+    target: { type: "carrot", quantity: 1 },
   },
   {
-    id: "light7",
-    x: 2314,
-    y: 2756,
-    color: "rgba(194, 0, 10, 0.4)",
-    radius: 850,
+    id: 7,
+    title: "Собери банку тушёнки.",
+    reward: { type: "balyary", quantity: 3 },
+    target: { type: "canned_meat", quantity: 1 },
   },
   {
-    id: "light8",
-    x: 1605,
-    y: 2151,
-    color: "rgba(2, 35, 250, 0.4)",
-    radius: 950,
+    id: 8,
+    title: "Достань гриб.",
+    reward: { type: "balyary", quantity: 2 },
+    target: { type: "mushroom", quantity: 1 },
   },
   {
-    id: "light9",
-    x: 3095,
-    y: 2335,
-    color: "rgba(28, 186, 55, 0.4)",
-    radius: 950,
+    id: 9,
+    title: "Принеси колбасу.",
+    reward: { type: "balyary", quantity: 3 },
+    target: { type: "sausage", quantity: 1 },
   },
   {
-    id: "light10",
-    x: 2605,
-    y: 509,
-    color: "rgba(2, 35, 250, 0.4)",
-    radius: 950,
-  },
-  {
-    id: "light11",
-    x: 1083,
-    y: 1426,
-    color: "rgba(109, 240, 194, 0.4)",
-    radius: 750,
-  },
-  {
-    id: "light12",
-    x: 2000,
-    y: 900,
-    color: "rgba(240, 109, 240, 0.4)",
-    radius: 850,
-  },
-  {
-    id: "light13",
-    x: 133,
-    y: 373,
-    color: "rgba(240, 109, 240, 0.4)",
-    radius: 850,
+    id: 10,
+    title: "Найди пакет крови.",
+    reward: { type: "balyary", quantity: 4 },
+    target: { type: "blood_pack", quantity: 1 },
   },
 ];
 
-// Функция вычисления расстояния от точки до линии (взята из одиночной игры)
-function pointToLineDistance(px, py, x1, y1, x2, y2) {
-  const dx = x2 - x1;
-  const dy = y2 - y1;
-  const lineLengthSquared = dx * dx + dy * dy;
-  if (lineLengthSquared === 0) {
-    return Math.sqrt(Math.pow(px - x1, 2) + Math.pow(py - y1, 2));
+let isNPCDialogOpen = false;
+let isNPCMet = false;
+let selectedQuest = null;
+let dialogStage = "greeting";
+let availableQuests = [];
+
+function drawNPC() {
+  const screenX = NPC.x - camera.x;
+  const screenY = NPC.y - camera.y;
+
+  // Отрисовка спрайта NPC
+  if (npcSpriteImage.complete) {
+    ctx.drawImage(npcSpriteImage, screenX, screenY, NPC.width, NPC.height);
+  } else {
+    ctx.fillStyle = "purple";
+    ctx.fillRect(screenX, screenY, NPC.width, NPC.height);
   }
-  let t = ((px - x1) * dx + (py - y1) * dy) / lineLengthSquared;
-  t = Math.max(0, Math.min(1, t));
-  const closestX = x1 + t * dx;
-  const closestY = y1 + t * dy;
-  return Math.sqrt(Math.pow(px - closestX, 2) + Math.pow(py - closestY, 2));
+
+  // Отрисовка имени или знака вопроса над NPC
+  ctx.fillStyle = isNPCMet ? "#ff00ff" : "#ffffff"; // Розовый для имени, белый для "?"
+  ctx.font = "12px Arial";
+  ctx.textAlign = "center";
+  ctx.fillText(
+    isNPCMet ? NPC.name : "?",
+    screenX + NPC.width / 2,
+    screenY - 10
+  );
 }
 
-app.use(express.static(path.join(__dirname, "public")));
+function checkNPCProximity() {
+  const me = players.get(myId);
+  if (!me || me.health <= 0) return;
 
-function checkCollisionServer(x, y) {
-  const left = x;
-  const right = x + 40;
-  const top = y;
-  const bottom = y + 40;
+  const dx = me.x + 20 - (NPC.x + 35);
+  const dy = me.y + 20 - (NPC.y + 35);
+  const distance = Math.sqrt(dx * dx + dy * dy);
 
-  for (const obstacle of obstacles) {
-    if (obstacle.isLine) {
-      const distance = pointToLineDistance(
-        x + 20,
-        y + 20,
-        obstacle.x1,
-        obstacle.y1,
-        obstacle.x2,
-        obstacle.y2
-      );
-      if (distance < 20 + obstacle.thickness / 2) return true;
+  if (distance < NPC.interactionRadius && !isNPCDialogOpen) {
+    openNPCDialog();
+  } else if (distance >= NPC.interactionRadius && isNPCDialogOpen) {
+    closeNPCDialog();
+  }
+}
+
+function openNPCDialog() {
+  isNPCDialogOpen = true;
+  const dialogContainer = document.createElement("div");
+  dialogContainer.id = "npcDialog";
+  dialogContainer.className = "npc-dialog";
+  document.getElementById("gameContainer").appendChild(dialogContainer);
+
+  if (!isNPCMet) {
+    showGreetingDialog(dialogContainer);
+  } else {
+    dialogStage = "questSelection";
+    showQuestSelectionDialog(dialogContainer);
+  }
+}
+
+function closeNPCDialog() {
+  isNPCDialogOpen = false;
+  const dialogContainer = document.getElementById("npcDialog");
+  if (dialogContainer) {
+    dialogContainer.remove();
+  }
+}
+
+function showGreetingDialog(container) {
+  dialogStage = "greeting";
+  container.innerHTML = `
+      <div class="npc-dialog-header">
+        <img src="fotoQuestNPC.png" alt="NPC Photo" class="npc-photo">
+        <h2 class="npc-title">${NPC.name}</h2>
+      </div>
+      <p class="npc-text">Привет, ого! Ни когда еще не видел человека без модернизаций! Видимо с деньгами у тебя совсем туго... Меня зовут ${NPC.name}. Ну ничего, можешь заработать у меня немного... Мои работники только и знают, как шкериться в темных углах города. Находи предметы, если они мне нужны, я заберу. До встречи, человек!</p>
+      <button id="npcAgreeBtn" class="neon-btn">Хорошо</button>
+  `;
+  document.getElementById("npcAgreeBtn").addEventListener("click", () => {
+    isNPCMet = true;
+    dialogStage = "questSelection";
+    sendWhenReady(ws, JSON.stringify({ type: "meetNPC", npcMet: true }));
+    showQuestSelectionDialog(container);
+  });
+}
+
+function getRandomQuests(count) {
+  const shuffled = [...QUESTS].sort(() => 0.5 - Math.random());
+  return shuffled.slice(0, count);
+}
+
+function showQuestSelectionDialog(container) {
+  if (availableQuests.length === 0) {
+    availableQuests = getRandomQuests(5); // Инициализируем 5 случайных заданий
+  }
+
+  container.innerHTML = `
+      <div class="npc-dialog-header">
+        <img src="fotoQuestNPC.png" alt="NPC Photo" class="npc-photo">
+        <h2 class="npc-title">${NPC.name}</h2>
+      </div>
+      <p class="npc-text">Что из этого ты сумеешь достать?</p>
+      <div id="questList" class="quest-list"></div>
+  `;
+  const questList = document.getElementById("questList");
+  availableQuests.forEach((quest) => {
+    const questItem = document.createElement("div");
+    questItem.className = "quest-item";
+    questItem.innerHTML = `
+      <span class="quest-marker">></span>
+      <p>${quest.title} <span class="quest-reward">[Награда: ${quest.reward.quantity} баляр]</span></p>
+    `;
+    questItem.addEventListener("click", () => {
+      selectQuest(quest);
+      closeNPCDialog();
+    });
+    questList.appendChild(questItem);
+  });
+}
+
+function selectQuest(quest) {
+  selectedQuest = quest;
+  console.log(`Выбрано задание: ${quest.title}`);
+  sendWhenReady(
+    ws,
+    JSON.stringify({
+      type: "selectQuest",
+      questId: quest.id,
+    })
+  );
+
+  const me = players.get(myId);
+  if (!me) return;
+
+  const targetItem = quest.target;
+  const requiredQuantity = targetItem.quantity;
+  let currentQuantity = 0;
+
+  inventory.forEach((slot) => {
+    if (slot && slot.type === targetItem.type) {
+      currentQuantity += slot.quantity || 1;
+    }
+  });
+
+  if (currentQuantity >= requiredQuantity) {
+    completeQuest();
+  }
+}
+
+function checkQuestCompletion() {
+  if (!selectedQuest) return;
+
+  const me = players.get(myId);
+  if (!me) return;
+
+  const targetItem = selectedQuest.target;
+  const requiredQuantity = targetItem.quantity;
+  let currentQuantity = 0;
+
+  inventory.forEach((slot) => {
+    if (slot && slot.type === targetItem.type) {
+      currentQuantity += slot.quantity || 1;
+    }
+  });
+
+  if (currentQuantity >= requiredQuantity) {
+    completeQuest();
+  }
+}
+
+function completeQuest() {
+  if (!selectedQuest) return;
+
+  const me = players.get(myId);
+  if (!me) return;
+
+  // Удаляем необходимые предметы из инвентаря
+  let itemsToRemove = selectedQuest.target.quantity;
+  for (let i = 0; i < inventory.length && itemsToRemove > 0; i++) {
+    if (inventory[i] && inventory[i].type === selectedQuest.target.type) {
+      if (inventory[i].quantity && inventory[i].quantity >= 1) {
+        const removeFromSlot = Math.min(itemsToRemove, inventory[i].quantity);
+        inventory[i].quantity -= removeFromSlot;
+        itemsToRemove -= removeFromSlot;
+        if (inventory[i].quantity <= 0) {
+          inventory[i] = null;
+        }
+      } else {
+        inventory[i] = null;
+        itemsToRemove--;
+      }
+    }
+  }
+
+  // Добавляем награду (баляры) в инвентарь
+  const reward = selectedQuest.reward;
+  const balyarySlot = inventory.findIndex(
+    (slot) => slot && slot.type === "balyary"
+  );
+  if (balyarySlot !== -1) {
+    inventory[balyarySlot].quantity =
+      (inventory[balyarySlot].quantity || 1) + reward.quantity;
+  } else {
+    const freeSlot = inventory.findIndex((slot) => slot === null);
+    if (freeSlot !== -1) {
+      inventory[freeSlot] = { type: "balyary", quantity: reward.quantity };
     } else {
-      if (
-        left < obstacle.right &&
-        right > obstacle.left &&
-        top < obstacle.bottom &&
-        bottom > obstacle.top
-      )
-        return true;
+      console.warn("Инвентарь полон, награда не добавлена!");
     }
   }
-  return false;
+
+  // Начисляем опыт за выполнение задания
+  const targetItemType = selectedQuest.target.type;
+  // Определяем редкость предмета задания
+  const itemRarity =
+    {
+      // Редкие (rarity 1)
+      blood_pack: 1,
+      canned_meat: 1,
+      mushroom: 1,
+      // Средние (rarity 2)
+      sausage: 2,
+      energy_drink: 2,
+      // Частые (rarity 3)
+      nut: 3,
+      water_bottle: 3,
+      apple: 3,
+      berries: 3,
+      carrot: 3,
+    }[targetItemType] || 3; // По умолчанию частый предмет
+  let xpToAdd = 0;
+  switch (itemRarity) {
+    case 1: // Редкий предмет
+      xpToAdd = 15;
+      break;
+    case 2: // Средний предмет
+      xpToAdd = 10;
+      break;
+    case 3: // Частый предмет
+      xpToAdd = 5;
+      break;
+    default:
+      xpToAdd = 5;
+  }
+  console.log(
+    `Игрок ${myId} получил ${xpToAdd} XP за выполнение задания "${selectedQuest.title}"`
+  );
+
+  // Отправляем обновление инвентаря и опыта на сервер
+  sendWhenReady(
+    ws,
+    JSON.stringify({
+      type: "completeQuest",
+      questId: selectedQuest.id,
+      inventory: inventory,
+      xpToAdd: xpToAdd,
+    })
+  );
+
+  // Сохраняем ID выполненного задания
+  const previousQuestId = selectedQuest.id;
+
+  // Удаляем выполненное задание из списка доступных
+  availableQuests = availableQuests.filter((q) => q.id !== previousQuestId);
+
+  // Добавляем новое случайное задание, исключая дубликаты
+  let newQuest;
+  do {
+    newQuest = QUESTS[Math.floor(Math.random() * QUESTS.length)];
+  } while (
+    newQuest.id === previousQuestId ||
+    availableQuests.some((q) => q.id === newQuest.id)
+  );
+
+  availableQuests.push(newQuest);
+  console.log(
+    `Задание "${selectedQuest.title}" выполнено! Получено ${reward.quantity} баляр и ${xpToAdd} XP. Новое задание: ${newQuest.title}`
+  );
+
+  // Сбрасываем выбранное задание
+  selectedQuest = null;
+
+  // Обновляем отображение инвентаря с анимацией
+  if (isInventoryOpen) {
+    requestAnimationFrame(() => {
+      updateInventoryDisplay();
+      const inventoryGrid = document.getElementById("inventoryGrid");
+      if (inventoryGrid) {
+        inventoryGrid.style.opacity = "0";
+        inventoryGrid.offsetHeight;
+        inventoryGrid.style.opacity = "1";
+        updateInventoryDisplay();
+      }
+    });
+  }
+
+  updateStatsDisplay();
 }
 
-wss.on("connection", (ws) => {
-  console.log("Клиент подключился");
+function setNPCMet(met) {
+  isNPCMet = met;
+}
 
-  // Добавляем таймер неактивности для клиента
-  let inactivityTimer = setTimeout(() => {
-    console.log("Клиент отключён из-за неактивности");
-    ws.close(4000, "Inactivity timeout"); // Закрываем соединение с пользовательским кодом
-  }, INACTIVITY_TIMEOUT);
+function setSelectedQuest(questId) {
+  selectedQuest = QUESTS.find((q) => q.id === questId) || null;
+}
 
-  ws.on("message", async (message) => {
-    // Сбрасываем таймер неактивности при получении любого сообщения
-    clearTimeout(inactivityTimer);
-    inactivityTimer = setTimeout(() => {
-      console.log("Клиент отключён из-за неактивности");
-      ws.close(4999, "Inactivity timeout");
-    }, INACTIVITY_TIMEOUT);
+function setAvailableQuests(questIds) {
+  availableQuests = questIds
+    .map((id) => QUESTS.find((q) => q.id === id))
+    .filter((q) => q);
+}
 
-    let data;
-    try {
-      data = JSON.parse(message);
-    } catch (e) {
-      console.error("Неверный JSON:", e);
-      return;
-    }
-    if (data.type === "register") {
-      if (userDatabase.has(data.username)) {
-        ws.send(JSON.stringify({ type: "registerFail" }));
-      } else {
-        const newPlayer = {
-          id: data.username,
-          password: data.password,
-          x: 222,
-          y: 3205,
-          health: 100,
-          energy: 100,
-          food: 100,
-          water: 100,
-          armor: 0,
-          distanceTraveled: 0,
-          direction: "down",
-          state: "idle",
-          frame: 0,
-          inventory: Array(20).fill(null),
-          npcMet: false,
-          xp: 0, // Начальный опыт
-          level: 0, // Начальный уровень
-          levelProgress: "0 / 100xp", // Начальный прогресс
-        };
+// Стили для диалогового окна NPC
+const npcStyles = `
+/* Основной контейнер диалога NPC */
+.npc-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(135deg, rgba(10, 10, 10, 0.95), rgba(20, 20, 20, 0.9));
+  border: 2px solid #00ffff;
+  border-radius: 10px;
+  padding: 20px;
+  color: #00ffff;
+  font-family: "Courier New", monospace;
+  text-align: center;
+  z-index: 1000;
+  max-width: 450px;
+  width: 90%;
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.5), 0 0 30px rgba(255, 0, 255, 0.3);
+  animation: neonPulse 2s infinite alternate;
+}
 
-        userDatabase.set(data.username, newPlayer);
-        await saveUserDatabase(dbCollection, data.username, newPlayer); // Сохраняем в MongoDB
-        ws.send(JSON.stringify({ type: "registerSuccess" }));
-      }
-    } else if (data.type === "login") {
-      const player = userDatabase.get(data.username);
-      if (player && player.password === data.password) {
-        clients.set(ws, data.username);
-        const playerData = {
-          ...player,
-          inventory: player.inventory || Array(20).fill(null),
-          npcMet: player.npcMet || false,
-          selectedQuestId: player.selectedQuestId || null,
-          xp: player.xp || 0, // Гарантируем наличие опыта
-          level: player.level || 0, // Гарантируем наличие уровня
-          levelProgress: player.levelProgress || "0 / 100xp", // Гарантируем наличие прогресса
-        };
-        // Добавляем игрока в players, если его там ещё нет
-        players.set(data.username, playerData);
-        ws.send(
-          JSON.stringify({
-            type: "loginSuccess",
-            id: data.username,
-            x: playerData.x,
-            y: playerData.y,
-            health: playerData.health,
-            energy: playerData.energy,
-            food: playerData.food,
-            water: playerData.water,
-            armor: playerData.armor,
-            distanceTraveled: playerData.distanceTraveled || 0, // Гарантируем наличие
-            direction: playerData.direction || "down",
-            state: playerData.state || "idle",
-            frame: playerData.frame || 0,
-            inventory: playerData.inventory,
-            npcMet: playerData.npcMet, // Убедимся, что отправляем npcMet
-            selectedQuestId: playerData.selectedQuestId,
-            xp: playerData.xp, // Отправляем опыт
-            level: playerData.level, // Отправляем уровень
-            levelProgress: playerData.levelProgress, // Отправляем прогресс
-            players: Array.from(players.values()).filter(
-              (p) => p.id !== data.username
-            ), // Исключаем текущего игрока
-            wolves: [],
-            items: Array.from(items.entries()).map(([itemId, item]) => ({
-              itemId,
-              x: item.x,
-              y: item.y,
-              type: item.type,
-              spawnTime: item.spawnTime,
-            })),
-            obstacles: obstacles,
-            lights: lights,
-          })
-        );
-        wss.clients.forEach((client) => {
-          if (client !== ws && client.readyState === WebSocket.OPEN) {
-            client.send(
-              JSON.stringify({
-                type: "newPlayer",
-                player: players.get(data.username),
-              })
-            );
-          }
-        });
-      } else {
-        ws.send(JSON.stringify({ type: "loginFail" }));
-      }
-    } else if (data.type === "meetNPC") {
-      const id = clients.get(ws);
-      if (id) {
-        const player = players.get(id);
-        player.npcMet = data.npcMet;
-        players.set(id, { ...player });
-        userDatabase.set(id, { ...player });
-        await saveUserDatabase(dbCollection, id, player);
-        console.log(`Игрок ${id} познакомился с NPC: npcMet=${data.npcMet}`);
-      }
-    } else if (data.type === "move") {
-      const id = clients.get(ws);
-      if (id) {
-        const existingPlayer = players.get(id);
-        const updatedPlayer = {
-          ...existingPlayer,
-          ...data,
-          inventory: existingPlayer.inventory || Array(20).fill(null),
-          npcMet: existingPlayer.npcMet || false, // Сохраняем npcMet
-        };
-        players.set(id, updatedPlayer);
-        userDatabase.set(id, updatedPlayer);
-        let lastSaved = new Map();
-        if (!lastSaved.has(id) || Date.now() - lastSaved.get(id) > 5000) {
-          await saveUserDatabase(dbCollection, id, updatedPlayer);
-          lastSaved.set(id, Date.now());
-        }
-        wss.clients.forEach((client) => {
-          if (client.readyState === WebSocket.OPEN) {
-            client.send(
-              JSON.stringify({ type: "update", player: updatedPlayer })
-            );
-          }
-        });
-      }
-    } else if (data.type === "updateInventory") {
-      const id = clients.get(ws);
-      if (id) {
-        const player = players.get(id);
-        player.inventory = data.inventory;
-        players.set(id, { ...player });
-        userDatabase.set(id, { ...player });
-        await saveUserDatabase(dbCollection, id, player);
-        wss.clients.forEach((client) => {
-          if (
-            client.readyState === WebSocket.OPEN &&
-            clients.get(client) === id
-          ) {
-            client.send(
-              JSON.stringify({ type: "update", player: { id, ...player } })
-            );
-          }
-        });
-        console.log(`Инвентарь игрока ${id} обновлён`);
-      }
-    } else if (data.type === "pickup") {
-      const id = clients.get(ws);
-      if (!id) return;
+/* Заголовок диалога с фото и именем NPC */
+.npc-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 15px;
+}
 
-      if (!items.has(data.itemId)) {
-        ws.send(JSON.stringify({ type: "itemNotFound", itemId: data.itemId }));
-        return;
-      }
+.npc-photo {
+  width: 80px;
+  height: 80px;
+  border: 2px solid #ff00ff;
+  border-radius: 50%;
+  margin-right: 15px;
+  box-shadow: 0 0 15px rgba(255, 0, 255, 0.5);
+  object-fit: cover;
+}
 
-      const item = items.get(data.itemId);
-      const player = players.get(id);
-      if (!player.inventory) player.inventory = Array(20).fill(null);
+.npc-title {
+  color: #00ffff;
+  font-size: 24px;
+  text-shadow: 0 0 5px #00ffff, 0 0 10px #ff00ff;
+  animation: flicker 1.5s infinite alternate;
+  margin: 0;
+}
 
-      if (item.type === "balyary") {
-        const quantityToAdd = item.quantity || 1;
-        const balyarySlot = player.inventory.findIndex(
-          (slot) => slot && slot.type === "balyary"
-        );
-        if (balyarySlot !== -1) {
-          player.inventory[balyarySlot].quantity =
-            (player.inventory[balyarySlot].quantity || 1) + quantityToAdd;
-        } else {
-          const freeSlot = player.inventory.findIndex((slot) => slot === null);
-          if (freeSlot !== -1) {
-            player.inventory[freeSlot] = {
-              type: "balyary",
-              quantity: quantityToAdd,
-              itemId: data.itemId,
-            };
-          } else {
-            ws.send(
-              JSON.stringify({ type: "inventoryFull", itemId: data.itemId })
-            );
-            return;
-          }
-        }
-      } else {
-        const freeSlot = player.inventory.findIndex((slot) => slot === null);
-        if (freeSlot !== -1) {
-          player.inventory[freeSlot] = { type: item.type, itemId: data.itemId };
-        } else {
-          ws.send(
-            JSON.stringify({ type: "inventoryFull", itemId: data.itemId })
-          );
-          return;
-        }
-      }
+/* Текст NPC */
+.npc-text {
+  margin: 15px 0;
+  font-size: 16px;
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.7);
+  line-height: 1.4;
+}
 
-      items.delete(data.itemId);
-      players.set(id, { ...player });
-      userDatabase.set(id, { ...player });
-      await saveUserDatabase(dbCollection, id, player);
+/* Список квестов */
+.quest-list {
+  max-height: 250px;
+  overflow-y: auto;
+  margin-top: 15px;
+  background: rgba(10, 10, 10, 0.9);
+  border: 1px solid #ff00ff;
+  border-radius: 5px;
+  padding: 10px;
+  box-shadow: inset 0 0 10px rgba(255, 0, 255, 0.3);
+  scrollbar-width: thin;
+  scrollbar-color: #ff00ff rgba(0, 0, 0, 0.5);
+}
 
-      wss.clients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(
-            JSON.stringify({
-              type: "itemPicked",
-              itemId: data.itemId,
-              playerId: id,
-              item: {
-                type: item.type,
-                itemId: data.itemId,
-                quantity: item.quantity || 1,
-              },
-            })
-          );
-          if (clients.get(client) === id) {
-            client.send(
-              JSON.stringify({
-                type: "update",
-                player: {
-                  id,
-                  ...player,
-                  xp: player.xp, // Обновляем опыт
-                  level: player.level, // Обновляем уровень
-                  levelProgress: player.levelProgress, // Обновляем прогресс
-                },
-              })
-            );
-          }
-        }
-      });
+.quest-list::-webkit-scrollbar {
+  width: 8px;
+}
 
-      setTimeout(() => {
-        const worldWidth = 2800;
-        const worldHeight = 3300;
-        const newItemId = `${item.type}_${Date.now()}`;
-        const newItem = {
-          x: Math.random() * worldWidth,
-          y: Math.random() * worldHeight,
-          type: item.type,
-          spawnTime: Date.now(),
-        };
-        items.set(newItemId, newItem);
-        wss.clients.forEach((client) => {
-          if (client.readyState === WebSocket.OPEN) {
-            client.send(
-              JSON.stringify({
-                type: "newItem",
-                itemId: newItemId,
-                x: newItem.x,
-                y: newItem.y,
-                type: newItem.type,
-                spawnTime: newItem.spawnTime,
-              })
-            );
-          }
-        });
-      }, 10 * 60 * 1000);
-    } else if (data.type === "chat") {
-      const id = clients.get(ws);
-      if (id) {
-        wss.clients.forEach((client) => {
-          if (client.readyState === WebSocket.OPEN) {
-            client.send(
-              JSON.stringify({ type: "chat", id, message: data.message })
-            );
-          }
-        });
-      }
-    } else if (data.type === "shoot") {
-      const id = clients.get(ws);
-      if (id) {
-        const bulletId = Date.now().toString();
-        bullets.set(bulletId, {
-          id: bulletId,
-          shooterId: id,
-          x: data.x,
-          y: data.y,
-          dx: data.dx,
-          dy: data.dy,
-          spawnTime: Date.now(),
-          life: GAME_CONFIG.BULLET_LIFE, // Используем константу из конфига
-        });
+.quest-list::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 4px;
+}
 
-        // Уведомляем всех о новом выстреле
-        wss.clients.forEach((client) => {
-          if (client.readyState === WebSocket.OPEN) {
-            client.send(
-              JSON.stringify({
-                type: "shoot",
-                bulletId: bulletId,
-                x: data.x,
-                y: data.y,
-                dx: data.dx,
-                dy: data.dy,
-                shooterId: id,
-              })
-            );
-          }
-        });
-        console.log(`Игрок ${id} выстрелил, пуля ${bulletId} создана`);
-      }
-    }
-    // Обработка использования предмета из инвентаря
-    else if (data.type === "useItem") {
-      const id = clients.get(ws);
-      if (id) {
-        const player = players.get(id);
-        const slotIndex = data.slotIndex;
-        const item = player.inventory[slotIndex];
-        if (item) {
-          const effect = ITEM_CONFIG[item.type].effect;
-          if (effect.health)
-            player.health = Math.min(
-              100,
-              Math.max(0, player.health + effect.health)
-            );
-          if (effect.energy)
-            player.energy = Math.min(
-              100,
-              Math.max(0, player.energy + effect.energy)
-            );
-          if (effect.food)
-            player.food = Math.min(100, Math.max(0, player.food + effect.food));
-          if (effect.water)
-            player.water = Math.min(
-              100,
-              Math.max(0, player.water + effect.water)
-            );
+.quest-list::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #00ffff, #ff00ff);
+  border-radius: 4px;
+  box-shadow: 0 0 10px rgba(255, 0, 255, 0.7);
+}
 
-          player.inventory[slotIndex] = null;
-          players.set(id, { ...player });
-          userDatabase.set(id, { ...player });
-          await saveUserDatabase(dbCollection, id, player);
+.quest-list::-webkit-scrollbar-thumb:hover {
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.9);
+}
 
-          wss.clients.forEach((client) => {
-            if (client.readyState === WebSocket.OPEN) {
-              client.send(
-                JSON.stringify({ type: "update", player: { id, ...player } })
-              );
-            }
-          });
-          console.log(
-            `Игрок ${id} использовал ${item.type} из слота ${slotIndex}`
-          );
-        }
-      }
-    }
-    // Обработка выброса предмета из инвентаря
-    else if (data.type === "dropItem") {
-      const id = clients.get(ws);
-      console.log(
-        `Получен запрос dropItem от ${id}, slotIndex: ${data.slotIndex}, x: ${
-          data.x
-        }, y: ${data.y}, quantity: ${data.quantity || 1}`
-      );
-      if (id) {
-        const player = players.get(id);
-        const slotIndex = data.slotIndex;
-        const item = player.inventory[slotIndex];
-        if (item) {
-          let quantityToDrop = data.quantity || 1; // По умолчанию 1, если не указано
-          if (item.type === "balyary") {
-            const currentQuantity = item.quantity || 1;
-            if (quantityToDrop > currentQuantity) {
-              console.log(
-                `У игрока ${id} недостаточно Баляр для выброса: ${quantityToDrop} > ${currentQuantity}`
-              );
-              return; // Клиент уже проверил, но на всякий случай
-            }
-          }
+/* Элемент квеста */
+.quest-item {
+  background: rgba(0, 0, 0, 0.85);
+  padding: 12px;
+  margin: 8px 0;
+  cursor: pointer;
+  border: 1px solid #00ffff;
+  border-radius: 5px;
+  color: #00ffff;
+  font-size: 14px;
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.7);
+  box-shadow: 0 0 8px rgba(0, 255, 255, 0.3);
+  transition: all 0.3s ease;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
 
-          let dropX,
-            dropY,
-            attempts = 0;
-          const maxAttempts = 10;
-          do {
-            const angle = Math.random() * Math.PI * 2;
-            const radius = Math.random() * 100;
-            dropX = player.x + Math.cos(angle) * radius;
-            dropY = player.y + Math.sin(angle) * radius;
-            attempts++;
-          } while (
-            checkCollisionServer(dropX, dropY) &&
-            attempts < maxAttempts
-          );
+.quest-item:hover {
+  background: rgba(0, 255, 255, 0.15);
+  border-color: #ff00ff;
+  box-shadow: 0 0 15px rgba(255, 0, 255, 0.7);
+  transform: translateX(5px);
+}
 
-          if (attempts < maxAttempts) {
-            const itemId = `${item.type}_${Date.now()}`;
-            if (item.type === "balyary") {
-              if (quantityToDrop === item.quantity) {
-                player.inventory[slotIndex] = null;
-              } else {
-                player.inventory[slotIndex].quantity -= quantityToDrop;
-              }
-              items.set(itemId, {
-                x: dropX,
-                y: dropY,
-                type: item.type,
-                spawnTime: Date.now(),
-                quantity: quantityToDrop, // Сохраняем количество выброшенных Баляр
-              });
-            } else {
-              player.inventory[slotIndex] = null;
-              items.set(itemId, {
-                x: dropX,
-                y: dropY,
-                type: item.type,
-                spawnTime: Date.now(),
-              });
-            }
+.quest-marker {
+  color: #ff00ff;
+  font-weight: bold;
+  margin-right: 10px;
+  font-size: 16px;
+}
 
-            players.set(id, { ...player });
-            userDatabase.set(id, { ...player });
-            await saveUserDatabase(dbCollection, id, player);
+.quest-reward {
+  color: #ff00ff;
+  font-size: 12px;
+  margin-left: 10px;
+}
 
-            wss.clients.forEach((client) => {
-              if (client.readyState === WebSocket.OPEN) {
-                client.send(
-                  JSON.stringify({
-                    type: "itemDropped",
-                    itemId,
-                    x: dropX,
-                    y: dropY,
-                    type: item.type,
-                    spawnTime: Date.now(),
-                    quantity:
-                      item.type === "balyary" ? quantityToDrop : undefined,
-                  })
-                );
-                if (clients.get(client) === id) {
-                  client.send(
-                    JSON.stringify({
-                      type: "update",
-                      player: { id, ...player },
-                    })
-                  );
-                }
-              }
-            });
-            console.log(
-              `Игрок ${id} выбросил ${quantityToDrop} ${item.type} на x:${dropX}, y:${dropY}`
-            );
-          } else {
-            console.log(`Не удалось найти место для выброса ${item.type}`);
-          }
-        }
-      }
-    } else if (data.type === "selectQuest") {
-      const id = clients.get(ws);
-      if (id) {
-        const player = players.get(id);
-        player.selectedQuestId = data.questId; // Сохраняем выбранное задание
-        players.set(id, { ...player });
-        userDatabase.set(id, { ...player });
-        await saveUserDatabase(dbCollection, id, player);
-        console.log(`Игрок ${id} выбрал задание ID: ${data.questId}`);
-      }
-    }
-  });
+/* Кнопка в стиле киберпанк */
+.neon-btn {
+  padding: 12px 24px;
+  font-size: 16px;
+  font-family: "Courier New", monospace;
+  background: linear-gradient(135deg, #00ffff, #ff00ff);
+  border: none;
+  color: #000;
+  border-radius: 5px;
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.7), 0 0 20px rgba(255, 0, 255, 0.5);
+  transition: all 0.3s;
+  text-transform: uppercase;
+}
 
-  ws.on("close", async (code, reason) => {
-    const id = clients.get(ws);
-    if (id) {
-      const player = players.get(id);
-      if (player) {
-        userDatabase.set(id, { ...player });
-        await saveUserDatabase(dbCollection, id, player);
-        console.log(
-          `Данные игрока ${id} сохранены перед отключением. Код: ${code}, Причина: ${reason}`
-        );
+.neon-btn:hover {
+  box-shadow: 0 0 20px rgba(0, 255, 255, 1), 0 0 30px rgba(255, 0, 255, 0.7);
+  transform: scale(1.05);
+}
 
-        // Удаляем предметы, связанные с этим игроком, если они не были подняты
-        const itemsToRemove = [];
-        items.forEach((item, itemId) => {
-          if (item.spawnedBy === id) {
-            itemsToRemove.push(itemId);
-          }
-        });
+.neon-btn:active {
+  transform: scale(0.95);
+}
 
-        itemsToRemove.forEach((itemId) => {
-          items.delete(itemId);
-          console.log(`Предмет ${itemId} удалён из-за отключения игрока ${id}`);
-          wss.clients.forEach((client) => {
-            if (client.readyState === WebSocket.OPEN) {
-              client.send(
-                JSON.stringify({
-                  type: "itemPicked",
-                  itemId: itemId,
-                })
-              );
-            }
-          });
-        });
-      }
-      clients.delete(ws);
-      players.delete(id);
-      console.log("Клиент отключился:", id);
-      wss.clients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(JSON.stringify({ type: "playerLeft", id }));
-        }
-      });
-    }
-    // Очищаем таймер при закрытии соединения
-    clearTimeout(inactivityTimer);
-  });
+/* Анимации */
+@keyframes neonPulse {
+  0% {
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.5), 0 0 20px rgba(255, 0, 255, 0.3);
+  }
+  100% {
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.8), 0 0 30px rgba(255, 0, 255, 0.5);
+  }
+}
 
-  ws.on("error", (error) => {
-    console.error("Ошибка WebSocket:", error);
-    // Очищаем таймер при ошибке
-    clearTimeout(inactivityTimer);
-  });
-});
+@keyframes flicker {
+  0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {
+    opacity: 1;
+    text-shadow: 0 0 5px #00ffff, 0 0 10px #ff00ff;
+  }
+  20%, 24%, 55% {
+    opacity: 0.7;
+    text-shadow: 0 0 2px #00ffff, 0 0 5px #ff00ff;
+  }
+}
 
-setInterval(async () => {
-  const currentTime = Date.now();
-  bullets.forEach(async (bullet, bulletId) => {
-    bullet.x += bullet.dx * (16 / 1000);
-    bullet.y += bullet.dy * (16 / 1000);
-
-    let bulletCollided = false;
-    for (const obstacle of obstacles) {
-      if (obstacle.isLine) {
-        const distance = pointToLineDistance(
-          bullet.x,
-          bullet.y,
-          obstacle.x1,
-          obstacle.y1,
-          obstacle.x2,
-          obstacle.y2
-        );
-        if (distance < obstacle.thickness / 2 + 5) {
-          bulletCollided = true;
-          bullets.delete(bulletId);
-          console.log(`Пуля ${bulletId} столкнулась с препятствием`);
-          wss.clients.forEach((client) => {
-            if (client.readyState === WebSocket.OPEN) {
-              client.send(
-                JSON.stringify({
-                  type: "bulletRemoved",
-                  bulletId: bulletId,
-                })
-              );
-            }
-          });
-          break;
-        }
-      }
-    }
-
-    if (!bulletCollided) {
-      try {
-        players.forEach(async (player, playerId) => {
-          if (playerId !== bullet.shooterId && player.health > 0) {
-            const playerLeft = player.x;
-            const playerRight = player.x + 40;
-            const playerTop = player.y;
-            const playerBottom = player.y + 40;
-
-            if (
-              bullet.x >= playerLeft &&
-              bullet.x <= playerRight &&
-              bullet.y >= playerTop &&
-              bullet.y <= playerBottom
-            ) {
-              player.health = Math.max(
-                0,
-                player.health - GAME_CONFIG.BULLET_DAMAGE
-              );
-              console.log(
-                `Пуля ${bulletId} попала в ${playerId}, здоровье: ${player.health}`
-              );
-              userDatabase.set(playerId, { ...player });
-              await saveUserDatabase(dbCollection, playerId, player);
-              bullets.delete(bulletId);
-              wss.clients.forEach((client) => {
-                if (client.readyState === WebSocket.OPEN) {
-                  client.send(
-                    JSON.stringify({
-                      type: "update",
-                      player: { id: playerId, ...player },
-                    })
-                  );
-                }
-              });
-            }
-          }
-        });
-      } catch (error) {
-        console.error("Ошибка при обработке попадания пули:", error);
-      }
-    }
-
-    if (currentTime - bullet.spawnTime > GAME_CONFIG.BULLET_LIFE) {
-      bullets.delete(bulletId);
-      console.log(`Пуля ${bulletId} удалена по истечении времени жизни`);
-      wss.clients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(
-            JSON.stringify({
-              type: "bulletRemoved",
-              bulletId: bulletId,
-            })
-          );
-        }
-      });
-    }
-  });
-}, 16);
-
-setInterval(() => {
-  const currentTime = Date.now();
-  const playerCount = players.size;
-
-  // Удаление предметов по таймауту (10 минут)
-  items.forEach((item, itemId) => {
-    if (currentTime - item.spawnTime > 10 * 60 * 1000) {
-      items.delete(itemId);
-      console.log(`Предмет ${item.type} (${itemId}) исчез из-за таймаута`);
-      wss.clients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(JSON.stringify({ type: "itemPicked", itemId }));
-        }
-      });
-    }
-  });
-
-  const worldWidth = 3135;
-  const worldHeight = 3300;
-
-  // Считаем текущие предметы по типам
-  const itemCounts = {};
-  for (const [type] of Object.entries(ITEM_CONFIG)) {
-    itemCounts[type] = Array.from(items.values()).filter(
-      (item) => item.type === type
-    ).length;
+/* Адаптация для мобильных устройств */
+@media (max-width: 500px) {
+  .npc-dialog {
+    max-width: 90%;
+    padding: 15px;
   }
 
-  // Определяем группы предметов по редкости
-  const rareItems = Object.entries(ITEM_CONFIG)
-    .filter(([_, config]) => config.rarity === 1)
-    .map(([type]) => type); // blood_pack, canned_meat, mushroom
-  const mediumItems = Object.entries(ITEM_CONFIG)
-    .filter(([_, config]) => config.rarity === 2)
-    .map(([type]) => type); // dried_fish, condensed_milk, milk, и т.д.
-  const commonItems = Object.entries(ITEM_CONFIG)
-    .filter(([_, config]) => config.rarity === 3)
-    .map(([type]) => type); // water_bottle, nut, apple, berries, carrot
-
-  // Цель: 10 предметов на игрока (2 редких, 3 средних, 5 частых)
-  const desiredTotalItems = playerCount * 10;
-  const currentTotalItems = Array.from(items.values()).length;
-
-  if (currentTotalItems < desiredTotalItems) {
-    const itemsToSpawn = desiredTotalItems - currentTotalItems;
-
-    // Распределяем предметы: 2 редких, 3 средних, 5 частых на игрока
-    let rareCount = playerCount * 2; // 2 редких на игрока
-    let mediumCount = playerCount * 3; // 3 средних на игрока
-    let commonCount = playerCount * 5; // 5 частых на игрока
-
-    for (let i = 0; i < itemsToSpawn; i++) {
-      let type;
-      if (
-        rareCount > 0 &&
-        rareItems.length > 0 &&
-        itemCounts[rareItems[rareCount % rareItems.length]] < rareCount
-      ) {
-        type = rareItems[Math.floor(Math.random() * rareItems.length)];
-        rareCount--;
-      } else if (
-        mediumCount > 0 &&
-        mediumItems.length > 0 &&
-        itemCounts[mediumItems[mediumCount % mediumItems.length]] < mediumCount
-      ) {
-        type = mediumItems[Math.floor(Math.random() * mediumItems.length)];
-        mediumCount--;
-      } else if (
-        commonCount > 0 &&
-        commonItems.length > 0 &&
-        itemCounts[commonItems[commonCount % commonItems.length]] < commonCount
-      ) {
-        type = commonItems[Math.floor(Math.random() * commonItems.length)];
-        commonCount--;
-      } else {
-        // Если все категории исчерпаны, берём случайный предмет
-        const allTypes = Object.keys(ITEM_CONFIG);
-        type = allTypes[Math.floor(Math.random() * allTypes.length)];
-      }
-
-      let x,
-        y,
-        attempts = 0;
-      const maxAttempts = 10;
-      do {
-        x = Math.random() * worldWidth;
-        y = Math.random() * worldHeight;
-        attempts++;
-      } while (checkCollisionServer(x, y) && attempts < maxAttempts);
-
-      if (attempts < maxAttempts) {
-        const itemId = `${type}_${Date.now()}_${i}`;
-        const newItem = {
-          x,
-          y,
-          type,
-          spawnTime: currentTime,
-        };
-        items.set(itemId, newItem);
-        console.log(
-          `Создан предмет ${type} (${itemId}) на x:${newItem.x}, y:${newItem.y}`
-        );
-
-        wss.clients.forEach((client) => {
-          if (client.readyState === WebSocket.OPEN) {
-            client.send(
-              JSON.stringify({
-                type: "newItem",
-                itemId: itemId,
-                x: newItem.x,
-                y: newItem.y,
-                type: newItem.type,
-                spawnTime: newItem.spawnTime,
-              })
-            );
-          }
-        });
-      } else {
-        console.log(`Не удалось найти место для спавна предмета ${type}`);
-      }
-    }
+  .npc-photo {
+    width: 60px;
+    height: 60px;
   }
 
-  const allItems = Array.from(items.entries()).map(([itemId, item]) => ({
-    itemId,
-    x: item.x,
-    y: item.y,
-    type: item.type,
-    spawnTime: item.spawnTime,
-  }));
-  wss.clients.forEach((client) => {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(
-        JSON.stringify({
-          type: "syncItems",
-          items: allItems,
-        })
-      );
-    }
-  });
-}, 10 * 1000);
+  .npc-title {
+    font-size: 20px;
+  }
 
-const PORT = process.env.PORT || 10000;
+  .npc-text {
+    font-size: 14px;
+  }
+
+  .quest-list {
+    max-height: 200px;
+  }
+
+  .quest-item {
+    padding: 10px;
+    font-size: 12px;
+  }
+
+  .neon-btn {
+    padding: 10px 20px;
+    font-size: 14px;
+  }
+}
+`;
+
+// Динамическое добавление стилей в документ
+const styleSheet = document.createElement("style");
+styleSheet.type = "text/css";
+styleSheet.innerText = npcStyles;
+document.head.appendChild(styleSheet);
