@@ -731,6 +731,16 @@ wss.on("connection", (ws) => {
           }
         }
       }
+    } else if (data.type === "selectQuest") {
+      const id = clients.get(ws);
+      if (id) {
+        const player = players.get(id);
+        player.selectedQuestId = data.questId; // Сохраняем выбранное задание
+        players.set(id, { ...player });
+        userDatabase.set(id, { ...player });
+        await saveUserDatabase(dbCollection, id, player);
+        console.log(`Игрок ${id} выбрал задание ID: ${data.questId}`);
+      }
     }
   });
 

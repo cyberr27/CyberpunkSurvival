@@ -1,3 +1,4 @@
+// NPC.js
 const NPC = {
   x: 590,
   y: 3150,
@@ -7,6 +8,7 @@ const NPC = {
 };
 
 const QUESTS = [
+  // Существующие задания (оставляем без изменений)
   {
     id: 1,
     title: "Принеси один орех.",
@@ -57,7 +59,7 @@ const QUESTS = [
   },
   {
     id: 9,
-    title: "Принеси дву бутылки водки.",
+    title: "Принеси две бутылки водки.",
     reward: { type: "balyary", quantity: 4 },
     target: { type: "vodka_bottle", quantity: 2 },
   },
@@ -217,6 +219,67 @@ const QUESTS = [
     reward: { type: "balyary", quantity: 10 },
     target: { type: "nut", quantity: 5 },
   },
+  // Новые задания (добавлены 10 заданий для 1-2 предметов, награда 1-4 баляра)
+  {
+    id: 36,
+    title: "Принеси один яблоко.",
+    reward: { type: "balyary", quantity: 1 },
+    target: { type: "apple", quantity: 1 },
+  },
+  {
+    id: 37,
+    title: "Принеси две ягоды.",
+    reward: { type: "balyary", quantity: 2 },
+    target: { type: "berries", quantity: 2 },
+  },
+  {
+    id: 38,
+    title: "Принеси одну морковь.",
+    reward: { type: "balyary", quantity: 1 },
+    target: { type: "carrot", quantity: 1 },
+  },
+  {
+    id: 39,
+    title: "Принеси два ореха.",
+    reward: { type: "balyary", quantity: 3 },
+    target: { type: "nut", quantity: 2 },
+  },
+  {
+    id: 40,
+    title: "Принеси одну бутылку воды.",
+    reward: { type: "balyary", quantity: 2 },
+    target: { type: "water_bottle", quantity: 1 },
+  },
+  {
+    id: 41,
+    title: "Принеси один гриб.",
+    reward: { type: "balyary", quantity: 2 },
+    target: { type: "mushroom", quantity: 1 },
+  },
+  {
+    id: 42,
+    title: "Принеси две банки тушёнки.",
+    reward: { type: "balyary", quantity: 4 },
+    target: { type: "canned_meat", quantity: 2 },
+  },
+  {
+    id: 43,
+    title: "Принеси один кусок хлеба.",
+    reward: { type: "balyary", quantity: 1 },
+    target: { type: "bread", quantity: 1 },
+  },
+  {
+    id: 44,
+    title: "Принеси одну бутылку молока.",
+    reward: { type: "balyary", quantity: 2 },
+    target: { type: "milk", quantity: 1 },
+  },
+  {
+    id: 45,
+    title: "Принеси один энергетик.",
+    reward: { type: "balyary", quantity: 2 },
+    target: { type: "energy_drink", quantity: 1 },
+  },
 ];
 
 let isNPCDialogOpen = false;
@@ -327,6 +390,24 @@ function selectQuest(quest) {
       questId: quest.id,
     })
   );
+
+  // Проверяем, можно ли выполнить задание сразу
+  const me = players.get(myId);
+  if (!me) return;
+
+  const targetItem = quest.target;
+  const requiredQuantity = targetItem.quantity;
+  let currentQuantity = 0;
+
+  inventory.forEach((slot) => {
+    if (slot && slot.type === targetItem.type) {
+      currentQuantity += slot.quantity || 1;
+    }
+  });
+
+  if (currentQuantity >= requiredQuantity) {
+    completeQuest();
+  }
 }
 
 function checkQuestCompletion() {
@@ -386,6 +467,9 @@ function completeQuest() {
     const freeSlot = inventory.findIndex((slot) => slot === null);
     if (freeSlot !== -1) {
       inventory[freeSlot] = { type: "balyary", quantity: reward.quantity };
+    } else {
+      console.warn("Инвентарь полон, награда не добавлена!");
+      // Можно добавить уведомление игроку
     }
   }
 
@@ -418,24 +502,22 @@ function completeQuest() {
   // Сбрасываем выбранное задание
   selectedQuest = null;
 
-  // Немедленно обновляем отображение инвентаря с принудительным рендерингом
+  // Принудительно обновляем отображение инвентаря
   if (isInventoryOpen) {
     requestAnimationFrame(() => {
       updateInventoryDisplay();
-      // Принудительно вызываем перерисовку DOM
+      // Принудительный рефреш DOM
       const inventoryGrid = document.getElementById("inventoryGrid");
       if (inventoryGrid) {
-        // Сбрасываем содержимое и перерисовываем
-        inventoryGrid.style.opacity = "0"; // Кратковременное скрытие для рефреша
+        inventoryGrid.style.opacity = "0";
         inventoryGrid.offsetHeight; // Принудительный reflow
         inventoryGrid.style.opacity = "1";
-        // Перестраиваем содержимое слотов
         updateInventoryDisplay();
       }
     });
   }
 
-  // Обновляем отображение статистики
+  // Обновляем статистику
   updateStatsDisplay();
 }
 

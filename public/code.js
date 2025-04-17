@@ -415,10 +415,9 @@ function handleAuthMessage(event) {
       authContainer.style.display = "none";
       document.getElementById("gameContainer").style.display = "block";
 
-      // Добавляем текущего игрока в players
       const me = {
         id: data.id,
-        x: data.x || 222, // Координаты по умолчанию, если сервер не прислал
+        x: data.x || 222,
         y: data.y || 3205,
         health: data.health || 100,
         energy: data.energy || 100,
@@ -431,20 +430,19 @@ function handleAuthMessage(event) {
         frame: data.frame || 0,
         inventory: data.inventory || Array(20).fill(null),
         npcMet: data.npcMet || false,
+        selectedQuestId: data.selectedQuestId || null, // Добавляем
       };
       players.set(myId, me);
 
-      // Добавляем остальных игроков
       if (data.players) {
         data.players.forEach((p) => {
           if (p.id !== myId) {
-            // Избегаем перезаписи текущего игрока
             players.set(p.id, p);
           }
         });
       }
 
-      lastDistance = me.distanceTraveled || 0; // Теперь безопасно
+      lastDistance = me.distanceTraveled || 0;
       data.wolves?.forEach((w) => wolves.set(w.id, w));
       data.obstacles?.forEach((o) => obstacles.push(o));
       if (data.items) {
@@ -461,8 +459,9 @@ function handleAuthMessage(event) {
         lights.length = 0;
         data.lights.forEach((light) => lights.push(light));
       }
-      inventory = data.inventory || Array(20).fill(null); // Инициализация инвентаря
-      setNPCMet(data.npcMet || false); // Устанавливаем флаг знакомства
+      inventory = data.inventory || Array(20).fill(null);
+      setNPCMet(data.npcMet || false);
+      setSelectedQuest(data.selectedQuestId || null); // Устанавливаем выбранное задание
       resizeCanvas();
       ws.onmessage = handleGameMessage;
       console.log("Переключен обработчик на handleGameMessage");
