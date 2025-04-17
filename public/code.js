@@ -1206,7 +1206,6 @@ function updateStatsDisplay() {
 }
 
 function updateInventoryDisplay() {
-  if (!isInventoryOpen) return;
   const inventoryGrid = document.getElementById("inventoryGrid");
   const slots = inventoryGrid.children;
   const screen = document.getElementById("inventoryScreen");

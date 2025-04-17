@@ -418,8 +418,19 @@ function completeQuest() {
   // Сбрасываем выбранное задание
   selectedQuest = null;
 
-  // Немедленно обновляем отображение инвентаря
-  updateInventoryDisplay();
+  // Немедленно обновляем отображение инвентаря с принудительным рендерингом
+  if (isInventoryOpen) {
+    setTimeout(() => {
+      updateInventoryDisplay();
+      // Дополнительно обновляем DOM, чтобы гарантировать перерисовку
+      const inventoryGrid = document.getElementById("inventoryGrid");
+      if (inventoryGrid) {
+        inventoryGrid.style.display = "none";
+        inventoryGrid.offsetHeight; // Принудительный reflow
+        inventoryGrid.style.display = "grid";
+      }
+    }, 0);
+  }
 
   // Обновляем отображение статистики
   updateStatsDisplay();
