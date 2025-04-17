@@ -143,11 +143,9 @@ function showGreetingDialog(container) {
   container.innerHTML = `
       <div class="npc-dialog-header">
         <img src="fotoQuestNPC.png" alt="NPC Photo" class="npc-photo">
-        <h2 class="npc-title">${isNPCMet ? NPC.name : "Квестер"}</h2>
+        <h2 class="npc-title">${NPC.name}</h2>
       </div>
-      <p class="npc-text">Привет, ого! Ни когда еще не видел человека без модернизаций! Видимо с деньгами у тебя совсем туго... Меня зовут ${
-        NPC.name
-      }. Ну ничего, можешь заработать у меня немного Баляр. Мои работники только и знают, как шкериться в темных углах города. Находи предметы, если они мне нужны, я заберу. До встречи, человек!</p>
+      <p class="npc-text">Привет, ого! Ни когда еще не видел человека без модернизаций! Видимо с деньгами у тебя совсем туго... Меня зовут ${NPC.name}. Ну ничего, можешь заработать у меня немного Баляр. Мои работники только и знают, как шкериться в темных углах города. Находи предметы, если они мне нужны, я заберу. До встречи, человек!</p>
       <button id="npcAgreeBtn" class="neon-btn">Хорошо</button>
   `;
   document.getElementById("npcAgreeBtn").addEventListener("click", () => {
