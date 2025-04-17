@@ -4,18 +4,71 @@ const NPC = {
   width: 70,
   height: 70,
   interactionRadius: 50,
-  name: "John", // Добавляем имя NPC
+  name: "John", // Имя NPC
 };
 
+// Список всех возможных заданий
 const QUESTS = [
-  // Список заданий остается без изменений
   {
     id: 1,
     title: "Принеси один орех.",
     reward: { type: "balyary", quantity: 1 },
     target: { type: "nut", quantity: 1 },
   },
-  // ... остальные задания ...
+  {
+    id: 2,
+    title: "Найди бутылку воды.",
+    reward: { type: "balyary", quantity: 2 },
+    target: { type: "water_bottle", quantity: 1 },
+  },
+  {
+    id: 3,
+    title: "Собери энергетик.",
+    reward: { type: "balyary", quantity: 2 },
+    target: { type: "energy_drink", quantity: 1 },
+  },
+  {
+    id: 4,
+    title: "Достань яблоко.",
+    reward: { type: "balyary", quantity: 1 },
+    target: { type: "apple", quantity: 1 },
+  },
+  {
+    id: 5,
+    title: "Принеси ягоды.",
+    reward: { type: "balyary", quantity: 1 },
+    target: { type: "berries", quantity: 1 },
+  },
+  {
+    id: 6,
+    title: "Найди морковь.",
+    reward: { type: "balyary", quantity: 1 },
+    target: { type: "carrot", quantity: 1 },
+  },
+  {
+    id: 7,
+    title: "Собери банку тушёнки.",
+    reward: { type: "balyary", quantity: 3 },
+    target: { type: "canned_meat", quantity: 1 },
+  },
+  {
+    id: 8,
+    title: "Достань гриб.",
+    reward: { type: "balyary", quantity: 2 },
+    target: { type: "mushroom", quantity: 1 },
+  },
+  {
+    id: 9,
+    title: "Принеси колбасу.",
+    reward: { type: "balyary", quantity: 3 },
+    target: { type: "sausage", quantity: 1 },
+  },
+  {
+    id: 10,
+    title: "Найди пакет крови.",
+    reward: { type: "balyary", quantity: 4 },
+    target: { type: "blood_pack", quantity: 1 },
+  },
 ];
 
 let isNPCDialogOpen = false;
@@ -106,13 +159,13 @@ function showGreetingDialog(container) {
 }
 
 function getRandomQuests(count) {
-  const shuffled = QUESTS.sort(() => 0.5 - Math.random());
+  const shuffled = [...QUESTS].sort(() => 0.5 - Math.random());
   return shuffled.slice(0, count);
 }
 
 function showQuestSelectionDialog(container) {
   if (availableQuests.length === 0) {
-    availableQuests = getRandomQuests(5);
+    availableQuests = getRandomQuests(5); // Инициализируем 5 случайных заданий
   }
 
   container.innerHTML = `
@@ -195,6 +248,7 @@ function completeQuest() {
   const me = players.get(myId);
   if (!me) return;
 
+  // Удаляем необходимые предметы из инвентаря
   let itemsToRemove = selectedQuest.target.quantity;
   for (let i = 0; i < inventory.length && itemsToRemove > 0; i++) {
     if (inventory[i] && inventory[i].type === selectedQuest.target.type) {
@@ -212,6 +266,7 @@ function completeQuest() {
     }
   }
 
+  // Добавляем награду (баляры) в инвентарь
   const reward = selectedQuest.reward;
   const balyarySlot = inventory.findIndex(
     (slot) => slot && slot.type === "balyary"
@@ -228,6 +283,7 @@ function completeQuest() {
     }
   }
 
+  // Отправляем обновление инвентаря на сервер
   sendWhenReady(
     ws,
     JSON.stringify({
@@ -237,9 +293,13 @@ function completeQuest() {
     })
   );
 
+  // Сохраняем ID выполненного задания
   const previousQuestId = selectedQuest.id;
+
+  // Удаляем выполненное задание из списка доступных
   availableQuests = availableQuests.filter((q) => q.id !== previousQuestId);
 
+  // Добавляем новое случайное задание, исключая дубликаты
   let newQuest;
   do {
     newQuest = QUESTS[Math.floor(Math.random() * QUESTS.length)];
@@ -250,11 +310,13 @@ function completeQuest() {
 
   availableQuests.push(newQuest);
   console.log(
-    `Задание "${selectedQuest.title}" выполнено! Получено ${reward.quantity} баляр.`
+    `Задание "${selectedQuest.title}" выполнено! Получено ${reward.quantity} баляр. Новое задание: ${newQuest.title}`
   );
 
+  // Сбрасываем выбранное задание
   selectedQuest = null;
 
+  // Обновляем отображение инвентаря с анимацией
   if (isInventoryOpen) {
     requestAnimationFrame(() => {
       updateInventoryDisplay();
@@ -285,7 +347,7 @@ function setAvailableQuests(questIds) {
     .filter((q) => q);
 }
 
-// Стили для диалогового окна NPC остаются без изменений
+// Стили для диалогового окна NPC
 const npcStyles = `
 /* Основной контейнер диалога NPC */
 .npc-dialog {
