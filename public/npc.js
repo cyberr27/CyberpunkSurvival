@@ -1,6 +1,3 @@
-javascript;
-
-Копировать;
 const NPC = {
   x: 590,
   y: 3150,
