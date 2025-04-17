@@ -2,13 +2,13 @@
 const NPC = {
   x: 590,
   y: 3150,
-  width: 40,
-  height: 40,
+  width: 70, // Изменено с 40 на 70
+  height: 70, // Изменено с 40 на 70
   interactionRadius: 50,
 };
 
 const QUESTS = [
-  // Существующие задания (оставляем без изменений)
+  // Существующие задания (без изменений)
   {
     id: 1,
     title: "Принеси один орех.",
@@ -219,7 +219,6 @@ const QUESTS = [
     reward: { type: "balyary", quantity: 10 },
     target: { type: "nut", quantity: 5 },
   },
-  // Новые задания (добавлены 10 заданий для 1-2 предметов, награда 1-4 баляра)
   {
     id: 36,
     title: "Принеси один яблоко.",
@@ -303,8 +302,8 @@ function checkNPCProximity() {
   const me = players.get(myId);
   if (!me || me.health <= 0) return;
 
-  const dx = me.x + 20 - (NPC.x + 20);
-  const dy = me.y + 20 - (NPC.y + 20);
+  const dx = me.x + 20 - (NPC.x + 35); // Учитываем центр NPC (70/2 = 35)
+  const dy = me.y + 20 - (NPC.y + 35);
   const distance = Math.sqrt(dx * dx + dy * dy);
 
   if (distance < NPC.interactionRadius && !isNPCDialogOpen) {
@@ -340,9 +339,12 @@ function closeNPCDialog() {
 function showGreetingDialog(container) {
   dialogStage = "greeting";
   container.innerHTML = `
-      <img src="fotoQuestNPC.png" alt="NPC Photo" class="npc-photo">
+      <div class="npc-dialog-header">
+        <img src="fotoQuestNPC.png" alt="NPC Photo" class="npc-photo">
+        <h2 class="npc-title">Квестер</h2>
+      </div>
       <p class="npc-text">Привет, ого! Ни когда еще не видел человека без модернизаций! Видимо с деньгами у тебя совсем туго... Ну ничего можещь заработать у меня не много Баляр. Мои работники только и знают как шкерится в темных углах города. Находи предметы, если они мне нужны я заберу. До встречи хм... человек!</p>
-      <button id="npcAgreeBtn" class="cyber-btn">Хорошо</button>
+      <button id="npcAgreeBtn" class="neon-btn">Хорошо</button>
   `;
   document.getElementById("npcAgreeBtn").addEventListener("click", () => {
     isNPCMet = true;
@@ -363,15 +365,21 @@ function showQuestSelectionDialog(container) {
   }
 
   container.innerHTML = `
-      <img src="fotoQuestNPC.png" alt="NPC Photo" class="npc-photo">
-      <p class="npc-text">Квестер: Выбери задание, братишка!</p>
+      <div class="npc-dialog-header">
+        <img src="fotoQuestNPC.png" alt="NPC Photo" class="npc-photo">
+        <h2 class="npc-title">Квестер</h2>
+      </div>
+      <p class="npc-text">Выбери задание, братишка!</p>
       <div id="questList" class="quest-list"></div>
   `;
   const questList = document.getElementById("questList");
   availableQuests.forEach((quest) => {
     const questItem = document.createElement("div");
     questItem.className = "quest-item";
-    questItem.innerHTML = `<p>${quest.title} (Награда: ${quest.reward.quantity} баляр)</p>`;
+    questItem.innerHTML = `
+      <span class="quest-marker">></span>
+      <p>${quest.title} <span class="quest-reward">(Награда: ${quest.reward.quantity} баляр)</span></p>
+    `;
     questItem.addEventListener("click", () => {
       selectQuest(quest);
       closeNPCDialog();
@@ -391,7 +399,6 @@ function selectQuest(quest) {
     })
   );
 
-  // Проверяем, можно ли выполнить задание сразу
   const me = players.get(myId);
   if (!me) return;
 
@@ -437,7 +444,6 @@ function completeQuest() {
   const me = players.get(myId);
   if (!me) return;
 
-  // Удаляем ровно то количество предметов, которое указано в задании
   let itemsToRemove = selectedQuest.target.quantity;
   for (let i = 0; i < inventory.length && itemsToRemove > 0; i++) {
     if (inventory[i] && inventory[i].type === selectedQuest.target.type) {
@@ -455,7 +461,6 @@ function completeQuest() {
     }
   }
 
-  // Добавляем награду
   const reward = selectedQuest.reward;
   const balyarySlot = inventory.findIndex(
     (slot) => slot && slot.type === "balyary"
@@ -469,20 +474,18 @@ function completeQuest() {
       inventory[freeSlot] = { type: "balyary", quantity: reward.quantity };
     } else {
       console.warn("Инвентарь полон, награда не добавлена!");
-      // Можно добавить уведомление игроку
     }
   }
 
-  // Отправляем обновлённый инвентарь на сервер
   sendWhenReady(
     ws,
     JSON.stringify({
       type: "updateInventory",
+      questId: selectedQuest.id,
       inventory: inventory,
     })
   );
 
-  // Удаляем выполненное задание из доступных и добавляем новое
   const previousQuestId = selectedQuest.id;
   availableQuests = availableQuests.filter((q) => q.id !== previousQuestId);
 
@@ -499,25 +502,21 @@ function completeQuest() {
     `Задание "${selectedQuest.title}" выполнено! Получено ${reward.quantity} баляр.`
   );
 
-  // Сбрасываем выбранное задание
   selectedQuest = null;
 
-  // Принудительно обновляем отображение инвентаря
   if (isInventoryOpen) {
     requestAnimationFrame(() => {
       updateInventoryDisplay();
-      // Принудительный рефреш DOM
       const inventoryGrid = document.getElementById("inventoryGrid");
       if (inventoryGrid) {
         inventoryGrid.style.opacity = "0";
-        inventoryGrid.offsetHeight; // Принудительный reflow
+        inventoryGrid.offsetHeight;
         inventoryGrid.style.opacity = "1";
         updateInventoryDisplay();
       }
     });
   }
 
-  // Обновляем статистику
   updateStatsDisplay();
 }
 
@@ -534,3 +533,217 @@ function setAvailableQuests(questIds) {
     .map((id) => QUESTS.find((q) => q.id === id))
     .filter((q) => q);
 }
+
+// Добавление стилей для диалогового окна NPC
+const npcStyles = `
+/* Основной контейнер диалога NPC */
+.npc-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(135deg, rgba(10, 10, 10, 0.95), rgba(20, 20, 20, 0.9));
+  border: 2px solid #00ffff;
+  border-radius: 10px;
+  padding: 20px;
+  color: #00ffff;
+  font-family: "Courier New", monospace;
+  text-align: center;
+  z-index: 1000;
+  max-width: 450px;
+  width: 90%;
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.5), 0 0 30px rgba(255, 0, 255, 0.3);
+  animation: neonPulse 2s infinite alternate;
+}
+
+/* Заголовок диалога с фото и именем NPC */
+.npc-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 15px;
+}
+
+.npc-photo {
+  width: 80px;
+  height: 80px;
+  border: 2px solid #ff00ff;
+  border-radius: 50%;
+  margin-right: 15px;
+  box-shadow: 0 0 15px rgba(255, 0, 255, 0.5);
+  object-fit: cover;
+}
+
+.npc-title {
+  color: #00ffff;
+  font-size: 24px;
+  text-shadow: 0 0 5px #00ffff, 0 0 10px #ff00ff;
+  animation: flicker 1.5s infinite alternate;
+  margin: 0;
+}
+
+/* Текст NPC */
+.npc-text {
+  margin: 15px 0;
+  font-size: 16px;
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.7);
+  line-height: 1.4;
+}
+
+/* Список квестов */
+.quest-list {
+  max-height: 250px;
+  overflow-y: auto;
+  margin-top: 15px;
+  background: rgba(10, 10, 10, 0.9);
+  border: 1px solid #ff00ff;
+  border-radius: 5px;
+  padding: 10px;
+  box-shadow: inset 0 0 10px rgba(255, 0, 255, 0.3);
+  scrollbar-width: thin;
+  scrollbar-color: #ff00ff rgba(0, 0, 0, 0.5);
+}
+
+.quest-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.quest-list::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 4px;
+}
+
+.quest-list::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #00ffff, #ff00ff);
+  border-radius: 4px;
+  box-shadow: 0 0 10px rgba(255, 0, 255, 0.7);
+}
+
+.quest-list::-webkit-scrollbar-thumb:hover {
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.9);
+}
+
+/* Элемент квеста */
+.quest-item {
+  background: rgba(0, 0, 0, 0.85);
+  padding: 12px;
+  margin: 8px 0;
+  cursor: pointer;
+  border: 1px solid #00ffff;
+  border-radius: 5px;
+  color: #00ffff;
+  font-size: 14px;
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.7);
+  box-shadow: 0 0 8px rgba(0, 255, 255, 0.3);
+  transition: all 0.3s ease;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.quest-item:hover {
+  background: rgba(0, 255, 255, 0.15);
+  border-color: #ff00ff;
+  box-shadow: 0 0 15px rgba(255, 0, 255, 0.7);
+  transform: translateX(5px);
+}
+
+.quest-marker {
+  color: #ff00ff;
+  font-weight: bold;
+  margin-right: 10px;
+  font-size: 16px;
+}
+
+.quest-reward {
+  color: #ff00ff;
+  font-size: 12px;
+  margin-left: 10px;
+}
+
+/* Кнопка в стиле киберпанк */
+.neon-btn {
+  padding: 12px 24px;
+  font-size: 16px;
+  font-family: "Courier New", monospace;
+  background: linear-gradient(135deg, #00ffff, #ff00ff);
+  border: none;
+  color: #000;
+  border-radius: 5px;
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.7), 0 0 20px rgba(255, 0, 255, 0.5);
+  transition: all 0.3s;
+  text-transform: uppercase;
+}
+
+.neon-btn:hover {
+  box-shadow: 0 0 20px rgba(0, 255, 255, 1), 0 0 30px rgba(255, 0, 255, 0.7);
+  transform: scale(1.05);
+}
+
+.neon-btn:active {
+  transform: scale(0.95);
+}
+
+/* Анимации */
+@keyframes neonPulse {
+  0% {
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.5), 0 0 20px rgba(255, 0, 255, 0.3);
+  }
+  100% {
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.8), 0 0 30px rgba(255, 0, 255, 0.5);
+  }
+}
+
+@keyframes flicker {
+  0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {
+    opacity: 1;
+    text-shadow: 0 0 5px #00ffff, 0 0 10px #ff00ff;
+  }
+  20%, 24%, 55% {
+    opacity: 0.7;
+    text-shadow: 0 0 2px #00ffff, 0 0 5px #ff00ff;
+  }
+}
+
+/* Адаптация для мобильных устройств */
+@media (max-width: 500px) {
+  .npc-dialog {
+    max-width: 90%;
+    padding: 15px;
+  }
+
+  .npc-photo {
+    width: 60px;
+    height: 60px;
+  }
+
+  .npc-title {
+    font-size: 20px;
+  }
+
+  .npc-text {
+    font-size: 14px;
+  }
+
+  .quest-list {
+    max-height: 200px;
+  }
+
+  .quest-item {
+    padding: 10px;
+    font-size: 12px;
+  }
+
+  .neon-btn {
+    padding: 10px 20px;
+    font-size: 14px;
+  }
+}
+`;
+
+// Динамическое добавление стилей в документ
+const styleSheet = document.createElement("style");
+styleSheet.type = "text/css";
+styleSheet.innerText = npcStyles;
+document.head.appendChild(styleSheet);
