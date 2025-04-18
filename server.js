@@ -3,6 +3,8 @@ const http = require("http");
 const WebSocket = require("ws");
 const path = require("path");
 const { MongoClient } = require("mongodb");
+const LevelSystem = require("./public/levelSystem.js");
+LevelSystem.setItemConfig(ITEM_CONFIG);
 
 const app = express();
 const server = http.createServer(app);

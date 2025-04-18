@@ -1397,12 +1397,17 @@ function handleGameMessage(event) {
           frameTime: existingPlayer.frameTime || 0,
         });
         if (data.player.id === myId) {
-          inventory = data.player.inventory || inventory;
-          setNPCMet(data.player.npcMet || false);
-          me.level = data.player.level || 0; // Обновляем уровень
-          me.xp = data.player.xp || 0; // Обновляем опыт
-          updateStatsDisplay();
-          updateInventoryDisplay();
+          const me = players.get(myId); // Инициализируем 'me' после обновления players
+          if (me) {
+            inventory = data.player.inventory || inventory;
+            setNPCMet(data.player.npcMet || false);
+            me.level = data.player.level || 0; // Теперь me определена
+            me.xp = data.player.xp || 0;
+            updateStatsDisplay();
+            updateInventoryDisplay();
+          } else {
+            console.warn(`Игрок с ID ${myId} не найден в players`);
+          }
         }
         break;
       case "itemDropped":
