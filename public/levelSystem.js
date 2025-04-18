@@ -2,6 +2,15 @@ let currentLevel = 0;
 let currentXP = 0;
 let xpToNextLevel = 100;
 let isInitialized = false; // Флаг инициализации
+let upgradePoints = 0; // Очки прокачки
+
+// Максимальные значения параметров
+let maxStats = {
+  health: 100,
+  energy: 100,
+  food: 100,
+  water: 100,
+};
 
 // Функция для создания элемента levelDisplay
 function createLevelDisplayElement() {
@@ -28,6 +37,84 @@ function createLevelDisplayElement() {
   }
 }
 
+// Функция для создания кнопок "+"
+function createUpgradeButtons() {
+  try {
+    const statsEl = document.getElementById("stats");
+    if (!statsEl) {
+      console.warn("Элемент stats не найден, откладываем создание кнопок");
+      setTimeout(createUpgradeButtons, 100);
+      return;
+    }
+
+    // Удаляем старые кнопки, чтобы избежать дублирования
+    const existingButtons = statsEl.querySelectorAll(".upgrade-btn");
+    existingButtons.forEach((btn) => btn.remove());
+
+    if (upgradePoints > 0) {
+      const statTypes = ["health", "energy", "food", "water"];
+      const statElements = statsEl.querySelectorAll("span");
+
+      statElements.forEach((span, index) => {
+        const statType = statTypes[index];
+        if (!statType) return;
+
+        const button = document.createElement("button");
+        button.className = "upgrade-btn cyber-btn";
+        button.textContent = "+";
+        button.style.marginLeft = "5px";
+        button.style.fontSize = "12px";
+        button.style.padding = "2px 6px";
+
+        button.addEventListener("click", () => {
+          if (upgradePoints > 0) {
+            upgradePoints--;
+            maxStats[statType]++;
+            console.log(`Увеличен max ${statType} до ${maxStats[statType]}`);
+
+            // Обновляем отображение кнопок
+            updateUpgradeButtons();
+
+            // Отправляем обновление на сервер
+            if (ws.readyState === WebSocket.OPEN) {
+              sendWhenReady(
+                ws,
+                JSON.stringify({
+                  type: "updateMaxStats",
+                  maxStats,
+                  upgradePoints,
+                })
+              );
+              console.log("Отправлено updateMaxStats на сервер");
+            } else {
+              console.warn("WebSocket не открыт, updateMaxStats не отправлено");
+            }
+          }
+        });
+
+        span.appendChild(button);
+      });
+    }
+  } catch (error) {
+    console.error("Ошибка в createUpgradeButtons:", error);
+  }
+}
+
+// Функция для обновления отображения кнопок
+function updateUpgradeButtons() {
+  try {
+    if (upgradePoints > 0) {
+      createUpgradeButtons();
+    } else {
+      const statsEl = document.getElementById("stats");
+      const buttons = statsEl.querySelectorAll(".upgrade-btn");
+      buttons.forEach((btn) => btn.remove());
+    }
+  } catch (error) {
+    console.error("Ошибка в updateUpgradeButtons:", error);
+  }
+}
+
 // Функция для инициализации системы уровней
 function initializeLevelSystem() {
   try {
@@ -39,6 +126,7 @@ function initializeLevelSystem() {
     isInitialized = true;
     console.log("Система уровней инициализирована, братишка!");
     updateLevelDisplay();
+    updateUpgradeButtons();
   } catch (error) {
     console.error("Ошибка в initializeLevelSystem:", error);
   }
@@ -67,17 +155,29 @@ function updateLevelDisplay() {
 }
 
 // Функция для установки данных уровня из сервера
-function setLevelData(level, xp) {
+function setLevelData(level, xp, maxStatsData, upgradePointsData) {
   try {
-    console.log(`Установка уровня: level=${level}, xp=${xp}`);
+    console.log(
+      `Установка уровня: level=${level}, xp=${xp}, maxStats=${JSON.stringify(
+        maxStatsData
+      )}, upgradePoints=${upgradePointsData}`
+    );
     currentLevel = level || 0;
     currentXP = xp || 0;
+    maxStats = maxStatsData || {
+      health: 100,
+      energy: 100,
+      food: 100,
+      water: 100,
+    };
+    upgradePoints = upgradePointsData || 0;
     xpToNextLevel = calculateXPToNextLevel(currentLevel);
     if (!isInitialized) {
       console.log("Система уровней не инициализирована, запускаем...");
       initializeLevelSystem();
     }
     updateLevelDisplay();
+    updateUpgradeButtons();
   } catch (error) {
     console.error("Ошибка в setLevelData:", error);
   }
@@ -141,6 +241,8 @@ function handleItemPickup(itemType, isDroppedByPlayer) {
           type: "updateLevel",
           level: currentLevel,
           xp: currentXP,
+          maxStats,
+          upgradePoints,
         })
       );
       console.log("Отправлено сообщение updateLevel на сервер");
@@ -162,7 +264,9 @@ function checkLevelUp() {
       currentLevel++;
       currentXP -= xpToNextLevel;
       xpToNextLevel = calculateXPToNextLevel(currentLevel);
+      upgradePoints++; // Начисляем очко прокачки
       showLevelUpEffect();
+      updateUpgradeButtons(); // Обновляем кнопки при повышении уровня
     }
     updateLevelDisplay();
   } catch (error) {

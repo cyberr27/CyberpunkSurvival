@@ -1211,10 +1211,10 @@ function updateStatsDisplay() {
   const me = players.get(myId);
   if (!me) return;
   statsEl.innerHTML = `
-    <span class="health">Здоровье: ${me.health}</span><br>
-    <span class="energy">Энергия: ${me.energy}</span><br>
-    <span class="food">Еда: ${me.food}</span><br>
-    <span class="water">Вода: ${me.water}</span><br>
+    <span class="health">Здоровье: ${me.health}/${levelSystem.maxStats.health}</span><br>
+    <span class="energy">Энергия: ${me.energy}/${levelSystem.maxStats.energy}</span><br>
+    <span class="food">Еда: ${me.food}/${levelSystem.maxStats.food}</span><br>
+    <span class="water">Вода: ${me.water}/${levelSystem.maxStats.water}</span><br>
     <span class="armor">Броня: ${me.armor}</span>
   `;
   document.getElementById("coords").innerHTML = `X: ${Math.floor(
@@ -1317,16 +1317,14 @@ function handleGameMessage(event) {
     switch (data.type) {
       case "newPlayer":
         players.set(data.player.id, { ...data.player, frameTime: 0 });
-        updateOnlineCount(); // Обновляем при входе нового игрока
+        updateOnlineCount();
         break;
       case "playerLeft":
         players.delete(data.id);
-        updateOnlineCount(); // Обновляем при выходе игрока
+        updateOnlineCount();
         break;
       case "syncItems":
-        // Очищаем старые предметы
         items.clear();
-        // Заполняем актуальными предметами из сервера
         data.items.forEach((item) =>
           items.set(item.itemId, {
             x: item.x,
@@ -1335,7 +1333,6 @@ function handleGameMessage(event) {
             spawnTime: item.spawnTime,
           })
         );
-        // Очищаем pendingPickups для предметов, которые всё ещё существуют
         data.items.forEach((item) => {
           if (pendingPickups.has(item.itemId)) {
             console.log(
@@ -1384,7 +1381,6 @@ function handleGameMessage(event) {
             }
           }
           updateInventoryDisplay();
-          // Передаём флаг isDroppedByPlayer из данных сервера
           levelSystem.handleItemPickup(
             data.item.type,
             data.item.isDroppedByPlayer || false
@@ -1393,18 +1389,15 @@ function handleGameMessage(event) {
         updateStatsDisplay();
         break;
       case "itemNotFound":
-        items.delete(data.itemId); // Удаляем предмет из локального items
-        pendingPickups.delete(data.itemId); // Убираем из ожидающих
+        items.delete(data.itemId);
+        pendingPickups.delete(data.itemId);
         console.log(
           `Предмет ${data.itemId} не найден на сервере, удалён из локального items`
         );
         break;
       case "inventoryFull":
-        // Инвентарь полон, уведомляем игрока и убираем предмет из pendingPickups
         console.log(`Инвентарь полон, предмет ${data.itemId} не поднят`);
-        pendingPickups.delete(data.itemId); // Очищаем из pendingPickups
-        // Можно добавить визуальное уведомление, например:
-        // alert("Инвентарь полон!");
+        pendingPickups.delete(data.itemId);
         break;
       case "update":
         const existingPlayer = players.get(data.player.id);
@@ -1415,8 +1408,13 @@ function handleGameMessage(event) {
         });
         if (data.player.id === myId) {
           inventory = data.player.inventory || inventory;
-          setNPCMet(data.player.npcMet || false); // Обновляем npcMet
-          levelSystem.setLevelData(data.player.level || 0, data.player.xp || 0); // Обновляем данные уровня
+          setNPCMet(data.player.npcMet || false);
+          levelSystem.setLevelData(
+            data.player.level || 0,
+            data.player.xp || 0,
+            data.player.maxStats || levelSystem.maxStats,
+            data.player.upgradePoints || 0
+          );
           updateStatsDisplay();
           updateInventoryDisplay();
         }
@@ -1438,12 +1436,6 @@ function handleGameMessage(event) {
         messageEl.textContent = `${data.id}: ${data.message}`;
         chatMessages.appendChild(messageEl);
         chatMessages.scrollTop = chatMessages.scrollHeight;
-        break;
-      case "newPlayer":
-        players.set(data.player.id, { ...data.player, frameTime: 0 });
-        break;
-      case "playerLeft":
-        players.delete(data.id);
         break;
       case "shoot":
         console.log(`Получена пуля ${data.bulletId} от ${data.shooterId}`);

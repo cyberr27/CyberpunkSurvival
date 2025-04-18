@@ -20,11 +20,9 @@ const GAME_CONFIG = {
 };
 
 const ITEM_CONFIG = {
-  // Редкие (уровень 1)
   blood_pack: { effect: { health: 40 }, rarity: 1 },
   canned_meat: { effect: { food: 20 }, rarity: 1 },
   mushroom: { effect: { food: 5, energy: 15 }, rarity: 1 },
-  // Средние (уровень 2)
   dried_fish: { effect: { food: 10, water: -3 }, rarity: 2 },
   condensed_milk: { effect: { water: 5, food: 11, energy: 2 }, rarity: 2 },
   milk: { effect: { water: 15, food: 5 }, rarity: 2 },
@@ -38,11 +36,10 @@ const ITEM_CONFIG = {
   sausage: { effect: { food: 16, energy: 3 }, rarity: 2 },
   energy_drink: { effect: { energy: 20, water: 5 }, rarity: 2 },
   balyary: {
-    effect: {}, // Без эффекта
+    effect: {},
     rarity: 2,
-    stackable: true, // Указываем, что предмет складывается
+    stackable: true,
   },
-  // Частые (уровень 3)
   water_bottle: { effect: { water: 30 }, rarity: 3 },
   nut: { effect: { food: 7 }, rarity: 3 },
   apple: { effect: { food: 8, water: 5 }, rarity: 3 },
@@ -50,7 +47,6 @@ const ITEM_CONFIG = {
   carrot: { effect: { food: 5, energy: 3 }, rarity: 3 },
 };
 
-// Получаем строку подключения только из переменной окружения
 const uri = process.env.MONGO_URI;
 console.log(
   "Значение MONGO_URI из окружения:",
@@ -88,7 +84,6 @@ async function connectToDatabase() {
   }
 }
 
-// Остальной код остается без изменений...
 async function loadUserDatabase(collection) {
   try {
     const users = await collection.find({}).toArray();
@@ -111,7 +106,6 @@ async function saveUserDatabase(collection, username, player) {
   }
 }
 
-// Добавляем функцию initializeServer
 async function initializeServer() {
   const collection = await connectToDatabase();
   await loadUserDatabase(collection);
@@ -119,8 +113,7 @@ async function initializeServer() {
   return collection;
 }
 
-// Теперь вызов функции будет работать
-let dbCollection; // Объявляем переменную для коллекции
+let dbCollection;
 initializeServer()
   .then((collection) => {
     dbCollection = collection;
@@ -135,7 +128,7 @@ initializeServer()
 
 const items = new Map();
 const obstacles = [];
-const bullets = new Map(); // Хранилище пуль на сервере
+const bullets = new Map();
 
 const lights = [
   {
@@ -231,7 +224,6 @@ const lights = [
   },
 ];
 
-// Функция вычисления расстояния от точки до линии (взята из одиночной игры)
 function pointToLineDistance(px, py, x1, y1, x2, y2) {
   const dx = x2 - x1;
   const dy = y2 - y1;
@@ -281,14 +273,12 @@ function checkCollisionServer(x, y) {
 wss.on("connection", (ws) => {
   console.log("Клиент подключился");
 
-  // Добавляем таймер неактивности для клиента
   let inactivityTimer = setTimeout(() => {
     console.log("Клиент отключён из-за неактивности");
-    ws.close(4000, "Inactivity timeout"); // Закрываем соединение с пользовательским кодом
+    ws.close(4000, "Inactivity timeout");
   }, INACTIVITY_TIMEOUT);
 
   ws.on("message", async (message) => {
-    // Сбрасываем таймер неактивности при получении любого сообщения
     clearTimeout(inactivityTimer);
     inactivityTimer = setTimeout(() => {
       console.log("Клиент отключён из-за неактивности");
@@ -316,18 +306,20 @@ wss.on("connection", (ws) => {
           food: 100,
           water: 100,
           armor: 0,
-          distanceTraveled: 0, // Явно инициализируем
+          distanceTraveled: 0,
           direction: "down",
           state: "idle",
           frame: 0,
           inventory: Array(20).fill(null),
           npcMet: false,
-          level: 0, // Добавляем уровень
-          xp: 0, // Добавляем опыт
+          level: 0,
+          xp: 0,
+          maxStats: { health: 100, energy: 100, food: 100, water: 100 },
+          upgradePoints: 0,
         };
 
         userDatabase.set(data.username, newPlayer);
-        await saveUserDatabase(dbCollection, data.username, newPlayer); // Сохраняем в MongoDB
+        await saveUserDatabase(dbCollection, data.username, newPlayer);
         ws.send(JSON.stringify({ type: "registerSuccess" }));
       }
     } else if (data.type === "login") {
@@ -337,12 +329,18 @@ wss.on("connection", (ws) => {
         const playerData = {
           ...player,
           inventory: player.inventory || Array(20).fill(null),
-          npcMet: player.npcMet || false, // Гарантируем наличие npcMet
-          selectedQuestId: player.selectedQuestId || null, // Добавляем
-          level: player.level || 0, // Добавляем уровень
-          xp: player.xp || 0, // Добавляем опыт
+          npcMet: player.npcMet || false,
+          selectedQuestId: player.selectedQuestId || null,
+          level: player.level || 0,
+          xp: player.xp || 0,
+          maxStats: player.maxStats || {
+            health: 100,
+            energy: 100,
+            food: 100,
+            water: 100,
+          },
+          upgradePoints: player.upgradePoints || 0,
         };
-        // Добавляем игрока в players, если его там ещё нет
         players.set(data.username, playerData);
         ws.send(
           JSON.stringify({
@@ -355,18 +353,20 @@ wss.on("connection", (ws) => {
             food: playerData.food,
             water: playerData.water,
             armor: playerData.armor,
-            distanceTraveled: playerData.distanceTraveled || 0, // Гарантируем наличие
+            distanceTraveled: playerData.distanceTraveled || 0,
             direction: playerData.direction || "down",
             state: playerData.state || "idle",
             frame: playerData.frame || 0,
             inventory: playerData.inventory,
-            npcMet: playerData.npcMet, // Убедимся, что отправляем npcMet
+            npcMet: playerData.npcMet,
             selectedQuestId: playerData.selectedQuestId,
-            level: playerData.level, // Отправляем уровень
-            xp: playerData.xp, // Отправляем опыт
+            level: playerData.level,
+            xp: playerData.xp,
+            maxStats: playerData.maxStats,
+            upgradePoints: playerData.upgradePoints,
             players: Array.from(players.values()).filter(
               (p) => p.id !== data.username
-            ), // Исключаем текущего игрока
+            ),
             wolves: [],
             items: Array.from(items.entries()).map(([itemId, item]) => ({
               itemId,
@@ -410,9 +410,16 @@ wss.on("connection", (ws) => {
           ...existingPlayer,
           ...data,
           inventory: existingPlayer.inventory || Array(20).fill(null),
-          npcMet: existingPlayer.npcMet || false, // Сохраняем npcMet
-          level: existingPlayer.level || 0, // Сохраняем уровень
-          xp: existingPlayer.xp || 0, // Сохраняем опыт
+          npcMet: existingPlayer.npcMet || false,
+          level: existingPlayer.level || 0,
+          xp: existingPlayer.xp || 0,
+          maxStats: existingPlayer.maxStats || {
+            health: 100,
+            energy: 100,
+            food: 100,
+            water: 100,
+          },
+          upgradePoints: existingPlayer.upgradePoints || 0,
         };
         players.set(id, updatedPlayer);
         userDatabase.set(id, updatedPlayer);
@@ -435,11 +442,42 @@ wss.on("connection", (ws) => {
         const player = players.get(id);
         player.level = data.level;
         player.xp = data.xp;
+        player.maxStats = data.maxStats || player.maxStats;
+        player.upgradePoints = data.upgradePoints || 0;
         players.set(id, { ...player });
         userDatabase.set(id, { ...player });
         await saveUserDatabase(dbCollection, id, player);
         console.log(
-          `Игрок ${id} обновил уровень: ${data.level}, XP: ${data.xp}`
+          `Игрок ${id} обновил уровень: ${data.level}, XP: ${
+            data.xp
+          }, maxStats: ${JSON.stringify(data.maxStats)}, upgradePoints: ${
+            data.upgradePoints
+          }`
+        );
+      }
+    } else if (data.type === "updateMaxStats") {
+      const id = clients.get(ws);
+      if (id) {
+        const player = players.get(id);
+        player.maxStats = data.maxStats;
+        player.upgradePoints = data.upgradePoints;
+        players.set(id, { ...player });
+        userDatabase.set(id, { ...player });
+        await saveUserDatabase(dbCollection, id, player);
+        wss.clients.forEach((client) => {
+          if (
+            client.readyState === WebSocket.OPEN &&
+            clients.get(client) === id
+          ) {
+            client.send(
+              JSON.stringify({ type: "update", player: { id, ...player } })
+            );
+          }
+        });
+        console.log(
+          `Игрок ${id} обновил maxStats: ${JSON.stringify(
+            data.maxStats
+          )}, upgradePoints: ${data.upgradePoints}`
         );
       }
     } else if (data.type === "updateInventory") {
@@ -587,10 +625,9 @@ wss.on("connection", (ws) => {
           dx: data.dx,
           dy: data.dy,
           spawnTime: Date.now(),
-          life: GAME_CONFIG.BULLET_LIFE, // Используем константу из конфига
+          life: GAME_CONFIG.BULLET_LIFE,
         });
 
-        // Уведомляем всех о новом выстреле
         wss.clients.forEach((client) => {
           if (client.readyState === WebSocket.OPEN) {
             client.send(
@@ -608,9 +645,7 @@ wss.on("connection", (ws) => {
         });
         console.log(`Игрок ${id} выстрелил, пуля ${bulletId} создана`);
       }
-    }
-    // Обработка использования предмета из инвентаря
-    else if (data.type === "useItem") {
+    } else if (data.type === "useItem") {
       const id = clients.get(ws);
       if (id) {
         const player = players.get(id);
@@ -620,19 +655,22 @@ wss.on("connection", (ws) => {
           const effect = ITEM_CONFIG[item.type].effect;
           if (effect.health)
             player.health = Math.min(
-              100,
+              player.maxStats.health,
               Math.max(0, player.health + effect.health)
             );
           if (effect.energy)
             player.energy = Math.min(
-              100,
+              player.maxStats.energy,
               Math.max(0, player.energy + effect.energy)
             );
           if (effect.food)
-            player.food = Math.min(100, Math.max(0, player.food + effect.food));
+            player.food = Math.min(
+              player.maxStats.food,
+              Math.max(0, player.food + effect.food)
+            );
           if (effect.water)
             player.water = Math.min(
-              100,
+              player.maxStats.water,
               Math.max(0, player.water + effect.water)
             );
 
@@ -653,9 +691,7 @@ wss.on("connection", (ws) => {
           );
         }
       }
-    }
-    // Обработка выброса предмета из инвентаря
-    else if (data.type === "dropItem") {
+    } else if (data.type === "dropItem") {
       const id = clients.get(ws);
       console.log(
         `Получен запрос dropItem от ${id}, slotIndex: ${data.slotIndex}, x: ${
@@ -667,14 +703,14 @@ wss.on("connection", (ws) => {
         const slotIndex = data.slotIndex;
         const item = player.inventory[slotIndex];
         if (item) {
-          let quantityToDrop = data.quantity || 1; // По умолчанию 1, если не указано
+          let quantityToDrop = data.quantity || 1;
           if (item.type === "balyary") {
             const currentQuantity = item.quantity || 1;
             if (quantityToDrop > currentQuantity) {
               console.log(
                 `У игрока ${id} недостаточно Баляр для выброса: ${quantityToDrop} > ${currentQuantity}`
               );
-              return; // Клиент уже проверил, но на всякий случай
+              return;
             }
           }
 
@@ -707,7 +743,7 @@ wss.on("connection", (ws) => {
                 type: item.type,
                 spawnTime: Date.now(),
                 quantity: quantityToDrop,
-                isDroppedByPlayer: true, // Предмет выброшен игроком
+                isDroppedByPlayer: true,
               });
             } else {
               player.inventory[slotIndex] = null;
@@ -716,7 +752,7 @@ wss.on("connection", (ws) => {
                 y: dropY,
                 type: item.type,
                 spawnTime: Date.now(),
-                isDroppedByPlayer: true, // Предмет выброшен игроком
+                isDroppedByPlayer: true,
               });
             }
             players.set(id, { ...player });
@@ -757,7 +793,7 @@ wss.on("connection", (ws) => {
       const id = clients.get(ws);
       if (id) {
         const player = players.get(id);
-        player.selectedQuestId = data.questId; // Сохраняем выбранное задание
+        player.selectedQuestId = data.questId;
         players.set(id, { ...player });
         userDatabase.set(id, { ...player });
         await saveUserDatabase(dbCollection, id, player);
@@ -777,7 +813,6 @@ wss.on("connection", (ws) => {
           `Данные игрока ${id} сохранены перед отключением. Код: ${code}, Причина: ${reason}`
         );
 
-        // Удаляем предметы, связанные с этим игроком, если они не были подняты
         const itemsToRemove = [];
         items.forEach((item, itemId) => {
           if (item.spawnedBy === id) {
@@ -809,13 +844,11 @@ wss.on("connection", (ws) => {
         }
       });
     }
-    // Очищаем таймер при закрытии соединения
     clearTimeout(inactivityTimer);
   });
 
   ws.on("error", (error) => {
     console.error("Ошибка WebSocket:", error);
-    // Очищаем таймер при ошибке
     clearTimeout(inactivityTimer);
   });
 });
@@ -920,7 +953,6 @@ setInterval(() => {
   const currentTime = Date.now();
   const playerCount = players.size;
 
-  // Удаление предметов по таймауту (10 минут)
   items.forEach((item, itemId) => {
     if (currentTime - item.spawnTime > 10 * 60 * 1000) {
       items.delete(itemId);
@@ -936,7 +968,6 @@ setInterval(() => {
   const worldWidth = 3135;
   const worldHeight = 3300;
 
-  // Считаем текущие предметы по типам
   const itemCounts = {};
   for (const [type] of Object.entries(ITEM_CONFIG)) {
     itemCounts[type] = Array.from(items.values()).filter(
@@ -944,28 +975,25 @@ setInterval(() => {
     ).length;
   }
 
-  // Определяем группы предметов по редкости
   const rareItems = Object.entries(ITEM_CONFIG)
     .filter(([_, config]) => config.rarity === 1)
-    .map(([type]) => type); // blood_pack, canned_meat, mushroom
+    .map(([type]) => type);
   const mediumItems = Object.entries(ITEM_CONFIG)
     .filter(([_, config]) => config.rarity === 2)
-    .map(([type]) => type); // dried_fish, condensed_milk, milk, и т.д.
+    .map(([type]) => type);
   const commonItems = Object.entries(ITEM_CONFIG)
     .filter(([_, config]) => config.rarity === 3)
-    .map(([type]) => type); // water_bottle, nut, apple, berries, carrot
+    .map(([type]) => type);
 
-  // Цель: 10 предметов на игрока (2 редких, 3 средних, 5 частых)
   const desiredTotalItems = playerCount * 10;
   const currentTotalItems = Array.from(items.values()).length;
 
   if (currentTotalItems < desiredTotalItems) {
     const itemsToSpawn = desiredTotalItems - currentTotalItems;
 
-    // Распределяем предметы: 2 редких, 3 средних, 5 частых на игрока
-    let rareCount = playerCount * 2; // 2 редких на игрока
-    let mediumCount = playerCount * 3; // 3 средних на игрока
-    let commonCount = playerCount * 5; // 5 частых на игрока
+    let rareCount = playerCount * 2;
+    let mediumCount = playerCount * 3;
+    let commonCount = playerCount * 5;
 
     for (let i = 0; i < itemsToSpawn; i++) {
       let type;
@@ -991,7 +1019,6 @@ setInterval(() => {
         type = commonItems[Math.floor(Math.random() * commonItems.length)];
         commonCount--;
       } else {
-        // Если все категории исчерпаны, берём случайный предмет
         const allTypes = Object.keys(ITEM_CONFIG);
         type = allTypes[Math.floor(Math.random() * allTypes.length)];
       }
