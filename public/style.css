@@ -626,6 +626,21 @@ button:active {
   transform: scale(1.05);
 }
 
+.level-display {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  color: #00ffff;
+  font-family: "Orbitron", sans-serif;
+  font-size: 18px;
+  text-shadow: 0 0 10px #00ffff, 0 0 20px #00ffff;
+  z-index: 1000;
+  padding: 5px 10px;
+  background: rgba(0, 0, 0, 0.7);
+  border: 2px solid #00ffff;
+  border-radius: 5px;
+}
+
 /* Анимация пульсации в стиле киберпанк */
 @keyframes neonPulse {
   0% {

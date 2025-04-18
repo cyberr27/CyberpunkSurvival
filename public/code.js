@@ -1,3 +1,4 @@
+const { formatLevelDisplay } = require("./levelSystem");
 // Получаем элементы DOM
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
@@ -431,6 +432,8 @@ function handleAuthMessage(event) {
         inventory: data.inventory || Array(20).fill(null),
         npcMet: data.npcMet || false,
         selectedQuestId: data.selectedQuestId || null,
+        level: data.level || 0, // Добавляем
+        experience: data.experience || 0, // Добавляем
       };
       players.set(myId, me);
 
@@ -937,6 +940,12 @@ function startGame() {
     if (selectedSlot !== null) dropItem(selectedSlot);
   });
 
+  const levelContainer = document.createElement("div");
+  levelContainer.id = "levelDisplay";
+  levelContainer.className = "level-display cyber-text";
+  document.getElementById("gameContainer").appendChild(levelContainer);
+  updateLevelDisplay();
+
   requestAnimationFrame(gameLoop);
 }
 
@@ -1293,6 +1302,13 @@ function updateInventoryDisplay() {
   }
 }
 
+function updateLevelDisplay() {
+  const me = players.get(myId);
+  if (!me) return;
+  const levelEl = document.getElementById("levelDisplay");
+  levelEl.textContent = formatLevelDisplay(me.level, me.experience);
+}
+
 function handleGameMessage(event) {
   try {
     const data = JSON.parse(event.data);
@@ -1388,17 +1404,19 @@ function handleGameMessage(event) {
         // alert("Инвентарь полон!");
         break;
       case "update":
-        const existingPlayer = players.get(data.player.id);
         players.set(data.player.id, {
           ...existingPlayer,
           ...data.player,
           frameTime: existingPlayer.frameTime || 0,
+          level: data.player.level || existingPlayer.level || 0, // Добавляем
+          experience: data.player.experience || existingPlayer.experience || 0, // Добавляем
         });
         if (data.player.id === myId) {
           inventory = data.player.inventory || inventory;
-          setNPCMet(data.player.npcMet || false); // Обновляем npcMet
+          setNPCMet(data.player.npcMet || false);
           updateStatsDisplay();
           updateInventoryDisplay();
+          updateLevelDisplay(); // Добавляем
         }
         break;
       case "itemDropped":
