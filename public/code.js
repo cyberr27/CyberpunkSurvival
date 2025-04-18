@@ -92,105 +92,6 @@ npcPhotoImage.src = "fotoQuestNPC.png";
 // Инвентарь игрока (массив на 20 слотов, изначально пустой)
 let inventory = Array(20).fill(null);
 
-// Конфигурация эффектов предметов (расширяем ITEM_CONFIG)
-const ITEM_CONFIG = {
-  energy_drink: {
-    effect: { energy: 20, water: 5 },
-    image: energyDrinkImage,
-    description: "Энергетик: +20 эн. +5 воды.",
-  },
-  nut: {
-    effect: { food: 7 },
-    image: nutImage,
-    description: "Орех: +7 еды.",
-  },
-  water_bottle: {
-    effect: { water: 30 },
-    image: waterBottleImage,
-    description: "Вода: +30 воды.",
-  },
-  apple: {
-    effect: { food: 8, water: 5 },
-    image: appleImage,
-    description: "Яблоко: +8 еды, +5 воды.",
-    rarity: 3,
-  },
-  berries: {
-    effect: { food: 6, water: 6 },
-    image: berriesImage,
-    description: "Ягоды: +6 еды, +6 воды.",
-    rarity: 3,
-  },
-  carrot: {
-    effect: { food: 5, energy: 3 },
-    image: carrotImage,
-    description: "Морковь: +5 еды, +3 энергии.",
-    rarity: 3,
-  },
-  canned_meat: {
-    effect: { food: 20 },
-    image: cannedMeatImage,
-    description: "Банка тушёнки: +20 еды.",
-  },
-  mushroom: {
-    effect: { food: 5, energy: 15 },
-    image: mushroomImage,
-    description: "Гриб прущий: +15 энергии. +5 еды.",
-  },
-  sausage: {
-    effect: { food: 16, energy: 3 },
-    image: sausageImage,
-    description: "Колбаса: +16 еды, +3 энергии.",
-  },
-  blood_pack: {
-    effect: { health: 40 },
-    image: bloodPackImage,
-    description: "Пакет крови: +40 здоровья.",
-  },
-  bread: {
-    effect: { food: 13, water: -2 },
-    image: breadImage,
-    description: "Хлеб: +13 еды, -2 воды.",
-  },
-  vodka_bottle: {
-    effect: { health: 5, energy: -2, water: 1, food: 2 },
-    image: vodkaBottleImage,
-    description: "Водка: +5 здоровья, -2 эн. +1 воды, +2 еды.",
-  },
-  meat_chunk: {
-    effect: { food: 20, energy: 5, water: -2 },
-    image: meatChunkImage,
-    description: "Кусок мяса: +20 еды, +5 эн. -2 воды.",
-  },
-  blood_syringe: {
-    effect: { health: 10 },
-    image: bloodSyringeImage,
-    description: "Шприц с кровью: +10 здоровья.",
-  },
-  milk: {
-    effect: { water: 15, food: 5 },
-    image: milkImage,
-    description: "Молоко: +15 воды, +5 еды.",
-  },
-  condensed_milk: {
-    effect: { water: 5, food: 11, energy: 2 },
-    image: condensedMilkImage,
-    description: "Сгущёнка: +11 еды, +5 воды, +2 эн.",
-  },
-  dried_fish: {
-    effect: { food: 10, water: -3 },
-    image: driedFishImage,
-    description: "Сушёная рыба: +10 еды, -3 воды.",
-  },
-  balyary: {
-    effect: {}, // Эффекта нет, это валюта
-    image: balyaryImage,
-    description: "Баляр: игровая валюта.",
-    stackable: true, // Указываем, что предмет складывается
-    rarity: 2,
-  },
-};
-
 // Состояние инвентаря (открыт или закрыт)
 let isInventoryOpen = false;
 // Элемент подсказки
@@ -984,7 +885,8 @@ function selectSlot(slotIndex, slotElement) {
 
   selectedSlot = slotIndex;
   // Если ранее была форма "Баляр", убираем её и показываем описание
-  screen.textContent = ITEM_CONFIG[inventory[slotIndex].type].description;
+  screen.textContent =
+    LevelSystem.getItemConfig()[inventory[slotIndex].type].description;
   useBtn.textContent = "Использовать"; // Сбрасываем текст
   useBtn.disabled = inventory[slotIndex].type === "balyary"; // Отключаем для "Баляр"
   dropBtn.disabled = false;
@@ -1000,7 +902,7 @@ function useItem(slotIndex) {
   const item = inventory[slotIndex];
   if (!item || item.type === "balyary") return; // Ничего не делаем для Баляр
   const me = players.get(myId);
-  const effect = ITEM_CONFIG[item.type].effect;
+  const effect = LevelSystem.getItemConfig()[item.type].effect;
 
   if (effect.health)
     me.health = Math.min(100, Math.max(0, me.health + effect.health));
@@ -1226,7 +1128,8 @@ function updateInventoryDisplay() {
   } else if (selectedSlot === null) {
     screen.innerHTML = "";
   } else if (inventory[selectedSlot]) {
-    screen.textContent = ITEM_CONFIG[inventory[selectedSlot].type].description;
+    screen.textContent =
+      LevelSystem.getItemConfig()[inventory[selectedSlot].type].description;
   }
 
   for (let i = 0; i < slots.length; i++) {
@@ -1261,7 +1164,8 @@ function updateInventoryDisplay() {
             // Сохраняем форму выброса "Баляр" при наведении на другие слоты
             return;
           }
-          screen.textContent = ITEM_CONFIG[inventory[i].type].description;
+          screen.textContent =
+            LevelSystem.getItemConfig()[inventory[i].type].description;
         }
       };
       slot.onmouseout = () => {
@@ -1276,7 +1180,8 @@ function updateInventoryDisplay() {
         }
         screen.textContent =
           inventory[selectedSlot] && selectedSlot !== null
-            ? ITEM_CONFIG[inventory[selectedSlot].type].description
+            ? LevelSystem.getItemConfig()[inventory[selectedSlot].type]
+                .description
             : "";
       };
       slot.onclick = (e) => {
@@ -1826,20 +1731,16 @@ function draw(deltaTime) {
     }
     const screenX = item.x - camera.x;
     const screenY = item.y - camera.y;
-    // Уменьшаем область проверки видимости, так как размер теперь 20x20
     if (
       screenX >= -20 &&
       screenX <= canvas.width + 20 &&
       screenY >= -20 &&
       screenY <= canvas.height + 20
     ) {
-      const itemImage = ITEM_CONFIG[item.type]?.image;
+      const itemImage = LevelSystem.getItemConfig()[item.type]?.image;
       if (itemImage && itemImage.complete) {
-        // Меняем размер отрисовки с 40x40 на 20x20 и корректируем позицию,
-        // чтобы центр предмета оставался на месте
         ctx.drawImage(itemImage, screenX + 10, screenY + 10, 20, 20);
       } else {
-        // Уменьшаем заглушку до 5x5 для согласованности
         ctx.fillStyle = "yellow";
         ctx.fillRect(screenX + 7.5, screenY + 7.5, 5, 5);
       }
