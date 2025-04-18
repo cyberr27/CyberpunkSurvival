@@ -1,19 +1,45 @@
 let currentLevel = 0;
 let currentXP = 0;
 let xpToNextLevel = 100;
+let isInitialized = false; // Флаг инициализации
 
-// Функция для инициализации системы уровней
-function initializeLevelSystem() {
+// Функция для создания элемента levelDisplay
+function createLevelDisplayElement() {
   try {
-    // Проверяем, существует ли элемент с id="levelDisplay"
     let levelDisplay = document.getElementById("levelDisplay");
     if (!levelDisplay) {
       levelDisplay = document.createElement("div");
       levelDisplay.id = "levelDisplay";
       levelDisplay.className = "cyber-text level-display";
-      document.body.appendChild(levelDisplay);
+      // Проверяем, что document.body существует
+      if (document.body) {
+        document.body.appendChild(levelDisplay);
+        console.log("Элемент levelDisplay создан и добавлен в DOM");
+      } else {
+        console.warn(
+          "document.body не готов, откладываем создание levelDisplay"
+        );
+        // Откладываем создание, если DOM не готов
+        setTimeout(createLevelDisplayElement, 100);
+      }
     }
-    console.log("Система уровней инициализирована");
+    return levelDisplay;
+  } catch (error) {
+    console.error("Ошибка в createLevelDisplayElement:", error);
+    return null;
+  }
+}
+
+// Функция для инициализации системы уровней
+function initializeLevelSystem() {
+  try {
+    if (isInitialized) {
+      console.log("Система уровней уже инициализирована, пропускаем");
+      return;
+    }
+    createLevelDisplayElement();
+    isInitialized = true;
+    console.log("Система уровней инициализирована, братишка!");
     updateLevelDisplay();
   } catch (error) {
     console.error("Ошибка в initializeLevelSystem:", error);
@@ -23,11 +49,20 @@ function initializeLevelSystem() {
 // Функция для обновления отображения уровня и опыта
 function updateLevelDisplay() {
   try {
-    const levelDisplay = document.getElementById("levelDisplay");
+    let levelDisplay = document.getElementById("levelDisplay");
+    if (!levelDisplay) {
+      console.warn("Элемент levelDisplay не найден, создаём...");
+      levelDisplay = createLevelDisplayElement();
+    }
     if (levelDisplay) {
       levelDisplay.innerHTML = `Level: ${currentLevel} | XP: ${currentXP} / ${xpToNextLevel}`;
+      console.log(
+        `Обновлено отображение: Level ${currentLevel}, XP ${currentXP}/${xpToNextLevel}`
+      );
     } else {
-      console.warn("Элемент levelDisplay не найден");
+      console.warn("Не удалось создать levelDisplay, попробуем позже");
+      // Пробуем снова через 100 мс, если элемент всё ещё не создан
+      setTimeout(updateLevelDisplay, 100);
     }
   } catch (error) {
     console.error("Ошибка в updateLevelDisplay:", error);
@@ -41,6 +76,11 @@ function setLevelData(level, xp) {
     currentLevel = level || 0;
     currentXP = xp || 0;
     xpToNextLevel = calculateXPToNextLevel(currentLevel);
+    // Если система ещё не инициализирована, вызываем инициализацию
+    if (!isInitialized) {
+      console.log("Система уровней не инициализирована, запускаем...");
+      initializeLevelSystem();
+    }
     updateLevelDisplay();
   } catch (error) {
     console.error("Ошибка в setLevelData:", error);
