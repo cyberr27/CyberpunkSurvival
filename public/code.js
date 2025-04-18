@@ -431,6 +431,8 @@ function handleAuthMessage(event) {
         inventory: data.inventory || Array(20).fill(null),
         npcMet: data.npcMet || false,
         selectedQuestId: data.selectedQuestId || null,
+        level: data.level || 0, // Добавляем уровень
+        xp: data.xp || 0, // Добавляем опыт
       };
       players.set(myId, me);
 
@@ -462,6 +464,7 @@ function handleAuthMessage(event) {
       inventory = data.inventory || Array(20).fill(null);
       setNPCMet(data.npcMet || false);
       setSelectedQuest(data.selectedQuestId || null);
+      levelSystem.setLevelData(data.level || 0, data.xp || 0); // Устанавливаем данные уровня
       resizeCanvas();
       ws.onmessage = handleGameMessage;
       console.log("Переключен обработчик на handleGameMessage");
@@ -661,6 +664,7 @@ function updateOnlineCount() {
 
 function startGame() {
   updateOnlineCount();
+  levelSystem.initialize(); // Инициализируем систему уровней
   // Обработчик клавиш (только для стрельбы и чата)
   document.addEventListener("keydown", (e) => {
     const me = players.get(myId);
@@ -1370,6 +1374,7 @@ function handleGameMessage(event) {
             }
           }
           updateInventoryDisplay();
+          levelSystem.handleItemPickup(data.item.type); // Обрабатываем поднятие предмета для начисления опыта
         }
         updateStatsDisplay();
         break;
@@ -1397,6 +1402,7 @@ function handleGameMessage(event) {
         if (data.player.id === myId) {
           inventory = data.player.inventory || inventory;
           setNPCMet(data.player.npcMet || false); // Обновляем npcMet
+          levelSystem.setLevelData(data.player.level || 0, data.player.xp || 0); // Обновляем данные уровня
           updateStatsDisplay();
           updateInventoryDisplay();
         }

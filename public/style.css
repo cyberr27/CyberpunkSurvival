@@ -638,6 +638,32 @@ button:active {
     box-shadow: 0 0 20px rgba(255, 0, 255, 1), 0 0 30px rgba(0, 255, 255, 0.8);
   }
 }
+.level-display {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  color: #00ffff;
+  font-family: "Courier New", monospace;
+  font-size: 16px;
+  text-shadow: 0 0 5px #00ffff, 0 0 10px #00ffff;
+  z-index: 1000;
+}
+
+.xp-effect {
+  color: #00ff00;
+  font-family: "Courier New", monospace;
+  font-size: 14px;
+  text-shadow: 0 0 5px #00ff00;
+  pointer-events: none;
+}
+
+.level-up-effect {
+  color: #ff00ff;
+  font-family: "Courier New", monospace;
+  font-size: 48px;
+  text-shadow: 0 0 10px #ff00ff, 0 0 20px #ff00ff;
+  pointer-events: none;
+}
 /* Адаптация для мобильных устройств (max-width: 500px) */
 @media (max-width: 500px) {
   body {

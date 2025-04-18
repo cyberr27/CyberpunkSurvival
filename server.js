@@ -7,7 +7,6 @@ const { MongoClient } = require("mongodb");
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
-
 const clients = new Map();
 const players = new Map();
 const userDatabase = new Map();
@@ -323,6 +322,8 @@ wss.on("connection", (ws) => {
           frame: 0,
           inventory: Array(20).fill(null),
           npcMet: false,
+          level: 0, // Добавляем уровень
+          xp: 0, // Добавляем опыт
         };
 
         userDatabase.set(data.username, newPlayer);
@@ -338,6 +339,8 @@ wss.on("connection", (ws) => {
           inventory: player.inventory || Array(20).fill(null),
           npcMet: player.npcMet || false, // Гарантируем наличие npcMet
           selectedQuestId: player.selectedQuestId || null, // Добавляем
+          level: player.level || 0, // Добавляем уровень
+          xp: player.xp || 0, // Добавляем опыт
         };
         // Добавляем игрока в players, если его там ещё нет
         players.set(data.username, playerData);
@@ -359,6 +362,8 @@ wss.on("connection", (ws) => {
             inventory: playerData.inventory,
             npcMet: playerData.npcMet, // Убедимся, что отправляем npcMet
             selectedQuestId: playerData.selectedQuestId,
+            level: playerData.level, // Отправляем уровень
+            xp: playerData.xp, // Отправляем опыт
             players: Array.from(players.values()).filter(
               (p) => p.id !== data.username
             ), // Исключаем текущего игрока
@@ -406,6 +411,8 @@ wss.on("connection", (ws) => {
           ...data,
           inventory: existingPlayer.inventory || Array(20).fill(null),
           npcMet: existingPlayer.npcMet || false, // Сохраняем npcMet
+          level: existingPlayer.level || 0, // Сохраняем уровень
+          xp: existingPlayer.xp || 0, // Сохраняем опыт
         };
         players.set(id, updatedPlayer);
         userDatabase.set(id, updatedPlayer);
