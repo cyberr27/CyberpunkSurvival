@@ -11,7 +11,6 @@ function createLevelDisplayElement() {
       levelDisplay = document.createElement("div");
       levelDisplay.id = "levelDisplay";
       levelDisplay.className = "cyber-text level-display";
-      // Проверяем, что document.body существует
       if (document.body) {
         document.body.appendChild(levelDisplay);
         console.log("Элемент levelDisplay создан и добавлен в DOM");
@@ -19,7 +18,6 @@ function createLevelDisplayElement() {
         console.warn(
           "document.body не готов, откладываем создание levelDisplay"
         );
-        // Откладываем создание, если DOM не готов
         setTimeout(createLevelDisplayElement, 100);
       }
     }
@@ -55,13 +53,12 @@ function updateLevelDisplay() {
       levelDisplay = createLevelDisplayElement();
     }
     if (levelDisplay) {
-      levelDisplay.innerHTML = `Level: ${currentLevel} | xp : ${currentXP} / ${xpToNextLevel}`;
+      levelDisplay.innerHTML = `Level: ${currentLevel} | XP: ${currentXP} / ${xpToNextLevel}`;
       console.log(
         `Обновлено отображение: Level ${currentLevel}, XP ${currentXP}/${xpToNextLevel}`
       );
     } else {
       console.warn("Не удалось создать levelDisplay, попробуем позже");
-      // Пробуем снова через 100 мс, если элемент всё ещё не создан
       setTimeout(updateLevelDisplay, 100);
     }
   } catch (error) {
@@ -76,7 +73,6 @@ function setLevelData(level, xp) {
     currentLevel = level || 0;
     currentXP = xp || 0;
     xpToNextLevel = calculateXPToNextLevel(currentLevel);
-    // Если система ещё не инициализирована, вызываем инициализацию
     if (!isInitialized) {
       console.log("Система уровней не инициализирована, запускаем...");
       initializeLevelSystem();
@@ -94,30 +90,38 @@ function calculateXPToNextLevel(level) {
     return 100 * Math.pow(2, level);
   } catch (error) {
     console.error("Ошибка в calculateXPToNextLevel:", error);
-    return 100; // Возвращаем значение по умолчанию
+    return 100; // Значение по умолчанию
   }
 }
 
 // Функция для обработки поднятия предмета и начисления опыта
-function handleItemPickup(itemType) {
+function handleItemPickup(itemType, isDroppedByPlayer) {
   try {
-    console.log(`Поднят предмет: ${itemType}`);
+    console.log(
+      `Поднят предмет: ${itemType}, выброшен игроком: ${isDroppedByPlayer}`
+    );
     const me = players.get(myId);
     if (!me) {
       console.warn("Игрок не найден, пропускаем начисление опыта");
       return;
     }
 
+    // Если предмет был выброшен игроком, не начисляем опыт
+    if (isDroppedByPlayer) {
+      console.log(`Предмет ${itemType} выброшен игроком, опыт не начисляется`);
+      return;
+    }
+
     const rarity = ITEM_CONFIG[itemType]?.rarity || 3;
     let xpGained;
     switch (rarity) {
-      case 1:
+      case 1: // Редкий
         xpGained = 3;
         break;
-      case 2:
+      case 2: // Средний
         xpGained = 2;
         break;
-      case 3:
+      case 3: // Частый
         xpGained = 1;
         break;
       default:
@@ -130,7 +134,6 @@ function handleItemPickup(itemType) {
     currentXP += xpGained;
     checkLevelUp();
 
-    // Проверяем доступность WebSocket
     if (ws.readyState === WebSocket.OPEN) {
       sendWhenReady(
         ws,
@@ -145,7 +148,6 @@ function handleItemPickup(itemType) {
       console.warn("WebSocket не открыт, сообщение updateLevel не отправлено");
     }
 
-    // Визуальный эффект получения опыта
     showXPEffect(xpGained);
   } catch (error) {
     console.error("Ошибка в handleItemPickup:", error);

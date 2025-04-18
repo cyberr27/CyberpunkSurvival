@@ -526,6 +526,7 @@ wss.on("connection", (ws) => {
                 type: item.type,
                 itemId: data.itemId,
                 quantity: item.quantity || 1,
+                isDroppedByPlayer: item.isDroppedByPlayer || false,
               },
             })
           );
@@ -705,7 +706,8 @@ wss.on("connection", (ws) => {
                 y: dropY,
                 type: item.type,
                 spawnTime: Date.now(),
-                quantity: quantityToDrop, // Сохраняем количество выброшенных Баляр
+                quantity: quantityToDrop,
+                isDroppedByPlayer: true, // Предмет выброшен игроком
               });
             } else {
               player.inventory[slotIndex] = null;
@@ -714,13 +716,12 @@ wss.on("connection", (ws) => {
                 y: dropY,
                 type: item.type,
                 spawnTime: Date.now(),
+                isDroppedByPlayer: true, // Предмет выброшен игроком
               });
             }
-
             players.set(id, { ...player });
             userDatabase.set(id, { ...player });
             await saveUserDatabase(dbCollection, id, player);
-
             wss.clients.forEach((client) => {
               if (client.readyState === WebSocket.OPEN) {
                 client.send(
@@ -733,6 +734,7 @@ wss.on("connection", (ws) => {
                     spawnTime: Date.now(),
                     quantity:
                       item.type === "balyary" ? quantityToDrop : undefined,
+                    isDroppedByPlayer: true,
                   })
                 );
                 if (clients.get(client) === id) {
@@ -748,8 +750,6 @@ wss.on("connection", (ws) => {
             console.log(
               `Игрок ${id} выбросил ${quantityToDrop} ${item.type} на x:${dropX}, y:${dropY}`
             );
-          } else {
-            console.log(`Не удалось найти место для выброса ${item.type}`);
           }
         }
       }

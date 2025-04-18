@@ -1338,19 +1338,16 @@ function handleGameMessage(event) {
         const me = players.get(myId);
         if (me && data.playerId === myId && data.item) {
           if (data.item.type === "balyary") {
-            // Проверяем, есть ли уже "Баляры" в инвентаре
             const balyarySlot = inventory.findIndex(
               (slot) => slot && slot.type === "balyary"
             );
             if (balyarySlot !== -1) {
-              // Увеличиваем количество
               inventory[balyarySlot].quantity =
                 (inventory[balyarySlot].quantity || 1) + 1;
               console.log(
                 `Добавлено 1 Баляр, теперь их ${inventory[balyarySlot].quantity}`
               );
             } else {
-              // Добавляем в новый слот
               const freeSlot = inventory.findIndex((slot) => slot === null);
               if (freeSlot !== -1) {
                 inventory[freeSlot] = {
@@ -1364,7 +1361,6 @@ function handleGameMessage(event) {
               }
             }
           } else {
-            // Обычная логика для других предметов
             const freeSlot = inventory.findIndex((slot) => slot === null);
             if (freeSlot !== -1) {
               inventory[freeSlot] = data.item;
@@ -1374,7 +1370,11 @@ function handleGameMessage(event) {
             }
           }
           updateInventoryDisplay();
-          levelSystem.handleItemPickup(data.item.type); // Обрабатываем поднятие предмета для начисления опыта
+          // Передаём флаг isDroppedByPlayer из данных сервера
+          levelSystem.handleItemPickup(
+            data.item.type,
+            data.item.isDroppedByPlayer || false
+          );
         }
         updateStatsDisplay();
         break;
