@@ -1,10 +1,11 @@
+// levelSystem.js
 let currentLevel = 0;
 let currentXP = 0;
 let xpToNextLevel = 100;
 let isInitialized = false; // Флаг инициализации
 let upgradePoints = 0; // Очки прокачки
 
-// Максимальные значения параметров
+// Максимальные значения параметров (инициализируем по умолчанию)
 let maxStats = {
   health: 100,
   energy: 100,
@@ -323,9 +324,10 @@ function showLevelUpEffect() {
   }
 }
 
-// Экспортируем функции для использования в code.js
+// Экспортируем функции и данные для использования в code.js
 window.levelSystem = {
   initialize: initializeLevelSystem,
   setLevelData,
   handleItemPickup,
+  maxStats, // Добавляем maxStats в экспорт
 };
