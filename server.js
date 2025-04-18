@@ -4,7 +4,6 @@ const WebSocket = require("ws");
 const path = require("path");
 const { MongoClient } = require("mongodb");
 const LevelSystem = require("./public/levelSystem.js");
-LevelSystem.setItemConfig(ITEM_CONFIG);
 
 const app = express();
 const server = http.createServer(app);
@@ -52,6 +51,8 @@ const ITEM_CONFIG = {
   berries: { effect: { food: 6, water: 6 }, rarity: 3 },
   carrot: { effect: { food: 5, energy: 3 }, rarity: 3 },
 };
+
+LevelSystem.setItemConfig(ITEM_CONFIG);
 
 // Получаем строку подключения только из переменной окружения
 const uri = process.env.MONGO_URI;
