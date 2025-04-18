@@ -640,12 +640,13 @@ button:active {
 }
 .level-display {
   position: fixed;
-  bottom: 20px;
-  left: 20px;
-  color: #000000;
+  bottom: 0px;
+  left: 1%;
+  color: #030030;
   font-family: "Courier New", monospace;
   font-size: 16px;
-  text-shadow: 0 0 5px #000ea6, 0 0 10px #00ffff;
+  font-weight: 700;
+  text-shadow: 0 0 5px #00ff11, 0 0 10px #00a349;
   z-index: 1000;
 }
 
