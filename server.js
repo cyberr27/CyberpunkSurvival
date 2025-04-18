@@ -3,7 +3,11 @@ const http = require("http");
 const WebSocket = require("ws");
 const path = require("path");
 const { MongoClient } = require("mongodb");
-const { getExperienceForItem, checkLevelUp } = require("./levelSystem");
+const {
+  getExperienceForItem,
+  checkLevelUp,
+  formatLevelDisplay,
+} = require("./public/levelSystem");
 
 const app = express();
 const server = http.createServer(app);

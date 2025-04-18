@@ -1,4 +1,4 @@
-const { formatLevelDisplay } = require("./levelSystem");
+
 // Получаем элементы DOM
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
@@ -1306,7 +1306,7 @@ function updateLevelDisplay() {
   const me = players.get(myId);
   if (!me) return;
   const levelEl = document.getElementById("levelDisplay");
-  levelEl.textContent = formatLevelDisplay(me.level, me.experience);
+  levelEl.textContent = LevelSystem.formatLevelDisplay(me.level, me.experience);
 }
 
 function handleGameMessage(event) {

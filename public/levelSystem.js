@@ -52,10 +52,21 @@ function formatLevelDisplay(level, experience) {
   return `Level: ${level} ${experience} / ${requiredExp}xp`;
 }
 
-// Экспортируем функции для использования на сервере и клиенте
-module.exports = {
-  getRequiredExperience,
-  checkLevelUp,
-  getExperienceForItem,
-  formatLevelDisplay,
-};
+// Экспорт для Node.js и глобальная доступность для браузера
+if (typeof module !== "undefined" && module.exports) {
+  // Для Node.js (server.js)
+  module.exports = {
+    getRequiredExperience,
+    checkLevelUp,
+    getExperienceForItem,
+    formatLevelDisplay,
+  };
+} else {
+  // Для браузера (code.js)
+  window.LevelSystem = {
+    getRequiredExperience,
+    checkLevelUp,
+    getExperienceForItem,
+    formatLevelDisplay,
+  };
+}
