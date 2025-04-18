@@ -1136,15 +1136,8 @@ function updateInventoryDisplay() {
     const slot = slots[i];
     slot.innerHTML = "";
     if (inventory[i]) {
-      const itemConfig = LevelSystem.getItemConfig()[inventory[i].type];
-      if (!itemConfig) {
-        console.error(
-          `Конфигурация для предмета ${inventory[i].type} не найдена`
-        );
-        continue;
-      }
       const img = document.createElement("img");
-      img.src = itemConfig.image.src; // Используем LevelSystem.getItemConfig()
+      img.src = ITEM_CONFIG[inventory[i].type].image.src;
       img.style.width = "100%";
       img.style.height = "100%";
       slot.appendChild(img);
@@ -1805,28 +1798,6 @@ function draw(deltaTime) {
     canvas.width,
     canvas.height
   );
-  const currentTime = Date.now();
-  items.forEach((item, itemId) => {
-    const screenX = item.x - camera.x;
-    const screenY = item.y - camera.y;
-    if (
-      screenX >= -40 &&
-      screenX <= canvas.width + 40 &&
-      screenY >= -40 &&
-      screenY <= canvas.height + 40
-    ) {
-      const itemImage = LevelSystem.getItemConfig()[item.type]?.image;
-      if (itemImage && itemImage.complete) {
-        ctx.drawImage(itemImage, screenX, screenY, 40, 40);
-      } else {
-        console.warn(
-          `Изображение для ${item.type} не загружено, рисую заглушку`
-        );
-        ctx.fillStyle = "yellow";
-        ctx.fillRect(screenX, screenY, 10, 10);
-      }
-    }
-  });
 }
 
 function drawBullet(x, y) {
