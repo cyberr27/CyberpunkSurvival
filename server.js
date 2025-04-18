@@ -22,11 +22,9 @@ const GAME_CONFIG = {
 };
 
 const ITEM_CONFIG = {
-  // Редкие (уровень 1)
   blood_pack: { effect: { health: 40 }, rarity: 1 },
   canned_meat: { effect: { food: 20 }, rarity: 1 },
   mushroom: { effect: { food: 5, energy: 15 }, rarity: 1 },
-  // Средние (уровень 2)
   dried_fish: { effect: { food: 10, water: -3 }, rarity: 2 },
   condensed_milk: { effect: { water: 5, food: 11, energy: 2 }, rarity: 2 },
   milk: { effect: { water: 15, food: 5 }, rarity: 2 },
@@ -39,12 +37,7 @@ const ITEM_CONFIG = {
   bread: { effect: { food: 13, water: -2 }, rarity: 2 },
   sausage: { effect: { food: 16, energy: 3 }, rarity: 2 },
   energy_drink: { effect: { energy: 20, water: 5 }, rarity: 2 },
-  balyary: {
-    effect: {}, // Без эффекта
-    rarity: 2,
-    stackable: true, // Указываем, что предмет складывается
-  },
-  // Частые (уровень 3)
+  balyary: { effect: {}, rarity: 2, stackable: true },
   water_bottle: { effect: { water: 30 }, rarity: 3 },
   nut: { effect: { food: 7 }, rarity: 3 },
   apple: { effect: { food: 8, water: 5 }, rarity: 3 },

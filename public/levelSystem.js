@@ -129,12 +129,23 @@ let ITEM_CONFIG =
 
 // Функция для получения опыта за предмет на основе его редкости
 function getXPForItem(itemType) {
+  if (!ITEM_CONFIG) {
+    console.error("ITEM_CONFIG не инициализирован, возвращаем базовый XP");
+    return 1;
+  }
   const rarity = ITEM_CONFIG[itemType]?.rarity || 1;
+  console.log(
+    `Получение XP для ${itemType}, редкость: ${rarity}, XP: ${rarity}`
+  );
   return rarity;
 }
 
 // Функция для проверки и повышения уровня
 function checkLevelUp(player) {
+  if (!player) {
+    console.error("Игрок не определён в checkLevelUp");
+    return null;
+  }
   while (player.xp >= LEVEL_CONFIG.BASE_XP) {
     player.xp -= LEVEL_CONFIG.BASE_XP;
     player.level += 1;
@@ -145,17 +156,30 @@ function checkLevelUp(player) {
 
 // Серверная функция для обработки подбора предмета
 function handleItemPickupServer(player, itemType) {
+  if (!player) {
+    console.error("Игрок не определён в handleItemPickupServer");
+    return null;
+  }
   const xpGained = getXPForItem(itemType);
   player.xp = (player.xp || 0) + xpGained;
   player.level = player.level || 0;
   player = checkLevelUp(player);
+  console.log(
+    `Игрок ${player.id} получил ${xpGained} XP за ${itemType}, текущий XP: ${player.xp}, уровень: ${player.level}`
+  );
   return player;
 }
 
 // Клиентская функция для обработки получения опыта
 function handleItemPickupClient(itemId, itemType) {
   const me = window.players?.get(window.myId);
-  if (!me) return;
+  if (!me) {
+    console.error("Игрок не найден в handleItemPickupClient");
+    return;
+  }
+  console.log(
+    `Отправка запроса на подбор предмета ${itemType} (ID: ${itemId})`
+  );
   window.sendWhenReady(
     window.ws,
     JSON.stringify({
@@ -167,7 +191,10 @@ function handleItemPickupClient(itemId, itemType) {
 
 // Клиентская функция для отображения уровня и опыта
 function drawLevelAndXP(ctx, player, camera) {
-  if (!player) return;
+  if (!player) {
+    console.warn("Игрок не определён в drawLevelAndXP");
+    return;
+  }
   ctx.fillStyle = "#00ffff";
   ctx.font = "16px 'Courier New', monospace";
   ctx.textAlign = "left";
@@ -186,8 +213,14 @@ const LevelSystem = {
   checkLevelUp,
   setItemConfig: (config) => {
     ITEM_CONFIG = config; // Для сервера
+    console.log("ITEM_CONFIG установлен для сервера");
   },
-  getItemConfig: () => ITEM_CONFIG, // Геттер для доступа к ITEM_CONFIG
+  getItemConfig: () => {
+    if (!ITEM_CONFIG) {
+      console.error("ITEM_CONFIG не инициализирован при вызове getItemConfig");
+    }
+    return ITEM_CONFIG;
+  },
 };
 
 // Для Node.js
