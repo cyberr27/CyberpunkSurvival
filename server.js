@@ -490,6 +490,8 @@ wss.on("connection", (ws) => {
         }
       }
 
+      player = LevelSystem.handleItemPickupServer(player, item.type);
+
       items.delete(data.itemId);
       players.set(id, { ...player });
       userDatabase.set(id, { ...player });

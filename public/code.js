@@ -431,6 +431,8 @@ function handleAuthMessage(event) {
         inventory: data.inventory || Array(20).fill(null),
         npcMet: data.npcMet || false,
         selectedQuestId: data.selectedQuestId || null,
+        level: data.level || 0, // Инициализация уровня
+        xp: data.xp || 0, // Инициализация опыта
       };
       players.set(myId, me);
 
@@ -1396,7 +1398,9 @@ function handleGameMessage(event) {
         });
         if (data.player.id === myId) {
           inventory = data.player.inventory || inventory;
-          setNPCMet(data.player.npcMet || false); // Обновляем npcMet
+          setNPCMet(data.player.npcMet || false);
+          me.level = data.player.level || 0; // Обновляем уровень
+          me.xp = data.player.xp || 0; // Обновляем опыт
           updateStatsDisplay();
           updateInventoryDisplay();
         }
@@ -1667,6 +1671,7 @@ function update(deltaTime) {
 }
 
 function draw(deltaTime) {
+  LevelSystem.drawLevelAndXP(ctx, players.get(myId), camera);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.fillStyle = "rgba(10, 20, 40, 0.8)"; // Ночной эффект
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -1923,17 +1928,10 @@ function checkCollisions() {
       `Проверка столкновения с ${item.type} (ID: ${id}), расстояние: ${distance}`
     );
     if (distance < 30) {
-      // Уменьшено с 40 до 30
       console.log(
         `Игрок ${myId} пытается подобрать предмет ${item.type} (ID: ${id})`
       );
-      if (ws.readyState === WebSocket.OPEN) {
-        pendingPickups.add(id);
-        sendWhenReady(ws, JSON.stringify({ type: "pickup", itemId: id }));
-        console.log(`Отправлено сообщение pickup для ${id}`);
-      } else {
-        console.error("WebSocket не открыт, предмет не отправлен на сервер");
-      }
+      LevelSystem.handleItemPickupClient(id, item.type);
     }
   });
 }
