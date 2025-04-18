@@ -429,6 +429,19 @@ wss.on("connection", (ws) => {
           }
         });
       }
+    } else if (data.type === "updateLevel") {
+      const id = clients.get(ws);
+      if (id) {
+        const player = players.get(id);
+        player.level = data.level;
+        player.xp = data.xp;
+        players.set(id, { ...player });
+        userDatabase.set(id, { ...player });
+        await saveUserDatabase(dbCollection, id, player);
+        console.log(
+          `Игрок ${id} обновил уровень: ${data.level}, XP: ${data.xp}`
+        );
+      }
     } else if (data.type === "updateInventory") {
       const id = clients.get(ws);
       if (id) {
