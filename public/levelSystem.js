@@ -59,6 +59,7 @@ function updateStatsDisplay() {
       <span class="armor">Броня: ${me.armor}</span>
     `;
     console.log("Статы обновлены в DOM");
+    updateUpgradeButtons(); // Исправляем вызов, убираем levelSystem
   } catch (error) {
     console.error("Ошибка в updateStatsDisplay:", error);
   }
@@ -219,7 +220,7 @@ function setLevelData(level, xp, maxStatsData, upgradePointsData) {
     }
     updateLevelDisplay();
     updateUpgradeButtons();
-    updateStatsDisplay(); // Добавляем обновление статов
+    updateStatsDisplay(); // Обновляем статы
   } catch (error) {
     console.error("Ошибка в setLevelData:", error);
   }
@@ -371,4 +372,5 @@ window.levelSystem = {
   setLevelData,
   handleItemPickup,
   maxStats, // Добавляем maxStats в экспорт
+  updateUpgradeButtons, // Добавляем updateUpgradeButtons в экспорт
 };
