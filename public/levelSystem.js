@@ -205,6 +205,21 @@ function updateLevelDisplay() {
 
 function setLevelData(level, xp, maxStatsData, upgradePointsData) {
   try {
+    // Проверяем, что входные данные корректны
+    if (
+      level === undefined ||
+      xp === undefined ||
+      maxStatsData === undefined ||
+      upgradePointsData === undefined
+    ) {
+      console.warn(
+        `Некорректные данные в setLevelData: level=${level}, xp=${xp}, maxStats=${JSON.stringify(
+          maxStatsData
+        )}, upgradePoints=${upgradePointsData}. Пропускаем.`
+      );
+      return;
+    }
+
     console.log(
       `Установка уровня: level=${level}, xp=${xp}, maxStats=${JSON.stringify(
         maxStatsData
@@ -249,10 +264,14 @@ function calculateXPToNextLevel(level) {
 }
 
 // Функция для обработки поднятия предмета и начисления опыта
-function handleItemPickup(itemType, isDroppedByPlayer) {
+function handleItemPickup(
+  itemType,
+  isDroppedByPlayer,
+  isQuestCompletion = false
+) {
   try {
     console.log(
-      `Поднят предмет: ${itemType}, выброшен игроком: ${isDroppedByPlayer}, isLoading: ${isLoading}`
+      `Поднят предмет: ${itemType}, выброшен игроком: ${isDroppedByPlayer}, isLoading: ${isLoading}, isQuestCompletion: ${isQuestCompletion}`
     );
     const me = players.get(myId);
     if (!me) {
@@ -266,13 +285,19 @@ function handleItemPickup(itemType, isDroppedByPlayer) {
       initializeLevelSystem();
     }
 
-    // Если данные загружаются или предмет выброшен игроком, не начисляем опыт
+    // Если данные загружаются, предмет выброшен игроком или это инициализация задания, не начисляем опыт
     if (isLoading) {
       console.log(`Данные загружаются, опыт за ${itemType} не начисляется`);
       return;
     }
     if (isDroppedByPlayer) {
       console.log(`Предмет ${itemType} выброшен игроком, опыт не начисляется`);
+      return;
+    }
+    if (isQuestCompletion && window.npc && window.npc.isInitialLoad) {
+      console.log(
+        `Опыт за ${itemType} не начисляется, так как это инициализация задания (isInitialLoad=true)`
+      );
       return;
     }
 

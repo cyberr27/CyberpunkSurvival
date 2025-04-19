@@ -76,6 +76,7 @@ let isNPCMet = false;
 let selectedQuest = null;
 let dialogStage = "greeting";
 let availableQuests = [];
+let isInitialLoad = false; // Флаг для блокировки выполнения заданий при входе
 
 function drawNPC() {
   const screenX = NPC.x - camera.x;
@@ -224,6 +225,12 @@ function selectQuest(quest, isInitialLoad = false) {
 
 function checkQuestCompletion() {
   if (!selectedQuest) return;
+  if (isInitialLoad) {
+    console.log(
+      `Проверка задания "${selectedQuest.title}" пропущена, так как isInitialLoad=true`
+    );
+    return;
+  }
 
   const me = players.get(myId);
   if (!me) return;
@@ -245,9 +252,17 @@ function checkQuestCompletion() {
 
 function completeQuest() {
   if (!selectedQuest) return;
+  if (isInitialLoad) {
+    console.log(
+      `Выполнение задания "${selectedQuest.title}" пропущено, так как isInitialLoad=true`
+    );
+    return;
+  }
 
   const me = players.get(myId);
   if (!me) return;
+
+  console.log(`Выполняется задание: ${selectedQuest.title}`);
 
   // Удаляем необходимые предметы из инвентаря
   let itemsToRemove = selectedQuest.target.quantity;
@@ -285,7 +300,7 @@ function completeQuest() {
   }
 
   // Начисляем опыт за предмет задания и ждём завершения обновления
-  levelSystem.handleItemPickup(selectedQuest.target.type, false);
+  levelSystem.handleItemPickup(selectedQuest.target.type, false, true);
 
   // Даём небольшой таймаут для гарантии, что levelSystem обновил свои данные
   setTimeout(() => {
@@ -367,12 +382,14 @@ function setNPCMet(met) {
 }
 
 function setSelectedQuest(questId) {
+  isInitialLoad = true; // Устанавливаем флаг загрузки
   const quest = QUESTS.find((q) => q.id === questId) || null;
   if (quest) {
     selectQuest(quest, true); // Передаём isInitialLoad = true
   } else {
     selectedQuest = null;
   }
+  isInitialLoad = false; // Сбрасываем флаг после установки
 }
 
 function setAvailableQuests(questIds) {
@@ -594,3 +611,13 @@ const styleSheet = document.createElement("style");
 styleSheet.type = "text/css";
 styleSheet.innerText = npcStyles;
 document.head.appendChild(styleSheet);
+
+// Экспортируем функции и данные для использования в levelSystem.js и code.js
+window.npc = {
+  drawNPC,
+  checkNPCProximity,
+  setNPCMet,
+  setSelectedQuest,
+  setAvailableQuests,
+  isInitialLoad, // Экспортируем флаг
+};
