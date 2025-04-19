@@ -57,10 +57,6 @@ function updateStatsDisplay() {
       <span class="water">Вода: ${me.water}/${maxStats.water}</span><br>
       <span class="armor">Броня: ${me.armor}</span>
     `;
-    maxStats.health.style.fontSize = "8px";
-    maxStats.energy.style.fontSize = "8px";
-    maxStats.food.style.fontSize = "8px";
-    maxStats.water.style.fontSize = "8px";
     console.log("Статы обновлены в DOM");
     // Вызываем глобальную updateStatsDisplay из code.js для синхронизации
     if (typeof window.updateStatsDisplay === "function") {
