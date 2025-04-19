@@ -424,7 +424,7 @@ wss.on("connection", (ws) => {
         players.set(id, updatedPlayer);
         userDatabase.set(id, updatedPlayer);
         let lastSaved = new Map();
-        if (!lastSaved.has(id) || Date.now() - lastSaved.get(id) > 5000) {
+        if (!lastSaved.has(id) || Date.now() - lastSaved.get(id) > 1000) {
           await saveUserDatabase(dbCollection, id, updatedPlayer);
           lastSaved.set(id, Date.now());
         }
