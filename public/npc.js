@@ -12,61 +12,73 @@ const QUESTS = [
   {
     id: 1,
     title: "Принеси один орех.",
-    reward: { type: "balyary", quantity: 1 },
+    reward: { type: "balyary", quantity: 1, xp: ITEM_CONFIG.nut.rarity }, // rarity = 3
     target: { type: "nut", quantity: 1 },
   },
   {
     id: 2,
     title: "Найди бутылку воды.",
-    reward: { type: "balyary", quantity: 2 },
+    reward: {
+      type: "balyary",
+      quantity: 2,
+      xp: ITEM_CONFIG.water_bottle.rarity,
+    }, // rarity = 3
     target: { type: "water_bottle", quantity: 1 },
   },
   {
     id: 3,
     title: "Собери энергетик.",
-    reward: { type: "balyary", quantity: 2 },
+    reward: {
+      type: "balyary",
+      quantity: 2,
+      xp: ITEM_CONFIG.energy_drink.rarity,
+    }, // rarity = 2
     target: { type: "energy_drink", quantity: 1 },
   },
   {
     id: 4,
     title: "Достань яблоко.",
-    reward: { type: "balyary", quantity: 1 },
+    reward: { type: "balyary", quantity: 1, xp: ITEM_CONFIG.apple.rarity }, // rarity = 3
     target: { type: "apple", quantity: 1 },
   },
   {
     id: 5,
     title: "Принеси ягоды.",
-    reward: { type: "balyary", quantity: 1 },
+    reward: { type: "balyary", quantity: 1, xp: ITEM_CONFIG.berries.rarity }, // rarity = 3
     target: { type: "berries", quantity: 1 },
   },
   {
     id: 6,
     title: "Найди морковь.",
-    reward: { type: "balyary", quantity: 1 },
+    reward: { type: "balyary", quantity: 1, xp: ITEM_CONFIG.carrot.rarity }, // rarity = 3
     target: { type: "carrot", quantity: 1 },
   },
   {
     id: 7,
     title: "Собери банку тушёнки.",
-    reward: { type: "balyary", quantity: 3 },
+    reward: {
+      type: "balyary",
+      quantity: 3,
+      xp: ITEM_CONFIG.canned_meat.rarity,
+    }, // rarity = 1
     target: { type: "canned_meat", quantity: 1 },
   },
   {
     id: 8,
     title: "Достань гриб.",
-    reward: { type: "balyary", quantity: 2 },
+    reward: { type: "balyary", quantity: 2, xp: ITEM_CONFIG.mushroom.rarity }, // rarity = 1
     target: { type: "mushroom", quantity: 1 },
   },
   {
     id: 9,
     title: "Принеси колбасу.",
-    reward: { type: "balyary", quantity: 3 },
+    reward: { type: "balyary", quantity: 3, xp: ITEM_CONFIG.sausage.rarity }, // rarity = 2
     target: { type: "sausage", quantity: 1 },
   },
   {
     id: 10,
     title: "Найди пакет крови.",
-    reward: { type: "balyary", quantity: 4 },
+    reward: { type: "balyary", quantity: 4, xp: ITEM_CONFIG.blood_pack.rarity }, // rarity = 1
     target: { type: "blood_pack", quantity: 1 },
   },
 ];
@@ -180,7 +192,7 @@ function showQuestSelectionDialog(container) {
     questItem.className = "quest-item";
     questItem.innerHTML = `
       <span class="quest-marker">></span>
-      <p>${quest.title} <span class="quest-reward">[Награда: ${quest.reward.quantity} баляр]</span></p>
+      <p>${quest.title} <span class="quest-reward">[Награда: ${quest.reward.quantity} баляр, ${quest.reward.xp} XP]</span></p>
     `;
     questItem.addEventListener("click", () => {
       selectQuest(quest);
@@ -281,13 +293,21 @@ function completeQuest() {
     }
   }
 
-  // Отправляем обновление инвентаря на сервер
+  // Добавляем опыт (XP)
+  levelSystem.addXP(reward.xp);
+  console.log(`Добавлено ${reward.xp} XP за задание "${selectedQuest.title}"`);
+
+  // Отправляем обновление инвентаря и уровня на сервер
   sendWhenReady(
     ws,
     JSON.stringify({
       type: "updateInventory",
       questId: selectedQuest.id,
       inventory: inventory,
+      level: levelSystem.level,
+      xp: levelSystem.xp,
+      maxStats: levelSystem.maxStats,
+      upgradePoints: levelSystem.upgradePoints,
     })
   );
 
@@ -308,7 +328,7 @@ function completeQuest() {
 
   availableQuests.push(newQuest);
   console.log(
-    `Задание "${selectedQuest.title}" выполнено! Получено ${reward.quantity} баляр. Новое задание: ${newQuest.title}`
+    `Задание "${selectedQuest.title}" выполнено! Получено ${reward.quantity} баляр и ${reward.xp} XP. Новое задание: ${newQuest.title}`
   );
 
   // Сбрасываем выбранное задание
