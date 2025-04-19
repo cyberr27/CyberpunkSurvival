@@ -281,35 +281,43 @@ function completeQuest() {
     }
   }
 
-  // Начисляем опыт за предмет задания
+  // Начисляем опыт за предмет задания и ждём завершения обновления
   levelSystem.handleItemPickup(selectedQuest.target.type, false);
 
-  // Убеждаемся, что данные уровня обновлены после начисления опыта
-  const updatedLevel = window.levelSystem.currentLevel;
-  const updatedXP = window.levelSystem.currentXP;
-  const updatedMaxStats = { ...window.levelSystem.maxStats };
-  const updatedUpgradePoints = window.levelSystem.upgradePoints;
+  // Даём небольшой таймаут для гарантии, что levelSystem обновил свои данные
+  setTimeout(() => {
+    // Убеждаемся, что данные уровня обновлены после начисления опыта
+    const updatedLevel = window.levelSystem.currentLevel || 0;
+    const updatedXP = window.levelSystem.currentXP || 0;
+    const updatedMaxStats = { ...window.levelSystem.maxStats } || {
+      health: 100,
+      energy: 100,
+      food: 100,
+      water: 100,
+    };
+    const updatedUpgradePoints = window.levelSystem.upgradePoints || 0;
 
-  // Логируем отправляемые данные для отладки
-  console.log(
-    `Отправка updateInventoryAndLevel: level=${updatedLevel}, xp=${updatedXP}, maxStats=${JSON.stringify(
-      updatedMaxStats
-    )}, upgradePoints=${updatedUpgradePoints}`
-  );
+    // Логируем отправляемые данные для отладки
+    console.log(
+      `Отправка updateInventoryAndLevel: level=${updatedLevel}, xp=${updatedXP}, maxStats=${JSON.stringify(
+        updatedMaxStats
+      )}, upgradePoints=${updatedUpgradePoints}`
+    );
 
-  // Отправляем обновление инвентаря и уровня на сервер
-  sendWhenReady(
-    ws,
-    JSON.stringify({
-      type: "updateInventoryAndLevel",
-      questId: selectedQuest.id,
-      inventory: inventory,
-      level: updatedLevel,
-      xp: updatedXP,
-      maxStats: updatedMaxStats,
-      upgradePoints: updatedUpgradePoints,
-    })
-  );
+    // Отправляем обновление инвентаря и уровня на сервер
+    sendWhenReady(
+      ws,
+      JSON.stringify({
+        type: "updateInventoryAndLevel",
+        questId: selectedQuest.id,
+        inventory: inventory,
+        level: updatedLevel,
+        xp: updatedXP,
+        maxStats: updatedMaxStats,
+        upgradePoints: updatedUpgradePoints,
+      })
+    );
+  }, 10); // Минимальный таймаут для синхронизации
 
   // Сохраняем ID выполненного задания
   const previousQuestId = selectedQuest.id;

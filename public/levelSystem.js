@@ -257,6 +257,12 @@ function handleItemPickup(itemType, isDroppedByPlayer) {
       return;
     }
 
+    // Проверяем, инициализирована ли система
+    if (!isInitialized) {
+      console.warn("Система уровней не инициализирована, запускаем...");
+      initializeLevelSystem();
+    }
+
     // Если предмет был выброшен игроком, не начисляем опыт
     if (isDroppedByPlayer) {
       console.log(`Предмет ${itemType} выброшен игроком, опыт не начисляется`);
@@ -284,6 +290,12 @@ function handleItemPickup(itemType, isDroppedByPlayer) {
     );
     currentXP += xpGained;
     checkLevelUp();
+
+    // Принудительно обновляем глобальные переменные
+    window.levelSystem.currentLevel = currentLevel;
+    window.levelSystem.currentXP = currentXP;
+    window.levelSystem.maxStats = { ...maxStats };
+    window.levelSystem.upgradePoints = upgradePoints;
 
     // Обновляем отображение уровня и статов
     updateLevelDisplay();

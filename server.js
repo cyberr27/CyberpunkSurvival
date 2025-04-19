@@ -514,11 +514,18 @@ wss.on("connection", (ws) => {
       const id = clients.get(ws);
       if (id) {
         const player = players.get(id);
-        // Проверяем и обновляем данные, сохраняя существующие значения, если новые не предоставлены
+        // Сохраняем текущие значения уровня и опыта
+        const currentLevel = player.level || 0;
+        const currentXP = player.xp || 0;
+        // Обновляем данные, сохраняя существующие значения, если новые не предоставлены
         player.inventory = data.inventory || player.inventory;
+        // Используем новые значения уровня и опыта только если они больше или равны текущим
         player.level =
-          data.level !== undefined ? data.level : player.level || 0;
-        player.xp = data.xp !== undefined ? data.xp : player.xp || 0;
+          data.level !== undefined && data.level >= currentLevel
+            ? data.level
+            : currentLevel;
+        player.xp =
+          data.xp !== undefined && data.xp >= currentXP ? data.xp : currentXP;
         player.maxStats = data.maxStats ||
           player.maxStats || {
             health: 100,
