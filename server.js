@@ -514,14 +514,33 @@ wss.on("connection", (ws) => {
       const id = clients.get(ws);
       if (id) {
         const player = players.get(id);
-        player.inventory = data.inventory;
-        player.level = data.level;
-        player.xp = data.xp;
-        player.maxStats = data.maxStats;
-        player.upgradePoints = data.upgradePoints;
+        // Проверяем и обновляем данные, сохраняя существующие значения, если новые не предоставлены
+        player.inventory = data.inventory || player.inventory;
+        player.level =
+          data.level !== undefined ? data.level : player.level || 0;
+        player.xp = data.xp !== undefined ? data.xp : player.xp || 0;
+        player.maxStats = data.maxStats ||
+          player.maxStats || {
+            health: 100,
+            energy: 100,
+            food: 100,
+            water: 100,
+          };
+        player.upgradePoints =
+          data.upgradePoints !== undefined
+            ? data.upgradePoints
+            : player.upgradePoints || 0;
         players.set(id, { ...player });
         userDatabase.set(id, { ...player });
         await saveUserDatabase(dbCollection, id, player);
+        // Логируем полученные и сохранённые данные
+        console.log(
+          `Игрок ${id} обновил инвентарь и уровень: level=${player.level}, xp=${
+            player.xp
+          }, maxStats=${JSON.stringify(player.maxStats)}, upgradePoints=${
+            player.upgradePoints
+          }`
+        );
         wss.clients.forEach((client) => {
           if (
             client.readyState === WebSocket.OPEN &&
@@ -532,13 +551,6 @@ wss.on("connection", (ws) => {
             );
           }
         });
-        console.log(
-          `Игрок ${id} обновил инвентарь и уровень: level=${data.level}, xp=${
-            data.xp
-          }, maxStats=${JSON.stringify(data.maxStats)}, upgradePoints=${
-            data.upgradePoints
-          }`
-        );
       }
     } else if (data.type === "pickup") {
       const id = clients.get(ws);

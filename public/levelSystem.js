@@ -285,6 +285,17 @@ function handleItemPickup(itemType, isDroppedByPlayer) {
     currentXP += xpGained;
     checkLevelUp();
 
+    // Обновляем отображение уровня и статов
+    updateLevelDisplay();
+    updateStatsDisplay();
+
+    // Логируем данные перед отправкой
+    console.log(
+      `Отправка updateLevel: level=${currentLevel}, xp=${currentXP}, maxStats=${JSON.stringify(
+        maxStats
+      )}, upgradePoints=${upgradePoints}`
+    );
+
     if (ws.readyState === WebSocket.OPEN) {
       sendWhenReady(
         ws,
@@ -292,7 +303,7 @@ function handleItemPickup(itemType, isDroppedByPlayer) {
           type: "updateLevel",
           level: currentLevel,
           xp: currentXP,
-          maxStats,
+          maxStats: { ...maxStats }, // Глубокая копия для избежания мутаций
           upgradePoints,
         })
       );

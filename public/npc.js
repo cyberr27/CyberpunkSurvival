@@ -284,6 +284,19 @@ function completeQuest() {
   // Начисляем опыт за предмет задания
   levelSystem.handleItemPickup(selectedQuest.target.type, false);
 
+  // Убеждаемся, что данные уровня обновлены после начисления опыта
+  const updatedLevel = window.levelSystem.currentLevel;
+  const updatedXP = window.levelSystem.currentXP;
+  const updatedMaxStats = { ...window.levelSystem.maxStats };
+  const updatedUpgradePoints = window.levelSystem.upgradePoints;
+
+  // Логируем отправляемые данные для отладки
+  console.log(
+    `Отправка updateInventoryAndLevel: level=${updatedLevel}, xp=${updatedXP}, maxStats=${JSON.stringify(
+      updatedMaxStats
+    )}, upgradePoints=${updatedUpgradePoints}`
+  );
+
   // Отправляем обновление инвентаря и уровня на сервер
   sendWhenReady(
     ws,
@@ -291,10 +304,10 @@ function completeQuest() {
       type: "updateInventoryAndLevel",
       questId: selectedQuest.id,
       inventory: inventory,
-      level: window.levelSystem.currentLevel,
-      xp: window.levelSystem.currentXP,
-      maxStats: window.levelSystem.maxStats,
-      upgradePoints: window.levelSystem.upgradePoints,
+      level: updatedLevel,
+      xp: updatedXP,
+      maxStats: updatedMaxStats,
+      upgradePoints: updatedUpgradePoints,
     })
   );
 
