@@ -59,7 +59,7 @@ function updateStatsDisplay() {
       <span class="armor">Броня: ${me.armor}</span>
     `;
     console.log("Статы обновлены в DOM");
-    updateUpgradeButtons(); // Исправляем вызов, убираем levelSystem
+    updateUpgradeButtons(); // Обновляем кнопки прокачки
   } catch (error) {
     console.error("Ошибка в updateStatsDisplay:", error);
   }
@@ -79,7 +79,7 @@ function createUpgradeButtons() {
     const existingButtons = statsEl.querySelectorAll(".upgrade-btn");
     existingButtons.forEach((btn) => btn.remove());
 
-    console.log(`Создание кнопок, upgradePoints: ${upgradePoints}`); // Логирование для отладки
+    console.log(`Создание кнопок, upgradePoints: ${upgradePoints}`);
     if (upgradePoints > 0) {
       const statTypes = ["health", "energy", "food", "water"];
       const statElements = statsEl.querySelectorAll("span");
@@ -91,10 +91,10 @@ function createUpgradeButtons() {
         const button = document.createElement("button");
         button.className = "upgrade-btn cyber-btn";
         button.textContent = "+";
-        button.style.marginLeft = "10px"; // Увеличиваем отступ для красоты
-        button.style.fontSize = "14px"; // Чуть больше шрифт
-        button.style.padding = "4px 8px"; // Увеличиваем размер кнопки
-        button.style.background = "linear-gradient(45deg, #00ffff, #ff00ff)"; // Киберпанк-стиль
+        button.style.marginLeft = "10px";
+        button.style.fontSize = "14px";
+        button.style.padding = "4px 8px";
+        button.style.background = "linear-gradient(45deg, #00ffff, #ff00ff)";
         button.style.border = "1px solid #00ffff";
         button.style.borderRadius = "4px";
         button.style.cursor = "pointer";
@@ -105,9 +105,9 @@ function createUpgradeButtons() {
             maxStats[statType] += 1; // Увеличиваем максимальный стат на 1
             console.log(`Увеличен max ${statType} до ${maxStats[statType]}`);
 
-            // Обновляем отображение кнопок
+            // Обновляем отображение статов и кнопок
+            updateStatsDisplay(); // Обновляем статы для отображения нового max
             updateUpgradeButtons();
-            updateStatsDisplay(); // Обновляем отображение статов
 
             // Отправляем обновление на сервер
             if (ws.readyState === WebSocket.OPEN) {
@@ -127,7 +127,7 @@ function createUpgradeButtons() {
         });
 
         span.appendChild(button);
-        console.log(`Кнопка для ${statType} добавлена`); // Логирование
+        console.log(`Кнопка для ${statType} добавлена`);
       });
     }
   } catch (error) {
@@ -138,7 +138,7 @@ function createUpgradeButtons() {
 // Функция для обновления отображения кнопок
 function updateUpgradeButtons() {
   try {
-    console.log(`Обновление кнопок, upgradePoints: ${upgradePoints}`); // Логирование
+    console.log(`Обновление кнопок, upgradePoints: ${upgradePoints}`);
     const statsEl = document.getElementById("stats");
     if (!statsEl) {
       console.warn("Элемент stats не найден, откладываем обновление кнопок");
@@ -168,6 +168,7 @@ function initializeLevelSystem() {
     isInitialized = true;
     console.log("Система уровней инициализирована, братишка!");
     updateLevelDisplay();
+    updateStatsDisplay(); // Добавляем вызов для корректного отображения статов
     updateUpgradeButtons();
   } catch (error) {
     console.error("Ошибка в initializeLevelSystem:", error);
@@ -219,8 +220,8 @@ function setLevelData(level, xp, maxStatsData, upgradePointsData) {
       initializeLevelSystem();
     }
     updateLevelDisplay();
+    updateStatsDisplay(); // Обновляем статы для отображения актуальных max
     updateUpgradeButtons();
-    updateStatsDisplay(); // Обновляем статы
   } catch (error) {
     console.error("Ошибка в setLevelData:", error);
   }
@@ -307,11 +308,12 @@ function checkLevelUp() {
       currentLevel++;
       currentXP -= xpToNextLevel;
       xpToNextLevel = calculateXPToNextLevel(currentLevel);
-      upgradePoints += 10; // Начисляем 10 очков прокачки вместо 1
+      upgradePoints += 10; // Начисляем 10 очков прокачки
       showLevelUpEffect();
       updateUpgradeButtons(); // Обновляем кнопки при повышении уровня
     }
     updateLevelDisplay();
+    updateStatsDisplay(); // Обновляем статы при повышении уровня
   } catch (error) {
     console.error("Ошибка в checkLevelUp:", error);
   }
@@ -371,6 +373,6 @@ window.levelSystem = {
   initialize: initializeLevelSystem,
   setLevelData,
   handleItemPickup,
-  maxStats, // Добавляем maxStats в экспорт
-  updateUpgradeButtons, // Добавляем updateUpgradeButtons в экспорт
+  maxStats,
+  updateUpgradeButtons,
 };
