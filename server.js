@@ -471,6 +471,24 @@ wss.on("connection", (ws) => {
         const player = players.get(id);
         player.maxStats = data.maxStats;
         player.upgradePoints = data.upgradePoints;
+        // Обновляем текущие статы, если они пришли
+        if (data.currentStats) {
+          player.health = Math.min(
+            data.currentStats.health,
+            data.maxStats.health
+          );
+          player.energy = Math.min(
+            data.currentStats.energy,
+            data.maxStats.energy
+          );
+          player.food = Math.min(data.currentStats.food, data.maxStats.food);
+          player.water = Math.min(data.currentStats.water, data.maxStats.water);
+          console.log(
+            `Игрок ${id} обновил текущие статы: ${JSON.stringify(
+              data.currentStats
+            )}`
+          );
+        }
         players.set(id, { ...player });
         userDatabase.set(id, { ...player });
         await saveUserDatabase(dbCollection, id, player);

@@ -79,7 +79,7 @@ function createUpgradeButtons() {
     const existingButtons = statsEl.querySelectorAll(".upgrade-btn");
     existingButtons.forEach((btn) => btn.remove());
 
-    console.log(`Создание кнопок, upgradePoints: ${upgradePoints}`); // Логирование для отладки
+    console.log(`Создание кнопок, upgradePoints: ${upgradePoints}`);
     if (upgradePoints > 0) {
       const statTypes = ["health", "energy", "food", "water"];
       const statElements = statsEl.querySelectorAll("span");
@@ -91,10 +91,10 @@ function createUpgradeButtons() {
         const button = document.createElement("button");
         button.className = "upgrade-btn cyber-btn";
         button.textContent = "+";
-        button.style.marginLeft = "10px"; // Увеличиваем отступ для красоты
-        button.style.fontSize = "14px"; // Чуть больше шрифт
-        button.style.padding = "4px 8px"; // Увеличиваем размер кнопки
-        button.style.background = "linear-gradient(45deg, #00ffff, #ff00ff)"; // Киберпанк-стиль
+        button.style.marginLeft = "10px";
+        button.style.fontSize = "14px";
+        button.style.padding = "4px 8px";
+        button.style.background = "linear-gradient(45deg, #00ffff, #ff00ff)";
         button.style.border = "1px solid #00ffff";
         button.style.borderRadius = "4px";
         button.style.cursor = "pointer";
@@ -102,12 +102,23 @@ function createUpgradeButtons() {
         button.addEventListener("click", () => {
           if (upgradePoints > 0) {
             upgradePoints--;
-            maxStats[statType] += 1; // Увеличиваем максимальный стат на 1
+            maxStats[statType] += 1;
             console.log(`Увеличен max ${statType} до ${maxStats[statType]}`);
 
-            // Обновляем отображение кнопок
+            // Обновляем текущие статы игрока
+            const me = players.get(myId);
+            if (me) {
+              me[statType] = Math.min(maxStats[statType], me[statType] + 1);
+              console.log(
+                `Текущий ${statType} игрока обновлён до ${me[statType]}`
+              );
+            } else {
+              console.warn("Игрок не найден при обновлении текущих статов");
+            }
+
+            // Обновляем отображение
             updateUpgradeButtons();
-            updateStatsDisplay(); // Обновляем отображение статов
+            updateStatsDisplay();
 
             // Отправляем обновление на сервер
             if (ws.readyState === WebSocket.OPEN) {
@@ -117,9 +128,17 @@ function createUpgradeButtons() {
                   type: "updateMaxStats",
                   maxStats,
                   upgradePoints,
+                  currentStats: {
+                    health: me.health,
+                    energy: me.energy,
+                    food: me.food,
+                    water: me.water,
+                  },
                 })
               );
-              console.log("Отправлено updateMaxStats на сервер");
+              console.log(
+                "Отправлено updateMaxStats с текущими статами на сервер"
+              );
             } else {
               console.warn("WebSocket не открыт, updateMaxStats не отправлено");
             }
@@ -127,7 +146,7 @@ function createUpgradeButtons() {
         });
 
         span.appendChild(button);
-        console.log(`Кнопка для ${statType} добавлена`); // Логирование
+        console.log(`Кнопка для ${statType} добавлена`);
       });
     }
   } catch (error) {
@@ -220,6 +239,7 @@ function setLevelData(level, xp, maxStatsData, upgradePointsData) {
     }
     updateLevelDisplay();
     updateUpgradeButtons();
+    syncCurrentStats(); // Добавляем синхронизацию текущих статов
     updateStatsDisplay(); // Обновляем статы
   } catch (error) {
     console.error("Ошибка в setLevelData:", error);
@@ -366,11 +386,69 @@ function showLevelUpEffect() {
   }
 }
 
+// Функция для синхронизации текущих статов после обновления maxStats
+function syncCurrentStats() {
+  try {
+    const me = players.get(myId);
+    if (!me) {
+      console.warn("Игрок не найден для синхронизации текущих статов");
+      return;
+    }
+    // Убедимся, что текущие статы не превышают максимальные
+    me.health = Math.min(maxStats.health, me.health);
+    me.energy = Math.min(maxStats.energy, me.energy);
+    me.food = Math.min(maxStats.food, me.food);
+    me.water = Math.min(maxStats.water, me.water);
+    console.log("Текущие статы синхронизированы с maxStats");
+
+    // Обновляем отображение
+    updateStatsDisplay();
+
+    // Отправляем обновление на сервер
+    if (ws.readyState === WebSocket.OPEN) {
+      sendWhenReady(
+        ws,
+        JSON.stringify({
+          type: "update",
+          player: {
+            id: myId,
+            health: me.health,
+            energy: me.energy,
+            food: me.food,
+            water: me.water,
+            x: me.x,
+            y: me.y,
+            armor: me.armor,
+            distanceTraveled: me.distanceTraveled,
+            direction: me.direction,
+            state: me.state,
+            frame: me.frame,
+            inventory: me.inventory,
+            npcMet: me.npcMet,
+            level: currentLevel,
+            xp: currentXP,
+            maxStats,
+            upgradePoints,
+          },
+        })
+      );
+      console.log(
+        "Отправлено сообщение update для синхронизации текущих статов"
+      );
+    } else {
+      console.warn("WebSocket не открыт, синхронизация статов не отправлена");
+    }
+  } catch (error) {
+    console.error("Ошибка в syncCurrentStats:", error);
+  }
+}
+
 // Экспортируем функции и данные для использования в code.js
 window.levelSystem = {
   initialize: initializeLevelSystem,
   setLevelData,
   handleItemPickup,
-  maxStats, // Добавляем maxStats в экспорт
-  updateUpgradeButtons, // Добавляем updateUpgradeButtons в экспорт
+  maxStats,
+  updateUpgradeButtons,
+  syncCurrentStats, // Добавляем новую функцию
 };

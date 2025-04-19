@@ -1410,6 +1410,12 @@ function handleGameMessage(event) {
         if (data.player.id === myId) {
           inventory = data.player.inventory || inventory;
           setNPCMet(data.player.npcMet || false);
+          // Обновляем текущие статы
+          const me = players.get(myId);
+          me.health = data.player.health;
+          me.energy = data.player.energy;
+          me.food = data.player.food;
+          me.water = data.player.water;
           levelSystem.setLevelData(
             data.player.level || 0,
             data.player.xp || 0,
