@@ -190,9 +190,11 @@ function showQuestSelectionDialog(container) {
   });
 }
 
-function selectQuest(quest) {
+function selectQuest(quest, isInitialLoad = false) {
   selectedQuest = quest;
-  console.log(`Выбрано задание: ${quest.title}`);
+  console.log(
+    `Выбрано задание: ${quest.title}, isInitialLoad: ${isInitialLoad}`
+  );
   sendWhenReady(
     ws,
     JSON.stringify({
@@ -214,7 +216,8 @@ function selectQuest(quest) {
     }
   });
 
-  if (currentQuantity >= requiredQuantity) {
+  // Не выполняем задание автоматически при начальной загрузке
+  if (currentQuantity >= requiredQuantity && !isInitialLoad) {
     completeQuest();
   }
 }
@@ -364,7 +367,12 @@ function setNPCMet(met) {
 }
 
 function setSelectedQuest(questId) {
-  selectedQuest = QUESTS.find((q) => q.id === questId) || null;
+  const quest = QUESTS.find((q) => q.id === questId) || null;
+  if (quest) {
+    selectQuest(quest, true); // Передаём isInitialLoad = true
+  } else {
+    selectedQuest = null;
+  }
 }
 
 function setAvailableQuests(questIds) {

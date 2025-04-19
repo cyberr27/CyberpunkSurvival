@@ -342,6 +342,10 @@ wss.on("connection", (ws) => {
           upgradePoints: player.upgradePoints || 0,
         };
         players.set(data.username, playerData);
+        // Логируем данные, отправляемые при входе
+        console.log(
+          `Игрок ${data.username} вошёл, отправляем xp=${playerData.xp}, level=${playerData.level}, selectedQuestId=${playerData.selectedQuestId}`
+        );
         ws.send(
           JSON.stringify({
             type: "loginSuccess",
@@ -424,7 +428,7 @@ wss.on("connection", (ws) => {
         players.set(id, updatedPlayer);
         userDatabase.set(id, updatedPlayer);
         let lastSaved = new Map();
-        if (!lastSaved.has(id) || Date.now() - lastSaved.get(id) > 1000) {
+        if (!lastSaved.has(id) || Date.now() - lastSaved.get(id) > 2000) {
           await saveUserDatabase(dbCollection, id, updatedPlayer);
           lastSaved.set(id, Date.now());
         }

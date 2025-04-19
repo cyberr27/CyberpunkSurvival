@@ -2,6 +2,7 @@ let currentLevel = 0;
 let currentXP = 0;
 let xpToNextLevel = 100;
 let isInitialized = false; // Флаг инициализации
+let isLoading = false; // Флаг загрузки данных при входе
 let upgradePoints = 0; // Очки прокачки
 
 // Максимальные значения параметров (инициализируем по умолчанию)
@@ -202,7 +203,6 @@ function updateLevelDisplay() {
   }
 }
 
-// Функция для установки данных уровня из сервера
 function setLevelData(level, xp, maxStatsData, upgradePointsData) {
   try {
     console.log(
@@ -210,6 +210,7 @@ function setLevelData(level, xp, maxStatsData, upgradePointsData) {
         maxStatsData
       )}, upgradePoints=${upgradePointsData}`
     );
+    isLoading = true; // Устанавливаем флаг загрузки
     currentLevel = level || 0;
     currentXP = xp || 0;
     maxStats = maxStatsData || {
@@ -229,8 +230,10 @@ function setLevelData(level, xp, maxStatsData, upgradePointsData) {
     updateLevelDisplay();
     updateStatsDisplay(); // Обновляем статы для отображения актуальных max
     updateUpgradeButtons();
+    isLoading = false; // Сбрасываем флаг после загрузки
   } catch (error) {
     console.error("Ошибка в setLevelData:", error);
+    isLoading = false; // Сбрасываем флаг в случае ошибки
   }
 }
 
@@ -249,7 +252,7 @@ function calculateXPToNextLevel(level) {
 function handleItemPickup(itemType, isDroppedByPlayer) {
   try {
     console.log(
-      `Поднят предмет: ${itemType}, выброшен игроком: ${isDroppedByPlayer}`
+      `Поднят предмет: ${itemType}, выброшен игроком: ${isDroppedByPlayer}, isLoading: ${isLoading}`
     );
     const me = players.get(myId);
     if (!me) {
@@ -263,7 +266,11 @@ function handleItemPickup(itemType, isDroppedByPlayer) {
       initializeLevelSystem();
     }
 
-    // Если предмет был выброшен игроком, не начисляем опыт
+    // Если данные загружаются или предмет выброшен игроком, не начисляем опыт
+    if (isLoading) {
+      console.log(`Данные загружаются, опыт за ${itemType} не начисляется`);
+      return;
+    }
     if (isDroppedByPlayer) {
       console.log(`Предмет ${itemType} выброшен игроком, опыт не начисляется`);
       return;
