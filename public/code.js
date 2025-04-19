@@ -446,7 +446,7 @@ function handleAuthMessage(event) {
         npcMet: data.npcMet || false,
         selectedQuestId: data.selectedQuestId || null,
         level: data.level || 0, // Добавляем уровень
-        xp: data.xp || 0, // Добавляем опыт
+        xp: data.xp || 98, // Добавляем опыт
       };
       players.set(myId, me);
 
@@ -1220,6 +1220,7 @@ function updateStatsDisplay() {
   document.getElementById("coords").innerHTML = `X: ${Math.floor(
     me.x
   )}<br>Y: ${Math.floor(me.y)}`;
+  levelSystem.updateUpgradeButtons(); // Добавляем вызов для обновления кнопок
 }
 
 function updateInventoryDisplay() {

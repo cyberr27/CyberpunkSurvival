@@ -38,6 +38,32 @@ function createLevelDisplayElement() {
   }
 }
 
+// Функция для обновления отображения статов
+function updateStatsDisplay() {
+  try {
+    const statsEl = document.getElementById("stats");
+    if (!statsEl) {
+      console.warn("Элемент stats не найден для обновления");
+      return;
+    }
+    const me = players.get(myId);
+    if (!me) {
+      console.warn("Игрок не найден для обновления статов");
+      return;
+    }
+    statsEl.innerHTML = `
+      <span class="health">Здоровье: ${me.health}/${maxStats.health}</span><br>
+      <span class="energy">Энергия: ${me.energy}/${maxStats.energy}</span><br>
+      <span class="food">Еда: ${me.food}/${maxStats.food}</span><br>
+      <span class="water">Вода: ${me.water}/${maxStats.water}</span><br>
+      <span class="armor">Броня: ${me.armor}</span>
+    `;
+    console.log("Статы обновлены в DOM");
+  } catch (error) {
+    console.error("Ошибка в updateStatsDisplay:", error);
+  }
+}
+
 // Функция для создания кнопок "+"
 function createUpgradeButtons() {
   try {
@@ -52,6 +78,7 @@ function createUpgradeButtons() {
     const existingButtons = statsEl.querySelectorAll(".upgrade-btn");
     existingButtons.forEach((btn) => btn.remove());
 
+    console.log(`Создание кнопок, upgradePoints: ${upgradePoints}`); // Логирование для отладки
     if (upgradePoints > 0) {
       const statTypes = ["health", "energy", "food", "water"];
       const statElements = statsEl.querySelectorAll("span");
@@ -63,18 +90,23 @@ function createUpgradeButtons() {
         const button = document.createElement("button");
         button.className = "upgrade-btn cyber-btn";
         button.textContent = "+";
-        button.style.marginLeft = "5px";
-        button.style.fontSize = "12px";
-        button.style.padding = "2px 6px";
+        button.style.marginLeft = "10px"; // Увеличиваем отступ для красоты
+        button.style.fontSize = "14px"; // Чуть больше шрифт
+        button.style.padding = "4px 8px"; // Увеличиваем размер кнопки
+        button.style.background = "linear-gradient(45deg, #00ffff, #ff00ff)"; // Киберпанк-стиль
+        button.style.border = "1px solid #00ffff";
+        button.style.borderRadius = "4px";
+        button.style.cursor = "pointer";
 
         button.addEventListener("click", () => {
           if (upgradePoints > 0) {
             upgradePoints--;
-            maxStats[statType]++;
+            maxStats[statType] += 1; // Увеличиваем максимальный стат на 1
             console.log(`Увеличен max ${statType} до ${maxStats[statType]}`);
 
             // Обновляем отображение кнопок
             updateUpgradeButtons();
+            updateStatsDisplay(); // Обновляем отображение статов
 
             // Отправляем обновление на сервер
             if (ws.readyState === WebSocket.OPEN) {
@@ -94,6 +126,7 @@ function createUpgradeButtons() {
         });
 
         span.appendChild(button);
+        console.log(`Кнопка для ${statType} добавлена`); // Логирование
       });
     }
   } catch (error) {
@@ -104,12 +137,19 @@ function createUpgradeButtons() {
 // Функция для обновления отображения кнопок
 function updateUpgradeButtons() {
   try {
+    console.log(`Обновление кнопок, upgradePoints: ${upgradePoints}`); // Логирование
+    const statsEl = document.getElementById("stats");
+    if (!statsEl) {
+      console.warn("Элемент stats не найден, откладываем обновление кнопок");
+      setTimeout(updateUpgradeButtons, 100);
+      return;
+    }
     if (upgradePoints > 0) {
       createUpgradeButtons();
     } else {
-      const statsEl = document.getElementById("stats");
       const buttons = statsEl.querySelectorAll(".upgrade-btn");
       buttons.forEach((btn) => btn.remove());
+      console.log("Все кнопки '+' удалены, так как upgradePoints <= 0");
     }
   } catch (error) {
     console.error("Ошибка в updateUpgradeButtons:", error);
@@ -179,6 +219,7 @@ function setLevelData(level, xp, maxStatsData, upgradePointsData) {
     }
     updateLevelDisplay();
     updateUpgradeButtons();
+    updateStatsDisplay(); // Добавляем обновление статов
   } catch (error) {
     console.error("Ошибка в setLevelData:", error);
   }
@@ -265,7 +306,7 @@ function checkLevelUp() {
       currentLevel++;
       currentXP -= xpToNextLevel;
       xpToNextLevel = calculateXPToNextLevel(currentLevel);
-      upgradePoints++; // Начисляем очко прокачки
+      upgradePoints += 10; // Начисляем 10 очков прокачки вместо 1
       showLevelUpEffect();
       updateUpgradeButtons(); // Обновляем кнопки при повышении уровня
     }

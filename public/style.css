@@ -665,6 +665,28 @@ button:active {
   text-shadow: 0 0 10px #ff00ff, 0 0 20px #ff00ff;
   pointer-events: none;
 }
+/* Стили для кнопок прокачки */
+.upgrade-btn {
+  background: linear-gradient(45deg, #00ffff, #ff00ff);
+  border: 1px solid #00ffff;
+  border-radius: 4px;
+  color: #000;
+  font-size: 14px;
+  padding: 4px 8px;
+  margin-left: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.7);
+}
+
+.upgrade-btn:hover {
+  background: linear-gradient(45deg, #ff00ff, #00ffff);
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
+}
+
+.upgrade-btn:active {
+  transform: scale(0.95);
+}
 /* Адаптация для мобильных устройств (max-width: 500px) */
 @media (max-width: 500px) {
   body {

@@ -313,7 +313,7 @@ wss.on("connection", (ws) => {
           inventory: Array(20).fill(null),
           npcMet: false,
           level: 0,
-          xp: 0,
+          xp: 98,
           maxStats: { health: 100, energy: 100, food: 100, water: 100 },
           upgradePoints: 0,
         };
@@ -363,7 +363,7 @@ wss.on("connection", (ws) => {
             level: playerData.level,
             xp: playerData.xp,
             maxStats: playerData.maxStats,
-            upgradePoints: playerData.upgradePoints,
+            upgradePoints: playerData.upgradePoints, // Убедились, что отправляется
             players: Array.from(players.values()).filter(
               (p) => p.id !== data.username
             ),
@@ -454,6 +454,16 @@ wss.on("connection", (ws) => {
             data.upgradePoints
           }`
         );
+        wss.clients.forEach((client) => {
+          if (
+            client.readyState === WebSocket.OPEN &&
+            clients.get(client) === id
+          ) {
+            client.send(
+              JSON.stringify({ type: "update", player: { id, ...player } })
+            );
+          }
+        });
       }
     } else if (data.type === "updateMaxStats") {
       const id = clients.get(ws);
