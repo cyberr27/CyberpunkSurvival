@@ -1,4 +1,3 @@
-// levelSystem.js
 let currentLevel = 0;
 let currentXP = 0;
 let xpToNextLevel = 100;
@@ -59,6 +58,10 @@ function updateStatsDisplay() {
       <span class="armor">Броня: ${me.armor}</span>
     `;
     console.log("Статы обновлены в DOM");
+    // Вызываем глобальную updateStatsDisplay из code.js для синхронизации
+    if (typeof window.updateStatsDisplay === "function") {
+      window.updateStatsDisplay();
+    }
     updateUpgradeButtons(); // Обновляем кнопки прокачки
   } catch (error) {
     console.error("Ошибка в updateStatsDisplay:", error);
@@ -103,6 +106,8 @@ function createUpgradeButtons() {
           if (upgradePoints > 0) {
             upgradePoints--;
             maxStats[statType] += 1; // Увеличиваем максимальный стат на 1
+            // Обновляем window.levelSystem.maxStats
+            window.levelSystem.maxStats[statType] = maxStats[statType];
             console.log(`Увеличен max ${statType} до ${maxStats[statType]}`);
 
             // Обновляем отображение статов и кнопок
@@ -213,6 +218,8 @@ function setLevelData(level, xp, maxStatsData, upgradePointsData) {
       food: 100,
       water: 100,
     };
+    // Синхронизируем window.levelSystem.maxStats
+    window.levelSystem.maxStats = { ...maxStats };
     upgradePoints = upgradePointsData || 0;
     xpToNextLevel = calculateXPToNextLevel(currentLevel);
     if (!isInitialized) {

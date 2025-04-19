@@ -1416,7 +1416,7 @@ function handleGameMessage(event) {
             data.player.maxStats || levelSystem.maxStats,
             data.player.upgradePoints || 0
           );
-          updateStatsDisplay();
+          updateStatsDisplay(); // Добавьте здесь
           updateInventoryDisplay();
         }
         break;
