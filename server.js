@@ -510,6 +510,36 @@ wss.on("connection", (ws) => {
         });
         console.log(`Инвентарь игрока ${id} обновлён`);
       }
+    } else if (data.type === "updateInventoryAndLevel") {
+      const id = clients.get(ws);
+      if (id) {
+        const player = players.get(id);
+        player.inventory = data.inventory;
+        player.level = data.level;
+        player.xp = data.xp;
+        player.maxStats = data.maxStats;
+        player.upgradePoints = data.upgradePoints;
+        players.set(id, { ...player });
+        userDatabase.set(id, { ...player });
+        await saveUserDatabase(dbCollection, id, player);
+        wss.clients.forEach((client) => {
+          if (
+            client.readyState === WebSocket.OPEN &&
+            clients.get(client) === id
+          ) {
+            client.send(
+              JSON.stringify({ type: "update", player: { id, ...player } })
+            );
+          }
+        });
+        console.log(
+          `Игрок ${id} обновил инвентарь и уровень: level=${data.level}, xp=${
+            data.xp
+          }, maxStats=${JSON.stringify(data.maxStats)}, upgradePoints=${
+            data.upgradePoints
+          }`
+        );
+      }
     } else if (data.type === "pickup") {
       const id = clients.get(ws);
       if (!id) return;

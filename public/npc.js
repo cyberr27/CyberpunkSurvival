@@ -281,13 +281,20 @@ function completeQuest() {
     }
   }
 
-  // Отправляем обновление инвентаря на сервер
+  // Начисляем опыт за предмет задания
+  levelSystem.handleItemPickup(selectedQuest.target.type, false);
+
+  // Отправляем обновление инвентаря и уровня на сервер
   sendWhenReady(
     ws,
     JSON.stringify({
-      type: "updateInventory",
+      type: "updateInventoryAndLevel",
       questId: selectedQuest.id,
       inventory: inventory,
+      level: window.levelSystem.currentLevel,
+      xp: window.levelSystem.currentXP,
+      maxStats: window.levelSystem.maxStats,
+      upgradePoints: window.levelSystem.upgradePoints,
     })
   );
 

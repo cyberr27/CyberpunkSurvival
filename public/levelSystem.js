@@ -375,11 +375,14 @@ function showLevelUpEffect() {
   }
 }
 
-// Экспортируем функции и данные для использования в code.js
+// Экспортируем функции и данные для использования в code.js и npc.js
 window.levelSystem = {
   initialize: initializeLevelSystem,
   setLevelData,
   handleItemPickup,
   maxStats,
   updateUpgradeButtons,
+  currentLevel,
+  currentXP,
+  upgradePoints,
 };

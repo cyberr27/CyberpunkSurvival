@@ -1400,6 +1400,20 @@ function handleGameMessage(event) {
         console.log(`Инвентарь полон, предмет ${data.itemId} не поднят`);
         pendingPickups.delete(data.itemId);
         break;
+      case "updateInventoryAndLevel":
+        const id = data.player.id;
+        if (id === myId) {
+          inventory = data.player.inventory || inventory;
+          levelSystem.setLevelData(
+            data.player.level || 0,
+            data.player.xp || 0,
+            data.player.maxStats || levelSystem.maxStats,
+            data.player.upgradePoints || 0
+          );
+          updateInventoryDisplay();
+          updateStatsDisplay();
+        }
+        break;
       case "update":
         const existingPlayer = players.get(data.player.id);
         players.set(data.player.id, {
