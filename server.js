@@ -356,7 +356,7 @@ wss.on("connection", (ws) => {
           inventory: Array(20).fill(null),
           npcMet: false,
           level: 0,
-          xp: 98,
+          xp: 0,
           maxStats: { health: 100, energy: 100, food: 100, water: 100 },
           upgradePoints: 0,
           availableQuests: [], // Инициализируем пустой список заданий
