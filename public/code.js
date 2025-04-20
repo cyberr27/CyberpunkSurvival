@@ -92,8 +92,6 @@ npcPhotoImage.src = "fotoQuestNPC.png";
 // Инвентарь игрока (массив на 20 слотов, изначально пустой)
 let inventory = Array(20).fill(null);
 
-// Делаем ITEM_CONFIG доступным глобально
-window.ITEM_CONFIG = ITEM_CONFIG;
 // Конфигурация эффектов предметов (расширяем ITEM_CONFIG)
 const ITEM_CONFIG = {
   energy_drink: {
