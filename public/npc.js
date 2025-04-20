@@ -71,6 +71,28 @@ const QUESTS = [
   },
 ];
 
+// В начало файла npc.js, после определения QUESTS
+const ITEM_RARITY = {
+  blood_pack: 1,
+  canned_meat: 1,
+  mushroom: 1,
+  dried_fish: 2,
+  condensed_milk: 2,
+  milk: 2,
+  blood_syringe: 2,
+  meat_chunk: 2,
+  vodka_bottle: 2,
+  bread: 2,
+  sausage: 2,
+  energy_drink: 2,
+  balyary: 2,
+  water_bottle: 3,
+  nut: 3,
+  apple: 3,
+  berries: 3,
+  carrot: 3,
+};
+
 let isNPCDialogOpen = false;
 let isNPCMet = false;
 let selectedQuest = null;
@@ -220,10 +242,16 @@ function selectQuest(quest) {
 }
 
 function checkQuestCompletion() {
-  if (!selectedQuest) return;
+  if (!selectedQuest) {
+    console.log("Нет активного задания");
+    return;
+  }
 
   const me = players.get(myId);
-  if (!me) return;
+  if (!me) {
+    console.log("Игрок не найден");
+    return;
+  }
 
   const targetItem = selectedQuest.target;
   const requiredQuantity = targetItem.quantity;
@@ -235,7 +263,12 @@ function checkQuestCompletion() {
     }
   });
 
+  console.log(
+    `Проверка задания: требуется ${requiredQuantity} ${targetItem.type}, найдено ${currentQuantity}`
+  );
+
   if (currentQuantity >= requiredQuantity) {
+    console.log(`Задание "${selectedQuest.title}" готово к выполнению`);
     completeQuest();
   }
 }
@@ -283,7 +316,7 @@ function completeQuest() {
 
   // Начисляем опыт в зависимости от редкости предмета
   const targetItemType = selectedQuest.target.type;
-  const rarity = window.ITEM_CONFIG[targetItemType]?.rarity || 3; // По умолчанию частый
+  const rarity = ITEM_RARITY[targetItemType] || 3; // По умолчанию частый, если тип не найден
   let xpGained;
   switch (rarity) {
     case 1: // Редкий
@@ -298,7 +331,7 @@ function completeQuest() {
     default:
       xpGained = 1;
   }
-  window.levelSystem.handleItemPickup(targetItemType, false); // Вызываем для начисления XP
+  window.levelSystem.addXP(xpGained); // Используем метод addXP для начисления опыта
 
   // Сохраняем ID выполненного задания
   const previousQuestId = selectedQuest.id;

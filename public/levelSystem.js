@@ -382,4 +382,36 @@ window.levelSystem = {
   handleItemPickup,
   maxStats,
   updateUpgradeButtons,
+  // В конец объекта window.levelSystem, перед последней закрывающей скобкой
+  addXP: function (xp) {
+    try {
+      console.log(`Добавлено ${xp} хр, текущий хр: ${currentXP + xp}`);
+      currentXP += xp;
+      checkLevelUp();
+
+      if (ws.readyState === WebSocket.OPEN) {
+        sendWhenReady(
+          ws,
+          JSON.stringify({
+            type: "updateLevel",
+            level: currentLevel,
+            xp: currentXP,
+            maxStats,
+            upgradePoints,
+          })
+        );
+        console.log("Отправлено сообщение updateLevel на сервер");
+      } else {
+        console.warn(
+          "WebSocket не открыт, сообщение updateLevel не отправлено"
+        );
+      }
+
+      showXPEffect(xp);
+      updateLevelDisplay();
+      updateStatsDisplay();
+    } catch (error) {
+      console.error("Ошибка в addXP:", error);
+    }
+  },
 };
