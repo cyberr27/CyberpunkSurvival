@@ -139,21 +139,9 @@ async function saveUserDatabase(collection, username, player) {
 
 async function initializeServer() {
   const collection = await connectToDatabase();
-  await resetUserDatabase(collection); // Очистка базы данных
   await loadUserDatabase(collection);
   console.log("Сервер готов к работе после загрузки базы данных");
   return collection;
-}
-
-async function resetUserDatabase(collection) {
-  try {
-    await collection.deleteMany({});
-    console.log("Все пользователи удалены из базы данных");
-    userDatabase.clear();
-    console.log("Локальная база userDatabase очищена");
-  } catch (error) {
-    console.error("Ошибка при очистке базы данных:", error);
-  }
 }
 
 let dbCollection;
