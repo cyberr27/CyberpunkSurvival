@@ -316,9 +316,9 @@ wss.on("connection", (ws) => {
           xp: 98,
           maxStats: { health: 100, energy: 100, food: 100, water: 100 },
           upgradePoints: 0,
-          availableQuests: [], // Добавляем поле для хранения заданий
+          availableQuests: [], // Инициализируем пустой список заданий
         };
-
+    
         userDatabase.set(data.username, newPlayer);
         await saveUserDatabase(dbCollection, data.username, newPlayer);
         ws.send(JSON.stringify({ type: "registerSuccess" }));

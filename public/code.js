@@ -445,8 +445,8 @@ function handleAuthMessage(event) {
         inventory: data.inventory || Array(20).fill(null),
         npcMet: data.npcMet || false,
         selectedQuestId: data.selectedQuestId || null,
-        level: data.level || 0, // Добавляем уровень
-        xp: data.xp || 98, // Добавляем опыт
+        level: data.level || 0,
+        xp: data.xp || 98,
       };
       players.set(myId, me);
 
@@ -476,9 +476,10 @@ function handleAuthMessage(event) {
         data.lights.forEach((light) => lights.push(light));
       }
       inventory = data.inventory || Array(20).fill(null);
-      setNPCMet(data.npcMet || false);
-      setSelectedQuest(data.selectedQuestId || null);
-      levelSystem.setLevelData(data.level || 0, data.xp || 0); // Устанавливаем данные уровня
+      window.npcSystem.setNPCMet(data.npcMet || false);
+      window.npcSystem.setSelectedQuest(data.selectedQuestId || null);
+      window.npcSystem.setAvailableQuests(data.availableQuests || []); // Убедимся, что вызываем с данными сервера
+      levelSystem.setLevelData(data.level || 0, data.xp || 0);
       resizeCanvas();
       ws.onmessage = handleGameMessage;
       console.log("Переключен обработчик на handleGameMessage");

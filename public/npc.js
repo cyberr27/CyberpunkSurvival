@@ -135,6 +135,23 @@ function openNPCDialog() {
   if (!isNPCMet) {
     showGreetingDialog(dialogContainer);
   } else {
+    // Проверяем, есть ли задания и достаточно ли их
+    if (availableQuests.length < 5) {
+      const questsToAdd = 5 - availableQuests.length;
+      const newQuests = getRandomQuests(
+        questsToAdd,
+        availableQuests.map((q) => q.id)
+      );
+      availableQuests = [...availableQuests, ...newQuests];
+      // Отправляем обновленный список заданий на сервер
+      sendWhenReady(
+        ws,
+        JSON.stringify({
+          type: "updateQuests",
+          availableQuests: availableQuests.map((q) => q.id),
+        })
+      );
+    }
     dialogStage = "questSelection";
     showQuestSelectionDialog(dialogContainer);
   }
