@@ -281,15 +281,24 @@ function completeQuest() {
     }
   }
 
-  // Отправляем обновление инвентаря на сервер
-  sendWhenReady(
-    ws,
-    JSON.stringify({
-      type: "updateInventory",
-      questId: selectedQuest.id,
-      inventory: inventory,
-    })
-  );
+  // Начисляем опыт в зависимости от редкости предмета
+  const targetItemType = selectedQuest.target.type;
+  const rarity = window.ITEM_CONFIG[targetItemType]?.rarity || 3; // По умолчанию частый
+  let xpGained;
+  switch (rarity) {
+    case 1: // Редкий
+      xpGained = 3;
+      break;
+    case 2: // Средний
+      xpGained = 2;
+      break;
+    case 3: // Частый
+      xpGained = 1;
+      break;
+    default:
+      xpGained = 1;
+  }
+  window.levelSystem.handleItemPickup(targetItemType, false); // Вызываем для начисления XP
 
   // Сохраняем ID выполненного задания
   const previousQuestId = selectedQuest.id;
@@ -308,7 +317,21 @@ function completeQuest() {
 
   availableQuests.push(newQuest);
   console.log(
-    `Задание "${selectedQuest.title}" выполнено! Получено ${reward.quantity} баляр. Новое задание: ${newQuest.title}`
+    `Задание "${selectedQuest.title}" выполнено! Получено ${reward.quantity} баляр и ${xpGained} XP. Новое задание: ${newQuest.title}`
+  );
+
+  // Отправляем обновление инвентаря, уровня и опыта на сервер
+  sendWhenReady(
+    ws,
+    JSON.stringify({
+      type: "updateInventory",
+      questId: selectedQuest.id,
+      inventory: inventory,
+      level: window.levelSystem.currentLevel,
+      xp: window.levelSystem.currentXP,
+      maxStats: window.levelSystem.maxStats,
+      upgradePoints: window.levelSystem.upgradePoints,
+    })
   );
 
   // Сбрасываем выбранное задание

@@ -1410,13 +1410,14 @@ function handleGameMessage(event) {
         if (data.player.id === myId) {
           inventory = data.player.inventory || inventory;
           setNPCMet(data.player.npcMet || false);
+          setSelectedQuest(data.player.selectedQuestId || null);
           levelSystem.setLevelData(
             data.player.level || 0,
             data.player.xp || 0,
             data.player.maxStats || levelSystem.maxStats,
             data.player.upgradePoints || 0
           );
-          updateStatsDisplay(); // Добавьте здесь
+          updateStatsDisplay();
           updateInventoryDisplay();
         }
         break;
