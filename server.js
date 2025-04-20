@@ -3,6 +3,7 @@ const http = require("http");
 const WebSocket = require("ws");
 const path = require("path");
 const { MongoClient } = require("mongodb");
+const { ITEM_CONFIG } = require("./config.js");
 
 const app = express();
 const server = http.createServer(app);
@@ -672,7 +673,7 @@ wss.on("connection", (ws) => {
         const slotIndex = data.slotIndex;
         const item = player.inventory[slotIndex];
         if (item) {
-          const effect = ITEM_CONFIG[item.type].effect;
+          const effect = ITEM_CONFIG[item.type].effect; // Используем импортированный ITEM_CONFIG
           if (effect.health)
             player.health = Math.min(
               player.maxStats.health,

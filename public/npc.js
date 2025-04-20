@@ -258,10 +258,16 @@ function checkQuestCompletion() {
 }
 
 function completeQuest() {
-  if (!selectedQuest) return;
+  if (!selectedQuest) {
+    console.warn("Нет выбранного задания для выполнения!");
+    return;
+  }
 
   const me = players.get(myId);
-  if (!me) return;
+  if (!me) {
+    console.warn("Игрок не найден, задание не выполнено!");
+    return;
+  }
 
   // Удаляем необходимые предметы из инвентаря
   let itemsToRemove = selectedQuest.target.quantity;
@@ -300,7 +306,7 @@ function completeQuest() {
 
   // Начисляем XP в зависимости от редкости предмета
   const itemType = selectedQuest.target.type;
-  const rarity = ITEM_CONFIG[itemType]?.rarity || 3;
+  const rarity = ITEM_CONFIG[itemType]?.rarity || 3; // Используем глобальный ITEM_CONFIG
   let xpGained;
   switch (rarity) {
     case 1: // Редкий
@@ -317,7 +323,16 @@ function completeQuest() {
   }
 
   // Обновляем XP через levelSystem
-  window.levelSystem.handleQuestCompletion(xpGained);
+  if (
+    window.levelSystem &&
+    typeof window.levelSystem.handleQuestCompletion === "function"
+  ) {
+    window.levelSystem.handleQuestCompletion(xpGained);
+  } else {
+    console.warn(
+      "Система уровней не найдена или метод handleQuestCompletion отсутствует!"
+    );
+  }
 
   // Отправляем обновление инвентаря и XP на сервер
   sendWhenReady(
@@ -326,10 +341,10 @@ function completeQuest() {
       type: "updateInventory",
       questId: selectedQuest.id,
       inventory: inventory,
-      xp: window.levelSystem.currentXP,
-      level: window.levelSystem.currentLevel,
-      maxStats: window.levelSystem.maxStats,
-      upgradePoints: window.levelSystem.upgradePoints,
+      xp: window.levelSystem?.currentXP || 0,
+      level: window.levelSystem?.currentLevel || 1,
+      maxStats: window.levelSystem?.maxStats || me.maxStats,
+      upgradePoints: window.levelSystem?.upgradePoints || 0,
     })
   );
 
@@ -345,6 +360,7 @@ function completeQuest() {
     })
   );
 
+  // Логируем выполнение задания
   console.log(
     `Задание "${selectedQuest.title}" выполнено! Получено ${reward.quantity} баляр и ${xpGained} XP.`
   );
@@ -359,13 +375,14 @@ function completeQuest() {
       const inventoryGrid = document.getElementById("inventoryGrid");
       if (inventoryGrid) {
         inventoryGrid.style.opacity = "0";
-        inventoryGrid.offsetHeight;
+        inventoryGrid.offsetHeight; // Триггерим reflow для анимации
         inventoryGrid.style.opacity = "1";
         updateInventoryDisplay();
       }
     });
   }
 
+  // Обновляем отображение характеристик
   updateStatsDisplay();
 }
 
