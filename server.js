@@ -312,6 +312,8 @@ wss.on("connection", (ws) => {
           frame: 0,
           inventory: Array(20).fill(null),
           npcMet: false,
+          selectedQuestId: null,
+          availableQuests: [], // Добавляем поле для доступных заданий
           level: 0,
           xp: 98,
           maxStats: { health: 100, energy: 100, food: 100, water: 100 },
@@ -331,6 +333,7 @@ wss.on("connection", (ws) => {
           inventory: player.inventory || Array(20).fill(null),
           npcMet: player.npcMet || false,
           selectedQuestId: player.selectedQuestId || null,
+          availableQuests: player.availableQuests || [], // Добавляем поле
           level: player.level || 0,
           xp: player.xp || 0,
           maxStats: player.maxStats || {
@@ -360,10 +363,11 @@ wss.on("connection", (ws) => {
             inventory: playerData.inventory,
             npcMet: playerData.npcMet,
             selectedQuestId: playerData.selectedQuestId,
+            availableQuests: playerData.availableQuests || [], // Добавляем поле
             level: playerData.level,
             xp: playerData.xp,
             maxStats: playerData.maxStats,
-            upgradePoints: playerData.upgradePoints, // Убедились, что отправляется
+            upgradePoints: playerData.upgradePoints,
             players: Array.from(players.values()).filter(
               (p) => p.id !== data.username
             ),
@@ -490,11 +494,13 @@ wss.on("connection", (ws) => {
           )}, upgradePoints: ${data.upgradePoints}`
         );
       }
-    } else if (data.type === "updateInventory") {
+    } else if (data.type === "completeQuest") {
       const id = clients.get(ws);
       if (id) {
         const player = players.get(id);
         player.inventory = data.inventory;
+        player.selectedQuestId = null; // Сбрасываем выбранное задание
+        player.availableQuests = data.availableQuests || []; // Обновляем список доступных заданий
         players.set(id, { ...player });
         userDatabase.set(id, { ...player });
         await saveUserDatabase(dbCollection, id, player);
@@ -508,7 +514,9 @@ wss.on("connection", (ws) => {
             );
           }
         });
-        console.log(`Инвентарь игрока ${id} обновлён`);
+        console.log(
+          `Игрок ${id} завершил задание ${data.questId}, availableQuests: ${player.availableQuests}`
+        );
       }
     } else if (data.type === "pickup") {
       const id = clients.get(ws);

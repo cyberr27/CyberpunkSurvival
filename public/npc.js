@@ -281,34 +281,27 @@ function completeQuest() {
     }
   }
 
-  // Отправляем обновление инвентаря на сервер
+  // Сохраняем ID выполненного задания
+  const previousQuestId = selectedQuest.id;
+
+  // Отправляем обновление инвентаря и завершение задания на сервер
   sendWhenReady(
     ws,
     JSON.stringify({
-      type: "updateInventory",
-      questId: selectedQuest.id,
+      type: "completeQuest",
+      questId: previousQuestId,
       inventory: inventory,
+      availableQuests: availableQuests
+        .filter((q) => q.id !== previousQuestId)
+        .map((q) => q.id), // Отправляем ID оставшихся доступных заданий
     })
   );
-
-  // Сохраняем ID выполненного задания
-  const previousQuestId = selectedQuest.id;
 
   // Удаляем выполненное задание из списка доступных
   availableQuests = availableQuests.filter((q) => q.id !== previousQuestId);
 
-  // Добавляем новое случайное задание, исключая дубликаты
-  let newQuest;
-  do {
-    newQuest = QUESTS[Math.floor(Math.random() * QUESTS.length)];
-  } while (
-    newQuest.id === previousQuestId ||
-    availableQuests.some((q) => q.id === newQuest.id)
-  );
-
-  availableQuests.push(newQuest);
   console.log(
-    `Задание "${selectedQuest.title}" выполнено! Получено ${reward.quantity} баляр. Новое задание: ${newQuest.title}`
+    `Задание "${selectedQuest.title}" выполнено! Получено ${reward.quantity} баляр.`
   );
 
   // Сбрасываем выбранное задание
@@ -337,6 +330,12 @@ function setNPCMet(met) {
 
 function setSelectedQuest(questId) {
   selectedQuest = QUESTS.find((q) => q.id === questId) || null;
+}
+
+function setAvailableQuests(questIds) {
+  availableQuests = questIds
+    .map((id) => QUESTS.find((q) => q.id === id))
+    .filter((q) => q);
 }
 
 function setAvailableQuests(questIds) {
