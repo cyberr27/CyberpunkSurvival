@@ -159,15 +159,24 @@ function showGreetingDialog(container) {
   document.getElementById("npcAgreeBtn").addEventListener("click", () => {
     isNPCMet = true;
     dialogStage = "questSelection";
-    sendWhenReady(ws, JSON.stringify({ type: "meetNPC", npcMet: true }));
-    // Инициализируем 5 случайных заданий после первого диалога
+    // Инициализируем 5 случайных заданий
     availableQuests = getRandomQuests(5);
+    // Отправляем данные о встрече с NPC и заданиях на сервер
+    sendWhenReady(
+      ws,
+      JSON.stringify({
+        type: "meetNPC",
+        npcMet: true,
+        availableQuests: availableQuests.map((q) => q.id),
+      })
+    );
     showQuestSelectionDialog(container);
   });
 }
 
-function getRandomQuests(count) {
-  const shuffled = [...QUESTS].sort(() => 0.5 - Math.random());
+function getRandomQuests(count, excludeIds = []) {
+  const filteredQuests = QUESTS.filter((q) => !excludeIds.includes(q.id));
+  const shuffled = filteredQuests.sort(() => 0.5 - Math.random());
   return shuffled.slice(0, count);
 }
 
@@ -279,23 +288,34 @@ function completeQuest() {
     }
   }
 
-  // Отправляем обновление инвентаря на сервер
-  sendWhenReady(
-    ws,
-    JSON.stringify({
-      type: "updateInventory",
-      questId: selectedQuest.id,
-      inventory: inventory,
-    })
-  );
-
   // Сохраняем ID выполненного задания
   const previousQuestId = selectedQuest.id;
 
   // Удаляем выполненное задание из списка доступных
   availableQuests = availableQuests.filter((q) => q.id !== previousQuestId);
 
-  // Начисляем опыт через levelSystem (функция будет в levelSystem.js)
+  // Пополняем список заданий до 5
+  const questsToAdd = 5 - availableQuests.length;
+  if (questsToAdd > 0) {
+    const newQuests = getRandomQuests(
+      questsToAdd,
+      availableQuests.map((q) => q.id)
+    );
+    availableQuests = [...availableQuests, ...newQuests];
+  }
+
+  // Отправляем обновление инвентаря и заданий на сервер
+  sendWhenReady(
+    ws,
+    JSON.stringify({
+      type: "updateInventory",
+      questId: selectedQuest.id,
+      inventory: inventory,
+      availableQuests: availableQuests.map((q) => q.id),
+    })
+  );
+
+  // Начисляем опыт через levelSystem
   const rarity = selectedQuest.rarity || 3;
   window.levelSystem.handleQuestCompletion(rarity);
 
@@ -332,9 +352,26 @@ function setSelectedQuest(questId) {
 }
 
 function setAvailableQuests(questIds) {
-  availableQuests = questIds
-    .map((id) => QUESTS.find((q) => q.id === id))
-    .filter((q) => q);
+  availableQuests =
+    questIds.map((id) => QUESTS.find((q) => q.id === id)).filter((q) => q) ||
+    [];
+  // Если заданий меньше 5, пополняем список
+  const questsToAdd = 5 - availableQuests.length;
+  if (questsToAdd > 0) {
+    const newQuests = getRandomQuests(
+      questsToAdd,
+      availableQuests.map((q) => q.id)
+    );
+    availableQuests = [...availableQuests, ...newQuests];
+    // Отправляем обновленный список на сервер
+    sendWhenReady(
+      ws,
+      JSON.stringify({
+        type: "updateQuests",
+        availableQuests: availableQuests.map((q) => q.id),
+      })
+    );
+  }
 }
 
 // Экспортируем функции для использования в других файлах
@@ -345,4 +382,7 @@ window.npcSystem = {
   setSelectedQuest,
   setAvailableQuests,
   checkQuestCompletion,
+  updateQuests: (questIds) => {
+    setAvailableQuests(questIds);
+  },
 };

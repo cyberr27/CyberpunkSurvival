@@ -400,18 +400,15 @@ wss.on("connection", (ws) => {
       if (id) {
         const player = players.get(id);
         player.npcMet = data.npcMet;
-        if (data.npcMet && player.availableQuests.length === 0) {
-          // Инициализируем 5 случайных заданий на сервере
-          const questIds = Array.from(
-            { length: 5 },
-            () => Math.floor(Math.random() * 10) + 1
-          );
-          player.availableQuests = questIds;
+        if (data.npcMet && data.availableQuests) {
+          player.availableQuests = data.availableQuests;
         }
         players.set(id, { ...player });
         userDatabase.set(id, { ...player });
         await saveUserDatabase(dbCollection, id, player);
-        console.log(`Игрок ${id} познакомился с NPC: npcMet=${data.npcMet}`);
+        console.log(
+          `Игрок ${id} познакомился с NPC: npcMet=${data.npcMet}, задания: ${player.availableQuests}`
+        );
       }
     } else if (data.type === "move") {
       const id = clients.get(ws);
@@ -506,9 +503,7 @@ wss.on("connection", (ws) => {
       if (id) {
         const player = players.get(id);
         player.inventory = data.inventory;
-        player.availableQuests = player.availableQuests.filter(
-          (questId) => questId !== data.questId
-        ); // Удаляем выполненное задание
+        player.availableQuests = data.availableQuests || player.availableQuests;
         players.set(id, { ...player });
         userDatabase.set(id, { ...player });
         await saveUserDatabase(dbCollection, id, player);
@@ -522,7 +517,21 @@ wss.on("connection", (ws) => {
             );
           }
         });
-        console.log(`Инвентарь и задания игрока ${id} обновлены`);
+        console.log(
+          `Инвентарь и задания игрока ${id} обновлены: ${player.availableQuests}`
+        );
+      }
+    } else if (data.type === "updateQuests") {
+      const id = clients.get(ws);
+      if (id) {
+        const player = players.get(id);
+        player.availableQuests = data.availableQuests || player.availableQuests;
+        players.set(id, { ...player });
+        userDatabase.set(id, { ...player });
+        await saveUserDatabase(dbCollection, id, player);
+        console.log(
+          `Задания игрока ${id} обновлены: ${player.availableQuests}`
+        );
       }
     } else if (data.type === "pickup") {
       const id = clients.get(ws);
