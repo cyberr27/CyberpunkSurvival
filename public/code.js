@@ -206,6 +206,8 @@ const ITEM_CONFIG = {
     rarity: 2,
   },
 };
+// Делаем ITEM_CONFIG доступным глобально
+window.ITEM_CONFIG = ITEM_CONFIG;
 
 // Состояние инвентаря (открыт или закрыт)
 let isInventoryOpen = false;
