@@ -397,10 +397,14 @@ wss.on("connection", (ws) => {
       if (id) {
         const player = players.get(id);
         player.npcMet = data.npcMet;
+        player.availableQuests =
+          data.availableQuests || player.availableQuests || [];
         players.set(id, { ...player });
         userDatabase.set(id, { ...player });
         await saveUserDatabase(dbCollection, id, player);
-        console.log(`Игрок ${id} познакомился с NPC: npcMet=${data.npcMet}`);
+        console.log(
+          `Игрок ${id} познакомился с NPC: npcMet=${data.npcMet}, availableQuests=${player.availableQuests}`
+        );
       }
     } else if (data.type === "move") {
       const id = clients.get(ws);
@@ -495,6 +499,10 @@ wss.on("connection", (ws) => {
       if (id) {
         const player = players.get(id);
         player.inventory = data.inventory;
+        player.level = data.level || player.level || 0;
+        player.xp = data.xp || player.xp || 0;
+        player.maxStats = data.maxStats || player.maxStats;
+        player.upgradePoints = data.upgradePoints || player.upgradePoints || 0;
         players.set(id, { ...player });
         userDatabase.set(id, { ...player });
         await saveUserDatabase(dbCollection, id, player);
@@ -508,7 +516,9 @@ wss.on("connection", (ws) => {
             );
           }
         });
-        console.log(`Инвентарь игрока ${id} обновлён`);
+        console.log(
+          `Инвентарь игрока ${id} обновлён, уровень: ${player.level}, XP: ${player.xp}`
+        );
       }
     } else if (data.type === "pickup") {
       const id = clients.get(ws);
@@ -808,6 +818,18 @@ wss.on("connection", (ws) => {
         userDatabase.set(id, { ...player });
         await saveUserDatabase(dbCollection, id, player);
         console.log(`Игрок ${id} выбрал задание ID: ${data.questId}`);
+      }
+    } else if (data.type === "updateAvailableQuests") {
+      const id = clients.get(ws);
+      if (id) {
+        const player = players.get(id);
+        player.availableQuests = data.availableQuests;
+        players.set(id, { ...player });
+        userDatabase.set(id, { ...player });
+        await saveUserDatabase(dbCollection, id, player);
+        console.log(
+          `Список заданий игрока ${id} обновлён: ${data.availableQuests}`
+        );
       }
     }
   });

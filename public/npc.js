@@ -1,3 +1,5 @@
+const ITEM_CONFIG = window.ITEM_CONFIG;
+
 const NPC = {
   x: 200,
   y: 2992,
@@ -126,6 +128,10 @@ function openNPCDialog() {
     showGreetingDialog(dialogContainer);
   } else {
     dialogStage = "questSelection";
+    // Инициализируем 5 случайных заданий, если список пуст
+    if (availableQuests.length === 0) {
+      availableQuests = getRandomQuests(5);
+    }
     showQuestSelectionDialog(dialogContainer);
   }
 }
@@ -151,7 +157,18 @@ function showGreetingDialog(container) {
   document.getElementById("npcAgreeBtn").addEventListener("click", () => {
     isNPCMet = true;
     dialogStage = "questSelection";
-    sendWhenReady(ws, JSON.stringify({ type: "meetNPC", npcMet: true }));
+    // Инициализируем 5 случайных заданий
+    if (availableQuests.length === 0) {
+      availableQuests = getRandomQuests(5);
+    }
+    sendWhenReady(
+      ws,
+      JSON.stringify({
+        type: "meetNPC",
+        npcMet: true,
+        availableQuests: availableQuests.map((q) => q.id), // Отправляем ID заданий
+      })
+    );
     showQuestSelectionDialog(container);
   });
 }
@@ -281,34 +298,55 @@ function completeQuest() {
     }
   }
 
-  // Отправляем обновление инвентаря на сервер
+  // Начисляем XP в зависимости от редкости предмета
+  const itemType = selectedQuest.target.type;
+  const rarity = ITEM_CONFIG[itemType]?.rarity || 3;
+  let xpGained;
+  switch (rarity) {
+    case 1: // Редкий
+      xpGained = 3;
+      break;
+    case 2: // Средний
+      xpGained = 2;
+      break;
+    case 3: // Частый
+      xpGained = 1;
+      break;
+    default:
+      xpGained = 1;
+  }
+
+  // Обновляем XP через levelSystem
+  window.levelSystem.handleQuestCompletion(xpGained);
+
+  // Отправляем обновление инвентаря и XP на сервер
   sendWhenReady(
     ws,
     JSON.stringify({
       type: "updateInventory",
       questId: selectedQuest.id,
       inventory: inventory,
+      xp: window.levelSystem.currentXP,
+      level: window.levelSystem.currentLevel,
+      maxStats: window.levelSystem.maxStats,
+      upgradePoints: window.levelSystem.upgradePoints,
     })
   );
 
-  // Сохраняем ID выполненного задания
-  const previousQuestId = selectedQuest.id;
-
   // Удаляем выполненное задание из списка доступных
-  availableQuests = availableQuests.filter((q) => q.id !== previousQuestId);
+  availableQuests = availableQuests.filter((q) => q.id !== selectedQuest.id);
 
-  // Добавляем новое случайное задание, исключая дубликаты
-  let newQuest;
-  do {
-    newQuest = QUESTS[Math.floor(Math.random() * QUESTS.length)];
-  } while (
-    newQuest.id === previousQuestId ||
-    availableQuests.some((q) => q.id === newQuest.id)
+  // Отправляем обновлённый список availableQuests на сервер
+  sendWhenReady(
+    ws,
+    JSON.stringify({
+      type: "updateAvailableQuests",
+      availableQuests: availableQuests.map((q) => q.id),
+    })
   );
 
-  availableQuests.push(newQuest);
   console.log(
-    `Задание "${selectedQuest.title}" выполнено! Получено ${reward.quantity} баляр. Новое задание: ${newQuest.title}`
+    `Задание "${selectedQuest.title}" выполнено! Получено ${reward.quantity} баляр и ${xpGained} XP.`
   );
 
   // Сбрасываем выбранное задание

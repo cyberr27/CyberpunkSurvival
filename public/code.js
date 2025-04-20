@@ -92,6 +92,8 @@ npcPhotoImage.src = "fotoQuestNPC.png";
 // Инвентарь игрока (массив на 20 слотов, изначально пустой)
 let inventory = Array(20).fill(null);
 
+// Делаем ITEM_CONFIG доступным глобально
+window.ITEM_CONFIG = ITEM_CONFIG;
 // Конфигурация эффектов предметов (расширяем ITEM_CONFIG)
 const ITEM_CONFIG = {
   energy_drink: {
@@ -478,6 +480,7 @@ function handleAuthMessage(event) {
       inventory = data.inventory || Array(20).fill(null);
       setNPCMet(data.npcMet || false);
       setSelectedQuest(data.selectedQuestId || null);
+      setAvailableQuests(data.availableQuests || []); // Добавляем загрузку availableQuests
       levelSystem.setLevelData(data.level || 0, data.xp || 0); // Устанавливаем данные уровня
       resizeCanvas();
       ws.onmessage = handleGameMessage;

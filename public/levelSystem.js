@@ -375,11 +375,40 @@ function showLevelUpEffect() {
   }
 }
 
-// Экспортируем функции и данные для использования в code.js
+// Функция для обработки завершения задания и начисления опыта
+function handleQuestCompletion(xpGained) {
+  try {
+    console.log(`Начислено ${xpGained} XP за выполнение задания`);
+    currentXP += xpGained;
+    checkLevelUp();
+
+    if (ws.readyState === WebSocket.OPEN) {
+      sendWhenReady(
+        ws,
+        JSON.stringify({
+          type: "updateLevel",
+          level: currentLevel,
+          xp: currentXP,
+          maxStats,
+          upgradePoints,
+        })
+      );
+      console.log("Отправлено сообщение updateLevel на сервер");
+    } else {
+      console.warn("WebSocket не открыт, сообщение updateLevel не отправлено");
+    }
+
+    showXPEffect(xpGained);
+  } catch (error) {
+    console.error("Ошибка в handleQuestCompletion:", error);
+  }
+}
+
 window.levelSystem = {
   initialize: initializeLevelSystem,
   setLevelData,
   handleItemPickup,
+  handleQuestCompletion,
   maxStats,
   updateUpgradeButtons,
 };
