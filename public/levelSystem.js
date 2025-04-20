@@ -175,9 +175,9 @@ function updateLevelDisplay() {
       levelDisplay = createLevelDisplayElement();
     }
     if (levelDisplay) {
-      levelDisplay.innerHTML = `Level: ${currentLevel} | XP: ${currentXP} / ${xpToNextLevel}`;
+      levelDisplay.innerHTML = `Level: ${currentLevel} | хр: ${currentXP} / ${xpToNextLevel}`;
       console.log(
-        `Обновлено отображение: Level ${currentLevel}, XP ${currentXP}/${xpToNextLevel}`
+        `Обновлено отображение: Level ${currentLevel}, хр ${currentXP}/${xpToNextLevel}`
       );
     } else {
       console.warn("Не удалось создать levelDisplay, попробуем позже");

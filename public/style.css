@@ -137,6 +137,38 @@ body {
   z-index: 50; /* Поверх канваса */
 }
 
+#stats .health,
+#stats .energy,
+#stats .food,
+#stats .water,
+#stats .armor {
+  display: block; /* Каждая строка статистики в новой строке */
+}
+
+#stats .health .stat-value,
+#stats .energy .stat-value,
+#stats .food .stat-value,
+#stats .water .stat-value,
+#stats .armor .stat-value {
+  display: inline; /* Значения в строке */
+}
+
+#stats .health .max-stat,
+#stats .energy .max-stat,
+#stats .food .max-stat,
+#stats .water .max-stat {
+  font-size: 10px; /* Шрифт в два раза меньше (20px / 2) */
+  vertical-align: baseline; /* Выравнивание с основным текстом */
+}
+
+#stats .health .max-label,
+#stats .energy .max-label,
+#stats .food .max-label,
+#stats .water .max-label {
+  font-size: 10px; /* Шрифт для "max." тоже в два раза меньше */
+  vertical-align: baseline;
+}
+
 #stats .health {
   color: #ff0000;
   text-shadow: 0 0 5px #ff0000, 0 0 10px #ff0000, 0 0 15px #ff00ff;
@@ -197,15 +229,6 @@ button:hover {
 
 button:active {
   transform: scale(0.95);
-}
-
-/* Стили для статистики */
-#stats {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  font-size: 20px;
-  font-family: "Courier New", monospace; /* Моноширинный шрифт для киберпанка */
 }
 
 /* Эффект мерцания в стиле киберпанка */
@@ -325,7 +348,6 @@ button:active {
   background: linear-gradient(135deg, #ff00cc, #00ff99);
   box-shadow: 0 0 20px rgba(255, 0, 204, 1);
 }
-/* Контейнер инвентаря */
 /* Контейнер инвентаря */
 #inventoryContainer {
   position: absolute;
@@ -700,6 +722,18 @@ button:active {
   }
   #stats {
     font-size: 16px;
+  }
+  #stats .health .max-stat,
+  #stats .energy .max-stat,
+  #stats .food .max-stat,
+  #stats .water .max-stat {
+    font-size: 8px; /* Уменьшаем шрифт для мобильных (16px / 2) */
+  }
+  #stats .health .max-label,
+  #stats .energy .max-label,
+  #stats .food .max-label,
+  #stats .water .max-label {
+    font-size: 8px; /* Уменьшаем шрифт для "max." */
   }
   #coords {
     font-size: 14px;
