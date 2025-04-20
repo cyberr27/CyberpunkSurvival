@@ -339,18 +339,8 @@ function completeQuest() {
   // Удаляем выполненное задание из списка доступных
   availableQuests = availableQuests.filter((q) => q.id !== previousQuestId);
 
-  // Добавляем новое случайное задание, исключая дубликаты
-  let newQuest;
-  do {
-    newQuest = QUESTS[Math.floor(Math.random() * QUESTS.length)];
-  } while (
-    newQuest.id === previousQuestId ||
-    availableQuests.some((q) => q.id === newQuest.id)
-  );
-
-  availableQuests.push(newQuest);
   console.log(
-    `Задание "${selectedQuest.title}" выполнено! Получено ${reward.quantity} баляр и ${xpGained} XP. Новое задание: ${newQuest.title}`
+    `Задание "${selectedQuest.title}" выполнено! Получено ${reward.quantity} баляр и ${xpGained} XP.`
   );
 
   // Отправляем обновление инвентаря, уровня и опыта на сервер
