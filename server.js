@@ -87,7 +87,24 @@ async function connectToDatabase() {
 async function loadUserDatabase(collection) {
   try {
     const users = await collection.find({}).toArray();
-    users.forEach((user) => userDatabase.set(user.id, user));
+    users.forEach((user) => {
+      // Гарантируем наличие maxStats при загрузке
+      const userData = {
+        ...user,
+        maxStats: user.maxStats || {
+          health: 100,
+          energy: 100,
+          food: 100,
+          water: 100,
+        },
+      };
+      userDatabase.set(user.id, userData);
+      console.log(
+        `Загружен игрок ${user.id}, maxStats: ${JSON.stringify(
+          userData.maxStats
+        )}`
+      );
+    });
     console.log("База данных пользователей загружена из MongoDB");
   } catch (error) {
     console.error("Ошибка при загрузке базы данных из MongoDB:", error);
@@ -96,10 +113,24 @@ async function loadUserDatabase(collection) {
 
 async function saveUserDatabase(collection, username, player) {
   try {
+    const playerData = {
+      ...player,
+      maxStats: player.maxStats || {
+        health: 100,
+        energy: 100,
+        food: 100,
+        water: 100,
+      }, // Гарантируем наличие maxStats
+    };
     await collection.updateOne(
       { id: username },
-      { $set: player },
+      { $set: playerData },
       { upsert: true }
+    );
+    console.log(
+      `Данные игрока ${username} сохранены, maxStats: ${JSON.stringify(
+        playerData.maxStats
+      )}`
     );
   } catch (error) {
     console.error("Ошибка при сохранении данных в MongoDB:", error);
@@ -318,7 +349,7 @@ wss.on("connection", (ws) => {
           upgradePoints: 0,
           availableQuests: [], // Инициализируем пустой список заданий
         };
-    
+
         userDatabase.set(data.username, newPlayer);
         await saveUserDatabase(dbCollection, data.username, newPlayer);
         ws.send(JSON.stringify({ type: "registerSuccess" }));
@@ -341,7 +372,7 @@ wss.on("connection", (ws) => {
             water: 100,
           },
           upgradePoints: player.upgradePoints || 0,
-          availableQuests: player.availableQuests || [], // Добавляем availableQuests
+          availableQuests: player.availableQuests || [],
         };
         players.set(data.username, playerData);
         ws.send(
@@ -364,9 +395,9 @@ wss.on("connection", (ws) => {
             selectedQuestId: playerData.selectedQuestId,
             level: playerData.level,
             xp: playerData.xp,
-            maxStats: playerData.maxStats,
-            upgradePoints: playerData.upgradePoints, // Убедились, что отправляется
-            availableQuests: playerData.availableQuests, // Отправляем задания
+            maxStats: playerData.maxStats, // Гарантируем отправку maxStats
+            upgradePoints: playerData.upgradePoints,
+            availableQuests: playerData.availableQuests,
             players: Array.from(players.values()).filter(
               (p) => p.id !== data.username
             ),

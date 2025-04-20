@@ -50,10 +50,10 @@ function updateStatsDisplay() {
       return;
     }
     statsEl.innerHTML = `
-      <span class="health">Здоровье: ${me.health}/${maxStats.health}</span><br>
-      <span class="energy">Энергия: ${me.energy}/${maxStats.energy}</span><br>
-      <span class="food">Еда: ${me.food}/${maxStats.food}</span><br>
-      <span class="water">Вода: ${me.water}/${maxStats.water}</span><br>
+      <span class="health">Здоровье: ${me.health}/${window.levelSystem.maxStats.health}</span><br>
+      <span class="energy">Энергия: ${me.energy}/${window.levelSystem.maxStats.energy}</span><br>
+      <span class="food">Еда: ${me.food}/${window.levelSystem.maxStats.food}</span><br>
+      <span class="water">Вода: ${me.water}/${window.levelSystem.maxStats.water}</span><br>
       <span class="armor">Броня: ${me.armor}</span>
     `;
     console.log("Статы обновлены в DOM");
@@ -197,13 +197,13 @@ function setLevelData(level, xp, maxStatsData, upgradePointsData) {
     );
     currentLevel = level || 0;
     currentXP = xp || 0;
-    maxStats = maxStatsData || {
-      health: 100,
-      energy: 100,
-      food: 100,
-      water: 100,
+    maxStats = {
+      health: maxStatsData?.health || 100,
+      energy: maxStatsData?.energy || 100,
+      food: maxStatsData?.food || 100,
+      water: maxStatsData?.water || 100,
     };
-    window.levelSystem.maxStats = { ...maxStats };
+    window.levelSystem.maxStats = { ...maxStats }; // Синхронизируем глобальный maxStats
     upgradePoints = upgradePointsData || 0;
     xpToNextLevel = calculateXPToNextLevel(currentLevel);
     if (!isInitialized) {

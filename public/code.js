@@ -446,7 +446,14 @@ function handleAuthMessage(event) {
         npcMet: data.npcMet || false,
         selectedQuestId: data.selectedQuestId || null,
         level: data.level || 0,
-        xp: data.xp || 98,
+        xp: data.xp || 0,
+        maxStats: data.maxStats || {
+          health: 100,
+          energy: 100,
+          food: 100,
+          water: 100,
+        },
+        upgradePoints: data.upgradePoints || 0,
       };
       players.set(myId, me);
 
@@ -478,8 +485,13 @@ function handleAuthMessage(event) {
       inventory = data.inventory || Array(20).fill(null);
       window.npcSystem.setNPCMet(data.npcMet || false);
       window.npcSystem.setSelectedQuest(data.selectedQuestId || null);
-      window.npcSystem.setAvailableQuests(data.availableQuests || []); // Убедимся, что вызываем с данными сервера
-      levelSystem.setLevelData(data.level || 0, data.xp || 0);
+      window.npcSystem.setAvailableQuests(data.availableQuests || []);
+      levelSystem.setLevelData(
+        data.level || 0,
+        data.xp || 0,
+        data.maxStats || { health: 100, energy: 100, food: 100, water: 100 },
+        data.upgradePoints || 0
+      );
       resizeCanvas();
       ws.onmessage = handleGameMessage;
       console.log("Переключен обработчик на handleGameMessage");
