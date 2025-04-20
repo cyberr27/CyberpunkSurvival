@@ -1,73 +1,85 @@
+// npc.js
+
+// Определяем константы и переменные
 const NPC = {
   x: 200,
   y: 2992,
   width: 70,
   height: 70,
   interactionRadius: 50,
-  name: "John", // Имя NPC
+  name: "John",
 };
 
-// Список всех возможных заданий
 const QUESTS = [
   {
     id: 1,
     title: "Принеси один орех.",
     reward: { type: "balyary", quantity: 1 },
     target: { type: "nut", quantity: 1 },
+    rarity: 3,
   },
   {
     id: 2,
     title: "Найди бутылку воды.",
     reward: { type: "balyary", quantity: 2 },
     target: { type: "water_bottle", quantity: 1 },
+    rarity: 3,
   },
   {
     id: 3,
     title: "Собери энергетик.",
     reward: { type: "balyary", quantity: 2 },
     target: { type: "energy_drink", quantity: 1 },
+    rarity: 3,
   },
   {
     id: 4,
     title: "Достань яблоко.",
     reward: { type: "balyary", quantity: 1 },
     target: { type: "apple", quantity: 1 },
+    rarity: 3,
   },
   {
     id: 5,
     title: "Принеси ягоды.",
     reward: { type: "balyary", quantity: 1 },
     target: { type: "berries", quantity: 1 },
+    rarity: 3,
   },
   {
     id: 6,
     title: "Найди морковь.",
     reward: { type: "balyary", quantity: 1 },
     target: { type: "carrot", quantity: 1 },
+    rarity: 3,
   },
   {
     id: 7,
     title: "Собери банку тушёнки.",
     reward: { type: "balyary", quantity: 3 },
     target: { type: "canned_meat", quantity: 1 },
+    rarity: 1,
   },
   {
     id: 8,
     title: "Достань гриб.",
     reward: { type: "balyary", quantity: 2 },
     target: { type: "mushroom", quantity: 1 },
+    rarity: 1,
   },
   {
     id: 9,
     title: "Принеси колбасу.",
     reward: { type: "balyary", quantity: 3 },
     target: { type: "sausage", quantity: 1 },
+    rarity: 2,
   },
   {
     id: 10,
     title: "Найди пакет крови.",
     reward: { type: "balyary", quantity: 4 },
     target: { type: "blood_pack", quantity: 1 },
+    rarity: 1,
   },
 ];
 
@@ -81,7 +93,6 @@ function drawNPC() {
   const screenX = NPC.x - camera.x;
   const screenY = NPC.y - camera.y;
 
-  // Отрисовка спрайта NPC
   if (npcSpriteImage.complete) {
     ctx.drawImage(npcSpriteImage, screenX, screenY, NPC.width, NPC.height);
   } else {
@@ -89,8 +100,7 @@ function drawNPC() {
     ctx.fillRect(screenX, screenY, NPC.width, NPC.height);
   }
 
-  // Отрисовка имени или знака вопроса над NPC
-  ctx.fillStyle = isNPCMet ? "#ff00ff" : "#ffffff"; // Розовый для имени, белый для "?"
+  ctx.fillStyle = isNPCMet ? "#ff00ff" : "#ffffff";
   ctx.font = "12px Arial";
   ctx.textAlign = "center";
   ctx.fillText(
@@ -133,25 +143,25 @@ function openNPCDialog() {
 function closeNPCDialog() {
   isNPCDialogOpen = false;
   const dialogContainer = document.getElementById("npcDialog");
-  if (dialogContainer) {
-    dialogContainer.remove();
-  }
+  if (dialogContainer) dialogContainer.remove();
 }
 
 function showGreetingDialog(container) {
   dialogStage = "greeting";
   container.innerHTML = `
-      <div class="npc-dialog-header">
-        <img src="fotoQuestNPC.png" alt="NPC Photo" class="npc-photo">
-        <h2 class="npc-title">${NPC.name}</h2>
-      </div>
-      <p class="npc-text">Привет, ого! Ни когда еще не видел человека без модернизаций! Видимо с деньгами у тебя совсем туго... Меня зовут ${NPC.name}. Ну ничего, можешь заработать у меня немного... Мои работники только и знают, как шкериться в темных углах города. Находи предметы, если они мне нужны, я заберу. До встречи, человек!</p>
-      <button id="npcAgreeBtn" class="neon-btn">Хорошо</button>
+    <div class="npc-dialog-header">
+      <img src="fotoQuestNPC.png" alt="NPC Photo" class="npc-photo">
+      <h2 class="npc-title">${NPC.name}</h2>
+    </div>
+    <p class="npc-text">Привет, ого! Ни когда еще не видел человека без модернизаций! Видимо с деньгами у тебя совсем туго... Меня зовут ${NPC.name}. Ну ничего, можешь заработать у меня немного... Мои работники только и знают, как шкериться в темных углах города. Находи предметы, если они мне нужны, я заберу. До встречи, человек!</p>
+    <button id="npcAgreeBtn" class="neon-btn">Хорошо</button>
   `;
   document.getElementById("npcAgreeBtn").addEventListener("click", () => {
     isNPCMet = true;
     dialogStage = "questSelection";
     sendWhenReady(ws, JSON.stringify({ type: "meetNPC", npcMet: true }));
+    // Инициализируем 5 случайных заданий после первого диалога
+    availableQuests = getRandomQuests(5);
     showQuestSelectionDialog(container);
   });
 }
@@ -162,17 +172,13 @@ function getRandomQuests(count) {
 }
 
 function showQuestSelectionDialog(container) {
-  if (availableQuests.length === 0) {
-    availableQuests = getRandomQuests(5); // Инициализируем 5 случайных заданий
-  }
-
   container.innerHTML = `
-      <div class="npc-dialog-header">
-        <img src="fotoQuestNPC.png" alt="NPC Photo" class="npc-photo">
-        <h2 class="npc-title">${NPC.name}</h2>
-      </div>
-      <p class="npc-text">Что из этого ты сумеешь достать?</p>
-      <div id="questList" class="quest-list"></div>
+    <div class="npc-dialog-header">
+      <img src="fotoQuestNPC.png" alt="NPC Photo" class="npc-photo">
+      <h2 class="npc-title">${NPC.name}</h2>
+    </div>
+    <p class="npc-text">Что из этого ты сумеешь достать?</p>
+    <div id="questList" class="quest-list"></div>
   `;
   const questList = document.getElementById("questList");
   availableQuests.forEach((quest) => {
@@ -193,13 +199,7 @@ function showQuestSelectionDialog(container) {
 function selectQuest(quest) {
   selectedQuest = quest;
   console.log(`Выбрано задание: ${quest.title}`);
-  sendWhenReady(
-    ws,
-    JSON.stringify({
-      type: "selectQuest",
-      questId: quest.id,
-    })
-  );
+  sendWhenReady(ws, JSON.stringify({ type: "selectQuest", questId: quest.id }));
 
   const me = players.get(myId);
   if (!me) return;
@@ -254,9 +254,7 @@ function completeQuest() {
         const removeFromSlot = Math.min(itemsToRemove, inventory[i].quantity);
         inventory[i].quantity -= removeFromSlot;
         itemsToRemove -= removeFromSlot;
-        if (inventory[i].quantity <= 0) {
-          inventory[i] = null;
-        }
+        if (inventory[i].quantity <= 0) inventory[i] = null;
       } else {
         inventory[i] = null;
         itemsToRemove--;
@@ -297,24 +295,18 @@ function completeQuest() {
   // Удаляем выполненное задание из списка доступных
   availableQuests = availableQuests.filter((q) => q.id !== previousQuestId);
 
-  // Добавляем новое случайное задание, исключая дубликаты
-  let newQuest;
-  do {
-    newQuest = QUESTS[Math.floor(Math.random() * QUESTS.length)];
-  } while (
-    newQuest.id === previousQuestId ||
-    availableQuests.some((q) => q.id === newQuest.id)
-  );
+  // Начисляем опыт через levelSystem (функция будет в levelSystem.js)
+  const rarity = selectedQuest.rarity || 3;
+  window.levelSystem.handleQuestCompletion(rarity);
 
-  availableQuests.push(newQuest);
   console.log(
-    `Задание "${selectedQuest.title}" выполнено! Получено ${reward.quantity} баляр. Новое задание: ${newQuest.title}`
+    `Задание "${selectedQuest.title}" выполнено! Получено ${reward.quantity} баляр.`
   );
 
   // Сбрасываем выбранное задание
   selectedQuest = null;
 
-  // Обновляем отображение инвентаря с анимацией
+  // Обновляем отображение инвентаря
   if (isInventoryOpen) {
     requestAnimationFrame(() => {
       updateInventoryDisplay();
@@ -345,216 +337,12 @@ function setAvailableQuests(questIds) {
     .filter((q) => q);
 }
 
-// Стили для диалогового окна NPC
-const npcStyles = `
-/* Основной контейнер диалога NPC */
-.npc-dialog {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: linear-gradient(135deg, rgba(10, 10, 10, 0.95), rgba(20, 20, 20, 0.9));
-  border: 2px solid #00ffff;
-  border-radius: 10px;
-  padding: 20px;
-  color: #00ffff;
-  font-family: "Courier New", monospace;
-  text-align: center;
-  z-index: 1000;
-  max-width: 450px;
-  width: 90%;
-  box-shadow: 0 0 20px rgba(0, 255, 255, 0.5), 0 0 30px rgba(255, 0, 255, 0.3);
-  animation: neonPulse 2s infinite alternate;
-}
-
-/* Заголовок диалога с фото и именем NPC */
-.npc-dialog-header {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 15px;
-}
-
-.npc-photo {
-  width: 80px;
-  height: 80px;
-  border: 2px solid #ff00ff;
-  border-radius: 50%;
-  margin-right: 15px;
-  box-shadow: 0 0 15px rgba(255, 0, 255, 0.5);
-  object-fit: cover;
-}
-
-.npc-title {
-  color: #00ffff;
-  font-size: 24px;
-  text-shadow: 0 0 5px #00ffff, 0 0 10px #ff00ff;
-  animation: flicker 1.5s infinite alternate;
-  margin: 0;
-}
-
-/* Текст NPC */
-.npc-text {
-  margin: 15px 0;
-  font-size: 16px;
-  text-shadow: 0 0 5px rgba(0, 255, 255, 0.7);
-  line-height: 1.4;
-}
-
-/* Список квестов */
-.quest-list {
-  max-height: 250px;
-  overflow-y: auto;
-  margin-top: 15px;
-  background: rgba(10, 10, 10, 0.9);
-  border: 1px solid #ff00ff;
-  border-radius: 5px;
-  padding: 10px;
-  box-shadow: inset 0 0 10px rgba(255, 0, 255, 0.3);
-  scrollbar-width: thin;
-  scrollbar-color: #ff00ff rgba(0, 0, 0, 0.5);
-}
-
-.quest-list::-webkit-scrollbar {
-  width: 8px;
-}
-
-.quest-list::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.7);
-  border-radius: 4px;
-}
-
-.quest-list::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #00ffff, #ff00ff);
-  border-radius: 4px;
-  box-shadow: 0 0 10px rgba(255, 0, 255, 0.7);
-}
-
-.quest-list::-webkit-scrollbar-thumb:hover {
-  box-shadow: 0 0 15px rgba(0, 255, 255, 0.9);
-}
-
-/* Элемент квеста */
-.quest-item {
-  background: rgba(0, 0, 0, 0.85);
-  padding: 12px;
-  margin: 8px 0;
-  cursor: pointer;
-  border: 1px solid #00ffff;
-  border-radius: 5px;
-  color: #00ffff;
-  font-size: 14px;
-  text-shadow: 0 0 5px rgba(0, 255, 255, 0.7);
-  box-shadow: 0 0 8px rgba(0, 255, 255, 0.3);
-  transition: all 0.3s ease;
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.quest-item:hover {
-  background: rgba(0, 255, 255, 0.15);
-  border-color: #ff00ff;
-  box-shadow: 0 0 15px rgba(255, 0, 255, 0.7);
-  transform: translateX(5px);
-}
-
-.quest-marker {
-  color: #ff00ff;
-  font-weight: bold;
-  margin-right: 10px;
-  font-size: 16px;
-}
-
-.quest-reward {
-  color: #ff00ff;
-  font-size: 12px;
-  margin-left: 10px;
-}
-
-/* Кнопка в стиле киберпанк */
-.neon-btn {
-  padding: 12px 24px;
-  font-size: 16px;
-  font-family: "Courier New", monospace;
-  background: linear-gradient(135deg, #00ffff, #ff00ff);
-  border: none;
-  color: #000;
-  border-radius: 5px;
-  cursor: pointer;
-  box-shadow: 0 0 10px rgba(0, 255, 255, 0.7), 0 0 20px rgba(255, 0, 255, 0.5);
-  transition: all 0.3s;
-  text-transform: uppercase;
-}
-
-.neon-btn:hover {
-  box-shadow: 0 0 20px rgba(0, 255, 255, 1), 0 0 30px rgba(255, 0, 255, 0.7);
-  transform: scale(1.05);
-}
-
-.neon-btn:active {
-  transform: scale(0.95);
-}
-
-/* Анимации */
-@keyframes neonPulse {
-  0% {
-    box-shadow: 0 0 10px rgba(0, 255, 255, 0.5), 0 0 20px rgba(255, 0, 255, 0.3);
-  }
-  100% {
-    box-shadow: 0 0 20px rgba(0, 255, 255, 0.8), 0 0 30px rgba(255, 0, 255, 0.5);
-  }
-}
-
-@keyframes flicker {
-  0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {
-    opacity: 1;
-    text-shadow: 0 0 5px #00ffff, 0 0 10px #ff00ff;
-  }
-  20%, 24%, 55% {
-    opacity: 0.7;
-    text-shadow: 0 0 2px #00ffff, 0 0 5px #ff00ff;
-  }
-}
-
-/* Адаптация для мобильных устройств */
-@media (max-width: 500px) {
-  .npc-dialog {
-    max-width: 90%;
-    padding: 15px;
-  }
-
-  .npc-photo {
-    width: 60px;
-    height: 60px;
-  }
-
-  .npc-title {
-    font-size: 20px;
-  }
-
-  .npc-text {
-    font-size: 14px;
-  }
-
-  .quest-list {
-    max-height: 200px;
-  }
-
-  .quest-item {
-    padding: 10px;
-    font-size: 12px;
-  }
-
-  .neon-btn {
-    padding: 10px 20px;
-    font-size: 14px;
-  }
-}
-`;
-
-// Динамическое добавление стилей в документ
-const styleSheet = document.createElement("style");
-styleSheet.type = "text/css";
-styleSheet.innerText = npcStyles;
-document.head.appendChild(styleSheet);
+// Экспортируем функции для использования в других файлах
+window.npcSystem = {
+  drawNPC,
+  checkNPCProximity,
+  setNPCMet,
+  setSelectedQuest,
+  setAvailableQuests,
+  checkQuestCompletion,
+};

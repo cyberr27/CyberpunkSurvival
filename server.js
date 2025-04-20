@@ -316,6 +316,7 @@ wss.on("connection", (ws) => {
           xp: 98,
           maxStats: { health: 100, energy: 100, food: 100, water: 100 },
           upgradePoints: 0,
+          availableQuests: [], // Добавляем поле для хранения заданий
         };
 
         userDatabase.set(data.username, newPlayer);
@@ -340,6 +341,7 @@ wss.on("connection", (ws) => {
             water: 100,
           },
           upgradePoints: player.upgradePoints || 0,
+          availableQuests: player.availableQuests || [], // Добавляем availableQuests
         };
         players.set(data.username, playerData);
         ws.send(
@@ -364,6 +366,7 @@ wss.on("connection", (ws) => {
             xp: playerData.xp,
             maxStats: playerData.maxStats,
             upgradePoints: playerData.upgradePoints, // Убедились, что отправляется
+            availableQuests: playerData.availableQuests, // Отправляем задания
             players: Array.from(players.values()).filter(
               (p) => p.id !== data.username
             ),
@@ -397,6 +400,14 @@ wss.on("connection", (ws) => {
       if (id) {
         const player = players.get(id);
         player.npcMet = data.npcMet;
+        if (data.npcMet && player.availableQuests.length === 0) {
+          // Инициализируем 5 случайных заданий на сервере
+          const questIds = Array.from(
+            { length: 5 },
+            () => Math.floor(Math.random() * 10) + 1
+          );
+          player.availableQuests = questIds;
+        }
         players.set(id, { ...player });
         userDatabase.set(id, { ...player });
         await saveUserDatabase(dbCollection, id, player);
@@ -495,6 +506,9 @@ wss.on("connection", (ws) => {
       if (id) {
         const player = players.get(id);
         player.inventory = data.inventory;
+        player.availableQuests = player.availableQuests.filter(
+          (questId) => questId !== data.questId
+        ); // Удаляем выполненное задание
         players.set(id, { ...player });
         userDatabase.set(id, { ...player });
         await saveUserDatabase(dbCollection, id, player);
@@ -508,7 +522,7 @@ wss.on("connection", (ws) => {
             );
           }
         });
-        console.log(`Инвентарь игрока ${id} обновлён`);
+        console.log(`Инвентарь и задания игрока ${id} обновлены`);
       }
     } else if (data.type === "pickup") {
       const id = clients.get(ws);
