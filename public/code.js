@@ -1958,27 +1958,6 @@ function draw(deltaTime) {
     ctx.fillRect(screenX, screenY - 15, (player.health / 100) * 40, 5);
   });
 
-  wolves.forEach((wolf) => {
-    const screenX = wolf.x - camera.x;
-    const screenY = wolf.y - camera.y;
-    let spriteX = wolf.frame * 40;
-    let spriteY =
-      wolf.state === "dying"
-        ? 160
-        : { up: 0, down: 40, left: 80, right: 120 }[wolf.direction] || 40;
-    ctx.drawImage(
-      wolfSprite,
-      spriteX,
-      spriteY,
-      40,
-      40,
-      screenX,
-      screenY,
-      15,
-      15
-    );
-  });
-
   items.forEach((item, itemId) => {
     if (!items.has(itemId)) {
       console.log(
@@ -2124,5 +2103,5 @@ function gameLoop(timestamp) {
 let imagesLoaded = 0;
 function onImageLoad() {
   imagesLoaded++;
-  if (imagesLoaded === 23) window.addEventListener("resize", resizeCanvas);
+  if (imagesLoaded === 24) window.addEventListener("resize", resizeCanvas);
 }
