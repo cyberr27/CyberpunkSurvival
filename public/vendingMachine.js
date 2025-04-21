@@ -6,8 +6,8 @@ vendingMachineImage.src = "vending_machine.png"; // Укажи путь к св�
 
 // Координаты и размеры автомата
 const vendingMachine = {
-  x: 1500, // Пример координат, можешь настроить
-  y: 1500,
+  x: 590, // Пример координат, можешь настроить
+  y: 3100,
   width: 170,
   height: 100,
 };
@@ -32,17 +32,36 @@ const DRINK_CONFIG = {
   },
 };
 
-// Внешние зависимости (доступ через window для минимизации изменений)
-const ctx = document.getElementById("gameCanvas").getContext("2d");
-let ws, myId, players, camera;
-
 // Инициализация автомата
 function initializeVendingMachine() {
+  // Получаем контекст канваса
+  const canvas = document.getElementById("gameCanvas");
+  if (!canvas) {
+    console.error("Канвас с ID 'gameCanvas' не найден!");
+    return;
+  }
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    console.error("Не удалось получить контекст 2D для канваса!");
+    return;
+  }
+
   // Получаем доступ к глобальным переменным из code.js
-  ws = window.ws;
-  myId = window.myId;
-  players = window.players;
-  camera = window.camera;
+  const ws = window.ws;
+  const myId = window.myId;
+  const players = window.players;
+  const camera = window.camera;
+
+  // Проверяем наличие необходимых глобальных переменных
+  if (!ws || !myId || !players || !camera) {
+    console.error("Не все глобальные переменные доступны:", {
+      ws: !!ws,
+      myId: !!myId,
+      players: !!players,
+      camera: !!camera,
+    });
+    return;
+  }
 
   // Стили для меню автомата
   const vendingStyles = `
@@ -111,10 +130,18 @@ function initializeVendingMachine() {
       closeVendingMenu();
     }
   });
+
+  // Экспортируем функции, зависящие от ctx, ws, myId, players, camera
+  window.vendingMachineSystem = {
+    initialize: initializeVendingMachine,
+    draw: () => drawVendingMachine(ctx),
+    checkProximity: () => checkVendingMachineProximity(myId, players, camera),
+    handleMessage: handleVendingMessage,
+  };
 }
 
 // Отрисовка автомата
-function drawVendingMachine() {
+function drawVendingMachine(ctx) {
   if (!vendingMachineImage.complete) return;
   const screenX = vendingMachine.x - camera.x;
   const screenY = vendingMachine.y - camera.y;
@@ -136,7 +163,7 @@ function drawVendingMachine() {
 }
 
 // Проверка близости к автомату
-function checkVendingMachineProximity() {
+function checkVendingMachineProximity(myId, players, camera) {
   const me = players.get(myId);
   if (!me || me.health <= 0) return;
 
@@ -184,7 +211,7 @@ function closeVendingMenu() {
 
 // Покупка напитка
 function buyDrink(drinkType) {
-  const me = players.get(myId);
+  const me = window.players.get(window.myId);
   if (!me) return;
 
   const drink = DRINK_CONFIG[drinkType];
@@ -201,9 +228,9 @@ function buyDrink(drinkType) {
   }
 
   // Отправляем запрос на сервер
-  if (ws.readyState === WebSocket.OPEN) {
+  if (window.ws.readyState === WebSocket.OPEN) {
     sendWhenReady(
-      ws,
+      window.ws,
       JSON.stringify({
         type: "buyDrink",
         drinkType,
@@ -235,12 +262,12 @@ function sendWhenReady(ws, message) {
 // Обработка сообщений от сервера
 function handleVendingMessage(data) {
   if (data.type === "buyDrinkSuccess") {
-    const me = players.get(myId);
+    const me = window.players.get(window.myId);
     if (!me) return;
 
     me.water = Math.min(
       me.water + data.effect.water,
-      levelSystem.maxStats.water
+      window.levelSystem.maxStats.water
     );
     if (data.quantity === 0) {
       me.inventory[data.slotIndex] = null;
@@ -249,18 +276,20 @@ function handleVendingMessage(data) {
     }
 
     closeVendingMenu();
-    updateStatsDisplay();
-    updateInventoryDisplay();
+    window.updateStatsDisplay();
+    window.updateInventoryDisplay();
   } else if (data.type === "buyDrinkFail") {
     const errorEl = document.getElementById("vendingError");
     errorEl.textContent = data.message;
   }
 }
 
-// Экспортируем функции для использования в code.js
+// Экспорт системы (выполняется после определения всех функций)
 window.vendingMachineSystem = {
   initialize: initializeVendingMachine,
-  draw: drawVendingMachine,
-  checkProximity: checkVendingMachineProximity,
+  draw: () =>
+    drawVendingMachine(document.getElementById("gameCanvas").getContext("2d")),
+  checkProximity: () =>
+    checkVendingMachineProximity(window.myId, window.players, window.camera),
   handleMessage: handleVendingMessage,
 };

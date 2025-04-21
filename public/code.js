@@ -256,6 +256,11 @@ window.myId = myId;
 window.players = players;
 window.camera = camera;
 
+// Подключение vendingMachine.js
+const vendingMachineScript = document.createElement("script");
+vendingMachineScript.src = "vendingMachine.js";
+document.head.appendChild(vendingMachineScript);
+
 createLight(2445, 1540, "rgba(0, 255, 255, 0.4)", 1000); // 1
 createLight(1314, 332, "rgba(255, 0, 255, 0.4)", 1000); // 2
 createLight(506, 2246, "rgba(148, 0, 211, 0.4)", 1000); // 3
@@ -695,7 +700,11 @@ function updateOnlineCount() {
 function startGame() {
   updateOnlineCount();
   levelSystem.initialize(); // Инициализируем систему уровней
-  window.vendingMachineSystem.initialize();
+  if (window.vendingMachineSystem) {
+    window.vendingMachineSystem.initialize();
+  } else {
+    console.error("vendingMachineSystem не определён!");
+  }
   // Обработчик клавиш (только для стрельбы и чата)
   document.addEventListener("keydown", (e) => {
     const me = players.get(myId);
@@ -1369,6 +1378,9 @@ function updateResources() {
   updateStatsDisplay();
 }
 
+// Экспорт функции для использования в других скриптах
+window.updateStatsDisplay = updateStatsDisplay;
+
 function updateStatsDisplay() {
   const me = players.get(myId);
   if (!me) return;
@@ -1384,6 +1396,9 @@ function updateStatsDisplay() {
   )}<br>Y: ${Math.floor(me.y)}`;
   levelSystem.updateUpgradeButtons(); // Добавляем вызов для обновления кнопок
 }
+
+// Экспорт функции для использования в других скриптах
+window.updateInventoryDisplay = updateInventoryDisplay;
 
 function updateInventoryDisplay() {
   const inventoryGrid = document.getElementById("inventoryGrid");

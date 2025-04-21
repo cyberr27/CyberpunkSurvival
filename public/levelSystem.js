@@ -409,6 +409,6 @@ window.levelSystem = {
   setLevelData,
   handleItemPickup,
   handleQuestCompletion, // Добавляем новую функцию
-  maxStats,
+  maxStats: maxStats, // Добавьте эту строку, если её нет
   updateUpgradeButtons,
 };
