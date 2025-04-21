@@ -401,7 +401,6 @@ wss.on("connection", (ws) => {
             players: Array.from(players.values()).filter(
               (p) => p.id !== data.username
             ),
-            wolves: [],
             items: Array.from(items.entries()).map(([itemId, item]) => ({
               itemId,
               x: item.x,

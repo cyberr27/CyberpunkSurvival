@@ -25,7 +25,6 @@ let ws;
 // Хранилища данных
 let players = new Map();
 let myId;
-let wolves = new Map();
 const items = new Map();
 const lights = [];
 const obstacles = [];
@@ -44,8 +43,6 @@ const cloudsImage = new Image();
 cloudsImage.src = "clouds.png";
 const playerSprite = new Image();
 playerSprite.src = "playerSprite.png";
-const wolfSprite = new Image();
-wolfSprite.src = "wolfSprite.png";
 const energyDrinkImage = new Image();
 energyDrinkImage.src = "energy_drink.png";
 const nutImage = new Image();
@@ -466,7 +463,6 @@ function handleAuthMessage(event) {
       }
 
       lastDistance = me.distanceTraveled || 0;
-      data.wolves?.forEach((w) => wolves.set(w.id, w));
       data.obstacles?.forEach((o) => obstacles.push(o));
       if (data.items) {
         data.items.forEach((item) =>
@@ -2128,5 +2124,5 @@ function gameLoop(timestamp) {
 let imagesLoaded = 0;
 function onImageLoad() {
   imagesLoaded++;
-  if (imagesLoaded === 24) window.addEventListener("resize", resizeCanvas);
+  if (imagesLoaded === 23) window.addEventListener("resize", resizeCanvas);
 }
