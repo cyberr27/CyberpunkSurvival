@@ -485,6 +485,7 @@ function handleAuthMessage(event) {
       inventory = data.inventory || Array(20).fill(null);
       window.npcSystem.setNPCMet(data.npcMet || false);
       window.npcSystem.setSelectedQuest(data.selectedQuestId || null);
+      window.npcSystem.checkQuestCompletion(); // Проверяем выполнение задания сразу после входа, но с учётом isQuestActive
       window.npcSystem.setAvailableQuests(data.availableQuests || []);
       levelSystem.setLevelData(
         data.level || 0,

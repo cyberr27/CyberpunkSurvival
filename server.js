@@ -549,7 +549,9 @@ wss.on("connection", (ws) => {
           }
         });
         console.log(
-          `Инвентарь и задания игрока ${id} обновлены: ${player.availableQuests}`
+          `Инвентарь и задания игрока ${id} обновлены: ${
+            player.availableQuests
+          }, selectedQuestId: ${player.selectedQuestId || "null"}`
         );
       }
     } else if (data.type === "updateQuests") {
@@ -857,11 +859,11 @@ wss.on("connection", (ws) => {
       const id = clients.get(ws);
       if (id) {
         const player = players.get(id);
-        player.selectedQuestId = data.questId;
+        player.selectedQuestId = data.questId; // Может быть null
         players.set(id, { ...player });
         userDatabase.set(id, { ...player });
         await saveUserDatabase(dbCollection, id, player);
-        console.log(`Игрок ${id} выбрал задание ID: ${data.questId}`);
+        console.log(`Игрок ${id} выбрал задание ID: ${data.questId || "null"}`);
       }
     }
   });

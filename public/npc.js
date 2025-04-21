@@ -88,6 +88,7 @@ let isNPCMet = false;
 let selectedQuest = null;
 let dialogStage = "greeting";
 let availableQuests = [];
+let isQuestActive = false; // Флаг, указывающий, активно ли задание
 
 function drawNPC() {
   const screenX = NPC.x - camera.x;
@@ -226,6 +227,7 @@ function showQuestSelectionDialog(container) {
 
 function selectQuest(quest) {
   selectedQuest = quest;
+  isQuestActive = true; // Задание активно
   console.log(`Выбрано задание: ${quest.title}`);
   sendWhenReady(ws, JSON.stringify({ type: "selectQuest", questId: quest.id }));
 
@@ -248,7 +250,7 @@ function selectQuest(quest) {
 }
 
 function checkQuestCompletion() {
-  if (!selectedQuest) return;
+  if (!selectedQuest || !isQuestActive) return; // Проверяем, активно ли задание
 
   const me = players.get(myId);
   if (!me) return;
@@ -269,7 +271,7 @@ function checkQuestCompletion() {
 }
 
 function completeQuest() {
-  if (!selectedQuest) return;
+  if (!selectedQuest || !isQuestActive) return;
 
   const me = players.get(myId);
   if (!me) return;
@@ -342,8 +344,15 @@ function completeQuest() {
     `Задание "${selectedQuest.title}" выполнено! Получено ${reward.quantity} баляр.`
   );
 
-  // Сбрасываем выбранное задание
+  // Сбрасываем выбранное задание и флаг активности
   selectedQuest = null;
+  isQuestActive = false;
+
+  // Отправляем сброс selectedQuestId на сервер
+  sendWhenReady(
+    ws,
+    JSON.stringify({ type: "selectQuest", questId: null })
+  );
 
   // Обновляем отображение инвентаря
   if (isInventoryOpen) {
@@ -368,6 +377,7 @@ function setNPCMet(met) {
 
 function setSelectedQuest(questId) {
   selectedQuest = QUESTS.find((q) => q.id === questId) || null;
+  isQuestActive = false; // Задание не активно при загрузке
 }
 
 function setAvailableQuests(questIds) {
