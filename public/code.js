@@ -2103,5 +2103,5 @@ function gameLoop(timestamp) {
 let imagesLoaded = 0;
 function onImageLoad() {
   imagesLoaded++;
-  if (imagesLoaded === 24) window.addEventListener("resize", resizeCanvas);
+  if (imagesLoaded === 23) window.addEventListener("resize", resizeCanvas);
 }
