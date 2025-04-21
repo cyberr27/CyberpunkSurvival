@@ -47,6 +47,17 @@ const ITEM_CONFIG = {
   carrot: { effect: { food: 5, energy: 3 }, rarity: 3 },
 };
 
+const DRINK_CONFIG = {
+  big_water: {
+    cost: 2,
+    effect: { water: 50 },
+  },
+  small_water: {
+    cost: 1,
+    effect: { water: 20 },
+  },
+};
+
 const uri = process.env.MONGO_URI;
 console.log(
   "Значение MONGO_URI из окружения:",
@@ -863,6 +874,80 @@ wss.on("connection", (ws) => {
         userDatabase.set(id, { ...player });
         await saveUserDatabase(dbCollection, id, player);
         console.log(`Игрок ${id} выбрал задание ID: ${data.questId || "null"}`);
+      }
+    } else if (data.type === "buyDrink") {
+      const id = clients.get(ws);
+      if (id) {
+        const player = players.get(id);
+        const drink = DRINK_CONFIG[data.drinkType];
+        if (!drink) {
+          ws.send(
+            JSON.stringify({
+              type: "buyDrinkFail",
+              message: "Напиток не найден",
+            })
+          );
+          return;
+        }
+        const slotIndex = data.slotIndex;
+        const item = player.inventory[slotIndex];
+        if (
+          !item ||
+          item.type !== "balyary" ||
+          (item.quantity || 1) < drink.cost
+        ) {
+          ws.send(
+            JSON.stringify({
+              type: "buyDrinkFail",
+              message: "Недостаточно баляров",
+            })
+          );
+          return;
+        }
+
+        // Списываем баляры
+        const newQuantity = (item.quantity || 1) - drink.cost;
+        if (newQuantity <= 0) {
+          player.inventory[slotIndex] = null;
+        } else {
+          player.inventory[slotIndex].quantity = newQuantity;
+        }
+
+        // Применяем эффект напитка
+        if (drink.effect.water) {
+          player.water = Math.min(
+            player.maxStats.water,
+            player.water + drink.effect.water
+          );
+        }
+
+        players.set(id, { ...player });
+        userDatabase.set(id, { ...player });
+        await saveUserDatabase(dbCollection, id, player);
+
+        ws.send(
+          JSON.stringify({
+            type: "buyDrinkSuccess",
+            effect: drink.effect,
+            slotIndex,
+            quantity: newQuantity > 0 ? newQuantity : 0,
+          })
+        );
+
+        wss.clients.forEach((client) => {
+          if (
+            client.readyState === WebSocket.OPEN &&
+            clients.get(client) === id
+          ) {
+            client.send(
+              JSON.stringify({ type: "update", player: { id, ...player } })
+            );
+          }
+        });
+
+        console.log(
+          `Игрок ${id} купил ${data.drinkType}, потратил ${drink.cost} баляров`
+        );
       }
     }
   });

@@ -250,6 +250,12 @@ const worldHeight = 3300;
 // Камера
 const camera = { x: 0, y: 0 };
 
+// Экспорт глобальных переменных для vendingMachine.js
+window.ws = ws;
+window.myId = myId;
+window.players = players;
+window.camera = camera;
+
 createLight(2445, 1540, "rgba(0, 255, 255, 0.4)", 1000); // 1
 createLight(1314, 332, "rgba(255, 0, 255, 0.4)", 1000); // 2
 createLight(506, 2246, "rgba(148, 0, 211, 0.4)", 1000); // 3
@@ -689,6 +695,7 @@ function updateOnlineCount() {
 function startGame() {
   updateOnlineCount();
   levelSystem.initialize(); // Инициализируем систему уровней
+  window.vendingMachineSystem.initialize();
   // Обработчик клавиш (только для стрельбы и чата)
   document.addEventListener("keydown", (e) => {
     const me = players.get(myId);
@@ -1609,6 +1616,10 @@ function handleGameMessage(event) {
         bullets.delete(data.bulletId);
         console.log(`Пуля ${data.bulletId} удалена`);
         break;
+      case "buyDrinkSuccess":
+      case "buyDrinkFail":
+        window.vendingMachineSystem.handleMessage(data);
+        break;
     }
   } catch (error) {
     console.error("Ошибка в handleGameMessage:", error);
@@ -1681,6 +1692,7 @@ function update(deltaTime) {
 
   if (isMoving) {
     npcSystem.checkNPCProximity();
+    window.vendingMachineSystem.checkProximity();
     npcSystem.checkQuestCompletion();
 
     const dx = targetX - me.x;
@@ -1905,6 +1917,7 @@ function draw(deltaTime) {
     canvas.height
   );
 
+  window.vendingMachineSystem.draw();
   drawNPC();
   npcSystem.drawNPC();
 
