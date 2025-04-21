@@ -170,7 +170,7 @@ function showGreetingDialog(container) {
       <img src="fotoQuestNPC.png" alt="NPC Photo" class="npc-photo">
       <h2 class="npc-title">${NPC.name}</h2>
     </div>
-    <p class="npc-text">Привет, ого! Ни когда еще не видел человека без модернизаций! Видимо с деньгами у тебя совсем туго... Меня зовут ${NPC.name}. Ели нужны деньги можешь поработать на меня... Мои работники только и знают, как шкериться в темных углах города. Находи предметы, если они мне нужны, я заберу их. До встречи хм... человек!</p>
+    <p class="npc-text">Привет, ого! Ни когда еще не видел человека без модернизаций! Видимо с деньгами у тебя совсем туго... Меня зовут ${NPC.name}. Ели нужны деньги, можешь поработать на меня... Мои работники только и знают, как шкериться в темных углах города. Находи предметы, если они мне нужны, я заберу их. До встречи хм... человек!</p>
     <button id="npcAgreeBtn" class="neon-btn">Хорошо</button>
   `;
   document.getElementById("npcAgreeBtn").addEventListener("click", () => {
@@ -210,9 +210,11 @@ function showQuestSelectionDialog(container) {
   availableQuests.forEach((quest) => {
     const questItem = document.createElement("div");
     questItem.className = "quest-item";
+    // Определяем опыт в зависимости от rarity
+    const xpReward = quest.rarity === 1 ? 3 : quest.rarity === 2 ? 2 : 1;
     questItem.innerHTML = `
       <span class="quest-marker">></span>
-      <p>${quest.title} <span class="quest-reward">[Награда: ${quest.reward.quantity} баляр]</span></p>
+      <p>${quest.title} <span class="quest-reward">[Награда: ${quest.reward.quantity} баляр + ${xpReward} хр.]</span></p>
     `;
     questItem.addEventListener("click", () => {
       selectQuest(quest);
