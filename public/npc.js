@@ -343,7 +343,7 @@ function completeQuest() {
   );
 
   // Сбрасываем выбранное задание
-  selectedQuest.id = null;
+  selectedQuest = null;
 
   // Обновляем отображение инвентаря
   if (isInventoryOpen) {
