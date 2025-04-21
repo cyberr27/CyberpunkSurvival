@@ -703,7 +703,17 @@ function startGame() {
   if (window.vendingMachineSystem) {
     window.vendingMachineSystem.initialize();
   } else {
-    console.error("vendingMachineSystem не определён!");
+    console.error(
+      "vendingMachineSystem не определён, возможно, vendingMachine.js ещё не загрузился"
+    );
+    // Ждём загрузки vendingMachine.js
+    const checkInterval = setInterval(() => {
+      if (window.vendingMachineSystem) {
+        window.vendingMachineSystem.initialize();
+        clearInterval(checkInterval);
+      }
+    }, 100);
+    setTimeout(() => clearInterval(checkInterval), 5000); // Таймаут 5 секунд
   }
   // Обработчик клавиш (только для стрельбы и чата)
   document.addEventListener("keydown", (e) => {

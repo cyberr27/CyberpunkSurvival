@@ -1,3 +1,6 @@
+javascript;
+
+Копировать;
 // vendingMachine.js
 
 // Загрузка изображения автомата
@@ -6,7 +9,7 @@ vendingMachineImage.src = "vending_machine.png"; // Укажи путь к св�
 
 // Координаты и размеры автомата
 const vendingMachine = {
-  x: 590, // Пример координат, можешь настроить
+  x: 590,
   y: 3100,
   width: 170,
   height: 100,
@@ -46,19 +49,13 @@ function initializeVendingMachine() {
     return;
   }
 
-  // Получаем доступ к глобальным переменным из code.js
-  const ws = window.ws;
-  const myId = window.myId;
-  const players = window.players;
-  const camera = window.camera;
-
-  // Проверяем наличие необходимых глобальных переменных
-  if (!ws || !myId || !players || !camera) {
+  // Проверяем наличие глобальных переменных
+  if (!window.ws || !window.myId || !window.players || !window.camera) {
     console.error("Не все глобальные переменные доступны:", {
-      ws: !!ws,
-      myId: !!myId,
-      players: !!players,
-      camera: !!camera,
+      ws: !!window.ws,
+      myId: !!window.myId,
+      players: !!window.players,
+      camera: !!window.camera,
     });
     return;
   }
@@ -131,11 +128,11 @@ function initializeVendingMachine() {
     }
   });
 
-  // Экспортируем функции, зависящие от ctx, ws, myId, players, camera
+  // Экспортируем функции
   window.vendingMachineSystem = {
     initialize: initializeVendingMachine,
     draw: () => drawVendingMachine(ctx),
-    checkProximity: () => checkVendingMachineProximity(myId, players, camera),
+    checkProximity: () => checkVendingMachineProximity(),
     handleMessage: handleVendingMessage,
   };
 }
@@ -143,9 +140,8 @@ function initializeVendingMachine() {
 // Отрисовка автомата
 function drawVendingMachine(ctx) {
   if (!vendingMachineImage.complete) return;
-  const screenX = vendingMachine.x - camera.x;
-  const screenY = vendingMachine.y - camera.y;
-  // Проверяем, находится ли автомат в пределах видимости
+  const screenX = vendingMachine.x - window.camera.x;
+  const screenY = vendingMachine.y - window.camera.y;
   if (
     screenX + vendingMachine.width > 0 &&
     screenX < canvas.width &&
@@ -163,8 +159,8 @@ function drawVendingMachine(ctx) {
 }
 
 // Проверка близости к автомату
-function checkVendingMachineProximity(myId, players, camera) {
-  const me = players.get(myId);
+function checkVendingMachineProximity() {
+  const me = window.players.get(window.myId);
   if (!me || me.health <= 0) return;
 
   const dx = me.x + 20 - (vendingMachine.x + vendingMachine.width / 2);
@@ -191,7 +187,6 @@ function openVendingMenu() {
   `;
   document.body.appendChild(vendingMenu);
 
-  // Обработчики выбора напитков
   vendingMenu.querySelectorAll(".vending-item").forEach((item) => {
     item.addEventListener("click", () => {
       const drinkType = item.getAttribute("data-drink");
@@ -217,7 +212,6 @@ function buyDrink(drinkType) {
   const drink = DRINK_CONFIG[drinkType];
   const errorEl = document.getElementById("vendingError");
 
-  // Проверяем наличие баляров
   const balyarySlot = me.inventory.findIndex(
     (slot) =>
       slot && slot.type === "balyary" && (slot.quantity || 1) >= drink.cost
@@ -227,7 +221,6 @@ function buyDrink(drinkType) {
     return;
   }
 
-  // Отправляем запрос на сервер
   if (window.ws.readyState === WebSocket.OPEN) {
     sendWhenReady(
       window.ws,
@@ -242,7 +235,7 @@ function buyDrink(drinkType) {
   }
 }
 
-// Функция для отправки данных, когда WebSocket готов
+// Функция для отправки данных
 function sendWhenReady(ws, message) {
   if (ws.readyState === WebSocket.OPEN) {
     ws.send(message);
@@ -284,12 +277,13 @@ function handleVendingMessage(data) {
   }
 }
 
-// Экспорт системы (выполняется после определения всех функций)
+// Экспорт системы (без немедленной инициализации)
 window.vendingMachineSystem = {
   initialize: initializeVendingMachine,
-  draw: () =>
-    drawVendingMachine(document.getElementById("gameCanvas").getContext("2d")),
-  checkProximity: () =>
-    checkVendingMachineProximity(window.myId, window.players, window.camera),
+  draw: () => {
+    const ctx = document.getElementById("gameCanvas")?.getContext("2d");
+    if (ctx) drawVendingMachine(ctx);
+  },
+  checkProximity: checkVendingMachineProximity,
   handleMessage: handleVendingMessage,
 };
