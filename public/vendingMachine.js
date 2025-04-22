@@ -115,8 +115,8 @@ function showVendingMenu() {
   vendingMenu.className = "vending-menu";
   vendingMenu.innerHTML = `
     <h2 class="vending-title">Автомат с водой</h2>
-    <div class="vending-item" data-option="large">[Большой стакан воды: 2 баляра | +50 воды]</div>
-    <div class="vending-item" data-option="small">[Маленький стакан воды: 1 баляр | +20 воды]</div>
+    <div class="vending-item" data-option="large">Большой стакан воды: [2 баляра | + 50 воды.]</div>
+    <div class="vending-item" data-option="small">Маленький стакан воды: [1 баляр | + 20 воды.]</div>
     <p id="vendingError" class="vending-error"></p>
   `;
   document.body.appendChild(vendingMenu);
