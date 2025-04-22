@@ -162,8 +162,8 @@ let isQuestActive = false; // Флаг, указывающий, активно �
 
 function drawNPC() {
   const camera = window.movementSystem.getCamera();
-  const screenX = npc.x - camera.x;
-  const screenY = npc.y - camera.y;
+  const screenX = NPC.x - camera.x; // Исправлено: npc → NPC
+  const screenY = NPC.y - camera.y; // Исправлено: npc → NPC
 
   if (
     screenX >= -40 &&
