@@ -20,6 +20,8 @@ const chatContainer = document.getElementById("chatContainer");
 const chatMessages = document.getElementById("chatMessages");
 const chatInput = document.getElementById("chatInput");
 
+const { hideVendingMenu } = window.vendingMachine;
+
 // WebSocket соединение
 let ws;
 // Хранилища данных
@@ -689,6 +691,8 @@ function updateOnlineCount() {
 function startGame() {
   updateOnlineCount();
   levelSystem.initialize(); // Инициализируем систему уровней
+  window.vendingMachine.initialize();
+
   // Обработчик клавиш (только для стрельбы и чата)
   document.addEventListener("keydown", (e) => {
     const me = players.get(myId);
@@ -1609,6 +1613,23 @@ function handleGameMessage(event) {
         bullets.delete(data.bulletId);
         console.log(`Пуля ${data.bulletId} удалена`);
         break;
+      case "buyWaterResult":
+        if (data.success) {
+          const me = players.get(myId);
+          me.water = data.water;
+          inventory = data.inventory;
+          updateStatsDisplay();
+          updateInventoryDisplay();
+          hideVendingMenu(); // Закрываем меню после покупки
+          console.log(
+            `Куплено ${data.option} воды, вода: ${me.water}, баляры: ${data.balyaryCount}`
+          );
+        } else {
+          const errorEl = document.getElementById("vendingError");
+          errorEl.textContent = data.error || "Ошибка покупки";
+          console.log(`Ошибка покупки: ${data.error}`);
+        }
+        break;
     }
   } catch (error) {
     console.error("Ошибка в handleGameMessage:", error);
@@ -1682,6 +1703,7 @@ function update(deltaTime) {
   if (isMoving) {
     npcSystem.checkNPCProximity();
     npcSystem.checkQuestCompletion();
+    window.vendingMachine.checkProximity();
 
     const dx = targetX - me.x;
     const dy = targetY - me.y;
@@ -1907,6 +1929,7 @@ function draw(deltaTime) {
 
   drawNPC();
   npcSystem.drawNPC();
+  window.vendingMachine.draw();
 
   players.forEach((player) => {
     const screenX = player.x - camera.x;

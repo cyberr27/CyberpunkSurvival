@@ -687,6 +687,16 @@ button:active {
 .upgrade-btn:active {
   transform: scale(0.95);
 }
+
+@keyframes neonPulse {
+  0% {
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.5), 0 0 20px rgba(255, 0, 255, 0.3);
+  }
+  100% {
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.8), 0 0 30px rgba(255, 0, 255, 0.5);
+  }
+}
+
 /* Адаптация для мобильных устройств (max-width: 500px) */
 @media (max-width: 500px) {
   body {

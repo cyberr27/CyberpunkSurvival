@@ -425,6 +425,69 @@ wss.on("connection", (ws) => {
       } else {
         ws.send(JSON.stringify({ type: "loginFail" }));
       }
+    } else if (data.type === "buyWater") {
+      const id = clients.get(ws);
+      if (!id) return;
+
+      const player = players.get(id);
+      if (!player || !player.inventory) return;
+
+      // Проверяем наличие баляр
+      const balyarySlot = player.inventory.findIndex(
+        (slot) => slot && slot.type === "balyary"
+      );
+      const balyaryCount =
+        balyarySlot !== -1 ? player.inventory[balyarySlot].quantity || 1 : 0;
+
+      if (balyaryCount < data.cost) {
+        ws.send(
+          JSON.stringify({
+            type: "buyWaterResult",
+            success: false,
+            error: "Недостаточно баляр!",
+          })
+        );
+        return;
+      }
+
+      // Списываем баляры
+      if (balyaryCount === data.cost) {
+        player.inventory[balyarySlot] = null;
+      } else {
+        player.inventory[balyarySlot].quantity -= data.cost;
+      }
+
+      // Начисляем воду
+      player.water = Math.min(
+        player.maxStats.water,
+        player.water + data.waterGain
+      );
+
+      // Сохраняем изменения
+      players.set(id, { ...player });
+      userDatabase.set(id, { ...player });
+      await saveUserDatabase(dbCollection, id, player);
+
+      // Отправляем результат клиенту
+      ws.send(
+        JSON.stringify({
+          type: "buyWaterResult",
+          success: true,
+          option: data.option,
+          water: player.water,
+          inventory: player.inventory,
+          balyaryCount:
+            balyarySlot !== -1
+              ? player.inventory[balyarySlot]?.quantity || 0
+              : 0,
+        })
+      );
+
+      console.log(
+        `Игрок ${id} купил ${data.option} стакан воды, вода: ${
+          player.water
+        }, баляры: ${balyaryCount - data.cost}`
+      );
     } else if (data.type === "meetNPC") {
       const id = clients.get(ws);
       if (id) {
