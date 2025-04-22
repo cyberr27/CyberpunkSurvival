@@ -161,24 +161,24 @@ let availableQuests = [];
 let isQuestActive = false; // Флаг, указывающий, активно ли задание
 
 function drawNPC() {
-  const screenX = NPC.x - camera.x;
-  const screenY = NPC.y - camera.y;
+  const camera = window.movementSystem.getCamera();
+  const screenX = npc.x - camera.x;
+  const screenY = npc.y - camera.y;
 
-  if (npcSpriteImage.complete) {
-    ctx.drawImage(npcSpriteImage, screenX, screenY, NPC.width, NPC.height);
-  } else {
-    ctx.fillStyle = "purple";
-    ctx.fillRect(screenX, screenY, NPC.width, NPC.height);
+  if (
+    screenX >= -40 &&
+    screenX <= canvas.width + 40 &&
+    screenY >= -40 &&
+    screenY <= canvas.height + 40 &&
+    !isNPCMet
+  ) {
+    if (npcSpriteImage.complete) {
+      ctx.drawImage(npcSpriteImage, screenX, screenY, 40, 40);
+    } else {
+      ctx.fillStyle = "purple";
+      ctx.fillRect(screenX, screenY, 40, 40);
+    }
   }
-
-  ctx.fillStyle = isNPCMet ? "#ff00ff" : "#ffffff";
-  ctx.font = "12px Arial";
-  ctx.textAlign = "center";
-  ctx.fillText(
-    isNPCMet ? NPC.name : "?",
-    screenX + NPC.width / 2,
-    screenY - 10
-  );
 }
 
 function checkNPCProximity() {
