@@ -27,7 +27,6 @@ let players = new Map();
 let myId;
 const items = new Map();
 const lights = [];
-const obstacles = [];
 const bullets = new Map();
 // Хранилище предметов, для которых уже отправлен запрос pickup
 const pendingPickups = new Set();
@@ -463,7 +462,6 @@ function handleAuthMessage(event) {
       }
 
       lastDistance = me.distanceTraveled || 0;
-      data.obstacles?.forEach((o) => obstacles.push(o));
       if (data.items) {
         data.items.forEach((item) =>
           items.set(item.itemId, {
@@ -509,85 +507,6 @@ function handleAuthMessage(event) {
   }
 }
 
-function createLineObstacle(x1, y1, x2, y2, thickness = 5) {
-  const length = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
-  const angle = Math.atan2(y2 - y1, x2 - x1);
-  const halfThickness = thickness / 2;
-
-  const sinAngle = Math.sin(angle);
-  const cosAngle = Math.cos(angle);
-  const dx = halfThickness * sinAngle;
-  const dy = halfThickness * cosAngle;
-
-  const point1 = { x: x1 - dx, y: y1 + dy };
-  const point2 = { x: x1 + dx, y: y1 - dy };
-  const point3 = { x: x2 - dx, y: y2 + dy };
-  const point4 = { x: x2 + dx, y: y2 - dy };
-
-  const left = Math.min(point1.x, point2.x, point3.x, point4.x);
-  const right = Math.max(point1.x, point2.x, point3.x, point4.x);
-  const top = Math.min(point1.y, point2.y, point3.y, point4.y);
-  const bottom = Math.max(point1.y, point2.y, point3.y, point4.y);
-
-  const obstacle = {
-    id: Date.now().toString(),
-    left,
-    right,
-    top,
-    bottom,
-    isLine: true,
-    x1,
-    y1,
-    x2,
-    y2,
-    thickness,
-  };
-  obstacles.push(obstacle);
-}
-
-function lineIntersects(x1, y1, x2, y2, x3, y3, x4, y4) {
-  const denominator = (y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1);
-  if (denominator === 0) return false;
-  const ua = ((x4 - x3) * (y1 - y3) - (y4 - y3) * (x1 - x3)) / denominator;
-  const ub = ((x2 - x1) * (y1 - y3) - (y2 - y1) * (x1 - x3)) / denominator;
-  return ua >= 0 && ua <= 1 && ub >= 0 && ub <= 1;
-}
-
-// Добавляем функцию pointToLineDistance (если её ещё нет)
-function pointToLineDistance(px, py, x1, y1, x2, y2) {
-  const dx = x2 - x1;
-  const dy = y2 - y1;
-  const lineLengthSquared = dx * dx + dy * dy;
-  if (lineLengthSquared === 0) {
-    return Math.sqrt(Math.pow(px - x1, 2) + Math.pow(py - y1, 2));
-  }
-  let t = ((px - x1) * dx + (py - y1) * dy) / lineLengthSquared;
-  t = Math.max(0, Math.min(1, t));
-  const closestX = x1 + t * dx;
-  const closestY = y1 + t * dy;
-  return Math.sqrt(Math.pow(px - closestX, 2) + Math.pow(py - closestY, 2));
-}
-
-function checkBulletCollision(bullet) {
-  for (const obstacle of obstacles) {
-    // Убираем деструктуризацию [, obstacle]
-    if (obstacle.isLine) {
-      const distance = pointToLineDistance(
-        bullet.x,
-        bullet.y,
-        obstacle.x1,
-        obstacle.y1,
-        obstacle.x2,
-        obstacle.y2
-      );
-      if (distance < obstacle.thickness / 2 + 5) {
-        return true;
-      }
-    }
-  }
-  return false;
-}
-
 // Функция создания источника света
 function createLight(x, y, color, radius) {
   lights.push({ x, y, color, radius });
@@ -598,68 +517,6 @@ function setNPCMet(met) {
 }
 
 function checkCollision(newX, newY) {
-  const me = players.get(myId);
-  if (!me) return false;
-
-  const playerLeft = newX;
-  const playerRight = newX + 40;
-  const playerTop = newY;
-  const playerBottom = newY + 40;
-
-  for (const obstacle of obstacles) {
-    // Убираем деструктуризацию [, obstacle]
-    if (obstacle.isLine) {
-      const lineX1 = obstacle.x1;
-      const lineY1 = obstacle.y1;
-      const lineX2 = obstacle.x2;
-      const lineY2 = obstacle.y2;
-
-      const playerEdges = [
-        { x1: playerLeft, y1: playerTop, x2: playerRight, y2: playerTop },
-        { x1: playerRight, y1: playerTop, x2: playerRight, y2: playerBottom },
-        { x1: playerRight, y1: playerBottom, x2: playerLeft, y2: playerBottom },
-        { x1: playerLeft, y1: playerBottom, x2: playerLeft, y2: playerTop },
-      ];
-
-      for (const edge of playerEdges) {
-        if (
-          lineIntersects(
-            lineX1,
-            lineY1,
-            lineX2,
-            lineY2,
-            edge.x1,
-            edge.y1,
-            edge.x2,
-            edge.y2
-          )
-        ) {
-          return true;
-        }
-      }
-
-      const distance = pointToLineDistance(
-        newX + 20,
-        newY + 20,
-        lineX1,
-        lineY1,
-        lineX2,
-        lineY2
-      );
-      if (distance < 20 + obstacle.thickness / 2) {
-        return true;
-      }
-    } else {
-      if (
-        playerLeft < obstacle.right &&
-        playerRight > obstacle.left &&
-        playerTop < obstacle.bottom &&
-        playerBottom > obstacle.top
-      ) {
-        return true;
-      }
-    }
-  }
   return false;
 }
 
@@ -1826,10 +1683,6 @@ function update(deltaTime) {
     if (currentTime - bullet.spawnTime > bullet.life) {
       bullets.delete(bulletId);
     }
-
-    if (checkBulletCollision(bullet)) {
-      bullets.delete(bulletId);
-    }
   });
 
   // Удаление предметов по таймауту (без изменений)
@@ -2004,28 +1857,6 @@ function draw(deltaTime) {
         // Уменьшаем заглушку до 5x5 для согласованности
         ctx.fillStyle = "yellow";
         ctx.fillRect(screenX + 7.5, screenY + 7.5, 5, 5);
-      }
-    }
-  });
-
-  obstacles.forEach((obstacle) => {
-    if (obstacle.isLine) {
-      const startX = obstacle.x1 - camera.x;
-      const startY = obstacle.y1 - camera.y;
-      const endX = obstacle.x2 - camera.x;
-      const endY = obstacle.y2 - camera.y;
-      if (
-        (startX > 0 || endX > 0) &&
-        (startX < canvas.width || endX < canvas.width) &&
-        (startY > 0 || endY > 0) &&
-        (startY < canvas.height || endY < canvas.height)
-      ) {
-        ctx.beginPath();
-        ctx.moveTo(startX, startY);
-        ctx.lineTo(endX, endY);
-        ctx.lineWidth = obstacle.thickness;
-        ctx.strokeStyle = "rgba(255, 0, 150, 0.5)";
-        ctx.stroke();
       }
     }
   });

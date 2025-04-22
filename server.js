@@ -158,7 +158,6 @@ initializeServer()
   });
 
 const items = new Map();
-const obstacles = [];
 const bullets = new Map();
 
 const lights = [
@@ -255,49 +254,9 @@ const lights = [
   },
 ];
 
-function pointToLineDistance(px, py, x1, y1, x2, y2) {
-  const dx = x2 - x1;
-  const dy = y2 - y1;
-  const lineLengthSquared = dx * dx + dy * dy;
-  if (lineLengthSquared === 0) {
-    return Math.sqrt(Math.pow(px - x1, 2) + Math.pow(py - y1, 2));
-  }
-  let t = ((px - x1) * dx + (py - y1) * dy) / lineLengthSquared;
-  t = Math.max(0, Math.min(1, t));
-  const closestX = x1 + t * dx;
-  const closestY = y1 + t * dy;
-  return Math.sqrt(Math.pow(px - closestX, 2) + Math.pow(py - closestY, 2));
-}
-
 app.use(express.static(path.join(__dirname, "public")));
 
 function checkCollisionServer(x, y) {
-  const left = x;
-  const right = x + 40;
-  const top = y;
-  const bottom = y + 40;
-
-  for (const obstacle of obstacles) {
-    if (obstacle.isLine) {
-      const distance = pointToLineDistance(
-        x + 20,
-        y + 20,
-        obstacle.x1,
-        obstacle.y1,
-        obstacle.x2,
-        obstacle.y2
-      );
-      if (distance < 20 + obstacle.thickness / 2) return true;
-    } else {
-      if (
-        left < obstacle.right &&
-        right > obstacle.left &&
-        top < obstacle.bottom &&
-        bottom > obstacle.top
-      )
-        return true;
-    }
-  }
   return false;
 }
 
@@ -408,7 +367,6 @@ wss.on("connection", (ws) => {
               type: item.type,
               spawnTime: item.spawnTime,
             })),
-            obstacles: obstacles,
             lights: lights,
           })
         );
@@ -987,77 +945,45 @@ setInterval(async () => {
     bullet.x += bullet.dx * (16 / 1000);
     bullet.y += bullet.dy * (16 / 1000);
 
-    let bulletCollided = false;
-    for (const obstacle of obstacles) {
-      if (obstacle.isLine) {
-        const distance = pointToLineDistance(
-          bullet.x,
-          bullet.y,
-          obstacle.x1,
-          obstacle.y1,
-          obstacle.x2,
-          obstacle.y2
-        );
-        if (distance < obstacle.thickness / 2 + 5) {
-          bulletCollided = true;
-          bullets.delete(bulletId);
-          console.log(`Пуля ${bulletId} столкнулась с препятствием`);
-          wss.clients.forEach((client) => {
-            if (client.readyState === WebSocket.OPEN) {
-              client.send(
-                JSON.stringify({
-                  type: "bulletRemoved",
-                  bulletId: bulletId,
-                })
-              );
-            }
-          });
-          break;
-        }
-      }
-    }
+    try {
+      players.forEach(async (player, playerId) => {
+        if (playerId !== bullet.shooterId && player.health > 0) {
+          const playerLeft = player.x;
+          const playerRight = player.x + 40;
+          const playerTop = player.y;
+          const playerBottom = player.y + 40;
 
-    if (!bulletCollided) {
-      try {
-        players.forEach(async (player, playerId) => {
-          if (playerId !== bullet.shooterId && player.health > 0) {
-            const playerLeft = player.x;
-            const playerRight = player.x + 40;
-            const playerTop = player.y;
-            const playerBottom = player.y + 40;
-
-            if (
-              bullet.x >= playerLeft &&
-              bullet.x <= playerRight &&
-              bullet.y >= playerTop &&
-              bullet.y <= playerBottom
-            ) {
-              player.health = Math.max(
-                0,
-                player.health - GAME_CONFIG.BULLET_DAMAGE
-              );
-              console.log(
-                `Пуля ${bulletId} попала в ${playerId}, здоровье: ${player.health}`
-              );
-              userDatabase.set(playerId, { ...player });
-              await saveUserDatabase(dbCollection, playerId, player);
-              bullets.delete(bulletId);
-              wss.clients.forEach((client) => {
-                if (client.readyState === WebSocket.OPEN) {
-                  client.send(
-                    JSON.stringify({
-                      type: "update",
-                      player: { id: playerId, ...player },
-                    })
-                  );
-                }
-              });
-            }
+          if (
+            bullet.x >= playerLeft &&
+            bullet.x <= playerRight &&
+            bullet.y >= playerTop &&
+            bullet.y <= playerBottom
+          ) {
+            player.health = Math.max(
+              0,
+              player.health - GAME_CONFIG.BULLET_DAMAGE
+            );
+            console.log(
+              `Пуля ${bulletId} попала в ${playerId}, здоровье: ${player.health}`
+            );
+            userDatabase.set(playerId, { ...player });
+            await saveUserDatabase(dbCollection, playerId, player);
+            bullets.delete(bulletId);
+            wss.clients.forEach((client) => {
+              if (client.readyState === WebSocket.OPEN) {
+                client.send(
+                  JSON.stringify({
+                    type: "update",
+                    player: { id: playerId, ...player },
+                  })
+                );
+              }
+            });
           }
-        });
-      } catch (error) {
-        console.error("Ошибка при обработке попадания пули:", error);
-      }
+        }
+      });
+    } catch (error) {
+      console.error("Ошибка при обработке попадания пули:", error);
     }
 
     if (currentTime - bullet.spawnTime > GAME_CONFIG.BULLET_LIFE) {
