@@ -165,20 +165,21 @@ function drawNPC() {
   const screenX = NPC.x - camera.x; // Исправлено: npc → NPC
   const screenY = NPC.y - camera.y; // Исправлено: npc → NPC
 
-  if (
-    screenX >= -40 &&
-    screenX <= canvas.width + 40 &&
-    screenY >= -40 &&
-    screenY <= canvas.height + 40 &&
-    !isNPCMet
-  ) {
-    if (npcSpriteImage.complete) {
-      ctx.drawImage(npcSpriteImage, screenX, screenY, 40, 40);
-    } else {
-      ctx.fillStyle = "purple";
-      ctx.fillRect(screenX, screenY, 40, 40);
-    }
+  if (npcSpriteImage.complete) {
+    ctx.drawImage(npcSpriteImage, screenX, screenY, NPC.width, NPC.height);
+  } else {
+    ctx.fillStyle = "purple";
+    ctx.fillRect(screenX, screenY, NPC.width, NPC.height);
   }
+
+  ctx.fillStyle = isNPCMet ? "#ff00ff" : "#ffffff";
+  ctx.font = "12px Arial";
+  ctx.textAlign = "center";
+  ctx.fillText(
+    isNPCMet ? NPC.name : "?",
+    screenX + NPC.width / 2,
+    screenY - 10
+  );
 }
 
 function checkNPCProximity() {
