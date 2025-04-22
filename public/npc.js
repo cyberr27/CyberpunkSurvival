@@ -13,7 +13,7 @@ const NPC = {
 const QUESTS = [
   {
     id: 1,
-    title: "Принеси один орех.",
+    title: "Принеси орех.",
     reward: { type: "balyary", quantity: 1 },
     target: { type: "nut", quantity: 1 },
     rarity: 3,
@@ -30,7 +30,7 @@ const QUESTS = [
     title: "Собери энергетик.",
     reward: { type: "balyary", quantity: 2 },
     target: { type: "energy_drink", quantity: 1 },
-    rarity: 3,
+    rarity: 2,
   },
   {
     id: 4,
@@ -48,14 +48,14 @@ const QUESTS = [
   },
   {
     id: 6,
-    title: "Найди морковь.",
+    title: "Принеси морковь.",
     reward: { type: "balyary", quantity: 1 },
     target: { type: "carrot", quantity: 1 },
     rarity: 3,
   },
   {
     id: 7,
-    title: "Собери банку тушёнки.",
+    title: "Достань банку тушёнки.",
     reward: { type: "balyary", quantity: 3 },
     target: { type: "canned_meat", quantity: 1 },
     rarity: 1,
@@ -76,10 +76,80 @@ const QUESTS = [
   },
   {
     id: 10,
-    title: "Найди пакет крови.",
+    title: "Принеси банку сгущенки.",
+    reward: { type: "balyary", quantity: 2 },
+    target: { type: "condensed_milk", quantity: 1 },
+    rarity: 2,
+  },
+  {
+    id: 11,
+    title: "Достань хлеб.",
+    reward: { type: "balyary", quantity: 2 },
+    target: { type: "bread", quantity: 1 },
+    rarity: 2,
+  },
+  {
+    id: 12,
+    title: "Достань бутылку водки.",
+    reward: { type: "balyary", quantity: 2 },
+    target: { type: "vodka_bottle", quantity: 1 },
+    rarity: 2,
+  },
+  {
+    id: 13,
+    title: "Достань бутылку водки.",
+    reward: { type: "balyary", quantity: 2 },
+    target: { type: "vodka_bottle", quantity: 1 },
+    rarity: 2,
+  },
+  {
+    id: 14,
+    title: "Принеси пакет молока.",
+    reward: { type: "balyary", quantity: 2 },
+    target: { type: "milk", quantity: 1 },
+    rarity: 2,
+  },
+  {
+    id: 15,
+    title: "Принеси два пакета молока.",
+    reward: { type: "balyary", quantity: 6 },
+    target: { type: "milk", quantity: 2 },
+    rarity: 2,
+  },
+  {
+    id: 16,
+    title: "Принеси два ореха.",
     reward: { type: "balyary", quantity: 4 },
-    target: { type: "blood_pack", quantity: 1 },
-    rarity: 1,
+    target: { type: "nut", quantity: 2 },
+    rarity: 3,
+  },
+  {
+    id: 17,
+    title: "Собери два энергетика.",
+    reward: { type: "balyary", quantity: 7 },
+    target: { type: "energy_drink", quantity: 2 },
+    rarity: 2,
+  },
+  {
+    id: 18,
+    title: "Принеси две ягоды.",
+    reward: { type: "balyary", quantity: 3 },
+    target: { type: "berries", quantity: 2 },
+    rarity: 3,
+  },
+  {
+    id: 19,
+    title: "Достань два яблока.",
+    reward: { type: "balyary", quantity: 3 },
+    target: { type: "apple", quantity: 2 },
+    rarity: 3,
+  },
+  {
+    id: 20,
+    title: "Принеси две моркови.",
+    reward: { type: "balyary", quantity: 3 },
+    target: { type: "carrot", quantity: 2 },
+    rarity: 3,
   },
 ];
 
@@ -171,7 +241,7 @@ function showGreetingDialog(container) {
       <img src="fotoQuestNPC.png" alt="NPC Photo" class="npc-photo">
       <h2 class="npc-title">${NPC.name}</h2>
     </div>
-    <p class="npc-text">Привет, ого! Ни когда еще не видел человека без модернизаций! Видимо с деньгами у тебя совсем туго... Меня зовут ${NPC.name}. Ели нужны деньги, можешь поработать на меня... Мои работники только и знают, как шкериться в темных углах города. Находи предметы, если они мне нужны, я заберу их. До встречи хм... человек!</p>
+    <p class="npc-text">Привет, ого! Никогда еще не видел человека без модернизаций! Видимо с деньгами у тебя совсем туго... Меня зовут ${NPC.name}. Ели нужны деньги, можешь поработать на меня... Мои работники только и знают, как шкериться в темных углах города. Находи предметы, если они мне нужны, я заберу их. До встречи хм... человек!</p>
     <button id="npcAgreeBtn" class="neon-btn">Хорошо</button>
   `;
   document.getElementById("npcAgreeBtn").addEventListener("click", () => {
@@ -349,10 +419,7 @@ function completeQuest() {
   isQuestActive = false;
 
   // Отправляем сброс selectedQuestId на сервер
-  sendWhenReady(
-    ws,
-    JSON.stringify({ type: "selectQuest", questId: null })
-  );
+  sendWhenReady(ws, JSON.stringify({ type: "selectQuest", questId: null }));
 
   // Обновляем отображение инвентаря
   if (isInventoryOpen) {

@@ -94,7 +94,7 @@ const ITEM_CONFIG = {
     effect: { energy: 20, water: 5 },
     image: energyDrinkImage,
     description: "Энергетик: +20 эн. +5 воды.",
-    rarity: 3,
+    rarity: 2,
   },
   nut: {
     effect: { food: 7 },
