@@ -182,6 +182,7 @@ function handleVendingOption(option) {
 // Отрисовка автомата
 function drawVendingMachine() {
   if (vendingMachineImage.complete) {
+    const camera = window.movementSystem.getCamera(); // Получаем камеру из movement.js
     const screenX = VENDING_MACHINE.x - camera.x;
     const screenY = VENDING_MACHINE.y - camera.y;
     if (
