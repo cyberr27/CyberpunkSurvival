@@ -20,8 +20,6 @@ const chatContainer = document.getElementById("chatContainer");
 const chatMessages = document.getElementById("chatMessages");
 const chatInput = document.getElementById("chatInput");
 
-const { hideVendingMenu } = window.vendingMachine;
-
 // WebSocket соединение
 let ws;
 // Хранилища данных
@@ -1620,7 +1618,7 @@ function handleGameMessage(event) {
           inventory = data.inventory;
           updateStatsDisplay();
           updateInventoryDisplay();
-          hideVendingMenu(); // Закрываем меню после покупки
+          window.vendingMachine.hideVendingMenu();
           console.log(
             `Куплено ${data.option} воды, вода: ${me.water}, баляры: ${data.balyaryCount}`
           );
