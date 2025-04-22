@@ -220,23 +220,7 @@ const GAME_CONFIG = {
 let reconnectAttempts = 0;
 const maxReconnectAttempts = 5;
 const reconnectDelay = 2000; // 2 секунды
-
 let lastDistance = 0; // Добавляем глобальную переменную
-// Флаг, указывающий, что персонаж должен двигаться к цели
-let isMoving = false;
-// Целевая позиция в мировых координатах
-let targetX = 0;
-let targetY = 0;
-// Базовая скорость в пикселях в секунду (одинакова для всех устройств)
-const baseSpeed = 100; // пикселей в секунду
-
-// Флаги для управления движением
-const movement = {
-  up: false,
-  down: false,
-  left: false,
-  right: false,
-};
 
 // Добавляем переменные для управления анимацией
 let lastTime = 0; // Время последнего кадра для расчета deltaTime
@@ -245,9 +229,6 @@ const frameDuration = 200; // Длительность одного кадра �
 // Размеры мира
 const worldWidth = 3135;
 const worldHeight = 3300;
-
-// Камера
-const camera = { x: 0, y: 0 };
 
 createLight(2445, 1540, "rgba(0, 255, 255, 0.4)", 1000); // 1
 createLight(1314, 332, "rgba(255, 0, 255, 0.4)", 1000); // 2
@@ -547,6 +528,7 @@ function startGame() {
   updateOnlineCount();
   levelSystem.initialize(); // Инициализируем систему уровней
   window.vendingMachine.initialize();
+  window.movementSystem.initialize(); // Инициализируем систему движения
 
   // Обработчик клавиш (только для стрельбы и чата)
   document.addEventListener("keydown", (e) => {
@@ -591,7 +573,8 @@ function startGame() {
         break;
     }
   });
-  // Обработчик нажатия мыши
+
+  // Обработчик нажатия мыши (только для инвентаря)
   canvas.addEventListener("mousedown", (e) => {
     if (e.button === 0) {
       const me = players.get(myId);
@@ -626,54 +609,11 @@ function startGame() {
         console.log(
           `Клик вне слотов инвентаря (x:${e.clientX}, y:${e.clientY})`
         );
-        return; // Прерываем, если клик в инвентаре, но не по слоту
-      }
-
-      isMoving = true;
-      targetX = e.clientX + camera.x;
-      targetY = e.clientY + camera.y;
-    }
-  });
-
-  // Обработчик движения мыши (обновляем цель, если кнопка зажата)
-  canvas.addEventListener("mousemove", (e) => {
-    if (isMoving) {
-      targetX = e.clientX + camera.x;
-      targetY = e.clientY + camera.y;
-    }
-  });
-
-  // Обработчик отпускания мыши
-  canvas.addEventListener("mouseup", (e) => {
-    if (e.button === 0) {
-      isMoving = false;
-      const me = players.get(myId);
-      if (me) {
-        me.state = "idle";
-        me.frame = 0;
-        me.frameTime = 0;
-        sendWhenReady(
-          ws,
-          JSON.stringify({
-            type: "move",
-            x: me.x,
-            y: me.y,
-            health: me.health,
-            energy: me.energy,
-            food: me.food,
-            water: me.water,
-            armor: me.armor,
-            distanceTraveled: me.distanceTraveled,
-            direction: me.direction,
-            state: me.state,
-            frame: me.frame,
-          })
-        );
       }
     }
   });
 
-  // Обработчик тач-событий для мобильных устройств
+  // Обработчик тач-событий для инвентаря
   canvas.addEventListener("touchstart", (e) => {
     e.preventDefault();
     const me = players.get(myId);
@@ -710,10 +650,6 @@ function startGame() {
       console.log(
         `Тач вне слотов инвентаря (x:${touch.clientX}, y:${touch.clientY})`
       );
-    } else {
-      isMoving = true;
-      targetX = touch.clientX + camera.x;
-      targetY = touch.clientY + camera.y;
     }
   });
 
@@ -1491,21 +1427,13 @@ function handleGameMessage(event) {
   }
 }
 
-// Адаптация размеров канваса
 function resizeCanvas() {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight; // 100% высоты
-  updateCamera();
-}
-
-// Обновление камеры
-function updateCamera() {
   const me = players.get(myId);
-  if (!me) return;
-  camera.x = me.x - canvas.width / 2;
-  camera.y = me.y - canvas.height / 2;
-  camera.x = Math.max(0, Math.min(camera.x, worldWidth - canvas.width));
-  camera.y = Math.max(0, Math.min(camera.y, worldHeight - canvas.height));
+  if (me) {
+    window.movementSystem.update(0); // Обновляем камеру
+  }
 }
 
 function shoot() {
@@ -1555,124 +1483,8 @@ function update(deltaTime) {
   const me = players.get(myId);
   if (!me || me.health <= 0) return;
 
-  if (isMoving) {
-    npcSystem.checkNPCProximity();
-    npcSystem.checkQuestCompletion();
-    window.vendingMachine.checkProximity();
-
-    const dx = targetX - me.x;
-    const dy = targetY - me.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-
-    if (distance > 5) {
-      const moveSpeed = GAME_CONFIG.PLAYER_SPEED * (deltaTime / 1000);
-      const moveX = (dx / distance) * moveSpeed;
-      const moveY = (dy / distance) * moveSpeed;
-
-      const prevX = me.x;
-      const prevY = me.y;
-
-      me.x += moveX;
-      me.y += moveY;
-
-      me.x = Math.max(0, Math.min(worldWidth - 40, me.x));
-      me.y = Math.max(0, Math.min(worldHeight - 40, me.y));
-
-      if (checkCollision(me.x, me.y)) {
-        me.x = prevX;
-        me.y = prevY;
-        me.state = "idle";
-        me.frame = 0;
-        me.frameTime = 0;
-        isMoving = false; // Останавливаем движение
-      } else {
-        me.state = "walking";
-        if (Math.abs(dx) > Math.abs(dy)) {
-          me.direction = dx > 0 ? "right" : "left";
-        } else {
-          me.direction = dy > 0 ? "down" : "up";
-        }
-
-        const traveled = Math.sqrt(
-          Math.pow(me.x - prevX, 2) + Math.pow(me.y - prevY, 2)
-        );
-        me.distanceTraveled = (me.distanceTraveled || 0) + traveled;
-
-        me.frameTime += deltaTime;
-        if (me.frameTime >= GAME_CONFIG.FRAME_DURATION / 7) {
-          me.frameTime -= GAME_CONFIG.FRAME_DURATION / 7;
-          me.frame = (me.frame + 1) % 7;
-        }
-
-        updateResources();
-        updateCamera();
-        checkCollisions();
-        checkNPCProximity(); // Проверка близости к NPC
-        checkQuestCompletion(); // Проверка выполнения заданий
-      }
-
-      sendWhenReady(
-        ws,
-        JSON.stringify({
-          type: "move",
-          x: me.x,
-          y: me.y,
-          health: me.health,
-          energy: me.energy,
-          food: me.food,
-          water: me.water,
-          armor: me.armor,
-          distanceTraveled: me.distanceTraveled,
-          direction: me.direction,
-          state: me.state,
-          frame: me.frame,
-        })
-      );
-    } else {
-      me.state = "idle";
-      me.frame = 0;
-      me.frameTime = 0;
-      isMoving = false;
-      ws.send(
-        JSON.stringify({
-          type: "move",
-          x: me.x,
-          y: me.y,
-          health: me.health,
-          energy: me.energy,
-          food: me.food,
-          water: me.water,
-          armor: me.armor,
-          distanceTraveled: me.distanceTraveled,
-          direction: me.direction,
-          state: me.state,
-          frame: me.frame,
-        })
-      );
-    }
-  } else if (me.state === "dying") {
-    me.frameTime += deltaTime;
-    if (me.frameTime >= GAME_CONFIG.FRAME_DURATION / 7) {
-      me.frameTime -= GAME_CONFIG.FRAME_DURATION / 7;
-      if (me.frame < 6) me.frame += 1;
-    }
-    ws.send(
-      JSON.stringify({
-        type: "move",
-        x: me.x,
-        y: me.y,
-        health: me.health,
-        energy: me.energy,
-        food: me.food,
-        water: me.water,
-        armor: me.armor,
-        distanceTraveled: me.distanceTraveled,
-        direction: me.direction,
-        state: me.state,
-        frame: me.frame,
-      })
-    );
-  }
+  // Обновляем движение через movementSystem
+  window.movementSystem.update(deltaTime);
 
   // Обновление пуль
   bullets.forEach((bullet, bulletId) => {
@@ -1685,9 +1497,10 @@ function update(deltaTime) {
     }
   });
 
-  // Удаление предметов по таймауту (без изменений)
+  // Удаление предметов по таймауту
   const currentTime = Date.now();
   items.forEach((item, itemId) => {
+    const camera = window.movementSystem.getCamera();
     const screenX = item.x - camera.x;
     const screenY = item.y - camera.y;
     if (
@@ -1715,6 +1528,7 @@ function draw(deltaTime) {
   ctx.fillStyle = "rgba(10, 20, 40, 0.8)"; // Ночной эффект
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+  const camera = window.movementSystem.getCamera();
   const groundSpeed = 1.0,
     vegetationSpeed = 0.8,
     rocksSpeed = 0.6,
