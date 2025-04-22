@@ -8,7 +8,7 @@ vendingMachineImage.src = "vending_machine.png"; // Укажи путь к тв�
 // Координаты автомата на карте (выбери место, где он не пересекается с препятствиями)
 const VENDING_MACHINE = {
   x: 640,
-  y: 3075,
+  y: 3070,
   width: 110,
   height: 90,
 };
@@ -101,9 +101,9 @@ function checkVendingMachineProximity() {
   const dy = me.y + 20 - (VENDING_MACHINE.y + VENDING_MACHINE.height / 2);
   const distance = Math.sqrt(dx * dx + dy * dy);
 
-  if (distance < 30 && !isVendingMenuOpen) {
+  if (distance < 50 && !isVendingMenuOpen) {
     showVendingMenu();
-  } else if (distance >= 90 && isVendingMenuOpen) {
+  } else if (distance >= 50 && isVendingMenuOpen) {
     hideVendingMenu();
   }
 }
