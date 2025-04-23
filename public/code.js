@@ -21,10 +21,7 @@ let ws;
 // Хранилища данных
 let players = new Map();
 let myId;
-const items = new Map();
 const lights = [];
-// Хранилище предметов, для которых уже отправлен запрос pickup
-const pendingPickups = new Set();
 
 // Загрузка изображений
 const backgroundImage = new Image();
@@ -37,171 +34,10 @@ const cloudsImage = new Image();
 cloudsImage.src = "clouds.png";
 const playerSprite = new Image();
 playerSprite.src = "playerSprite.png";
-const energyDrinkImage = new Image();
-energyDrinkImage.src = "energy_drink.png";
-const nutImage = new Image();
-nutImage.src = "nut.png";
-const waterBottleImage = new Image();
-waterBottleImage.src = "water_bottle.png";
-
-// Добавляем новые изображения
-const cannedMeatImage = new Image();
-cannedMeatImage.src = "canned_meat.png";
-const mushroomImage = new Image();
-mushroomImage.src = "mushroom.png";
-const sausageImage = new Image();
-sausageImage.src = "sausage.png";
-const bloodPackImage = new Image();
-bloodPackImage.src = "blood_pack.png";
-const breadImage = new Image();
-breadImage.src = "bread.png";
-const vodkaBottleImage = new Image();
-vodkaBottleImage.src = "vodka_bottle.png";
-const meatChunkImage = new Image();
-meatChunkImage.src = "meat_chunk.png";
-const bloodSyringeImage = new Image();
-bloodSyringeImage.src = "blood_syringe.png";
-const milkImage = new Image();
-milkImage.src = "milk.png";
-const condensedMilkImage = new Image();
-condensedMilkImage.src = "condensed_milk.png";
-const driedFishImage = new Image();
-driedFishImage.src = "dried_fish.png";
-const balyaryImage = new Image();
-balyaryImage.src = "balyary.png";
-const appleImage = new Image();
-appleImage.src = "apple.png";
-const berriesImage = new Image();
-berriesImage.src = "berry.png";
-const carrotImage = new Image();
-carrotImage.src = "carrot.png";
 const npcSpriteImage = new Image();
 npcSpriteImage.src = "npc_sprite.png";
 const npcPhotoImage = new Image();
 npcPhotoImage.src = "fotoQuestNPC.png";
-
-// Инвентарь игрока (массив на 20 слотов, изначально пустой)
-let inventory = Array(20).fill(null);
-
-// Конфигурация эффектов предметов (расширяем ITEM_CONFIG)
-const ITEM_CONFIG = {
-  energy_drink: {
-    effect: { energy: 20, water: 5 },
-    image: energyDrinkImage,
-    description: "Энергетик: +20 эн. +5 воды.",
-    rarity: 2,
-  },
-  nut: {
-    effect: { food: 7 },
-    image: nutImage,
-    description: "Орех: +7 еды.",
-    rarity: 3,
-  },
-  water_bottle: {
-    effect: { water: 30 },
-    image: waterBottleImage,
-    description: "Вода: +30 воды.",
-    rarity: 3,
-  },
-  apple: {
-    effect: { food: 8, water: 5 },
-    image: appleImage,
-    description: "Яблоко: +8 еды, +5 воды.",
-    rarity: 3,
-  },
-  berries: {
-    effect: { food: 6, water: 6 },
-    image: berriesImage,
-    description: "Ягоды: +6 еды, +6 воды.",
-    rarity: 3,
-  },
-  carrot: {
-    effect: { food: 5, energy: 3 },
-    image: carrotImage,
-    description: "Морковь: +5 еды, +3 энергии.",
-    rarity: 3,
-  },
-  canned_meat: {
-    effect: { food: 20 },
-    image: cannedMeatImage,
-    description: "Банка тушёнки: +20 еды.",
-    rarity: 1,
-  },
-  mushroom: {
-    effect: { food: 5, energy: 15 },
-    image: mushroomImage,
-    description: "Гриб прущий: +15 энергии. +5 еды.",
-    rarity: 1,
-  },
-  sausage: {
-    effect: { food: 16, energy: 3 },
-    image: sausageImage,
-    description: "Колбаса: +16 еды, +3 энергии.",
-    rarity: 2,
-  },
-  blood_pack: {
-    effect: { health: 40 },
-    image: bloodPackImage,
-    description: "Пакет крови: +40 здоровья.",
-    rarity: 1,
-  },
-  bread: {
-    effect: { food: 13, water: -2 },
-    image: breadImage,
-    description: "Хлеб: +13 еды, -2 воды.",
-    rarity: 2,
-  },
-  vodka_bottle: {
-    effect: { health: 5, energy: -2, water: 1, food: 2 },
-    image: vodkaBottleImage,
-    description: "Водка: +5 здоровья, -2 эн. +1 воды, +2 еды.",
-    rarity: 2,
-  },
-  meat_chunk: {
-    effect: { food: 20, energy: 5, water: -2 },
-    image: meatChunkImage,
-    description: "Кусок мяса: +20 еды, +5 эн. -2 воды.",
-    rarity: 2,
-  },
-  blood_syringe: {
-    effect: { health: 10 },
-    image: bloodSyringeImage,
-    description: "Шприц с кровью: +10 здоровья.",
-    rarity: 2,
-  },
-  milk: {
-    effect: { water: 15, food: 5 },
-    image: milkImage,
-    description: "Молоко: +15 воды, +5 еды.",
-    rarity: 2,
-  },
-  condensed_milk: {
-    effect: { water: 5, food: 11, energy: 2 },
-    image: condensedMilkImage,
-    description: "Сгущёнка: +11 еды, +5 воды, +2 эн.",
-    rarity: 2,
-  },
-  dried_fish: {
-    effect: { food: 10, water: -3 },
-    image: driedFishImage,
-    description: "Сушёная рыба: +10 еды, -3 воды.",
-    rarity: 2,
-  },
-  balyary: {
-    effect: {}, // Эффекта нет, это валюта
-    image: balyaryImage,
-    description: "Баляр: игровая валюта.",
-    stackable: true, // Указываем, что предмет складывается
-    rarity: 2,
-  },
-};
-
-// Состояние инвентаря (открыт или закрыт)
-let isInventoryOpen = false;
-// Элемент подсказки
-let tooltip = null;
-// Выбранный слот инвентаря
-let selectedSlot = null;
 
 // Глобальные настройки игры
 const GAME_CONFIG = {
@@ -449,7 +285,7 @@ function handleAuthMessage(event) {
         lights.length = 0;
         data.lights.forEach((light) => lights.push(light));
       }
-      inventory = data.inventory || Array(20).fill(null);
+      window.inventorySystem.setInventory(data.inventory || Array(20).fill(null));
       window.npcSystem.setNPCMet(data.npcMet || false);
       window.npcSystem.setSelectedQuest(data.selectedQuestId || null);
       window.npcSystem.checkQuestCompletion(); // Проверяем выполнение задания сразу после входа, но с учётом isQuestActive
@@ -549,7 +385,7 @@ function startGame() {
 
     switch (e.key) {
       case "i":
-        toggleInventory();
+        window.inventorySystem.toggleInventory();
         e.preventDefault();
         break;
       case "c":
@@ -563,84 +399,7 @@ function startGame() {
     }
   });
 
-  // Обработчик нажатия мыши (только для инвентаря)
-  canvas.addEventListener("mousedown", (e) => {
-    if (e.button === 0) {
-      const me = players.get(myId);
-      if (!me || me.health <= 0) return;
-
-      const inventoryContainer = document.getElementById("inventoryContainer");
-      const rect = inventoryContainer.getBoundingClientRect();
-      if (
-        isInventoryOpen &&
-        e.clientX >= rect.left &&
-        e.clientX <= rect.right &&
-        e.clientY >= rect.top &&
-        e.clientY <= rect.bottom
-      ) {
-        const slots = inventoryContainer.children;
-        for (let i = 0; i < slots.length; i++) {
-          const slotRect = slots[i].getBoundingClientRect();
-          if (
-            e.clientX >= slotRect.left &&
-            e.clientX <= slotRect.right &&
-            e.clientY >= slotRect.top &&
-            e.clientY <= slotRect.bottom &&
-            inventory[i]
-          ) {
-            console.log(
-              `Клик по слоту ${i} (x:${e.clientX}, y:${e.clientY}), предмет: ${inventory[i].type}`
-            );
-            selectSlot(i, slots[i]);
-            return;
-          }
-        }
-        console.log(
-          `Клик вне слотов инвентаря (x:${e.clientX}, y:${e.clientY})`
-        );
-      }
-    }
-  });
-
-  // Обработчик тач-событий для инвентаря
-  canvas.addEventListener("touchstart", (e) => {
-    e.preventDefault();
-    const me = players.get(myId);
-    if (!me || me.health <= 0) return;
-
-    const touch = e.touches[0];
-    const inventoryContainer = document.getElementById("inventoryContainer");
-    const rect = inventoryContainer.getBoundingClientRect();
-
-    if (
-      isInventoryOpen &&
-      touch.clientX >= rect.left &&
-      touch.clientX <= rect.right &&
-      touch.clientY >= rect.top &&
-      touch.clientY <= rect.bottom
-    ) {
-      const slots = inventoryContainer.children;
-      for (let i = 0; i < slots.length; i++) {
-        const slotRect = slots[i].getBoundingClientRect();
-        if (
-          touch.clientX >= slotRect.left &&
-          touch.clientX <= slotRect.right &&
-          touch.clientY >= slotRect.top &&
-          touch.clientY <= slotRect.bottom &&
-          inventory[i]
-        ) {
-          console.log(
-            `Тач по слоту ${i} (x:${touch.clientX}, y:${touch.clientY}), предмет: ${inventory[i].type}`
-          );
-          selectSlot(i, slots[i]);
-          return;
-        }
-      }
-      console.log(
-        `Тач вне слотов инвентаря (x:${touch.clientX}, y:${touch.clientY})`
-      );
-    }
-  });
+  window.inventorySystem.handleInventoryInput();
 
   canvas.addEventListener("touchmove", (e) => {
     e.preventDefault();
@@ -1110,39 +869,31 @@ function handleGameMessage(event) {
         console.log(`Предмет ${data.itemId} удалён из мира (itemPicked)`);
         const me = players.get(myId);
         if (me && data.playerId === myId && data.item) {
+          const newInventory = [...inventory];
           if (data.item.type === "balyary") {
-            const balyarySlot = inventory.findIndex(
+            const balyarySlot = newInventory.findIndex(
               (slot) => slot && slot.type === "balyary"
             );
             if (balyarySlot !== -1) {
-              inventory[balyarySlot].quantity =
-                (inventory[balyarySlot].quantity || 1) + 1;
-              console.log(
-                `Добавлено 1 Баляр, теперь их ${inventory[balyarySlot].quantity}`
-              );
+              newInventory[balyarySlot].quantity =
+                (newInventory[balyarySlot].quantity || 1) + 1;
             } else {
-              const freeSlot = inventory.findIndex((slot) => slot === null);
+              const freeSlot = newInventory.findIndex((slot) => slot === null);
               if (freeSlot !== -1) {
-                inventory[freeSlot] = {
+                newInventory[freeSlot] = {
                   type: "balyary",
                   quantity: 1,
                   itemId: data.itemId,
                 };
-                console.log(
-                  `Баляры добавлены в слот ${freeSlot}, количество: 1`
-                );
               }
             }
           } else {
-            const freeSlot = inventory.findIndex((slot) => slot === null);
+            const freeSlot = newInventory.findIndex((slot) => slot === null);
             if (freeSlot !== -1) {
-              inventory[freeSlot] = data.item;
-              console.log(
-                `Предмет ${data.item.type} добавлен в слот ${freeSlot}`
-              );
+              newInventory[freeSlot] = data.item;
             }
           }
-          updateInventoryDisplay();
+          window.inventorySystem.setInventory(newInventory);
           levelSystem.handleItemPickup(
             data.item.type,
             data.item.isDroppedByPlayer || false
@@ -1159,7 +910,7 @@ function handleGameMessage(event) {
         break;
       case "inventoryFull":
         console.log(`Инвентарь полон, предмет ${data.itemId} не поднят`);
-        pendingPickups.delete(data.itemId);
+        window.inventorySystem.getPendingPickups().delete(data.itemId);
         break;
       case "update":
         const existingPlayer = players.get(data.player.id);
@@ -1169,7 +920,7 @@ function handleGameMessage(event) {
           frameTime: existingPlayer.frameTime || 0,
         });
         if (data.player.id === myId) {
-          inventory = data.player.inventory || inventory;
+          window.inventorySystem.setInventory(data.player.inventory);
           setNPCMet(data.player.npcMet || false);
           levelSystem.setLevelData(
             data.player.level || 0,
@@ -1191,6 +942,7 @@ function handleGameMessage(event) {
           type: data.type,
           spawnTime: data.spawnTime,
         });
+        window.inventorySystem.updateInventoryDisplay();
         updateInventoryDisplay();
         break;
       case "chat":
@@ -1200,8 +952,7 @@ function handleGameMessage(event) {
         if (data.success) {
           const me = players.get(myId);
           me.water = data.water;
-          inventory = data.inventory;
-          updateStatsDisplay();
+          window.inventorySystem.setInventory(data.inventory);
           updateInventoryDisplay();
           window.vendingMachine.hideVendingMenu();
           console.log(
@@ -1237,28 +988,7 @@ function update(deltaTime) {
 
   // Удаление предметов по таймауту
   const currentTime = Date.now();
-  items.forEach((item, itemId) => {
-    const camera = window.movementSystem.getCamera();
-    const screenX = item.x - camera.x;
-    const screenY = item.y - camera.y;
-    if (
-      screenX >= -40 &&
-      screenX <= canvas.width + 40 &&
-      screenY >= -40 &&
-      screenY <= canvas.height + 40
-    ) {
-      const itemImage = ITEM_CONFIG[item.type]?.image;
-      if (itemImage && itemImage.complete) {
-        ctx.drawImage(itemImage, screenX, screenY, 40, 40);
-      } else {
-        console.warn(
-          `Изображение для ${item.type} не загружено, рисую заглушку`
-        );
-        ctx.fillStyle = "yellow";
-        ctx.fillRect(screenX, screenY, 10, 10);
-      }
-    }
-  });
+  window.inventorySystem.drawItems();
 }
 
 function draw(deltaTime) {
@@ -1441,39 +1171,7 @@ function checkCollisions() {
   const me = players.get(myId);
   if (!me || me.health <= 0) return;
 
-  items.forEach((item, id) => {
-    // Проверяем, существует ли предмет и не отправляли ли мы уже запрос
-    if (!items.has(id)) {
-      console.log(`Предмет ${id} уже удалён из items, пропускаем`);
-      return;
-    }
-    if (pendingPickups.has(id)) {
-      console.log(
-        `Предмет ${id} в процессе поднятия (pendingPickups), пропускаем`
-      );
-      return;
-    }
-    // Центр предмета теперь смещён, так как размер 20x20
-    const dx = me.x + 20 - (item.x + 10);
-    const dy = me.y + 20 - (item.y + 10);
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    console.log(
-      `Проверка столкновения с ${item.type} (ID: ${id}), расстояние: ${distance}`
-    );
-    if (distance < 30) {
-      // Уменьшено с 40 до 30
-      console.log(
-        `Игрок ${myId} пытается подобрать предмет ${item.type} (ID: ${id})`
-      );
-      if (ws.readyState === WebSocket.OPEN) {
-        pendingPickups.add(id);
-        sendWhenReady(ws, JSON.stringify({ type: "pickup", itemId: id }));
-        console.log(`Отправлено сообщение pickup для ${id}`);
-      } else {
-        console.error("WebSocket не открыт, предмет не отправлен на сервер");
-      }
-    }
-  });
+  window.inventorySystem.checkItemCollisions();
 }
 
 function gameLoop(timestamp) {
@@ -1487,8 +1185,8 @@ function gameLoop(timestamp) {
 }
 
 // Инициализация изображений (без изменений)
-let imagesLoaded = 0;
+let imagesLoaded = 7;
 function onImageLoad() {
   imagesLoaded++;
-  if (imagesLoaded === 23) window.addEventListener("resize", resizeCanvas);
+  if (imagesLoaded === 5) window.addEventListener("resize", resizeCanvas);
 }

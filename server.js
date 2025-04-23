@@ -2,19 +2,6 @@ const express = require("express");
 const http = require("http");
 const WebSocket = require("ws");
 const path = require("path");
-const { MongoClient } = require("mongodb");
-
-const app = express();
-const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
-const clients = new Map();
-const players = new Map();
-const userDatabase = new Map();
-
-// В начало файла, после определения констант
-INACTIVITY_TIMEOUT = 15 * 60 * 1000;
-
-const GAME_CONFIG = {};
 
 const ITEM_CONFIG = {
   blood_pack: { effect: { health: 40 }, rarity: 1 },
@@ -43,6 +30,19 @@ const ITEM_CONFIG = {
   berries: { effect: { food: 6, water: 6 }, rarity: 3 },
   carrot: { effect: { food: 5, energy: 3 }, rarity: 3 },
 };
+
+const { MongoClient } = require("mongodb");
+const app = express();
+const server = http.createServer(app);
+const wss = new WebSocket.Server({ server });
+const clients = new Map();
+const players = new Map();
+const userDatabase = new Map();
+
+// В начало файла, после определения констант
+INACTIVITY_TIMEOUT = 15 * 60 * 1000;
+
+const GAME_CONFIG = {};
 
 const uri = process.env.MONGO_URI;
 console.log(
