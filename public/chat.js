@@ -4,16 +4,11 @@ const chatContainer = document.getElementById("chatContainer");
 const chatMessages = document.getElementById("chatMessages");
 const chatInput = document.getElementById("chatInput");
 
-// WebSocket соединение (будет передаваться из code.js)
-let ws;
-
 // Создаём глобальный объект для системы чата
 window.chatSystem = window.chatSystem || {};
 
 // Инициализация чата
 window.chatSystem.initializeChat = function (webSocket) {
-  ws = webSocket;
-
   // Настройка кнопки Chat
   chatBtn.addEventListener("click", (e) => {
     e.preventDefault();
@@ -36,13 +31,30 @@ window.chatSystem.initializeChat = function (webSocket) {
   chatInput.addEventListener("keypress", (e) => {
     if (e.key === "Enter" && chatInput.value.trim()) {
       sendWhenReady(
-        ws,
+        webSocket,
         JSON.stringify({ type: "chat", message: chatInput.value.trim() })
       );
       chatInput.value = "";
     }
   });
 };
+
+// Функция для отправки данных, когда WebSocket готов
+function sendWhenReady(webSocket, message) {
+  if (webSocket.readyState === WebSocket.OPEN) {
+    webSocket.send(message);
+  } else if (webSocket.readyState === WebSocket.CONNECTING) {
+    const checkInterval = setInterval(() => {
+      if (webSocket.readyState === WebSocket.OPEN) {
+        webSocket.send(message);
+        clearInterval(checkInterval);
+      }
+    }, 100);
+    setTimeout(() => clearInterval(checkInterval), 5000);
+  } else {
+    console.error("WebSocket не готов для отправки:", webSocket.readyState);
+  }
+}
 
 // Функция для отправки данных, когда WebSocket готов
 function sendWhenReady(ws, message) {
