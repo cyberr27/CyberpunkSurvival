@@ -19,11 +19,7 @@ const ITEM_CONFIG = {
   bread: { effect: { food: 13, water: -2 }, rarity: 2 },
   sausage: { effect: { food: 16, energy: 3 }, rarity: 2 },
   energy_drink: { effect: { energy: 20, water: 5 }, rarity: 2 },
-  balyary: {
-    effect: {},
-    rarity: 2,
-    stackable: true,
-  },
+  balyary: { effect: {}, rarity: 2, stackable: true },
   water_bottle: { effect: { water: 30 }, rarity: 3 },
   nut: { effect: { food: 7 }, rarity: 3 },
   apple: { effect: { food: 8, water: 5 }, rarity: 3 },
@@ -248,6 +244,13 @@ const lights = [
     radius: 850,
   },
 ];
+
+app.use((req, res, next) => {
+  if (req.url.endsWith(".js")) {
+    res.setHeader("Content-Type", "text/javascript");
+  }
+  next();
+});
 
 app.use(express.static(path.join(__dirname, "public")));
 

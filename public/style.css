@@ -559,6 +559,202 @@ button:active {
     box-shadow: 0 0 20px rgba(255, 0, 255, 1), 0 0 30px rgba(0, 255, 255, 0.8);
   }
 }
+
+/* Стили инвентаря в духе киберпанка и нуара */
+#inventoryContainer {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 350px;
+  background: linear-gradient(
+    180deg,
+    rgba(10, 10, 15, 0.95),
+    rgba(20, 20, 25, 0.9)
+  );
+  border: 2px solid #ff0066; /* Неоновый розовый */
+  border-radius: 8px;
+  box-shadow: 0 0 20px rgba(255, 0, 102, 0.8), 0 0 30px rgba(0, 255, 255, 0.4);
+  padding: 15px;
+  display: none;
+  grid-template-rows: auto 1fr auto;
+  gap: 10px;
+  z-index: 1000;
+  animation: neonPulse 2s infinite alternate;
+}
+
+#inventoryGrid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+
+.inventory-slot {
+  width: 60px;
+  height: 60px;
+  background: rgba(5, 5, 10, 0.9);
+  border: 2px solid #00ccff; /* Циановый неон */
+  border-radius: 4px;
+  box-shadow: 0 0 8px rgba(0, 204, 255, 0.5),
+    inset 0 0 5px rgba(0, 204, 255, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.inventory-slot:hover {
+  border-color: #ff0066;
+  box-shadow: 0 0 12px rgba(255, 0, 102, 0.8),
+    inset 0 0 8px rgba(255, 0, 102, 0.4);
+  transform: scale(1.05);
+}
+
+.inventory-slot img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 0 5px rgba(0, 255, 255, 0.5));
+}
+
+.quantity-label {
+  position: absolute;
+  top: 0;
+  right: 0;
+  color: #ff0066;
+  font-size: 14px;
+  font-family: "Courier New", monospace;
+  text-shadow: 0 0 5px rgba(255, 0, 102, 0.7);
+  padding: 2px 4px;
+  background: rgba(5, 5, 10, 0.8);
+  border-radius: 0 0 0 4px;
+}
+
+#inventoryScreen {
+  min-height: 80px;
+  background: rgba(10, 10, 15, 0.95);
+  border: 1px solid #00ccff;
+  border-radius: 4px;
+  color: #00ffff;
+  font-family: "Courier New", monospace;
+  font-size: 14px;
+  padding: 10px;
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.7);
+  box-shadow: 0 0 10px rgba(0, 204, 255, 0.5);
+  overflow-y: auto;
+}
+
+#inventoryActions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.action-btn {
+  padding: 10px 20px;
+  font-size: 14px;
+  font-family: "Courier New", monospace;
+  border: none;
+  border-radius: 4px;
+  color: #000;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.7);
+}
+
+.use-btn {
+  background: linear-gradient(135deg, #00ccff, #00ff99);
+}
+
+.drop-btn {
+  background: linear-gradient(135deg, #ff0066, #ff4444);
+}
+
+.confirm-btn {
+  background: linear-gradient(135deg, #00ccff, #ff0066);
+}
+
+.action-btn:hover:not(:disabled) {
+  box-shadow: 0 0 15px rgba(255, 0, 102, 0.9);
+  transform: scale(1.05);
+}
+
+.action-btn:disabled {
+  background: linear-gradient(135deg, #333, #555);
+  color: #777;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.balyary-drop-form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  background: rgba(5, 5, 10, 0.9);
+  border: 1px solid #ff0066;
+  border-radius: 4px;
+  box-shadow: 0 0 10px rgba(255, 0, 102, 0.5);
+}
+
+.balyary-drop-form .cyber-text {
+  color: #ff0066;
+  font-size: 16px;
+  text-shadow: 0 0 5px rgba(255, 0, 102, 0.7);
+  animation: flicker 1.5s infinite alternate;
+}
+
+.balyary-drop-form .cyber-input {
+  width: 100px;
+  padding: 8px;
+  background: rgba(10, 10, 15, 0.9);
+  border: 1px solid #00ccff;
+  color: #00ffff;
+  font-family: "Courier New", monospace;
+  font-size: 14px;
+  border-radius: 4px;
+  box-shadow: 0 0 8px rgba(0, 204, 255, 0.5);
+  text-align: center;
+}
+
+.balyary-drop-form .cyber-input:focus {
+  border-color: #ff0066;
+  box-shadow: 0 0 12px rgba(255, 0, 102, 0.7);
+}
+
+.balyary-drop-form .error-text {
+  color: #ff4444;
+  font-size: 12px;
+  text-shadow: 0 0 5px rgba(255, 68, 68, 0.7);
+}
+
+@keyframes flicker {
+  0%,
+  19%,
+  21%,
+  23%,
+  25%,
+  54%,
+  56%,
+  100% {
+    opacity: 1;
+  }
+  20%,
+  24%,
+  55% {
+    opacity: 0.7;
+  }
+}
+
+@keyframes neonPulse {
+  0% {
+    box-shadow: 0 0 10px rgba(255, 0, 102, 0.6), 0 0 20px rgba(0, 255, 255, 0.4);
+  }
+  100% {
+    box-shadow: 0 0 20px rgba(255, 0, 102, 0.8), 0 0 30px rgba(0, 255, 255, 0.6);
+  }
+}
 .level-display {
   position: fixed;
   bottom: 0px;
@@ -730,5 +926,48 @@ button:active {
   .error-text {
     font-size: 10px;
     margin-top: 3px;
+  }
+  #inventoryContainer {
+    width: 280px;
+    bottom: 10px;
+    right: 10px;
+    padding: 10px;
+  }
+
+  #inventoryGrid {
+    gap: 6px;
+  }
+
+  .inventory-slot {
+    width: 50px;
+    height: 50px;
+  }
+
+  .quantity-label {
+    font-size: 12px;
+  }
+
+  #inventoryScreen {
+    min-height: 60px;
+    font-size: 12px;
+  }
+
+  .action-btn {
+    padding: 8px 16px;
+    font-size: 12px;
+  }
+
+  .balyary-drop-form .cyber-text {
+    font-size: 14px;
+  }
+
+  .balyary-drop-form .cyber-input {
+    width: 80px;
+    font-size: 12px;
+    padding: 6px;
+  }
+
+  .balyary-drop-form .error-text {
+    font-size: 10px;
   }
 }
