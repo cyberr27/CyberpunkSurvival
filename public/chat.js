@@ -7,8 +7,11 @@ const chatInput = document.getElementById("chatInput");
 // WebSocket соединение (будет передаваться из code.js)
 let ws;
 
+// Создаём глобальный объект для системы чата
+window.chatSystem = window.chatSystem || {};
+
 // Инициализация чата
-function initializeChat(webSocket) {
+window.chatSystem.initializeChat = function (webSocket) {
   ws = webSocket;
 
   // Настройка кнопки Chat
@@ -32,11 +35,14 @@ function initializeChat(webSocket) {
   // Отправка сообщения по Enter
   chatInput.addEventListener("keypress", (e) => {
     if (e.key === "Enter" && chatInput.value.trim()) {
-      sendWhenReady(ws, JSON.stringify({ type: "chat", message: chatInput.value.trim() }));
+      sendWhenReady(
+        ws,
+        JSON.stringify({ type: "chat", message: chatInput.value.trim() })
+      );
       chatInput.value = "";
     }
   });
-}
+};
 
 // Функция для отправки данных, когда WebSocket готов
 function sendWhenReady(ws, message) {
@@ -56,12 +62,10 @@ function sendWhenReady(ws, message) {
 }
 
 // Обработка входящих сообщений чата
-function handleChatMessage(data) {
+window.chatSystem.handleChatMessage = function (data) {
   const messageEl = document.createElement("div");
   messageEl.textContent = `${data.id}: ${data.message}`;
   messageEl.classList.add("chat-message");
   chatMessages.appendChild(messageEl);
   chatMessages.scrollTop = chatMessages.scrollHeight;
-}
-
-export { initializeChat, handleChatMessage };
+};

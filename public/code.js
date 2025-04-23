@@ -1,11 +1,5 @@
 // Получаем элементы DOM
 
-// Импорт системы чата
-window.chatSystem = window.chatSystem || {};
-import { initializeChat, handleChatMessage } from "./chat.js";
-window.chatSystem.initializeChat = initializeChat;
-window.chatSystem.handleChatMessage = handleChatMessage;
-
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 const inventoryEl = document.getElementById("items");
@@ -529,7 +523,6 @@ function startGame() {
   window.movementSystem.initialize(); // Инициализируем систему движения
   window.npcSystem.initialize(); // Инициализируем стили NPC
 
-  // Обработчик клавиш (только для стрельбы и чата)
   document.addEventListener("keydown", (e) => {
     const me = players.get(myId);
     if (!me || me.health <= 0) return;
@@ -559,8 +552,12 @@ function startGame() {
         toggleInventory();
         e.preventDefault();
         break;
-      case "i":
-        toggleInventory();
+      case "c":
+        const isChatVisible = chatContainer.style.display === "flex";
+        chatContainer.style.display = isChatVisible ? "none" : "flex";
+        chatBtn.classList.toggle("active", !isChatVisible);
+        if (!isChatVisible) chatInput.focus();
+        else chatInput.blur();
         e.preventDefault();
         break;
     }
