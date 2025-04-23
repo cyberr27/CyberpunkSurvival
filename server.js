@@ -349,7 +349,7 @@ wss.on("connection", (ws) => {
             selectedQuestId: playerData.selectedQuestId,
             level: playerData.level,
             xp: playerData.xp,
-            maxStats: playerData.maxStats, // Гарантируем отправку maxStats
+            maxStats: playerData.maxStats,
             upgradePoints: playerData.upgradePoints,
             availableQuests: playerData.availableQuests,
             players: Array.from(players.values()).filter(
@@ -362,7 +362,7 @@ wss.on("connection", (ws) => {
               type: item.type,
               spawnTime: item.spawnTime,
             })),
-            lights: lights,
+            lights: lights.map(({ id, ...rest }) => rest),
           })
         );
         wss.clients.forEach((client) => {

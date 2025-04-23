@@ -1,4 +1,7 @@
+let lights = [];
+
 function initializeLights() {
+  lights.length = 0; // Очищаем массив перед инициализацией
   lights.push({
     x: 2445,
     y: 1540,
@@ -16,7 +19,7 @@ function initializeLights() {
     y: 2246,
     color: "rgba(148, 0, 211, 0.4)",
     radius: 1000,
-  }); // 3 .
+  }); // 3
   lights.push({
     x: 950,
     y: 3115,
