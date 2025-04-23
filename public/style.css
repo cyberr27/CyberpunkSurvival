@@ -1,0 +1,848 @@
+body {
+  margin: 0;
+  height: 100vh;
+  overflow: hidden;
+  background: url(bodyImg.png) center no-repeat;
+  background-size: 100% 100%;
+  font-family: "Courier New", monospace;
+}
+
+/* Стили для окна авторизации */
+.auth-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.auth-box {
+  background: rgba(5, 5, 5, 0.9);
+  padding: 30px;
+  border: 2px solid #00ffff;
+  border-radius: 10px;
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+  width: 300px;
+  text-align: center;
+}
+
+.neon-text {
+  color: #00ffff;
+  text-shadow: 0 0 5px #00ffff, 0 0 10px #00ffff, 0 0 20px #ff00ff;
+  animation: flicker 1.5s infinite alternate;
+}
+
+.form {
+  margin-top: 20px;
+}
+
+.neon-input {
+  width: 100%;
+  padding: 10px;
+  margin: 10px 0;
+  background: #0d0d0d;
+  border: 1px solid #00ffff;
+  color: rgb(255, 0, 153);
+  font-size: 16px;
+  border-radius: 5px;
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+}
+
+.neon-input:focus {
+  outline: none;
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.7);
+}
+
+.neon-btn {
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #00ffff, #ff00ff);
+  border: none;
+  color: #000;
+  font-size: 16px;
+  border-radius: 5px;
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.7);
+  transition: all 0.3s;
+}
+
+.neon-btn:hover {
+  box-shadow: 0 0 20px rgba(255, 0, 255, 0.7);
+  transform: scale(1.05);
+}
+
+.switch-text {
+  color: #fff;
+  font-size: 14px;
+  margin-top: 10px;
+}
+
+.switch-text span {
+  color: #00ffff;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.error-text {
+  color: #ff4444;
+  font-size: 14px;
+  margin-top: 10px;
+}
+
+/* Анимация мерцания */
+@keyframes flicker {
+  0%,
+  19%,
+  21%,
+  23%,
+  25%,
+  54%,
+  56%,
+  100% {
+    opacity: 1;
+  }
+  20%,
+  24%,
+  55% {
+    opacity: 0.7;
+  }
+}
+
+#gameContainer {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+#gameCanvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  position: absolute; /* Добавляем для явного слоя */
+  z-index: 10; /* Канвас ниже инвентаря */
+}
+
+/* Стили для статистики */
+#stats {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  font-size: 20px;
+  font-family: "Courier New", monospace;
+  z-index: 50; /* Поверх канваса */
+}
+
+#stats .health {
+  color: #ff0000;
+  text-shadow: 0 0 5px #ff0000, 0 0 10px #ff0000, 0 0 15px #ff00ff;
+  animation: flicker 1.5s infinite alternate;
+}
+#stats .energy {
+  color: #00ff00;
+  text-shadow: 0 0 5px #00ff00, 0 0 10px #00ff00, 0 0 15px #00ffff;
+  animation: flicker 1.5s infinite alternate;
+}
+#stats .food {
+  color: #ffff00;
+  text-shadow: 0 0 5px #ffff00, 0 0 10px #ffff00, 0 0 15px #ff00ff;
+  animation: flicker 1.5s infinite alternate;
+}
+#stats .water {
+  color: #0000ff;
+  text-shadow: 0 0 5px #0000ff, 0 0 10px #0000ff, 0 0 15px #00ffff;
+  animation: flicker 1.5s infinite alternate;
+}
+#stats .armor {
+  color: #ff4500;
+  text-shadow: 0 0 5px #ff4500, 0 0 10px #ff4500, 0 0 15px #ff00ff,
+    0 0 20px #ff4500;
+  animation: flicker 1.5s infinite alternate;
+}
+/* Координаты */
+#coords {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  color: #00ffff;
+  font-size: 18px;
+  font-family: "Courier New", monospace;
+  text-shadow: 0 0 5px #00ffff, 0 0 10px #00ffff, 0 0 15px #ff00ff;
+  animation: cyberFlicker 2s infinite alternate;
+  text-align: right;
+  z-index: 50; /* Поверх канваса */
+}
+
+/* Общие стили для кнопок */
+button {
+  border-radius: 50%;
+  padding: 15px;
+  font-size: 20px;
+  cursor: pointer;
+  background: linear-gradient(135deg, #1e90ff, #00b7eb);
+  border: 2px solid #00ffff;
+  color: #fff;
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.7);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+button:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 20px rgba(0, 255, 255, 1);
+}
+
+button:active {
+  transform: scale(0.95);
+}
+
+/* Стили для статистики */
+#stats {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  font-size: 20px;
+  font-family: "Courier New", monospace; /* Моноширинный шрифт для киберпанка */
+}
+
+/* Эффект мерцания в стиле киберпанка */
+@keyframes cyberFlicker {
+  0%,
+  19%,
+  21%,
+  23%,
+  25%,
+  54%,
+  56%,
+  100% {
+    opacity: 1;
+    text-shadow: 0 0 5px #00ffff, 0 0 10px #00ffff, 0 0 15px #ff00ff;
+  }
+  20%,
+  24%,
+  55% {
+    opacity: 0.6;
+    text-shadow: 0 0 2px #00ffff, 0 0 5px #00ffff, 0 0 10px #ff00ff;
+  }
+}
+
+#onlineCount {
+  position: absolute;
+  top: 50px; /* Под координатами, которые начинаются с top: 10px */
+  right: 20px;
+  color: #ffffff; /* Белый цвет */
+  font-size: 12px;
+  font-family: "Courier New", monospace;
+  text-shadow: 0 0 5px #00ffff, 0 0 10px #00ffff, 0 0 15px #ff00ff; /* Неоновое свечение */
+  animation: flicker 1.5s infinite alternate; /* Мерцание */
+  text-align: right;
+  z-index: 50; /* Поверх канваса */
+}
+
+/* Окно чата */
+#chatContainer {
+  position: absolute;
+  bottom: 15%;
+  left: 1%;
+  width: 300px;
+  height: 200px;
+  background: linear-gradient(
+    180deg,
+    rgba(15, 15, 20, 0.95),
+    rgba(25, 25, 30, 0.9)
+  );
+  border: 2px solid #ff0066; /* Тёмно-розовый неон */
+  border-radius: 8px;
+  box-shadow: 0 0 15px rgba(255, 0, 102, 0.6), 0 0 25px rgba(0, 255, 255, 0.3);
+  display: none;
+  flex-direction: column;
+  padding: 12px;
+  z-index: 100; /* Поверх канваса и статистики */
+  animation: neonPulse 2s infinite alternate; /* Пульсация */
+}
+
+#chatMessages {
+  flex-grow: 1;
+  overflow-y: auto;
+  color: #00ccff; /* Холодный циан */
+  font-size: 13px;
+  font-family: "Courier New", monospace;
+  text-shadow: 0 0 4px rgba(0, 204, 255, 0.7);
+  margin-bottom: 10px;
+  padding: 5px;
+  background: rgba(10, 10, 15, 0.8); /* Тёмный фон для сообщений */
+  border: 1px solid rgba(255, 0, 102, 0.3);
+  border-radius: 4px;
+}
+
+.chat-message {
+  margin: 4px 0;
+  padding: 2px 8px;
+  background: rgba(20, 20, 25, 0.7);
+  border-left: 2px solid #ff0066; /* Неоновая полоска слева */
+  transition: background 0.3s;
+}
+
+.chat-message:hover {
+  background: rgba(30, 30, 35, 0.9);
+}
+
+#chatInput {
+  width: 100%;
+  padding: 8px;
+  background: rgba(10, 10, 15, 0.9);
+  border: 1px solid #ff0066;
+  color: #00ccff;
+  font-size: 13px;
+  font-family: "Courier New", monospace;
+  border-radius: 4px;
+  box-shadow: 0 0 8px rgba(255, 0, 102, 0.4);
+  transition: all 0.3s;
+}
+
+#chatInput:focus {
+  outline: none;
+  border-color: #00ccff;
+  box-shadow: 0 0 12px rgba(0, 204, 255, 0.7);
+  background: rgba(15, 15, 20, 0.9);
+}
+
+/* Анимация пульсации для чата */
+@keyframes neonPulse {
+  0% {
+    box-shadow: 0 0 15px rgba(255, 0, 102, 0.6), 0 0 25px rgba(0, 255, 255, 0.3);
+  }
+  100% {
+    box-shadow: 0 0 20px rgba(255, 0, 102, 0.8), 0 0 30px rgba(0, 255, 255, 0.5);
+  }
+}
+
+.cyber-btn {
+  position: absolute;
+  padding: 15px;
+  font-size: 18px;
+  font-family: "Courier New", monospace;
+  background: linear-gradient(135deg, #00ffff, #ff00ff);
+  border: 2px solid #00ffff;
+  color: #000;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.7), 0 0 20px rgba(255, 0, 255, 0.5);
+  transition: all 0.3s;
+  z-index: 60; /* Поверх канваса */
+}
+
+.cyber-btn:hover {
+  box-shadow: 0 0 20px rgba(0, 255, 255, 1), 0 0 30px rgba(255, 0, 255, 0.7);
+  transform: scale(1.1);
+}
+
+.cyber-btn:active {
+  transform: scale(0.95);
+}
+
+/* Кнопка Chat */
+#chatBtn {
+  bottom: 20px;
+  right: 10px;
+  width: 60px;
+  height: 60px;
+}
+
+#chatBtn.active {
+  background: linear-gradient(135deg, #ff00cc, #00ff99);
+  box-shadow: 0 0 20px rgba(255, 0, 204, 1);
+}
+/* Контейнер инвентаря */
+/* Контейнер инвентаря */
+#inventoryContainer {
+  position: absolute;
+  bottom: 15%;
+  right: 1%;
+  width: 280px;
+  height: 400px;
+  background: rgba(26, 26, 26, 0.9);
+  border: 2px solid #00ffff;
+  border-radius: 10px;
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+  display: none; /* Скрыт по умолчанию */
+  grid-template-rows: auto 1fr auto; /* Экран, ячейки, кнопки */
+  gap: 10px;
+  padding: 20px;
+  box-sizing: border-box;
+  z-index: 100;
+}
+
+/* Ячейка инвентаря */
+.inventory-slot {
+  width: 50px;
+  height: 50px;
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid #00ffff;
+  box-shadow: 0 0 5px rgba(0, 255, 255, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  position: relative;
+  z-index: 110;
+  box-sizing: border-box; /* Учитываем border в размерах */
+}
+
+.inventory-slot:hover {
+  box-shadow: 0 0 10px rgba(255, 0, 255, 0.7);
+  border-color: #ff00ff; /* Розовая подсветка при наведении */
+}
+
+/* Убедимся, что изображение не перекрывает события */
+.inventory-slot img {
+  pointer-events: none;
+  width: 100%; /* Растягиваем на весь слот */
+  height: 100%;
+  object-fit: contain; /* Сохраняем пропорции */
+}
+
+/* Кнопка инвентаря */
+#inventoryBtn {
+  bottom: 15px;
+  right: 70px; /* Теперь левее кнопки Chat */
+  width: 50px;
+  height: 50px;
+}
+
+#inventoryBtn.active {
+  background: linear-gradient(135deg, #ff00cc, #00ff99);
+  box-shadow: 0 0 20px rgba(255, 0, 204, 1);
+}
+
+/* Экран инвентаря */
+#inventoryScreen {
+  width: 100%;
+  height: 100px; /* Увеличиваем с 70px до 100px */
+  background: rgba(10, 10, 10, 0.95);
+  border: 2px solid #ff00ff;
+  border-radius: 5px;
+  color: #00ffff;
+  font-size: 14px;
+  font-family: "Courier New", monospace;
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 15px rgba(255, 0, 255, 0.3);
+  grid-row: 1;
+}
+
+/* Ячейки инвентаря (сетка 4x5) */
+#inventoryContainer .inventory-slot {
+  width: 50px;
+  height: 50px;
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid #00ffff;
+  box-shadow: 0 0 5px rgba(0, 255, 255, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  position: relative;
+  z-index: 110;
+  box-sizing: border-box;
+}
+
+#inventoryContainer .inventory-slot:hover {
+  box-shadow: 0 0 10px rgba(255, 0, 255, 0.7);
+  border-color: #ff00ff;
+}
+
+/* Контейнер кнопок */
+#inventoryActions {
+  grid-row: 3; /* Третий ряд */
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 0;
+}
+#inventoryContainer {
+  height: 480px; /* Было 400px, увеличиваем, чтобы всё влезло */
+}
+
+/* Стили для кнопок внутри экрана */
+#inventoryScreen .action-btn {
+  position: absolute;
+  padding: 4px 8px;
+  font-size: 12px;
+  border: 1px solid #00ffff;
+  color: #fff;
+  border-radius: 3px;
+  cursor: pointer;
+  background: linear-gradient(
+    135deg,
+    #00ff00,
+    #00ffff
+  ); /* По умолчанию для "Использовать" */
+}
+
+#inventoryScreen .drop-btn {
+  background: linear-gradient(135deg, #ff0000, #ff00ff);
+}
+
+#inventoryScreen .action-btn:hover {
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.9);
+  transform: scale(1.05);
+}
+
+#inventoryGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr); /* 4 столбца */
+  grid-template-rows: repeat(5, 1fr); /* 5 строк */
+  gap: 10px; /* Отступы между ячейками */
+  width: 100%; /* Растягиваем на всю ширину контейнера */
+  height: 100%; /* Устанавливаем высоту, чтобы ячейки не вылезали */
+  justify-items: center;
+  align-items: center;
+  grid-row: 2; /* Второй ряд в контейнере */
+}
+
+/* Подсказка */
+.tooltip {
+  position: absolute;
+  background: rgba(0, 0, 0, 0.95);
+  border: 1px solid #ff00ff;
+  color: #00ffff;
+  padding: 8px 12px;
+  font-size: 14px;
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.7), 0 0 10px rgba(255, 0, 255, 0.5);
+  z-index: 150;
+  pointer-events: none;
+  border-radius: 5px;
+  box-shadow: 0 0 15px rgba(255, 0, 255, 0.3);
+  white-space: nowrap; /* Текст в одну строку */
+}
+
+/* Кнопки действий */
+.action-btn {
+  padding: 8px 16px;
+  font-size: 14px;
+  font-family: "Courier New", monospace;
+  border: 1px solid #00ffff;
+  color: #fff;
+  border-radius: 5px;
+  cursor: pointer;
+  width: 110px; /* Фиксированная ширина для симметрии */
+  height: 40px;
+  box-sizing: border-box;
+  transition: all 0.3s;
+}
+
+.use-btn {
+  background: linear-gradient(135deg, #00ff00, #00ffff);
+}
+
+.drop-btn {
+  background: linear-gradient(135deg, #ff0000, #ff00ff);
+}
+
+.action-btn:hover:not(:disabled) {
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.9);
+  transform: scale(1.05);
+}
+
+.action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+/* Кастомный курсор для игрового контейнера */
+#gameContainer {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cg fill='none' stroke='%2300FFFF' stroke-width='2'%3E%3Ccircle cx='16' cy='16' r='12' stroke-dasharray='4 4'/%3E%3Cline x1='16' y1='4' x2='16' y2='8'/%3E%3Cline x1='16' y1='24' x2='16' y2='28'/%3E%3Cline x1='4' y1='16' x2='8' y2='16'/%3E%3Cline x1='24' y1='16' x2='28' y2='16'/%3E%3C/g%3E%3C/svg%3E")
+      16 16,
+    auto;
+}
+
+/* Отключаем курсор для кнопок, чтобы не мешал */
+.cyber-btn,
+.action-btn {
+  cursor: pointer; /* Стандартный курсор для кнопок */
+}
+/* Форма выброса Баляр */
+.balyary-drop-form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 10px;
+  box-sizing: border-box;
+  background: rgba(10, 10, 10, 0.95); /* Полупрозрачный фон */
+  border-radius: 5px;
+  box-shadow: 0 0 15px rgba(255, 0, 255, 0.3); /* Неоновое свечение */
+}
+
+.cyber-text {
+  color: #00ffff;
+  font-size: 16px;
+  font-family: "Courier New", monospace;
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.7), 0 0 10px rgba(255, 0, 255, 0.5);
+  margin: 0 0 10px 0;
+  animation: flicker 1.5s infinite alternate;
+}
+
+.cyber-input {
+  width: 100px;
+  padding: 5px;
+  background: rgba(10, 10, 10, 0.95);
+  border: 1px solid #00ffff;
+  border-radius: 5px;
+  color: #fff;
+  font-size: 14px;
+  font-family: "Courier New", monospace;
+  text-align: center;
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+  transition: all 0.3s;
+  -webkit-appearance: none;
+  appearance: none;
+  pointer-events: auto; /* Убеждаемся, что поле принимает события */
+  user-select: text; /* Разрешаем выбор текста */
+  -webkit-user-select: text;
+  touch-action: manipulation; /* Для сенсорных экранов */
+}
+
+.cyber-input:focus {
+  outline: none;
+  border-color: #ff00ff;
+  box-shadow: 0 0 15px rgba(255, 0, 255, 0.7);
+  background: rgba(20, 20, 20, 0.95); /* Лёгкое затемнение при фокусе */
+}
+
+.cyber-input::-webkit-inner-spin-button,
+.cyber-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.cyber-input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+.error-text {
+  color: #ff4444;
+  font-size: 12px;
+  font-family: "Courier New", monospace;
+  text-shadow: 0 0 5px rgba(255, 0, 0, 0.7);
+  margin: 5px 0 0 0;
+}
+/* Стиль для кнопки "Подтвердить" */
+.confirm-btn {
+  background: linear-gradient(135deg, #00ffff, #ff00ff); /* Неоновый градиент */
+  border: 1px solid #ff00ff; /* Розовая обводка */
+  color: #000; /* Чёрный текст для контраста */
+  box-shadow: 0 0 15px rgba(255, 0, 255, 0.7), 0 0 25px rgba(0, 255, 255, 0.5);
+  animation: neonPulse 1.5s infinite alternate; /* Пульсация */
+}
+
+.confirm-btn:hover:not(:disabled) {
+  box-shadow: 0 0 20px rgba(255, 0, 255, 1), 0 0 30px rgba(0, 255, 255, 0.8);
+  transform: scale(1.05);
+}
+
+/* Анимация пульсации в стиле киберпанк */
+@keyframes neonPulse {
+  0% {
+    box-shadow: 0 0 10px rgba(255, 0, 255, 0.7), 0 0 20px rgba(0, 255, 255, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 15px rgba(255, 0, 255, 0.9), 0 0 25px rgba(0, 255, 255, 0.7);
+  }
+  100% {
+    box-shadow: 0 0 20px rgba(255, 0, 255, 1), 0 0 30px rgba(0, 255, 255, 0.8);
+  }
+}
+.level-display {
+  position: fixed;
+  bottom: 0px;
+  left: 1%;
+  color: #000000;
+  font-family: "Courier New", monospace;
+  font-size: 16px;
+  font-weight: 700;
+  text-shadow: 0 0 5px #474747, 0 0 10px #6a6a6a;
+  z-index: 1000;
+}
+
+.xp-effect {
+  color: #00ff00;
+  font-family: "Courier New", monospace;
+  font-size: 14px;
+  text-shadow: 0 0 5px #00ff00;
+  pointer-events: none;
+}
+
+.level-up-effect {
+  color: #ff00ff;
+  font-family: "Courier New", monospace;
+  font-size: 48px;
+  text-shadow: 0 0 10px #ff00ff, 0 0 20px #ff00ff;
+  pointer-events: none;
+}
+/* Стили для кнопок прокачки */
+.upgrade-btn {
+  background: linear-gradient(45deg, #00ffff, #ff00ff);
+  border: 1px solid #00ffff;
+  border-radius: 4px;
+  color: #000;
+  font-size: 14px;
+  padding: 4px 8px;
+  margin-left: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.7);
+}
+
+.upgrade-btn:hover {
+  background: linear-gradient(45deg, #ff00ff, #00ffff);
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
+}
+
+.upgrade-btn:active {
+  transform: scale(0.95);
+}
+
+@keyframes neonPulse {
+  0% {
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.5), 0 0 20px rgba(255, 0, 255, 0.3);
+  }
+  100% {
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.8), 0 0 30px rgba(255, 0, 255, 0.5);
+  }
+}
+
+/* Адаптация для мобильных устройств (max-width: 500px) */
+@media (max-width: 500px) {
+  body {
+    background: url(bodyImg.png);
+    background-size: 100% 100%;
+  }
+
+  button {
+    padding: 8px 15px;
+    font-size: 14px;
+  }
+  #stats {
+    font-size: 16px;
+  }
+  #coords {
+    font-size: 14px;
+  }
+  #chatContainer {
+    position: absolute;
+    width: 214px;
+    height: 100px;
+    top: 18%;
+    left: 32.5%;
+  }
+  .auth-box {
+    width: 80%;
+  }
+
+  .auth-container {
+    position: absolute;
+    left: 0%;
+    .auth-box {
+      left: 1%;
+      right: 1%;
+      width: 80%;
+      margin: 0 auto;
+      position: absolute;
+    }
+  }
+  .cyber-btn {
+    padding: 10px;
+    font-size: 14px;
+  }
+
+  #chatBtn {
+    bottom: 15px;
+    right: 10px;
+    width: 50px;
+    height: 50px;
+  }
+  #inventoryContainer {
+    position: absolute;
+    bottom: 10%;
+    right: 1%;
+    width: 240px;
+    height: 400px;
+    padding: 15px;
+  }
+
+  #inventoryScreen {
+    height: 80px; /* Увеличиваем для формы */
+    font-size: 12px;
+  }
+  #inventoryContainer .inventory-slot {
+    width: 45px;
+    height: 45px;
+  }
+  #inventoryGrid {
+    gap: 5px;
+  }
+  .inventory-slot {
+    width: 45px;
+    height: 45px;
+  }
+  .action-btn {
+    width: 100px;
+    height: 35px;
+    font-size: 12px;
+    padding: 6px 12px;
+  }
+  #inventoryBtn {
+    bottom: 15px;
+    right: 70px;
+    width: 50px;
+    height: 50px;
+  }
+  .balyary-drop-form {
+    padding: 5px;
+  }
+
+  .cyber-text {
+    font-size: 14px;
+    margin-bottom: 5px;
+  }
+
+  .cyber-input {
+    width: 80px;
+    font-size: 12px;
+    padding: 8px;
+    touch-action: manipulation; /* Улучшаем взаимодействие на сенсорных экранах */
+  }
+
+  .action-btn {
+    width: 80px;
+    height: 30px;
+    font-size: 12px;
+    padding: 5px 10px;
+  }
+
+  #confirmDropBtn {
+    margin-top: 5px;
+  }
+
+  .error-text {
+    font-size: 10px;
+    margin-top: 3px;
+  }
+}
