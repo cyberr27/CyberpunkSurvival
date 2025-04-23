@@ -1,4 +1,3 @@
-let lights = [];
 
 function initializeLights() {
   lights.length = 0; // Очищаем массив перед инициализацией
