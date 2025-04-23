@@ -160,6 +160,153 @@ let dialogStage = "greeting";
 let availableQuests = [];
 let isQuestActive = false; // Флаг, указывающий, активно ли задание
 
+const npcStyles = `
+  .npc-dialog {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: linear-gradient(135deg, rgba(10, 10, 10, 0.95), rgba(20, 20, 20, 0.9));
+    border: 2px solid #00ffff;
+    border-radius: 10px;
+    padding: 20px;
+    color: #00ffff;
+    font-family: "Courier New", monospace;
+    text-align: center;
+    z-index: 1000;
+    max-width: 450px;
+    width: 90%;
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.5), 0 0 30px rgba(255, 0, 255, 0.3);
+    animation: neonPulse 2s infinite alternate;
+  }
+  .npc-dialog-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 15px;
+  }
+  .npc-photo {
+    width: 80px;
+    height: 80px;
+    border: 2px solid #ff00ff;
+    border-radius: 50%;
+    margin-right: 15px;
+    box-shadow: 0 0 15px rgba(255, 0, 255, 0.5);
+    object-fit: cover;
+  }
+  .npc-title {
+    color: #00ffff;
+    font-size: 24px;
+    text-shadow: 0 0 5px #00ffff, 0 0 10px #ff00ff;
+    animation: flicker 1.5s infinite alternate;
+    margin: 0;
+  }
+  .npc-text {
+    margin: 15px 0;
+    font-size: 16px;
+    text-shadow: 0 0 5px rgba(0, 255, 255, 0.7);
+    line-height: 1.4;
+  }
+  .quest-list {
+    max-height: 250px;
+    overflow-y: auto;
+    margin-top: 15px;
+    background: rgba(10, 10, 10, 0.9);
+    border: 1px solid #ff00ff;
+    border-radius: 5px;
+    padding: 10px;
+    box-shadow: inset 0 0 10px rgba(255, 0, 255, 0.3);
+    scrollbar-width: thin;
+    scrollbar-color: #ff00ff rgba(0, 0, 0, 0.5);
+  }
+  .quest-list::-webkit-scrollbar {
+    width: 8px;
+  }
+  .quest-list::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.7);
+    border-radius: 4px;
+  }
+  .quest-list::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #00ffff, #ff00ff);
+    border-radius: 4px;
+    box-shadow: 0 0 10px rgba(255, 0, 255, 0.7);
+  }
+  .quest-item {
+    background: rgba(0, 0, 0, 0.85);
+    padding: 12px;
+    margin: 8px 0;
+    cursor: pointer;
+    border: 1px solid #00ffff;
+    border-radius: 5px;
+    color: #00ffff;
+    font-size: 14px;
+    text-shadow: 0 0 5px rgba(0, 255, 255, 0.7);
+    box-shadow: 0 0 8px rgba(0, 255, 255, 0.3);
+    transition: all 0.3s ease;
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  .quest-item:hover {
+    background: rgba(0, 255, 255, 0.15);
+    border-color: #ff00ff;
+    box-shadow: 0 0 15px rgba(255, 0, 255, 0.7);
+    transform: translateX(5px);
+  }
+  .quest-marker {
+    color: #ff00ff;
+    font-weight: bold;
+    margin-right: 10px;
+    font-size: 16px;
+  }
+  .quest-reward {
+    color: #ff00ff;
+    font-size: 12px;
+    margin-left: 10px;
+  }
+  .neon-btn {
+    padding: 12px 24px;
+    font-size: 16px;
+    font-family: "Courier New", monospace;
+    background: linear-gradient(135deg, #00ffff, #ff00ff);
+    border: none;
+    color: #000;
+    border-radius: 5px;
+    cursor: pointer;
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.7), 0 0 20px rgba(255, 0, 255, 0.5);
+    transition: all 0.3s;
+    text-transform: uppercase;
+  }
+  .neon-btn:hover {
+    box-shadow: 0 0 20px rgba(0, 255, 255, 1), 0 0 30px rgba(255, 0, 255, 0.7);
+    transform: scale(1.05);
+  }
+  @keyframes neonPulse {
+    0% { box-shadow: 0 0 10px rgba(0, 255, 255, 0.5), 0 0 20px rgba(255, 0, 255, 0.3); }
+    100% { box-shadow: 0 0 20px rgba(0, 255, 255, 0.8), 0 0 30px rgba(255, 0, 255, 0.5); }
+  }
+  @keyframes flicker {
+    0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% { opacity: 1; text-shadow: 0 0 5px #00ffff, 0 0 10px #ff00ff; }
+    20%, 24%, 55% { opacity: 0.7; text-shadow: 0 0 2px #00ffff, 0 0 5px #ff00ff; }
+  }
+  @media (max-width: 500px) {
+    .npc-dialog { max-width: 90%; padding: 15px; }
+    .npc-photo { width: 60px; height: 60px; }
+    .npc-title { font-size: 20px; }
+    .npc-text { font-size: 14px; }
+    .quest-list { max-height: 200px; }
+    .quest-item { padding: 10px; font-size: 12px; }
+    .neon-btn { padding: 10px 20px; font-size: 14px; }
+  }
+`;
+
+function initializeNPCStyles() {
+  const styleSheet = document.createElement("style");
+  styleSheet.type = "text/css";
+  styleSheet.innerText = npcStyles;
+  document.head.appendChild(styleSheet);
+}
+
 function drawNPC() {
   const camera = window.movementSystem.getCamera();
   const screenX = NPC.x - camera.x; // Исправлено: npc → NPC
@@ -481,5 +628,8 @@ window.npcSystem = {
   checkQuestCompletion,
   updateQuests: (questIds) => {
     setAvailableQuests(questIds);
+  },
+  initialize: () => {
+    initializeNPCStyles();
   },
 };
