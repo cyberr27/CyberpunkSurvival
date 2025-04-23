@@ -249,37 +249,75 @@ button:active {
   left: 1%;
   width: 300px;
   height: 200px;
-  background: rgba(26, 26, 26, 0.9);
-  border: 2px solid #00ffff;
-  border-radius: 10px;
-  box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+  background: linear-gradient(
+    180deg,
+    rgba(15, 15, 20, 0.95),
+    rgba(25, 25, 30, 0.9)
+  );
+  border: 2px solid #ff0066; /* Тёмно-розовый неон */
+  border-radius: 8px;
+  box-shadow: 0 0 15px rgba(255, 0, 102, 0.6), 0 0 25px rgba(0, 255, 255, 0.3);
   display: none;
   flex-direction: column;
-  padding: 10px;
+  padding: 12px;
   z-index: 100; /* Поверх канваса и статистики */
+  animation: neonPulse 2s infinite alternate; /* Пульсация */
 }
 
 #chatMessages {
   flex-grow: 1;
   overflow-y: auto;
-  color: #00ffff;
-  font-size: 14px;
-  text-shadow: 0 0 5px rgba(0, 255, 255, 0.7);
+  color: #00ccff; /* Холодный циан */
+  font-size: 13px;
+  font-family: "Courier New", monospace;
+  text-shadow: 0 0 4px rgba(0, 204, 255, 0.7);
   margin-bottom: 10px;
+  padding: 5px;
+  background: rgba(10, 10, 15, 0.8); /* Тёмный фон для сообщений */
+  border: 1px solid rgba(255, 0, 102, 0.3);
+  border-radius: 4px;
 }
+
+.chat-message {
+  margin: 4px 0;
+  padding: 2px 8px;
+  background: rgba(20, 20, 25, 0.7);
+  border-left: 2px solid #ff0066; /* Неоновая полоска слева */
+  transition: background 0.3s;
+}
+
+.chat-message:hover {
+  background: rgba(30, 30, 35, 0.9);
+}
+
 #chatInput {
   width: 100%;
-  padding: 5px;
-  background: #0d0d0d;
-  border: 1px solid #00ffff;
-  color: #fff;
-  font-size: 14px;
-  border-radius: 5px;
-  box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+  padding: 8px;
+  background: rgba(10, 10, 15, 0.9);
+  border: 1px solid #ff0066;
+  color: #00ccff;
+  font-size: 13px;
+  font-family: "Courier New", monospace;
+  border-radius: 4px;
+  box-shadow: 0 0 8px rgba(255, 0, 102, 0.4);
+  transition: all 0.3s;
 }
+
 #chatInput:focus {
   outline: none;
-  box-shadow: 0 0 15px rgba(0, 255, 255, 0.7);
+  border-color: #00ccff;
+  box-shadow: 0 0 12px rgba(0, 204, 255, 0.7);
+  background: rgba(15, 15, 20, 0.9);
+}
+
+/* Анимация пульсации для чата */
+@keyframes neonPulse {
+  0% {
+    box-shadow: 0 0 15px rgba(255, 0, 102, 0.6), 0 0 25px rgba(0, 255, 255, 0.3);
+  }
+  100% {
+    box-shadow: 0 0 20px rgba(255, 0, 102, 0.8), 0 0 30px rgba(0, 255, 255, 0.5);
+  }
 }
 
 .cyber-btn {

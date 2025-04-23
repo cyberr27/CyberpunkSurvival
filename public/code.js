@@ -1,4 +1,11 @@
 // Получаем элементы DOM
+
+// Импорт системы чата
+window.chatSystem = window.chatSystem || {};
+import { initializeChat, handleChatMessage } from "./chat.js";
+window.chatSystem.initializeChat = initializeChat;
+window.chatSystem.handleChatMessage = handleChatMessage;
+
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 const inventoryEl = document.getElementById("items");
@@ -14,11 +21,6 @@ const toRegister = document.getElementById("toRegister");
 const toLogin = document.getElementById("toLogin");
 const loginError = document.getElementById("loginError");
 const registerError = document.getElementById("registerError");
-
-const chatBtn = document.getElementById("chatBtn");
-const chatContainer = document.getElementById("chatContainer");
-const chatMessages = document.getElementById("chatMessages");
-const chatInput = document.getElementById("chatInput");
 
 // WebSocket соединение
 let ws;
@@ -553,11 +555,8 @@ function startGame() {
     }
 
     switch (e.key) {
-      case "c":
-        const isChatVisible = chatContainer.style.display === "flex";
-        chatContainer.style.display = isChatVisible ? "none" : "flex";
-        if (!isChatVisible) chatInput.focus();
-        else chatInput.blur();
+      case "i":
+        toggleInventory();
         e.preventDefault();
         break;
       case "i":
@@ -681,33 +680,7 @@ function startGame() {
     }
   });
 
-  // Настройка кнопки Chat
-  const chatBtn = document.getElementById("chatBtn");
-  chatBtn.addEventListener("click", (e) => {
-    e.preventDefault();
-    const isChatVisible = chatContainer.style.display === "flex";
-    chatContainer.style.display = isChatVisible ? "none" : "flex";
-    chatBtn.classList.toggle("active", !isChatVisible);
-    if (!isChatVisible) chatInput.focus();
-    else chatInput.blur();
-  });
-
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && chatContainer.style.display === "flex") {
-      chatContainer.style.display = "none";
-      chatInput.blur();
-    }
-  });
-
-  chatInput.addEventListener("keypress", (e) => {
-    if (e.key === "Enter" && chatInput.value.trim()) {
-      sendWhenReady(
-        ws,
-        JSON.stringify({ type: "chat", message: chatInput.value.trim() })
-      );
-      chatInput.value = "";
-    }
-  });
+  window.chatSystem.initializeChat(ws);
 
   // Настройка кнопки Inventory
   const inventoryBtn = document.getElementById("inventoryBtn");
@@ -1224,10 +1197,7 @@ function handleGameMessage(event) {
         updateInventoryDisplay();
         break;
       case "chat":
-        const messageEl = document.createElement("div");
-        messageEl.textContent = `${data.id}: ${data.message}`;
-        chatMessages.appendChild(messageEl);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
+        window.chatSystem.handleChatMessage(data);
         break;
       case "buyWaterResult":
         if (data.success) {
