@@ -14,10 +14,7 @@ const userDatabase = new Map();
 // В начало файла, после определения констант
 INACTIVITY_TIMEOUT = 15 * 60 * 1000;
 
-const GAME_CONFIG = {
-  BULLET_DAMAGE: 10,
-  BULLET_LIFE: 1000,
-};
+const GAME_CONFIG = {};
 
 const ITEM_CONFIG = {
   blood_pack: { effect: { health: 40 }, rarity: 1 },
@@ -158,8 +155,6 @@ initializeServer()
   });
 
 const items = new Map();
-const bullets = new Map();
-
 const lights = [
   {
     id: "light1",
@@ -699,38 +694,6 @@ wss.on("connection", (ws) => {
           }
         });
       }
-    } else if (data.type === "shoot") {
-      const id = clients.get(ws);
-      if (id) {
-        const bulletId = Date.now().toString();
-        bullets.set(bulletId, {
-          id: bulletId,
-          shooterId: id,
-          x: data.x,
-          y: data.y,
-          dx: data.dx,
-          dy: data.dy,
-          spawnTime: Date.now(),
-          life: GAME_CONFIG.BULLET_LIFE,
-        });
-
-        wss.clients.forEach((client) => {
-          if (client.readyState === WebSocket.OPEN) {
-            client.send(
-              JSON.stringify({
-                type: "shoot",
-                bulletId: bulletId,
-                x: data.x,
-                y: data.y,
-                dx: data.dx,
-                dy: data.dy,
-                shooterId: id,
-              })
-            );
-          }
-        });
-        console.log(`Игрок ${id} выстрелил, пуля ${bulletId} создана`);
-      }
     } else if (data.type === "useItem") {
       const id = clients.get(ws);
       if (id) {
@@ -938,70 +901,6 @@ wss.on("connection", (ws) => {
     clearTimeout(inactivityTimer);
   });
 });
-
-setInterval(async () => {
-  const currentTime = Date.now();
-  bullets.forEach(async (bullet, bulletId) => {
-    bullet.x += bullet.dx * (16 / 1000);
-    bullet.y += bullet.dy * (16 / 1000);
-
-    try {
-      players.forEach(async (player, playerId) => {
-        if (playerId !== bullet.shooterId && player.health > 0) {
-          const playerLeft = player.x;
-          const playerRight = player.x + 40;
-          const playerTop = player.y;
-          const playerBottom = player.y + 40;
-
-          if (
-            bullet.x >= playerLeft &&
-            bullet.x <= playerRight &&
-            bullet.y >= playerTop &&
-            bullet.y <= playerBottom
-          ) {
-            player.health = Math.max(
-              0,
-              player.health - GAME_CONFIG.BULLET_DAMAGE
-            );
-            console.log(
-              `Пуля ${bulletId} попала в ${playerId}, здоровье: ${player.health}`
-            );
-            userDatabase.set(playerId, { ...player });
-            await saveUserDatabase(dbCollection, playerId, player);
-            bullets.delete(bulletId);
-            wss.clients.forEach((client) => {
-              if (client.readyState === WebSocket.OPEN) {
-                client.send(
-                  JSON.stringify({
-                    type: "update",
-                    player: { id: playerId, ...player },
-                  })
-                );
-              }
-            });
-          }
-        }
-      });
-    } catch (error) {
-      console.error("Ошибка при обработке попадания пули:", error);
-    }
-
-    if (currentTime - bullet.spawnTime > GAME_CONFIG.BULLET_LIFE) {
-      bullets.delete(bulletId);
-      console.log(`Пуля ${bulletId} удалена по истечении времени жизни`);
-      wss.clients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(
-            JSON.stringify({
-              type: "bulletRemoved",
-              bulletId: bulletId,
-            })
-          );
-        }
-      });
-    }
-  });
-}, 16);
 
 setInterval(() => {
   const currentTime = Date.now();

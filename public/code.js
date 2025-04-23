@@ -27,7 +27,6 @@ let players = new Map();
 let myId;
 const items = new Map();
 const lights = [];
-const bullets = new Map();
 // Хранилище предметов, для которых уже отправлен запрос pickup
 const pendingPickups = new Set();
 
@@ -211,10 +210,7 @@ let selectedSlot = null;
 // Глобальные настройки игры
 const GAME_CONFIG = {
   PLAYER_SPEED: 100,
-  FRAME_DURATION: 200, // 700 мс на весь цикл (≈100 мс на кадр)
-  BULLET_SPEED: 500,
-  BULLET_LIFE: 1000,
-  BULLET_DAMAGE: 10,
+  FRAME_DURATION: 400, // 700 мс на весь цикл (≈100 мс на кадр)
 };
 
 let reconnectAttempts = 0;
@@ -556,10 +552,6 @@ function startGame() {
     }
 
     switch (e.key) {
-      case " ":
-        shoot();
-        e.preventDefault();
-        break;
       case "c":
         const isChatVisible = chatContainer.style.display === "flex";
         chatContainer.style.display = isChatVisible ? "none" : "flex";
@@ -686,13 +678,6 @@ function startGame() {
         })
       );
     }
-  });
-
-  // Настройка кнопки Fire
-  const fireBtn = document.getElementById("fireBtn");
-  fireBtn.addEventListener("click", (e) => {
-    e.preventDefault();
-    shoot();
   });
 
   // Настройка кнопки Chat
@@ -1388,22 +1373,6 @@ function handleGameMessage(event) {
         chatMessages.appendChild(messageEl);
         chatMessages.scrollTop = chatMessages.scrollHeight;
         break;
-      case "shoot":
-        console.log(`Получена пуля ${data.bulletId} от ${data.shooterId}`);
-        bullets.set(data.bulletId, {
-          x: data.x,
-          y: data.y,
-          dx: data.dx,
-          dy: data.dy,
-          spawnTime: Date.now(),
-          life: GAME_CONFIG.BULLET_LIFE,
-          shooterId: data.shooterId,
-        });
-        break;
-      case "bulletRemoved":
-        bullets.delete(data.bulletId);
-        console.log(`Пуля ${data.bulletId} удалена`);
-        break;
       case "buyWaterResult":
         if (data.success) {
           const me = players.get(myId);
@@ -1436,66 +1405,12 @@ function resizeCanvas() {
   }
 }
 
-function shoot() {
-  const me = players.get(myId);
-  if (!me || me.health <= 0) return;
-
-  if (ws.readyState !== WebSocket.OPEN) {
-    console.error("WebSocket не открыт. Пытаемся переподключиться...");
-    reconnectWebSocket();
-    return;
-  }
-
-  let dx = 0,
-    dy = 0;
-  switch (me.direction) {
-    case "up":
-      dy = -1;
-      break;
-    case "down":
-      dy = 1;
-      break;
-    case "left":
-      dx = -1;
-      break;
-    case "right":
-      dx = 1;
-      break;
-  }
-  const magnitude = Math.sqrt(dx * dx + dy * dy);
-  if (magnitude !== 0) {
-    dx = (dx / magnitude) * GAME_CONFIG.BULLET_SPEED;
-    dy = (dy / magnitude) * GAME_CONFIG.BULLET_SPEED;
-  }
-  sendWhenReady(
-    ws,
-    JSON.stringify({
-      type: "shoot",
-      x: me.x + 20,
-      y: me.y + 20,
-      dx: dx,
-      dy: dy,
-    })
-  );
-}
-
 function update(deltaTime) {
   const me = players.get(myId);
   if (!me || me.health <= 0) return;
 
   // Обновляем движение через movementSystem
   window.movementSystem.update(deltaTime);
-
-  // Обновление пуль
-  bullets.forEach((bullet, bulletId) => {
-    bullet.x += bullet.dx * (deltaTime / 1000);
-    bullet.y += bullet.dy * (deltaTime / 1000);
-
-    const currentTime = Date.now();
-    if (currentTime - bullet.spawnTime > bullet.life) {
-      bullets.delete(bulletId);
-    }
-  });
 
   // Удаление предметов по таймауту
   const currentTime = Date.now();
@@ -1675,13 +1590,6 @@ function draw(deltaTime) {
     }
   });
 
-  bullets.forEach((bullet) => {
-    const screenX = bullet.x - camera.x;
-    const screenY = bullet.y - camera.y;
-    console.log(`Отрисовка пули ${bullet.id} на x:${screenX}, y:${screenY}`);
-    drawBullet(screenX, screenY);
-  });
-
   ctx.drawImage(
     vegetationImage,
     vegetationOffsetX,
@@ -1704,16 +1612,6 @@ function draw(deltaTime) {
     canvas.width,
     canvas.height
   );
-}
-
-function drawBullet(x, y) {
-  const gradient = ctx.createRadialGradient(x, y, 2, x, y, 5);
-  gradient.addColorStop(0, "rgb(0, 75, 75)");
-  gradient.addColorStop(1, "rgba(0, 255, 255, 0)");
-  ctx.fillStyle = gradient;
-  ctx.beginPath();
-  ctx.arc(x, y, 5, 0, Math.PI * 2);
-  ctx.fill();
 }
 
 function checkCollisions() {
