@@ -375,39 +375,6 @@ button:active {
   box-sizing: border-box;
   z-index: 100;
 }
-
-/* Ячейка инвентаря */
-.inventory-slot {
-  width: 50px;
-  height: 50px;
-  background: rgba(0, 0, 0, 0.8);
-  border: 1px solid #00ffff;
-  box-shadow: 0 0 5px rgba(0, 255, 255, 0.3);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  user-select: none;
-  -webkit-user-select: none;
-  -ms-user-select: none;
-  position: relative;
-  z-index: 110;
-  box-sizing: border-box; /* Учитываем border в размерах */
-}
-
-.inventory-slot:hover {
-  box-shadow: 0 0 10px rgba(255, 0, 255, 0.7);
-  border-color: #ff00ff; /* Розовая подсветка при наведении */
-}
-
-/* Убедимся, что изображение не перекрывает события */
-.inventory-slot img {
-  pointer-events: none;
-  width: 100%; /* Растягиваем на весь слот */
-  height: 100%;
-  object-fit: contain; /* Сохраняем пропорции */
-}
-
 /* Кнопка инвентаря */
 #inventoryBtn {
   bottom: 15px;
@@ -475,32 +442,6 @@ button:active {
 #inventoryContainer {
   height: 480px; /* Было 400px, увеличиваем, чтобы всё влезло */
 }
-
-/* Стили для кнопок внутри экрана */
-#inventoryScreen .action-btn {
-  position: absolute;
-  padding: 4px 8px;
-  font-size: 12px;
-  border: 1px solid #00ffff;
-  color: #fff;
-  border-radius: 3px;
-  cursor: pointer;
-  background: linear-gradient(
-    135deg,
-    #00ff00,
-    #00ffff
-  ); /* По умолчанию для "Использовать" */
-}
-
-#inventoryScreen .drop-btn {
-  background: linear-gradient(135deg, #ff0000, #ff00ff);
-}
-
-#inventoryScreen .action-btn:hover {
-  box-shadow: 0 0 10px rgba(0, 255, 255, 0.9);
-  transform: scale(1.05);
-}
-
 #inventoryGrid {
   display: grid;
   grid-template-columns: repeat(4, 1fr); /* 4 столбца */
@@ -511,22 +452,6 @@ button:active {
   justify-items: center;
   align-items: center;
   grid-row: 2; /* Второй ряд в контейнере */
-}
-
-/* Подсказка */
-.tooltip {
-  position: absolute;
-  background: rgba(0, 0, 0, 0.95);
-  border: 1px solid #ff00ff;
-  color: #00ffff;
-  padding: 8px 12px;
-  font-size: 14px;
-  text-shadow: 0 0 5px rgba(0, 255, 255, 0.7), 0 0 10px rgba(255, 0, 255, 0.5);
-  z-index: 150;
-  pointer-events: none;
-  border-radius: 5px;
-  box-shadow: 0 0 15px rgba(255, 0, 255, 0.3);
-  white-space: nowrap; /* Текст в одну строку */
 }
 
 /* Кнопки действий */
@@ -643,31 +568,17 @@ button:active {
   text-shadow: 0 0 5px rgba(255, 0, 0, 0.7);
   margin: 5px 0 0 0;
 }
-/* Стиль для кнопки "Подтвердить" */
 .confirm-btn {
-  background: linear-gradient(135deg, #00ffff, #ff00ff); /* Неоновый градиент */
-  border: 1px solid #ff00ff; /* Розовая обводка */
-  color: #000; /* Чёрный текст для контраста */
+  background: linear-gradient(135deg, #00ffff, #ff00ff);
+  border: 1px solid #ff00ff;
+  color: #000;
   box-shadow: 0 0 15px rgba(255, 0, 255, 0.7), 0 0 25px rgba(0, 255, 255, 0.5);
-  animation: neonPulse 1.5s infinite alternate; /* Пульсация */
+  animation: neonPulse 2s infinite alternate; /* Изменено с 1.5s на 2s для согласованности */
 }
 
 .confirm-btn:hover:not(:disabled) {
   box-shadow: 0 0 20px rgba(255, 0, 255, 1), 0 0 30px rgba(0, 255, 255, 0.8);
   transform: scale(1.05);
-}
-
-/* Анимация пульсации в стиле киберпанк */
-@keyframes neonPulse {
-  0% {
-    box-shadow: 0 0 10px rgba(255, 0, 255, 0.7), 0 0 20px rgba(0, 255, 255, 0.5);
-  }
-  50% {
-    box-shadow: 0 0 15px rgba(255, 0, 255, 0.9), 0 0 25px rgba(0, 255, 255, 0.7);
-  }
-  100% {
-    box-shadow: 0 0 20px rgba(255, 0, 255, 1), 0 0 30px rgba(0, 255, 255, 0.8);
-  }
 }
 .level-display {
   position: fixed;
@@ -778,27 +689,20 @@ button:active {
     width: 50px;
     height: 50px;
   }
-  #inventoryContainer {
-    position: absolute;
-    bottom: 10%;
-    right: 1%;
-    width: 240px;
-    height: 400px;
-    padding: 15px;
-  }
-
   #inventoryScreen {
     height: 80px; /* Увеличиваем для формы */
     font-size: 12px;
   }
-  #inventoryContainer .inventory-slot {
-    width: 45px;
-    height: 45px;
-  }
   #inventoryGrid {
     gap: 5px;
   }
-  .inventory-slot {
+  #inventoryContainer {
+    width: 240px;
+    height: 400px;
+    padding: 15px;
+    bottom: 10%;
+  }
+  #inventoryContainer .inventory-slot {
     width: 45px;
     height: 45px;
   }
@@ -836,11 +740,6 @@ button:active {
     font-size: 12px;
     padding: 5px 10px;
   }
-
-  #confirmDropBtn {
-    margin-top: 5px;
-  }
-
   .error-text {
     font-size: 10px;
     margin-top: 3px;

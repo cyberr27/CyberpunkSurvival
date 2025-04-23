@@ -14,8 +14,6 @@ const userDatabase = new Map();
 // В начало файла, после определения констант
 INACTIVITY_TIMEOUT = 15 * 60 * 1000;
 
-const GAME_CONFIG = {};
-
 const ITEM_CONFIG = {
   blood_pack: { effect: { health: 40 }, rarity: 1 },
   canned_meat: { effect: { food: 20 }, rarity: 1 },
@@ -249,6 +247,8 @@ const lights = [
   },
 ];
 
+const lastSaved = new Map();
+
 app.use(express.static(path.join(__dirname, "public")));
 
 function checkCollisionServer(x, y) {
@@ -267,7 +267,7 @@ wss.on("connection", (ws) => {
     clearTimeout(inactivityTimer);
     inactivityTimer = setTimeout(() => {
       console.log("Клиент отключён из-за неактивности");
-      ws.close(4999, "Inactivity timeout");
+      ws.close(4000, "Inactivity timeout");
     }, INACTIVITY_TIMEOUT);
 
     let data;
@@ -477,7 +477,6 @@ wss.on("connection", (ws) => {
         };
         players.set(id, updatedPlayer);
         userDatabase.set(id, updatedPlayer);
-        let lastSaved = new Map();
         if (!lastSaved.has(id) || Date.now() - lastSaved.get(id) > 5000) {
           await saveUserDatabase(dbCollection, id, updatedPlayer);
           lastSaved.set(id, Date.now());

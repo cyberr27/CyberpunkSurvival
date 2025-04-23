@@ -194,14 +194,11 @@ const ITEM_CONFIG = {
 
 // Состояние инвентаря (открыт или закрыт)
 let isInventoryOpen = false;
-// Элемент подсказки
-let tooltip = null;
 // Выбранный слот инвентаря
 let selectedSlot = null;
 
 // Глобальные настройки игры
 const GAME_CONFIG = {
-  PLAYER_SPEED: 100,
   FRAME_DURATION: 400, // 700 мс на весь цикл (≈100 мс на кадр)
 };
 
@@ -212,7 +209,6 @@ let lastDistance = 0; // Добавляем глобальную перемен�
 
 // Добавляем переменные для управления анимацией
 let lastTime = 0; // Время последнего кадра для расчета deltaTime
-const frameDuration = 200; // Длительность одного кадра в миллисекундах (настраиваемая скорость анимации)
 
 // Размеры мира
 const worldWidth = 3135;
@@ -307,13 +303,10 @@ function initializeWebSocket() {
   };
   ws.onmessage = (event) => {
     try {
+      handleAuthMessage(event);
       const data = JSON.parse(event.data);
-      console.log("Получено сообщение:", event.data);
       if (data.type === "loginSuccess") {
-        handleAuthMessage(event);
         ws.onmessage = handleGameMessage;
-      } else {
-        handleAuthMessage(event);
       }
     } catch (error) {
       console.error("Ошибка при обработке сообщения:", error);
@@ -416,7 +409,7 @@ function handleAuthMessage(event) {
         });
       }
 
-      lastDistance = me.distanceTraveled || 0;
+      lastDistance = me.distanceTraveled;
       if (data.items) {
         data.items.forEach((item) =>
           items.set(item.itemId, {
@@ -460,10 +453,6 @@ function handleAuthMessage(event) {
       loginError.textContent = "Неверное имя или пароль";
       break;
   }
-}
-
-function setNPCMet(met) {
-  isNPCMet = met;
 }
 
 function checkCollision(newX, newY) {
@@ -743,11 +732,6 @@ function selectSlot(slotIndex, slotElement) {
   useBtn.textContent = "Использовать"; // Сбрасываем текст
   useBtn.disabled = inventory[slotIndex].type === "balyary"; // Отключаем для "Баляр"
   dropBtn.disabled = false;
-}
-
-// Скрыть кнопки действий
-function hideActionButtons() {
-  document.querySelectorAll(".action-btn").forEach((btn) => btn.remove());
 }
 
 // Использовать предмет
