@@ -16,14 +16,10 @@ const toLogin = document.getElementById("toLogin");
 const loginError = document.getElementById("loginError");
 const registerError = document.getElementById("registerError");
 
-// WebSocket соединение
 let ws;
-// Хранилища данных
 let players = new Map();
 let myId;
 const items = new Map();
-const lights = [];
-// Хранилище предметов, для которых уже отправлен запрос pickup
 const pendingPickups = new Set();
 
 // Загрузка изображений
@@ -80,7 +76,6 @@ npcSpriteImage.src = "npc_sprite.png";
 const npcPhotoImage = new Image();
 npcPhotoImage.src = "fotoQuestNPC.png";
 
-// Инвентарь игрока (массив на 20 слотов, изначально пустой)
 let inventory = Array(20).fill(null);
 
 // Конфигурация эффектов предметов (расширяем ITEM_CONFIG)
@@ -221,20 +216,6 @@ const frameDuration = 200; // Длительность одного кадра �
 // Размеры мира
 const worldWidth = 3135;
 const worldHeight = 3300;
-
-createLight(2445, 1540, "rgba(0, 255, 255, 0.4)", 1000); // 1
-createLight(1314, 332, "rgba(255, 0, 255, 0.4)", 1000); // 2
-createLight(506, 2246, "rgba(148, 0, 211, 0.4)", 1000); // 3
-createLight(950, 3115, "rgba(255, 0, 255, 0.4)", 850); // 4
-createLight(50, 3120, "rgba(214, 211, 4, 0.5)", 850); // 5
-createLight(264, 1173, "rgba(214, 211, 4, 0.4)", 950); // 6
-createLight(2314, 2756, "rgba(194, 0, 10, 0.4)", 850); // 7
-createLight(1605, 2151, "rgba(2, 35, 250, 0.4)", 950); // 8
-createLight(3095, 2335, "rgba(28, 186, 55, 0.4)", 950); // 9
-createLight(2605, 509, "rgba(2, 35, 250, 0.4)", 950); // 10
-createLight(1083, 1426, "rgba(109, 240, 194, 0.4)", 750); // 11
-createLight(2000, 900, "rgba(240, 109, 240, 0.4)", 850); // 12
-createLight(133, 373, "rgba(240, 109, 240, 0.4)", 850); // 13
 
 // Переключение форм
 toRegister.addEventListener("click", () => {
@@ -480,11 +461,6 @@ function handleAuthMessage(event) {
   }
 }
 
-// Функция создания источника света
-function createLight(x, y, color, radius) {
-  lights.push({ x, y, color, radius });
-}
-
 function setNPCMet(met) {
   isNPCMet = met;
 }
@@ -517,6 +493,7 @@ function updateOnlineCount() {
 }
 
 function startGame() {
+  initializeLights(); // Инициализируем источники света
   updateOnlineCount();
   levelSystem.initialize(); // Инициализируем систему уровней
   window.vendingMachine.initialize();
