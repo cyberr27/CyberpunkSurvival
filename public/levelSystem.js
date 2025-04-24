@@ -172,7 +172,7 @@ function updateLevelDisplay() {
       levelDisplay = createLevelDisplayElement();
     }
     if (levelDisplay) {
-      levelDisplay.innerHTML = `Level: ${currentLevel} | XP: ${currentXP} / ${xpToNextLevel}`;
+      levelDisplay.innerHTML = `Level: ${currentLevel} | xp : ${currentXP} / ${xpToNextLevel}`;
       console.log(
         `Обновлено отображение: Level ${currentLevel}, XP ${currentXP}/${xpToNextLevel}`
       );
