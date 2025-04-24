@@ -1,3 +1,6 @@
+/* Шрифт в стиле киберпанка */
+@import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap");
+
 body {
   margin: 0;
   height: 100vh;
@@ -249,65 +252,65 @@ button:active {
   left: 1%;
   width: 300px;
   height: 200px;
-  background: linear-gradient(
-    180deg,
-    rgba(15, 15, 20, 0.95),
-    rgba(25, 25, 30, 0.9)
-  );
-  border: 2px solid #ff0066; /* Тёмно-розовый неон */
-  border-radius: 8px;
-  box-shadow: 0 0 15px rgba(255, 0, 102, 0.6), 0 0 25px rgba(0, 255, 255, 0.3);
+  background: linear-gradient(180deg, #1a1a1a, #0f0f0f);
+  border: 2px solid #ff0066;
+  border-radius: 0;
+  box-shadow: 0 0 15px rgba(255, 0, 102, 0.5),
+    inset 0 0 5px rgba(255, 0, 102, 0.2);
   display: none;
   flex-direction: column;
-  padding: 12px;
-  z-index: 100; /* Поверх канваса и статистики */
-  animation: neonPulse 2s infinite alternate; /* Пульсация */
+  padding: 10px;
+  z-index: 100;
+  font-family: "Orbitron", sans-serif;
+  background-image: url("https://i.imgur.com/8Z1z7qU.png");
+  background-size: cover;
 }
-
+/* Сообщения чата */
 #chatMessages {
   flex-grow: 1;
   overflow-y: auto;
-  color: #00ccff; /* Холодный циан */
-  font-size: 13px;
-  font-family: "Courier New", monospace;
+  color: #00ccff;
+  font-size: 12px;
+  font-family: "Orbitron", sans-serif;
   text-shadow: 0 0 4px rgba(0, 204, 255, 0.7);
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   padding: 5px;
-  background: rgba(10, 10, 15, 0.8); /* Тёмный фон для сообщений */
-  border: 1px solid rgba(255, 0, 102, 0.3);
-  border-radius: 4px;
+  background: #0a0a0a;
+  border: 1px solid #ff0066;
+  border-radius: 0;
+  box-shadow: inset 0 0 5px rgba(255, 0, 102, 0.3);
 }
-
+/* Сообщение в чате */
 .chat-message {
   margin: 4px 0;
-  padding: 2px 8px;
-  background: rgba(20, 20, 25, 0.7);
-  border-left: 2px solid #ff0066; /* Неоновая полоска слева */
+  padding: 4px 8px;
+  background: #1c1c1c;
+  border-left: 3px solid #ff0066;
   transition: background 0.3s;
+  text-transform: uppercase;
 }
-
 .chat-message:hover {
-  background: rgba(30, 30, 35, 0.9);
+  background: #2a2a2a;
 }
-
+/* Поле ввода чата */
 #chatInput {
   width: 100%;
   padding: 8px;
-  background: rgba(10, 10, 15, 0.9);
-  border: 1px solid #ff0066;
+  background: #0a0a0a;
+  border: 2px solid #ff0066;
   color: #00ccff;
-  font-size: 13px;
-  font-family: "Courier New", monospace;
-  border-radius: 4px;
+  font-size: 12px;
+  font-family: "Orbitron", sans-serif;
+  border-radius: 0;
   box-shadow: 0 0 8px rgba(255, 0, 102, 0.4);
-  transition: all 0.3s;
+  transition: all 0.2s;
+  text-transform: uppercase;
 }
-
 #chatInput:focus {
   outline: none;
   border-color: #00ccff;
   box-shadow: 0 0 12px rgba(0, 204, 255, 0.7);
-  background: rgba(15, 15, 20, 0.9);
+  background: #1a1a1a;
 }
 
 /* Анимация пульсации для чата */
@@ -320,31 +323,40 @@ button:active {
   }
 }
 
+/* Кнопки чата и инвентаря */
 .cyber-btn {
   position: absolute;
-  padding: 15px;
-  font-size: 18px;
-  font-family: "Courier New", monospace;
-  background: linear-gradient(135deg, #00ffff, #ff00ff);
-  border: 2px solid #00ffff;
-  color: #000;
-  border-radius: 50%;
+  padding: 10px;
+  font-size: 14px;
+  font-family: "Orbitron", sans-serif;
+  background: #0a0a0a;
+  border: 2px solid #00ccff;
+  color: #00ccff;
+  border-radius: 0;
   cursor: pointer;
-  box-shadow: 0 0 10px rgba(0, 255, 255, 0.7), 0 0 20px rgba(255, 0, 255, 0.5);
-  transition: all 0.3s;
-  z-index: 60; /* Поверх канваса */
+  box-shadow: 0 0 10px rgba(0, 204, 255, 0.5);
+  transition: all 0.2s;
+  z-index: 60;
+  text-transform: uppercase;
 }
-
 .cyber-btn:hover {
-  box-shadow: 0 0 20px rgba(0, 255, 255, 1), 0 0 30px rgba(255, 0, 255, 0.7);
-  transform: scale(1.1);
+  box-shadow: 0 0 15px rgba(0, 204, 255, 0.9);
+  background: #1a1a1a;
+  transform: translateY(-2px);
 }
-
 .cyber-btn:active {
-  transform: scale(0.95);
+  transform: translateY(0);
+  box-shadow: 0 0 5px rgba(0, 204, 255, 0.3);
 }
-
-/* Кнопка Chat */
+/* Активное состояние кнопок */
+#chatBtn.active,
+#inventoryBtn.active {
+  border-color: #ff0066;
+  color: #ff0066;
+  box-shadow: 0 0 15px rgba(255, 0, 102, 0.9);
+  background: #1a1a1a;
+}
+/* Кнопка чата */
 #chatBtn {
   bottom: 20px;
   right: 10px;
@@ -357,30 +369,33 @@ button:active {
   box-shadow: 0 0 20px rgba(255, 0, 204, 1);
 }
 /* Контейнер инвентаря */
-/* Контейнер инвентаря */
 #inventoryContainer {
   position: absolute;
   bottom: 15%;
   right: 1%;
-  width: 280px;
-  height: 400px;
-  background: rgba(26, 26, 26, 0.9);
-  border: 2px solid #00ffff;
-  border-radius: 10px;
-  box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
-  display: none; /* Скрыт по умолчанию */
-  grid-template-rows: auto 1fr auto; /* Экран, ячейки, кнопки */
+  width: 300px;
+  height: 480px;
+  background: linear-gradient(180deg, #1a1a1a, #0f0f0f); /* Тёмный градиент */
+  border: 2px solid #00ccff; /* Холодный циан */
+  border-radius: 0; /* Убираем скругления для строгости */
+  box-shadow: 0 0 15px rgba(0, 204, 255, 0.5),
+    inset 0 0 5px rgba(0, 204, 255, 0.2);
+  display: none;
+  grid-template-rows: auto 1fr auto;
   gap: 10px;
-  padding: 20px;
+  padding: 15px;
   box-sizing: border-box;
   z-index: 100;
+  font-family: "Orbitron", sans-serif; /* Киберпанк-шрифт */
+  background-image: url("https://i.imgur.com/8Z1z7qU.png"); /* Металлическая текстура */
+  background-size: cover;
 }
 /* Кнопка инвентаря */
 #inventoryBtn {
-  bottom: 15px;
-  right: 70px; /* Теперь левее кнопки Chat */
-  width: 50px;
-  height: 50px;
+  bottom: 20px;
+  right: 80px;
+  width: 60px;
+  height: 60px;
 }
 
 #inventoryBtn.active {
@@ -391,48 +406,55 @@ button:active {
 /* Экран инвентаря */
 #inventoryScreen {
   width: 100%;
-  height: 100px; /* Увеличиваем с 70px до 100px */
-  background: rgba(10, 10, 10, 0.95);
-  border: 2px solid #ff00ff;
-  border-radius: 5px;
-  color: #00ffff;
+  height: 100px;
+  background: #0a0a0a;
+  border: 2px solid #ff0066; /* Пурпурный неон */
+  border-radius: 0;
+  color: #00ccff;
   font-size: 14px;
-  font-family: "Courier New", monospace;
-  text-shadow: 0 0 5px rgba(0, 255, 255, 0.7);
+  font-family: "Orbitron", sans-serif;
+  text-shadow: 0 0 5px rgba(0, 204, 255, 0.7);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 15px rgba(255, 0, 255, 0.3);
+  box-shadow: 0 0 10px rgba(255, 0, 102, 0.4);
   grid-row: 1;
+  text-transform: uppercase;
 }
 
-/* Ячейки инвентаря (сетка 4x5) */
+/* Ячейки инвентаря */
 #inventoryContainer .inventory-slot {
   width: 50px;
   height: 50px;
-  background: rgba(0, 0, 0, 0.8);
-  border: 1px solid #00ffff;
-  box-shadow: 0 0 5px rgba(0, 255, 255, 0.3);
+  background: #1c1c1c;
+  border: 1px solid #00ccff;
+  box-shadow: inset 0 0 5px rgba(0, 204, 255, 0.3);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   user-select: none;
-  -webkit-user-select: none;
-  -ms-user-select: none;
   position: relative;
   z-index: 110;
   box-sizing: border-box;
+  transition: all 0.2s;
 }
-
 #inventoryContainer .inventory-slot:hover {
-  box-shadow: 0 0 10px rgba(255, 0, 255, 0.7);
-  border-color: #ff00ff;
+  border-color: #ff0066;
+  box-shadow: 0 0 10px rgba(255, 0, 102, 0.7),
+    inset 0 0 5px rgba(255, 0, 102, 0.3);
+  transform: scale(1.05);
 }
-
+/* Количество для "Баляр" */
+#inventoryContainer .inventory-slot div {
+  color: #00ccff;
+  font-size: 12px;
+  font-family: "Orbitron", sans-serif;
+  text-shadow: 0 0 5px rgba(0, 204, 255, 0.7);
+}
 /* Контейнер кнопок */
 #inventoryActions {
-  grid-row: 3; /* Третий ряд */
+  grid-row: 3;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -442,44 +464,47 @@ button:active {
 #inventoryContainer {
   height: 480px; /* Было 400px, увеличиваем, чтобы всё влезло */
 }
+/* Сетка инвентаря */
 #inventoryGrid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr); /* 4 столбца */
-  grid-template-rows: repeat(5, 1fr); /* 5 строк */
-  gap: 10px; /* Отступы между ячейками */
-  width: 100%; /* Растягиваем на всю ширину контейнера */
-  height: 100%; /* Устанавливаем высоту, чтобы ячейки не вылезали */
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(5, 1fr);
+  gap: 8px;
+  width: 100%;
+  height: 100%;
   justify-items: center;
   align-items: center;
-  grid-row: 2; /* Второй ряд в контейнере */
+  grid-row: 2;
 }
-
 /* Кнопки действий */
 .action-btn {
   padding: 8px 16px;
   font-size: 14px;
-  font-family: "Courier New", monospace;
-  border: 1px solid #00ffff;
-  color: #fff;
-  border-radius: 5px;
+  font-family: "Orbitron", sans-serif;
+  border: 2px solid #00ccff;
+  color: #00ccff;
+  background: #0a0a0a;
+  border-radius: 0;
   cursor: pointer;
-  width: 110px; /* Фиксированная ширина для симметрии */
+  width: 120px;
   height: 40px;
   box-sizing: border-box;
-  transition: all 0.3s;
+  text-transform: uppercase;
+  transition: all 0.2s;
+  box-shadow: 0 0 10px rgba(0, 204, 255, 0.5);
 }
-
 .use-btn {
-  background: linear-gradient(135deg, #00ff00, #00ffff);
+  border-color: #00ccff;
+  color: #00ccff;
 }
-
 .drop-btn {
-  background: linear-gradient(135deg, #ff0000, #ff00ff);
+  border-color: #ff0066;
+  color: #ff0066;
 }
-
 .action-btn:hover:not(:disabled) {
-  box-shadow: 0 0 15px rgba(0, 255, 255, 0.9);
-  transform: scale(1.05);
+  box-shadow: 0 0 15px rgba(0, 204, 255, 0.9);
+  background: #1a1a1a;
+  transform: translateY(-2px);
 }
 
 .action-btn:disabled {
@@ -510,45 +535,38 @@ button:active {
   height: 100%;
   padding: 10px;
   box-sizing: border-box;
-  background: rgba(10, 10, 10, 0.95); /* Полупрозрачный фон */
-  border-radius: 5px;
-  box-shadow: 0 0 15px rgba(255, 0, 255, 0.3); /* Неоновое свечение */
+  background: #0a0a0a;
+  border-radius: 0;
+  box-shadow: 0 0 10px rgba(255, 0, 102, 0.3);
 }
-
 .cyber-text {
-  color: #00ffff;
-  font-size: 16px;
-  font-family: "Courier New", monospace;
-  text-shadow: 0 0 5px rgba(0, 255, 255, 0.7), 0 0 10px rgba(255, 0, 255, 0.5);
-  margin: 0 0 10px 0;
-  animation: flicker 1.5s infinite alternate;
+  color: #00ccff;
+  font-size: 14px;
+  font-family: "Orbitron", sans-serif;
+  text-shadow: 0 0 5px rgba(0, 204, 255, 0.7);
+  margin: 0 0 8px 0;
+  text-transform: uppercase;
 }
-
 .cyber-input {
   width: 100px;
   padding: 5px;
-  background: rgba(10, 10, 10, 0.95);
-  border: 1px solid #00ffff;
-  border-radius: 5px;
-  color: #fff;
-  font-size: 14px;
-  font-family: "Courier New", monospace;
+  background: #0a0a0a;
+  border: 2px solid #00ccff;
+  border-radius: 0;
+  color: #00ccff;
+  font-size: 12px;
+  font-family: "Orbitron", sans-serif;
   text-align: center;
-  box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
-  transition: all 0.3s;
-  -webkit-appearance: none;
-  appearance: none;
-  pointer-events: auto; /* Убеждаемся, что поле принимает события */
-  user-select: text; /* Разрешаем выбор текста */
-  -webkit-user-select: text;
-  touch-action: manipulation; /* Для сенсорных экранов */
+  box-shadow: 0 0 8px rgba(0, 204, 255, 0.3);
+  transition: all 0.2s;
+  text-transform: uppercase;
 }
 
 .cyber-input:focus {
   outline: none;
-  border-color: #ff00ff;
-  box-shadow: 0 0 15px rgba(255, 0, 255, 0.7);
-  background: rgba(20, 20, 20, 0.95); /* Лёгкое затемнение при фокусе */
+  border-color: #ff0066;
+  box-shadow: 0 0 12px rgba(255, 0, 102, 0.7);
+  background: #1a1a1a;
 }
 
 .cyber-input::-webkit-inner-spin-button,
@@ -616,6 +634,25 @@ button:active {
   box-shadow: none;
 }
 
+/* Анимация мерцания */
+@keyframes flicker {
+  0%,
+  19%,
+  21%,
+  23%,
+  25%,
+  54%,
+  56%,
+  100% {
+    opacity: 1;
+  }
+  20%,
+  24%,
+  55% {
+    opacity: 0.7;
+  }
+}
+
 @keyframes neonPulse {
   0% {
     box-shadow: 0 0 10px rgba(0, 255, 255, 0.5), 0 0 20px rgba(255, 0, 255, 0.3);
@@ -643,11 +680,17 @@ button:active {
     font-size: 14px;
   }
   #chatContainer {
-    position: absolute;
-    width: 214px;
-    height: 100px;
+    width: 220px;
+    height: 120px;
     top: 18%;
     left: 32.5%;
+  }
+  #chatMessages {
+    font-size: 10px;
+  }
+  #chatInput {
+    font-size: 10px;
+    padding: 6px;
   }
   .auth-box {
     width: 80%;
@@ -676,16 +719,16 @@ button:active {
     height: 50px;
   }
   #inventoryScreen {
-    height: 80px; /* Увеличиваем для формы */
+    height: 80px;
     font-size: 12px;
   }
   #inventoryGrid {
-    gap: 5px;
+    gap: 6px;
   }
   #inventoryContainer {
-    width: 240px;
-    height: 400px;
-    padding: 15px;
+    width: 260px;
+    height: 420px;
+    padding: 10px;
     bottom: 10%;
   }
   #inventoryContainer .inventory-slot {
@@ -707,17 +750,15 @@ button:active {
   .balyary-drop-form {
     padding: 5px;
   }
-
   .cyber-text {
-    font-size: 14px;
+    font-size: 12px;
     margin-bottom: 5px;
   }
 
   .cyber-input {
     width: 80px;
-    font-size: 12px;
-    padding: 8px;
-    touch-action: manipulation; /* Улучшаем взаимодействие на сенсорных экранах */
+    font-size: 10px;
+    padding: 6px;
   }
 
   .action-btn {
