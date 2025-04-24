@@ -611,8 +611,8 @@ button:active {
 .upgrade-btn {
   font-size: 14px;
   color: white;
+  background: none;
 }
-
 
 @keyframes neonPulse {
   0% {
