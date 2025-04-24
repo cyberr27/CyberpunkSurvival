@@ -85,14 +85,11 @@ function createUpgradeButtons() {
         if (!statType) return;
 
         const button = document.createElement("button");
-        button.className = "upgrade-btn cyber-btn";
         button.textContent = "+";
+        button.style.color = "white";
         button.style.marginLeft = "10px";
         button.style.fontSize = "14px";
         button.style.padding = "4px 8px";
-        button.style.background = "linear-gradient(45deg, #00ffff, #ff00ff)";
-        button.style.border = "1px solid #00ffff";
-        button.style.borderRadius = "4px";
         button.style.cursor = "pointer";
 
         button.addEventListener("click", () => {
