@@ -85,8 +85,8 @@ function createUpgradeButtons() {
         if (!statType) return;
 
         const button = document.createElement("button");
+        button.className = "upgrade-btn";
         button.textContent = "+";
-        button.style.color = "white";
         button.style.marginLeft = "10px";
         button.style.fontSize = "14px";
         button.style.padding = "4px 8px";
