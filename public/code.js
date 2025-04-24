@@ -562,9 +562,26 @@ function startGame() {
             return;
           }
         }
-        console.log(
-          `Клик вне слотов инвентаря (x:${e.clientX}, y:${e.clientY})`
-        );
+      } else {
+        // Проверяем клик по игроку
+        const camera = window.movementSystem.getCamera();
+        const clickX = e.clientX + camera.x;
+        const clickY = e.clientY + camera.y;
+        let playerClicked = null;
+        players.forEach((player, id) => {
+          if (id !== myId && player.health > 0) {
+            const dx = clickX - (player.x + 20);
+            const dy = clickY - (player.y + 20);
+            if (Math.sqrt(dx * dx + dy * dy) < 40) {
+              playerClicked = id;
+            }
+          }
+        });
+        if (playerClicked) {
+          window.tradeSystem.selectPlayer(playerClicked, clickX, clickY);
+        } else {
+          window.tradeSystem.clearSelection();
+        }
       }
     }
   });
@@ -603,9 +620,26 @@ function startGame() {
           return;
         }
       }
-      console.log(
-        `Тач вне слотов инвентаря (x:${touch.clientX}, y:${touch.clientY})`
-      );
+    } else {
+      // Проверяем тач по игроку
+      const camera = window.movementSystem.getCamera();
+      const touchX = touch.clientX + camera.x;
+      const touchY = touch.clientY + camera.y;
+      let playerTouched = null;
+      players.forEach((player, id) => {
+        if (id !== myId && player.health > 0) {
+          const dx = touchX - (player.x + 20);
+          const dy = touchY - (player.y + 20);
+          if (Math.sqrt(dx * dx + dy * dy) < 40) {
+            playerTouched = id;
+          }
+        }
+      });
+      if (playerTouched) {
+        window.tradeSystem.selectPlayer(playerTouched, touchX, touchY);
+      } else {
+        window.tradeSystem.clearSelection();
+      }
     }
   });
 
@@ -645,6 +679,7 @@ function startGame() {
   });
 
   window.chatSystem.initializeChat(ws);
+  window.tradeSystem.initialize();
 
   // Настройка кнопки Inventory
   const inventoryBtn = document.getElementById("inventoryBtn");
@@ -737,7 +772,13 @@ function selectSlot(slotIndex, slotElement) {
 // Использовать предмет
 function useItem(slotIndex) {
   const item = inventory[slotIndex];
-  if (!item || item.type === "balyary") return; // Ничего не делаем для Баляр
+  if (!item || item.type === "balyary") return;
+
+  if (window.tradeSystem.isTradeWindowOpen) {
+    window.tradeSystem.placeItemInTradeSlot(slotIndex);
+    return;
+  }
+
   const me = players.get(myId);
   const effect = ITEM_CONFIG[item.type].effect;
 
@@ -1157,6 +1198,14 @@ function handleGameMessage(event) {
         break;
       case "chat":
         window.chatSystem.handleChatMessage(data);
+        break;
+      case "tradeRequest":
+      case "tradeAccepted":
+      case "tradeCancelled":
+      case "tradeItemPlaced":
+      case "tradeItemCancelled":
+      case "tradeCompleted":
+        window.tradeSystem.handleTradeMessage(data);
         break;
       case "buyWaterResult":
         if (data.success) {

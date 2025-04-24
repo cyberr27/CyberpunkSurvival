@@ -837,6 +837,158 @@ wss.on("connection", (ws) => {
           }
         }
       }
+    } else if (data.type === "initiateTrade") {
+      const initiatorId = clients.get(ws);
+      if (!initiatorId) return;
+
+      const initiator = players.get(initiatorId);
+      const target = players.get(data.targetId);
+      if (!initiator || !target) return;
+
+      const dx = initiator.x - target.x;
+      const dy = initiator.y - target.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      if (distance > 1000) return;
+
+      wss.clients.forEach((client) => {
+        if (
+          clients.get(client) === data.targetId &&
+          client.readyState === WebSocket.OPEN
+        ) {
+          client.send(
+            JSON.stringify({
+              type: "tradeRequest",
+              initiatorId: initiatorId,
+            })
+          );
+        }
+      });
+    } else if (data.type === "acceptTrade") {
+      const playerId = clients.get(ws);
+      if (!playerId) return;
+
+      wss.clients.forEach((client) => {
+        if (
+          clients.get(client) !== playerId &&
+          client.readyState === WebSocket.OPEN
+        ) {
+          client.send(
+            JSON.stringify({
+              type: "tradeAccepted",
+              initiatorId: clients.get(client),
+              playerId: playerId,
+            })
+          );
+        }
+      });
+    } else if (data.type === "cancelTrade") {
+      const playerId = clients.get(ws);
+      if (!playerId) return;
+
+      wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(
+            JSON.stringify({
+              type: "tradeCancelled",
+              playerId: playerId,
+            })
+          );
+        }
+      });
+    } else if (data.type === "placeTradeItem") {
+      const playerId = clients.get(ws);
+      if (!playerId) return;
+
+      const player = players.get(playerId);
+      const item = player.inventory[data.slotIndex];
+      if (!item || item.type === "balyary") return;
+
+      const slot = playerId === data.initiatorId ? "playerA" : "playerB";
+      player.inventory[data.slotIndex] = null;
+
+      wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(
+            JSON.stringify({
+              type: "tradeItemPlaced",
+              playerId: playerId,
+              slot: slot,
+              item: data.item,
+            })
+          );
+        }
+      });
+
+      players.set(playerId, { ...player });
+      userDatabase.set(playerId, { ...player });
+      await saveUserDatabase(dbCollection, playerId, player);
+    } else if (data.type === "cancelTradeItem") {
+      const playerId = clients.get(ws);
+      if (!playerId) return;
+
+      const player = players.get(playerId);
+      const slot = playerId === data.initiatorId ? "playerA" : "playerB";
+
+      wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(
+            JSON.stringify({
+              type: "tradeItemCancelled",
+              playerId: playerId,
+              slot: slot,
+            })
+          );
+        }
+      });
+    } else if (data.type === "confirmTrade") {
+      const playerId = clients.get(ws);
+      if (!playerId) return;
+
+      const player = players.get(playerId);
+      const otherPlayerId =
+        playerId === data.initiatorId ? data.targetId : data.initiatorId;
+      const otherPlayer = players.get(otherPlayerId);
+      if (!player || !otherPlayer) return;
+
+      const playerSlot = playerId === data.initiatorId ? "playerA" : "playerB";
+      const otherSlot = playerId === data.initiatorId ? "playerB" : "playerA";
+      const playerItem = data.tradeSlots?.[playerSlot];
+      const otherItem = data.tradeSlots?.[otherSlot];
+
+      if (playerItem) {
+        const freeSlot = otherPlayer.inventory.findIndex(
+          (slot) => slot === null
+        );
+        if (freeSlot !== -1) {
+          otherPlayer.inventory[freeSlot] = playerItem;
+        }
+      }
+
+      if (otherItem) {
+        const freeSlot = player.inventory.findIndex((slot) => slot === null);
+        if (freeSlot !== -1) {
+          player.inventory[freeSlot] = otherItem;
+        }
+      }
+
+      players.set(playerId, { ...player });
+      players.set(otherPlayerId, { ...otherPlayer });
+      userDatabase.set(playerId, { ...player });
+      userDatabase.set(otherPlayerId, { ...otherPlayer });
+      await saveUserDatabase(dbCollection, playerId, player);
+      await saveUserDatabase(dbCollection, otherPlayerId, otherPlayer);
+
+      wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          const clientId = clients.get(client);
+          client.send(
+            JSON.stringify({
+              type: "tradeCompleted",
+              inventory: players.get(clientId).inventory,
+            })
+          );
+        }
+      });
     } else if (data.type === "selectQuest") {
       const id = clients.get(ws);
       if (id) {
