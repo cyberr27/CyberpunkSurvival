@@ -688,6 +688,14 @@ function startGame() {
     toggleInventory();
   });
 
+  // Настройка кнопки Trade
+  const tradeBtn = document.getElementById("tradeBtn");
+  tradeBtn.disabled = true; // Изначально отключена
+  tradeBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    window.tradeSystem.initiateTrade();
+  });
+
   // Создаём контейнер для ячеек инвентаря
   const inventoryContainer = document.getElementById("inventoryContainer");
   inventoryContainer.style.display = "none";
@@ -1373,6 +1381,13 @@ function draw(deltaTime) {
       player.state === "dying"
         ? 160
         : { up: 0, down: 40, left: 80, right: 120 }[player.direction] || 40;
+
+    // Добавляем подсветку для выбранного игрока
+    if (player.isSelected) {
+      ctx.strokeStyle = "#00ccff";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(screenX - 2, screenY - 2, 44, 44);
+    }
 
     ctx.drawImage(
       playerSprite,

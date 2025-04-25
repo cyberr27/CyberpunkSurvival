@@ -1,7 +1,7 @@
 let tradeWindow = null;
 let tradeDialog = null;
 let isTradeWindowOpen = false;
-let selectedPlayerId = null;
+let selectedPlayerId = null; // Хранит ID выбранного игрока для торговли
 let tradeState = {
   initiatorId: null,
   targetId: null,
@@ -102,13 +102,58 @@ function selectPlayer(playerId, clickX, clickY) {
   }
 
   selectedPlayerId = playerId;
-  tradeState.initiatorId = myId;
-  tradeState.targetId = playerId;
-  sendTradeMessage({ type: "initiateTrade", targetId: playerId });
+  // Активируем кнопку "Trade"
+  const tradeBtn = document.getElementById("tradeBtn");
+  tradeBtn.disabled = false;
+  tradeBtn.classList.add("active");
+  // Добавляем визуальную подсветку выбранного игрока
+  highlightSelectedPlayer(playerId);
+}
+
+function highlightSelectedPlayer(playerId) {
+  // Сбрасываем подсветку для предыдущего выбранного игрока
+  players.forEach((player) => {
+    player.isSelected = false;
+  });
+  // Устанавливаем подсветку для нового выбранного игрока
+  const target = players.get(playerId);
+  if (target) {
+    target.isSelected = true;
+  }
 }
 
 function clearSelection() {
+  if (selectedPlayerId) {
+    // Сбрасываем подсветку
+    const target = players.get(selectedPlayerId);
+    if (target) {
+      target.isSelected = false;
+    }
+    // Деактивируем кнопку "Trade"
+    const tradeBtn = document.getElementById("tradeBtn");
+    tradeBtn.disabled = true;
+    tradeBtn.classList.remove("active");
+  }
   selectedPlayerId = null;
+}
+
+function initiateTrade() {
+  if (!selectedPlayerId) return;
+  const me = players.get(myId);
+  const target = players.get(selectedPlayerId);
+  if (!me || !target || me.health <= 0 || target.health <= 0) return;
+
+  const dx = me.x - target.x;
+  const dy = me.y - target.y;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+  if (distance > 1000) {
+    console.log("Игрок слишком далеко для торговли");
+    return;
+  }
+
+  tradeState.initiatorId = myId;
+  tradeState.targetId = selectedPlayerId;
+  sendTradeMessage({ type: "initiateTrade", targetId: selectedPlayerId });
 }
 
 function sendTradeMessage(message) {
@@ -212,6 +257,10 @@ function openTradeWindow(initiatorId, targetId) {
   isTradeWindowOpen = true;
   updateTradeSlot(initiatorId, null);
   updateTradeSlot(targetId, null);
+  // Открываем инвентарь
+  if (!isInventoryOpen) {
+    toggleInventory();
+  }
 }
 
 function closeTradeWindow() {
@@ -227,6 +276,12 @@ function closeTradeWindow() {
   };
   document.getElementById("confirmTradeBtn").disabled = true;
   clearTradeTimeout();
+  // Закрываем инвентарь
+  if (isInventoryOpen) {
+    toggleInventory();
+  }
+  // Сбрасываем выбор игрока
+  clearSelection();
 }
 
 function updateTradeSlot(playerId, item) {
@@ -292,6 +347,7 @@ window.tradeSystem = {
   initialize: initializeTrade,
   selectPlayer: selectPlayer,
   clearSelection: clearSelection,
+  initiateTrade: initiateTrade,
   handleTradeMessage: handleTradeMessage,
   placeItemInTradeSlot: placeItemInTradeSlot,
   isTradeWindowOpen: false,

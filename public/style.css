@@ -737,6 +737,11 @@ button:active {
   flex-direction: column;
   gap: 10px;
 }
+.cyber-btn.active {
+  background: #00ccff;
+  box-shadow: 0 0 10px #00ccff, 0 0 20px #00ccff;
+  color: #000;
+}
 
 /* Адаптация для мобильных устройств (max-width: 500px) */
 @media (max-width: 500px) {
