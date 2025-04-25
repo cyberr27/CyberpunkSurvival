@@ -678,17 +678,15 @@ button:active {
 /* Диалоговое окно торговли */
 #tradeDialog {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.8);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: none;
   display: none;
   justify-content: center;
   align-items: center;
   z-index: 200;
 }
-
 .trade-dialog-content {
   background: #0a0a0a;
   padding: 20px;
@@ -698,13 +696,11 @@ button:active {
   width: 300px;
   text-align: center;
 }
-
 .trade-dialog-buttons {
   display: flex;
   justify-content: space-between;
   margin-top: 15px;
 }
-
 /* Окно торговли */
 #tradeWindow {
   position: fixed;
@@ -713,10 +709,19 @@ button:active {
   transform: translate(-50%, -50%);
   display: none;
   flex-direction: row;
-  gap: 20px;
+  gap: 40px;
+  background: #0a0a0a;
+  border: 2px solid #00ccff;
+  padding: 20px;
+  box-shadow: 0 0 15px rgba(0, 204, 255, 0.7);
   z-index: 150;
 }
-
+.trade-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
 .trade-slot {
   width: 60px;
   height: 60px;
@@ -726,6 +731,11 @@ button:active {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+.trade-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 /* Адаптация для мобильных устройств (max-width: 500px) */

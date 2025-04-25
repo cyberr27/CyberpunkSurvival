@@ -903,7 +903,6 @@ wss.on("connection", (ws) => {
       const item = player.inventory[data.slotIndex];
       if (!item || item.type === "balyary") return;
 
-      const slot = playerId === data.initiatorId ? "playerA" : "playerB";
       player.inventory[data.slotIndex] = null;
 
       wss.clients.forEach((client) => {
@@ -912,7 +911,6 @@ wss.on("connection", (ws) => {
             JSON.stringify({
               type: "tradeItemPlaced",
               playerId: playerId,
-              slot: slot,
               item: data.item,
             })
           );
@@ -950,12 +948,10 @@ wss.on("connection", (ws) => {
       const otherPlayer = players.get(otherPlayerId);
       if (!player || !otherPlayer) return;
 
-      const playerSlot = playerId === data.initiatorId ? "playerA" : "playerB";
-      const otherSlot = playerId === data.initiatorId ? "playerB" : "playerA";
-      const playerItem = data.tradeSlots?.[playerSlot];
-      const otherItem = data.tradeSlots?.[otherSlot];
+      const playerItem = data.tradeSlots?.playerA;
+      const otherItem = data.tradeSlots?.playerB;
 
-      if (playerItem) {
+      if (playerItem && playerId === data.initiatorId) {
         const freeSlot = otherPlayer.inventory.findIndex(
           (slot) => slot === null
         );
@@ -964,7 +960,23 @@ wss.on("connection", (ws) => {
         }
       }
 
-      if (otherItem) {
+      if (otherItem && playerId === data.targetId) {
+        const freeSlot = otherPlayer.inventory.findIndex(
+          (slot) => slot === null
+        );
+        if (freeSlot !== -1) {
+          otherPlayer.inventory[freeSlot] = otherItem;
+        }
+      }
+
+      if (playerItem && playerId === data.targetId) {
+        const freeSlot = player.inventory.findIndex((slot) => slot === null);
+        if (freeSlot !== -1) {
+          player.inventory[freeSlot] = playerItem;
+        }
+      }
+
+      if (otherItem && playerId === data.initiatorId) {
         const freeSlot = player.inventory.findIndex((slot) => slot === null);
         if (freeSlot !== -1) {
           player.inventory[freeSlot] = otherItem;
