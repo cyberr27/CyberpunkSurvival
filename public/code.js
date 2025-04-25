@@ -841,7 +841,6 @@ function useItem(slotIndex) {
 function dropItem(slotIndex) {
   const item = inventory[slotIndex];
   if (!item) return;
-  if (window.tradeSystem.isTradeWindowOpen) return; // Нельзя выкидывать во время торговли
   const me = players.get(myId);
   const screen = document.getElementById("inventoryScreen");
 
@@ -870,7 +869,7 @@ function dropItem(slotIndex) {
       if (input.value === "") input.value = "";
     });
 
-    window.tradeSystem.manageInventoryButtons(slotIndex); // Устанавливаем "Подтвердить"
+    window.tradeSystem.manageInventoryButtons(slotIndex); // Обновляем кнопки через trade.js
 
     input.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {

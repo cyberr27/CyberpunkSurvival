@@ -267,11 +267,28 @@ function resetInventoryButtons() {
   screen.innerHTML = "";
   // Очищаем предыдущие обработчики
   useBtn.onclick = null;
-  // Устанавливаем обработчик только для торговли
+  dropBtn.onclick = null;
+  // Устанавливаем обработчики в зависимости от состояния
   if (isTradeWindowOpen) {
     useBtn.onclick = () => {
       if (selectedSlot !== null) {
         placeItemInTradeSlot(selectedSlot);
+      }
+    };
+    dropBtn.onclick = () => {
+      if (selectedSlot !== null) {
+        window.dropItem(selectedSlot);
+      }
+    };
+  } else {
+    useBtn.onclick = () => {
+      if (selectedSlot !== null) {
+        window.useItem(selectedSlot);
+      }
+    };
+    dropBtn.onclick = () => {
+      if (selectedSlot !== null) {
+        window.dropItem(selectedSlot);
       }
     };
   }
@@ -282,20 +299,39 @@ function manageInventoryButtons(slotIndex) {
   const dropBtn = document.getElementById("dropBtn");
   const screen = document.getElementById("inventoryScreen");
 
+  // Сбрасываем обработчики
+  useBtn.onclick = null;
+  dropBtn.onclick = null;
+
   if (!isTradeWindowOpen) {
     useBtn.textContent = "Использовать";
-    dropBtn.disabled = slotIndex === null;
     useBtn.disabled = slotIndex === null;
+    dropBtn.disabled = slotIndex === null;
+    useBtn.onclick = () => {
+      if (slotIndex !== null) {
+        window.useItem(slotIndex); // Вызываем useItem из code.js
+      }
+    };
+    dropBtn.onclick = () => {
+      if (slotIndex !== null) {
+        window.dropItem(slotIndex); // Вызываем dropItem из code.js
+      }
+    };
     return;
   }
 
   // Во время торговли
   useBtn.textContent = "Положить";
   useBtn.disabled = slotIndex === null;
-  dropBtn.disabled = true; // Отключаем "Выкинуть" во время торговли
+  dropBtn.disabled = slotIndex === null; // Включаем кнопку "Выкинуть"
   useBtn.onclick = () => {
     if (slotIndex !== null) {
-      placeItemInTradeSlot(slotIndex);
+      placeItemInTradeSlot(slotIndex); // Переносим предмет в ячейку торговли
+    }
+  };
+  dropBtn.onclick = () => {
+    if (slotIndex !== null) {
+      window.dropItem(slotIndex); // Вызываем dropItem из code.js
     }
   };
 
@@ -367,6 +403,13 @@ function showBalyaryTradeForm(slotIndex, playerId) {
       slotIndex: slotIndex,
       item: { type: item.type, itemId: item.itemId, quantity: amount },
     });
+
+    // Обновляем инвентарь локально
+    if (amount === currentQuantity) {
+      inventory[slotIndex] = null;
+    } else {
+      inventory[slotIndex].quantity -= amount;
+    }
 
     // Сбрасываем форму и возвращаем состояние торговли
     resetInventoryButtons();
@@ -487,6 +530,9 @@ function placeItemInTradeSlot(slotIndex) {
       slotIndex: slotIndex,
       item: { type: item.type, itemId: item.itemId },
     });
+    // Удаляем предмет из инвентаря локально
+    inventory[slotIndex] = null;
+    updateInventoryDisplay();
   }
 }
 
@@ -528,6 +574,8 @@ function cancelTrade() {
     type: "cancelTrade",
     playerId: playerId,
   });
+
+  closeTradeWindow();
 }
 
 window.tradeSystem = {

@@ -928,7 +928,40 @@ wss.on("connection", (ws) => {
       if (!playerId) return;
 
       const player = players.get(playerId);
-      const slot = playerId === data.initiatorId ? "playerA" : "playerB";
+      const item = data.item; // Предполагаем, что клиент отправляет item
+
+      if (item) {
+        if (item.type === "balyary") {
+          const balyarySlot = player.inventory.findIndex(
+            (slot) => slot && slot.type === "balyary"
+          );
+          if (balyarySlot !== -1) {
+            player.inventory[balyarySlot].quantity =
+              (player.inventory[balyarySlot].quantity || 1) +
+              (item.quantity || 1);
+          } else {
+            const freeSlot = player.inventory.findIndex(
+              (slot) => slot === null
+            );
+            if (freeSlot !== -1) {
+              player.inventory[freeSlot] = {
+                type: "balyary",
+                quantity: item.quantity || 1,
+                itemId: item.itemId,
+              };
+            }
+          }
+        } else {
+          const freeSlot = player.inventory.findIndex((slot) => slot === null);
+          if (freeSlot !== -1) {
+            player.inventory[freeSlot] = item;
+          }
+        }
+      }
+
+      players.set(playerId, { ...player });
+      userDatabase.set(playerId, { ...player });
+      await saveUserDatabase(dbCollection, playerId, player);
 
       wss.clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN) {
@@ -936,9 +969,17 @@ wss.on("connection", (ws) => {
             JSON.stringify({
               type: "tradeItemCancelled",
               playerId: playerId,
-              slot: slot,
+              item: item,
             })
           );
+          if (clients.get(client) === playerId) {
+            client.send(
+              JSON.stringify({
+                type: "update",
+                player: { id: playerId, ...player },
+              })
+            );
+          }
         }
       });
     } else if (data.type === "confirmTrade") {
