@@ -333,10 +333,10 @@ function manageInventoryButtons(slotIndex) {
 
   // Режим торговли
   useBtn.textContent = "Положить";
-  useBtn.disabled = slotIndex === null;
+  useBtn.disabled = slotIndex === null || !inventory[slotIndex];
   dropBtn.disabled = slotIndex === null;
   useBtn.onclick = () => {
-    if (slotIndex !== null) {
+    if (slotIndex !== null && inventory[slotIndex]) {
       placeItemInTradeSlot(slotIndex); // Помещаем предмет в торговую ячейку
       selectedSlot = null; // Сбрасываем выбор слота после помещения
       screen.innerHTML = ""; // Очищаем экран
@@ -541,7 +541,7 @@ function placeItemInTradeSlot(slotIndex) {
     showBalyaryTradeForm(slotIndex, playerId);
   } else {
     // Для остальных предметов отправляем сразу
-    const tradeItem = { type: item.type, itemId: item.itemId };
+    const tradeItem = { type: item.type, itemId: item.itemId, quantity: 1 };
     sendTradeMessage({
       type: "placeTradeItem",
       playerId: playerId,

@@ -904,25 +904,61 @@ wss.on("connection", (ws) => {
 
       const player = players.get(playerId);
       const item = player.inventory[data.slotIndex];
-      if (!item) return;
+      if (
+        !item ||
+        item.type !== data.item.type ||
+        item.itemId !== data.item.itemId
+      ) {
+        console.log(
+          `Неверный предмет в слоте ${data.slotIndex} для игрока ${playerId}`
+        );
+        return;
+      }
 
-      player.inventory[data.slotIndex] = null;
-
-      wss.clients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(
-            JSON.stringify({
-              type: "tradeItemPlaced",
-              playerId: playerId,
-              item: data.item, // Передаём весь объект item, включая quantity
-            })
+      // Проверяем количество для баляр
+      if (item.type === "balyary") {
+        const currentQuantity = item.quantity || 1;
+        if (data.item.quantity > currentQuantity) {
+          console.log(
+            `Недостаточно баляр: ${data.item.quantity} > ${currentQuantity}`
           );
+          return;
         }
-      });
+        if (data.item.quantity === currentQuantity) {
+          player.inventory[data.slotIndex] = null;
+        } else {
+          player.inventory[data.slotIndex].quantity -= data.item.quantity;
+        }
+      } else {
+        player.inventory[data.slotIndex] = null;
+      }
 
       players.set(playerId, { ...player });
       userDatabase.set(playerId, { ...player });
       await saveUserDatabase(dbCollection, playerId, player);
+
+      wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          const clientId = clients.get(client);
+          if (clientId === data.initiatorId || clientId === data.targetId) {
+            client.send(
+              JSON.stringify({
+                type: "tradeItemPlaced",
+                playerId: playerId,
+                item: data.item, // Передаём весь объект item, включая quantity
+              })
+            );
+            if (clientId === playerId) {
+              client.send(
+                JSON.stringify({
+                  type: "update",
+                  player: { id: playerId, ...player },
+                })
+              );
+            }
+          }
+        }
+      });
     } else if (data.type === "cancelTradeItem") {
       const playerId = clients.get(ws);
       if (!playerId) return;

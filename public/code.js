@@ -772,13 +772,14 @@ function selectSlot(slotIndex, slotElement) {
 
 // Использовать предмет
 function useItem(slotIndex) {
-  const item = inventory[slotIndex];
-  if (!item) return;
-
-  // Если торговля активна, ничего не делаем (обработка в trade.js)
+  // Проверяем, открыто ли окно торговли
   if (window.tradeSystem.isTradeWindowOpen) {
+    console.log("Торговля активна, использование предмета заблокировано");
     return;
   }
+
+  const item = inventory[slotIndex];
+  if (!item) return;
 
   const me = players.get(myId);
   const effect = ITEM_CONFIG[item.type].effect;
