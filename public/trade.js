@@ -267,6 +267,91 @@ function resetInventoryButtons() {
   screen.innerHTML = "";
 }
 
+function showBalyaryTradeForm(slotIndex, playerId) {
+  const item = inventory[slotIndex];
+  const screen = document.getElementById("inventoryScreen");
+  const useBtn = document.getElementById("useBtn");
+  const dropBtn = document.getElementById("dropBtn");
+
+  // Создаём форму ввода количества
+  screen.innerHTML = `
+    <div class="balyary-trade-form">
+      <p class="cyber-text">Сколько положить?</p>
+      <input type="number" id="balyaryTradeAmount" class="cyber-input" min="1" max="${
+        item.quantity || 1
+      }" placeholder="0" value="" autofocus />
+      <p id="balyaryTradeError" class="error-text"></p>
+    </div>
+  `;
+
+  const input = document.getElementById("balyaryTradeAmount");
+  const errorEl = document.getElementById("balyaryTradeError");
+
+  // Фокусируемся на поле ввода
+  requestAnimationFrame(() => {
+    input.focus();
+    input.select();
+  });
+
+  // Ограничиваем ввод только цифрами
+  input.addEventListener("input", () => {
+    input.value = input.value.replace(/[^0-9]/g, "");
+    if (input.value === "") input.value = "";
+  });
+
+  // Меняем текст кнопки "Использовать" на "Подтвердить"
+  useBtn.textContent = "Подтвердить";
+  useBtn.disabled = false;
+  dropBtn.disabled = true;
+
+  // Обработчик подтверждения
+  const confirmTrade = () => {
+    const amount = parseInt(input.value) || 0;
+    const currentQuantity = item.quantity || 1;
+
+    if (amount <= 0) {
+      errorEl.textContent = "Введи нормальное число, братишка!";
+      return;
+    }
+
+    if (amount > currentQuantity) {
+      errorEl.textContent = "Не хватает Баляр!";
+      return;
+    }
+
+    // Отправляем сообщение на сервер
+    sendTradeMessage({
+      type: "placeTradeItem",
+      playerId: playerId,
+      initiatorId: tradeState.initiatorId,
+      slotIndex: slotIndex,
+      item: { type: item.type, itemId: item.itemId, quantity: amount },
+    });
+
+    // Сбрасываем форму и кнопки
+    useBtn.textContent = "Использовать";
+    useBtn.disabled = true;
+    dropBtn.disabled = true;
+    screen.innerHTML = "";
+    selectedSlot = null;
+    updateInventoryDisplay();
+  };
+
+  // Подтверждение по Enter
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      confirmTrade();
+    }
+  });
+
+  // Подтверждение по клику на кнопку
+  useBtn.onclick = (e) => {
+    e.preventDefault();
+    confirmTrade();
+  };
+}
+
 function openTradeWindow(initiatorId, targetId) {
   tradeState.initiatorId = initiatorId;
   tradeState.targetId = targetId;
@@ -313,6 +398,18 @@ function updateTradeSlot(playerId, item) {
     img.style.width = "100%";
     img.style.height = "100%";
     slot.appendChild(img);
+
+    if (item.type === "balyary" && item.quantity > 1) {
+      const quantityEl = document.createElement("div");
+      quantityEl.textContent = item.quantity;
+      quantityEl.style.position = "absolute";
+      quantityEl.style.top = "0";
+      quantityEl.style.right = "0";
+      quantityEl.style.color = "#00ffff";
+      quantityEl.style.fontSize = "14px";
+      quantityEl.style.textShadow = "0 0 5px rgba(0, 255, 255, 0.7)";
+      slot.appendChild(quantityEl);
+    }
   }
 
   if (isInitiator) {
@@ -327,16 +424,23 @@ function updateTradeSlot(playerId, item) {
 
 function placeItemInTradeSlot(slotIndex) {
   const item = inventory[slotIndex];
-  if (!item || item.type === "balyary") return;
+  if (!item) return;
 
   const playerId = players.get(myId).id;
-  sendTradeMessage({
-    type: "placeTradeItem",
-    playerId: playerId,
-    initiatorId: tradeState.initiatorId,
-    slotIndex: slotIndex,
-    item: { type: item.type, itemId: item.itemId },
-  });
+
+  if (item.type === "balyary") {
+    // Показываем форму для ввода количества баляр
+    showBalyaryTradeForm(slotIndex, playerId);
+  } else {
+    // Для остальных предметов отправляем сразу
+    sendTradeMessage({
+      type: "placeTradeItem",
+      playerId: playerId,
+      initiatorId: tradeState.initiatorId,
+      slotIndex: slotIndex,
+      item: { type: item.type, itemId: item.itemId },
+    });
+  }
 }
 
 function cancelTrade() {
@@ -347,11 +451,30 @@ function cancelTrade() {
       : tradeState.playerBItem;
 
   if (item) {
-    const freeSlot = inventory.findIndex((slot) => slot === null);
-    if (freeSlot !== -1) {
-      inventory[freeSlot] = item;
-      updateInventoryDisplay();
+    if (item.type === "balyary") {
+      const balyarySlot = inventory.findIndex(
+        (slot) => slot && slot.type === "balyary"
+      );
+      if (balyarySlot !== -1) {
+        inventory[balyarySlot].quantity =
+          (inventory[balyarySlot].quantity || 1) + (item.quantity || 1);
+      } else {
+        const freeSlot = inventory.findIndex((slot) => slot === null);
+        if (freeSlot !== -1) {
+          inventory[freeSlot] = {
+            type: "balyary",
+            quantity: item.quantity || 1,
+            itemId: item.itemId,
+          };
+        }
+      }
+    } else {
+      const freeSlot = inventory.findIndex((slot) => slot === null);
+      if (freeSlot !== -1) {
+        inventory[freeSlot] = item;
+      }
     }
+    updateInventoryDisplay();
   }
 
   sendTradeMessage({

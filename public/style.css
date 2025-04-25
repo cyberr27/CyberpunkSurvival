@@ -539,6 +539,12 @@ button:active {
   border-radius: 0;
   box-shadow: 0 0 10px rgba(255, 0, 102, 0.3);
 }
+.balyary-trade-form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
 .cyber-text {
   color: #00ccff;
   font-size: 14px;

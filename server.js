@@ -904,7 +904,7 @@ wss.on("connection", (ws) => {
 
       const player = players.get(playerId);
       const item = player.inventory[data.slotIndex];
-      if (!item || item.type === "balyary") return;
+      if (!item) return;
 
       player.inventory[data.slotIndex] = null;
 
@@ -914,7 +914,7 @@ wss.on("connection", (ws) => {
             JSON.stringify({
               type: "tradeItemPlaced",
               playerId: playerId,
-              item: data.item,
+              item: data.item, // Передаём весь объект item, включая quantity
             })
           );
         }
@@ -954,35 +954,124 @@ wss.on("connection", (ws) => {
       const playerItem = data.tradeSlots?.playerA;
       const otherItem = data.tradeSlots?.playerB;
 
+      // Обмен предметами
       if (playerItem && playerId === data.initiatorId) {
-        const freeSlot = otherPlayer.inventory.findIndex(
-          (slot) => slot === null
-        );
-        if (freeSlot !== -1) {
-          otherPlayer.inventory[freeSlot] = playerItem;
+        if (playerItem.type === "balyary") {
+          const balyarySlot = otherPlayer.inventory.findIndex(
+            (slot) => slot && slot.type === "balyary"
+          );
+          if (balyarySlot !== -1) {
+            otherPlayer.inventory[balyarySlot].quantity =
+              (otherPlayer.inventory[balyarySlot].quantity || 1) +
+              (playerItem.quantity || 1);
+          } else {
+            const freeSlot = otherPlayer.inventory.findIndex(
+              (slot) => slot === null
+            );
+            if (freeSlot !== -1) {
+              otherPlayer.inventory[freeSlot] = {
+                type: "balyary",
+                quantity: playerItem.quantity || 1,
+                itemId: playerItem.itemId,
+              };
+            }
+          }
+        } else {
+          const freeSlot = otherPlayer.inventory.findIndex(
+            (slot) => slot === null
+          );
+          if (freeSlot !== -1) {
+            otherPlayer.inventory[freeSlot] = playerItem;
+          }
         }
       }
 
       if (otherItem && playerId === data.targetId) {
-        const freeSlot = otherPlayer.inventory.findIndex(
-          (slot) => slot === null
-        );
-        if (freeSlot !== -1) {
-          otherPlayer.inventory[freeSlot] = otherItem;
+        if (otherItem.type === "balyary") {
+          const balyarySlot = otherPlayer.inventory.findIndex(
+            (slot) => slot && slot.type === "balyary"
+          );
+          if (balyarySlot !== -1) {
+            otherPlayer.inventory[balyarySlot].quantity =
+              (otherPlayer.inventory[balyarySlot].quantity || 1) +
+              (otherItem.quantity || 1);
+          } else {
+            const freeSlot = otherPlayer.inventory.findIndex(
+              (slot) => slot === null
+            );
+            if (freeSlot !== -1) {
+              otherPlayer.inventory[freeSlot] = {
+                type: "balyary",
+                quantity: otherItem.quantity || 1,
+                itemId: otherItem.itemId,
+              };
+            }
+          }
+        } else {
+          const freeSlot = otherPlayer.inventory.findIndex(
+            (slot) => slot === null
+          );
+          if (freeSlot !== -1) {
+            otherPlayer.inventory[freeSlot] = otherItem;
+          }
         }
       }
 
       if (playerItem && playerId === data.targetId) {
-        const freeSlot = player.inventory.findIndex((slot) => slot === null);
-        if (freeSlot !== -1) {
-          player.inventory[freeSlot] = playerItem;
+        if (playerItem.type === "balyary") {
+          const balyarySlot = player.inventory.findIndex(
+            (slot) => slot && slot.type === "balyary"
+          );
+          if (balyarySlot !== -1) {
+            player.inventory[balyarySlot].quantity =
+              (player.inventory[balyarySlot].quantity || 1) +
+              (playerItem.quantity || 1);
+          } else {
+            const freeSlot = player.inventory.findIndex(
+              (slot) => slot === null
+            );
+            if (freeSlot !== -1) {
+              player.inventory[freeSlot] = {
+                type: "balyary",
+                quantity: playerItem.quantity || 1,
+                itemId: playerItem.itemId,
+              };
+            }
+          }
+        } else {
+          const freeSlot = player.inventory.findIndex((slot) => slot === null);
+          if (freeSlot !== -1) {
+            player.inventory[freeSlot] = playerItem;
+          }
         }
       }
 
       if (otherItem && playerId === data.initiatorId) {
-        const freeSlot = player.inventory.findIndex((slot) => slot === null);
-        if (freeSlot !== -1) {
-          player.inventory[freeSlot] = otherItem;
+        if (otherItem.type === "balyary") {
+          const balyarySlot = player.inventory.findIndex(
+            (slot) => slot && slot.type === "balyary"
+          );
+          if (balyarySlot !== -1) {
+            player.inventory[balyarySlot].quantity =
+              (player.inventory[balyarySlot].quantity || 1) +
+              (otherItem.quantity || 1);
+          } else {
+            const freeSlot = player.inventory.findIndex(
+              (slot) => slot === null
+            );
+            if (freeSlot !== -1) {
+              player.inventory[freeSlot] = {
+                type: "balyary",
+                quantity: otherItem.quantity || 1,
+                itemId: otherItem.itemId,
+              };
+            }
+          }
+        } else {
+          const freeSlot = player.inventory.findIndex((slot) => slot === null);
+          if (freeSlot !== -1) {
+            player.inventory[freeSlot] = otherItem;
+          }
         }
       }
 

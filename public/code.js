@@ -783,7 +783,7 @@ function selectSlot(slotIndex, slotElement) {
 // Использовать предмет
 function useItem(slotIndex) {
   const item = inventory[slotIndex];
-  if (!item || item.type === "balyary") return;
+  if (!item) return;
 
   if (window.tradeSystem.isTradeWindowOpen) {
     window.tradeSystem.placeItemInTradeSlot(slotIndex);
