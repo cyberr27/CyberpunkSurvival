@@ -261,10 +261,19 @@ function resetInventoryButtons() {
   const dropBtn = document.getElementById("dropBtn");
   const screen = document.getElementById("inventoryScreen");
   selectedSlot = null;
+  // Всегда устанавливаем "Положить" при открытом окне торговли
   useBtn.textContent = isTradeWindowOpen ? "Положить" : "Использовать";
-  useBtn.disabled = true;
+  useBtn.disabled = true; // Отключаем до выбора слота
   dropBtn.disabled = true;
   screen.innerHTML = "";
+  // Устанавливаем обработчик для useBtn, чтобы он вызывал placeItemInTradeSlot при торговле
+  useBtn.onclick = () => {
+    if (selectedSlot !== null && isTradeWindowOpen) {
+      placeItemInTradeSlot(selectedSlot);
+    } else if (selectedSlot !== null) {
+      useItem(selectedSlot);
+    }
+  };
 }
 
 function showBalyaryTradeForm(slotIndex, playerId) {
@@ -361,6 +370,12 @@ function openTradeWindow(initiatorId, targetId) {
   isTradeWindowOpen = true;
   updateTradeSlot(initiatorId, null);
   updateTradeSlot(targetId, null);
+  // Сбрасываем кнопки инвентаря и устанавливаем "Положить"
+  resetInventoryButtons();
+  // Открываем инвентарь, если он закрыт
+  if (!window.isInventoryOpen) {
+    window.toggleInventory();
+  }
 }
 
 function closeTradeWindow() {

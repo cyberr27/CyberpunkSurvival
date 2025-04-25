@@ -763,6 +763,18 @@ function selectSlot(slotIndex, slotElement) {
   const useBtn = document.getElementById("useBtn");
   const dropBtn = document.getElementById("dropBtn");
 
+  // Если торговля активна и это повторный клик, не сбрасываем выбор
+  if (
+    window.tradeSystem.isTradeWindowOpen &&
+    selectedSlot === slotIndex &&
+    inventory[slotIndex].type !== "balyary"
+  ) {
+    // Вызываем placeItemInTradeSlot для немедленной отправки предмета
+    window.tradeSystem.placeItemInTradeSlot(slotIndex);
+    return;
+  }
+
+  // Если выбран тот же слот, сбрасываем выбор
   if (selectedSlot === slotIndex) {
     selectedSlot = null;
     screen.innerHTML = "";
@@ -775,13 +787,22 @@ function selectSlot(slotIndex, slotElement) {
   }
 
   selectedSlot = slotIndex;
-  // Если ранее была форма "Баляр", убираем её и показываем описание
+  // Показываем описание предмета
   screen.textContent = ITEM_CONFIG[inventory[slotIndex].type].description;
   useBtn.textContent = window.tradeSystem.isTradeWindowOpen
     ? "Положить"
     : "Использовать";
-  useBtn.disabled = false; // Активируем кнопку даже для "Баляр" во время торговли
-  dropBtn.disabled = false;
+  useBtn.disabled = false;
+  // Во время торговли отключаем кнопку "Выкинуть"
+  dropBtn.disabled = window.tradeSystem.isTradeWindowOpen ? true : false;
+  // Устанавливаем обработчик для useBtn
+  useBtn.onclick = () => {
+    if (selectedSlot !== null && window.tradeSystem.isTradeWindowOpen) {
+      window.tradeSystem.placeItemInTradeSlot(selectedSlot);
+    } else if (selectedSlot !== null) {
+      useItem(selectedSlot);
+    }
+  };
 }
 
 // Использовать предмет
@@ -1022,21 +1043,30 @@ function updateInventoryDisplay() {
   const useBtn = document.getElementById("useBtn");
   const dropBtn = document.getElementById("dropBtn");
 
-  // Проверяем, была ли уже показана форма выброса "Баляр"
+  // Проверяем, была ли уже показана форма выброса или торговли "Баляр"
   const isBalyaryFormActive =
     selectedSlot !== null &&
     inventory[selectedSlot] &&
     inventory[selectedSlot].type === "balyary" &&
-    screen.querySelector(".balyary-drop-form");
+    (screen.querySelector(".balyary-drop-form") ||
+      screen.querySelector(".balyary-trade-form"));
 
   if (isBalyaryFormActive) {
-    // Сохраняем форму, если выбраны "Баляры" и форма уже есть
+    // Сохраняем форму, если выбраны "Баляры" и форма активна
     // Ничего не делаем с содержимым экрана
   } else if (selectedSlot === null) {
     screen.innerHTML = "";
   } else if (inventory[selectedSlot]) {
     screen.textContent = ITEM_CONFIG[inventory[selectedSlot].type].description;
   }
+
+  // Устанавливаем текст кнопки в зависимости от состояния торговли
+  useBtn.textContent = window.tradeSystem.isTradeWindowOpen
+    ? "Положить"
+    : "Использовать";
+  dropBtn.disabled = window.tradeSystem.isTradeWindowOpen
+    ? true
+    : selectedSlot === null;
 
   for (let i = 0; i < slots.length; i++) {
     const slot = slots[i];
@@ -1062,24 +1092,15 @@ function updateInventoryDisplay() {
 
       slot.onmouseover = () => {
         if (inventory[i] && selectedSlot !== i) {
-          if (
-            inventory[selectedSlot] &&
-            inventory[selectedSlot].type === "balyary" &&
-            screen.querySelector(".balyary-drop-form")
-          ) {
-            // Сохраняем форму выброса "Баляр" при наведении на другие слоты
+          if (isBalyaryFormActive) {
+            // Сохраняем форму "Баляр" при наведении на другие слоты
             return;
           }
           screen.textContent = ITEM_CONFIG[inventory[i].type].description;
         }
       };
       slot.onmouseout = () => {
-        if (
-          selectedSlot === null ||
-          (inventory[selectedSlot] &&
-            inventory[selectedSlot].type === "balyary" &&
-            screen.querySelector(".balyary-drop-form"))
-        ) {
+        if (selectedSlot === null || isBalyaryFormActive) {
           // Ничего не очищаем, если форма "Баляр" активна
           return;
         }
