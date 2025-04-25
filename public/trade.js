@@ -261,7 +261,7 @@ function resetInventoryButtons() {
   const dropBtn = document.getElementById("dropBtn");
   const screen = document.getElementById("inventoryScreen");
   selectedSlot = null;
-  useBtn.textContent = "Использовать";
+  useBtn.textContent = isTradeWindowOpen ? "Положить" : "Использовать";
   useBtn.disabled = true;
   dropBtn.disabled = true;
   screen.innerHTML = "";

@@ -766,7 +766,9 @@ function selectSlot(slotIndex, slotElement) {
   if (selectedSlot === slotIndex) {
     selectedSlot = null;
     screen.innerHTML = "";
-    useBtn.textContent = "Использовать"; // Возвращаем текст
+    useBtn.textContent = window.tradeSystem.isTradeWindowOpen
+      ? "Положить"
+      : "Использовать";
     useBtn.disabled = true;
     dropBtn.disabled = true;
     return;
@@ -775,8 +777,10 @@ function selectSlot(slotIndex, slotElement) {
   selectedSlot = slotIndex;
   // Если ранее была форма "Баляр", убираем её и показываем описание
   screen.textContent = ITEM_CONFIG[inventory[slotIndex].type].description;
-  useBtn.textContent = "Использовать"; // Сбрасываем текст
-  useBtn.disabled = inventory[slotIndex].type === "balyary"; // Отключаем для "Баляр"
+  useBtn.textContent = window.tradeSystem.isTradeWindowOpen
+    ? "Положить"
+    : "Использовать";
+  useBtn.disabled = false; // Активируем кнопку даже для "Баляр" во время торговли
   dropBtn.disabled = false;
 }
 
@@ -794,12 +798,25 @@ function useItem(slotIndex) {
   const effect = ITEM_CONFIG[item.type].effect;
 
   if (effect.health)
-    me.health = Math.min(100, Math.max(0, me.health + effect.health));
+    me.health = Math.min(
+      levelSystem.maxStats.health,
+      Math.max(0, me.health + effect.health)
+    );
   if (effect.energy)
-    me.energy = Math.min(100, Math.max(0, me.energy + effect.energy));
-  if (effect.food) me.food = Math.min(100, Math.max(0, me.food + effect.food));
+    me.energy = Math.min(
+      levelSystem.maxStats.energy,
+      Math.max(0, me.energy + effect.energy)
+    );
+  if (effect.food)
+    me.food = Math.min(
+      levelSystem.maxStats.food,
+      Math.max(0, me.food + effect.food)
+    );
   if (effect.water)
-    me.water = Math.min(100, Math.max(0, me.water + effect.water));
+    me.water = Math.min(
+      levelSystem.maxStats.water,
+      Math.max(0, me.water + effect.water)
+    );
 
   inventory[slotIndex] = null;
 
