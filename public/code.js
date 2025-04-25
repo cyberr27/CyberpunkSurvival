@@ -719,12 +719,20 @@ function startGame() {
 
   useBtn.addEventListener("click", (e) => {
     e.preventDefault();
-    if (selectedSlot !== null) useItem(selectedSlot);
+    if (selectedSlot !== null && inventory[selectedSlot]) {
+      if (window.tradeSystem.isTradeWindowOpen) {
+        window.tradeSystem.placeItemInTradeSlot(selectedSlot);
+      } else {
+        useItem(selectedSlot);
+      }
+    }
   });
 
   dropBtn.addEventListener("click", (e) => {
     e.preventDefault();
-    if (selectedSlot !== null) dropItem(selectedSlot);
+    if (selectedSlot !== null && inventory[selectedSlot]) {
+      dropItem(selectedSlot);
+    }
   });
 
   requestAnimationFrame(gameLoop);
@@ -1397,9 +1405,6 @@ function draw(deltaTime) {
 
   items.forEach((item, itemId) => {
     if (!items.has(itemId)) {
-      console.log(
-        `Предмет ${itemId} пропущен при отрисовке, так как уже удалён`
-      );
       return;
     }
     const screenX = item.x - camera.x;
@@ -1455,31 +1460,20 @@ function checkCollisions() {
   items.forEach((item, id) => {
     // Проверяем, существует ли предмет и не отправляли ли мы уже запрос
     if (!items.has(id)) {
-      console.log(`Предмет ${id} уже удалён из items, пропускаем`);
       return;
     }
     if (pendingPickups.has(id)) {
-      console.log(
-        `Предмет ${id} в процессе поднятия (pendingPickups), пропускаем`
-      );
       return;
     }
     // Центр предмета теперь смещён, так как размер 20x20
     const dx = me.x + 20 - (item.x + 10);
     const dy = me.y + 20 - (item.y + 10);
     const distance = Math.sqrt(dx * dx + dy * dy);
-    console.log(
-      `Проверка столкновения с ${item.type} (ID: ${id}), расстояние: ${distance}`
-    );
     if (distance < 30) {
       // Уменьшено с 40 до 30
-      console.log(
-        `Игрок ${myId} пытается подобрать предмет ${item.type} (ID: ${id})`
-      );
       if (ws.readyState === WebSocket.OPEN) {
         pendingPickups.add(id);
         sendWhenReady(ws, JSON.stringify({ type: "pickup", itemId: id }));
-        console.log(`Отправлено сообщение pickup для ${id}`);
       } else {
         console.error("WebSocket не открыт, предмет не отправлен на сервер");
       }

@@ -940,7 +940,11 @@ wss.on("connection", (ws) => {
       wss.clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN) {
           const clientId = clients.get(client);
-          if (clientId === data.initiatorId || clientId === data.targetId) {
+          if (
+            clientId === data.initiatorId ||
+            clientId === data.targetId ||
+            clientId === playerId
+          ) {
             client.send(
               JSON.stringify({
                 type: "tradeItemPlaced",
@@ -959,6 +963,9 @@ wss.on("connection", (ws) => {
           }
         }
       });
+      console.log(
+        `Игрок ${playerId} поместил предмет ${data.item.type} в торговую ячейку`
+      );
     } else if (data.type === "cancelTradeItem") {
       const playerId = clients.get(ws);
       if (!playerId) return;

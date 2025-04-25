@@ -310,15 +310,15 @@ function manageInventoryButtons(slotIndex) {
   if (!isTradeWindowOpen) {
     // Обычный режим (без торговли)
     useBtn.textContent = "Использовать";
-    useBtn.disabled = slotIndex === null;
-    dropBtn.disabled = slotIndex === null;
+    useBtn.disabled = slotIndex === null || !inventory[slotIndex];
+    dropBtn.disabled = slotIndex === null || !inventory[slotIndex];
     useBtn.onclick = () => {
-      if (slotIndex !== null) {
+      if (slotIndex !== null && inventory[slotIndex]) {
         window.useItem(slotIndex); // Вызываем useItem из code.js
       }
     };
     dropBtn.onclick = () => {
-      if (slotIndex !== null) {
+      if (slotIndex !== null && inventory[slotIndex]) {
         window.dropItem(slotIndex); // Вызываем dropItem из code.js
       }
     };
@@ -334,19 +334,19 @@ function manageInventoryButtons(slotIndex) {
   // Режим торговли
   useBtn.textContent = "Положить";
   useBtn.disabled = slotIndex === null || !inventory[slotIndex];
-  dropBtn.disabled = slotIndex === null;
+  dropBtn.disabled = slotIndex === null || !inventory[slotIndex];
   useBtn.onclick = () => {
     if (slotIndex !== null && inventory[slotIndex]) {
       placeItemInTradeSlot(slotIndex); // Помещаем предмет в торговую ячейку
-      selectedSlot = null; // Сбрасываем выбор слота после помещения
+      selectedSlot = null; // Сбрасываем выбор слота
       screen.innerHTML = ""; // Очищаем экран
       useBtn.disabled = true; // Отключаем кнопку до нового выбора
       dropBtn.disabled = true;
-      updateInventoryDisplay(); // Обновляем отображение инвентаря
+      updateInventoryDisplay(); // Обновляем инвентарь
     }
   };
   dropBtn.onclick = () => {
-    if (slotIndex !== null) {
+    if (slotIndex !== null && inventory[slotIndex]) {
       window.dropItem(slotIndex); // Вызываем dropItem из code.js
     }
   };
@@ -528,6 +528,11 @@ function updateTradeSlot(playerId, item) {
   // Активируем кнопку "Подтвердить", если есть хотя бы один предмет
   const confirmBtn = document.getElementById("confirmTradeBtn");
   confirmBtn.disabled = !(tradeState.playerAItem || tradeState.playerBItem);
+  console.log(
+    `updateTradeSlot: playerId=${playerId}, item=${
+      item ? item.type : null
+    }, confirmBtn.disabled=${confirmBtn.disabled}`
+  );
 }
 
 function placeItemInTradeSlot(slotIndex) {
@@ -546,6 +551,7 @@ function placeItemInTradeSlot(slotIndex) {
       type: "placeTradeItem",
       playerId: playerId,
       initiatorId: tradeState.initiatorId,
+      targetId: tradeState.targetId,
       slotIndex: slotIndex,
       item: tradeItem,
     });
