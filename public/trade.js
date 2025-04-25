@@ -198,6 +198,10 @@ function handleTradeMessage(data) {
         players.get(myId).id === tradeState.targetId
       ) {
         updateTradeSlot(data.playerId, data.item);
+        // Обновляем инвентарь, если предмет был помещён другим игроком
+        if (data.playerId !== players.get(myId).id) {
+          updateInventoryDisplay();
+        }
       }
       break;
     case "tradeItemCancelled":
@@ -304,6 +308,7 @@ function manageInventoryButtons(slotIndex) {
   dropBtn.onclick = null;
 
   if (!isTradeWindowOpen) {
+    // Обычный режим (без торговли)
     useBtn.textContent = "Использовать";
     useBtn.disabled = slotIndex === null;
     dropBtn.disabled = slotIndex === null;
@@ -317,16 +322,27 @@ function manageInventoryButtons(slotIndex) {
         window.dropItem(slotIndex); // Вызываем dropItem из code.js
       }
     };
+    // Показываем описание предмета, если слот выбран
+    if (slotIndex !== null && inventory[slotIndex]) {
+      screen.textContent = ITEM_CONFIG[inventory[slotIndex].type].description;
+    } else {
+      screen.innerHTML = "";
+    }
     return;
   }
 
-  // Во время торговли
+  // Режим торговли
   useBtn.textContent = "Положить";
   useBtn.disabled = slotIndex === null;
-  dropBtn.disabled = slotIndex === null; // Включаем кнопку "Выкинуть"
+  dropBtn.disabled = slotIndex === null;
   useBtn.onclick = () => {
     if (slotIndex !== null) {
-      placeItemInTradeSlot(slotIndex); // Переносим предмет в ячейку торговли
+      placeItemInTradeSlot(slotIndex); // Помещаем предмет в торговую ячейку
+      selectedSlot = null; // Сбрасываем выбор слота после помещения
+      screen.innerHTML = ""; // Очищаем экран
+      useBtn.disabled = true; // Отключаем кнопку до нового выбора
+      dropBtn.disabled = true;
+      updateInventoryDisplay(); // Обновляем отображение инвентаря
     }
   };
   dropBtn.onclick = () => {
@@ -502,12 +518,14 @@ function updateTradeSlot(playerId, item) {
     }
   }
 
+  // Обновляем состояние tradeState
   if (isInitiator) {
     tradeState.playerAItem = item;
   } else {
     tradeState.playerBItem = item;
   }
 
+  // Активируем кнопку "Подтвердить", если есть хотя бы один предмет
   const confirmBtn = document.getElementById("confirmTradeBtn");
   confirmBtn.disabled = !(tradeState.playerAItem || tradeState.playerBItem);
 }
@@ -523,13 +541,16 @@ function placeItemInTradeSlot(slotIndex) {
     showBalyaryTradeForm(slotIndex, playerId);
   } else {
     // Для остальных предметов отправляем сразу
+    const tradeItem = { type: item.type, itemId: item.itemId };
     sendTradeMessage({
       type: "placeTradeItem",
       playerId: playerId,
       initiatorId: tradeState.initiatorId,
       slotIndex: slotIndex,
-      item: { type: item.type, itemId: item.itemId },
+      item: tradeItem,
     });
+    // Локально обновляем торговую ячейку
+    updateTradeSlot(playerId, tradeItem);
     // Удаляем предмет из инвентаря локально
     inventory[slotIndex] = null;
     updateInventoryDisplay();

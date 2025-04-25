@@ -756,18 +756,6 @@ function selectSlot(slotIndex, slotElement) {
     `Выбран слот ${slotIndex}, предмет: ${inventory[slotIndex].type}`
   );
   const screen = document.getElementById("inventoryScreen");
-  const useBtn = document.getElementById("useBtn");
-  const dropBtn = document.getElementById("dropBtn");
-
-  // Если торговля активна и это повторный клик (не "Баляр")
-  if (
-    window.tradeSystem.isTradeWindowOpen &&
-    selectedSlot === slotIndex &&
-    inventory[slotIndex].type !== "balyary"
-  ) {
-    window.tradeSystem.placeItemInTradeSlot(slotIndex);
-    return;
-  }
 
   // Если выбран тот же слот, сбрасываем выбор
   if (selectedSlot === slotIndex) {
@@ -787,7 +775,7 @@ function useItem(slotIndex) {
   const item = inventory[slotIndex];
   if (!item) return;
 
-  // Во время торговли не используем предмет, trade.js управляет этим
+  // Если торговля активна, ничего не делаем (обработка в trade.js)
   if (window.tradeSystem.isTradeWindowOpen) {
     return;
   }
