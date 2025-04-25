@@ -169,10 +169,18 @@ function handleTradeMessage(data) {
       showTradeRequest(data.initiatorId);
       break;
     case "tradeAccepted":
-      if (players.get(myId).id === data.initiatorId) {
+      if (
+        players.get(myId).id === data.initiatorId ||
+        players.get(myId).id === data.playerId
+      ) {
+        // Открываем окно торговли и инвентарь
         openTradeWindow(data.initiatorId, data.playerId);
-      } else if (players.get(myId).id === data.playerId) {
-        openTradeWindow(data.initiatorId, data.playerId);
+        // Если инвентарь не открыт, открываем его
+        if (!isInventoryOpen) {
+          toggleInventory();
+        }
+        // Сбрасываем состояние кнопок инвентаря
+        resetInventoryButtons();
       }
       break;
     case "tradeCancelled":
@@ -248,6 +256,17 @@ function clearTradeTimeout() {
   }
 }
 
+function resetInventoryButtons() {
+  const useBtn = document.getElementById("useBtn");
+  const dropBtn = document.getElementById("dropBtn");
+  const screen = document.getElementById("inventoryScreen");
+  selectedSlot = null;
+  useBtn.textContent = "Использовать";
+  useBtn.disabled = true;
+  dropBtn.disabled = true;
+  screen.innerHTML = "";
+}
+
 function openTradeWindow(initiatorId, targetId) {
   tradeState.initiatorId = initiatorId;
   tradeState.targetId = targetId;
@@ -257,10 +276,6 @@ function openTradeWindow(initiatorId, targetId) {
   isTradeWindowOpen = true;
   updateTradeSlot(initiatorId, null);
   updateTradeSlot(targetId, null);
-  // Открываем инвентарь
-  if (!isInventoryOpen) {
-    toggleInventory();
-  }
 }
 
 function closeTradeWindow() {
@@ -276,7 +291,9 @@ function closeTradeWindow() {
   };
   document.getElementById("confirmTradeBtn").disabled = true;
   clearTradeTimeout();
-  // Закрываем инвентарь
+  // Сбрасываем состояние кнопок инвентаря
+  resetInventoryButtons();
+  // Закрываем инвентарь только если он был открыт
   if (isInventoryOpen) {
     toggleInventory();
   }

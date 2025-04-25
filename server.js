@@ -867,18 +867,21 @@ wss.on("connection", (ws) => {
       const playerId = clients.get(ws);
       if (!playerId) return;
 
+      console.log(
+        `Игрок ${playerId} принял предложение торговли от ${data.initiatorId}`
+      );
       wss.clients.forEach((client) => {
-        if (
-          clients.get(client) !== playerId &&
-          client.readyState === WebSocket.OPEN
-        ) {
-          client.send(
-            JSON.stringify({
-              type: "tradeAccepted",
-              initiatorId: clients.get(client),
-              playerId: playerId,
-            })
-          );
+        if (client.readyState === WebSocket.OPEN) {
+          const clientId = clients.get(client);
+          if (clientId === playerId || clientId === data.initiatorId) {
+            client.send(
+              JSON.stringify({
+                type: "tradeAccepted",
+                initiatorId: data.initiatorId,
+                playerId: playerId,
+              })
+            );
+          }
         }
       });
     } else if (data.type === "cancelTrade") {

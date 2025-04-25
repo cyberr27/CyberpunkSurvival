@@ -194,6 +194,7 @@ const ITEM_CONFIG = {
 
 // Состояние инвентаря (открыт или закрыт)
 let isInventoryOpen = false;
+window.isInventoryOpen = isInventoryOpen;
 // Выбранный слот инвентаря
 let selectedSlot = null;
 
@@ -732,6 +733,7 @@ function startGame() {
 // Функция переключения инвентаря
 function toggleInventory() {
   isInventoryOpen = !isInventoryOpen;
+  window.isInventoryOpen = isInventoryOpen; // Синхронизируем с window
   const inventoryContainer = document.getElementById("inventoryContainer");
   inventoryContainer.style.display = isInventoryOpen ? "grid" : "none";
   if (isInventoryOpen) updateInventoryDisplay();
@@ -749,6 +751,7 @@ function toggleInventory() {
     dropBtn.disabled = true;
   }
 }
+window.toggleInventory = toggleInventory;
 
 // Выбрать слот и показать кнопки
 function selectSlot(slotIndex, slotElement) {
