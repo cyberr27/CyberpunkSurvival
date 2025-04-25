@@ -744,11 +744,7 @@ function toggleInventory() {
     const screen = document.getElementById("inventoryScreen");
     screen.innerHTML = "";
     selectedSlot = null;
-    const useBtn = document.getElementById("useBtn");
-    const dropBtn = document.getElementById("dropBtn");
-    useBtn.textContent = "Использовать";
-    useBtn.disabled = true;
-    dropBtn.disabled = true;
+    window.tradeSystem.manageInventoryButtons(null);
   }
 }
 window.toggleInventory = toggleInventory;
@@ -763,13 +759,12 @@ function selectSlot(slotIndex, slotElement) {
   const useBtn = document.getElementById("useBtn");
   const dropBtn = document.getElementById("dropBtn");
 
-  // Если торговля активна и это повторный клик, не сбрасываем выбор
+  // Если торговля активна и это повторный клик (не "Баляр")
   if (
     window.tradeSystem.isTradeWindowOpen &&
     selectedSlot === slotIndex &&
     inventory[slotIndex].type !== "balyary"
   ) {
-    // Вызываем placeItemInTradeSlot для немедленной отправки предмета
     window.tradeSystem.placeItemInTradeSlot(slotIndex);
     return;
   }
@@ -778,31 +773,13 @@ function selectSlot(slotIndex, slotElement) {
   if (selectedSlot === slotIndex) {
     selectedSlot = null;
     screen.innerHTML = "";
-    useBtn.textContent = window.tradeSystem.isTradeWindowOpen
-      ? "Положить"
-      : "Использовать";
-    useBtn.disabled = true;
-    dropBtn.disabled = true;
+    window.tradeSystem.manageInventoryButtons(null);
     return;
   }
 
   selectedSlot = slotIndex;
-  // Показываем описание предмета
-  screen.textContent = ITEM_CONFIG[inventory[slotIndex].type].description;
-  useBtn.textContent = window.tradeSystem.isTradeWindowOpen
-    ? "Положить"
-    : "Использовать";
-  useBtn.disabled = false;
-  // Во время торговли отключаем кнопку "Выкинуть"
-  dropBtn.disabled = window.tradeSystem.isTradeWindowOpen ? true : false;
-  // Устанавливаем обработчик для useBtn
-  useBtn.onclick = () => {
-    if (selectedSlot !== null && window.tradeSystem.isTradeWindowOpen) {
-      window.tradeSystem.placeItemInTradeSlot(selectedSlot);
-    } else if (selectedSlot !== null) {
-      useItem(selectedSlot);
-    }
-  };
+  // Передаём управление кнопками в trade.js
+  window.tradeSystem.manageInventoryButtons(slotIndex);
 }
 
 // Использовать предмет
@@ -810,8 +787,8 @@ function useItem(slotIndex) {
   const item = inventory[slotIndex];
   if (!item) return;
 
+  // Во время торговли не используем предмет, trade.js управляет этим
   if (window.tradeSystem.isTradeWindowOpen) {
-    window.tradeSystem.placeItemInTradeSlot(slotIndex);
     return;
   }
 
@@ -854,8 +831,7 @@ function useItem(slotIndex) {
   );
 
   selectedSlot = null;
-  document.getElementById("useBtn").disabled = true;
-  document.getElementById("dropBtn").disabled = true;
+  window.tradeSystem.manageInventoryButtons(null);
   document.getElementById("inventoryScreen").textContent = "";
   updateStatsDisplay();
   updateInventoryDisplay();
@@ -865,10 +841,9 @@ function useItem(slotIndex) {
 function dropItem(slotIndex) {
   const item = inventory[slotIndex];
   if (!item) return;
+  if (window.tradeSystem.isTradeWindowOpen) return; // Нельзя выкидывать во время торговли
   const me = players.get(myId);
   const screen = document.getElementById("inventoryScreen");
-  const useBtn = document.getElementById("useBtn");
-  const dropBtn = document.getElementById("dropBtn");
 
   if (item.type === "balyary") {
     // Логика для "Баляр" с формой ввода количества
@@ -895,9 +870,7 @@ function dropItem(slotIndex) {
       if (input.value === "") input.value = "";
     });
 
-    useBtn.textContent = "Подтвердить";
-    useBtn.disabled = false;
-    dropBtn.disabled = true;
+    window.tradeSystem.manageInventoryButtons(slotIndex); // Устанавливаем "Подтвердить"
 
     input.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
@@ -906,7 +879,7 @@ function dropItem(slotIndex) {
       }
     });
 
-    useBtn.onclick = (e) => {
+    document.getElementById("useBtn").onclick = (e) => {
       e.preventDefault();
       confirmDrop();
     };
@@ -942,12 +915,9 @@ function dropItem(slotIndex) {
         inventory[slotIndex].quantity -= amount;
       }
 
-      useBtn.textContent = "Использовать";
-      useBtn.disabled = true;
-      dropBtn.disabled = true;
-      useBtn.onclick = () => useItem(slotIndex);
       selectedSlot = null;
       screen.innerHTML = "";
+      window.tradeSystem.manageInventoryButtons(null);
       updateInventoryDisplay();
     }
   } else {
@@ -959,18 +929,14 @@ function dropItem(slotIndex) {
         slotIndex,
         x: me.x,
         y: me.y,
-        quantity: 1, // Выкидываем ровно один предмет
+        quantity: 1,
       })
     );
 
-    // Очищаем слот инвентаря
     inventory[slotIndex] = null;
-
-    // Сбрасываем выбранный слот и кнопки
     selectedSlot = null;
-    useBtn.disabled = true;
-    dropBtn.disabled = true;
     screen.innerHTML = "";
+    window.tradeSystem.manageInventoryButtons(null);
     updateInventoryDisplay();
   }
 }
@@ -1040,8 +1006,6 @@ function updateInventoryDisplay() {
   const inventoryGrid = document.getElementById("inventoryGrid");
   const slots = inventoryGrid.children;
   const screen = document.getElementById("inventoryScreen");
-  const useBtn = document.getElementById("useBtn");
-  const dropBtn = document.getElementById("dropBtn");
 
   // Проверяем, была ли уже показана форма выброса или торговли "Баляр"
   const isBalyaryFormActive =
@@ -1053,20 +1017,14 @@ function updateInventoryDisplay() {
 
   if (isBalyaryFormActive) {
     // Сохраняем форму, если выбраны "Баляры" и форма активна
-    // Ничего не делаем с содержимым экрана
   } else if (selectedSlot === null) {
     screen.innerHTML = "";
   } else if (inventory[selectedSlot]) {
     screen.textContent = ITEM_CONFIG[inventory[selectedSlot].type].description;
   }
 
-  // Устанавливаем текст кнопки в зависимости от состояния торговли
-  useBtn.textContent = window.tradeSystem.isTradeWindowOpen
-    ? "Положить"
-    : "Использовать";
-  dropBtn.disabled = window.tradeSystem.isTradeWindowOpen
-    ? true
-    : selectedSlot === null;
+  // Обновляем состояние кнопок через trade.js
+  window.tradeSystem.manageInventoryButtons(selectedSlot);
 
   for (let i = 0; i < slots.length; i++) {
     const slot = slots[i];
@@ -1093,7 +1051,6 @@ function updateInventoryDisplay() {
       slot.onmouseover = () => {
         if (inventory[i] && selectedSlot !== i) {
           if (isBalyaryFormActive) {
-            // Сохраняем форму "Баляр" при наведении на другие слоты
             return;
           }
           screen.textContent = ITEM_CONFIG[inventory[i].type].description;
@@ -1101,7 +1058,6 @@ function updateInventoryDisplay() {
       };
       slot.onmouseout = () => {
         if (selectedSlot === null || isBalyaryFormActive) {
-          // Ничего не очищаем, если форма "Баляр" активна
           return;
         }
         screen.textContent =
