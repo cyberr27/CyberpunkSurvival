@@ -6,6 +6,11 @@ const tradeSystem = {
     playerA: null,
     playerB: null,
   },
+  tradeConfirmations: {
+    playerA: false,
+    playerB: false,
+  },
+  balyaryCount: 0,
   tradeInventory: Array(20).fill(null),
   tradeState: null, // "request", "accepted", "cancelled"
 
@@ -229,7 +234,10 @@ const tradeSystem = {
     this.tradeState = null;
     this.tradeSlots.playerA = null;
     this.tradeSlots.playerB = null;
+    this.tradeConfirmations.playerA = false;
+    this.tradeConfirmations.playerB = false;
     this.tradeInventory = Array(20).fill(null);
+    this.balyaryCount = 0;
     clearTimeout(this.tradeRequestTimeout);
     const tradeInterface = document.getElementById("tradeInterface");
     if (tradeInterface) tradeInterface.remove();
@@ -245,6 +253,7 @@ const tradeSystem = {
     this.tradeInventory = JSON.parse(
       JSON.stringify(me.inventory || Array(20).fill(null))
     );
+    this.balyaryCount = this.getBalyaryCount(me.inventory);
 
     const tradeInterface = document.createElement("div");
     tradeInterface.id = "tradeInterface";
@@ -253,23 +262,78 @@ const tradeSystem = {
     tradeInterface.style.left = "50%";
     tradeInterface.style.transform = "translate(-50%, -50%)";
     tradeInterface.style.width = "600px";
-    tradeInterface.style.height = "400px";
     tradeInterface.style.background =
       "linear-gradient(180deg, #1a1a1a, #0f0f0f)";
     tradeInterface.style.border = "2px solid #00ccff";
     tradeInterface.style.boxShadow = "0 0 15px rgba(0, 204, 255, 0.5)";
-    tradeInterface.style.display = "grid";
-    tradeInterface.style.gridTemplateColumns = "1fr 150px 1fr";
-    tradeInterface.style.gap = "20px";
     tradeInterface.style.padding = "20px";
     tradeInterface.style.zIndex = "150";
     tradeInterface.style.fontFamily = "'Orbitron', sans-serif";
+    tradeInterface.style.display = "flex";
+    tradeInterface.style.flexDirection = "column";
+    tradeInterface.style.gap = "10px";
 
+    // Баляры
+    const balyaryDiv = document.createElement("div");
+    balyaryDiv.style.color = "#00ccff";
+    balyaryDiv.style.textAlign = "center";
+    balyaryDiv.textContent = `Баляры: ${this.balyaryCount}`;
+    tradeInterface.appendChild(balyaryDiv);
+
+    // Ячейки торговли
+    const tradeSlotsDiv = document.createElement("div");
+    tradeSlotsDiv.id = "tradeSlots";
+    tradeSlotsDiv.style.display = "flex";
+    tradeSlotsDiv.style.justifyContent = "space-between";
+    tradeSlotsDiv.style.marginBottom = "10px";
+
+    const slotADiv = document.createElement("div");
+    slotADiv.style.display = "flex";
+    slotADiv.style.flexDirection = "column";
+    slotADiv.style.alignItems = "center";
+    const slotALabel = document.createElement("div");
+    slotALabel.textContent = myId;
+    slotALabel.style.color = "#00ccff";
+    slotALabel.style.marginBottom = "5px";
+    const slotA = document.createElement("div");
+    slotA.id = "tradeSlotA";
+    slotA.className = "trade-slot";
+    slotA.style.width = "70px";
+    slotA.style.height = "70px";
+    slotA.style.background = "#1c1c1c";
+    slotA.style.border = "2px solid #00ccff";
+    slotADiv.appendChild(slotALabel);
+    slotADiv.appendChild(slotA);
+
+    const slotBDiv = document.createElement("div");
+    slotBDiv.style.display = "flex";
+    slotBDiv.style.flexDirection = "column";
+    slotBDiv.style.alignItems = "center";
+    const slotBLabel = document.createElement("div");
+    slotBLabel.textContent = otherPlayerId;
+    slotBLabel.style.color = "#ff0066";
+    slotBLabel.style.marginBottom = "5px";
+    const slotB = document.createElement("div");
+    slotB.id = "tradeSlotB";
+    slotB.className = "trade-slot";
+    slotB.style.width = "70px";
+    slotB.style.height = "70px";
+    slotB.style.background = "#1c1c1c";
+    slotB.style.border = "2px solid #ff0066";
+    slotBDiv.appendChild(slotBLabel);
+    slotBDiv.appendChild(slotB);
+
+    tradeSlotsDiv.appendChild(slotADiv);
+    tradeSlotsDiv.appendChild(slotBDiv);
+    tradeInterface.appendChild(tradeSlotsDiv);
+
+    // Инвентарь
     const tradeInventoryDiv = document.createElement("div");
     tradeInventoryDiv.id = "tradeInventory";
     tradeInventoryDiv.style.display = "grid";
     tradeInventoryDiv.style.gridTemplateColumns = "repeat(4, 1fr)";
     tradeInventoryDiv.style.gap = "8px";
+    tradeInventoryDiv.style.marginBottom = "10px";
 
     for (let i = 0; i < 20; i++) {
       const slot = document.createElement("div");
@@ -300,53 +364,40 @@ const tradeSystem = {
       }
       tradeInventoryDiv.appendChild(slot);
     }
+    tradeInterface.appendChild(tradeInventoryDiv);
 
-    const tradeSlotsDiv = document.createElement("div");
-    tradeSlotsDiv.id = "tradeSlots";
-    tradeSlotsDiv.style.display = "flex";
-    tradeSlotsDiv.style.flexDirection = "column";
-    tradeSlotsDiv.style.alignItems = "center";
-    tradeSlotsDiv.style.justifyContent = "center";
+    // Экран информации
+    const tradeScreen = document.createElement("div");
+    tradeScreen.id = "tradeScreen";
+    tradeScreen.style.width = "100%";
+    tradeScreen.style.height = "60px";
+    tradeScreen.style.background = "#0a0a0a";
+    tradeScreen.style.border = "1px solid #00ccff";
+    tradeScreen.style.color = "#00ccff";
+    tradeScreen.style.display = "flex";
+    tradeScreen.style.alignItems = "center";
+    tradeScreen.style.justifyContent = "center";
+    tradeScreen.style.fontSize = "14px";
+    tradeScreen.style.textAlign = "center";
+    tradeInterface.appendChild(tradeScreen);
 
-    const slotA = document.createElement("div");
-    slotA.id = "tradeSlotA";
-    slotA.className = "trade-slot";
-    slotA.style.width = "70px";
-    slotA.style.height = "70px";
-    slotA.style.background = "#1c1c1c";
-    slotA.style.border = "2px solid #00ccff";
-    slotA.style.marginBottom = "20px";
-    if (this.tradeSlots.playerA) {
-      const img = document.createElement("img");
-      img.src = ITEM_CONFIG[this.tradeSlots.playerA.type].image.src;
-      img.style.width = "100%";
-      img.style.height = "100%";
-      slotA.appendChild(img);
-    }
+    // Наведение на ячейку другого игрока
+    slotB.onmouseover = () => {
+      if (this.tradeSlots.playerB) {
+        tradeScreen.textContent =
+          ITEM_CONFIG[this.tradeSlots.playerB.type].description;
+      }
+    };
+    slotB.onmouseout = () => {
+      tradeScreen.textContent = "";
+    };
 
-    const slotB = document.createElement("div");
-    slotB.id = "tradeSlotB";
-    slotB.className = "trade-slot";
-    slotB.style.width = "70px";
-    slotB.style.height = "70px";
-    slotB.style.background = "#1c1c1c";
-    slotB.style.border = "2px solid #ff0066";
-
-    tradeSlotsDiv.appendChild(slotA);
-    tradeSlotsDiv.appendChild(slotB);
-
+    // Кнопки действий
     const tradeActionsDiv = document.createElement("div");
     tradeActionsDiv.id = "tradeActions";
     tradeActionsDiv.style.display = "flex";
-    tradeActionsDiv.style.flexDirection = "column";
-    tradeActionsDiv.style.gap = "10px";
-
-    const placeBtn = document.createElement("button");
-    placeBtn.id = "placeBtn";
-    placeBtn.className = "action-btn use-btn";
-    placeBtn.textContent = "Положить";
-    placeBtn.disabled = true;
-    placeBtn.onclick = () => this.placeItem();
+    tradeActionsDiv.style.justifyContent = "center";
+    tradeActionsDiv.style.gap = "20px";
 
     const confirmBtn = document.createElement("button");
     confirmBtn.id = "confirmTradeBtn";
@@ -361,12 +412,8 @@ const tradeSystem = {
     cancelBtn.textContent = "Отмена";
     cancelBtn.onclick = () => this.cancelTrade();
 
-    tradeActionsDiv.appendChild(placeBtn);
     tradeActionsDiv.appendChild(confirmBtn);
     tradeActionsDiv.appendChild(cancelBtn);
-
-    tradeInterface.appendChild(tradeInventoryDiv);
-    tradeInterface.appendChild(tradeSlotsDiv);
     tradeInterface.appendChild(tradeActionsDiv);
 
     document.getElementById("gameContainer").appendChild(tradeInterface);
@@ -374,28 +421,32 @@ const tradeSystem = {
 
   selectTradeSlot(slotIndex, slotElement) {
     if (!this.tradeInventory[slotIndex]) return;
-    const placeBtn = document.getElementById("placeBtn");
     if (this.tradeSlots.playerA) return; // Только один предмет в слоте
 
     if (this.tradeInventory[slotIndex].type === "balyary") {
-      const screen = document.getElementById("tradeInterface");
-      screen.innerHTML += `
-          <div id="balyaryTradeForm" class="balyary-drop-form">
-            <p class="cyber-text">Сколько положить?</p>
-            <input type="number" id="balyaryTradeAmount" class="cyber-input" min="1" max="${
-              this.tradeInventory[slotIndex].quantity || 1
-            }" placeholder="0" value="" autofocus />
-            <p id="balyaryTradeError" class="error-text"></p>
-          </div>
-        `;
+      const tradeInterface = document.getElementById("tradeInterface");
+      const form = document.createElement("div");
+      form.id = "balyaryTradeForm";
+      form.className = "balyary-drop-form";
+      form.innerHTML = `
+        <p class="cyber-text">Сколько положить?</p>
+        <input type="number" id="balyaryTradeAmount" class="cyber-input" min="1" max="${
+          this.tradeInventory[slotIndex].quantity || 1
+        }" placeholder="0" value="" autofocus />
+        <button id="confirmBalyaryBtn" class="action-btn use-btn">Подтвердить</button>
+        <p id="balyaryTradeError" class="error-text"></p>
+      `;
+      tradeInterface.appendChild(form);
+
       const input = document.getElementById("balyaryTradeAmount");
       input.focus();
       input.addEventListener("input", () => {
         input.value = input.value.replace(/[^0-9]/g, "");
         if (input.value === "") input.value = "";
       });
-      placeBtn.disabled = false;
-      placeBtn.onclick = () => {
+
+      const confirmBtn = document.getElementById("confirmBalyaryBtn");
+      confirmBtn.onclick = () => {
         const amount = parseInt(input.value) || 0;
         const currentQuantity = this.tradeInventory[slotIndex].quantity || 1;
         const errorEl = document.getElementById("balyaryTradeError");
@@ -417,18 +468,25 @@ const tradeSystem = {
         } else {
           this.tradeInventory[slotIndex].quantity -= amount;
         }
+        this.balyaryCount = this.getBalyaryCount(this.tradeInventory);
         document.getElementById("balyaryTradeForm").remove();
         this.updateTradeInterface();
-        placeBtn.disabled = true;
       };
     } else {
       this.tradeSlots.playerA = { ...this.tradeInventory[slotIndex] };
       this.tradeInventory[slotIndex] = null;
+      this.balyaryCount = this.getBalyaryCount(this.tradeInventory);
       this.updateTradeInterface();
-      placeBtn.disabled = true;
     }
   },
-
+  getBalyaryCount(inventory) {
+    return inventory.reduce((total, item) => {
+      if (item && item.type === "balyary") {
+        return total + (item.quantity || 1);
+      }
+      return total;
+    }, 0);
+  },
   placeItem() {
     // Логика уже в selectTradeSlot для Баляр
   },
@@ -455,6 +513,30 @@ const tradeSystem = {
         quantityEl.style.fontSize = "14px";
         quantityEl.style.textShadow = "0 0 5px rgba(0, 255, 255, 0.7)";
         slotA.appendChild(quantityEl);
+      }
+    }
+
+    const slotB = document.getElementById("tradeSlotB");
+    slotB.innerHTML = "";
+    if (this.tradeSlots.playerB) {
+      const img = document.createElement("img");
+      img.src = ITEM_CONFIG[this.tradeSlots.playerB.type].image.src;
+      img.style.width = "100%";
+      img.style.height = "100%";
+      slotB.appendChild(img);
+      if (
+        this.tradeSlots.playerB.type === "balyary" &&
+        this.tradeSlots.playerB.quantity > 1
+      ) {
+        const quantityEl = document.createElement("div");
+        quantityEl.textContent = this.tradeSlots.playerB.quantity;
+        quantityEl.style.position = "absolute";
+        quantityEl.style.top = "0";
+        quantityEl.style.right = "0";
+        quantityEl.style.color = "#ff0066";
+        quantityEl.style.fontSize = "14px";
+        quantityEl.style.textShadow = "0 0 5px rgba(255, 0, 102, 0.7)";
+        slotB.appendChild(quantityEl);
       }
     }
 
@@ -490,12 +572,18 @@ const tradeSystem = {
       tradeInventoryDiv.appendChild(slot);
     }
 
+    const balyaryDiv = document.querySelector(
+      "#tradeInterface > div:first-child"
+    );
+    balyaryDiv.textContent = `Баляры: ${this.balyaryCount}`;
+
     const confirmBtn = document.getElementById("confirmTradeBtn");
     confirmBtn.disabled = !this.tradeSlots.playerA;
   },
 
   confirmTrade(otherPlayerId) {
     if (ws.readyState === WebSocket.OPEN && this.tradeSlots.playerA) {
+      this.tradeConfirmations.playerA = true;
       sendWhenReady(
         ws,
         JSON.stringify({
@@ -505,45 +593,53 @@ const tradeSystem = {
           item: this.tradeSlots.playerA,
         })
       );
+      const confirmBtn = document.getElementById("confirmTradeBtn");
+      confirmBtn.disabled = true;
     }
   },
 
   handleTradeConfirm(data) {
     if (data.toId === myId && this.isTradeActive) {
-      const me = players.get(myId);
-      const freeSlot = me.inventory.findIndex((slot) => slot === null);
-      if (freeSlot !== -1) {
-        if (data.item.type === "balyary") {
-          const balyarySlot = me.inventory.findIndex(
-            (slot) => slot && slot.type === "balyary"
-          );
-          if (balyarySlot !== -1) {
-            me.inventory[balyarySlot].quantity =
-              (me.inventory[balyarySlot].quantity || 1) +
-              (data.item.quantity || 1);
+      this.tradeSlots.playerB = data.item;
+      this.tradeConfirmations.playerB = true;
+      this.updateTradeInterface();
+
+      if (this.tradeConfirmations.playerA && this.tradeConfirmations.playerB) {
+        const me = players.get(myId);
+        const freeSlot = me.inventory.findIndex((slot) => slot === null);
+        if (freeSlot !== -1) {
+          if (data.item.type === "balyary") {
+            const balyarySlot = me.inventory.findIndex(
+              (slot) => slot && slot.type === "balyary"
+            );
+            if (balyarySlot !== -1) {
+              me.inventory[balyarySlot].quantity =
+                (me.inventory[balyarySlot].quantity || 1) +
+                (data.item.quantity || 1);
+            } else {
+              me.inventory[freeSlot] = {
+                type: "balyary",
+                quantity: data.item.quantity || 1,
+                itemId: data.item.itemId,
+              };
+            }
           } else {
             me.inventory[freeSlot] = {
-              type: "balyary",
-              quantity: data.item.quantity || 1,
+              type: data.item.type,
               itemId: data.item.itemId,
             };
           }
+          sendWhenReady(
+            ws,
+            JSON.stringify({
+              type: "updateInventory",
+              inventory: me.inventory,
+            })
+          );
+          this.cancelTrade();
         } else {
-          me.inventory[freeSlot] = {
-            type: data.item.type,
-            itemId: data.item.itemId,
-          };
+          console.log("Инвентарь полон, предмет не добавлен");
         }
-        sendWhenReady(
-          ws,
-          JSON.stringify({
-            type: "updateInventory",
-            inventory: me.inventory,
-          })
-        );
-        this.cancelTrade();
-      } else {
-        console.log("Инвентарь полон, предмет не добавлен");
       }
     }
   },

@@ -907,54 +907,21 @@ wss.on("connection", (ws) => {
         const playerA = players.get(fromId);
         const playerB = players.get(data.toId);
         if (playerA && playerB) {
-          const freeSlot = playerB.inventory.findIndex((slot) => slot === null);
-          if (freeSlot !== -1) {
-            if (data.item.type === "balyary") {
-              const balyarySlot = playerB.inventory.findIndex(
-                (slot) => slot && slot.type === "balyary"
+          wss.clients.forEach((client) => {
+            if (
+              client.readyState === WebSocket.OPEN &&
+              clients.get(client) === data.toId
+            ) {
+              client.send(
+                JSON.stringify({
+                  type: "tradeConfirm",
+                  fromId: fromId,
+                  toId: data.toId,
+                  item: data.item,
+                })
               );
-              if (balyarySlot !== -1) {
-                playerB.inventory[balyarySlot].quantity =
-                  (playerB.inventory[balyarySlot].quantity || 1) +
-                  (data.item.quantity || 1);
-              } else {
-                playerB.inventory[freeSlot] = {
-                  type: "balyary",
-                  quantity: data.item.quantity || 1,
-                  itemId: data.item.itemId,
-                };
-              }
-            } else {
-              playerB.inventory[freeSlot] = {
-                type: data.item.type,
-                itemId: data.item.itemId,
-              };
             }
-            players.set(data.toId, { ...playerB });
-            userDatabase.set(data.toId, { ...playerB });
-            await saveUserDatabase(dbCollection, data.toId, playerB);
-            wss.clients.forEach((client) => {
-              if (
-                client.readyState === WebSocket.OPEN &&
-                clients.get(client) === data.toId
-              ) {
-                client.send(
-                  JSON.stringify({
-                    type: "tradeConfirm",
-                    fromId: fromId,
-                    toId: data.toId,
-                    item: data.item,
-                  })
-                );
-                client.send(
-                  JSON.stringify({
-                    type: "update",
-                    player: { id: data.toId, ...playerB },
-                  })
-                );
-              }
-            });
-          }
+          });
         }
       }
     }
