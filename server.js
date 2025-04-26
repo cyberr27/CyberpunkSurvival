@@ -995,78 +995,114 @@ wss.on("connection", (ws) => {
       }
     } else if (data.type === "completeTrade") {
       const fromId = clients.get(ws);
-      if (fromId && players.has(data.toId)) {
-        const playerA = players.get(data.toId); // Игрок А получает предмет
-        const playerB = players.get(fromId); // Игрок В отправляет предмет
-        if (playerA && playerB && data.item) {
-          // Проверяем наличие свободного слота у игрока А
-          const freeSlot = playerA.inventory.findIndex((slot) => slot === null);
-          if (freeSlot !== -1) {
-            if (data.item.type === "balyary") {
-              const balyarySlot = playerA.inventory.findIndex(
-                (slot) => slot && slot.type === "balyary"
-              );
-              if (balyarySlot !== -1) {
-                playerA.inventory[balyarySlot].quantity =
-                  (playerA.inventory[balyarySlot].quantity || 1) +
-                  (data.item.quantity || 1);
-              } else {
-                playerA.inventory[freeSlot] = {
-                  type: "balyary",
-                  quantity: data.item.quantity || 1,
-                  itemId: data.item.itemId,
-                };
-              }
-            } else {
-              playerA.inventory[freeSlot] = {
-                type: data.item.type,
-                itemId: data.item.itemId,
-              };
-            }
-            // Сохраняем обновлённый инвентарь игрока А
-            players.set(data.toId, { ...playerA });
-            userDatabase.set(data.toId, { ...playerA });
-            await saveUserDatabase(dbCollection, data.toId, playerA);
-            // Уведомляем игрока А об обновлении
-            wss.clients.forEach((client) => {
-              if (
-                client.readyState === WebSocket.OPEN &&
-                clients.get(client) === data.toId
-              ) {
-                client.send(
-                  JSON.stringify({
-                    type: "completeTrade",
-                    fromId: fromId,
-                    toId: data.toId,
-                    item: data.item,
-                  })
-                );
-              }
-            });
-          } else {
-            console.log(
-              `Инвентарь игрока ${data.toId} полон, предмет не добавлен`
+      if (!fromId || !players.has(data.toId)) {
+        console.log(
+          `Ошибка completeTrade: fromId=${fromId}, toId=${data.toId} не найден`
+        );
+        return;
+      }
+
+      const playerA = players.get(data.toId); // Игрок А (получатель предмета)
+      const playerB = players.get(fromId); // Игрок В (отправитель предмета)
+      if (!playerA || !playerB) {
+        console.log(
+          `Ошибка completeTrade: игроки не найдены (A=${data.toId}, B=${fromId})`
+        );
+        return;
+      }
+
+      // Проверяем наличие свободного слота у игрока А
+      const freeSlotA = playerA.inventory.findIndex((slot) => slot === null);
+      if (data.item && freeSlotA === -1) {
+        console.log(`Инвентарь игрока ${data.toId} полон, торговля отменяется`);
+        wss.clients.forEach((client) => {
+          if (
+            client.readyState === WebSocket.OPEN &&
+            (clients.get(client) === data.toId ||
+              clients.get(client) === fromId)
+          ) {
+            client.send(
+              JSON.stringify({
+                type: "tradeCancel",
+                fromId: fromId,
+                toId: clients.get(client) === fromId ? data.toId : fromId,
+                closeInventory: true,
+              })
             );
-            // Отправляем отмену торговли
-            wss.clients.forEach((client) => {
-              if (
-                client.readyState === WebSocket.OPEN &&
-                (clients.get(client) === data.toId ||
-                  clients.get(client) === fromId)
-              ) {
-                client.send(
-                  JSON.stringify({
-                    type: "tradeCancel",
-                    fromId: fromId,
-                    toId: clients.get(client) === fromId ? data.toId : fromId,
-                    closeInventory: true,
-                  })
-                );
-              }
-            });
           }
+        });
+        return;
+      }
+
+      // Добавляем предмет от игрока В в инвентарь игрока А
+      if (data.item) {
+        if (data.item.type === "balyary") {
+          const balyarySlot = playerA.inventory.findIndex(
+            (slot) => slot && slot.type === "balyary"
+          );
+          if (balyarySlot !== -1) {
+            playerA.inventory[balyarySlot].quantity =
+              (playerA.inventory[balyarySlot].quantity || 1) +
+              (data.item.quantity || 1);
+          } else {
+            playerA.inventory[freeSlotA] = {
+              type: "balyary",
+              quantity: data.item.quantity || 1,
+              itemId: data.item.itemId || `${data.item.type}_${Date.now()}`,
+            };
+          }
+        } else {
+          playerA.inventory[freeSlotA] = {
+            type: data.item.type,
+            itemId: data.item.itemId || `${data.item.type}_${Date.now()}`,
+          };
         }
       }
+
+      // Сохраняем обновлённый инвентарь игрока А
+      players.set(data.toId, { ...playerA });
+      userDatabase.set(data.toId, { ...playerA });
+      await saveUserDatabase(dbCollection, data.toId, playerA);
+
+      // Отправляем уведомление игроку А о завершении торговли
+      wss.clients.forEach((client) => {
+        if (
+          client.readyState === WebSocket.OPEN &&
+          clients.get(client) === data.toId
+        ) {
+          client.send(
+            JSON.stringify({
+              type: "completeTrade",
+              fromId: fromId,
+              toId: data.toId,
+              item: data.item,
+            })
+          );
+        }
+      });
+
+      // Уведомляем обоих игроков об обновлении инвентаря
+      wss.clients.forEach((client) => {
+        const clientId = clients.get(client);
+        if (
+          client.readyState === WebSocket.OPEN &&
+          (clientId === fromId || clientId === data.toId)
+        ) {
+          const player = players.get(clientId);
+          client.send(
+            JSON.stringify({
+              type: "update",
+              player: { id: clientId, ...player },
+            })
+          );
+        }
+      });
+
+      console.log(
+        `Торговля завершена: ${fromId} передал предмет ${
+          data.item ? data.item.type : "null"
+        } игроку ${data.toId}`
+      );
     }
   });
 

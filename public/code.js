@@ -649,9 +649,15 @@ function startGame() {
 
   // Настройка кнопки Inventory
   const inventoryBtn = document.getElementById("inventoryBtn");
+  let isToggling = false; // Защита от повторных нажатий
   inventoryBtn.addEventListener("click", (e) => {
     e.preventDefault();
+    if (isToggling || window.tradeSystem.isTradeActive) return; // Не открываем, если идёт торговля
+    isToggling = true;
     toggleInventory();
+    setTimeout(() => {
+      isToggling = false;
+    }, 200); // Debounce 200ms
   });
 
   // Создаём контейнер для ячеек инвентаря
@@ -689,7 +695,13 @@ function startGame() {
 
 // Функция переключения инвентаря
 function toggleInventory() {
+  if (window.tradeSystem.isTradeActive) {
+    console.log("Нельзя открыть инвентарь во время торговли");
+    return;
+  }
+
   isInventoryOpen = !isInventoryOpen;
+  console.log(`Переключение инвентаря: isInventoryOpen = ${isInventoryOpen}`);
   const inventoryContainer = document.getElementById("inventoryContainer");
   inventoryContainer.style.display = isInventoryOpen ? "grid" : "none";
   if (isInventoryOpen) updateInventoryDisplay();
