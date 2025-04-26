@@ -1191,6 +1191,17 @@ function handleGameMessage(event) {
       case "updateTradeSlot":
         window.tradeSystem.handleTradeSlotUpdate(data);
         break;
+      case "tradeCancel":
+        window.tradeSystem.handleTradeCancel(data);
+        if (data.closeInventory) {
+          isInventoryOpen = false;
+          const inventoryContainer =
+            document.getElementById("inventoryContainer");
+          const inventoryBtn = document.getElementById("inventoryBtn");
+          inventoryContainer.style.display = "none";
+          inventoryBtn.classList.remove("active");
+        }
+        break;
     }
   } catch (error) {
     console.error("Ошибка в handleGameMessage:", error);

@@ -918,6 +918,7 @@ wss.on("connection", (ws) => {
                   fromId: fromId,
                   toId: data.toId,
                   item: data.item,
+                  confirm: data.confirm,
                 })
               );
             }
@@ -962,6 +963,7 @@ wss.on("connection", (ws) => {
                 type: "tradeCancel",
                 fromId: fromId,
                 toId: data.toId,
+                closeInventory: data.closeInventory || false,
               })
             );
           }
@@ -994,6 +996,61 @@ wss.on("connection", (ws) => {
             );
           }
         });
+      }
+    } else if (data.type === "completeTrade") {
+      const fromId = clients.get(ws);
+      if (fromId && players.has(data.toId)) {
+        const playerA = players.get(data.toId); // Игрок А получает предмет
+        const playerB = players.get(fromId); // Игрок В отправляет предмет
+        if (playerA && playerB && data.item) {
+          // Проверяем наличие свободного слота у игрока А
+          const freeSlot = playerA.inventory.findIndex((slot) => slot === null);
+          if (freeSlot !== -1) {
+            if (data.item.type === "balyary") {
+              const balyarySlot = playerA.inventory.findIndex(
+                (slot) => slot && slot.type === "balyary"
+              );
+              if (balyarySlot !== -1) {
+                playerA.inventory[balyarySlot].quantity =
+                  (playerA.inventory[balyarySlot].quantity || 1) +
+                  (data.item.quantity || 1);
+              } else {
+                playerA.inventory[freeSlot] = {
+                  type: "balyary",
+                  quantity: data.item.quantity || 1,
+                  itemId: data.item.itemId,
+                };
+              }
+            } else {
+              playerA.inventory[freeSlot] = {
+                type: data.item.type,
+                itemId: data.item.itemId,
+              };
+            }
+            // Сохраняем обновлённый инвентарь игрока А
+            players.set(data.toId, { ...playerA });
+            userDatabase.set(data.toId, { ...playerA });
+            await saveUserDatabase(dbCollection, data.toId, playerA);
+            // Уведомляем игрока А об обновлении инвентаря
+            wss.clients.forEach((client) => {
+              if (
+                client.readyState === WebSocket.OPEN &&
+                clients.get(client) === data.toId
+              ) {
+                client.send(
+                  JSON.stringify({
+                    type: "updateInventory",
+                    inventory: playerA.inventory,
+                  })
+                );
+              }
+            });
+          } else {
+            console.log(
+              `Инвентарь игрока ${data.toId} полон, предмет не добавлен`
+            );
+          }
+        }
       }
     }
   });
