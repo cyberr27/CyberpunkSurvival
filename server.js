@@ -967,6 +967,34 @@ wss.on("connection", (ws) => {
           }
         });
       }
+    } else if (data.type === "updateTradeSlot") {
+      const fromId = clients.get(ws);
+      if (fromId && players.has(fromId)) {
+        const player = players.get(fromId);
+        player.inventory = data.inventory || player.inventory;
+        players.set(fromId, { ...player });
+        userDatabase.set(fromId, { ...player });
+        await saveUserDatabase(dbCollection, fromId, player);
+        wss.clients.forEach((client) => {
+          const clientId = clients.get(client);
+          if (
+            client.readyState === WebSocket.OPEN &&
+            clientId !== fromId &&
+            players.has(clientId)
+          ) {
+            client.send(
+              JSON.stringify({
+                type: "updateTradeSlot",
+                fromId: fromId,
+                toId: clientId,
+                item: data.item,
+                inventory: data.inventory,
+                balyaryCount: data.balyaryCount,
+              })
+            );
+          }
+        });
+      }
     }
   });
 

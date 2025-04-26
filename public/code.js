@@ -1188,6 +1188,9 @@ function handleGameMessage(event) {
       case "tradeConfirm":
         window.tradeSystem.handleTradeConfirm(data);
         break;
+      case "updateTradeSlot":
+        window.tradeSystem.handleTradeSlotUpdate(data);
+        break;
     }
   } catch (error) {
     console.error("Ошибка в handleGameMessage:", error);

@@ -248,6 +248,8 @@ const tradeSystem = {
     this.selectedPlayerId = null;
     this.isTradeActive = false;
     this.tradeState = null;
+    // Возвращаем предметы в инвентарь
+    this.returnItemToInventory();
     this.tradeSlots.playerA = null;
     this.tradeSlots.playerB = null;
     this.tradeConfirmations.playerA = false;
@@ -270,6 +272,17 @@ const tradeSystem = {
           type: "tradeCancel",
           fromId: myId,
           toId: otherPlayerId,
+        })
+      );
+    }
+    // Синхронизируем инвентарь с сервером
+    const me = players.get(myId);
+    if (ws.readyState === WebSocket.OPEN) {
+      sendWhenReady(
+        ws,
+        JSON.stringify({
+          type: "updateInventory",
+          inventory: me.inventory,
         })
       );
     }
@@ -301,14 +314,25 @@ const tradeSystem = {
         this.tradeSlots.playerA = null;
         this.balyaryCount = this.getBalyaryCount(this.tradeInventory);
         this.updateTradeInterface();
+        // Синхронизируем инвентарь игрока
+        const me = players.get(myId);
+        me.inventory = this.tradeInventory;
         // Отправляем обновление на сервер
         if (ws.readyState === WebSocket.OPEN) {
           sendWhenReady(
             ws,
             JSON.stringify({
-              type: "updateTrade",
+              type: "updateInventory",
               inventory: this.tradeInventory,
-              tradeSlots: this.tradeSlots,
+            })
+          );
+          sendWhenReady(
+            ws,
+            JSON.stringify({
+              type: "updateTradeSlot",
+              fromId: myId,
+              item: null,
+              inventory: this.tradeInventory,
               balyaryCount: this.balyaryCount,
             })
           );
@@ -560,12 +584,38 @@ const tradeSystem = {
         this.balyaryCount = this.getBalyaryCount(this.tradeInventory);
         document.getElementById("balyaryTradeForm").remove();
         this.updateTradeInterface();
+        // Отправляем обновление слота на сервер
+        if (ws.readyState === WebSocket.OPEN) {
+          sendWhenReady(
+            ws,
+            JSON.stringify({
+              type: "updateTradeSlot",
+              fromId: myId,
+              item: this.tradeSlots.playerA,
+              inventory: this.tradeInventory,
+              balyaryCount: this.balyaryCount,
+            })
+          );
+        }
       };
     } else {
       this.tradeSlots.playerA = { ...this.tradeInventory[slotIndex] };
-      this.tradeInventory[slotIndex] = null;
+      this.tradeInventory[slotIndex] = null; // Удаляем предмет из инвентаря
       this.balyaryCount = this.getBalyaryCount(this.tradeInventory);
       this.updateTradeInterface();
+      // Отправляем обновление слота на сервер
+      if (ws.readyState === WebSocket.OPEN) {
+        sendWhenReady(
+          ws,
+          JSON.stringify({
+            type: "updateTradeSlot",
+            fromId: myId,
+            item: this.tradeSlots.playerA,
+            inventory: this.tradeInventory,
+            balyaryCount: this.balyaryCount,
+          })
+        );
+      }
     }
   },
   getBalyaryCount(inventory) {
@@ -657,6 +707,15 @@ const tradeSystem = {
           slot.appendChild(quantityEl);
         }
         slot.onclick = () => this.selectTradeSlot(i, slot);
+        slot.onmouseover = () => {
+          const tradeScreen = document.getElementById("tradeScreen");
+          tradeScreen.textContent =
+            ITEM_CONFIG[this.tradeInventory[i].type].description;
+        };
+        slot.onmouseout = () => {
+          const tradeScreen = document.getElementById("tradeScreen");
+          tradeScreen.textContent = "";
+        };
       }
       tradeInventoryDiv.appendChild(slot);
     }
@@ -668,6 +727,20 @@ const tradeSystem = {
 
     const confirmBtn = document.getElementById("confirmTradeBtn");
     confirmBtn.disabled = !this.tradeSlots.playerA;
+  },
+
+  // Добавляем новый метод для обработки обновлений слота от сервера
+  handleTradeSlotUpdate(data) {
+    if (data.toId === myId && this.isTradeActive) {
+      if (data.fromId !== myId) {
+        this.tradeSlots.playerB = data.item;
+        this.updateTradeInterface();
+      }
+      // Синхронизируем инвентарь
+      const me = players.get(myId);
+      me.inventory = data.inventory || me.inventory;
+      updateInventoryDisplay();
+    }
   },
 
   confirmTrade(otherPlayerId) {
