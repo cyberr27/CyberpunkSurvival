@@ -914,7 +914,7 @@ wss.on("connection", (ws) => {
                 type: "tradeConfirm",
                 fromId: fromId,
                 toId: data.toId,
-                item: data.item,
+                item: data.item, // Передаём предмет
                 confirm: data.confirm,
               })
             );
