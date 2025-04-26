@@ -244,12 +244,16 @@ const tradeSystem = {
     }
   },
 
-  cancelTrade(otherPlayerId) {
+  cancelTrade(otherPlayerId, isComplete = false) {
     this.selectedPlayerId = null;
     this.isTradeActive = false;
     this.tradeState = null;
-    // Возвращаем предметы в инвентарь
-    this.returnItemToInventory();
+
+    // Возвращаем предметы в инвентарь, если торговля не завершена
+    if (!isComplete) {
+      this.returnItemToInventory();
+    }
+
     this.tradeSlots.playerA = null;
     this.tradeSlots.playerB = null;
     this.tradeConfirmations.playerA = false;
@@ -282,7 +286,7 @@ const tradeSystem = {
           type: "tradeCancel",
           fromId: myId,
           toId: otherPlayerId,
-          closeInventory: !this.tradeSlots.playerA, // Указываем, нужно ли закрыть инвентарь
+          closeInventory: !this.tradeSlots.playerA,
         })
       );
     }
@@ -520,7 +524,7 @@ const tradeSystem = {
     confirmBtn.id = "confirmTradeBtn";
     confirmBtn.className = "action-btn confirm-btn";
     confirmBtn.textContent = "Обмен";
-    confirmBtn.disabled = true;
+    confirmBtn.disabled = true; // Изначально отключена
     confirmBtn.onclick = () => this.confirmTrade(otherPlayerId);
 
     const cancelBtn = document.createElement("button");
@@ -739,7 +743,7 @@ const tradeSystem = {
 
     const confirmBtn = document.getElementById("confirmTradeBtn");
     confirmBtn.disabled =
-      !this.tradeSlots.playerA && !this.tradeConfirmations.playerB;
+      !this.tradeConfirmations.playerA && !this.tradeSlots.playerA;
   },
 
   // Добавляем новый метод для обработки обновлений слота от сервера
@@ -757,7 +761,12 @@ const tradeSystem = {
   },
 
   confirmTrade(otherPlayerId) {
-    if (ws.readyState === WebSocket.OPEN && this.tradeSlots.playerA) {
+    if (ws.readyState === WebSocket.OPEN) {
+      // Игрок А должен иметь предмет для подтверждения
+      if (!this.tradeConfirmations.playerA && !this.tradeSlots.playerA) {
+        console.log("Игрок А не может подтвердить без предмета");
+        return;
+      }
       this.tradeConfirmations.playerA = true;
       sendWhenReady(
         ws,
@@ -766,11 +775,11 @@ const tradeSystem = {
           fromId: myId,
           toId: otherPlayerId,
           item: this.tradeSlots.playerA,
-          confirm: true, // Указываем, что игрок подтвердил
+          confirm: true,
         })
       );
       const confirmBtn = document.getElementById("confirmTradeBtn");
-      confirmBtn.disabled = true;
+      confirmBtn.disabled = true; // Блокируем кнопку после подтверждения
     }
   },
 
@@ -786,16 +795,20 @@ const tradeSystem = {
         confirmBtn.disabled = false;
       }
 
+      // Если оба игрока подтвердили, выполняем обмен
       if (this.tradeConfirmations.playerA && this.tradeConfirmations.playerB) {
         const me = players.get(myId);
         const otherPlayerId = data.fromId;
 
         // Проверяем наличие свободного слота у игрока В (текущего игрока)
-        const myFreeSlot = me.inventory.findIndex((slot) => slot === null);
-        if (myFreeSlot === -1 && this.tradeSlots.playerB) {
-          console.log("Инвентарь полон у игрока В, торговля отменяется");
-          this.cancelTrade(otherPlayerId);
-          return;
+        let myFreeSlot = -1;
+        if (this.tradeSlots.playerB) {
+          myFreeSlot = me.inventory.findIndex((slot) => slot === null);
+          if (myFreeSlot === -1) {
+            console.log("Инвентарь полон у игрока В, торговля отменяется");
+            this.cancelTrade(otherPlayerId);
+            return;
+          }
         }
 
         // Если есть предмет от игрока А, добавляем его в инвентарь игрока В
@@ -847,20 +860,71 @@ const tradeSystem = {
           );
         }
 
-        // Очищаем слоты торговли
+        // Очищаем слоты и подтверждения
         this.tradeSlots.playerA = null;
         this.tradeSlots.playerB = null;
         this.tradeConfirmations.playerA = false;
         this.tradeConfirmations.playerB = false;
+        this.balyaryCount = this.getBalyaryCount(me.inventory);
 
         // Закрываем интерфейс торговли
         this.cancelTrade(otherPlayerId);
       }
     }
   },
+
+  completeTrade(data) {
+    if (data.toId === myId && this.isTradeActive) {
+      const me = players.get(myId);
+      if (data.item) {
+        // Проверяем наличие свободного слота у игрока А
+        const freeSlot = me.inventory.findIndex((slot) => slot === null);
+        if (freeSlot === -1) {
+          console.log("Инвентарь полон у игрока А, торговля отменяется");
+          this.cancelTrade(data.fromId);
+          return;
+        }
+        // Добавляем предмет от игрока В в инвентарь игрока А
+        if (data.item.type === "balyary") {
+          const balyarySlot = me.inventory.findIndex(
+            (slot) => slot && slot.type === "balyary"
+          );
+          if (balyarySlot !== -1) {
+            me.inventory[balyarySlot].quantity =
+              (me.inventory[balyarySlot].quantity || 1) +
+              (data.item.quantity || 1);
+          } else {
+            me.inventory[freeSlot] = {
+              type: "balyary",
+              quantity: data.item.quantity || 1,
+              itemId: data.item.itemId,
+            };
+          }
+        } else {
+          me.inventory[freeSlot] = {
+            type: data.item.type,
+            itemId: data.item.itemId,
+          };
+        }
+        // Обновляем инвентарь на сервере
+        if (ws.readyState === WebSocket.OPEN) {
+          sendWhenReady(
+            ws,
+            JSON.stringify({
+              type: "updateInventory",
+              inventory: me.inventory,
+            })
+          );
+        }
+      }
+      // Закрываем интерфейс торговли
+      this.cancelTrade(data.fromId, true);
+    }
+  },
+
   handleTradeCancel(data) {
     if (data.toId === myId) {
-      this.cancelTrade();
+      this.cancelTrade(data.fromId, false);
     }
   },
   handleTradeUpdate(data) {

@@ -904,26 +904,22 @@ wss.on("connection", (ws) => {
     } else if (data.type === "tradeConfirm") {
       const fromId = clients.get(ws);
       if (fromId && players.has(data.toId)) {
-        const playerA = players.get(fromId);
-        const playerB = players.get(data.toId);
-        if (playerA && playerB) {
-          wss.clients.forEach((client) => {
-            if (
-              client.readyState === WebSocket.OPEN &&
-              clients.get(client) === data.toId
-            ) {
-              client.send(
-                JSON.stringify({
-                  type: "tradeConfirm",
-                  fromId: fromId,
-                  toId: data.toId,
-                  item: data.item,
-                  confirm: data.confirm,
-                })
-              );
-            }
-          });
-        }
+        wss.clients.forEach((client) => {
+          if (
+            client.readyState === WebSocket.OPEN &&
+            clients.get(client) === data.toId
+          ) {
+            client.send(
+              JSON.stringify({
+                type: "tradeConfirm",
+                fromId: fromId,
+                toId: data.toId,
+                item: data.item,
+                confirm: data.confirm,
+              })
+            );
+          }
+        });
       }
     } else if (data.type === "updateTrade") {
       const fromId = clients.get(ws);
@@ -1031,7 +1027,7 @@ wss.on("connection", (ws) => {
             players.set(data.toId, { ...playerA });
             userDatabase.set(data.toId, { ...playerA });
             await saveUserDatabase(dbCollection, data.toId, playerA);
-            // Уведомляем игрока А об обновлении инвентаря
+            // Уведомляем игрока А об обновлении
             wss.clients.forEach((client) => {
               if (
                 client.readyState === WebSocket.OPEN &&
@@ -1039,8 +1035,10 @@ wss.on("connection", (ws) => {
               ) {
                 client.send(
                   JSON.stringify({
-                    type: "updateInventory",
-                    inventory: playerA.inventory,
+                    type: "completeTrade",
+                    fromId: fromId,
+                    toId: data.toId,
+                    item: data.item,
                   })
                 );
               }
@@ -1049,6 +1047,23 @@ wss.on("connection", (ws) => {
             console.log(
               `Инвентарь игрока ${data.toId} полон, предмет не добавлен`
             );
+            // Отправляем отмену торговли
+            wss.clients.forEach((client) => {
+              if (
+                client.readyState === WebSocket.OPEN &&
+                (clients.get(client) === data.toId ||
+                  clients.get(client) === fromId)
+              ) {
+                client.send(
+                  JSON.stringify({
+                    type: "tradeCancel",
+                    fromId: fromId,
+                    toId: clients.get(client) === fromId ? data.toId : fromId,
+                    closeInventory: true,
+                  })
+                );
+              }
+            });
           }
         }
       }

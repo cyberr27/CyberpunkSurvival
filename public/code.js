@@ -1191,6 +1191,9 @@ function handleGameMessage(event) {
       case "updateTradeSlot":
         window.tradeSystem.handleTradeSlotUpdate(data);
         break;
+      case "completeTrade":
+        window.tradeSystem.completeTrade(data);
+        break;
       case "tradeCancel":
         window.tradeSystem.handleTradeCancel(data);
         if (data.closeInventory) {
