@@ -837,6 +837,115 @@ wss.on("connection", (ws) => {
           }
         }
       }
+    } else if (data.type === "tradeOffer") {
+      const id = clients.get(ws);
+      if (id && players.has(data.to)) {
+        wss.clients.forEach((client) => {
+          if (
+            client.readyState === WebSocket.OPEN &&
+            clients.get(client) === data.to
+          ) {
+            client.send(
+              JSON.stringify({
+                type: "tradeOffer",
+                from: id,
+                to: data.to,
+              })
+            );
+          }
+        });
+      }
+    } else if (data.type === "tradeAccept") {
+      const id = clients.get(ws);
+      if (id && players.has(data.to)) {
+        wss.clients.forEach((client) => {
+          if (
+            client.readyState === WebSocket.OPEN &&
+            clients.get(client) === data.to
+          ) {
+            client.send(
+              JSON.stringify({
+                type: "tradeAccept",
+                from: id,
+                to: data.to,
+              })
+            );
+          }
+        });
+      }
+    } else if (data.type === "tradeCancel") {
+      const id = clients.get(ws);
+      if (id && players.has(data.to)) {
+        wss.clients.forEach((client) => {
+          if (
+            client.readyState === WebSocket.OPEN &&
+            clients.get(client) === data.to
+          ) {
+            client.send(
+              JSON.stringify({
+                type: "tradeCancel",
+                from: id,
+                to: data.to,
+              })
+            );
+          }
+        });
+      }
+    } else if (data.type === "tradeItemPlaced") {
+      const id = clients.get(ws);
+      if (id && players.has(data.to)) {
+        wss.clients.forEach((client) => {
+          if (
+            client.readyState === WebSocket.OPEN &&
+            clients.get(client) === data.to
+          ) {
+            client.send(
+              JSON.stringify({
+                type: "tradeItemPlaced",
+                from: id,
+                to: data.to,
+                item: data.item,
+              })
+            );
+          }
+        });
+      }
+    } else if (data.type === "tradeConfirm") {
+      const id = clients.get(ws);
+      if (id && players.has(data.to)) {
+        wss.clients.forEach((client) => {
+          if (
+            client.readyState === WebSocket.OPEN &&
+            clients.get(client) === data.to
+          ) {
+            client.send(
+              JSON.stringify({
+                type: "tradeConfirm",
+                from: id,
+                to: data.to,
+              })
+            );
+          }
+        });
+      }
+    } else if (data.type === "tradeItemRemoved") {
+      const id = clients.get(ws);
+      if (id && players.has(data.to)) {
+        wss.clients.forEach((client) => {
+          if (
+            client.readyState === WebSocket.OPEN &&
+            clients.get(client) === data.to
+          ) {
+            client.send(
+              JSON.stringify({
+                type: "tradeItemRemoved",
+                from: id,
+                to: data.to,
+              })
+            );
+          }
+        });
+      }
     } else if (data.type === "selectQuest") {
       const id = clients.get(ws);
       if (id) {

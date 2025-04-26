@@ -645,6 +645,7 @@ function startGame() {
   });
 
   window.chatSystem.initializeChat(ws);
+  window.tradeSystem.initialize();
 
   // Настройка кнопки Inventory
   const inventoryBtn = document.getElementById("inventoryBtn");
@@ -1174,6 +1175,14 @@ function handleGameMessage(event) {
           errorEl.textContent = data.error || "Ошибка покупки";
           console.log(`Ошибка покупки: ${data.error}`);
         }
+        break;
+      case "tradeOffer":
+      case "tradeAccept":
+      case "tradeCancel":
+      case "tradeItemPlaced":
+      case "tradeConfirm":
+      case "tradeItemRemoved":
+        window.tradeSystem.handleTradeMessage(data);
         break;
     }
   } catch (error) {
