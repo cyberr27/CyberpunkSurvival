@@ -959,7 +959,7 @@ wss.on("connection", (ws) => {
                 type: "tradeCancel",
                 fromId: fromId,
                 toId: data.toId,
-                closeInventory: data.closeInventory || false,
+                closeInterfaces: data.closeInterfaces || false,
               })
             );
           }
@@ -1011,30 +1011,35 @@ wss.on("connection", (ws) => {
         return;
       }
 
-      // Проверяем наличие свободного слота у игрока А
-      const freeSlotA = playerA.inventory.findIndex((slot) => slot === null);
-      if (data.item && freeSlotA === -1) {
-        console.log(`Инвентарь игрока ${data.toId} полон, торговля отменяется`);
-        wss.clients.forEach((client) => {
-          if (
-            client.readyState === WebSocket.OPEN &&
-            (clients.get(client) === data.toId ||
-              clients.get(client) === fromId)
-          ) {
-            client.send(
-              JSON.stringify({
-                type: "tradeCancel",
-                fromId: fromId,
-                toId: clients.get(client) === fromId ? data.toId : fromId,
-                closeInventory: true,
-              })
-            );
-          }
-        });
-        return;
+      // Проверяем наличие свободного слота у игрока А, если есть предмет
+      let freeSlotA = -1;
+      if (data.item) {
+        freeSlotA = playerA.inventory.findIndex((slot) => slot === null);
+        if (freeSlotA === -1) {
+          console.log(
+            `Инвентарь игрока ${data.toId} полон, торговля отменяется`
+          );
+          wss.clients.forEach((client) => {
+            if (
+              client.readyState === WebSocket.OPEN &&
+              (clients.get(client) === data.toId ||
+                clients.get(client) === fromId)
+            ) {
+              client.send(
+                JSON.stringify({
+                  type: "tradeCancel",
+                  fromId: fromId,
+                  toId: clients.get(client) === fromId ? data.toId : fromId,
+                  closeInterfaces: true,
+                })
+              );
+            }
+          });
+          return;
+        }
       }
 
-      // Добавляем предмет от игрока В в инвентарь игрока А
+      // Добавляем предмет от игрока В в инвентарь игрока А (если есть)
       if (data.item) {
         if (data.item.type === "balyary") {
           const balyarySlot = playerA.inventory.findIndex(
