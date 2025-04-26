@@ -163,21 +163,37 @@ const tradeSystem = {
     dialog.style.zIndex = "200";
 
     dialog.innerHTML = `
-        <p class="cyber-text">Пользователь ${fromId} хочет торговать с вами.</p>
-        <div style="display: flex; justify-content: space-around; margin-top: 20px;">
-          <button id="acceptTradeBtn" class="action-btn use-btn">Согласен</button>
-          <button id="cancelTradeBtn" class="action-btn drop-btn">Отмена</button>
-        </div>
-      `;
+      <p class="cyber-text">Пользователь ${fromId} хочет торговать с вами.</p>
+      <p id="tradeTimer" class="cyber-text">Осталось: 30 сек</p>
+      <div style="display: flex; justify-content: space-around; margin-top: 20px;">
+        <button id="acceptTradeBtn" class="action-btn use-btn">Согласен</button>
+        <button id="cancelTradeBtn" class="action-btn drop-btn">Отмена</button>
+      </div>
+    `;
 
     document.getElementById("gameContainer").appendChild(dialog);
 
+    // Таймер на 30 секунд
+    let timeLeft = 30;
+    const timerElement = document.getElementById("tradeTimer");
+    const timerInterval = setInterval(() => {
+      timeLeft--;
+      timerElement.textContent = `Осталось: ${timeLeft} сек`;
+      if (timeLeft <= 0) {
+        clearInterval(timerInterval);
+        this.rejectTrade(fromId);
+        dialog.remove();
+      }
+    }, 1000);
+
     document.getElementById("acceptTradeBtn").addEventListener("click", () => {
+      clearInterval(timerInterval); // Останавливаем таймер при согласии
       this.acceptTrade(fromId);
       dialog.remove();
     });
 
     document.getElementById("cancelTradeBtn").addEventListener("click", () => {
+      clearInterval(timerInterval); // Останавливаем таймер при отмене
       this.rejectTrade(fromId);
       dialog.remove();
     });
@@ -228,7 +244,7 @@ const tradeSystem = {
     }
   },
 
-  cancelTrade() {
+  cancelTrade(otherPlayerId) {
     this.selectedPlayerId = null;
     this.isTradeActive = false;
     this.tradeState = null;
@@ -245,6 +261,61 @@ const tradeSystem = {
     if (tradeBtn) {
       tradeBtn.disabled = true;
       tradeBtn.classList.remove("active");
+    }
+    // Отправляем сообщение о сбросе торговли другому игроку
+    if (otherPlayerId && ws.readyState === WebSocket.OPEN) {
+      sendWhenReady(
+        ws,
+        JSON.stringify({
+          type: "tradeCancel",
+          fromId: myId,
+          toId: otherPlayerId,
+        })
+      );
+    }
+  },
+
+  returnItemToInventory() {
+    if (this.tradeSlots.playerA) {
+      const item = this.tradeSlots.playerA;
+      const freeSlot = this.tradeInventory.findIndex((slot) => slot === null);
+      if (freeSlot !== -1) {
+        if (item.type === "balyary") {
+          const balyarySlot = this.tradeInventory.findIndex(
+            (slot) => slot && slot.type === "balyary"
+          );
+          if (balyarySlot !== -1) {
+            this.tradeInventory[balyarySlot].quantity =
+              (this.tradeInventory[balyarySlot].quantity || 1) +
+              (item.quantity || 1);
+          } else {
+            this.tradeInventory[freeSlot] = {
+              type: "balyary",
+              quantity: item.quantity || 1,
+              itemId: item.itemId,
+            };
+          }
+        } else {
+          this.tradeInventory[freeSlot] = { ...item };
+        }
+        this.tradeSlots.playerA = null;
+        this.balyaryCount = this.getBalyaryCount(this.tradeInventory);
+        this.updateTradeInterface();
+        // Отправляем обновление на сервер
+        if (ws.readyState === WebSocket.OPEN) {
+          sendWhenReady(
+            ws,
+            JSON.stringify({
+              type: "updateTrade",
+              inventory: this.tradeInventory,
+              tradeSlots: this.tradeSlots,
+              balyaryCount: this.balyaryCount,
+            })
+          );
+        }
+      } else {
+        console.log("Инвентарь полон, предмет не возвращён");
+      }
     }
   },
 
@@ -361,6 +432,16 @@ const tradeSystem = {
           slot.appendChild(quantityEl);
         }
         slot.onclick = () => this.selectTradeSlot(i, slot);
+        // Добавляем отображение описания при наведении
+        slot.onmouseover = () => {
+          const tradeScreen = document.getElementById("tradeScreen");
+          tradeScreen.textContent =
+            ITEM_CONFIG[this.tradeInventory[i].type].description;
+        };
+        slot.onmouseout = () => {
+          const tradeScreen = document.getElementById("tradeScreen");
+          tradeScreen.textContent = "";
+        };
       }
       tradeInventoryDiv.appendChild(slot);
     }
@@ -409,8 +490,16 @@ const tradeSystem = {
     const cancelBtn = document.createElement("button");
     cancelBtn.id = "cancelTradeBtn";
     cancelBtn.className = "action-btn drop-btn";
-    cancelBtn.textContent = "Отмена";
-    cancelBtn.onclick = () => this.cancelTrade();
+    cancelBtn.textContent = this.tradeSlots.playerA
+      ? "Вернуть предмет"
+      : "Отмена";
+    cancelBtn.onclick = () => {
+      if (this.tradeSlots.playerA) {
+        this.returnItemToInventory();
+      } else {
+        this.cancelTrade(otherPlayerId);
+      }
+    };
 
     tradeActionsDiv.appendChild(confirmBtn);
     tradeActionsDiv.appendChild(cancelBtn);
@@ -641,6 +730,19 @@ const tradeSystem = {
           console.log("Инвентарь полон, предмет не добавлен");
         }
       }
+    }
+  },
+  handleTradeCancel(data) {
+    if (data.toId === myId) {
+      this.cancelTrade();
+    }
+  },
+  handleTradeUpdate(data) {
+    if (data.toId === myId && this.isTradeActive) {
+      this.tradeInventory = data.inventory || this.tradeInventory;
+      this.tradeSlots = data.tradeSlots || this.tradeSlots;
+      this.balyaryCount = data.balyaryCount || this.balyaryCount;
+      this.updateTradeInterface();
     }
   },
 };

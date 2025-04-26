@@ -756,6 +756,15 @@ button:active {
   position: relative;
 }
 
+#tradeTimer {
+  color: #ff0066;
+  font-size: 16px;
+  font-family: "Orbitron", sans-serif;
+  text-shadow: 0 0 5px rgba(255, 0, 102, 0.7);
+  margin: 10px 0;
+  text-transform: uppercase;
+}
+
 /* Адаптация для мобильных устройств (max-width: 500px) */
 @media (max-width: 500px) {
   body {
