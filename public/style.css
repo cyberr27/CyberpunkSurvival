@@ -717,6 +717,45 @@ button:active {
   z-index: 200;
 }
 
+.balyary-drop-form {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(180deg, #1a1a1a, #0f0f0f);
+  border: 2px solid #ff0066;
+  box-shadow: 0 0 15px rgba(255, 0, 102, 0.5);
+  padding: 20px;
+  z-index: 200;
+  text-align: center;
+}
+
+.balyary-drop-form p {
+  margin: 0 0 10px;
+  color: #00ccff;
+}
+
+.balyary-drop-form .cyber-input {
+  width: 100px;
+  padding: 5px;
+  background: #0a0a0a;
+  border: 1px solid #00ccff;
+  color: #00ccff;
+  font-family: "Orbitron", sans-serif;
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+
+.balyary-drop-form .error-text {
+  color: #ff0066;
+  font-size: 12px;
+  margin-top: 5px;
+}
+
+.trade-slot {
+  position: relative;
+}
+
 /* Адаптация для мобильных устройств (max-width: 500px) */
 @media (max-width: 500px) {
   body {
