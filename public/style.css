@@ -539,12 +539,6 @@ button:active {
   border-radius: 0;
   box-shadow: 0 0 10px rgba(255, 0, 102, 0.3);
 }
-.balyary-trade-form {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-}
 .cyber-text {
   color: #00ccff;
   font-size: 14px;
@@ -666,87 +660,6 @@ button:active {
   100% {
     box-shadow: 0 0 20px rgba(0, 255, 255, 0.8), 0 0 30px rgba(255, 0, 255, 0.5);
   }
-}
-
-/* Кнопка торговли Stuart */
-#tradeBtn {
-  bottom: 20px;
-  right: 150px;
-  width: 60px;
-  height: 60px;
-}
-
-#tradeBtn.active {
-  background: linear-gradient(135deg, #ff00cc, #00ff99);
-  box-shadow: 0 0 20px rgba(255, 0, 204, 1);
-}
-
-/* Диалоговое окно торговли */
-#tradeDialog {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: none;
-  display: none;
-  justify-content: center;
-  align-items: center;
-  z-index: 200;
-}
-.trade-dialog-content {
-  background: #0a0a0a;
-  padding: 20px;
-  border: 2px solid #00ccff;
-  border-radius: 0;
-  box-shadow: 0 0 15px rgba(0, 204, 255, 0.7);
-  width: 300px;
-  text-align: center;
-}
-.trade-dialog-buttons {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 15px;
-}
-/* Окно торговли */
-#tradeWindow {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  display: none;
-  flex-direction: row;
-  gap: 40px;
-  background: #0a0a0a;
-  border: 2px solid #00ccff;
-  padding: 20px;
-  box-shadow: 0 0 15px rgba(0, 204, 255, 0.7);
-  z-index: 150;
-}
-.trade-section {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-}
-.trade-slot {
-  width: 60px;
-  height: 60px;
-  background: #1c1c1c;
-  border: 2px solid #ff0066;
-  box-shadow: inset 0 0 5px rgba(255, 0, 102, 0.3);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.trade-buttons {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.cyber-btn.active {
-  background: #00ccff;
-  box-shadow: 0 0 10px #00ccff, 0 0 20px #00ccff;
-  color: #000;
 }
 
 /* Адаптация для мобильных устройств (max-width: 500px) */
