@@ -847,7 +847,7 @@ wss.on("connection", (ws) => {
       const dy = fromPlayer.y - toPlayer.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
 
-      if (distance > 100 || fromPlayer.health <= 0 || toPlayer.health <= 0)
+      if (distance > 1000 || fromPlayer.health <= 0 || toPlayer.health <= 0)
         return;
 
       wss.clients.forEach((client) => {

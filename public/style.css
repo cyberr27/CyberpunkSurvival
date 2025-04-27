@@ -780,6 +780,21 @@ button:active {
   gap: 8px;
 }
 
+/* Кнопка ТОРГ в неактивном состоянии */
+#tradeBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: 0 0 5px rgba(255, 0, 102, 0.3);
+  background: linear-gradient(135deg, #4a4a4a, #2a2a2a);
+  border-color: #4a4a4a;
+  color: #666666;
+}
+
+#tradeBtn:disabled:hover {
+  transform: none;
+  box-shadow: 0 0 5px rgba(255, 0, 102, 0.3);
+}
+
 /* Адаптация для мобильных устройств (max-width: 500px) */
 @media (max-width: 500px) {
   body {

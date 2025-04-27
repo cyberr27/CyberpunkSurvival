@@ -21,7 +21,7 @@ const tradeSystem = {
     tradeBtn.id = "tradeBtn";
     tradeBtn.className = "cyber-btn";
     tradeBtn.textContent = "ТОРГ";
-    tradeBtn.style.display = "none";
+    tradeBtn.disabled = true; // Кнопка неактивна по умолчанию
     tradeBtn.style.bottom = "20px";
     tradeBtn.style.right = "150px";
     tradeBtn.style.width = "60px";
@@ -31,9 +31,14 @@ const tradeSystem = {
     tradeBtn.addEventListener("click", () => {
       if (this.selectedPlayerId && this.canInitiateTrade()) {
         this.sendTradeRequest(this.selectedPlayerId);
-        tradeBtn.style.display = "none";
       }
     });
+  },
+
+  selectPlayer(playerId, showButton) {
+    this.selectedPlayerId = playerId;
+    const tradeBtn = document.getElementById("tradeBtn");
+    tradeBtn.disabled = !(playerId && this.canInitiateTrade()); // Активируем только если выбран игрок и условия соблюдены
   },
 
   setupTradeDialog() {
@@ -164,7 +169,7 @@ const tradeSystem = {
         }
         break;
       case "tradeAccepted":
-        if (data.fromId === this.tradePartnerId && data.toId === myId) {
+        if (data.fromId === this.tradePartnerId || data.toId === myId) {
           this.tradeStatus = "accepted";
           this.openTradeWindow();
         }
@@ -368,11 +373,11 @@ const tradeSystem = {
     this.selectedPlayerId = null;
     this.tradePartnerId = null;
     this.tradeStatus = null;
-    this.myOffer = Array(3).fill(null); // Было 4, стало 3
-    this.partnerOffer = Array(3).fill(null); // Было 4, стало 3
+    this.myOffer = Array(3).fill(null);
+    this.partnerOffer = Array(3).fill(null);
     this.myConfirmed = false;
     this.partnerConfirmed = false;
-    document.getElementById("tradeBtn").style.display = "none";
+    document.getElementById("tradeBtn").disabled = true; // Отключаем кнопку
   },
 
   updateTradeWindow() {
