@@ -565,6 +565,21 @@ function startGame() {
         console.log(
           `Клик вне слотов инвентаря (x:${e.clientX}, y:${e.clientY})`
         );
+      } else {
+        const camera = window.movementSystem.getCamera();
+        const worldX = e.clientX + camera.x;
+        const worldY = e.clientY + camera.y;
+        let selectedPlayerId = null;
+        players.forEach((player, id) => {
+          if (id !== myId && player.health > 0) {
+            const dx = worldX - (player.x + 20);
+            const dy = worldY - (player.y + 20);
+            if (Math.sqrt(dx * dx + dy * dy) < 40) {
+              selectedPlayerId = id;
+            }
+          }
+        });
+        window.tradeSystem.selectPlayer(selectedPlayerId, !!selectedPlayerId);
       }
     }
   });
@@ -606,6 +621,21 @@ function startGame() {
       console.log(
         `Тач вне слотов инвентаря (x:${touch.clientX}, y:${touch.clientY})`
       );
+    } else {
+      const camera = window.movementSystem.getCamera();
+      const worldX = touch.clientX + camera.x;
+      const worldY = touch.clientY + camera.y;
+      let selectedPlayerId = null;
+      players.forEach((player, id) => {
+        if (id !== myId && player.health > 0) {
+          const dx = worldX - (player.x + 20);
+          const dy = worldY - (player.y + 20);
+          if (Math.sqrt(dx * dx + dy * dy) < 40) {
+            selectedPlayerId = id;
+          }
+        }
+      });
+      window.tradeSystem.selectPlayer(selectedPlayerId, !!selectedPlayerId);
     }
   });
 
@@ -682,7 +712,7 @@ function startGame() {
     e.preventDefault();
     if (selectedSlot !== null) dropItem(selectedSlot);
   });
-
+  window.tradeSystem.initialize(ws);
   requestAnimationFrame(gameLoop);
 }
 
@@ -1174,6 +1204,14 @@ function handleGameMessage(event) {
           errorEl.textContent = data.error || "Ошибка покупки";
           console.log(`Ошибка покупки: ${data.error}`);
         }
+        break;
+      case "tradeRequest":
+      case "tradeAccepted":
+      case "tradeCancelled":
+      case "tradeOffer":
+      case "tradeConfirmed":
+      case "tradeCompleted":
+        window.tradeSystem.handleTradeMessage(data);
         break;
     }
   } catch (error) {
