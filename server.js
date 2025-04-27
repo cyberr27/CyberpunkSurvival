@@ -302,6 +302,7 @@ wss.on("connection", (ws) => {
           maxStats: { health: 100, energy: 100, food: 100, water: 100 },
           upgradePoints: 0,
           availableQuests: [], // Инициализируем пустой список заданий
+          tradeOffer: Array(3).fill(null), // Добавляем поле для хранения предложения
         };
 
         userDatabase.set(data.username, newPlayer);
@@ -886,23 +887,65 @@ wss.on("connection", (ws) => {
       const fromId = clients.get(ws);
       if (!fromId || !players.has(fromId) || !players.has(data.toId)) return;
 
+      const fromPlayer = players.get(fromId);
+      const toPlayer = players.get(data.toId);
+
+      // Возвращаем предметы игрока B (toPlayer) в его инвентарь
+      if (toPlayer.tradeOffer) {
+        toPlayer.tradeOffer.forEach((item, index) => {
+          if (item && item.originalSlot !== undefined) {
+            toPlayer.inventory[item.originalSlot] = {
+              type: item.type,
+              quantity: item.quantity,
+              itemId: `${item.type}_${Date.now()}`,
+            };
+          }
+        });
+        toPlayer.tradeOffer = Array(3).fill(null); // Очищаем предложение
+      }
+
+      // Сохраняем изменения для обоих игроков
+      players.set(fromId, { ...fromPlayer });
+      players.set(data.toId, { ...toPlayer });
+      userDatabase.set(fromId, { ...fromPlayer });
+      userDatabase.set(data.toId, { ...toPlayer });
+      await saveUserDatabase(dbCollection, fromId, fromPlayer);
+      await saveUserDatabase(dbCollection, data.toId, toPlayer);
+
+      // Отправляем уведомление об отмене и обновление инвентаря
       wss.clients.forEach((client) => {
-        if (
-          client.readyState === WebSocket.OPEN &&
-          clients.get(client) === data.toId
-        ) {
-          client.send(
-            JSON.stringify({
-              type: "tradeCancelled",
-              fromId: fromId,
-              toId: data.toId,
-            })
-          );
+        if (client.readyState === WebSocket.OPEN) {
+          const clientId = clients.get(client);
+          if (clientId === fromId) {
+            client.send(
+              JSON.stringify({
+                type: "tradeCancelled",
+                fromId: fromId,
+                toId: data.toId,
+                newInventory: fromPlayer.inventory,
+              })
+            );
+          } else if (clientId === data.toId) {
+            client.send(
+              JSON.stringify({
+                type: "tradeCancelled",
+                fromId: fromId,
+                toId: data.toId,
+                newInventory: toPlayer.inventory,
+              })
+            );
+          }
         }
       });
     } else if (data.type === "tradeOffer") {
       const fromId = clients.get(ws);
       if (!fromId || !players.has(fromId) || !players.has(data.toId)) return;
+
+      const fromPlayer = players.get(fromId);
+      fromPlayer.tradeOffer = data.offer; // Сохраняем предложение игрока
+      players.set(fromId, { ...fromPlayer });
+      userDatabase.set(fromId, { ...fromPlayer });
+      await saveUserDatabase(dbCollection, fromId, fromPlayer);
 
       wss.clients.forEach((client) => {
         if (

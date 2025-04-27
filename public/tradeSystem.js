@@ -172,6 +172,10 @@ const tradeSystem = {
         break;
       case "tradeCancelled":
         if (data.fromId === this.tradePartnerId || data.toId === myId) {
+          if (data.newInventory) {
+            inventory = data.newInventory; // Обновляем инвентарь
+            updateInventoryDisplay();
+          }
           this.closeTradeWindow();
           this.resetTrade();
         }
@@ -234,11 +238,13 @@ const tradeSystem = {
   },
 
   handleCancelTrade() {
-    // Проверяем, есть ли предметы в myOffer или partnerOffer
+    // Проверяем, есть ли предметы в myOffer
     const hasMyOffer = this.myOffer.some((item) => item !== null);
-    const hasPartnerOffer = this.partnerOffer.some((item) => item !== null);
 
-    if (hasMyOffer || hasPartnerOffer) {
+    if (!hasMyOffer) {
+      // Если у игрока А нет предметов в предложении, отменяем торг полностью
+      this.cancelTrade();
+    } else {
       // Возвращаем свои предметы в инвентарь
       this.myOffer.forEach((item, index) => {
         if (item && item.originalSlot !== undefined) {
@@ -264,9 +270,6 @@ const tradeSystem = {
       // Обновляем отображение
       this.updateTradeWindow();
       updateInventoryDisplay();
-    } else {
-      // Если слотов пустые, отменяем торг
-      this.cancelTrade();
     }
   },
 
