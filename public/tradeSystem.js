@@ -236,9 +236,8 @@ const tradeSystem = {
   handleCancelTrade() {
     // Проверяем, есть ли предметы в myOffer или partnerOffer
     const hasMyOffer = this.myOffer.some((item) => item !== null);
-    const hasPartnerOffer = this.partnerOffer.some((item) => item !== null);
 
-    if (hasMyOffer || hasPartnerOffer) {
+    if (hasMyOffer) {
       // Возвращаем свои предметы в инвентарь
       this.myOffer.forEach((item, index) => {
         if (item && item.originalSlot !== undefined) {
@@ -249,6 +248,15 @@ const tradeSystem = {
           this.myOffer[index] = null;
         }
       });
+
+      // Отправляем обновление инвентаря на сервер
+      sendWhenReady(
+        this.ws,
+        JSON.stringify({
+          type: "updateInventory",
+          inventory: inventory,
+        })
+      );
 
       // Отправляем обновление предложения (очищаем своё предложение)
       sendWhenReady(
@@ -265,7 +273,7 @@ const tradeSystem = {
       this.updateTradeWindow();
       updateInventoryDisplay();
     } else {
-      // Если слотов пустые, отменяем торг
+      // Если в моих слотах пусто, проверяем партнёра и отменяем торг
       this.cancelTrade();
     }
   },

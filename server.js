@@ -301,7 +301,9 @@ wss.on("connection", (ws) => {
           xp: 0,
           maxStats: { health: 100, energy: 100, food: 100, water: 100 },
           upgradePoints: 0,
-          availableQuests: [], // Инициализируем пустой список заданий
+          availableQuests: [],
+          tradeOffer: Array(3).fill(null), // Добавляем tradeOffer
+          tradeConfirmed: false, // Добавляем tradeConfirmed
         };
 
         userDatabase.set(data.username, newPlayer);
@@ -886,23 +888,86 @@ wss.on("connection", (ws) => {
       const fromId = clients.get(ws);
       if (!fromId || !players.has(fromId) || !players.has(data.toId)) return;
 
+      const fromPlayer = players.get(fromId);
+      const toPlayer = players.get(data.toId);
+
+      // Возвращаем предметы в инвентарь инициатора, если они есть
+      if (fromPlayer.tradeOffer) {
+        fromPlayer.tradeOffer.forEach((item, index) => {
+          if (item && item.originalSlot !== undefined) {
+            fromPlayer.inventory[item.originalSlot] = {
+              type: item.type,
+              quantity: item.quantity,
+              itemId: `${item.type}_${Date.now()}`,
+            };
+            fromPlayer.tradeOffer[index] = null;
+          }
+        });
+      }
+
+      // Возвращаем предметы в инвентарь партнёра, если они есть
+      if (toPlayer.tradeOffer) {
+        toPlayer.tradeOffer.forEach((item, index) => {
+          if (item && item.originalSlot !== undefined) {
+            toPlayer.inventory[item.originalSlot] = {
+              type: item.type,
+              quantity: item.quantity,
+              itemId: `${item.type}_${Date.now()}`,
+            };
+            toPlayer.tradeOffer[index] = null;
+          }
+        });
+      }
+
+      // Сбрасываем состояние торговли
+      fromPlayer.tradeOffer = Array(3).fill(null);
+      toPlayer.tradeOffer = Array(3).fill(null);
+      fromPlayer.tradeConfirmed = false;
+      toPlayer.tradeConfirmed = false;
+
+      // Сохраняем изменения в базе данных
+      players.set(fromId, { ...fromPlayer });
+      players.set(data.toId, { ...toPlayer });
+      userDatabase.set(fromId, { ...fromPlayer });
+      userDatabase.set(data.toId, { ...toPlayer });
+      await saveUserDatabase(dbCollection, fromId, fromPlayer);
+      await saveUserDatabase(dbCollection, data.toId, toPlayer);
+
+      // Уведомляем обоих игроков
       wss.clients.forEach((client) => {
-        if (
-          client.readyState === WebSocket.OPEN &&
-          clients.get(client) === data.toId
-        ) {
-          client.send(
-            JSON.stringify({
-              type: "tradeCancelled",
-              fromId: fromId,
-              toId: data.toId,
-            })
-          );
+        if (client.readyState === WebSocket.OPEN) {
+          if (clients.get(client) === fromId) {
+            client.send(
+              JSON.stringify({
+                type: "tradeCancelled",
+                fromId: fromId,
+                toId: data.toId,
+                newInventory: fromPlayer.inventory,
+              })
+            );
+          } else if (clients.get(client) === data.toId) {
+            client.send(
+              JSON.stringify({
+                type: "tradeCancelled",
+                fromId: fromId,
+                toId: data.toId,
+                newInventory: toPlayer.inventory,
+              })
+            );
+          }
         }
       });
     } else if (data.type === "tradeOffer") {
       const fromId = clients.get(ws);
       if (!fromId || !players.has(fromId) || !players.has(data.toId)) return;
+
+      const fromPlayer = players.get(fromId);
+      fromPlayer.tradeOffer = data.offer; // Сохраняем предложение игрока
+
+      // Сохраняем изменения
+      players.set(fromId, { ...fromPlayer });
+      userDatabase.set(fromId, { ...fromPlayer });
+      await saveUserDatabase(dbCollection, fromId, fromPlayer);
 
       wss.clients.forEach((client) => {
         if (
