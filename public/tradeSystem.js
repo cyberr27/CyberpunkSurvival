@@ -1,11 +1,10 @@
-// tradeSystem.js
 const tradeSystem = {
   isTradeWindowOpen: false,
   selectedPlayerId: null,
   tradePartnerId: null,
   tradeStatus: null, // 'pending', 'accepted', 'confirmed', 'completed', 'cancelled'
-  myOffer: Array(3).fill(null), // Было 4, стало 3
-  partnerOffer: Array(3).fill(null), // Было 4, стало 3
+  myOffer: Array(3).fill(null),
+  partnerOffer: Array(3).fill(null),
   myConfirmed: false,
   partnerConfirmed: false,
 
@@ -21,7 +20,7 @@ const tradeSystem = {
     tradeBtn.id = "tradeBtn";
     tradeBtn.className = "cyber-btn";
     tradeBtn.textContent = "ТОРГ";
-    tradeBtn.disabled = true; // Кнопка неактивна по умолчанию
+    tradeBtn.disabled = true;
     document.getElementById("gameContainer").appendChild(tradeBtn);
 
     tradeBtn.addEventListener("click", () => {
@@ -34,7 +33,7 @@ const tradeSystem = {
   selectPlayer(playerId) {
     this.selectedPlayerId = playerId;
     const tradeBtn = document.getElementById("tradeBtn");
-    tradeBtn.disabled = !(playerId && this.canInitiateTrade()); // Активируем только если выбран игрок и условия соблюдены
+    tradeBtn.disabled = !(playerId && this.canInitiateTrade());
   },
 
   setupTradeDialog() {
@@ -83,7 +82,6 @@ const tradeSystem = {
       `;
     document.getElementById("gameContainer").appendChild(tradeWindow);
 
-    // Создаём слоты для myTradeGrid (20 слотов инвентаря)
     for (let i = 0; i < 20; i++) {
       const slot = document.createElement("div");
       slot.className = "trade-slot";
@@ -91,7 +89,6 @@ const tradeSystem = {
       document.getElementById("myTradeGrid").appendChild(slot);
     }
 
-    // Создаём 3 слота для myOfferGrid
     for (let i = 0; i < 3; i++) {
       const slot = document.createElement("div");
       slot.className = "offer-slot";
@@ -99,7 +96,6 @@ const tradeSystem = {
       document.getElementById("myOfferGrid").appendChild(slot);
     }
 
-    // Создаём 3 слота для partnerOfferGrid
     for (let i = 0; i < 3; i++) {
       const slot = document.createElement("div");
       slot.className = "offer-slot";
@@ -140,7 +136,7 @@ const tradeSystem = {
     const dx = me.x - target.x;
     const dy = me.y - target.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
-    return distance < 1000 && me.health > 0 && target.health > 0; // Было 100, стало 1000
+    return distance < 1000 && me.health > 0 && target.health > 0;
   },
 
   sendTradeRequest(targetId) {
@@ -173,7 +169,7 @@ const tradeSystem = {
       case "tradeCancelled":
         if (data.fromId === this.tradePartnerId || data.toId === myId) {
           if (data.newInventory) {
-            inventory = data.newInventory; // Обновляем инвентарь
+            inventory = data.newInventory;
             updateInventoryDisplay();
           }
           this.closeTradeWindow();
@@ -238,26 +234,51 @@ const tradeSystem = {
   },
 
   handleCancelTrade() {
-    // Проверяем, есть ли предметы в myOffer
+    // Проверяем, что торг активен и есть партнёр
+    if (!this.isTradeWindowOpen || !this.tradePartnerId) {
+      console.warn("Попытка отмены торга без активного окна или партнёра");
+      this.closeTradeWindow();
+      this.resetTrade();
+      return;
+    }
+
+    // Проверяем наличие предметов в своём предложении
     const hasMyOffer = this.myOffer.some((item) => item !== null);
 
     if (!hasMyOffer) {
-      // Если у игрока А нет предметов в предложении, отменяем торг полностью
+      // Если нет предметов в предложении, полностью отменяем торг
       this.cancelTrade();
     } else {
-      // Возвращаем свои предметы в инвентарь
+      // Возвращаем предметы в инвентарь
       this.myOffer.forEach((item, index) => {
         if (item && item.originalSlot !== undefined) {
-          inventory[item.originalSlot] = {
-            ...item,
-            itemId: `${item.type}_${Date.now()}`,
-          };
-          this.myOffer[index] = null;
+          // Проверяем, что слот в инвентаре свободен
+          if (!inventory[item.originalSlot]) {
+            inventory[item.originalSlot] = {
+              ...item,
+              itemId: `${item.type}_${Date.now()}`,
+            };
+            this.myOffer[index] = null;
+          } else {
+            // Если слот занят, ищем первый свободный
+            const freeSlot = inventory.findIndex((slot) => slot === null);
+            if (freeSlot !== -1) {
+              inventory[freeSlot] = {
+                ...item,
+                itemId: `${item.type}_${Date.now()}`,
+              };
+              this.myOffer[index] = null;
+            } else {
+              console.warn(
+                `Нет свободных слотов для возврата предмета ${item.type}`
+              );
+            }
+          }
         }
       });
 
       // Отправляем обновление предложения (очищаем своё предложение)
-      sendWhenReady(
+      send-when-ready(
         this.ws,
         JSON.stringify({
           type: "tradeOffer",
@@ -267,7 +288,21 @@ const tradeSystem = {
         })
       );
 
-      // Обновляем отображение
+      // Сбрасываем подтверждение, если было
+      if (this.myConfirmed) {
+        this.myConfirmed = false;
+        send-when-ready(
+          this.ws,
+          JSON.stringify({
+            type: "tradeConfirmed",
+            fromId: myId,
+            toId: this.tradePartnerId,
+            confirmed: false,
+          })
+        );
+      }
+
+      // Обновляем интерфейс
       this.updateTradeWindow();
       updateInventoryDisplay();
     }
@@ -292,6 +327,7 @@ const tradeSystem = {
     if (freeSlot === -1) return;
 
     this.myOffer[freeSlot] = { ...item, originalSlot: slotIndex };
+    inventory[slotIndex] = null; // Удаляем из инвентаря
     sendWhenReady(
       this.ws,
       JSON.stringify({
@@ -302,6 +338,7 @@ const tradeSystem = {
       })
     );
     this.updateTradeWindow();
+    updateInventoryDisplay();
   },
 
   removeFromOffer(slotIndex) {
@@ -309,10 +346,25 @@ const tradeSystem = {
 
     const item = this.myOffer[slotIndex];
     if (item.originalSlot !== undefined) {
-      inventory[item.originalSlot] = {
-        ...item,
-        itemId: `${item.type}_${Date.now()}`,
-      };
+      if (!inventory[item.originalSlot]) {
+        inventory[item.originalSlot] = {
+          ...item,
+          itemId: `${item.type}_${Date.now()}`,
+        };
+      } else {
+        const freeSlot = inventory.findIndex((slot) => slot === null);
+        if (freeSlot !== -1) {
+          inventory[freeSlot] = {
+            ...item,
+            itemId: `${item.type}_${Date.now()}`,
+          };
+        } else {
+          console.warn(
+            `Нет свободных слотов для возврата предмета ${item.type}`
+          );
+          return;
+        }
+      }
     }
     this.myOffer[slotIndex] = null;
     sendWhenReady(
@@ -376,7 +428,7 @@ const tradeSystem = {
     this.partnerOffer = Array(3).fill(null);
     this.myConfirmed = false;
     this.partnerConfirmed = false;
-    document.getElementById("tradeBtn").disabled = true; // Отключаем кнопку
+    document.getElementById("tradeBtn").disabled = true;
   },
 
   updateTradeWindow() {
@@ -397,7 +449,6 @@ const tradeSystem = {
     }
 
     for (let i = 0; i < 3; i++) {
-      // Было myOfferGrid.length, теперь явно 3
       myOfferGrid[i].innerHTML = "";
       if (this.myOffer[i]) {
         const img = document.createElement("img");
@@ -409,7 +460,6 @@ const tradeSystem = {
     }
 
     for (let i = 0; i < 3; i++) {
-      // Было partnerOfferGrid.length, теперь явно 3
       partnerOfferGrid[i].innerHTML = "";
       if (this.partnerOffer[i]) {
         const img = document.createElement("img");
