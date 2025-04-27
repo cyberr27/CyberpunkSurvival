@@ -174,6 +174,10 @@ const tradeSystem = {
         if (data.fromId === this.tradePartnerId || data.toId === myId) {
           this.closeTradeWindow();
           this.resetTrade();
+          if (data.newInventory && data.toId === myId) {
+            inventory = data.newInventory;
+            updateInventoryDisplay();
+          }
         }
         break;
       case "tradeOffer":
@@ -238,7 +242,10 @@ const tradeSystem = {
     const hasMyOffer = this.myOffer.some((item) => item !== null);
     const hasPartnerOffer = this.partnerOffer.some((item) => item !== null);
 
-    if (hasMyOffer || hasPartnerOffer) {
+    if (!hasMyOffer && !hasPartnerOffer) {
+      // Если оба предложения пусты, просто отменяем торговлю
+      this.cancelTrade();
+    } else {
       // Возвращаем свои предметы в инвентарь
       this.myOffer.forEach((item, index) => {
         if (item && item.originalSlot !== undefined) {
@@ -250,23 +257,23 @@ const tradeSystem = {
         }
       });
 
-      // Отправляем обновление предложения (очищаем своё предложение)
+      // Отправляем серверу команду отмены с информацией о возврате предметов партнёра
       sendWhenReady(
         this.ws,
         JSON.stringify({
-          type: "tradeOffer",
+          type: "tradeCancelled",
           fromId: myId,
           toId: this.tradePartnerId,
-          offer: this.myOffer,
+          partnerOffer: hasPartnerOffer ? this.partnerOffer : [], // Отправляем предметы партнёра для возврата
         })
       );
 
-      // Обновляем отображение
+      // Очищаем своё предложение и обновляем интерфейс
+      this.myOffer = Array(3).fill(null);
       this.updateTradeWindow();
       updateInventoryDisplay();
-    } else {
-      // Если слотов пустые, отменяем торг
-      this.cancelTrade();
+      this.closeTradeWindow();
+      this.resetTrade();
     }
   },
 

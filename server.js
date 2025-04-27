@@ -886,16 +886,46 @@ wss.on("connection", (ws) => {
       const fromId = clients.get(ws);
       if (!fromId || !players.has(fromId) || !players.has(data.toId)) return;
 
+      const toPlayer = players.get(data.toId);
+
+      // Возвращаем предметы партнёра в его инвентарь, если они были в partnerOffer
+      if (data.partnerOffer && Array.isArray(data.partnerOffer)) {
+        data.partnerOffer.forEach((item) => {
+          if (item && item.originalSlot !== undefined) {
+            const freeSlot = toPlayer.inventory.findIndex(
+              (slot) => slot === null
+            );
+            if (freeSlot !== -1) {
+              toPlayer.inventory[item.originalSlot] = {
+                type: item.type,
+                quantity: item.quantity,
+                itemId: `${item.type}_${Date.now()}`,
+              };
+            }
+          }
+        });
+
+        // Сохраняем обновлённый инвентарь игрока В
+        players.set(data.toId, { ...toPlayer });
+        userDatabase.set(data.toId, { ...toPlayer });
+        await saveUserDatabase(dbCollection, data.toId, toPlayer);
+      }
+
+      // Отправляем сообщение об отмене торговли обоим игрокам
       wss.clients.forEach((client) => {
         if (
           client.readyState === WebSocket.OPEN &&
-          clients.get(client) === data.toId
+          (clients.get(client) === fromId || clients.get(client) === data.toId)
         ) {
           client.send(
             JSON.stringify({
               type: "tradeCancelled",
               fromId: fromId,
               toId: data.toId,
+              newInventory:
+                clients.get(client) === data.toId
+                  ? toPlayer.inventory
+                  : undefined,
             })
           );
         }
