@@ -234,57 +234,47 @@ const tradeSystem = {
         toId: this.tradePartnerId,
       })
     );
-    this.closeTradeWindow(); // Закрываем окно у инициатора
     this.resetTrade();
   },
 
   handleCancelTrade() {
-    // Проверяем, есть ли предметы в myOffer
+    // Проверяем, есть ли предметы в myOffer или partnerOffer
     const hasMyOffer = this.myOffer.some((item) => item !== null);
     const hasPartnerOffer = this.partnerOffer.some((item) => item !== null);
 
-    // Возвращаем свои предметы в инвентарь
-    this.myOffer.forEach((item, index) => {
-      if (item && item.originalSlot !== undefined) {
-        inventory[item.originalSlot] = {
-          ...item,
-          itemId: `${item.type}_${Date.now()}`,
-        };
-        this.myOffer[index] = null;
-      }
-    });
+    if (!hasMyOffer && !hasPartnerOffer) {
+      // Если оба предложения пусты, просто отменяем торговлю
+      this.cancelTrade();
+    } else {
+      // Возвращаем свои предметы в инвентарь
+      this.myOffer.forEach((item, index) => {
+        if (item && item.originalSlot !== undefined) {
+          inventory[item.originalSlot] = {
+            ...item,
+            itemId: `${item.type}_${Date.now()}`,
+          };
+          this.myOffer[index] = null;
+        }
+      });
 
-    // Отправляем серверу команду отмены
-    sendWhenReady(
-      this.ws,
-      JSON.stringify({
-        type: "tradeCancelled",
-        fromId: myId,
-        toId: this.tradePartnerId,
-        partnerOffer: hasPartnerOffer ? this.partnerOffer : [], // Отправляем предметы партнёра для возврата
-      })
-    );
+      // Отправляем серверу команду отмены с информацией о возврате предметов партнёра
+      sendWhenReady(
+        this.ws,
+        JSON.stringify({
+          type: "tradeCancelled",
+          fromId: myId,
+          toId: this.tradePartnerId,
+          partnerOffer: hasPartnerOffer ? this.partnerOffer : [], // Отправляем предметы партнёра для возврата
+        })
+      );
 
-    // Очищаем своё предложение и обновляем интерфейс
-    this.myOffer = Array(3).fill(null);
-    this.updateTradeWindow();
-    updateInventoryDisplay();
-    this.closeTradeWindow();
-    this.resetTrade();
-  },
-
-  // Полностью заменяем метод cancelTrade
-  cancelTrade() {
-    sendWhenReady(
-      this.ws,
-      JSON.stringify({
-        type: "tradeCancelled",
-        fromId: myId,
-        toId: this.tradePartnerId,
-      })
-    );
-    this.closeTradeWindow();
-    this.resetTrade();
+      // Очищаем своё предложение и обновляем интерфейс
+      this.myOffer = Array(3).fill(null);
+      this.updateTradeWindow();
+      updateInventoryDisplay();
+      this.closeTradeWindow();
+      this.resetTrade();
+    }
   },
 
   openTradeWindow() {
@@ -411,6 +401,31 @@ const tradeSystem = {
     }
 
     for (let i = 0; i < 3; i++) {
+      // Было myOfferGrid.length, теперь явно 3
+      myOfferGrid[i].innerHTML = "";
+      if (this.myOffer[i]) {
+        const img = document.createElement("img");
+        img.src = ITEM_CONFIG[this.myOffer[i].type].image.src;
+        img.style.width = "100%";
+        img.style.height = "100%";
+        myOfferGrid[i].appendChild(img);
+      }
+    }
+
+    for (let i = 0; i < 3; i++) {
+      // Было partnerOfferGrid.length, теперь явно 3
+      partnerOfferGrid[i].innerHTML = "";
+      if (this.partnerOffer[i]) {
+        const img = document.createElement("img");
+        img.src = ITEM_CONFIG[this.partnerOffer[i].type].image.src;
+        img.style.width = "100%";
+        img.style.height = "100%";
+        partnerOfferGrid[i].appendChild(img);
+      }
+    }
+
+    // В методе setupTradeWindow, после создания слотов для myOfferGrid
+    for (let i = 0; i < 3; i++) {
       const slot = document.createElement("div");
       slot.className = "offer-slot";
       slot.dataset.slotIndex = i;
@@ -422,6 +437,7 @@ const tradeSystem = {
       slot.addEventListener("mouseout", () => this.hideTooltip());
     }
 
+    // В методе setupTradeWindow, после создания слотов для partnerOfferGrid
     for (let i = 0; i < 3; i++) {
       const slot = document.createElement("div");
       slot.className = "offer-slot";
@@ -436,6 +452,7 @@ const tradeSystem = {
 
     document.getElementById("confirmTradeBtn").disabled = this.myConfirmed;
   },
+
   showTooltip(event, slotIndex, offerType) {
     const offer = offerType === "myOffer" ? this.myOffer : this.partnerOffer;
     const item = offer[slotIndex];
