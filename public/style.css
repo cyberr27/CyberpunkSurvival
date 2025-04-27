@@ -810,6 +810,24 @@ button:active {
   box-shadow: 0 0 5px rgba(255, 0, 102, 0.3);
 }
 
+/* Стили для подсказок */
+.tooltip {
+  position: fixed;
+  background: #0a0a0a;
+  border: 2px solid #ff0066;
+  color: #00ccff;
+  font-family: "Orbitron", sans-serif;
+  font-size: 12px;
+  text-shadow: 0 0 5px rgba(0, 204, 255, 0.7);
+  padding: 8px;
+  border-radius: 0;
+  box-shadow: 0 0 10px rgba(255, 0, 102, 0.5);
+  z-index: 200;
+  max-width: 200px;
+  text-align: center;
+  text-transform: uppercase;
+}
+
 /* Адаптация для мобильных устройств (max-width: 500px) */
 @media (max-width: 500px) {
   body {

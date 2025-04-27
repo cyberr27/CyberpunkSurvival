@@ -172,8 +172,8 @@ const tradeSystem = {
         break;
       case "tradeCancelled":
         if (data.fromId === this.tradePartnerId || data.toId === myId) {
-          this.closeTradeWindow();
-          this.resetTrade();
+          this.closeTradeWindow(); // Закрываем окно торговли
+          this.resetTrade(); // Сбрасываем состояние торговли
           if (data.newInventory && data.toId === myId) {
             inventory = data.newInventory;
             updateInventoryDisplay();
@@ -234,47 +234,57 @@ const tradeSystem = {
         toId: this.tradePartnerId,
       })
     );
+    this.closeTradeWindow(); // Закрываем окно у инициатора
     this.resetTrade();
   },
 
   handleCancelTrade() {
-    // Проверяем, есть ли предметы в myOffer или partnerOffer
+    // Проверяем, есть ли предметы в myOffer
     const hasMyOffer = this.myOffer.some((item) => item !== null);
     const hasPartnerOffer = this.partnerOffer.some((item) => item !== null);
 
-    if (!hasMyOffer && !hasPartnerOffer) {
-      // Если оба предложения пусты, просто отменяем торговлю
-      this.cancelTrade();
-    } else {
-      // Возвращаем свои предметы в инвентарь
-      this.myOffer.forEach((item, index) => {
-        if (item && item.originalSlot !== undefined) {
-          inventory[item.originalSlot] = {
-            ...item,
-            itemId: `${item.type}_${Date.now()}`,
-          };
-          this.myOffer[index] = null;
-        }
-      });
+    // Возвращаем свои предметы в инвентарь
+    this.myOffer.forEach((item, index) => {
+      if (item && item.originalSlot !== undefined) {
+        inventory[item.originalSlot] = {
+          ...item,
+          itemId: `${item.type}_${Date.now()}`,
+        };
+        this.myOffer[index] = null;
+      }
+    });
 
-      // Отправляем серверу команду отмены с информацией о возврате предметов партнёра
-      sendWhenReady(
-        this.ws,
-        JSON.stringify({
-          type: "tradeCancelled",
-          fromId: myId,
-          toId: this.tradePartnerId,
-          partnerOffer: hasPartnerOffer ? this.partnerOffer : [], // Отправляем предметы партнёра для возврата
-        })
-      );
+    // Отправляем серверу команду отмены
+    sendWhenReady(
+      this.ws,
+      JSON.stringify({
+        type: "tradeCancelled",
+        fromId: myId,
+        toId: this.tradePartnerId,
+        partnerOffer: hasPartnerOffer ? this.partnerOffer : [], // Отправляем предметы партнёра для возврата
+      })
+    );
 
-      // Очищаем своё предложение и обновляем интерфейс
-      this.myOffer = Array(3).fill(null);
-      this.updateTradeWindow();
-      updateInventoryDisplay();
-      this.closeTradeWindow();
-      this.resetTrade();
-    }
+    // Очищаем своё предложение и обновляем интерфейс
+    this.myOffer = Array(3).fill(null);
+    this.updateTradeWindow();
+    updateInventoryDisplay();
+    this.closeTradeWindow();
+    this.resetTrade();
+  },
+
+  // Полностью заменяем метод cancelTrade
+  cancelTrade() {
+    sendWhenReady(
+      this.ws,
+      JSON.stringify({
+        type: "tradeCancelled",
+        fromId: myId,
+        toId: this.tradePartnerId,
+      })
+    );
+    this.closeTradeWindow();
+    this.resetTrade();
   },
 
   openTradeWindow() {
@@ -401,30 +411,51 @@ const tradeSystem = {
     }
 
     for (let i = 0; i < 3; i++) {
-      // Было myOfferGrid.length, теперь явно 3
-      myOfferGrid[i].innerHTML = "";
-      if (this.myOffer[i]) {
-        const img = document.createElement("img");
-        img.src = ITEM_CONFIG[this.myOffer[i].type].image.src;
-        img.style.width = "100%";
-        img.style.height = "100%";
-        myOfferGrid[i].appendChild(img);
-      }
+      const slot = document.createElement("div");
+      slot.className = "offer-slot";
+      slot.dataset.slotIndex = i;
+      document.getElementById("myOfferGrid").appendChild(slot);
+      // Добавляем обработчики для подсказок
+      slot.addEventListener("mouseover", (e) =>
+        this.showTooltip(e, i, "myOffer")
+      );
+      slot.addEventListener("mouseout", () => this.hideTooltip());
     }
 
     for (let i = 0; i < 3; i++) {
-      // Было partnerOfferGrid.length, теперь явно 3
-      partnerOfferGrid[i].innerHTML = "";
-      if (this.partnerOffer[i]) {
-        const img = document.createElement("img");
-        img.src = ITEM_CONFIG[this.partnerOffer[i].type].image.src;
-        img.style.width = "100%";
-        img.style.height = "100%";
-        partnerOfferGrid[i].appendChild(img);
-      }
+      const slot = document.createElement("div");
+      slot.className = "offer-slot";
+      slot.dataset.slotIndex = i;
+      document.getElementById("partnerOfferGrid").appendChild(slot);
+      // Добавляем обработчики для подсказок
+      slot.addEventListener("mouseover", (e) =>
+        this.showTooltip(e, i, "partnerOffer")
+      );
+      slot.addEventListener("mouseout", () => this.hideTooltip());
     }
 
     document.getElementById("confirmTradeBtn").disabled = this.myConfirmed;
+  },
+  showTooltip(event, slotIndex, offerType) {
+    const offer = offerType === "myOffer" ? this.myOffer : this.partnerOffer;
+    const item = offer[slotIndex];
+    if (!item) return;
+
+    const tooltip = document.createElement("div");
+    tooltip.className = "tooltip";
+    tooltip.textContent = ITEM_CONFIG[item.type].description;
+    document.body.appendChild(tooltip);
+
+    // Позиционируем подсказку рядом с курсором
+    tooltip.style.left = `${event.clientX + 10}px`;
+    tooltip.style.top = `${event.clientY + 10}px`;
+  },
+
+  hideTooltip() {
+    const tooltip = document.querySelector(".tooltip");
+    if (tooltip) {
+      tooltip.remove();
+    }
   },
 };
 
