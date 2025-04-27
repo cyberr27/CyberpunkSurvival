@@ -234,56 +234,51 @@ const tradeSystem = {
   },
 
   handleCancelTrade() {
-    // Проверяем, есть ли предметы в myOffer или partnerOffer
+    // Проверяем, есть ли предметы в myOffer
     const hasMyOffer = this.myOffer.some((item) => item !== null);
-    const hasPartnerOffer = this.partnerOffer.some((item) => item !== null);
 
-    // Если нет предметов в слотах ни у одного из игроков, сразу отменяем торговлю
-    if (!hasMyOffer && !hasPartnerOffer) {
+    // Если слоты myOffer пустые, сразу отменяем торговлю для обоих игроков
+    if (!hasMyOffer) {
       this.cancelTrade();
       return;
     }
 
-    // Возвращаем свои предметы в инвентарь, если они есть
-    if (hasMyOffer) {
-      this.myOffer.forEach((item, index) => {
-        if (item && item.originalSlot !== undefined) {
-          // Проверяем, что слот в инвентаре свободен
-          if (!inventory[item.originalSlot]) {
-            inventory[item.originalSlot] = {
+    // Если есть предметы в myOffer, возвращаем их в инвентарь
+    this.myOffer.forEach((item, index) => {
+      if (item && item.originalSlot !== undefined) {
+        // Проверяем, что слот в инвентаре свободен
+        if (!inventory[item.originalSlot]) {
+          inventory[item.originalSlot] = {
+            ...item,
+            itemId: `${item.type}_${Date.now()}`,
+          };
+          this.myOffer[index] = null;
+        } else {
+          // Если слот занят, ищем свободный
+          const freeSlot = inventory.findIndex((slot) => slot === null);
+          if (freeSlot !== -1) {
+            inventory[freeSlot] = {
               ...item,
               itemId: `${item.type}_${Date.now()}`,
             };
             this.myOffer[index] = null;
           } else {
-            // Если слот занят, ищем свободный
-            const freeSlot = inventory.findIndex((slot) => slot === null);
-            if (freeSlot !== -1) {
-              inventory[freeSlot] = {
-                ...item,
-                itemId: `${item.type}_${Date.now()}`,
-              };
-              this.myOffer[index] = null;
-            } else {
-              console.warn(
-                `Инвентарь полон, предмет ${item.type} не возвращён`
-              );
-            }
+            console.warn(`Инвентарь полон, предмет ${item.type} не возвращён`);
           }
         }
-      });
+      }
+    });
 
-      // Отправляем обновление предложения (очищаем своё предложение)
-      sendWhenReady(
-        this.ws,
-        JSON.stringify({
-          type: "tradeOffer",
-          fromId: myId,
-          toId: this.tradePartnerId,
-          offer: this.myOffer,
-        })
-      );
-    }
+    // Отправляем обновление предложения (очищаем своё предложение)
+    sendWhenReady(
+      this.ws,
+      JSON.stringify({
+        type: "tradeOffer",
+        fromId: myId,
+        toId: this.tradePartnerId,
+        offer: this.myOffer,
+      })
+    );
 
     // Обновляем отображение инвентаря и окна торговли
     this.updateTradeWindow();
