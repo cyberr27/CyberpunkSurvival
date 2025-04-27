@@ -716,6 +716,20 @@ function startGame() {
   requestAnimationFrame(gameLoop);
 }
 
+function handlePlayerClick(worldX, worldY) {
+  let selectedPlayerId = null;
+  players.forEach((player, id) => {
+    if (id !== myId && player.health > 0) {
+      const dx = worldX - (player.x + 20);
+      const dy = worldY - (player.y + 20);
+      if (Math.sqrt(dx * dx + dy * dy) < 40) {
+        selectedPlayerId = id;
+      }
+    }
+  });
+  window.tradeSystem.selectPlayer(selectedPlayerId);
+}
+
 // Функция переключения инвентаря
 function toggleInventory() {
   isInventoryOpen = !isInventoryOpen;

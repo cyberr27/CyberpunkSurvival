@@ -22,10 +22,6 @@ const tradeSystem = {
     tradeBtn.className = "cyber-btn";
     tradeBtn.textContent = "ТОРГ";
     tradeBtn.disabled = true; // Кнопка неактивна по умолчанию
-    tradeBtn.style.bottom = "20px";
-    tradeBtn.style.right = "150px";
-    tradeBtn.style.width = "60px";
-    tradeBtn.style.height = "60px";
     document.getElementById("gameContainer").appendChild(tradeBtn);
 
     tradeBtn.addEventListener("click", () => {
@@ -35,7 +31,7 @@ const tradeSystem = {
     });
   },
 
-  selectPlayer(playerId, showButton) {
+  selectPlayer(playerId) {
     this.selectedPlayerId = playerId;
     const tradeBtn = document.getElementById("tradeBtn");
     tradeBtn.disabled = !(playerId && this.canInitiateTrade()); // Активируем только если выбран игрок и условия соблюдены
@@ -77,12 +73,12 @@ const tradeSystem = {
           <div id="myTradeGrid" class="trade-grid"></div>
           <h3 class="cyber-text">Ваше предложение</h3>
           <div id="myOfferGrid" class="trade-offer-grid"></div>
-          <button id="confirmTradeBtn" class="action-btn use-btn" disabled>Подтвердить</button>
-          <button id="cancelTradeWindowBtn" class="action-btn drop-btn">Отмена</button>
-        </div>
-        <div class="trade-panel">
           <h3 class="cyber-text">Предложение партнёра</h3>
           <div id="partnerOfferGrid" class="trade-offer-grid"></div>
+          <div class="trade-buttons">
+            <button id="confirmTradeBtn" class="action-btn use-btn" disabled>Подтвердить</button>
+            <button id="cancelTradeWindowBtn" class="action-btn drop-btn">Отмена</button>
+          </div>
         </div>
       `;
     document.getElementById("gameContainer").appendChild(tradeWindow);

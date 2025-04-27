@@ -665,7 +665,7 @@ button:active {
 /* Кнопка ТОРГ */
 #tradeBtn {
   bottom: 20px;
-  right: 150px;
+  right: 150px; /* Левее inventoryBtn (80px) и chatBtn (10px) */
   width: 60px;
   height: 60px;
   background: linear-gradient(135deg, #ff0066, #00ccff);
@@ -679,14 +679,23 @@ button:active {
   z-index: 60;
 }
 
-#tradeBtn:hover {
+#tradeBtn:hover:not(:disabled) {
   box-shadow: 0 0 20px rgba(255, 0, 102, 1);
   transform: scale(1.1);
 }
 
-#tradeBtn.active {
-  background: linear-gradient(135deg, #00ccff, #ff0066);
-  box-shadow: 0 0 20px rgba(0, 204, 255, 1);
+#tradeBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: 0 0 5px rgba(255, 0, 102, 0.3);
+  background: linear-gradient(135deg, #4a4a4a, #2a2a2a);
+  border-color: #4a4a4a;
+  color: #666666;
+}
+
+#tradeBtn:disabled:hover {
+  transform: none;
+  box-shadow: 0 0 5px rgba(255, 0, 102, 0.3);
 }
 
 /* Диалоговое окно приглашения */
@@ -722,15 +731,15 @@ button:active {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 600px;
+  width: 320px; /* Уменьшаем ширину для одного столбца */
   background: linear-gradient(180deg, #1a1a1a, #0f0f0f);
   border: 2px solid #00ccff;
   border-radius: 0;
   box-shadow: 0 0 20px rgba(0, 204, 255, 0.5);
   display: none;
-  flex-direction: row;
+  flex-direction: column; /* Вертикальное расположение */
   padding: 20px;
-  gap: 20px;
+  gap: 10px;
   z-index: 150;
   font-family: "Orbitron", sans-serif;
   background-image: url("https://i.imgur.com/8Z1z7qU.png");
@@ -738,9 +747,14 @@ button:active {
 }
 
 .trade-panel {
-  flex: 1;
   display: flex;
   flex-direction: column;
+  gap: 10px;
+}
+
+.trade-buttons {
+  display: flex;
+  justify-content: space-between;
   gap: 10px;
 }
 
@@ -910,8 +924,7 @@ button:active {
   }
 
   .trade-window {
-    width: 90%;
-    flex-direction: column;
+    width: 260px;
     padding: 15px;
   }
 
