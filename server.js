@@ -886,18 +886,19 @@ wss.on("connection", (ws) => {
       const fromId = clients.get(ws);
       if (!fromId || !players.has(fromId) || !players.has(data.toId)) return;
 
+      // Отправляем сообщение об отмене обоим игрокам
       wss.clients.forEach((client) => {
-        if (
-          client.readyState === WebSocket.OPEN &&
-          clients.get(client) === data.toId
-        ) {
-          client.send(
-            JSON.stringify({
-              type: "tradeCancelled",
-              fromId: fromId,
-              toId: data.toId,
-            })
-          );
+        if (client.readyState === WebSocket.OPEN) {
+          const clientId = clients.get(client);
+          if (clientId === fromId || clientId === data.toId) {
+            client.send(
+              JSON.stringify({
+                type: "tradeCancelled",
+                fromId: fromId,
+                toId: data.toId,
+              })
+            );
+          }
         }
       });
     } else if (data.type === "tradeOffer") {

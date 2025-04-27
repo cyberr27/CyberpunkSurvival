@@ -174,6 +174,11 @@ const tradeSystem = {
         if (data.fromId === this.tradePartnerId || data.toId === myId) {
           this.closeTradeWindow();
           this.resetTrade();
+          // Дополнительно очищаем предложения
+          this.myOffer = Array(3).fill(null);
+          this.partnerOffer = Array(3).fill(null);
+          this.updateTradeWindow();
+          updateInventoryDisplay();
         }
         break;
       case "tradeOffer":
@@ -236,53 +241,58 @@ const tradeSystem = {
   handleCancelTrade() {
     // Проверяем, есть ли предметы в myOffer
     const hasMyOffer = this.myOffer.some((item) => item !== null);
+    const hasPartnerOffer = this.partnerOffer.some((item) => item !== null);
 
-    // Если слоты myOffer пустые, сразу отменяем торговлю для обоих игроков
-    if (!hasMyOffer) {
+    // Если оба предложения пусты, сразу отменяем торговлю
+    if (!hasMyOffer && !hasPartnerOffer) {
       this.cancelTrade();
       return;
     }
 
     // Если есть предметы в myOffer, возвращаем их в инвентарь
-    this.myOffer.forEach((item, index) => {
-      if (item && item.originalSlot !== undefined) {
-        // Проверяем, что слот в инвентаре свободен
-        if (!inventory[item.originalSlot]) {
-          inventory[item.originalSlot] = {
-            ...item,
-            itemId: `${item.type}_${Date.now()}`,
-          };
-          this.myOffer[index] = null;
-        } else {
-          // Если слот занят, ищем свободный
-          const freeSlot = inventory.findIndex((slot) => slot === null);
-          if (freeSlot !== -1) {
-            inventory[freeSlot] = {
+    if (hasMyOffer) {
+      this.myOffer.forEach((item, index) => {
+        if (item && item.originalSlot !== undefined) {
+          // Проверяем, что слот в инвентаре свободен
+          if (!inventory[item.originalSlot]) {
+            inventory[item.originalSlot] = {
               ...item,
               itemId: `${item.type}_${Date.now()}`,
             };
             this.myOffer[index] = null;
           } else {
-            console.warn(`Инвентарь полон, предмет ${item.type} не возвращён`);
+            // Если слот занят, ищем свободный
+            const freeSlot = inventory.findIndex((slot) => slot === null);
+            if (freeSlot !== -1) {
+              inventory[freeSlot] = {
+                ...item,
+                itemId: `${item.type}_${Date.now()}`,
+              };
+              this.myOffer[index] = null;
+            } else {
+              console.warn(
+                `Инвентарь полон, предмет ${item.type} не возвращён`
+              );
+            }
           }
         }
-      }
-    });
+      });
 
-    // Отправляем обновление предложения (очищаем своё предложение)
-    sendWhenReady(
-      this.ws,
-      JSON.stringify({
-        type: "tradeOffer",
-        fromId: myId,
-        toId: this.tradePartnerId,
-        offer: this.myOffer,
-      })
-    );
+      // Отправляем обновление предложения (очищаем своё предложение)
+      sendWhenReady(
+        this.ws,
+        JSON.stringify({
+          type: "tradeOffer",
+          fromId: myId,
+          toId: this.tradePartnerId,
+          offer: this.myOffer,
+        })
+      );
 
-    // Обновляем отображение инвентаря и окна торговли
-    this.updateTradeWindow();
-    updateInventoryDisplay();
+      // Обновляем отображение инвентаря и окна торговли
+      this.updateTradeWindow();
+      updateInventoryDisplay();
+    }
 
     // Отменяем торговлю
     this.cancelTrade();
@@ -297,11 +307,21 @@ const tradeSystem = {
   closeTradeWindow() {
     this.isTradeWindowOpen = false;
     const tradeWindow = document.getElementById("tradeWindow");
-    if (tradeWindow) tradeWindow.style.display = "none";
+    if (tradeWindow) {
+      tradeWindow.style.display = "none";
+    }
 
     // Сбрасываем состояние кнопки подтверждения
     const confirmBtn = document.getElementById("confirmTradeBtn");
-    if (confirmBtn) confirmBtn.disabled = true;
+    if (confirmBtn) {
+      confirmBtn.disabled = true;
+    }
+
+    // Сбрасываем состояние кнопки торговли
+    const tradeBtn = document.getElementById("tradeBtn");
+    if (tradeBtn) {
+      tradeBtn.disabled = true;
+    }
   },
 
   addToOffer(slotIndex) {
@@ -364,14 +384,16 @@ const tradeSystem = {
 
   cancelTrade() {
     // Отправляем сообщение об отмене торговли
-    sendWhenReady(
-      this.ws,
-      JSON.stringify({
-        type: "tradeCancelled",
-        fromId: myId,
-        toId: this.tradePartnerId,
-      })
-    );
+    if (this.tradePartnerId && this.tradeStatus !== "cancelled") {
+      sendWhenReady(
+        this.ws,
+        JSON.stringify({
+          type: "tradeCancelled",
+          fromId: myId,
+          toId: this.tradePartnerId,
+        })
+      );
+    }
 
     // Закрываем окно торговли
     this.closeTradeWindow();
