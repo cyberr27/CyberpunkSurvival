@@ -234,28 +234,31 @@ const tradeSystem = {
   },
 
   handleCancelTrade() {
-    // Проверяем, что торг активен и есть партнёр
+    // Проверяем, открыто ли окно торговли
     if (!this.isTradeWindowOpen || !this.tradePartnerId) {
-      console.warn("Попытка отмены торга без активного окна или партнёра");
+      console.warn(
+        "Попытка отмены торговли при закрытом окне или отсутствии партнера"
+      );
       this.closeTradeWindow();
       this.resetTrade();
       return;
     }
 
-    // Проверяем наличие предметов в своём предложении
+    // Проверяем, есть ли предметы в моем предложении
     const hasMyOffer = this.myOffer.some((item) => item !== null);
 
     if (!hasMyOffer) {
-      // Если нет предметов в предложении, полностью отменяем торг
+      // Если нет предметов в моем предложении, полностью отменяем торг
       this.cancelTrade();
     } else {
-      // Возвращаем предметы в инвентарь
+      // Возвращаем свои предметы в инвентарь
       this.myOffer.forEach((item, index) => {
         if (item && item.originalSlot !== undefined) {
-          // Проверяем, что слот в инвентаре свободен
-          if (!inventory[item.originalSlot]) {
+          // Проверяем, свободен ли исходный слот
+          if (inventory[item.originalSlot] === null) {
             inventory[item.originalSlot] = {
-              ...item,
+              type: item.type,
+              quantity: item.quantity,
               itemId: `${item.type}_${Date.now()}`,
             };
             this.myOffer[index] = null;
@@ -264,7 +267,8 @@ const tradeSystem = {
             const freeSlot = inventory.findIndex((slot) => slot === null);
             if (freeSlot !== -1) {
               inventory[freeSlot] = {
-                ...item,
+                type: item.type,
+                quantity: item.quantity,
                 itemId: `${item.type}_${Date.now()}`,
               };
               this.myOffer[index] = null;
@@ -272,13 +276,14 @@ const tradeSystem = {
               console.warn(
                 `Нет свободных слотов для возврата предмета ${item.type}`
               );
+              // Оставляем предмет в предложении, чтобы не потерять
             }
           }
         }
       });
 
-      // Отправляем обновление предложения (очищаем своё предложение)
-      send-when-ready(
+      // Отправляем обновленное предложение (очищаем свое предложение)
+      sendWhenReady(
         this.ws,
         JSON.stringify({
           type: "tradeOffer",
@@ -288,23 +293,16 @@ const tradeSystem = {
         })
       );
 
-      // Сбрасываем подтверждение, если было
-      if (this.myConfirmed) {
-        this.myConfirmed = false;
-        send-when-ready(
-          this.ws,
-          JSON.stringify({
-            type: "tradeConfirmed",
-            fromId: myId,
-            toId: this.tradePartnerId,
-            confirmed: false,
-          })
-        );
+      // Проверяем, остались ли предметы в предложении после попытки очистки
+      const stillHasMyOffer = this.myOffer.some((item) => item !== null);
+      if (!stillHasMyOffer) {
+        // Если предложение стало пустым, отменяем торг
+        this.cancelTrade();
+      } else {
+        // Обновляем отображение, если торг продолжается
+        this.updateTradeWindow();
+        updateInventoryDisplay();
       }
-
-      // Обновляем интерфейс
-      this.updateTradeWindow();
-      updateInventoryDisplay();
     }
   },
 

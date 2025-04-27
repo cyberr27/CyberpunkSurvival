@@ -890,15 +890,63 @@ wss.on("connection", (ws) => {
       const fromPlayer = players.get(fromId);
       const toPlayer = players.get(data.toId);
 
+      // Возвращаем предметы игрока A (fromPlayer) в его инвентарь
+      if (fromPlayer.tradeOffer) {
+        fromPlayer.tradeOffer.forEach((item, index) => {
+          if (item && item.originalSlot !== undefined) {
+            if (fromPlayer.inventory[item.originalSlot] === null) {
+              fromPlayer.inventory[item.originalSlot] = {
+                type: item.type,
+                quantity: item.quantity,
+                itemId: `${item.type}_${Date.now()}`,
+              };
+            } else {
+              const freeSlot = fromPlayer.inventory.findIndex(
+                (slot) => slot === null
+              );
+              if (freeSlot !== -1) {
+                fromPlayer.inventory[freeSlot] = {
+                  type: item.type,
+                  quantity: item.quantity,
+                  itemId: `${item.type}_${Date.now()}`,
+                };
+              } else {
+                console.warn(
+                  `Нет свободных слотов для возврата предмета ${item.type} игроку ${fromId}`
+                );
+              }
+            }
+          }
+        });
+        fromPlayer.tradeOffer = Array(3).fill(null); // Очищаем предложение
+      }
+
       // Возвращаем предметы игрока B (toPlayer) в его инвентарь
       if (toPlayer.tradeOffer) {
         toPlayer.tradeOffer.forEach((item, index) => {
           if (item && item.originalSlot !== undefined) {
-            toPlayer.inventory[item.originalSlot] = {
-              type: item.type,
-              quantity: item.quantity,
-              itemId: `${item.type}_${Date.now()}`,
-            };
+            if (toPlayer.inventory[item.originalSlot] === null) {
+              toPlayer.inventory[item.originalSlot] = {
+                type: item.type,
+                quantity: item.quantity,
+                itemId: `${item.type}_${Date.now()}`,
+              };
+            } else {
+              const freeSlot = toPlayer.inventory.findIndex(
+                (slot) => slot === null
+              );
+              if (freeSlot !== -1) {
+                toPlayer.inventory[freeSlot] = {
+                  type: item.type,
+                  quantity: item.quantity,
+                  itemId: `${item.type}_${Date.now()}`,
+                };
+              } else {
+                console.warn(
+                  `Нет свободных слотов для возврата предмета ${item.type} игроку ${data.toId}`
+                );
+              }
+            }
           }
         });
         toPlayer.tradeOffer = Array(3).fill(null); // Очищаем предложение
