@@ -750,12 +750,6 @@ button:active {
   gap: 8px;
 }
 
-.trade-offer-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
-}
-
 .trade-slot,
 .offer-slot {
   width: 50px;
@@ -775,6 +769,15 @@ button:active {
   border-color: #ff0066;
   box-shadow: 0 0 10px rgba(255, 0, 102, 0.7);
   transform: scale(1.05);
+}
+
+.trade-offer-grid {
+  display: grid;
+  grid-template-columns: repeat(
+    3,
+    1fr
+  ); /* Было repeat(2, 1fr), теперь 3 слота в ряд */
+  gap: 8px;
 }
 
 /* Адаптация для мобильных устройств (max-width: 500px) */

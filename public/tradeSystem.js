@@ -4,8 +4,8 @@ const tradeSystem = {
   selectedPlayerId: null,
   tradePartnerId: null,
   tradeStatus: null, // 'pending', 'accepted', 'confirmed', 'completed', 'cancelled'
-  myOffer: Array(4).fill(null), // Слоты для предметов игрока (4 слота для торговли)
-  partnerOffer: Array(4).fill(null), // Слоты для предметов партнёра
+  myOffer: Array(3).fill(null), // Было 4, стало 3
+  partnerOffer: Array(3).fill(null), // Было 4, стало 3
   myConfirmed: false,
   partnerConfirmed: false,
 
@@ -76,14 +76,13 @@ const tradeSystem = {
           <button id="cancelTradeWindowBtn" class="action-btn drop-btn">Отмена</button>
         </div>
         <div class="trade-panel">
-          <h3 class="cyber-text">Инвентарь партнёра</h3>
-          <div id="partnerTradeGrid" class="trade-grid"></div>
           <h3 class="cyber-text">Предложение партнёра</h3>
           <div id="partnerOfferGrid" class="trade-offer-grid"></div>
         </div>
       `;
     document.getElementById("gameContainer").appendChild(tradeWindow);
 
+    // Создаём слоты для myTradeGrid (20 слотов инвентаря)
     for (let i = 0; i < 20; i++) {
       const slot = document.createElement("div");
       slot.className = "trade-slot";
@@ -91,21 +90,16 @@ const tradeSystem = {
       document.getElementById("myTradeGrid").appendChild(slot);
     }
 
-    for (let i = 0; i < 4; i++) {
+    // Создаём 3 слота для myOfferGrid
+    for (let i = 0; i < 3; i++) {
       const slot = document.createElement("div");
       slot.className = "offer-slot";
       slot.dataset.slotIndex = i;
       document.getElementById("myOfferGrid").appendChild(slot);
     }
 
-    for (let i = 0; i < 20; i++) {
-      const slot = document.createElement("div");
-      slot.className = "trade-slot";
-      slot.dataset.slotIndex = i;
-      document.getElementById("partnerTradeGrid").appendChild(slot);
-    }
-
-    for (let i = 0; i < 4; i++) {
+    // Создаём 3 слота для partnerOfferGrid
+    for (let i = 0; i < 3; i++) {
       const slot = document.createElement("div");
       slot.className = "offer-slot";
       slot.dataset.slotIndex = i;
@@ -133,7 +127,7 @@ const tradeSystem = {
     document
       .getElementById("cancelTradeWindowBtn")
       .addEventListener("click", () => {
-        this.cancelTrade();
+        this.handleCancelTrade();
       });
   },
 
@@ -145,7 +139,7 @@ const tradeSystem = {
     const dx = me.x - target.x;
     const dy = me.y - target.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
-    return distance < 100 && me.health > 0 && target.health > 0;
+    return distance < 1000 && me.health > 0 && target.health > 0;
   },
 
   sendTradeRequest(targetId) {
@@ -238,6 +232,43 @@ const tradeSystem = {
     this.resetTrade();
   },
 
+  handleCancelTrade() {
+    // Проверяем, есть ли предметы в myOffer или partnerOffer
+    const hasMyOffer = this.myOffer.some((item) => item !== null);
+    const hasPartnerOffer = this.partnerOffer.some((item) => item !== null);
+
+    if (hasMyOffer || hasPartnerOffer) {
+      // Возвращаем свои предметы в инвентарь
+      this.myOffer.forEach((item, index) => {
+        if (item && item.originalSlot !== undefined) {
+          inventory[item.originalSlot] = {
+            ...item,
+            itemId: `${item.type}_${Date.now()}`,
+          };
+          this.myOffer[index] = null;
+        }
+      });
+
+      // Отправляем обновление предложения (очищаем своё предложение)
+      sendWhenReady(
+        this.ws,
+        JSON.stringify({
+          type: "tradeOffer",
+          fromId: myId,
+          toId: this.tradePartnerId,
+          offer: this.myOffer,
+        })
+      );
+
+      // Обновляем отображение
+      this.updateTradeWindow();
+      updateInventoryDisplay();
+    } else {
+      // Если слотов пустые, отменяем торг
+      this.cancelTrade();
+    }
+  },
+
   openTradeWindow() {
     this.isTradeWindowOpen = true;
     document.getElementById("tradeWindow").style.display = "flex";
@@ -272,6 +303,13 @@ const tradeSystem = {
   removeFromOffer(slotIndex) {
     if (!this.myOffer[slotIndex]) return;
 
+    const item = this.myOffer[slotIndex];
+    if (item.originalSlot !== undefined) {
+      inventory[item.originalSlot] = {
+        ...item,
+        itemId: `${item.type}_${Date.now()}`,
+      };
+    }
     this.myOffer[slotIndex] = null;
     sendWhenReady(
       this.ws,
@@ -283,6 +321,7 @@ const tradeSystem = {
       })
     );
     this.updateTradeWindow();
+    updateInventoryDisplay();
   },
 
   confirmTrade() {
@@ -329,8 +368,8 @@ const tradeSystem = {
     this.selectedPlayerId = null;
     this.tradePartnerId = null;
     this.tradeStatus = null;
-    this.myOffer = Array(4).fill(null);
-    this.partnerOffer = Array(4).fill(null);
+    this.myOffer = Array(3).fill(null); // Было 4, стало 3
+    this.partnerOffer = Array(3).fill(null); // Было 4, стало 3
     this.myConfirmed = false;
     this.partnerConfirmed = false;
     document.getElementById("tradeBtn").style.display = "none";
@@ -339,8 +378,6 @@ const tradeSystem = {
   updateTradeWindow() {
     const myTradeGrid = document.getElementById("myTradeGrid").children;
     const myOfferGrid = document.getElementById("myOfferGrid").children;
-    const partnerTradeGrid =
-      document.getElementById("partnerTradeGrid").children;
     const partnerOfferGrid =
       document.getElementById("partnerOfferGrid").children;
 
@@ -355,7 +392,8 @@ const tradeSystem = {
       }
     }
 
-    for (let i = 0; i < myOfferGrid.length; i++) {
+    for (let i = 0; i < 3; i++) {
+      // Было myOfferGrid.length, теперь явно 3
       myOfferGrid[i].innerHTML = "";
       if (this.myOffer[i]) {
         const img = document.createElement("img");
@@ -366,19 +404,8 @@ const tradeSystem = {
       }
     }
 
-    for (let i = 0; i < partnerTradeGrid.length; i++) {
-      partnerTradeGrid[i].innerHTML = "";
-      const partner = players.get(this.tradePartnerId);
-      if (partner && partner.inventory && partner.inventory[i]) {
-        const img = document.createElement("img");
-        img.src = ITEM_CONFIG[partner.inventory[i].type].image.src;
-        img.style.width = "100%";
-        img.style.height = "100%";
-        partnerTradeGrid[i].appendChild(img);
-      }
-    }
-
-    for (let i = 0; i < partnerOfferGrid.length; i++) {
+    for (let i = 0; i < 3; i++) {
+      // Было partnerOfferGrid.length, теперь явно 3
       partnerOfferGrid[i].innerHTML = "";
       if (this.partnerOffer[i]) {
         const img = document.createElement("img");

@@ -840,164 +840,230 @@ wss.on("connection", (ws) => {
     } else if (data.type === "tradeRequest") {
       const fromId = clients.get(ws);
       if (!fromId || !players.has(fromId) || !players.has(data.toId)) return;
-    
+
       const fromPlayer = players.get(fromId);
       const toPlayer = players.get(data.toId);
       const dx = fromPlayer.x - toPlayer.x;
       const dy = fromPlayer.y - toPlayer.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
-    
-      if (distance > 100 || fromPlayer.health <= 0 || toPlayer.health <= 0) return;
-    
+
+      if (distance > 100 || fromPlayer.health <= 0 || toPlayer.health <= 0)
+        return;
+
       wss.clients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN && clients.get(client) === data.toId) {
-          client.send(JSON.stringify({
-            type: "tradeRequest",
-            fromId: fromId,
-            toId: data.toId
-          }));
+        if (
+          client.readyState === WebSocket.OPEN &&
+          clients.get(client) === data.toId
+        ) {
+          client.send(
+            JSON.stringify({
+              type: "tradeRequest",
+              fromId: fromId,
+              toId: data.toId,
+            })
+          );
         }
       });
     } else if (data.type === "tradeAccepted") {
       const fromId = clients.get(ws);
       if (!fromId || !players.has(fromId) || !players.has(data.toId)) return;
-    
+
       wss.clients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN && clients.get(client) === data.toId) {
-          client.send(JSON.stringify({
-            type: "tradeAccepted",
-            fromId: fromId,
-            toId: data.toId
-          }));
+        if (
+          client.readyState === WebSocket.OPEN &&
+          clients.get(client) === data.toId
+        ) {
+          client.send(
+            JSON.stringify({
+              type: "tradeAccepted",
+              fromId: fromId,
+              toId: data.toId,
+            })
+          );
         }
       });
     } else if (data.type === "tradeCancelled") {
       const fromId = clients.get(ws);
       if (!fromId || !players.has(fromId) || !players.has(data.toId)) return;
-    
+
       wss.clients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN && clients.get(client) === data.toId) {
-          client.send(JSON.stringify({
-            type: "tradeCancelled",
-            fromId: fromId,
-            toId: data.toId
-          }));
+        if (
+          client.readyState === WebSocket.OPEN &&
+          clients.get(client) === data.toId
+        ) {
+          client.send(
+            JSON.stringify({
+              type: "tradeCancelled",
+              fromId: fromId,
+              toId: data.toId,
+            })
+          );
         }
       });
     } else if (data.type === "tradeOffer") {
       const fromId = clients.get(ws);
       if (!fromId || !players.has(fromId) || !players.has(data.toId)) return;
-    
+
       wss.clients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN && clients.get(client) === data.toId) {
-          client.send(JSON.stringify({
-            type: "tradeOffer",
-            fromId: fromId,
-            toId: data.toId,
-            offer: data.offer
-          }));
+        if (
+          client.readyState === WebSocket.OPEN &&
+          clients.get(client) === data.toId
+        ) {
+          client.send(
+            JSON.stringify({
+              type: "tradeOffer",
+              fromId: fromId,
+              toId: data.toId,
+              offer: data.offer,
+            })
+          );
         }
       });
     } else if (data.type === "tradeConfirmed") {
       const fromId = clients.get(ws);
       if (!fromId || !players.has(fromId) || !players.has(data.toId)) return;
-    
+
       wss.clients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN && clients.get(client) === data.toId) {
-          client.send(JSON.stringify({
-            type: "tradeConfirmed",
-            fromId: fromId,
-            toId: data.toId
-          }));
+        if (
+          client.readyState === WebSocket.OPEN &&
+          clients.get(client) === data.toId
+        ) {
+          client.send(
+            JSON.stringify({
+              type: "tradeConfirmed",
+              fromId: fromId,
+              toId: data.toId,
+            })
+          );
         }
       });
     } else if (data.type === "tradeCompleted") {
       const fromId = clients.get(ws);
       if (!fromId || !players.has(fromId) || !players.has(data.toId)) return;
-    
+
       const fromPlayer = players.get(fromId);
       const toPlayer = players.get(data.toId);
-    
+
       // Проверяем, что инвентарь валиден
       if (!fromPlayer.inventory || !toPlayer.inventory) return;
-    
+
       // Проверяем, что предметы в предложении существуют в инвентаре
       const fromOfferValid = data.myOffer.every((item, index) => {
         if (!item) return true;
         const invItem = fromPlayer.inventory[item.originalSlot];
-        return invItem && invItem.type === item.type && (!item.quantity || invItem.quantity === item.quantity);
+        return (
+          invItem &&
+          invItem.type === item.type &&
+          (!item.quantity || invItem.quantity === item.quantity)
+        );
       });
-    
+
       const toOfferValid = data.partnerOffer.every((item, index) => {
         if (!item) return true;
         const invItem = toPlayer.inventory[item.originalSlot];
-        return invItem && invItem.type === item.type && (!item.quantity || invItem.quantity === item.quantity);
+        return (
+          invItem &&
+          invItem.type === item.type &&
+          (!item.quantity || invItem.quantity === item.quantity)
+        );
       });
-    
+
       if (!fromOfferValid || !toOfferValid) {
         wss.clients.forEach((client) => {
-          if (client.readyState === WebSocket.OPEN && (clients.get(client) === fromId || clients.get(client) === data.toId)) {
-            client.send(JSON.stringify({
-              type: "tradeCancelled",
-              fromId: fromId,
-              toId: data.toId
-            }));
+          if (
+            client.readyState === WebSocket.OPEN &&
+            (clients.get(client) === fromId ||
+              clients.get(client) === data.toId)
+          ) {
+            client.send(
+              JSON.stringify({
+                type: "tradeCancelled",
+                fromId: fromId,
+                toId: data.toId,
+              })
+            );
           }
         });
         return;
       }
-    
+
       // Подсчитываем, сколько слотов нужно для обмена
-      const fromFreeSlots = fromPlayer.inventory.filter(slot => slot === null).length;
-      const toFreeSlots = toPlayer.inventory.filter(slot => slot === null).length;
-      const fromOfferCount = data.myOffer.filter(item => item !== null).length;
-      const toOfferCount = data.partnerOffer.filter(item => item !== null).length;
-    
+      const fromFreeSlots = fromPlayer.inventory.filter(
+        (slot) => slot === null
+      ).length;
+      const toFreeSlots = toPlayer.inventory.filter(
+        (slot) => slot === null
+      ).length;
+      const fromOfferCount = data.myOffer.filter(
+        (item) => item !== null
+      ).length;
+      const toOfferCount = data.partnerOffer.filter(
+        (item) => item !== null
+      ).length;
+
       if (fromFreeSlots < toOfferCount || toFreeSlots < fromOfferCount) {
         wss.clients.forEach((client) => {
-          if (client.readyState === WebSocket.OPEN && (clients.get(client) === fromId || clients.get(client) === data.toId)) {
-            client.send(JSON.stringify({
-              type: "tradeCancelled",
-              fromId: fromId,
-              toId: data.toId
-            }));
+          if (
+            client.readyState === WebSocket.OPEN &&
+            (clients.get(client) === fromId ||
+              clients.get(client) === data.toId)
+          ) {
+            client.send(
+              JSON.stringify({
+                type: "tradeCancelled",
+                fromId: fromId,
+                toId: data.toId,
+              })
+            );
           }
         });
         return;
       }
-    
+
       // Удаляем предметы из инвентаря
       data.myOffer.forEach((item) => {
         if (item) {
           fromPlayer.inventory[item.originalSlot] = null;
         }
       });
-    
+
       data.partnerOffer.forEach((item) => {
         if (item) {
           toPlayer.inventory[item.originalSlot] = null;
         }
       });
-    
+
       // Добавляем предметы в инвентарь
       data.myOffer.forEach((item) => {
         if (item) {
-          const freeSlot = toPlayer.inventory.findIndex(slot => slot === null);
+          const freeSlot = toPlayer.inventory.findIndex(
+            (slot) => slot === null
+          );
           if (freeSlot !== -1) {
-            toPlayer.inventory[freeSlot] = { type: item.type, quantity: item.quantity, itemId: `${item.type}_${Date.now()}` };
+            toPlayer.inventory[freeSlot] = {
+              type: item.type,
+              quantity: item.quantity,
+              itemId: `${item.type}_${Date.now()}`,
+            };
           }
         }
       });
-    
+
       data.partnerOffer.forEach((item) => {
         if (item) {
-          const freeSlot = fromPlayer.inventory.findIndex(slot => slot === null);
+          const freeSlot = fromPlayer.inventory.findIndex(
+            (slot) => slot === null
+          );
           if (freeSlot !== -1) {
-            fromPlayer.inventory[freeSlot] = { type: item.type, quantity: item.quantity, itemId: `${item.type}_${Date.now()}` };
+            fromPlayer.inventory[freeSlot] = {
+              type: item.type,
+              quantity: item.quantity,
+              itemId: `${item.type}_${Date.now()}`,
+            };
           }
         }
       });
-    
+
       // Сохраняем изменения
       players.set(fromId, { ...fromPlayer });
       players.set(data.toId, { ...toPlayer });
@@ -1005,24 +1071,28 @@ wss.on("connection", (ws) => {
       userDatabase.set(data.toId, { ...toPlayer });
       await saveUserDatabase(dbCollection, fromId, fromPlayer);
       await saveUserDatabase(dbCollection, data.toId, toPlayer);
-    
+
       // Отправляем обновления
       wss.clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN) {
           if (clients.get(client) === fromId) {
-            client.send(JSON.stringify({
-              type: "tradeCompleted",
-              fromId: fromId,
-              toId: data.toId,
-              newInventory: fromPlayer.inventory
-            }));
+            client.send(
+              JSON.stringify({
+                type: "tradeCompleted",
+                fromId: fromId,
+                toId: data.toId,
+                newInventory: fromPlayer.inventory,
+              })
+            );
           } else if (clients.get(client) === data.toId) {
-            client.send(JSON.stringify({
-              type: "tradeCompleted",
-              fromId: fromId,
-              toId: data.toId,
-              newInventory: toPlayer.inventory
-            }));
+            client.send(
+              JSON.stringify({
+                type: "tradeCompleted",
+                fromId: fromId,
+                toId: data.toId,
+                newInventory: toPlayer.inventory,
+              })
+            );
           }
         }
       });
