@@ -139,7 +139,7 @@ const tradeSystem = {
     const dx = me.x - target.x;
     const dy = me.y - target.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
-    return distance < 1000 && me.health > 0 && target.health > 0;
+    return distance < 1000 && me.health > 0 && target.health > 0; // Было 100, стало 1000
   },
 
   sendTradeRequest(targetId) {
