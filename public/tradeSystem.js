@@ -419,12 +419,6 @@ const tradeSystem = {
 
     document.getElementById("confirmTradeBtn").disabled = this.myConfirmed;
   },
-
-  selectPlayer(playerId, showButton) {
-    this.selectedPlayerId = playerId;
-    document.getElementById("tradeBtn").style.display =
-      showButton && this.canInitiateTrade() ? "block" : "none";
-  },
 };
 
 window.tradeSystem = tradeSystem;

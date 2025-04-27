@@ -579,7 +579,7 @@ function startGame() {
             }
           }
         });
-        window.tradeSystem.selectPlayer(selectedPlayerId, !!selectedPlayerId);
+        window.tradeSystem.selectPlayer(selectedPlayerId); // Убрали !!selectedPlayerId
       }
     }
   });
@@ -635,7 +635,7 @@ function startGame() {
           }
         }
       });
-      window.tradeSystem.selectPlayer(selectedPlayerId, !!selectedPlayerId);
+      window.tradeSystem.selectPlayer(selectedPlayerId); // Убрали !!selectedPlayerId
     }
   });
 
@@ -727,7 +727,7 @@ function handlePlayerClick(worldX, worldY) {
       }
     }
   });
-  window.tradeSystem.selectPlayer(selectedPlayerId);
+  window.tradeSystem.selectPlayer(selectedPlayerId); // Убрали !!selectedPlayerId
 }
 
 // Функция переключения инвентаря
