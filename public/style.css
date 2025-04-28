@@ -777,6 +777,7 @@ button:active {
   justify-content: center;
   cursor: pointer;
   position: relative;
+  transition: all 0.2s;
 }
 
 .trade-slot:hover,
@@ -785,14 +786,19 @@ button:active {
   box-shadow: 0 0 10px rgba(255, 0, 102, 0.7);
   transform: scale(1.05);
 }
+.offer-slot div {
+  color: #00ccff;
+  font-size: 12px;
+  font-family: "Orbitron", sans-serif;
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.7);
+}
 
 .trade-offer-grid {
   display: grid;
-  grid-template-columns: repeat(
-    3,
-    1fr
-  ); /* Было repeat(2, 1fr), теперь 3 слота в ряд */
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
+  justify-items: center;
+  align-items: center;
 }
 
 /* Кнопка ТОРГ в неактивном состоянии */

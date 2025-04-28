@@ -944,28 +944,41 @@ wss.on("connection", (ws) => {
       const fromPlayer = players.get(fromId);
       const toPlayer = players.get(data.toId);
 
+      // Проверяем здоровье и расстояние
+      const dx = fromPlayer.x - toPlayer.x;
+      const dy = fromPlayer.y - toPlayer.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      if (distance > 1000 || fromPlayer.health <= 0 || toPlayer.health <= 0) {
+        wss.clients.forEach((client) => {
+          if (
+            client.readyState === WebSocket.OPEN &&
+            (clients.get(client) === fromId ||
+              clients.get(client) === data.toId)
+          ) {
+            client.send(
+              JSON.stringify({
+                type: "tradeCancelled",
+                fromId: fromId,
+                toId: data.toId,
+              })
+            );
+          }
+        });
+        return;
+      }
+
       // Проверяем, что инвентарь валиден
       if (!fromPlayer.inventory || !toPlayer.inventory) return;
 
-      // Проверяем, что предметы в предложении существуют в инвентаре
-      const fromOfferValid = data.myOffer.every((item, index) => {
+      // Проверяем валидность предложений
+      const fromOfferValid = data.myOffer.every((item) => {
         if (!item) return true;
-        const invItem = fromPlayer.inventory[item.originalSlot];
-        return (
-          invItem &&
-          invItem.type === item.type &&
-          (!item.quantity || invItem.quantity === item.quantity)
-        );
+        return item.originalSlot !== undefined;
       });
 
-      const toOfferValid = data.partnerOffer.every((item, index) => {
+      const toOfferValid = data.partnerOffer.every((item) => {
         if (!item) return true;
-        const invItem = toPlayer.inventory[item.originalSlot];
-        return (
-          invItem &&
-          invItem.type === item.type &&
-          (!item.quantity || invItem.quantity === item.quantity)
-        );
+        return item.originalSlot !== undefined;
       });
 
       if (!fromOfferValid || !toOfferValid) {
@@ -987,7 +1000,7 @@ wss.on("connection", (ws) => {
         return;
       }
 
-      // Подсчитываем, сколько слотов нужно для обмена
+      // Проверяем свободные слоты
       const fromFreeSlots = fromPlayer.inventory.filter(
         (slot) => slot === null
       ).length;
@@ -1020,20 +1033,7 @@ wss.on("connection", (ws) => {
         return;
       }
 
-      // Удаляем предметы из инвентаря
-      data.myOffer.forEach((item) => {
-        if (item) {
-          fromPlayer.inventory[item.originalSlot] = null;
-        }
-      });
-
-      data.partnerOffer.forEach((item) => {
-        if (item) {
-          toPlayer.inventory[item.originalSlot] = null;
-        }
-      });
-
-      // Добавляем предметы в инвентарь
+      // Обмениваем предметы
       data.myOffer.forEach((item) => {
         if (item) {
           const freeSlot = toPlayer.inventory.findIndex(
