@@ -810,6 +810,12 @@ button:active {
   box-shadow: 0 0 5px rgba(255, 0, 102, 0.3);
 }
 
+/* Подсветка подтверждённых слотов в окне торговли */
+.offer-slot.confirmed {
+  border-color: #00ff00;
+  box-shadow: 0 0 10px rgba(0, 255, 0, 0.7), inset 0 0 5px rgba(0, 255, 0, 0.3);
+}
+
 /* Адаптация для мобильных устройств (max-width: 500px) */
 @media (max-width: 500px) {
   body {

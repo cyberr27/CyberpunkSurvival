@@ -1064,16 +1064,29 @@ wss.on("connection", (ws) => {
         }
       });
 
+      // Проверяем уникальность itemId в инвентарях
+      const fromExistingIds = new Set(
+        fromInventory.filter((item) => item).map((item) => item.itemId)
+      );
+      const toExistingIds = new Set(
+        toInventory.filter((item) => item).map((item) => item.itemId)
+      );
+
       // Добавляем предметы партнёра в инвентарь отправителя
       data.partnerOffer.forEach((item) => {
         if (item) {
+          let newItemId = item.itemId;
+          if (fromExistingIds.has(newItemId)) {
+            newItemId = `${item.type}_${Date.now()}`;
+          }
           const freeSlot = fromInventory.findIndex((slot) => slot === null);
           if (freeSlot !== -1) {
             fromInventory[freeSlot] = {
               type: item.type,
               quantity: item.quantity,
-              itemId: `${item.type}_${Date.now()}`,
+              itemId: newItemId,
             };
+            fromExistingIds.add(newItemId);
           }
         }
       });
@@ -1081,13 +1094,18 @@ wss.on("connection", (ws) => {
       // Добавляем предметы отправителя в инвентарь партнёра
       data.myOffer.forEach((item) => {
         if (item) {
+          let newItemId = item.itemId;
+          if (toExistingIds.has(newItemId)) {
+            newItemId = `${item.type}_${Date.now()}`;
+          }
           const freeSlot = toInventory.findIndex((slot) => slot === null);
           if (freeSlot !== -1) {
             toInventory[freeSlot] = {
               type: item.type,
               quantity: item.quantity,
-              itemId: `${item.type}_${Date.now()}`,
+              itemId: newItemId,
             };
+            toExistingIds.add(newItemId);
           }
         }
       });

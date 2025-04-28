@@ -219,26 +219,49 @@ const tradeSystem = {
         break;
       case "tradeCompleted":
         if (data.toId === myId) {
-          // Получаем предметы партнёра и добавляем их в инвентарь
+          // Проверяем уникальность itemId в новом инвентаре
+          const existingItemIds = new Set(
+            inventory.map((item) => (item ? item.itemId : null))
+          );
           if (data.partnerOffer) {
             data.partnerOffer.forEach((item) => {
               if (item) {
+                // Проверяем, что itemId уникален
+                if (existingItemIds.has(item.itemId)) {
+                  console.warn(
+                    `Дубликат itemId ${item.itemId} при завершении торга, генерируем новый`
+                  );
+                  item.itemId = `${item.type}_${Date.now()}`;
+                }
                 const freeSlot = inventory.findIndex((slot) => slot === null);
                 if (freeSlot !== -1) {
                   inventory[freeSlot] = {
                     type: item.type,
                     quantity: item.quantity,
-                    itemId: `${item.type}_${Date.now()}`,
+                    itemId: item.itemId,
                   };
+                  existingItemIds.add(item.itemId);
                 } else {
                   console.log("Нет свободных слотов для предмета партнёра");
                 }
               }
             });
           }
+          // Обновляем инвентарь из данных сервера, если он передан
+          if (data.newInventory) {
+            inventory = data.newInventory;
+          }
           this.closeTradeWindow();
           this.resetTrade();
           updateInventoryDisplay();
+          // Отправляем обновление инвентаря на сервер
+          sendWhenReady(
+            this.ws,
+            JSON.stringify({
+              type: "updateInventory",
+              inventory: inventory,
+            })
+          );
         }
         break;
     }
@@ -415,7 +438,7 @@ const tradeSystem = {
         partnerOffer: this.partnerOffer,
       })
     );
-    document.getElementById("confirmTradeBtn").disabled = true;
+    // Не блокируем кнопку сразу, ждём завершения торга
     this.updateTradeWindow();
   },
 
@@ -433,6 +456,10 @@ const tradeSystem = {
   },
 
   completeTrade() {
+    // Проверяем, что оба игрока подтвердили
+    if (!this.myConfirmed || !this.partnerConfirmed) return;
+
+    // Отправляем сообщение о завершении торга
     sendWhenReady(
       this.ws,
       JSON.stringify({
@@ -443,9 +470,16 @@ const tradeSystem = {
         partnerOffer: this.partnerOffer,
       })
     );
-    // Очищаем локальное предложение
+
+    // Очищаем предложения локально
     this.myOffer = Array(3).fill(null);
     this.partnerOffer = Array(3).fill(null);
+    this.myConfirmed = false;
+    this.partnerConfirmed = false;
+
+    // Закрываем окно торговли
+    this.closeTradeWindow();
+    this.resetTrade();
     this.updateTradeWindow();
     updateInventoryDisplay();
   },
@@ -466,6 +500,7 @@ const tradeSystem = {
     const myOfferGrid = document.getElementById("myOfferGrid").children;
     const partnerOfferGrid =
       document.getElementById("partnerOfferGrid").children;
+    const confirmBtn = document.getElementById("confirmTradeBtn");
 
     // Обновляем отображение инвентаря
     for (let i = 0; i < myTradeGrid.length; i++) {
@@ -482,6 +517,9 @@ const tradeSystem = {
     // Обновляем отображение своего предложения
     for (let i = 0; i < 3; i++) {
       myOfferGrid[i].innerHTML = "";
+      myOfferGrid[i].style.borderColor = this.myConfirmed
+        ? "#00ff00"
+        : "#00ccff"; // Зелёная рамка при подтверждении
       if (this.myOffer[i]) {
         const img = document.createElement("img");
         img.src = ITEM_CONFIG[this.myOffer[i].type].image.src;
@@ -494,6 +532,9 @@ const tradeSystem = {
     // Обновляем отображение предложения партнёра
     for (let i = 0; i < 3; i++) {
       partnerOfferGrid[i].innerHTML = "";
+      partnerOfferGrid[i].style.borderColor = this.partnerConfirmed
+        ? "#00ff00"
+        : "#00ccff"; // Зелёная рамка при подтверждении
       if (this.partnerOffer[i]) {
         const img = document.createElement("img");
         img.src = ITEM_CONFIG[this.partnerOffer[i].type].image.src;
@@ -505,13 +546,10 @@ const tradeSystem = {
 
     // Проверяем, есть ли предметы в своём предложении
     const hasItemsInOffer = this.myOffer.some((item) => item !== null);
-    const confirmBtn = document.getElementById("confirmTradeBtn");
 
-    // Кнопка активна, если:
-    // 1. У игрока есть предметы в предложении и он ещё не подтвердил
-    // 2. Или партнёр подтвердил (partnerConfirmed), тогда кнопка активна всегда
-    confirmBtn.disabled =
-      this.myConfirmed || (!hasItemsInOffer && !this.partnerConfirmed);
+    // Кнопка активна, если игрок ещё не подтвердил и есть предметы в предложении
+    confirmBtn.disabled = this.myConfirmed || !hasItemsInOffer;
+    confirmBtn.textContent = this.myConfirmed ? "Ожидание..." : "Подтвердить";
   },
 };
 
