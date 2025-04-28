@@ -895,7 +895,7 @@ wss.on("connection", (ws) => {
       });
     } else if (data.type === "tradeCancelled") {
       const fromId = clients.get(ws);
-      if (!fromId || !validateTradePlayers(fromId, data.toId)) return;
+      if (!fromId || !players.has(fromId) || !players.has(data.toId)) return;
 
       // Отправляем сообщение об отмене обоим игрокам
       wss.clients.forEach((client) => {
