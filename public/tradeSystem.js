@@ -14,6 +14,7 @@ const tradeSystem = {
     this.setupTradeButton();
     this.setupTradeDialog();
     this.setupTradeWindow();
+    this.monitorTradeWindow(); // Добавляем вызов
   },
 
   setupTradeButton() {
@@ -132,6 +133,35 @@ const tradeSystem = {
       });
   },
 
+  monitorTradeWindow() {
+    const tradeWindow = document.getElementById("tradeWindow");
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (
+          mutation.type === "attributes" &&
+          mutation.attributeName === "style" &&
+          tradeWindow.style.display === "none" &&
+          this.isTradeWindowOpen
+        ) {
+          // Окно было закрыто, отменяем торговлю
+          this.cancelTrade();
+        }
+      });
+    });
+
+    observer.observe(tradeWindow, {
+      attributes: true,
+      attributeFilter: ["style"],
+    });
+
+    // Дополнительно отслеживаем закрытие окна через Esc
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && this.isTradeWindowOpen) {
+        this.handleCancelTrade();
+      }
+    });
+  },
+
   canInitiateTrade() {
     const me = players.get(myId);
     const target = players.get(this.selectedPlayerId);
@@ -234,11 +264,15 @@ const tradeSystem = {
   },
 
   handleCancelTrade() {
-    // Проверяем, есть ли предметы в myOffer или partnerOffer
-    const hasMyOffer = this.myOffer.some((item) => item !== null);
-    const hasPartnerOffer = this.partnerOffer.some((item) => item !== null);
+    if (!this.validateTradeState()) return; // Добавляем проверку
 
-    if (hasMyOffer || hasPartnerOffer) {
+    // Проверяем, пусты ли все слоты myOffer
+    const isMyOfferEmpty = this.myOffer.every((item) => item === null);
+
+    if (isMyOfferEmpty) {
+      // Если все слоты пусты, отменяем торговлю
+      this.cancelTrade();
+    } else {
       // Возвращаем свои предметы в инвентарь
       this.myOffer.forEach((item, index) => {
         if (item && item.originalSlot !== undefined) {
@@ -264,9 +298,6 @@ const tradeSystem = {
       // Обновляем отображение
       this.updateTradeWindow();
       updateInventoryDisplay();
-    } else {
-      // Если слотов пустые, отменяем торг
-      this.cancelTrade();
     }
   },
 
@@ -282,6 +313,8 @@ const tradeSystem = {
   },
 
   addToOffer(slotIndex) {
+    if (!this.validateTradeState()) return; // Добавляем проверку
+
     const item = inventory[slotIndex];
     if (!item) return;
 
@@ -302,6 +335,8 @@ const tradeSystem = {
   },
 
   removeFromOffer(slotIndex) {
+    if (!this.validateTradeState()) return; // Добавляем проверку
+
     if (!this.myOffer[slotIndex]) return;
 
     const item = this.myOffer[slotIndex];
@@ -326,6 +361,8 @@ const tradeSystem = {
   },
 
   confirmTrade() {
+    if (!this.validateTradeState()) return; // Добавляем проверку
+
     this.myConfirmed = true;
     sendWhenReady(
       this.ws,
@@ -363,6 +400,43 @@ const tradeSystem = {
         partnerOffer: this.partnerOffer,
       })
     );
+  },
+
+  validateTradeState() {
+    // Проверяем, что оба игрока существуют и живы
+    const me = players.get(myId);
+    const partner = players.get(this.tradePartnerId);
+    if (!me || !partner || me.health <= 0 || partner.health <= 0) {
+      this.cancelTrade();
+      return false;
+    }
+
+    // Проверяем расстояние между игроками
+    const dx = me.x - partner.x;
+    const dy = me.y - partner.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    if (distance > 1000) {
+      this.cancelTrade();
+      return false;
+    }
+
+    // Проверяем валидность предметов в myOffer
+    const isMyOfferValid = this.myOffer.every((item) => {
+      if (!item) return true;
+      const invItem = inventory[item.originalSlot];
+      return (
+        invItem &&
+        invItem.type === item.type &&
+        (!item.quantity || invItem.quantity === item.quantity)
+      );
+    });
+
+    if (!isMyOfferValid) {
+      this.cancelTrade();
+      return false;
+    }
+
+    return true;
   },
 
   resetTrade() {
