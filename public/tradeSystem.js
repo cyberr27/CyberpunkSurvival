@@ -143,7 +143,6 @@ const tradeSystem = {
           tradeWindow.style.display === "none" &&
           this.isTradeWindowOpen
         ) {
-          // Окно было закрыто, отменяем торговлю
           this.handleCancelTrade();
         }
       });
@@ -154,15 +153,16 @@ const tradeSystem = {
       attributeFilter: ["style"],
     });
 
-    // Отслеживаем закрытие окна через Esc или другие действия
+    // Отслеживаем закрытие через Esc
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && this.isTradeWindowOpen) {
         this.handleCancelTrade();
       }
     });
 
-    // Добавляем обработчик для кнопки отмены
+    // Удаляем дублирующий обработчик для cancelTradeWindowBtn
     const cancelBtn = document.getElementById("cancelTradeWindowBtn");
+    cancelBtn.removeEventListener("click", this.handleCancelTrade); // Удаляем старый, если был
     cancelBtn.addEventListener("click", () => {
       this.handleCancelTrade();
     });
@@ -208,6 +208,7 @@ const tradeSystem = {
         break;
       case "tradeCancelled":
         if (data.fromId === this.tradePartnerId || data.toId === myId) {
+          // Закрываем окно и сбрасываем состояние у обоих игроков
           this.closeTradeWindow();
           this.resetTrade();
           // Возвращаем свои предметы в инвентарь
@@ -221,6 +222,14 @@ const tradeSystem = {
             }
           });
           updateInventoryDisplay();
+          // Показываем уведомление об отмене
+          this.showTradeDialog(
+            `Торговля с игроком ${data.initiator || data.fromId} отменена`
+          );
+          setTimeout(() => {
+            const dialog = document.getElementById("tradeDialog");
+            if (dialog) dialog.style.display = "none";
+          }, 2000); // Скрываем уведомление через 2 секунды
         }
         break;
       case "tradeOffer":
@@ -298,13 +307,14 @@ const tradeSystem = {
       }
     });
 
-    // Отправляем сообщение об отмене торговли
+    // Отправляем сообщение об отмене с указанием, кто инициатор
     sendWhenReady(
       this.ws,
       JSON.stringify({
         type: "tradeCancelled",
         fromId: myId,
         toId: this.tradePartnerId,
+        initiator: myId, // Явно указываем инициатора
       })
     );
 
@@ -326,7 +336,9 @@ const tradeSystem = {
     if (!this.isTradeWindowOpen) return; // Предотвращаем повторное закрытие
     this.isTradeWindowOpen = false;
     const tradeWindow = document.getElementById("tradeWindow");
-    tradeWindow.style.display = "none";
+    if (tradeWindow) {
+      tradeWindow.style.display = "none";
+    }
   },
 
   addToOffer(slotIndex) {
