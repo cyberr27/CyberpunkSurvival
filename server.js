@@ -904,6 +904,36 @@ wss.on("connection", (ws) => {
       const fromId = clients.get(ws);
       if (!fromId || !players.has(fromId) || !players.has(data.toId)) return;
 
+      const fromPlayer = players.get(fromId);
+      // Проверяем дублирование itemId в предложении
+      const uniqueItemIds = new Set();
+      const isValidOffer = data.offer.every((item) => {
+        if (!item) return true;
+        if (uniqueItemIds.has(item.itemId)) {
+          console.log(
+            `Обнаружен дубликат itemId ${item.itemId} в предложении от ${fromId}`
+          );
+          return false;
+        }
+        uniqueItemIds.add(item.itemId);
+        return true;
+      });
+
+      if (!isValidOffer) {
+        ws.send(
+          JSON.stringify({ type: "tradeCancelled", fromId, toId: data.toId })
+        );
+        return;
+      }
+
+      // Обновляем инвентарь игрока
+      if (data.inventory) {
+        fromPlayer.inventory = data.inventory;
+        players.set(fromId, { ...fromPlayer });
+        userDatabase.set(fromId, { ...fromPlayer });
+        await saveUserDatabase(dbCollection, fromId, fromPlayer);
+      }
+
       wss.clients.forEach((client) => {
         if (
           client.readyState === WebSocket.OPEN &&
@@ -915,6 +945,7 @@ wss.on("connection", (ws) => {
               fromId: fromId,
               toId: data.toId,
               offer: data.offer,
+              inventory: data.inventory,
             })
           );
         }
@@ -947,25 +978,20 @@ wss.on("connection", (ws) => {
       // Проверяем, что инвентарь валиден
       if (!fromPlayer.inventory || !toPlayer.inventory) return;
 
-      // Проверяем, что предметы в предложении существуют в инвентаре
-      const fromOfferValid = data.myOffer.every((item, index) => {
+      // Проверяем дублирование itemId в предложениях
+      const fromOfferItemIds = new Set();
+      const toOfferItemIds = new Set();
+      const fromOfferValid = data.myOffer.every((item) => {
         if (!item) return true;
-        const invItem = fromPlayer.inventory[item.originalSlot];
-        return (
-          invItem &&
-          invItem.type === item.type &&
-          (!item.quantity || invItem.quantity === item.quantity)
-        );
+        if (fromOfferItemIds.has(item.itemId)) return false;
+        fromOfferItemIds.add(item.itemId);
+        return true;
       });
-
-      const toOfferValid = data.partnerOffer.every((item, index) => {
+      const toOfferValid = data.partnerOffer.every((item) => {
         if (!item) return true;
-        const invItem = toPlayer.inventory[item.originalSlot];
-        return (
-          invItem &&
-          invItem.type === item.type &&
-          (!item.quantity || invItem.quantity === item.quantity)
-        );
+        if (toOfferItemIds.has(item.itemId)) return false;
+        toOfferItemIds.add(item.itemId);
+        return true;
       });
 
       if (!fromOfferValid || !toOfferValid) {
@@ -1022,13 +1048,13 @@ wss.on("connection", (ws) => {
 
       // Удаляем предметы из инвентаря
       data.myOffer.forEach((item) => {
-        if (item) {
+        if (item && item.originalSlot !== undefined) {
           fromPlayer.inventory[item.originalSlot] = null;
         }
       });
 
       data.partnerOffer.forEach((item) => {
-        if (item) {
+        if (item && item.originalSlot !== undefined) {
           toPlayer.inventory[item.originalSlot] = null;
         }
       });

@@ -172,14 +172,39 @@ const tradeSystem = {
         break;
       case "tradeCancelled":
         if (data.fromId === this.tradePartnerId || data.toId === myId) {
+          // Возвращаем предметы в инвентарь при отмене
+          this.myOffer.forEach((item, index) => {
+            if (item && item.originalSlot !== undefined) {
+              if (inventory[item.originalSlot] === null) {
+                inventory[item.originalSlot] = {
+                  ...item,
+                  itemId: `${item.type}_${Date.now()}`,
+                };
+              } else {
+                const freeSlot = inventory.findIndex((slot) => slot === null);
+                if (freeSlot !== -1) {
+                  inventory[freeSlot] = {
+                    ...item,
+                    itemId: `${item.type}_${Date.now()}`,
+                  };
+                }
+              }
+              this.myOffer[index] = null;
+            }
+          });
           this.closeTradeWindow();
           this.resetTrade();
+          updateInventoryDisplay();
         }
         break;
       case "tradeOffer":
         if (data.fromId === this.tradePartnerId) {
           this.partnerOffer = data.offer;
+          if (data.inventory) {
+            inventory = data.inventory; // Обновляем инвентарь партнёра
+          }
           this.updateTradeWindow();
+          updateInventoryDisplay();
         }
         break;
       case "tradeConfirmed":
@@ -234,40 +259,45 @@ const tradeSystem = {
   },
 
   handleCancelTrade() {
-    // Проверяем, есть ли предметы в myOffer или partnerOffer
-    const hasMyOffer = this.myOffer.some((item) => item !== null);
-    const hasPartnerOffer = this.partnerOffer.some((item) => item !== null);
-
-    if (hasMyOffer || hasPartnerOffer) {
-      // Возвращаем свои предметы в инвентарь
-      this.myOffer.forEach((item, index) => {
-        if (item && item.originalSlot !== undefined) {
+    // Возвращаем свои предметы в инвентарь
+    this.myOffer.forEach((item, index) => {
+      if (item && item.originalSlot !== undefined) {
+        if (inventory[item.originalSlot] === null) {
           inventory[item.originalSlot] = {
             ...item,
             itemId: `${item.type}_${Date.now()}`,
           };
-          this.myOffer[index] = null;
+        } else {
+          const freeSlot = inventory.findIndex((slot) => slot === null);
+          if (freeSlot !== -1) {
+            inventory[freeSlot] = {
+              ...item,
+              itemId: `${item.type}_${Date.now()}`,
+            };
+          } else {
+            console.log(
+              "Нет свободных слотов для возврата предмета при отмене"
+            );
+          }
         }
-      });
+        this.myOffer[index] = null;
+      }
+    });
 
-      // Отправляем обновление предложения (очищаем своё предложение)
-      sendWhenReady(
-        this.ws,
-        JSON.stringify({
-          type: "tradeOffer",
-          fromId: myId,
-          toId: this.tradePartnerId,
-          offer: this.myOffer,
-        })
-      );
+    // Отправляем обновление предложения и инвентаря
+    sendWhenReady(
+      this.ws,
+      JSON.stringify({
+        type: "tradeOffer",
+        fromId: myId,
+        toId: this.tradePartnerId,
+        offer: this.myOffer,
+        inventory: inventory,
+      })
+    );
 
-      // Обновляем отображение
-      this.updateTradeWindow();
-      updateInventoryDisplay();
-    } else {
-      // Если слотов пустые, отменяем торг
-      this.cancelTrade();
-    }
+    // Отправляем сообщение об отмене торга
+    this.cancelTrade();
   },
 
   openTradeWindow() {
@@ -285,10 +315,23 @@ const tradeSystem = {
     const item = inventory[slotIndex];
     if (!item) return;
 
+    // Проверка на дублирование itemId в myOffer
+    if (
+      this.myOffer.some(
+        (offerItem) => offerItem && offerItem.itemId === item.itemId
+      )
+    ) {
+      console.log(`Предмет ${item.itemId} уже добавлен в предложение`);
+      return;
+    }
+
     const freeSlot = this.myOffer.findIndex((slot) => slot === null);
     if (freeSlot === -1) return;
 
+    // Сохраняем предмет в предложение и удаляем из инвентаря
     this.myOffer[freeSlot] = { ...item, originalSlot: slotIndex };
+    inventory[slotIndex] = null; // Удаляем из инвентаря
+
     sendWhenReady(
       this.ws,
       JSON.stringify({
@@ -296,9 +339,11 @@ const tradeSystem = {
         fromId: myId,
         toId: this.tradePartnerId,
         offer: this.myOffer,
+        inventory: inventory, // Отправляем обновлённый инвентарь
       })
     );
     this.updateTradeWindow();
+    updateInventoryDisplay(); // Обновляем отображение инвентаря
   },
 
   removeFromOffer(slotIndex) {
@@ -306,10 +351,25 @@ const tradeSystem = {
 
     const item = this.myOffer[slotIndex];
     if (item.originalSlot !== undefined) {
-      inventory[item.originalSlot] = {
-        ...item,
-        itemId: `${item.type}_${Date.now()}`,
-      };
+      // Проверяем, свободен ли оригинальный слот
+      if (inventory[item.originalSlot] === null) {
+        inventory[item.originalSlot] = {
+          ...item,
+          itemId: `${item.type}_${Date.now()}`, // Новый itemId для избежания дублирования
+        };
+      } else {
+        // Если оригинальный слот занят, ищем свободный
+        const freeSlot = inventory.findIndex((slot) => slot === null);
+        if (freeSlot !== -1) {
+          inventory[freeSlot] = {
+            ...item,
+            itemId: `${item.type}_${Date.now()}`,
+          };
+        } else {
+          console.log("Нет свободных слотов для возврата предмета");
+          return; // Не удаляем из предложения, если нет места
+        }
+      }
     }
     this.myOffer[slotIndex] = null;
     sendWhenReady(
@@ -319,10 +379,11 @@ const tradeSystem = {
         fromId: myId,
         toId: this.tradePartnerId,
         offer: this.myOffer,
+        inventory: inventory, // Отправляем обновлённый инвентарь
       })
     );
     this.updateTradeWindow();
-    updateInventoryDisplay();
+    updateInventoryDisplay(); // Обновляем отображение инвентаря
   },
 
   confirmTrade() {
@@ -363,6 +424,11 @@ const tradeSystem = {
         partnerOffer: this.partnerOffer,
       })
     );
+    // Очищаем локальное предложение
+    this.myOffer = Array(3).fill(null);
+    this.partnerOffer = Array(3).fill(null);
+    this.updateTradeWindow();
+    updateInventoryDisplay();
   },
 
   resetTrade() {
