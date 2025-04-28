@@ -144,7 +144,7 @@ const tradeSystem = {
           this.isTradeWindowOpen
         ) {
           // Окно было закрыто, отменяем торговлю
-          this.cancelTrade();
+          this.handleCancelTrade();
         }
       });
     });
@@ -154,11 +154,17 @@ const tradeSystem = {
       attributeFilter: ["style"],
     });
 
-    // Дополнительно отслеживаем закрытие окна через Esc
+    // Отслеживаем закрытие окна через Esc или другие действия
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && this.isTradeWindowOpen) {
         this.handleCancelTrade();
       }
+    });
+
+    // Добавляем обработчик для кнопки отмены
+    const cancelBtn = document.getElementById("cancelTradeWindowBtn");
+    cancelBtn.addEventListener("click", () => {
+      this.handleCancelTrade();
     });
   },
 
@@ -204,6 +210,17 @@ const tradeSystem = {
         if (data.fromId === this.tradePartnerId || data.toId === myId) {
           this.closeTradeWindow();
           this.resetTrade();
+          // Возвращаем свои предметы в инвентарь
+          this.myOffer.forEach((item, index) => {
+            if (item && item.originalSlot !== undefined) {
+              inventory[item.originalSlot] = {
+                ...item,
+                itemId: `${item.type}_${Date.now()}`,
+              };
+              this.myOffer[index] = null;
+            }
+          });
+          updateInventoryDisplay();
         }
         break;
       case "tradeOffer":
@@ -264,41 +281,39 @@ const tradeSystem = {
   },
 
   handleCancelTrade() {
-    if (!this.validateTradeState()) return; // Добавляем проверку
-
-    // Проверяем, пусты ли все слоты myOffer
-    const isMyOfferEmpty = this.myOffer.every((item) => item === null);
-
-    if (isMyOfferEmpty) {
-      // Если все слоты пусты, отменяем торговлю
-      this.cancelTrade();
-    } else {
-      // Возвращаем свои предметы в инвентарь
-      this.myOffer.forEach((item, index) => {
-        if (item && item.originalSlot !== undefined) {
-          inventory[item.originalSlot] = {
-            ...item,
-            itemId: `${item.type}_${Date.now()}`,
-          };
-          this.myOffer[index] = null;
-        }
-      });
-
-      // Отправляем обновление предложения (очищаем своё предложение)
-      sendWhenReady(
-        this.ws,
-        JSON.stringify({
-          type: "tradeOffer",
-          fromId: myId,
-          toId: this.tradePartnerId,
-          offer: this.myOffer,
-        })
-      );
-
-      // Обновляем отображение
-      this.updateTradeWindow();
-      updateInventoryDisplay();
+    if (!this.validateTradeState()) {
+      this.closeTradeWindow();
+      this.resetTrade();
+      return;
     }
+
+    // Возвращаем свои предметы в инвентарь
+    this.myOffer.forEach((item, index) => {
+      if (item && item.originalSlot !== undefined) {
+        inventory[item.originalSlot] = {
+          ...item,
+          itemId: `${item.type}_${Date.now()}`,
+        };
+        this.myOffer[index] = null;
+      }
+    });
+
+    // Отправляем сообщение об отмене торговли
+    sendWhenReady(
+      this.ws,
+      JSON.stringify({
+        type: "tradeCancelled",
+        fromId: myId,
+        toId: this.tradePartnerId,
+      })
+    );
+
+    // Закрываем окно и сбрасываем состояние
+    this.closeTradeWindow();
+    this.resetTrade();
+
+    // Обновляем отображение инвентаря
+    updateInventoryDisplay();
   },
 
   openTradeWindow() {
@@ -308,8 +323,10 @@ const tradeSystem = {
   },
 
   closeTradeWindow() {
+    if (!this.isTradeWindowOpen) return; // Предотвращаем повторное закрытие
     this.isTradeWindowOpen = false;
-    document.getElementById("tradeWindow").style.display = "none";
+    const tradeWindow = document.getElementById("tradeWindow");
+    tradeWindow.style.display = "none";
   },
 
   addToOffer(slotIndex) {

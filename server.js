@@ -313,6 +313,7 @@ wss.on("connection", (ws) => {
           maxStats: { health: 100, energy: 100, food: 100, water: 100 },
           upgradePoints: 0,
           availableQuests: [], // Инициализируем пустой список заданий
+          tradeOffer: Array(3).fill(null), // Добавляем поле tradeOffer
         };
 
         userDatabase.set(data.username, newPlayer);
@@ -912,10 +913,50 @@ wss.on("connection", (ws) => {
           );
         }
       });
+
+      // Возвращаем предметы из предложения в инвентарь для обоих игроков
+      const fromPlayer = players.get(fromId);
+      const toPlayer = players.get(data.toId);
+      if (fromPlayer.tradeOffer) {
+        fromPlayer.tradeOffer.forEach((item, index) => {
+          if (item && item.originalSlot !== undefined) {
+            fromPlayer.inventory[item.originalSlot] = {
+              type: item.type,
+              quantity: item.quantity,
+              itemId: `${item.type}_${Date.now()}`,
+            };
+          }
+        });
+        fromPlayer.tradeOffer = Array(3).fill(null);
+        players.set(fromId, { ...fromPlayer });
+        userDatabase.set(fromId, { ...fromPlayer });
+        saveUserDatabase(dbCollection, fromId, fromPlayer);
+      }
+      if (toPlayer.tradeOffer) {
+        toPlayer.tradeOffer.forEach((item, index) => {
+          if (item && item.originalSlot !== undefined) {
+            toPlayer.inventory[item.originalSlot] = {
+              type: item.type,
+              quantity: item.quantity,
+              itemId: `${item.type}_${Date.now()}`,
+            };
+          }
+        });
+        toPlayer.tradeOffer = Array(3).fill(null);
+        players.set(data.toId, { ...toPlayer });
+        userDatabase.set(data.toId, { ...toPlayer });
+        saveUserDatabase(dbCollection, data.toId, toPlayer);
+      }
     } else if (data.type === "tradeOffer") {
       const fromId = clients.get(ws);
       if (!fromId || !validateTradePlayers(fromId, data.toId)) return;
-
+ 
+      const fromPlayer = players.get(fromId);
+      fromPlayer.tradeOffer = data.offer; // Сохраняем предложение
+      players.set(fromId, { ...fromPlayer });
+      userDatabase.set(fromId, { ...fromPlayer });
+      saveUserDatabase(dbCollection, fromId, fromPlayer);
+ 
       wss.clients.forEach((client) => {
         if (
           client.readyState === WebSocket.OPEN &&
