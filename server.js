@@ -263,6 +263,17 @@ wss.on("connection", (ws) => {
     ws.close(4000, "Inactivity timeout");
   }, INACTIVITY_TIMEOUT);
 
+  function validateTradePlayers(fromId, toId) {
+    if (!players.has(fromId) || !players.has(toId)) return false;
+    const fromPlayer = players.get(fromId);
+    const toPlayer = players.get(toId);
+    if (fromPlayer.health <= 0 || toPlayer.health <= 0) return false;
+    const dx = fromPlayer.x - toPlayer.x;
+    const dy = fromPlayer.y - toPlayer.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    return distance <= 1000;
+  }
+
   ws.on("message", async (message) => {
     clearTimeout(inactivityTimer);
     inactivityTimer = setTimeout(() => {
@@ -839,7 +850,7 @@ wss.on("connection", (ws) => {
       }
     } else if (data.type === "tradeRequest") {
       const fromId = clients.get(ws);
-      if (!fromId || !players.has(fromId) || !players.has(data.toId)) return;
+      if (!fromId || !validateTradePlayers(fromId, data.toId)) return;
 
       const fromPlayer = players.get(fromId);
       const toPlayer = players.get(data.toId);
@@ -866,7 +877,7 @@ wss.on("connection", (ws) => {
       });
     } else if (data.type === "tradeAccepted") {
       const fromId = clients.get(ws);
-      if (!fromId || !players.has(fromId) || !players.has(data.toId)) return;
+      if (!fromId || !validateTradePlayers(fromId, data.toId)) return;
 
       wss.clients.forEach((client) => {
         if (
@@ -884,12 +895,13 @@ wss.on("connection", (ws) => {
       });
     } else if (data.type === "tradeCancelled") {
       const fromId = clients.get(ws);
-      if (!fromId || !players.has(fromId) || !players.has(data.toId)) return;
+      if (!fromId || !validateTradePlayers(fromId, data.toId)) return;
 
+      // Отправляем сообщение об отмене обоим игрокам
       wss.clients.forEach((client) => {
         if (
           client.readyState === WebSocket.OPEN &&
-          clients.get(client) === data.toId
+          (clients.get(client) === fromId || clients.get(client) === data.toId)
         ) {
           client.send(
             JSON.stringify({
@@ -902,7 +914,7 @@ wss.on("connection", (ws) => {
       });
     } else if (data.type === "tradeOffer") {
       const fromId = clients.get(ws);
-      if (!fromId || !players.has(fromId) || !players.has(data.toId)) return;
+      if (!fromId || !validateTradePlayers(fromId, data.toId)) return;
 
       wss.clients.forEach((client) => {
         if (
@@ -921,7 +933,7 @@ wss.on("connection", (ws) => {
       });
     } else if (data.type === "tradeConfirmed") {
       const fromId = clients.get(ws);
-      if (!fromId || !players.has(fromId) || !players.has(data.toId)) return;
+      if (!fromId || !validateTradePlayers(fromId, data.toId)) return;
 
       wss.clients.forEach((client) => {
         if (
@@ -939,7 +951,7 @@ wss.on("connection", (ws) => {
       });
     } else if (data.type === "tradeCompleted") {
       const fromId = clients.get(ws);
-      if (!fromId || !players.has(fromId) || !players.has(data.toId)) return;
+      if (!fromId || !validateTradePlayers(fromId, data.toId)) return;
 
       const fromPlayer = players.get(fromId);
       const toPlayer = players.get(data.toId);
