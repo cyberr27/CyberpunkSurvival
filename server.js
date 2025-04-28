@@ -1046,27 +1046,30 @@ wss.on("connection", (ws) => {
         return;
       }
 
-      // Удаляем предметы из инвентаря
+      // Создаём копии инвентарей для обработки
+      const fromInventory = [...fromPlayer.inventory];
+      const toInventory = [...toPlayer.inventory];
+
+      // Удаляем предметы из инвентаря отправителя
       data.myOffer.forEach((item) => {
         if (item && item.originalSlot !== undefined) {
-          fromPlayer.inventory[item.originalSlot] = null;
+          fromInventory[item.originalSlot] = null;
         }
       });
 
+      // Удаляем предметы из инвентаря получателя
       data.partnerOffer.forEach((item) => {
         if (item && item.originalSlot !== undefined) {
-          toPlayer.inventory[item.originalSlot] = null;
+          toInventory[item.originalSlot] = null;
         }
       });
 
-      // Добавляем предметы в инвентарь
-      data.myOffer.forEach((item) => {
+      // Добавляем предметы партнёра в инвентарь отправителя
+      data.partnerOffer.forEach((item) => {
         if (item) {
-          const freeSlot = toPlayer.inventory.findIndex(
-            (slot) => slot === null
-          );
+          const freeSlot = fromInventory.findIndex((slot) => slot === null);
           if (freeSlot !== -1) {
-            toPlayer.inventory[freeSlot] = {
+            fromInventory[freeSlot] = {
               type: item.type,
               quantity: item.quantity,
               itemId: `${item.type}_${Date.now()}`,
@@ -1075,13 +1078,12 @@ wss.on("connection", (ws) => {
         }
       });
 
-      data.partnerOffer.forEach((item) => {
+      // Добавляем предметы отправителя в инвентарь партнёра
+      data.myOffer.forEach((item) => {
         if (item) {
-          const freeSlot = fromPlayer.inventory.findIndex(
-            (slot) => slot === null
-          );
+          const freeSlot = toInventory.findIndex((slot) => slot === null);
           if (freeSlot !== -1) {
-            fromPlayer.inventory[freeSlot] = {
+            toInventory[freeSlot] = {
               type: item.type,
               quantity: item.quantity,
               itemId: `${item.type}_${Date.now()}`,
@@ -1089,6 +1091,10 @@ wss.on("connection", (ws) => {
           }
         }
       });
+
+      // Обновляем инвентари игроков
+      fromPlayer.inventory = fromInventory;
+      toPlayer.inventory = toInventory;
 
       // Сохраняем изменения
       players.set(fromId, { ...fromPlayer });
@@ -1098,7 +1104,7 @@ wss.on("connection", (ws) => {
       await saveUserDatabase(dbCollection, fromId, fromPlayer);
       await saveUserDatabase(dbCollection, data.toId, toPlayer);
 
-      // Отправляем обновления
+      // Отправляем обновления обоим игрокам
       wss.clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN) {
           if (clients.get(client) === fromId) {
@@ -1107,6 +1113,7 @@ wss.on("connection", (ws) => {
                 type: "tradeCompleted",
                 fromId: fromId,
                 toId: data.toId,
+                partnerOffer: data.partnerOffer,
                 newInventory: fromPlayer.inventory,
               })
             );
@@ -1116,6 +1123,7 @@ wss.on("connection", (ws) => {
                 type: "tradeCompleted",
                 fromId: fromId,
                 toId: data.toId,
+                partnerOffer: data.myOffer,
                 newInventory: toPlayer.inventory,
               })
             );

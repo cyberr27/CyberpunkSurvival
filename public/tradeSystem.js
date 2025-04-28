@@ -210,6 +210,7 @@ const tradeSystem = {
       case "tradeConfirmed":
         if (data.fromId === this.tradePartnerId) {
           this.partnerConfirmed = true;
+          this.partnerOffer = data.partnerOffer; // Обновляем предложение партнёра
           this.updateTradeWindow();
           if (this.myConfirmed) {
             this.completeTrade();
@@ -218,7 +219,23 @@ const tradeSystem = {
         break;
       case "tradeCompleted":
         if (data.toId === myId) {
-          inventory = data.newInventory;
+          // Получаем предметы партнёра и добавляем их в инвентарь
+          if (data.partnerOffer) {
+            data.partnerOffer.forEach((item) => {
+              if (item) {
+                const freeSlot = inventory.findIndex((slot) => slot === null);
+                if (freeSlot !== -1) {
+                  inventory[freeSlot] = {
+                    type: item.type,
+                    quantity: item.quantity,
+                    itemId: `${item.type}_${Date.now()}`,
+                  };
+                } else {
+                  console.log("Нет свободных слотов для предмета партнёра");
+                }
+              }
+            });
+          }
           this.closeTradeWindow();
           this.resetTrade();
           updateInventoryDisplay();
@@ -394,6 +411,8 @@ const tradeSystem = {
         type: "tradeConfirmed",
         fromId: myId,
         toId: this.tradePartnerId,
+        myOffer: this.myOffer,
+        partnerOffer: this.partnerOffer,
       })
     );
     document.getElementById("confirmTradeBtn").disabled = true;
@@ -448,6 +467,7 @@ const tradeSystem = {
     const partnerOfferGrid =
       document.getElementById("partnerOfferGrid").children;
 
+    // Обновляем отображение инвентаря
     for (let i = 0; i < myTradeGrid.length; i++) {
       myTradeGrid[i].innerHTML = "";
       if (inventory[i]) {
@@ -459,8 +479,8 @@ const tradeSystem = {
       }
     }
 
+    // Обновляем отображение своего предложения
     for (let i = 0; i < 3; i++) {
-      // Было myOfferGrid.length, теперь явно 3
       myOfferGrid[i].innerHTML = "";
       if (this.myOffer[i]) {
         const img = document.createElement("img");
@@ -471,8 +491,8 @@ const tradeSystem = {
       }
     }
 
+    // Обновляем отображение предложения партнёра
     for (let i = 0; i < 3; i++) {
-      // Было partnerOfferGrid.length, теперь явно 3
       partnerOfferGrid[i].innerHTML = "";
       if (this.partnerOffer[i]) {
         const img = document.createElement("img");
@@ -483,7 +503,15 @@ const tradeSystem = {
       }
     }
 
-    document.getElementById("confirmTradeBtn").disabled = this.myConfirmed;
+    // Проверяем, есть ли предметы в своём предложении
+    const hasItemsInOffer = this.myOffer.some((item) => item !== null);
+    const confirmBtn = document.getElementById("confirmTradeBtn");
+
+    // Кнопка активна, если:
+    // 1. У игрока есть предметы в предложении и он ещё не подтвердил
+    // 2. Или партнёр подтвердил (partnerConfirmed), тогда кнопка активна всегда
+    confirmBtn.disabled =
+      this.myConfirmed || (!hasItemsInOffer && !this.partnerConfirmed);
   },
 };
 
