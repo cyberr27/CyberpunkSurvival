@@ -199,6 +199,21 @@ const tradeSystem = {
           updateInventoryDisplay();
         }
         break;
+      case "tradeOfferRejected":
+        alert(`Предложение отклонено: ${data.reason}`);
+        // Возвращаем предметы в инвентарь
+        this.myOffer.forEach((item, index) => {
+          if (item && item.originalSlot !== undefined) {
+            inventory[item.originalSlot] = {
+              ...item,
+              itemId: `${item.type}_${Date.now()}`,
+            };
+            this.myOffer[index] = null;
+          }
+        });
+        this.updateTradeWindow();
+        updateInventoryDisplay();
+        break;
     }
   },
 
@@ -285,10 +300,20 @@ const tradeSystem = {
     const item = inventory[slotIndex];
     if (!item) return;
 
+    // Проверяем асимметричные ограничения (пример)
+    if (myId === this.tradePartnerId.split("-")[0]) {
+      // Игрок A
+      if (item.type === "balyary") {
+        alert("Игрок A не может предлагать Баляры!");
+        return;
+      }
+    }
+
     const freeSlot = this.myOffer.findIndex((slot) => slot === null);
     if (freeSlot === -1) return;
 
     this.myOffer[freeSlot] = { ...item, originalSlot: slotIndex };
+    inventory[slotIndex] = null; // Удаляем из инвентаря
     sendWhenReady(
       this.ws,
       JSON.stringify({
@@ -299,6 +324,7 @@ const tradeSystem = {
       })
     );
     this.updateTradeWindow();
+    updateInventoryDisplay();
   },
 
   removeFromOffer(slotIndex) {
@@ -382,6 +408,7 @@ const tradeSystem = {
     const partnerOfferGrid =
       document.getElementById("partnerOfferGrid").children;
 
+    // Обновляем инвентарь игрока
     for (let i = 0; i < myTradeGrid.length; i++) {
       myTradeGrid[i].innerHTML = "";
       if (inventory[i]) {
@@ -393,8 +420,8 @@ const tradeSystem = {
       }
     }
 
+    // Обновляем предложение игрока
     for (let i = 0; i < 3; i++) {
-      // Было myOfferGrid.length, теперь явно 3
       myOfferGrid[i].innerHTML = "";
       if (this.myOffer[i]) {
         const img = document.createElement("img");
@@ -405,8 +432,9 @@ const tradeSystem = {
       }
     }
 
+    // Обновляем предложение партнёра с анимацией
     for (let i = 0; i < 3; i++) {
-      // Было partnerOfferGrid.length, теперь явно 3
+      const wasEmpty = !partnerOfferGrid[i].innerHTML;
       partnerOfferGrid[i].innerHTML = "";
       if (this.partnerOffer[i]) {
         const img = document.createElement("img");
@@ -414,6 +442,14 @@ const tradeSystem = {
         img.style.width = "100%";
         img.style.height = "100%";
         partnerOfferGrid[i].appendChild(img);
+        // Добавляем анимацию, если слот был пуст
+        if (wasEmpty) {
+          partnerOfferGrid[i].classList.add("slot-highlight");
+          setTimeout(
+            () => partnerOfferGrid[i].classList.remove("slot-highlight"),
+            500
+          );
+        }
       }
     }
 

@@ -810,6 +810,32 @@ button:active {
   box-shadow: 0 0 5px rgba(255, 0, 102, 0.3);
 }
 
+.slot-highlight {
+  animation: highlight 0.5s ease-in-out;
+}
+
+@keyframes highlight {
+  0% {
+    box-shadow: 0 0 10px rgba(255, 0, 102, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(255, 0, 102, 1);
+  }
+  100% {
+    box-shadow: 0 0 10px rgba(255, 0, 102, 0.7);
+  }
+}
+
+/* Слоты моего предложения */
+#myOfferGrid .offer-slot {
+  border-color: #00ccff; /* Циан для игрока A */
+}
+
+/* Слоты предложения партнёра */
+#partnerOfferGrid .offer-slot {
+  border-color: #ff0066; /* Пурпурный для игрока B */
+}
+
 /* Адаптация для мобильных устройств (max-width: 500px) */
 @media (max-width: 500px) {
   body {

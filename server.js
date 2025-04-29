@@ -904,6 +904,47 @@ wss.on("connection", (ws) => {
       const fromId = clients.get(ws);
       if (!fromId || !players.has(fromId) || !players.has(data.toId)) return;
 
+      // Проверяем асимметричные ограничения
+      const fromPlayer = players.get(fromId);
+      const isPlayerA = fromId < data.toId; // Игрок A имеет меньший ID (пример)
+      const offer = data.offer;
+
+      if (isPlayerA) {
+        const hasBalyary = offer.some(
+          (item) => item && item.type === "balyary"
+        );
+        if (hasBalyary) {
+          ws.send(
+            JSON.stringify({
+              type: "tradeOfferRejected",
+              reason: "Игрок A не может предлагать Баляры",
+            })
+          );
+          return;
+        }
+      }
+
+      // Проверяем, что предметы существуют в инвентаре
+      const isValidOffer = offer.every((item, index) => {
+        if (!item) return true;
+        const invItem = fromPlayer.inventory[item.originalSlot];
+        return (
+          invItem &&
+          invItem.type === item.type &&
+          (!item.quantity || invItem.quantity === item.quantity)
+        );
+      });
+
+      if (!isValidOffer) {
+        ws.send(
+          JSON.stringify({
+            type: "tradeOfferRejected",
+            reason: "Недопустимое предложение",
+          })
+        );
+        return;
+      }
+
       wss.clients.forEach((client) => {
         if (
           client.readyState === WebSocket.OPEN &&
