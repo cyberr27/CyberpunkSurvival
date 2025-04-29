@@ -192,7 +192,7 @@ const tradeSystem = {
               this.myOffer[index] = null;
             }
           });
-          tradePartnerId.closeTradeWindow();
+          tradePartnerId.isTradeWindowOpen = false;
           this.closeTradeWindow();
           this.resetTrade();
           updateInventoryDisplay();
@@ -336,7 +336,6 @@ const tradeSystem = {
         inventory: inventory,
       })
     );
-
     // Отправляем сообщение об отмене торга
     this.cancelTrade();
   },
