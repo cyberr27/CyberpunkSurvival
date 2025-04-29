@@ -192,6 +192,7 @@ const tradeSystem = {
               this.myOffer[index] = null;
             }
           });
+          this.selectedPlayerId.closeTradeWindow();
           this.closeTradeWindow();
           this.resetTrade();
           updateInventoryDisplay();
