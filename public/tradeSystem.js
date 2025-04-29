@@ -192,7 +192,6 @@ const tradeSystem = {
               this.myOffer[index] = null;
             }
           });
-          this.data.closeTradeWindow();
           this.closeTradeWindow();
           this.resetTrade();
           updateInventoryDisplay();
