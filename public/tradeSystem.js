@@ -451,6 +451,7 @@ const tradeSystem = {
         toId: this.tradePartnerId,
       })
     );
+    this.partnerConfirmed.closeTradeWindow();
     this.closeTradeWindow();
     this.resetTrade();
   },
