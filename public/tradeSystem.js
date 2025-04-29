@@ -172,7 +172,6 @@ const tradeSystem = {
         break;
       case "tradeCancelled":
         if (data.fromId === this.tradePartnerId || data.toId === myId) {
-          // Возвращаем предметы в инвентарь при отмене
           this.myOffer.forEach((item, index) => {
             if (item && item.originalSlot !== undefined) {
               if (inventory[item.originalSlot] === null) {
@@ -199,9 +198,13 @@ const tradeSystem = {
         break;
       case "tradeOffer":
         if (data.fromId === this.tradePartnerId) {
-          this.partnerOffer = data.offer;
+          console.log(`Получено tradeOffer от ${data.fromId}:`, data.offer); // Логируем предложение
+          this.partnerOffer = data.offer.map((item) =>
+            item ? { ...item } : null
+          ); // Глубокое копирование
           if (data.inventory) {
-            inventory = data.inventory; // Обновляем инвентарь партнёра
+            console.log(`Обновлён инвентарь партнёра:`, data.inventory);
+            // Не обновляем локальный инвентарь игрока, так как это инвентарь партнёра
           }
           this.updateTradeWindow();
           updateInventoryDisplay();
@@ -209,8 +212,14 @@ const tradeSystem = {
         break;
       case "tradeConfirmed":
         if (data.fromId === this.tradePartnerId) {
+          console.log(
+            `Получено tradeConfirmed от ${data.fromId}:`,
+            data.partnerOffer
+          );
           this.partnerConfirmed = true;
-          this.partnerOffer = data.partnerOffer; // Обновляем предложение партнёра
+          this.partnerOffer = data.partnerOffer.map((item) =>
+            item ? { ...item } : null
+          ); // Глубокое копирование
           this.updateTradeWindow();
           if (this.myConfirmed) {
             this.completeTrade();
@@ -219,14 +228,12 @@ const tradeSystem = {
         break;
       case "tradeCompleted":
         if (data.toId === myId) {
-          // Проверяем уникальность itemId в новом инвентаре
           const existingItemIds = new Set(
             inventory.map((item) => (item ? item.itemId : null))
           );
           if (data.partnerOffer) {
             data.partnerOffer.forEach((item) => {
               if (item) {
-                // Проверяем, что itemId уникален
                 if (existingItemIds.has(item.itemId)) {
                   console.warn(
                     `Дубликат itemId ${item.itemId} при завершении торга, генерируем новый`
@@ -247,14 +254,12 @@ const tradeSystem = {
               }
             });
           }
-          // Обновляем инвентарь из данных сервера, если он передан
           if (data.newInventory) {
             inventory = data.newInventory;
           }
           this.closeTradeWindow();
           this.resetTrade();
           updateInventoryDisplay();
-          // Отправляем обновление инвентаря на сервер
           sendWhenReady(
             this.ws,
             JSON.stringify({
@@ -529,21 +534,27 @@ const tradeSystem = {
     }
 
     // Обновляем отображение предложения партнёра с анимацией
+    console.log("Обновление partnerOfferGrid:", this.partnerOffer); // Логируем partnerOffer
     for (let i = 0; i < 3; i++) {
       const slot = partnerOfferGrid[i];
+      const previousItem = slot.dataset.itemType; // Сохраняем предыдущий тип предмета
       slot.innerHTML = "";
       slot.style.borderColor = this.partnerConfirmed ? "#00ff00" : "#00ccff";
+      slot.dataset.itemType = this.partnerOffer[i]
+        ? this.partnerOffer[i].type
+        : null; // Обновляем тип
 
       if (this.partnerOffer[i]) {
         const img = document.createElement("img");
         img.src = ITEM_CONFIG[this.partnerOffer[i].type].image.src;
         img.style.width = "100%";
         img.style.height = "100%";
-        img.className = "item-appear"; // Добавляем класс для анимации появления
+        img.className =
+          previousItem !== this.partnerOffer[i]?.type ? "item-appear" : ""; // Анимация только при изменении
         slot.appendChild(img);
-        // Удаляем класс после завершения анимации
+        // Удаляем класс после анимации
         setTimeout(() => img.classList.remove("item-appear"), 300);
-      } else if (slot.children.length > 0) {
+      } else if (previousItem && !this.partnerOffer[i]) {
         // Если слот был заполнен, но предмет убрали, добавляем анимацию исчезновения
         slot.classList.add("item-disappear");
         setTimeout(() => {
