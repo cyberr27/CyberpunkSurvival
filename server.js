@@ -902,7 +902,12 @@ wss.on("connection", (ws) => {
       });
     } else if (data.type === "tradeOffer") {
       const fromId = clients.get(ws);
-      if (!fromId || !players.has(fromId) || !players.has(data.toId)) return;
+      if (!fromId || !players.has(fromId) || !players.has(data.toId)) {
+        console.log(
+          `Ошибка tradeOffer: fromId=${fromId}, toId=${data.toId} не найдены`
+        );
+        return;
+      }
 
       const fromPlayer = players.get(fromId);
       // Проверяем дублирование itemId в предложении
@@ -923,6 +928,7 @@ wss.on("connection", (ws) => {
         ws.send(
           JSON.stringify({ type: "tradeCancelled", fromId, toId: data.toId })
         );
+        console.log(`Торг отменён из-за дубликата itemId от ${fromId}`);
         return;
       }
 
@@ -932,8 +938,10 @@ wss.on("connection", (ws) => {
         players.set(fromId, { ...fromPlayer });
         userDatabase.set(fromId, { ...fromPlayer });
         await saveUserDatabase(dbCollection, fromId, fromPlayer);
+        console.log(`Инвентарь игрока ${fromId} обновлён при tradeOffer`);
       }
 
+      // Пересылаем предложение партнёру
       wss.clients.forEach((client) => {
         if (
           client.readyState === WebSocket.OPEN &&
@@ -948,6 +956,7 @@ wss.on("connection", (ws) => {
               inventory: data.inventory,
             })
           );
+          console.log(`Отправлено tradeOffer от ${fromId} к ${data.toId}`);
         }
       });
     } else if (data.type === "tradeConfirmed") {

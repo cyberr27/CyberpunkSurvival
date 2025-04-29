@@ -518,7 +518,7 @@ const tradeSystem = {
       myOfferGrid[i].innerHTML = "";
       myOfferGrid[i].style.borderColor = this.myConfirmed
         ? "#00ff00"
-        : "#00ccff"; // Зелёная рамка при подтверждении
+        : "#00ccff";
       if (this.myOffer[i]) {
         const img = document.createElement("img");
         img.src = ITEM_CONFIG[this.myOffer[i].type].image.src;
@@ -528,18 +528,28 @@ const tradeSystem = {
       }
     }
 
-    // Обновляем отображение предложения партнёра
+    // Обновляем отображение предложения партнёра с анимацией
     for (let i = 0; i < 3; i++) {
-      partnerOfferGrid[i].innerHTML = "";
-      partnerOfferGrid[i].style.borderColor = this.partnerConfirmed
-        ? "#00ff00"
-        : "#00ccff"; // Зелёная рамка при подтверждении
+      const slot = partnerOfferGrid[i];
+      slot.innerHTML = "";
+      slot.style.borderColor = this.partnerConfirmed ? "#00ff00" : "#00ccff";
+
       if (this.partnerOffer[i]) {
         const img = document.createElement("img");
         img.src = ITEM_CONFIG[this.partnerOffer[i].type].image.src;
         img.style.width = "100%";
         img.style.height = "100%";
-        partnerOfferGrid[i].appendChild(img);
+        img.className = "item-appear"; // Добавляем класс для анимации появления
+        slot.appendChild(img);
+        // Удаляем класс после завершения анимации
+        setTimeout(() => img.classList.remove("item-appear"), 300);
+      } else if (slot.children.length > 0) {
+        // Если слот был заполнен, но предмет убрали, добавляем анимацию исчезновения
+        slot.classList.add("item-disappear");
+        setTimeout(() => {
+          slot.innerHTML = "";
+          slot.classList.remove("item-disappear");
+        }, 300);
       }
     }
 
