@@ -192,6 +192,7 @@ const tradeSystem = {
               this.myOffer[index] = null;
             }
           });
+          data.fromId.closeTradeWindow();
           this.closeTradeWindow();
           this.resetTrade();
           updateInventoryDisplay();
@@ -451,7 +452,6 @@ const tradeSystem = {
         toId: this.tradePartnerId,
       })
     );
-    this.partnerConfirmed.closeTradeWindow();
     this.closeTradeWindow();
     this.resetTrade();
   },
