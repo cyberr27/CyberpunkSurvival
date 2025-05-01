@@ -1284,23 +1284,26 @@ function draw(deltaTime) {
     vegetationSpeed = 0.8,
     rocksSpeed = 0.6,
     cloudsSpeed = 0.3;
-  const groundOffsetX = camera.x * groundSpeed;
-  const vegetationOffsetX = camera.x * vegetationSpeed;
-  const rocksOffsetX = camera.x * rocksSpeed;
-  const cloudsOffsetX = camera.x * cloudsSpeed;
+  const groundOffsetX = window.movementSystem.getCamera().x * groundSpeed;
+  const vegetationOffsetX =
+    window.movementSystem.getCamera().x * vegetationSpeed;
+  const rocksOffsetX = window.movementSystem.getCamera().x * rocksSpeed;
+  const cloudsOffsetX = window.movementSystem.getCamera().x * cloudsSpeed;
 
   // Рисуем фон с учётом смещения камеры
   if (currentWorld.backgroundImage.complete) {
     ctx.fillStyle = ctx.createPattern(currentWorld.backgroundImage, "repeat");
     ctx.save();
     ctx.translate(
-      -groundOffsetX % currentWorld.backgroundImage.width,
-      (-camera.y * groundSpeed) % currentWorld.backgroundImage.height
+      -(groundOffsetX % currentWorld.backgroundImage.width),
+      -(window.movementSystem.getCamera().y * groundSpeed) %
+        currentWorld.backgroundImage.height
     );
     ctx.fillRect(
       (groundOffsetX % currentWorld.backgroundImage.width) -
         currentWorld.backgroundImage.width,
-      ((camera.y * groundSpeed) % currentWorld.backgroundImage.height) -
+      ((window.movementSystem.getCamera().y * groundSpeed) %
+        currentWorld.backgroundImage.height) -
         currentWorld.backgroundImage.height,
       currentWorld.width + currentWorld.backgroundImage.width,
       currentWorld.height + currentWorld.backgroundImage.height
@@ -1312,8 +1315,8 @@ function draw(deltaTime) {
   }
 
   lights.forEach((light) => {
-    const screenX = light.x - camera.x;
-    const screenY = light.y - camera.y;
+    const screenX = light.x - window.movementSystem.getCamera().x;
+    const screenY = light.y - window.movementSystem.getCamera().y;
     if (
       screenX + light.radius > 0 &&
       screenX - light.radius < canvas.width &&
@@ -1341,7 +1344,7 @@ function draw(deltaTime) {
     ctx.drawImage(
       currentWorld.rocksImage,
       rocksOffsetX,
-      camera.y * rocksSpeed,
+      window.movementSystem.getCamera().y * rocksSpeed,
       canvas.width,
       canvas.height,
       0,
@@ -1438,7 +1441,7 @@ function draw(deltaTime) {
     ctx.drawImage(
       currentWorld.vegetationImage,
       vegetationOffsetX,
-      camera.y * vegetationSpeed,
+      window.movementSystem.getCamera().y * vegetationSpeed,
       canvas.width,
       canvas.height,
       0,
@@ -1452,7 +1455,7 @@ function draw(deltaTime) {
     ctx.drawImage(
       currentWorld.cloudsImage,
       cloudsOffsetX,
-      camera.y * cloudsSpeed,
+      window.movementSystem.getCamera().y * cloudsSpeed,
       canvas.width,
       canvas.height,
       0,

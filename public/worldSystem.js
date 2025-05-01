@@ -225,6 +225,10 @@ const worldSystem = {
 
   // Отрисовка зон перехода (для визуальной отладки)
   drawTransitionZones() {
+    if (!window.movementSystem || !window.movementSystem.getCamera) {
+      console.error("movementSystem или getCamera не определены");
+      return;
+    }
     const camera = window.movementSystem.getCamera();
     this.transitionZones.forEach((zone) => {
       if (zone.sourceWorldId !== this.currentWorldId) return;
