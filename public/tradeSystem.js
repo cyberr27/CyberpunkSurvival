@@ -193,7 +193,11 @@ const tradeSystem = {
         break;
       case "tradeOffer":
         if (data.fromId === this.tradePartnerId) {
-          this.partnerOffer = data.offer;
+          this.partnerOffer = data.offer.map((item) =>
+            item ? { ...item } : null
+          ); // Копируем предложение партнёра
+          // Обновляем отображение окна торговли
+          this.updateTradeWindow();
           // Если партнёр отправил инвентарь, обновляем его локально
           if (data.inventory && data.toId === myId) {
             const partner = players.get(this.tradePartnerId);
@@ -202,7 +206,6 @@ const tradeSystem = {
               players.set(this.tradePartnerId, partner);
             }
           }
-          this.updateTradeWindow();
         }
         break;
       case "tradeConfirmed":
@@ -422,6 +425,7 @@ const tradeSystem = {
     const partnerOfferGrid =
       document.getElementById("partnerOfferGrid").children;
 
+    // Обновляем слоты инвентаря
     for (let i = 0; i < myTradeGrid.length; i++) {
       myTradeGrid[i].innerHTML = "";
       if (inventory[i]) {
@@ -433,8 +437,8 @@ const tradeSystem = {
       }
     }
 
+    // Обновляем слоты моего предложения
     for (let i = 0; i < 3; i++) {
-      // Было myOfferGrid.length, теперь явно 3
       myOfferGrid[i].innerHTML = "";
       if (this.myOffer[i]) {
         const img = document.createElement("img");
@@ -445,8 +449,8 @@ const tradeSystem = {
       }
     }
 
+    // Обновляем слоты предложения партнёра
     for (let i = 0; i < 3; i++) {
-      // Было partnerOfferGrid.length, теперь явно 3
       partnerOfferGrid[i].innerHTML = "";
       if (this.partnerOffer[i]) {
         const img = document.createElement("img");
@@ -457,6 +461,7 @@ const tradeSystem = {
       }
     }
 
+    // Обновляем состояние кнопки подтверждения
     document.getElementById("confirmTradeBtn").disabled = this.myConfirmed;
   },
 };

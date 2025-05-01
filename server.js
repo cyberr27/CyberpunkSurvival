@@ -913,6 +913,7 @@ wss.on("connection", (ws) => {
         await saveUserDatabase(dbCollection, fromId, fromPlayer);
       }
 
+      // Пересылаем предложение партнёру
       wss.clients.forEach((client) => {
         if (
           client.readyState === WebSocket.OPEN &&
@@ -924,7 +925,7 @@ wss.on("connection", (ws) => {
               fromId: fromId,
               toId: data.toId,
               offer: data.offer,
-              inventory: data.inventory, // Пересылаем инвентарь
+              inventory: data.inventory, // Пересылаем инвентарь отправителя
             })
           );
         }
