@@ -1359,8 +1359,8 @@ function draw(deltaTime) {
   window.vendingMachine.draw();
 
   players.forEach((player) => {
-    const screenX = player.x - camera.x;
-    const screenY = player.y - camera.y;
+    const screenX = player.x - window.movementSystem.getCamera().x;
+    const screenY = player.y - window.movementSystem.getCamera().y;
 
     if (player.id !== myId) {
       if (player.state === "walking") {
