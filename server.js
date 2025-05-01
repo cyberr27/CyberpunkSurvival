@@ -889,7 +889,7 @@ wss.on("connection", (ws) => {
       wss.clients.forEach((client) => {
         if (
           client.readyState === WebSocket.OPEN &&
-          clients.get(client) === data.toId
+          (clients.get(client) === data.toId || clients.get(client) === fromId)
         ) {
           client.send(
             JSON.stringify({
@@ -904,6 +904,15 @@ wss.on("connection", (ws) => {
       const fromId = clients.get(ws);
       if (!fromId || !players.has(fromId) || !players.has(data.toId)) return;
 
+      // Обновляем инвентарь отправителя
+      const fromPlayer = players.get(fromId);
+      if (data.inventory) {
+        fromPlayer.inventory = data.inventory;
+        players.set(fromId, { ...fromPlayer });
+        userDatabase.set(fromId, { ...fromPlayer });
+        await saveUserDatabase(dbCollection, fromId, fromPlayer);
+      }
+
       wss.clients.forEach((client) => {
         if (
           client.readyState === WebSocket.OPEN &&
@@ -915,6 +924,7 @@ wss.on("connection", (ws) => {
               fromId: fromId,
               toId: data.toId,
               offer: data.offer,
+              inventory: data.inventory, // Пересылаем инвентарь
             })
           );
         }
