@@ -561,8 +561,8 @@ function startGame() {
         );
       } else {
         const camera = window.movementSystem.getCamera();
-        const worldX = e.clientX + camera.x;
-        const worldY = e.clientY + camera.y;
+        const worldX = e.clientX + window.movementSystem.getCamera().x;
+        const worldY = e.clientY + window.movementSystem.getCamera().y;
         let selectedPlayerId = null;
         players.forEach((player, id) => {
           if (id !== myId && player.health > 0) {
@@ -617,8 +617,8 @@ function startGame() {
       );
     } else {
       const camera = window.movementSystem.getCamera();
-      const worldX = touch.clientX + camera.x;
-      const worldY = touch.clientY + camera.y;
+      const worldX = touch.clientX + window.movementSystem.getCamera().x;
+      const worldY = touch.clientY + window.movementSystem.getCamera().y;
       let selectedPlayerId = null;
       players.forEach((player, id) => {
         if (id !== myId && player.health > 0) {
@@ -636,8 +636,8 @@ function startGame() {
   canvas.addEventListener("touchmove", (e) => {
     e.preventDefault();
     const touch = e.touches[0];
-    targetX = touch.clientX + camera.x;
-    targetY = touch.clientY + camera.y;
+    targetX = touch.clientX + window.movementSystem.getCamera().x;
+    targetY = touch.clientY + window.movementSystem.getCamera().y;
   });
 
   canvas.addEventListener("touchend", (e) => {
@@ -1252,8 +1252,8 @@ function update(deltaTime) {
   const currentTime = Date.now();
   items.forEach((item, itemId) => {
     const camera = window.movementSystem.getCamera();
-    const screenX = item.x - camera.x;
-    const screenY = item.y - camera.y;
+    const screenX = item.x - window.movementSystem.getCamera().x;
+    const screenY = item.y - window.movementSystem.getCamera().y;
     if (
       screenX >= -40 &&
       screenX <= canvas.width + 40 &&
@@ -1415,8 +1415,8 @@ function draw(deltaTime) {
       );
       return;
     }
-    const screenX = item.x - camera.x;
-    const screenY = item.y - camera.y;
+    const screenX = item.x - window.movementSystem.getCamera().x;
+    const screenY = item.y - window.movementSystem.getCamera().y;
     // Уменьшаем область проверки видимости, так как размер теперь 20x20
     if (
       screenX >= -20 &&
