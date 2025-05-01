@@ -24,14 +24,6 @@ const pendingPickups = new Set();
 let lights = [];
 
 // Загрузка изображений
-const backgroundImage = new Image();
-backgroundImage.src = "backgr.png";
-const vegetationImage = new Image();
-vegetationImage.src = "vegetation.png";
-const rocksImage = new Image();
-rocksImage.src = "rocks.png";
-const cloudsImage = new Image();
-cloudsImage.src = "clouds.png";
 const playerSprite = new Image();
 playerSprite.src = "playerSprite.png";
 const energyDrinkImage = new Image();
@@ -209,10 +201,6 @@ let lastDistance = 0; // Добавляем глобальную перемен�
 
 // Добавляем переменные для управления анимацией
 let lastTime = 0; // Время последнего кадра для расчета deltaTime
-
-// Размеры мира
-const worldWidth = 3135;
-const worldHeight = 3300;
 
 // Переключение форм
 toRegister.addEventListener("click", () => {
@@ -398,8 +386,11 @@ function handleAuthMessage(event) {
           water: 100,
         },
         upgradePoints: data.upgradePoints || 0,
+        worldId: data.worldId || 0,
+        worldPositions: data.worldPositions || { 0: { x: 222, y: 3205 } },
       };
       players.set(myId, me);
+      window.worldSystem.currentWorldId = me.worldId;
 
       if (data.players) {
         data.players.forEach((p) => {
@@ -411,12 +402,14 @@ function handleAuthMessage(event) {
 
       lastDistance = me.distanceTraveled;
       if (data.items) {
+        items.clear();
         data.items.forEach((item) =>
           items.set(item.itemId, {
             x: item.x,
             y: item.y,
             type: item.type,
             spawnTime: item.spawnTime,
+            worldId: item.worldId,
           })
         );
       }
@@ -427,7 +420,7 @@ function handleAuthMessage(event) {
       inventory = data.inventory || Array(20).fill(null);
       window.npcSystem.setNPCMet(data.npcMet || false);
       window.npcSystem.setSelectedQuest(data.selectedQuestId || null);
-      window.npcSystem.checkQuestCompletion(); // Проверяем выполнение задания сразу после входа, но с учётом isQuestActive
+      window.npcSystem.checkQuestCompletion();
       window.npcSystem.setAvailableQuests(data.availableQuests || []);
       levelSystem.setLevelData(
         data.level || 0,
@@ -483,6 +476,7 @@ function updateOnlineCount() {
 }
 
 function startGame() {
+  window.worldSystem.initialize();
   initializeLights(); // Инициализируем источники света
   updateOnlineCount();
   levelSystem.initialize(); // Инициализируем систему уровней
@@ -1099,6 +1093,7 @@ function handleGameMessage(event) {
             y: item.y,
             type: item.type,
             spawnTime: item.spawnTime,
+            worldId: item.worldId,
           })
         );
         data.items.forEach((item) => {
@@ -1189,13 +1184,14 @@ function handleGameMessage(event) {
         break;
       case "itemDropped":
         console.log(
-          `Получено itemDropped: itemId=${data.itemId}, type=${data.type}, x=${data.x}, y=${data.y}`
+          `Получено itemDropped: itemId=${data.itemId}, type=${data.type}, x=${data.x}, y=${data.y}, worldId=${data.worldId}`
         );
         items.set(data.itemId, {
           x: data.x,
           y: data.y,
           type: data.type,
           spawnTime: data.spawnTime,
+          worldId: data.worldId,
         });
         updateInventoryDisplay();
         break;
@@ -1249,6 +1245,9 @@ function update(deltaTime) {
   // Обновляем движение через movementSystem
   window.movementSystem.update(deltaTime);
 
+  // Проверяем зоны перехода
+  window.worldSystem.checkTransitionZones(me.x, me.y);
+
   // Удаление предметов по таймауту
   const currentTime = Date.now();
   items.forEach((item, itemId) => {
@@ -1280,7 +1279,7 @@ function draw(deltaTime) {
   ctx.fillStyle = "rgba(10, 20, 40, 0.8)"; // Ночной эффект
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  const camera = window.movementSystem.getCamera();
+  const currentWorld = window.worldSystem.getCurrentWorld();
   const groundSpeed = 1.0,
     vegetationSpeed = 0.8,
     rocksSpeed = 0.6,
@@ -1291,20 +1290,26 @@ function draw(deltaTime) {
   const cloudsOffsetX = camera.x * cloudsSpeed;
 
   // Рисуем фон с учётом смещения камеры
-  ctx.fillStyle = ctx.createPattern(backgroundImage, "repeat");
-  ctx.save();
-  ctx.translate(
-    -groundOffsetX % backgroundImage.width,
-    (-camera.y * groundSpeed) % backgroundImage.height
-  );
-  ctx.fillRect(
-    (groundOffsetX % backgroundImage.width) - backgroundImage.width,
-    ((camera.y * groundSpeed) % backgroundImage.height) -
-      backgroundImage.height,
-    worldWidth + backgroundImage.width,
-    worldHeight + backgroundImage.height
-  );
-  ctx.restore();
+  if (currentWorld.backgroundImage.complete) {
+    ctx.fillStyle = ctx.createPattern(currentWorld.backgroundImage, "repeat");
+    ctx.save();
+    ctx.translate(
+      -groundOffsetX % currentWorld.backgroundImage.width,
+      (-camera.y * groundSpeed) % currentWorld.backgroundImage.height
+    );
+    ctx.fillRect(
+      (groundOffsetX % currentWorld.backgroundImage.width) -
+        currentWorld.backgroundImage.width,
+      ((camera.y * groundSpeed) % currentWorld.backgroundImage.height) -
+        currentWorld.backgroundImage.height,
+      currentWorld.width + currentWorld.backgroundImage.width,
+      currentWorld.height + currentWorld.backgroundImage.height
+    );
+    ctx.restore();
+  } else {
+    ctx.fillStyle = "rgba(10, 20, 40, 1)";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
 
   lights.forEach((light) => {
     const screenX = light.x - camera.x;
@@ -1332,17 +1337,19 @@ function draw(deltaTime) {
     }
   });
 
-  ctx.drawImage(
-    rocksImage,
-    rocksOffsetX,
-    camera.y * rocksSpeed,
-    canvas.width,
-    canvas.height,
-    0,
-    0,
-    canvas.width,
-    canvas.height
-  );
+  if (currentWorld.rocksImage.complete) {
+    ctx.drawImage(
+      currentWorld.rocksImage,
+      rocksOffsetX,
+      camera.y * rocksSpeed,
+      canvas.width,
+      canvas.height,
+      0,
+      0,
+      canvas.width,
+      canvas.height
+    );
+  }
 
   drawNPC();
   npcSystem.drawNPC();
@@ -1427,28 +1434,36 @@ function draw(deltaTime) {
     }
   });
 
-  ctx.drawImage(
-    vegetationImage,
-    vegetationOffsetX,
-    camera.y * vegetationSpeed,
-    canvas.width,
-    canvas.height,
-    0,
-    0,
-    canvas.width,
-    canvas.height
-  );
-  ctx.drawImage(
-    cloudsImage,
-    cloudsOffsetX,
-    camera.y * cloudsSpeed,
-    canvas.width,
-    canvas.height,
-    0,
-    0,
-    canvas.width,
-    canvas.height
-  );
+  if (currentWorld.vegetationImage.complete) {
+    ctx.drawImage(
+      currentWorld.vegetationImage,
+      vegetationOffsetX,
+      camera.y * vegetationSpeed,
+      canvas.width,
+      canvas.height,
+      0,
+      0,
+      canvas.width,
+      canvas.height
+    );
+  }
+
+  if (currentWorld.cloudsImage.complete) {
+    ctx.drawImage(
+      currentWorld.cloudsImage,
+      cloudsOffsetX,
+      camera.y * cloudsSpeed,
+      canvas.width,
+      canvas.height,
+      0,
+      0,
+      canvas.width,
+      canvas.height
+    );
+  }
+
+  // Отрисовка зон перехода
+  window.worldSystem.drawTransitionZones();
 }
 
 function checkCollisions() {

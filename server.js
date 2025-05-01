@@ -152,100 +152,116 @@ initializeServer()
     process.exit(1);
   });
 
-const items = new Map();
-const lights = [
-  {
-    id: "light1",
-    x: 2445,
-    y: 1540,
-    color: "rgba(0, 255, 255, 0.4)",
-    radius: 1000,
-  },
-  {
-    id: "light2",
-    x: 1314,
-    y: 332,
-    color: "rgba(255, 0, 255, 0.4)",
-    radius: 1000,
-  },
-  {
-    id: "light3",
-    x: 506,
-    y: 2246,
-    color: "rgba(148, 0, 211, 0.4)",
-    radius: 1000,
-  },
-  {
-    id: "light4",
-    x: 950,
-    y: 3115,
-    color: "rgba(255, 0, 255, 0.4)",
-    radius: 850,
-  },
-  {
-    id: "light5",
-    x: 50,
-    y: 3120,
-    color: "rgba(214, 211, 4, 0.4)",
-    radius: 850,
-  },
-  {
-    id: "light6",
-    x: 50,
-    y: 1173,
-    color: "rgba(214, 211, 4, 0.4)",
-    radius: 950,
-  },
-  {
-    id: "light7",
-    x: 2314,
-    y: 2756,
-    color: "rgba(194, 0, 10, 0.4)",
-    radius: 850,
-  },
-  {
-    id: "light8",
-    x: 1605,
-    y: 2151,
-    color: "rgba(2, 35, 250, 0.4)",
-    radius: 950,
-  },
-  {
-    id: "light9",
-    x: 3095,
-    y: 2335,
-    color: "rgba(28, 186, 55, 0.4)",
-    radius: 950,
-  },
-  {
-    id: "light10",
-    x: 2605,
-    y: 509,
-    color: "rgba(2, 35, 250, 0.4)",
-    radius: 950,
-  },
-  {
-    id: "light11",
-    x: 1083,
-    y: 1426,
-    color: "rgba(109, 240, 194, 0.4)",
-    radius: 750,
-  },
-  {
-    id: "light12",
-    x: 2000,
-    y: 900,
-    color: "rgba(240, 109, 240, 0.4)",
-    radius: 850,
-  },
-  {
-    id: "light13",
-    x: 133,
-    y: 373,
-    color: "rgba(240, 109, 240, 0.4)",
-    radius: 850,
-  },
+const worlds = [
+  { id: 0, width: 3135, height: 3300, name: "Пустоши" },
+  { id: 1, width: 3135, height: 3300, name: "Неоновый Город" },
+  { id: 2, width: 3135, height: 3300, name: "Токсичные Джунгли" },
 ];
+
+const items = new Map(); // Храним предметы с указанием worldId
+const lights = new Map(); // Храним источники света по мирам
+
+// Инициализация источников света для каждого мира
+worlds.forEach((world) => {
+  if (world.id === 0) {
+    lights.set(world.id, [
+      {
+        id: "light1",
+        x: 2445,
+        y: 1540,
+        color: "rgba(0, 255, 255, 0.4)",
+        radius: 1000,
+      },
+      {
+        id: "light2",
+        x: 1314,
+        y: 332,
+        color: "rgba(255, 0, 255, 0.4)",
+        radius: 1000,
+      },
+      {
+        id: "light3",
+        x: 506,
+        y: 2246,
+        color: "rgba(148, 0, 211, 0.4)",
+        radius: 1000,
+      },
+      {
+        id: "light4",
+        x: 950,
+        y: 3115,
+        color: "rgba(255, 0, 255, 0.4)",
+        radius: 850,
+      },
+      {
+        id: "light5",
+        x: 50,
+        y: 3120,
+        color: "rgba(214, 211, 4, 0.4)",
+        radius: 850,
+      },
+      {
+        id: "light6",
+        x: 50,
+        y: 1173,
+        color: "rgba(214, 211, 4, 0.4)",
+        radius: 950,
+      },
+      {
+        id: "light7",
+        x: 2314,
+        y: 2756,
+        color: "rgba(194, 0, 10, 0.4)",
+        radius: 850,
+      },
+      {
+        id: "light8",
+        x: 1605,
+        y: 2151,
+        color: "rgba(2, 35, 250, 0.4)",
+        radius: 950,
+      },
+      {
+        id: "light9",
+        x: 3095,
+        y: 2335,
+        color: "rgba(28, 186, 55, 0.4)",
+        radius: 950,
+      },
+      {
+        id: "light10",
+        x: 2605,
+        y: 509,
+        color: "rgba(2, 35, 250, 0.4)",
+        radius: 950,
+      },
+      {
+        id: "light11",
+        x: 1083,
+        y: 1426,
+        color: "rgba(109, 240, 194, 0.4)",
+        radius: 750,
+      },
+      {
+        id: "light12",
+        x: 2000,
+        y: 900,
+        color: "rgba(240, 109, 240, 0.4)",
+        radius: 850,
+      },
+      {
+        id: "light13",
+        x: 133,
+        y: 373,
+        color: "rgba(240, 109, 240, 0.4)",
+        radius: 850,
+      },
+    ]);
+  } else {
+    // Для других миров задаём пустой массив или свои источники света
+    lights.set(world.id, []);
+  }
+});
 
 const lastSaved = new Map();
 
@@ -301,7 +317,9 @@ wss.on("connection", (ws) => {
           xp: 0,
           maxStats: { health: 100, energy: 100, food: 100, water: 100 },
           upgradePoints: 0,
-          availableQuests: [], // Инициализируем пустой список заданий
+          availableQuests: [],
+          worldId: 0, // Начинаем в первом мире
+          worldPositions: { 0: { x: 222, y: 3205 } }, // Начальные координаты в мире 0
         };
 
         userDatabase.set(data.username, newPlayer);
@@ -327,6 +345,10 @@ wss.on("connection", (ws) => {
           },
           upgradePoints: player.upgradePoints || 0,
           availableQuests: player.availableQuests || [],
+          worldId: player.worldId || 0,
+          worldPositions: player.worldPositions || {
+            0: { x: player.x, y: player.y },
+          },
         };
         players.set(data.username, playerData);
         ws.send(
@@ -352,17 +374,22 @@ wss.on("connection", (ws) => {
             maxStats: playerData.maxStats,
             upgradePoints: playerData.upgradePoints,
             availableQuests: playerData.availableQuests,
+            worldId: playerData.worldId,
+            worldPositions: playerData.worldPositions,
             players: Array.from(players.values()).filter(
-              (p) => p.id !== data.username
+              (p) => p.id !== data.username && p.worldId === playerData.worldId
             ),
-            items: Array.from(items.entries()).map(([itemId, item]) => ({
-              itemId,
-              x: item.x,
-              y: item.y,
-              type: item.type,
-              spawnTime: item.spawnTime,
-            })),
-            lights: lights.map(({ id, ...rest }) => rest),
+            items: Array.from(items.entries())
+              .filter(([_, item]) => item.worldId === playerData.worldId)
+              .map(([itemId, item]) => ({
+                itemId,
+                x: item.x,
+                y: item.y,
+                type: item.type,
+                spawnTime: item.spawnTime,
+                worldId: item.worldId,
+              })),
+            lights: lights.get(playerData.worldId).map(({ id, ...rest }) => rest),
           })
         );
         wss.clients.forEach((client) => {
@@ -474,7 +501,15 @@ wss.on("connection", (ws) => {
             water: 100,
           },
           upgradePoints: existingPlayer.upgradePoints || 0,
+          worldId:
+            data.worldId !== undefined
+              ? data.worldId
+              : existingPlayer.worldId || 0,
+          worldPositions: existingPlayer.worldPositions || {},
         };
+        if (data.worldId !== undefined) {
+          updatedPlayer.worldPositions[data.worldId] = { x: data.x, y: data.y };
+        }
         players.set(id, updatedPlayer);
         userDatabase.set(id, updatedPlayer);
         if (!lastSaved.has(id) || Date.now() - lastSaved.get(id) > 5000) {
@@ -792,6 +827,7 @@ wss.on("connection", (ws) => {
                 spawnTime: Date.now(),
                 quantity: quantityToDrop,
                 isDroppedByPlayer: true,
+                worldId: player.worldId,
               });
             } else {
               player.inventory[slotIndex] = null;
@@ -801,13 +837,17 @@ wss.on("connection", (ws) => {
                 type: item.type,
                 spawnTime: Date.now(),
                 isDroppedByPlayer: true,
+                worldId: player.worldId,
               });
             }
             players.set(id, { ...player });
             userDatabase.set(id, { ...player });
             await saveUserDatabase(dbCollection, id, player);
             wss.clients.forEach((client) => {
-              if (client.readyState === WebSocket.OPEN) {
+              if (
+                client.readyState === WebSocket.OPEN &&
+                players.get(clients.get(client))?.worldId === player.worldId
+              ) {
                 client.send(
                   JSON.stringify({
                     type: "itemDropped",
@@ -819,6 +859,7 @@ wss.on("connection", (ws) => {
                     quantity:
                       item.type === "balyary" ? quantityToDrop : undefined,
                     isDroppedByPlayer: true,
+                    worldId: player.worldId,
                   })
                 );
                 if (clients.get(client) === id) {
@@ -832,7 +873,7 @@ wss.on("connection", (ws) => {
               }
             });
             console.log(
-              `Игрок ${id} выбросил ${quantityToDrop} ${item.type} на x:${dropX}, y:${dropY}`
+              `Игрок ${id} выбросил ${quantityToDrop} ${item.type} в мире ${player.worldId} на x:${dropX}, y:${dropY}`
             );
           }
         }
@@ -1172,137 +1213,169 @@ wss.on("connection", (ws) => {
 
 setInterval(() => {
   const currentTime = Date.now();
-  const playerCount = players.size;
+  const playerCountPerWorld = new Map();
+  worlds.forEach((world) => {
+    playerCountPerWorld.set(
+      world.id,
+      Array.from(players.values()).filter((p) => p.worldId === world.id).length
+    );
+  });
 
+  // Удаление старых предметов
   items.forEach((item, itemId) => {
     if (currentTime - item.spawnTime > 10 * 60 * 1000) {
       items.delete(itemId);
-      console.log(`Предмет ${item.type} (${itemId}) исчез из-за таймаута`);
+      console.log(
+        `Предмет ${item.type} (${itemId}) в мире ${item.worldId} исчез из-за таймаута`
+      );
       wss.clients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN) {
+        if (
+          client.readyState === WebSocket.OPEN &&
+          players.get(clients.get(client))?.worldId === item.worldId
+        ) {
           client.send(JSON.stringify({ type: "itemPicked", itemId }));
         }
       });
     }
   });
 
-  const worldWidth = 3135;
-  const worldHeight = 3300;
+  // Спавн новых предметов
+  worlds.forEach((world) => {
+    const playerCount = playerCountPerWorld.get(world.id);
+    const worldItems = Array.from(items.values()).filter(
+      (item) => item.worldId === world.id
+    );
 
-  const itemCounts = {};
-  for (const [type] of Object.entries(ITEM_CONFIG)) {
-    itemCounts[type] = Array.from(items.values()).filter(
-      (item) => item.type === type
-    ).length;
-  }
+    const itemCounts = {};
+    for (const [type] of Object.entries(ITEM_CONFIG)) {
+      itemCounts[type] = worldItems.filter((item) => item.type === type).length;
+    }
 
-  const rareItems = Object.entries(ITEM_CONFIG)
-    .filter(([_, config]) => config.rarity === 1)
-    .map(([type]) => type);
-  const mediumItems = Object.entries(ITEM_CONFIG)
-    .filter(([_, config]) => config.rarity === 2)
-    .map(([type]) => type);
-  const commonItems = Object.entries(ITEM_CONFIG)
-    .filter(([_, config]) => config.rarity === 3)
-    .map(([type]) => type);
+    const rareItems = Object.entries(ITEM_CONFIG)
+      .filter(([_, config]) => config.rarity === 1)
+      .map(([type]) => type);
+    const mediumItems = Object.entries(ITEM_CONFIG)
+      .filter(([_, config]) => config.rarity === 2)
+      .map(([type]) => type);
+    const commonItems = Object.entries(ITEM_CONFIG)
+      .filter(([_, config]) => config.rarity === 3)
+      .map(([type]) => type);
 
-  const desiredTotalItems = playerCount * 10;
-  const currentTotalItems = Array.from(items.values()).length;
+    const desiredTotalItems = playerCount * 10;
+    const currentTotalItems = worldItems.length;
 
-  if (currentTotalItems < desiredTotalItems) {
-    const itemsToSpawn = desiredTotalItems - currentTotalItems;
+    if (currentTotalItems < desiredTotalItems) {
+      const itemsToSpawn = desiredTotalItems - currentTotalItems;
 
-    let rareCount = playerCount * 2;
-    let mediumCount = playerCount * 3;
-    let commonCount = playerCount * 5;
+      let rareCount = playerCount * 2;
+      let mediumCount = playerCount * 3;
+      let commonCount = playerCount * 5;
 
-    for (let i = 0; i < itemsToSpawn; i++) {
-      let type;
-      if (
-        rareCount > 0 &&
-        rareItems.length > 0 &&
-        itemCounts[rareItems[rareCount % rareItems.length]] < rareCount
-      ) {
-        type = rareItems[Math.floor(Math.random() * rareItems.length)];
-        rareCount--;
-      } else if (
-        mediumCount > 0 &&
-        mediumItems.length > 0 &&
-        itemCounts[mediumItems[mediumCount % mediumItems.length]] < mediumCount
-      ) {
-        type = mediumItems[Math.floor(Math.random() * mediumItems.length)];
-        mediumCount--;
-      } else if (
-        commonCount > 0 &&
-        commonItems.length > 0 &&
-        itemCounts[commonItems[commonCount % commonItems.length]] < commonCount
-      ) {
-        type = commonItems[Math.floor(Math.random() * commonItems.length)];
-        commonCount--;
-      } else {
-        const allTypes = Object.keys(ITEM_CONFIG);
-        type = allTypes[Math.floor(Math.random() * allTypes.length)];
-      }
+      for (let i = 0; i < itemsToSpawn; i++) {
+        let type;
+        if (
+          rareCount > 0 &&
+          rareItems.length > 0 &&
+          itemCounts[rareItems[rareCount % rareItems.length]] < rareCount
+        ) {
+          type = rareItems[Math.floor(Math.random() * rareItems.length)];
+          rareCount--;
+        } else if (
+          mediumCount > 0 &&
+          mediumItems.length > 0 &&
+          itemCounts[mediumItems[mediumCount % mediumItems.length]] <
+            mediumCount
+        ) {
+          type = mediumItems[Math.floor(Math.random() * mediumItems.length)];
+          mediumCount--;
+        } else if (
+          commonCount > 0 &&
+          commonItems.length > 0 &&
+          itemCounts[commonItems[commonCount % commonItems.length]] <
+            commonCount
+        ) {
+          type = commonItems[Math.floor(Math.random() * commonItems.length)];
+          commonCount--;
+        } else {
+          const allTypes = Object.keys(ITEM_CONFIG);
+          type = allTypes[Math.floor(Math.random() * allTypes.length)];
+        }
 
-      let x,
-        y,
-        attempts = 0;
-      const maxAttempts = 10;
-      do {
-        x = Math.random() * worldWidth;
-        y = Math.random() * worldHeight;
-        attempts++;
-      } while (checkCollisionServer(x, y) && attempts < maxAttempts);
-
-      if (attempts < maxAttempts) {
-        const itemId = `${type}_${Date.now()}_${i}`;
-        const newItem = {
-          x,
+        let x,
           y,
-          type,
-          spawnTime: currentTime,
-        };
-        items.set(itemId, newItem);
-        console.log(
-          `Создан предмет ${type} (${itemId}) на x:${newItem.x}, y:${newItem.y}`
-        );
+          attempts = 0;
+        const maxAttempts = 10;
+        do {
+          x = Math.random() * world.width;
+          y = Math.random() * world.height;
+          attempts++;
+        } while (checkCollisionServer(x, y) && attempts < maxAttempts);
 
-        wss.clients.forEach((client) => {
-          if (client.readyState === WebSocket.OPEN) {
-            client.send(
-              JSON.stringify({
-                type: "newItem",
-                itemId: itemId,
-                x: newItem.x,
-                y: newItem.y,
-                type: newItem.type,
-                spawnTime: newItem.spawnTime,
-              })
-            );
-          }
-        });
-      } else {
-        console.log(`Не удалось найти место для спавна предмета ${type}`);
+        if (attempts < maxAttempts) {
+          const itemId = `${type}_${Date.now()}_${i}`;
+          const newItem = {
+            x,
+            y,
+            type,
+            spawnTime: currentTime,
+            worldId: world.id,
+          };
+          items.set(itemId, newItem);
+          console.log(
+            `Создан предмет ${type} (${itemId}) в мире ${world.id} на x:${newItem.x}, y:${newItem.y}`
+          );
+
+          wss.clients.forEach((client) => {
+            if (
+              client.readyState === WebSocket.OPEN &&
+              players.get(clients.get(client))?.worldId === world.id
+            ) {
+              client.send(
+                JSON.stringify({
+                  type: "newItem",
+                  itemId: itemId,
+                  x: newItem.x,
+                  y: newItem.y,
+                  type: newItem.type,
+                  spawnTime: newItem.spawnTime,
+                  worldId: world.id,
+                })
+              );
+            }
+          });
+        } else {
+          console.log(
+            `Не удалось найти место для спавна предмета ${type} в мире ${world.id}`
+          );
+        }
       }
     }
-  }
 
-  const allItems = Array.from(items.entries()).map(([itemId, item]) => ({
-    itemId,
-    x: item.x,
-    y: item.y,
-    type: item.type,
-    spawnTime: item.spawnTime,
-  }));
-  wss.clients.forEach((client) => {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(
-        JSON.stringify({
-          type: "syncItems",
-          items: allItems,
-        })
-      );
-    }
+    // Синхронизация предметов для игроков в этом мире
+    const allItems = Array.from(items.entries())
+      .filter(([_, item]) => item.worldId === world.id)
+      .map(([itemId, item]) => ({
+        itemId,
+        x: item.x,
+        y: item.y,
+        type: item.type,
+        spawnTime: item.spawnTime,
+        worldId: item.worldId,
+      }));
+    wss.clients.forEach((client) => {
+      if (
+        client.readyState === WebSocket.OPEN &&
+        players.get(clients.get(client))?.worldId === world.id
+      ) {
+        client.send(
+          JSON.stringify({
+            type: "syncItems",
+            items: allItems,
+            worldId: world.id,
+          })
+        );
+      }
+    });
   });
 }, 10 * 1000);
 
