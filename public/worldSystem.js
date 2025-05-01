@@ -52,10 +52,10 @@ const worldSystem = {
     this.worlds[1].rocksImage.src = "toxic_jungle_rocks.png";
     this.worlds[1].cloudsImage.src = "toxic_jungle_clouds.png";
 
-    this.worlds[1].backgroundImage.src = "neon_city_background.png";
-    this.worlds[1].vegetationImage.src = "neon_city_vegetation.png";
-    this.worlds[1].rocksImage.src = "neon_city_rocks.png";
-    this.worlds[1].cloudsImage.src = "neon_city_clouds.png";
+    this.worlds[2].backgroundImage.src = "neon_city_background.png";
+    this.worlds[2].vegetationImage.src = "neon_city_vegetation.png";
+    this.worlds[2].rocksImage.src = "neon_city_rocks.png";
+    this.worlds[2].cloudsImage.src = "neon_city_clouds.png";
 
     // Отслеживаем загрузку изображений
     let imagesLoaded = 0;
