@@ -47,15 +47,15 @@ const worldSystem = {
     this.worlds[0].rocksImage.src = "rocks.png";
     this.worlds[0].cloudsImage.src = "clouds.png";
 
+    this.worlds[1].backgroundImage.src = "toxic_jungle_background.png";
+    this.worlds[1].vegetationImage.src = "toxic_jungle_vegetation.png";
+    this.worlds[1].rocksImage.src = "toxic_jungle_rocks.png";
+    this.worlds[1].cloudsImage.src = "toxic_jungle_clouds.png";
+
     this.worlds[1].backgroundImage.src = "neon_city_background.png";
     this.worlds[1].vegetationImage.src = "neon_city_vegetation.png";
     this.worlds[1].rocksImage.src = "neon_city_rocks.png";
     this.worlds[1].cloudsImage.src = "neon_city_clouds.png";
-
-    this.worlds[2].backgroundImage.src = "toxic_jungle_background.png";
-    this.worlds[2].vegetationImage.src = "toxic_jungle_vegetation.png";
-    this.worlds[2].rocksImage.src = "toxic_jungle_rocks.png";
-    this.worlds[2].cloudsImage.src = "toxic_jungle_clouds.png";
 
     // Отслеживаем загрузку изображений
     let imagesLoaded = 0;
@@ -75,10 +75,10 @@ const worldSystem = {
     });
 
     // Создаём тестовые зоны перехода
-    this.createTransitionZone(600, 3100, 400, 1, 0); // Переход из мира 0 в мир 1
-    this.createTransitionZone(1500, 1500, 400, 0, 1); // Переход из мира 1 в мир 0
-    this.createTransitionZone(1200, 1200, 400, 2, 1); // Переход из мира 1 в мир 2
-    this.createTransitionZone(1800, 1800, 400, 1, 2); // Переход из мира 2 в мир 1
+    this.createTransitionZone(600, 3100, 1000, 1, 0); // Переход из мира 0 в мир 1
+    this.createTransitionZone(1500, 1500, 1000, 0, 1); // Переход из мира 1 в мир 0
+    this.createTransitionZone(1200, 1200, 1000, 2, 1); // Переход из мира 1 в мир 2
+    this.createTransitionZone(1800, 1800, 1000, 1, 2); // Переход из мира 2 в мир 1
   },
 
   // Функция создания зоны перехода
