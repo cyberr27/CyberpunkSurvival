@@ -415,7 +415,14 @@ function handleAuthMessage(event) {
       }
       if (data.lights) {
         lights.length = 0;
-        data.lights.forEach((light) => lights.push(light));
+        data.lights.forEach((light) =>
+          lights.push({
+            ...light,
+            baseRadius: light.radius,
+            pulseSpeed: 0.001, // Устанавливаем скорость пульсации по умолчанию
+          })
+        );
+        console.log(`Загружено ${lights.length} источников света при логине`);
       }
       inventory = data.inventory || Array(20).fill(null);
       window.npcSystem.setNPCMet(data.npcMet || false);
@@ -477,7 +484,7 @@ function updateOnlineCount() {
 
 function startGame() {
   window.worldSystem.initialize();
-  initializeLights(); // Инициализируем источники света
+  window.lightsSystem.initialize(); // Инициализируем источники света
   updateOnlineCount();
   levelSystem.initialize(); // Инициализируем систему уровней
   window.vendingMachine.initialize();
@@ -1097,7 +1104,7 @@ function handleGameMessage(event) {
             items.delete(itemId);
           }
         });
-
+        window.lightsSystem.initialize(); // Реинициализируем свет после перехода
         break;
       case "newPlayer":
         if (
@@ -1354,31 +1361,7 @@ function draw(deltaTime) {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
 
-  lights.forEach((light) => {
-    const screenX = light.x - window.movementSystem.getCamera().x;
-    const screenY = light.y - window.movementSystem.getCamera().y;
-    if (
-      screenX + light.radius > 0 &&
-      screenX - light.radius < canvas.width &&
-      screenY + light.radius > 0 &&
-      screenY - light.radius < canvas.height
-    ) {
-      const gradient = ctx.createRadialGradient(
-        screenX,
-        screenY,
-        0,
-        screenX,
-        screenY,
-        light.radius
-      );
-      gradient.addColorStop(0, light.color);
-      gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
-      ctx.fillStyle = gradient;
-      ctx.beginPath();
-      ctx.arc(screenX, screenY, light.radius, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  });
+  window.lightsSystem.draw(deltaTime);
 
   if (currentWorld.rocksImage.complete) {
     ctx.drawImage(
