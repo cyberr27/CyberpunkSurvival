@@ -1090,16 +1090,14 @@ function handleGameMessage(event) {
 
     switch (data.type) {
       case "worldTransitionSuccess":
-        me = players.get(myId);
-        if (me) {
-          window.worldSystem.switchWorld(data.worldId, me, data.x, data.y);
-          // Очищаем предметы из других миров
-          items.forEach((item, itemId) => {
-            if (item.worldId !== data.worldId) {
-              items.delete(itemId);
-            }
-          });
-        }
+        window.worldSystem.switchWorld(data.worldId, me, data.x, data.y);
+        // Очищаем предметы из других миров
+        items.forEach((item, itemId) => {
+          if (item.worldId !== data.worldId) {
+            items.delete(itemId);
+          }
+        });
+
         break;
       case "newPlayer":
         if (
