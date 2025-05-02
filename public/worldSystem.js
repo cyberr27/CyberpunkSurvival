@@ -75,10 +75,10 @@ const worldSystem = {
     });
 
     // Создаём тестовые зоны перехода
-    this.createTransitionZone(600, 3100, 1000, 1, 0); // Переход из мира 0 в мир 1
-    this.createTransitionZone(1500, 1500, 1000, 0, 1); // Переход из мира 1 в мир 0
-    this.createTransitionZone(1200, 1200, 1000, 2, 1); // Переход из мира 1 в мир 2
-    this.createTransitionZone(1800, 1800, 1000, 1, 2); // Переход из мира 2 в мир 1
+    this.createTransitionZone(600, 3100, 500, 1, 0); // Переход из мира 0 в мир 1
+    this.createTransitionZone(1500, 1500, 500, 0, 1); // Переход из мира 1 в мир 0
+    this.createTransitionZone(1200, 1200, 500, 2, 1); // Переход из мира 1 в мир 2
+    this.createTransitionZone(1800, 1800, 500, 1, 2); // Переход из мира 2 в мир 1
   },
 
   // Функция создания зоны перехода
