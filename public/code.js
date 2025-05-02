@@ -21,7 +21,6 @@ let players = new Map();
 let myId;
 const items = new Map();
 const pendingPickups = new Set();
-let lights = [];
 
 // Загрузка изображений
 const playerSprite = new Image();
