@@ -119,14 +119,23 @@ const worldSystem = {
       const dy = playerY - zone.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
       if (distance < zone.radius) {
-        this.switchWorld(zone.targetWorldId, me);
+        // Отправляем серверу сообщение о переходе
+        sendWhenReady(
+          ws,
+          JSON.stringify({
+            type: "worldTransition",
+            targetWorldId: zone.targetWorldId,
+            x: playerX,
+            y: playerY,
+          })
+        );
         break;
       }
     }
   },
 
   // Переключение мира
-  switchWorld(targetWorldId, player) {
+  switchWorld(targetWorldId, player, newX, newY) {
     if (targetWorldId === this.currentWorldId) return;
     if (!this.worlds.find((world) => world.id === targetWorldId)) {
       console.error(`Попытка перейти в несуществующий мир ${targetWorldId}`);
@@ -143,8 +152,11 @@ const worldSystem = {
     this.currentWorldId = targetWorldId;
     const newWorld = this.worlds[targetWorldId];
 
-    // Проверяем, есть ли сохранённые координаты для нового мира
-    if (
+    // Устанавливаем координаты
+    if (newX !== undefined && newY !== undefined) {
+      player.x = newX;
+      player.y = newY;
+    } else if (
       player.worldPositions &&
       player.worldPositions[targetWorldId] &&
       player.worldPositions[targetWorldId].x !== undefined &&
@@ -153,52 +165,36 @@ const worldSystem = {
       player.x = player.worldPositions[targetWorldId].x;
       player.y = player.worldPositions[targetWorldId].y;
     } else {
-      // Если координат нет, перемещаем игрока в центр нового мира
       player.x = newWorld.width / 2;
       player.y = newWorld.height / 2;
-      // Сохраняем координаты
-      if (!player.worldPositions) player.worldPositions = {};
-      player.worldPositions[targetWorldId] = { x: player.x, y: player.y };
     }
 
-    // Очищаем данные о других игроках и предметах из других миров
-    players.forEach((p, id) => {
-      if (id !== myId && p.worldId !== targetWorldId) {
-        players.delete(id);
-      }
-    });
-    items.forEach((item, itemId) => {
-      if (item.worldId !== targetWorldId) {
-        items.delete(itemId);
-      }
-    });
+    // Сохраняем координаты
+    if (!player.worldPositions) player.worldPositions = {};
+    player.worldPositions[targetWorldId] = { x: player.x, y: player.y };
 
-    // Обновляем данные игрока на сервере
-    sendWhenReady(
-      ws,
-      JSON.stringify({
-        type: "move",
-        x: player.x,
-        y: player.y,
-        health: player.health,
-        energy: player.energy,
-        food: player.food,
-        water: player.water,
-        armor: player.armor,
-        distanceTraveled: player.distanceTraveled,
-        direction: player.direction,
-        state: player.state,
-        frame: player.frame,
-        worldId: targetWorldId,
-      })
-    );
+    // Обновляем worldId игрока
+    player.worldId = targetWorldId;
+
+    // Запрашиваем синхронизацию игроков
+    this.syncPlayers();
+
+    // Эффект перехода
+    this.showTransitionEffect();
 
     console.log(
       `Игрок ${player.id} перешёл в мир ${newWorld.name} (ID: ${targetWorldId}) на координаты x=${player.x}, y=${player.y}`
     );
+  },
 
-    // Эффект перехода (затемнение экрана)
-    this.showTransitionEffect();
+  syncPlayers() {
+    sendWhenReady(
+      ws,
+      JSON.stringify({
+        type: "syncPlayers",
+        worldId: this.currentWorldId,
+      })
+    );
   },
 
   // Получение текущего мира

@@ -1087,16 +1087,33 @@ function handleGameMessage(event) {
   try {
     const data = JSON.parse(event.data);
     const currentWorldId = window.worldSystem.currentWorldId;
+    const me = players.get(myId);
     switch (data.type) {
+      case "worldTransitionSuccess":
+        if (me) {
+          window.worldSystem.switchWorld(data.worldId, me, data.x, data.y);
+          // Очищаем предметы из других миров
+          items.forEach((item, itemId) => {
+            if (item.worldId !== data.worldId) {
+              items.delete(itemId);
+            }
+          });
+        }
+        break;
       case "newPlayer":
-        if (data.player.worldId === currentWorldId) {
+        if (
+          data.player.worldId === currentWorldId &&
+          !players.has(data.player.id)
+        ) {
           players.set(data.player.id, { ...data.player, frameTime: 0 });
           updateOnlineCount();
         }
         break;
       case "playerLeft":
-        players.delete(data.id);
-        updateOnlineCount();
+        if (players.has(data.id)) {
+          players.delete(data.id);
+          updateOnlineCount();
+        }
         break;
       case "syncItems":
         items.clear();

@@ -293,6 +293,91 @@ wss.on("connection", (ws) => {
       console.error("Неверный JSON:", e);
       return;
     }
+
+    if (data.type === "worldTransition") {
+      const id = clients.get(ws);
+      if (id) {
+        const player = players.get(id);
+        const oldWorldId = player.worldId;
+        const targetWorldId = data.targetWorldId;
+
+        if (!worlds.find((w) => w.id === targetWorldId)) {
+          console.error(`Мир с ID ${targetWorldId} не существует`);
+          return;
+        }
+
+        // Обновляем данные игрока
+        player.worldId = targetWorldId;
+        player.x = data.x;
+        player.y = data.y;
+        player.worldPositions[targetWorldId] = { x: data.x, y: data.y };
+
+        players.set(id, { ...player });
+        userDatabase.set(id, { ...player });
+        await saveUserDatabase(dbCollection, id, player);
+
+        // Уведомляем игроков в старом мире об уходе
+        wss.clients.forEach((client) => {
+          if (client.readyState === WebSocket.OPEN) {
+            const clientPlayer = players.get(clients.get(client));
+            if (clientPlayer && clientPlayer.worldId === oldWorldId) {
+              client.send(
+                JSON.stringify({
+                  type: "playerLeft",
+                  id: id,
+                })
+              );
+            }
+          }
+        });
+
+        // Уведомляем игроков в новом мире о появлении
+        wss.clients.forEach((client) => {
+          if (client.readyState === WebSocket.OPEN) {
+            const clientPlayer = players.get(clients.get(client));
+            if (clientPlayer && clientPlayer.worldId === targetWorldId) {
+              client.send(
+                JSON.stringify({
+                  type: "newPlayer",
+                  player: player,
+                })
+              );
+            }
+          }
+        });
+
+        // Отправляем клиенту подтверждение перехода
+        ws.send(
+          JSON.stringify({
+            type: "worldTransitionSuccess",
+            worldId: targetWorldId,
+            x: player.x,
+            y: player.y,
+          })
+        );
+
+        console.log(
+          `Игрок ${id} перешёл из мира ${oldWorldId} в мир ${targetWorldId}`
+        );
+      }
+    } else if (data.type === "syncPlayers") {
+      const id = clients.get(ws);
+      if (id) {
+        const player = players.get(id);
+        const worldId = data.worldId;
+        const worldPlayers = Array.from(players.values()).filter(
+          (p) => p.id !== id && p.worldId === worldId
+        );
+        ws.send(
+          JSON.stringify({
+            type: "syncPlayers",
+            players: worldPlayers,
+          })
+        );
+        console.log(`Отправлен список игроков в мире ${worldId} для ${id}`);
+      }
+    }
+
     if (data.type === "register") {
       if (userDatabase.has(data.username)) {
         ws.send(JSON.stringify({ type: "registerFail" }));
