@@ -42,20 +42,20 @@ const worldSystem = {
   // Инициализация системы миров
   initialize() {
     // Устанавливаем пути к изображениям для каждого мира
-    this.worlds[0].backgroundImage.src = "backgr.png";
-    this.worlds[0].vegetationImage.src = "vegetation.png";
-    this.worlds[0].rocksImage.src = "rocks.png";
-    this.worlds[0].cloudsImage.src = "clouds.png";
+    this.worlds[2].backgroundImage.src = "backgr.png";
+    this.worlds[2].vegetationImage.src = "vegetation.png";
+    this.worlds[2].rocksImage.src = "rocks.png";
+    this.worlds[2].cloudsImage.src = "clouds.png";
 
     this.worlds[1].backgroundImage.src = "toxic_jungle_background.png";
     this.worlds[1].vegetationImage.src = "toxic_jungle_vegetation.png";
     this.worlds[1].rocksImage.src = "toxic_jungle_rocks.png";
     this.worlds[1].cloudsImage.src = "toxic_jungle_clouds.png";
 
-    this.worlds[2].backgroundImage.src = "neon_city_background.png";
-    this.worlds[2].vegetationImage.src = "neon_city_vegetation.png";
-    this.worlds[2].rocksImage.src = "neon_city_rocks.png";
-    this.worlds[2].cloudsImage.src = "neon_city_clouds.png";
+    this.worlds[0].backgroundImage.src = "neon_city_background.png";
+    this.worlds[0].vegetationImage.src = "neon_city_vegetation.png";
+    this.worlds[0].rocksImage.src = "neon_city_rocks.png";
+    this.worlds[0].cloudsImage.src = "neon_city_clouds.png";
 
     // Отслеживаем загрузку изображений
     let imagesLoaded = 0;
