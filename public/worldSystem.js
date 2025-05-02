@@ -161,6 +161,18 @@ const worldSystem = {
       player.worldPositions[targetWorldId] = { x: player.x, y: player.y };
     }
 
+    // Очищаем данные о других игроках и предметах из других миров
+    players.forEach((p, id) => {
+      if (id !== myId && p.worldId !== targetWorldId) {
+        players.delete(id);
+      }
+    });
+    items.forEach((item, itemId) => {
+      if (item.worldId !== targetWorldId) {
+        items.delete(itemId);
+      }
+    });
+
     // Обновляем данные игрока на сервере
     sendWhenReady(
       ws,

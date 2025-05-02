@@ -550,7 +550,7 @@ function startGame() {
             inventory[i]
           ) {
             console.log(
-              `Клик по слоту ${i} (x:${e.clientX}, y:${e.clientY}), предмет: ${inventory[i].type}`
+              `Клик по слоту ${i} (x:${touch.clientX}, y:${touch.clientY}), предмет: ${inventory[i].type}`
             );
             selectSlot(i, slots[i]);
             return;
@@ -563,9 +563,14 @@ function startGame() {
         const camera = window.movementSystem.getCamera();
         const worldX = e.clientX + window.movementSystem.getCamera().x;
         const worldY = e.clientY + window.movementSystem.getCamera().y;
+        const currentWorldId = window.worldSystem.currentWorldId;
         let selectedPlayerId = null;
         players.forEach((player, id) => {
-          if (id !== myId && player.health > 0) {
+          if (
+            id !== myId &&
+            player.health > 0 &&
+            player.worldId === currentWorldId
+          ) {
             const dx = worldX - (player.x + 20);
             const dy = worldY - (player.y + 20);
             if (Math.sqrt(dx * dx + dy * dy) < 40) {
@@ -573,7 +578,7 @@ function startGame() {
             }
           }
         });
-        window.tradeSystem.selectPlayer(selectedPlayerId); // Убрали !!selectedPlayerId
+        window.tradeSystem.selectPlayer(selectedPlayerId);
       }
     }
   });
@@ -619,9 +624,14 @@ function startGame() {
       const camera = window.movementSystem.getCamera();
       const worldX = touch.clientX + window.movementSystem.getCamera().x;
       const worldY = touch.clientY + window.movementSystem.getCamera().y;
+      const currentWorldId = window.worldSystem.currentWorldId;
       let selectedPlayerId = null;
       players.forEach((player, id) => {
-        if (id !== myId && player.health > 0) {
+        if (
+          id !== myId &&
+          player.health > 0 &&
+          player.worldId === currentWorldId
+        ) {
           const dx = worldX - (player.x + 20);
           const dy = worldY - (player.y + 20);
           if (Math.sqrt(dx * dx + dy * dy) < 40) {
@@ -629,7 +639,7 @@ function startGame() {
           }
         }
       });
-      window.tradeSystem.selectPlayer(selectedPlayerId); // Убрали !!selectedPlayerId
+      window.tradeSystem.selectPlayer(selectedPlayerId);
     }
   });
 
@@ -1076,10 +1086,13 @@ function updateInventoryDisplay() {
 function handleGameMessage(event) {
   try {
     const data = JSON.parse(event.data);
+    const currentWorldId = window.worldSystem.currentWorldId;
     switch (data.type) {
       case "newPlayer":
-        players.set(data.player.id, { ...data.player, frameTime: 0 });
-        updateOnlineCount();
+        if (data.player.worldId === currentWorldId) {
+          players.set(data.player.id, { ...data.player, frameTime: 0 });
+          updateOnlineCount();
+        }
         break;
       case "playerLeft":
         players.delete(data.id);
@@ -1087,15 +1100,17 @@ function handleGameMessage(event) {
         break;
       case "syncItems":
         items.clear();
-        data.items.forEach((item) =>
-          items.set(item.itemId, {
-            x: item.x,
-            y: item.y,
-            type: item.type,
-            spawnTime: item.spawnTime,
-            worldId: item.worldId,
-          })
-        );
+        data.items.forEach((item) => {
+          if (item.worldId === currentWorldId) {
+            items.set(item.itemId, {
+              x: item.x,
+              y: item.y,
+              type: item.type,
+              spawnTime: item.spawnTime,
+              worldId: item.worldId,
+            });
+          }
+        });
         data.items.forEach((item) => {
           if (pendingPickups.has(item.itemId)) {
             console.log(
@@ -1163,12 +1178,16 @@ function handleGameMessage(event) {
         pendingPickups.delete(data.itemId);
         break;
       case "update":
-        const existingPlayer = players.get(data.player.id);
-        players.set(data.player.id, {
-          ...existingPlayer,
-          ...data.player,
-          frameTime: existingPlayer.frameTime || 0,
-        });
+        if (data.player.worldId === currentWorldId) {
+          const existingPlayer = players.get(data.player.id);
+          players.set(data.player.id, {
+            ...existingPlayer,
+            ...data.player,
+            frameTime: existingPlayer.frameTime || 0,
+          });
+        } else if (data.player.id !== myId) {
+          players.delete(data.player.id); // Удаляем игрока, если он в другом мире
+        }
         if (data.player.id === myId) {
           inventory = data.player.inventory || inventory;
           setNPCMet(data.player.npcMet || false);
@@ -1178,22 +1197,24 @@ function handleGameMessage(event) {
             data.player.maxStats || levelSystem.maxStats,
             data.player.upgradePoints || 0
           );
-          updateStatsDisplay(); // Добавьте здесь
+          updateStatsDisplay();
           updateInventoryDisplay();
         }
         break;
       case "itemDropped":
-        console.log(
-          `Получено itemDropped: itemId=${data.itemId}, type=${data.type}, x=${data.x}, y=${data.y}, worldId=${data.worldId}`
-        );
-        items.set(data.itemId, {
-          x: data.x,
-          y: data.y,
-          type: data.type,
-          spawnTime: data.spawnTime,
-          worldId: data.worldId,
-        });
-        updateInventoryDisplay();
+        if (data.worldId === currentWorldId) {
+          console.log(
+            `Получено itemDropped: itemId=${data.itemId}, type=${data.type}, x=${data.x}, y=${data.y}, worldId=${data.worldId}`
+          );
+          items.set(data.itemId, {
+            x: data.x,
+            y: data.y,
+            type: data.type,
+            spawnTime: data.spawnTime,
+            worldId: data.worldId,
+          });
+          updateInventoryDisplay();
+        }
         break;
       case "chat":
         window.chatSystem.handleChatMessage(data);
@@ -1248,9 +1269,11 @@ function update(deltaTime) {
   // Проверяем зоны перехода
   window.worldSystem.checkTransitionZones(me.x, me.y);
 
-  // Удаление предметов по таймауту
+  // Удаление предметов по таймауту и отрисовка только для текущего мира
   const currentTime = Date.now();
+  const currentWorldId = window.worldSystem.currentWorldId;
   items.forEach((item, itemId) => {
+    if (item.worldId !== currentWorldId) return; // Пропускаем предметы из других миров
     const camera = window.movementSystem.getCamera();
     const screenX = item.x - window.movementSystem.getCamera().x;
     const screenY = item.y - window.movementSystem.getCamera().y;
@@ -1280,6 +1303,7 @@ function draw(deltaTime) {
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   const currentWorld = window.worldSystem.getCurrentWorld();
+  const currentWorldId = window.worldSystem.currentWorldId;
   const groundSpeed = 1.0,
     vegetationSpeed = 0.8,
     rocksSpeed = 0.6,
@@ -1359,6 +1383,7 @@ function draw(deltaTime) {
   window.vendingMachine.draw();
 
   players.forEach((player) => {
+    if (player.worldId !== currentWorldId) return; // Пропускаем игроков из других миров
     const screenX = player.x - window.movementSystem.getCamera().x;
     const screenY = player.y - window.movementSystem.getCamera().y;
 
@@ -1366,7 +1391,7 @@ function draw(deltaTime) {
       if (player.state === "walking") {
         player.frameTime += deltaTime;
         if (player.frameTime >= GAME_CONFIG.FRAME_DURATION / 7) {
-          player.frameTime -= GAME_CONFIG.FRAME_DURATION / 7; // Плавное вычитание
+          player.frameTime -= GAME_CONFIG.FRAME_DURATION / 7;
           player.frame = (player.frame + 1) % 7;
         }
       } else if (player.state === "dying") {
@@ -1409,6 +1434,7 @@ function draw(deltaTime) {
   });
 
   items.forEach((item, itemId) => {
+    if (item.worldId !== currentWorldId) return; // Пропускаем предметы из других миров
     if (!items.has(itemId)) {
       console.log(
         `Предмет ${itemId} пропущен при отрисовке, так как уже удалён`
@@ -1417,7 +1443,6 @@ function draw(deltaTime) {
     }
     const screenX = item.x - window.movementSystem.getCamera().x;
     const screenY = item.y - window.movementSystem.getCamera().y;
-    // Уменьшаем область проверки видимости, так как размер теперь 20x20
     if (
       screenX >= -20 &&
       screenX <= canvas.width + 20 &&
@@ -1426,11 +1451,8 @@ function draw(deltaTime) {
     ) {
       const itemImage = ITEM_CONFIG[item.type]?.image;
       if (itemImage && itemImage.complete) {
-        // Меняем размер отрисовки с 40x40 на 20x20 и корректируем позицию,
-        // чтобы центр предмета оставался на месте
         ctx.drawImage(itemImage, screenX + 10, screenY + 10, 20, 20);
       } else {
-        // Уменьшаем заглушку до 5x5 для согласованности
         ctx.fillStyle = "yellow";
         ctx.fillRect(screenX + 7.5, screenY + 7.5, 5, 5);
       }
@@ -1473,8 +1495,9 @@ function checkCollisions() {
   const me = players.get(myId);
   if (!me || me.health <= 0) return;
 
+  const currentWorldId = window.worldSystem.currentWorldId;
   items.forEach((item, id) => {
-    // Проверяем, существует ли предмет и не отправляли ли мы уже запрос
+    if (item.worldId !== currentWorldId) return; // Пропускаем предметы из других миров
     if (!items.has(id)) {
       console.log(`Предмет ${id} уже удалён из items, пропускаем`);
       return;
@@ -1485,7 +1508,6 @@ function checkCollisions() {
       );
       return;
     }
-    // Центр предмета теперь смещён, так как размер 20x20
     const dx = me.x + 20 - (item.x + 10);
     const dy = me.y + 20 - (item.y + 10);
     const distance = Math.sqrt(dx * dx + dy * dy);
@@ -1493,7 +1515,6 @@ function checkCollisions() {
       `Проверка столкновения с ${item.type} (ID: ${id}), расстояние: ${distance}`
     );
     if (distance < 30) {
-      // Уменьшено с 40 до 30
       console.log(
         `Игрок ${myId} пытается подобрать предмет ${item.type} (ID: ${id})`
       );

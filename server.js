@@ -389,17 +389,22 @@ wss.on("connection", (ws) => {
                 spawnTime: item.spawnTime,
                 worldId: item.worldId,
               })),
-            lights: lights.get(playerData.worldId).map(({ id, ...rest }) => rest),
+            lights: lights
+              .get(playerData.worldId)
+              .map(({ id, ...rest }) => rest),
           })
         );
         wss.clients.forEach((client) => {
           if (client !== ws && client.readyState === WebSocket.OPEN) {
-            client.send(
-              JSON.stringify({
-                type: "newPlayer",
-                player: players.get(data.username),
-              })
-            );
+            const clientPlayer = players.get(clients.get(client));
+            if (clientPlayer && clientPlayer.worldId === playerData.worldId) {
+              client.send(
+                JSON.stringify({
+                  type: "newPlayer",
+                  player: players.get(data.username),
+                })
+              );
+            }
           }
         });
       } else {
@@ -518,9 +523,15 @@ wss.on("connection", (ws) => {
         }
         wss.clients.forEach((client) => {
           if (client.readyState === WebSocket.OPEN) {
-            client.send(
-              JSON.stringify({ type: "update", player: updatedPlayer })
-            );
+            const clientPlayer = players.get(clients.get(client));
+            if (
+              clientPlayer &&
+              clientPlayer.worldId === updatedPlayer.worldId
+            ) {
+              client.send(
+                JSON.stringify({ type: "update", player: updatedPlayer })
+              );
+            }
           }
         });
       }
@@ -670,50 +681,58 @@ wss.on("connection", (ws) => {
 
       wss.clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN) {
-          client.send(
-            JSON.stringify({
-              type: "itemPicked",
-              itemId: data.itemId,
-              playerId: id,
-              item: {
-                type: item.type,
-                itemId: data.itemId,
-                quantity: item.quantity || 1,
-                isDroppedByPlayer: item.isDroppedByPlayer || false,
-              },
-            })
-          );
-          if (clients.get(client) === id) {
+          const clientPlayer = players.get(clients.get(client));
+          if (clientPlayer && clientPlayer.worldId === item.worldId) {
             client.send(
-              JSON.stringify({ type: "update", player: { id, ...player } })
+              JSON.stringify({
+                type: "itemPicked",
+                itemId: data.itemId,
+                playerId: id,
+                item: {
+                  type: item.type,
+                  itemId: data.itemId,
+                  quantity: item.quantity || 1,
+                  isDroppedByPlayer: item.isDroppedByPlayer || false,
+                },
+              })
             );
+            if (clients.get(client) === id) {
+              client.send(
+                JSON.stringify({ type: "update", player: { id, ...player } })
+              );
+            }
           }
         }
       });
 
       setTimeout(() => {
-        const worldWidth = 2800;
-        const worldHeight = 3300;
+        const worldWidth = worlds.find((w) => w.id === item.worldId).width;
+        const worldHeight = worlds.find((w) => w.id === item.worldId).height;
         const newItemId = `${item.type}_${Date.now()}`;
         const newItem = {
           x: Math.random() * worldWidth,
           y: Math.random() * worldHeight,
           type: item.type,
           spawnTime: Date.now(),
+          worldId: item.worldId,
         };
         items.set(newItemId, newItem);
         wss.clients.forEach((client) => {
           if (client.readyState === WebSocket.OPEN) {
-            client.send(
-              JSON.stringify({
-                type: "newItem",
-                itemId: newItemId,
-                x: newItem.x,
-                y: newItem.y,
-                type: newItem.type,
-                spawnTime: newItem.spawnTime,
-              })
-            );
+            const clientPlayer = players.get(clients.get(client));
+            if (clientPlayer && clientPlayer.worldId === item.worldId) {
+              client.send(
+                JSON.stringify({
+                  type: "newItem",
+                  itemId: newItemId,
+                  x: newItem.x,
+                  y: newItem.y,
+                  type: newItem.type,
+                  spawnTime: newItem.spawnTime,
+                  worldId: newItem.worldId,
+                })
+              );
+            }
           }
         });
       }, 10 * 60 * 1000);
@@ -844,31 +863,31 @@ wss.on("connection", (ws) => {
             userDatabase.set(id, { ...player });
             await saveUserDatabase(dbCollection, id, player);
             wss.clients.forEach((client) => {
-              if (
-                client.readyState === WebSocket.OPEN &&
-                players.get(clients.get(client))?.worldId === player.worldId
-              ) {
-                client.send(
-                  JSON.stringify({
-                    type: "itemDropped",
-                    itemId,
-                    x: dropX,
-                    y: dropY,
-                    type: item.type,
-                    spawnTime: Date.now(),
-                    quantity:
-                      item.type === "balyary" ? quantityToDrop : undefined,
-                    isDroppedByPlayer: true,
-                    worldId: player.worldId,
-                  })
-                );
-                if (clients.get(client) === id) {
+              if (client.readyState === WebSocket.OPEN) {
+                const clientPlayer = players.get(clients.get(client));
+                if (clientPlayer && clientPlayer.worldId === player.worldId) {
                   client.send(
                     JSON.stringify({
-                      type: "update",
-                      player: { id, ...player },
+                      type: "itemDropped",
+                      itemId,
+                      x: dropX,
+                      y: dropY,
+                      type: item.type,
+                      spawnTime: Date.now(),
+                      quantity:
+                        item.type === "balyary" ? quantityToDrop : undefined,
+                      isDroppedByPlayer: true,
+                      worldId: player.worldId,
                     })
                   );
+                  if (clients.get(client) === id) {
+                    client.send(
+                      JSON.stringify({
+                        type: "update",
+                        player: { id, ...player },
+                      })
+                    );
+                  }
                 }
               }
             });
