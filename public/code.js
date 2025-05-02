@@ -419,11 +419,12 @@ function handleAuthMessage(event) {
           lights.push({
             ...light,
             baseRadius: light.radius,
-            pulseSpeed: 0.001, // Устанавливаем скорость пульсации по умолчанию
+            pulseSpeed: 0.001,
           })
         );
         console.log(`Загружено ${lights.length} источников света при логине`);
       }
+      window.lightsSystem.reset(me.worldId); // Синхронизируем свет с текущим миром
       inventory = data.inventory || Array(20).fill(null);
       window.npcSystem.setNPCMet(data.npcMet || false);
       window.npcSystem.setSelectedQuest(data.selectedQuestId || null);
@@ -1097,14 +1098,34 @@ function handleGameMessage(event) {
 
     switch (data.type) {
       case "worldTransitionSuccess":
-        window.worldSystem.switchWorld(data.worldId, me, data.x, data.y);
-        // Очищаем предметы из других миров
-        items.forEach((item, itemId) => {
-          if (item.worldId !== data.worldId) {
-            items.delete(itemId);
+        {
+          const me = players.get(myId); // Получаем игрока из players
+          if (me) {
+            window.worldSystem.switchWorld(data.worldId, me, data.x, data.y);
+            // Очищаем предметы из других миров
+            items.forEach((item, itemId) => {
+              if (item.worldId !== data.worldId) {
+                items.delete(itemId);
+              }
+            });
+            // Реинициализируем свет
+            window.lightsSystem.reset(data.worldId);
+            // Обновляем данные света от сервера, если они есть
+            if (data.lights) {
+              lights.length = 0;
+              data.lights.forEach((light) =>
+                lights.push({
+                  ...light,
+                  baseRadius: light.radius,
+                  pulseSpeed: 0.001,
+                })
+              );
+              console.log(
+                `Загружено ${lights.length} источников света при переходе в мир ${data.worldId}`
+              );
+            }
           }
-        });
-        window.lightsSystem.initialize(); // Реинициализируем свет после перехода
+        }
         break;
       case "newPlayer":
         if (

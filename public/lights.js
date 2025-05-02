@@ -1,6 +1,13 @@
+let lights = []; // Глобальный массив источников света
+
+// Инициализация источников света
 function initializeLights() {
   lights.length = 0; // Очищаем массив перед инициализацией
-  if (window.worldSystem.currentWorldId !== 1) return; // Инициализируем только в "Неоновом Городе"
+
+  if (window.worldSystem.currentWorldId !== 1) {
+    console.log(`Свет отключён для мира ${window.worldSystem.currentWorldId}`);
+    return; // Инициализируем только в "Неоновом Городе"
+  }
 
   // Список источников света для "Неонового Города"
   const neonCityLights = [
@@ -151,8 +158,19 @@ function drawLights(deltaTime) {
   });
 }
 
+// Сброс и реинициализация света при смене мира
+function resetLights(worldId) {
+  lights.length = 0; // Очищаем массив света
+  if (worldId === 1) {
+    initializeLights(); // Инициализируем только для "Неонового Города"
+  } else {
+    console.log(`Свет очищен для мира ${worldId}`);
+  }
+}
+
 // Экспортируем функции
 window.lightsSystem = {
   initialize: initializeLights,
   draw: drawLights,
+  reset: resetLights,
 };

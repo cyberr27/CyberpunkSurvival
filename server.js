@@ -353,6 +353,7 @@ wss.on("connection", (ws) => {
             worldId: targetWorldId,
             x: player.x,
             y: player.y,
+            lights: lights.get(targetWorldId).map(({ id, ...rest }) => rest),
           })
         );
 
