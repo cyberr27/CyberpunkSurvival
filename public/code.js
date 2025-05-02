@@ -1087,9 +1087,10 @@ function handleGameMessage(event) {
   try {
     const data = JSON.parse(event.data);
     const currentWorldId = window.worldSystem.currentWorldId;
-    const me = players.get(myId);
+
     switch (data.type) {
       case "worldTransitionSuccess":
+        me = players.get(myId);
         if (me) {
           window.worldSystem.switchWorld(data.worldId, me, data.x, data.y);
           // Очищаем предметы из других миров
