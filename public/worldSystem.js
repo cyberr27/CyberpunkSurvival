@@ -186,15 +186,35 @@ const worldSystem = {
     }
     const currentPlayer = players.get(myId);
     if (currentPlayer) {
-      players.clear();
+      // Удаляем игроков, которые не в новом мире
+      Array.from(players.keys()).forEach((playerId) => {
+        if (playerId !== myId) {
+          const p = players.get(playerId);
+          if (p.worldId !== targetWorldId) {
+            players.delete(playerId);
+            console.log(
+              `Удалён игрок ${playerId} из players, так как он в другом мире (${p.worldId})`
+            );
+          }
+        }
+      });
       players.set(myId, { ...currentPlayer, ...player, frameTime: 0 });
       console.log(
-        `Список players очищен, сохранён игрок ${myId} в мире ${targetWorldId}:`,
+        `Обновлён игрок ${myId} в мире ${targetWorldId}:`,
         players.get(myId)
       );
     } else {
       console.warn(`Игрок ${myId} не найден в players, создаём новый`);
-      players.clear();
+      // Удаляем игроков, которые не в новом мире
+      Array.from(players.keys()).forEach((playerId) => {
+        const p = players.get(playerId);
+        if (p.worldId !== targetWorldId) {
+          players.delete(playerId);
+          console.log(
+            `Удалён игрок ${playerId} из players, так как он в другом мире (${p.worldId})`
+          );
+        }
+      });
       players.set(myId, { ...player, id: myId, frameTime: 0 });
       console.log(`Создан новый игрок ${myId} в players:`, players.get(myId));
     }
@@ -216,16 +236,26 @@ const worldSystem = {
       return;
     }
     if (ws && ws.readyState === WebSocket.OPEN) {
-      sendWhenReady(
-        ws,
-        JSON.stringify({
-          type: "syncPlayers",
-          worldId: this.currentWorldId,
-        })
+      // Проверяем, есть ли другие игроки в текущем мире
+      const otherPlayersInWorld = Array.from(players.values()).some(
+        (p) => p.id !== myId && p.worldId === this.currentWorldId
       );
-      console.log(
-        `Отправлен запрос syncPlayers для мира ${this.currentWorldId}, myId: ${myId}`
-      );
+      if (!otherPlayersInWorld) {
+        sendWhenReady(
+          ws,
+          JSON.stringify({
+            type: "syncPlayers",
+            worldId: this.currentWorldId,
+          })
+        );
+        console.log(
+          `Отправлен запрос syncPlayers для мира ${this.currentWorldId}, myId: ${myId}`
+        );
+      } else {
+        console.log(
+          `Синхронизация не требуется, в мире ${this.currentWorldId} уже есть игроки`
+        );
+      }
     } else {
       console.error("WebSocket не готов для отправки syncPlayers");
     }

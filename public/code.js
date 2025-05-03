@@ -1159,21 +1159,35 @@ function handleGameMessage(event) {
         }
         break;
       case "newPlayer":
-        if (
-          data.player &&
-          data.player.id &&
-          data.player.worldId === currentWorldId &&
-          !players.has(data.player.id) &&
-          typeof data.player === "object"
-        ) {
+        if (!data.player || typeof data.player !== "object") {
+          console.warn(
+            "newPlayer: Получены некорректные данные игрока:",
+            data.player
+          );
+          break;
+        }
+        if (!data.player.id) {
+          console.warn("newPlayer: Отсутствует ID игрока:", data.player);
+          break;
+        }
+        if (data.player.worldId !== currentWorldId) {
+          console.log(
+            `newPlayer: Игрок ${data.player.id} в другом мире (${data.player.worldId}), текущий мир: ${currentWorldId}, пропускаем`
+          );
+          break;
+        }
+        if (players.has(data.player.id)) {
+          console.log(
+            `newPlayer: Игрок ${data.player.id} уже существует в мире ${currentWorldId}, обновляем данные`
+          );
           players.set(data.player.id, { ...data.player, frameTime: 0 });
-          updateOnlineCount();
+        } else {
+          players.set(data.player.id, { ...data.player, frameTime: 0 });
           console.log(
             `Добавлен новый игрок ${data.player.id} в мире ${currentWorldId}`
           );
-        } else {
-          console.warn(`Пропущен некорректный newPlayer:`, data.player);
         }
+        updateOnlineCount();
         break;
       case "playerLeft":
         if (players.has(data.id)) {
