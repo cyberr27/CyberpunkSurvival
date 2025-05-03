@@ -9,7 +9,7 @@ const worldSystem = {
       vegetationImage: new Image(),
       rocksImage: new Image(),
       cloudsImage: new Image(),
-      name: "Пустоши",
+      name: "Неоновый Город",
     },
     {
       id: 1,
@@ -19,7 +19,7 @@ const worldSystem = {
       vegetationImage: new Image(),
       rocksImage: new Image(),
       cloudsImage: new Image(),
-      name: "Неоновый Город",
+      name: "Пустоши",
     },
     {
       id: 2,
