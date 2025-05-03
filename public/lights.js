@@ -4,7 +4,7 @@ let lights = []; // Глобальный массив источников св�
 function initializeLights() {
   lights.length = 0; // Очищаем массив перед инициализацией
 
-  if (window.worldSystem.currentWorldId !== 1) {
+  if (window.worldSystem.currentWorldId !== 0) {
     console.log(`Свет отключён для мира ${window.worldSystem.currentWorldId}`);
     return; // Инициализируем только в "Неоновом Городе"
   }
@@ -125,7 +125,7 @@ function initializeLights() {
 
 // Отрисовка источников света с анимацией пульсации
 function drawLights(deltaTime) {
-  if (window.worldSystem.currentWorldId !== 1) return; // Отрисовываем только в "Неоновом Городе"
+  if (window.worldSystem.currentWorldId !== 0) return; // Отрисовываем только в "Неоновом Городе"
 
   lights.forEach((light) => {
     // Анимация пульсации радиуса
@@ -161,7 +161,7 @@ function drawLights(deltaTime) {
 // Сброс и реинициализация света при смене мира
 function resetLights(worldId) {
   lights.length = 0; // Очищаем массив света
-  if (worldId === 1) {
+  if (worldId === 0) {
     initializeLights(); // Инициализируем только для "Неонового Города"
   } else {
     console.log(`Свет очищен для мира ${worldId}`);
