@@ -153,8 +153,8 @@ initializeServer()
   });
 
 const worlds = [
-  { id: 0, width: 3135, height: 3300, name: "Пустоши" },
-  { id: 1, width: 3135, height: 3300, name: "Неоновый Город" },
+  { id: 0, width: 3135, height: 3300, name: "Неоновый Город" },
+  { id: 1, width: 3135, height: 3300, name: "Пустоши" },
   { id: 2, width: 3135, height: 3300, name: "Токсичные Джунгли" },
 ];
 
