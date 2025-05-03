@@ -219,6 +219,9 @@ const worldSystem = {
       console.log(`Создан новый игрок ${myId} в players:`, players.get(myId));
     }
 
+    // Сбрасываем и инициализируем свет для нового мира
+    window.lightsSystem.reset(targetWorldId);
+
     // Запрашиваем синхронизацию игроков
     this.syncPlayers();
 

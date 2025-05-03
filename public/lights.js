@@ -125,12 +125,14 @@ function initializeLights() {
 
 // Отрисовка источников света с анимацией пульсации
 function drawLights(deltaTime) {
-  if (window.worldSystem.currentWorldId !== 0) return; // Отрисовываем только в "Неоновом Городе"
+  if (window.worldSystem.currentWorldId !== 0) {
+    return; // Отрисовываем только в "Неоновом Городе"
+  }
 
   lights.forEach((light) => {
     // Анимация пульсации радиуса
     light.radius =
-      light.baseRadius + Math.sin(Date.now() * light.pulseSpeed) * 50; // Радиус колеблется ±50
+      light.baseRadius + Math.sin(Date.now() * light.pulseSpeed) * 50;
 
     const screenX = light.x - window.movementSystem.getCamera().x;
     const screenY = light.y - window.movementSystem.getCamera().y;
