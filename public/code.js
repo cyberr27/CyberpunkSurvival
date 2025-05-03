@@ -1423,7 +1423,16 @@ function draw(deltaTime) {
   npcSystem.drawNPC();
   window.vendingMachine.draw();
 
-  players.forEach((player) => {
+  players.forEach((player, id) => {
+    if (
+      !player ||
+      typeof player !== "object" ||
+      !player.hasOwnProperty("worldId")
+    ) {
+      console.warn(`Некорректные данные игрока ${id} в players:`, player);
+      players.delete(id); // Удаляем некорректную запись
+      return;
+    }
     if (player.worldId !== currentWorldId) return; // Пропускаем игроков из других миров
     const screenX = player.x - window.movementSystem.getCamera().x;
     const screenY = player.y - window.movementSystem.getCamera().y;

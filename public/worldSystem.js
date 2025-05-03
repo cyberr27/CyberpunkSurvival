@@ -176,6 +176,18 @@ const worldSystem = {
     // Обновляем worldId игрока
     player.worldId = targetWorldId;
 
+    // Очищаем игроков из других миров, сохраняя текущего
+    const currentPlayer = players.get(myId);
+    if (currentPlayer) {
+      players.clear();
+      players.set(myId, { ...currentPlayer, ...player });
+      console.log(
+        `Очищен список players, сохранён игрок ${myId} в мире ${targetWorldId}`
+      );
+    } else {
+      console.warn(`Игрок ${myId} не найден в players перед очисткой`);
+    }
+
     // Запрашиваем синхронизацию игроков
     this.syncPlayers();
 
