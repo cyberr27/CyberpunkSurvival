@@ -136,7 +136,10 @@ const worldSystem = {
 
   // Переключение мира
   switchWorld(targetWorldId, player, newX, newY) {
-    if (targetWorldId === this.currentWorldId) return;
+    if (targetWorldId === this.currentWorldId) {
+      console.log(`Переход в тот же мир ${targetWorldId}, игнорируем`);
+      return;
+    }
     if (!this.worlds.find((world) => world.id === targetWorldId)) {
       console.error(`Попытка перейти в несуществующий мир ${targetWorldId}`);
       return;
@@ -176,16 +179,24 @@ const worldSystem = {
     // Обновляем worldId игрока
     player.worldId = targetWorldId;
 
-    // Очищаем игроков из других миров, сохраняя текущего
+    // Проверяем и обновляем текущего игрока в players
+    if (!myId) {
+      console.error("myId не определён при переходе в мир!");
+      return;
+    }
     const currentPlayer = players.get(myId);
     if (currentPlayer) {
       players.clear();
-      players.set(myId, { ...currentPlayer, ...player });
+      players.set(myId, { ...currentPlayer, ...player, frameTime: 0 });
       console.log(
-        `Очищен список players, сохранён игрок ${myId} в мире ${targetWorldId}`
+        `Список players очищен, сохранён игрок ${myId} в мире ${targetWorldId}:`,
+        players.get(myId)
       );
     } else {
-      console.warn(`Игрок ${myId} не найден в players перед очисткой`);
+      console.warn(`Игрок ${myId} не найден в players, создаём новый`);
+      players.clear();
+      players.set(myId, { ...player, id: myId, frameTime: 0 });
+      console.log(`Создан новый игрок ${myId} в players:`, players.get(myId));
     }
 
     // Запрашиваем синхронизацию игроков
@@ -200,6 +211,10 @@ const worldSystem = {
   },
 
   syncPlayers() {
+    if (!myId) {
+      console.error("myId не определён, синхронизация игроков невозможна");
+      return;
+    }
     if (ws && ws.readyState === WebSocket.OPEN) {
       sendWhenReady(
         ws,
@@ -209,7 +224,7 @@ const worldSystem = {
         })
       );
       console.log(
-        `Отправлен запрос syncPlayers для мира ${this.currentWorldId}`
+        `Отправлен запрос syncPlayers для мира ${this.currentWorldId}, myId: ${myId}`
       );
     } else {
       console.error("WebSocket не готов для отправки syncPlayers");

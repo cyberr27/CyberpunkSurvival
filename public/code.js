@@ -1101,20 +1101,30 @@ function handleGameMessage(event) {
           data.players &&
           data.worldId === window.worldSystem.currentWorldId
         ) {
-          players.clear(); // Очищаем текущий список игроков
-          players.set(myId, players.get(myId)); // Сохраняем данные текущего игрока
+          const myPlayer = players.get(myId);
+          players.clear();
+          if (myPlayer) {
+            players.set(myId, { ...myPlayer, frameTime: 0 });
+          } else {
+            console.warn(
+              `Игрок ${myId} не найден при синхронизации, пропускаем сохранение`
+            );
+          }
           data.players.forEach((p) => {
-            if (p.id !== myId) {
+            if (p && p.id && p.id !== myId && typeof p === "object") {
               players.set(p.id, { ...p, frameTime: 0 });
+            } else {
+              console.warn(`Пропущен некорректный игрок при синхронизации:`, p);
             }
           });
           updateOnlineCount();
           console.log(
-            `Синхронизировано ${data.players.length} игроков в мире ${data.worldId}`
+            `Синхронизировано ${data.players.length} игроков в мире ${data.worldId}, players:`,
+            Array.from(players.keys())
           );
         } else {
           console.warn(
-            `Получен syncPlayers для неверного мира ${data.worldId}`
+            `Получен syncPlayers для неверного мира ${data.worldId} или без игроков`
           );
         }
         break;
@@ -1150,11 +1160,19 @@ function handleGameMessage(event) {
         break;
       case "newPlayer":
         if (
+          data.player &&
+          data.player.id &&
           data.player.worldId === currentWorldId &&
-          !players.has(data.player.id)
+          !players.has(data.player.id) &&
+          typeof data.player === "object"
         ) {
           players.set(data.player.id, { ...data.player, frameTime: 0 });
           updateOnlineCount();
+          console.log(
+            `Добавлен новый игрок ${data.player.id} в мире ${currentWorldId}`
+          );
+        } else {
+          console.warn(`Пропущен некорректный newPlayer:`, data.player);
         }
         break;
       case "playerLeft":
@@ -1431,6 +1449,11 @@ function draw(deltaTime) {
     ) {
       console.warn(`Некорректные данные игрока ${id} в players:`, player);
       players.delete(id); // Удаляем некорректную запись
+      updateOnlineCount();
+      console.log(
+        `Удалён игрок ${id} из players, текущие игроки:`,
+        Array.from(players.keys())
+      );
       return;
     }
     if (player.worldId !== currentWorldId) return; // Пропускаем игроков из других миров
