@@ -294,6 +294,41 @@ wss.on("connection", (ws) => {
       return;
     }
 
+    if (data.type === "register") {
+      if (userDatabase.has(data.username)) {
+        ws.send(JSON.stringify({ type: "registerFail" }));
+      } else {
+        const newPlayer = {
+          id: data.username,
+          password: data.password,
+          x: 222,
+          y: 3205,
+          health: 100,
+          energy: 100,
+          food: 100,
+          water: 100,
+          armor: 0,
+          distanceTraveled: 0,
+          direction: "down",
+          state: "idle",
+          frame: 0,
+          inventory: Array(20).fill(null),
+          npcMet: false,
+          level: 0,
+          xp: 0,
+          maxStats: { health: 100, energy: 100, food: 100, water: 100 },
+          upgradePoints: 0,
+          availableQuests: [],
+          worldId: 0, // Начинаем в первом мире
+          worldPositions: { 0: { x: 222, y: 3205 } }, // Начальные координаты в мире 0
+        };
+
+        userDatabase.set(data.username, newPlayer);
+        await saveUserDatabase(dbCollection, data.username, newPlayer);
+        ws.send(JSON.stringify({ type: "registerSuccess" }));
+      }
+    }
+
     if (data.type === "worldTransition") {
       const id = clients.get(ws);
       if (id) {
@@ -331,6 +366,11 @@ wss.on("connection", (ws) => {
           }
         });
 
+        // Собираем список игроков в новом мире
+        const worldPlayers = Array.from(players.values()).filter(
+          (p) => p.id !== id && p.worldId === targetWorldId
+        );
+
         // Уведомляем игроков в новом мире о появлении
         wss.clients.forEach((client) => {
           if (client.readyState === WebSocket.OPEN) {
@@ -346,7 +386,7 @@ wss.on("connection", (ws) => {
           }
         });
 
-        // Отправляем клиенту подтверждение перехода
+        // Отправляем клиенту подтверждение перехода и список игроков
         ws.send(
           JSON.stringify({
             type: "worldTransitionSuccess",
@@ -354,11 +394,12 @@ wss.on("connection", (ws) => {
             x: player.x,
             y: player.y,
             lights: lights.get(targetWorldId).map(({ id, ...rest }) => rest),
+            players: worldPlayers, // Добавляем список игроков
           })
         );
 
         console.log(
-          `Игрок ${id} перешёл из мира ${oldWorldId} в мир ${targetWorldId}`
+          `Игрок ${id} перешёл из мира ${oldWorldId} в мир ${targetWorldId}, синхронизировано ${worldPlayers.length} игроков`
         );
       }
     } else if (data.type === "syncPlayers") {
@@ -366,6 +407,12 @@ wss.on("connection", (ws) => {
       if (id) {
         const player = players.get(id);
         const worldId = data.worldId;
+        if (player.worldId !== worldId) {
+          console.warn(
+            `Игрок ${id} запросил syncPlayers для неверного мира ${worldId}`
+          );
+          return;
+        }
         const worldPlayers = Array.from(players.values()).filter(
           (p) => p.id !== id && p.worldId === worldId
         );
@@ -373,44 +420,12 @@ wss.on("connection", (ws) => {
           JSON.stringify({
             type: "syncPlayers",
             players: worldPlayers,
+            worldId: worldId,
           })
         );
-        console.log(`Отправлен список игроков в мире ${worldId} для ${id}`);
-      }
-    }
-
-    if (data.type === "register") {
-      if (userDatabase.has(data.username)) {
-        ws.send(JSON.stringify({ type: "registerFail" }));
-      } else {
-        const newPlayer = {
-          id: data.username,
-          password: data.password,
-          x: 222,
-          y: 3205,
-          health: 100,
-          energy: 100,
-          food: 100,
-          water: 100,
-          armor: 0,
-          distanceTraveled: 0,
-          direction: "down",
-          state: "idle",
-          frame: 0,
-          inventory: Array(20).fill(null),
-          npcMet: false,
-          level: 0,
-          xp: 0,
-          maxStats: { health: 100, energy: 100, food: 100, water: 100 },
-          upgradePoints: 0,
-          availableQuests: [],
-          worldId: 0, // Начинаем в первом мире
-          worldPositions: { 0: { x: 222, y: 3205 } }, // Начальные координаты в мире 0
-        };
-
-        userDatabase.set(data.username, newPlayer);
-        await saveUserDatabase(dbCollection, data.username, newPlayer);
-        ws.send(JSON.stringify({ type: "registerSuccess" }));
+        console.log(
+          `Отправлен список ${worldPlayers.length} игроков в мире ${worldId} для ${id}`
+        );
       }
     } else if (data.type === "login") {
       const player = userDatabase.get(data.username);

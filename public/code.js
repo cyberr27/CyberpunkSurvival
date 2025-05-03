@@ -1096,6 +1096,28 @@ function handleGameMessage(event) {
     const currentWorldId = window.worldSystem.currentWorldId;
 
     switch (data.type) {
+      case "syncPlayers":
+        if (
+          data.players &&
+          data.worldId === window.worldSystem.currentWorldId
+        ) {
+          players.clear(); // Очищаем текущий список игроков
+          players.set(myId, players.get(myId)); // Сохраняем данные текущего игрока
+          data.players.forEach((p) => {
+            if (p.id !== myId) {
+              players.set(p.id, { ...p, frameTime: 0 });
+            }
+          });
+          updateOnlineCount();
+          console.log(
+            `Синхронизировано ${data.players.length} игроков в мире ${data.worldId}`
+          );
+        } else {
+          console.warn(
+            `Получен syncPlayers для неверного мира ${data.worldId}`
+          );
+        }
+        break;
       case "worldTransitionSuccess":
         {
           const me = players.get(myId); // Получаем игрока из players

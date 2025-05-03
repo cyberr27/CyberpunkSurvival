@@ -188,13 +188,20 @@ const worldSystem = {
   },
 
   syncPlayers() {
-    sendWhenReady(
-      ws,
-      JSON.stringify({
-        type: "syncPlayers",
-        worldId: this.currentWorldId,
-      })
-    );
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      sendWhenReady(
+        ws,
+        JSON.stringify({
+          type: "syncPlayers",
+          worldId: this.currentWorldId,
+        })
+      );
+      console.log(
+        `Отправлен запрос syncPlayers для мира ${this.currentWorldId}`
+      );
+    } else {
+      console.error("WebSocket не готов для отправки syncPlayers");
+    }
   },
 
   // Получение текущего мира
