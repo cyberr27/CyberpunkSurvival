@@ -1341,6 +1341,19 @@ setInterval(() => {
     );
   });
 
+  // Отправка общего количества игроков всем клиентам
+  const totalPlayers = players.size;
+  wss.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(
+        JSON.stringify({
+          type: "totalOnline",
+          count: totalPlayers,
+        })
+      );
+    }
+  });
+
   // Удаление старых предметов
   items.forEach((item, itemId) => {
     if (currentTime - item.spawnTime > 10 * 60 * 1000) {

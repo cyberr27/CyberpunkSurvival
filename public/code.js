@@ -439,7 +439,7 @@ function handleAuthMessage(event) {
       ws.onmessage = handleGameMessage;
       console.log("Переключен обработчик на handleGameMessage");
       startGame();
-      updateOnlineCount();
+      updateOnlineCount(0);
       break;
     case "registerSuccess":
       registerError.textContent = "Регистрация успешна! Войдите.";
@@ -476,16 +476,15 @@ function sendWhenReady(ws, message) {
   }
 }
 
-function updateOnlineCount() {
+function updateOnlineCount(totalCount) {
   const onlineCountEl = document.getElementById("onlineCount");
-  const playerCount = players.size; // Количество игроков из Map
-  onlineCountEl.textContent = `Онлайн: ${playerCount}`;
+  onlineCountEl.textContent = `Онлайн: ${totalCount || 0}`;
 }
 
 function startGame() {
   window.worldSystem.initialize();
   window.lightsSystem.initialize(); // Инициализируем источники света
-  updateOnlineCount();
+  updateOnlineCount(0); // Начальное значение до получения данных от сервера
   levelSystem.initialize(); // Инициализируем систему уровней
   window.vendingMachine.initialize();
   window.movementSystem.initialize(); // Инициализируем систему движения
@@ -1117,7 +1116,7 @@ function handleGameMessage(event) {
               console.warn(`Пропущен некорректный игрок при синхронизации:`, p);
             }
           });
-          updateOnlineCount();
+
           console.log(
             `Синхронизировано ${data.players.length} игроков в мире ${data.worldId}, players:`,
             Array.from(players.keys())
@@ -1187,12 +1186,10 @@ function handleGameMessage(event) {
             `Добавлен новый игрок ${data.player.id} в мире ${currentWorldId}`
           );
         }
-        updateOnlineCount();
         break;
       case "playerLeft":
         if (players.has(data.id)) {
           players.delete(data.id);
-          updateOnlineCount();
         }
         break;
       case "syncItems":
@@ -1332,6 +1329,10 @@ function handleGameMessage(event) {
           errorEl.textContent = data.error || "Ошибка покупки";
           console.log(`Ошибка покупки: ${data.error}`);
         }
+        break;
+      case "totalOnline":
+        updateOnlineCount(data.count);
+        console.log(`Получено общее количество игроков: ${data.count}`);
         break;
       case "tradeRequest":
       case "tradeAccepted":
