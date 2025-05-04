@@ -308,9 +308,12 @@ function initializeNPCStyles() {
 }
 
 function drawNPC() {
+  // Проверяем, что текущий мир — это Неоновый город (id: 0)
+  if (window.worldSystem.currentWorldId !== 0) return;
+
   const camera = window.movementSystem.getCamera();
-  const screenX = NPC.x - camera.x; // Исправлено: npc → NPC
-  const screenY = NPC.y - camera.y; // Исправлено: npc → NPC
+  const screenX = NPC.x - camera.x;
+  const screenY = NPC.y - camera.y;
 
   if (npcSpriteImage.complete) {
     ctx.drawImage(npcSpriteImage, screenX, screenY, NPC.width, NPC.height);
@@ -330,6 +333,9 @@ function drawNPC() {
 }
 
 function checkNPCProximity() {
+  // Проверяем, что текущий мир — это Неоновый город (id: 0)
+  if (window.worldSystem.currentWorldId !== 0) return;
+
   const me = players.get(myId);
   if (!me || me.health <= 0) return;
 
