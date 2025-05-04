@@ -94,6 +94,7 @@ function initializeVendingMachine() {
 
 // Проверка близости к автомату
 function checkVendingMachineProximity() {
+  if (window.worldSystem.currentWorldId !== 0) return; // Проверяем только в мире id: 0
   const me = players.get(myId);
   if (!me) return;
 
@@ -181,6 +182,7 @@ function handleVendingOption(option) {
 
 // Отрисовка автомата
 function drawVendingMachine() {
+  if (window.worldSystem.currentWorldId !== 0) return; // Отрисовываем только в мире id: 0
   if (vendingMachineImage.complete) {
     const camera = window.movementSystem.getCamera(); // Получаем камеру из movement.js
     const screenX = VENDING_MACHINE.x - camera.x;
@@ -207,4 +209,5 @@ window.vendingMachine = {
   initialize: initializeVendingMachine,
   checkProximity: checkVendingMachineProximity,
   draw: drawVendingMachine,
+  hideVendingMenu: hideVendingMenu, // Добавляем экспорт функции
 };

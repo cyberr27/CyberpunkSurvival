@@ -1138,6 +1138,8 @@ function handleGameMessage(event) {
                 items.delete(itemId);
               }
             });
+            // Закрываем меню автомата, если открыто
+            window.vendingMachine.hideVendingMenu();
             // Реинициализируем свет
             window.lightsSystem.reset(data.worldId);
             // Обновляем данные света от сервера, если они есть
