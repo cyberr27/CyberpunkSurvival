@@ -182,8 +182,17 @@ const equipmentSystem = {
 
   updateEquipmentDisplay: function () {
     const equipmentGrid = document.getElementById("equipmentGrid");
-    const slots = equipmentGrid.children;
     const screen = document.getElementById("equipmentScreen");
+
+    // Проверяем, существует ли equipmentGrid
+    if (!equipmentGrid || !screen) {
+      console.warn(
+        "equipmentGrid или equipmentScreen не найдены, откладываем обновление экипировки"
+      );
+      return;
+    }
+
+    const slots = equipmentGrid.children;
 
     for (let i = 0; i < slots.length; i++) {
       const slot = slots[i];
@@ -296,7 +305,14 @@ const equipmentSystem = {
     this.equipmentSlots = equipment;
     const me = players.get(myId);
     this.applyEquipmentEffects(me);
-    this.updateEquipmentDisplay();
+
+    // Проверяем, инициализирован ли интерфейс
+    if (document.getElementById("equipmentGrid")) {
+      this.updateEquipmentDisplay();
+    } else {
+      // Откладываем обновление до полной инициализации
+      setTimeout(() => this.updateEquipmentDisplay(), 100);
+    }
     updateStatsDisplay();
   },
 };

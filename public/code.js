@@ -488,9 +488,6 @@ function handleAuthMessage(event) {
       }
       window.lightsSystem.reset(me.worldId); // Синхронизируем свет с текущим миром
       inventory = data.inventory || Array(20).fill(null);
-      window.equipmentSystem.syncEquipment(
-        data.equipment || window.equipmentSystem.equipmentSlots
-      );
       window.npcSystem.setNPCMet(data.npcMet || false);
       window.npcSystem.setSelectedQuest(data.selectedQuestId || null);
       window.npcSystem.checkQuestCompletion();
@@ -794,6 +791,10 @@ function startGame() {
   });
   window.tradeSystem.initialize(ws);
   window.equipmentSystem.initialize();
+  const me = players.get(myId);
+  if (me && me.equipment) {
+    window.equipmentSystem.syncEquipment(me.equipment);
+  }
   requestAnimationFrame(gameLoop);
 }
 
@@ -1376,9 +1377,9 @@ function handleGameMessage(event) {
         }
         if (data.player.id === myId) {
           inventory = data.player.inventory || inventory;
-          window.equipmentSystem.syncEquipment(
-            data.player.equipment || window.equipmentSystem.equipmentSlots
-          );
+          if (data.player.equipment) {
+            window.equipmentSystem.syncEquipment(data.player.equipment);
+          }
           setNPCMet(data.player.npcMet || false);
           levelSystem.setLevelData(
             data.player.level || 0,
