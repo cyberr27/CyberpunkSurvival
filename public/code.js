@@ -570,6 +570,15 @@ function startGame() {
   window.movementSystem.initialize(); // Инициализируем систему движения
   window.npcSystem.initialize(); // Инициализируем стили NPC
 
+  // Проверяем, что изображения загружены перед инициализацией wolfSystem
+  if (imagesLoaded === totalImages) {
+    window.wolfSystem.initialize(images.wolfSprite, images.wolfSkinImage);
+  } else {
+    console.error(
+      "Изображения волка не загружены, пропускаем инициализацию wolfSystem"
+    );
+  }
+
   document.addEventListener("keydown", (e) => {
     const me = players.get(myId);
     if (!me || me.health <= 0) return;
@@ -808,11 +817,12 @@ function startGame() {
   });
   window.tradeSystem.initialize(ws);
   window.equipmentSystem.initialize();
-  window.wolfSystem.initialize(wolfSprite, wolfSkinImage);
+  window.wolfSystem.initialize(images.wolfSprite, images.wolfSkinImage);
   const me = players.get(myId);
   if (me && me.equipment) {
     window.equipmentSystem.syncEquipment(me.equipment);
   }
+
   requestAnimationFrame(gameLoop);
 }
 
