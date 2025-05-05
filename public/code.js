@@ -1641,17 +1641,25 @@ function draw(deltaTime) {
         ? 160
         : { up: 0, down: 40, left: 80, right: 120 }[player.direction] || 40;
 
-    ctx.drawImage(
-      playerSprite,
-      spriteX,
-      spriteY,
-      40,
-      40,
-      screenX,
-      screenY,
-      40,
-      40
-    );
+    // Исправленный код отрисовки
+    if (images.playerSprite && images.playerSprite.complete) {
+      ctx.drawImage(
+        images.playerSprite,
+        spriteX,
+        spriteY,
+        40,
+        40,
+        screenX,
+        screenY,
+        40,
+        40
+      );
+    } else {
+      // Заглушка, если изображение не загружено
+      ctx.fillStyle = "blue";
+      ctx.fillRect(screenX, screenY, 40, 40);
+    }
+
     ctx.fillStyle = "white";
     ctx.font = "12px Arial";
     ctx.textAlign = "center";
