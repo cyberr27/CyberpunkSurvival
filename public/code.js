@@ -23,235 +23,231 @@ const items = new Map();
 const pendingPickups = new Set();
 
 // Загрузка изображений
-const playerSprite = new Image();
-playerSprite.src = "playerSprite.png";
-const energyDrinkImage = new Image();
-energyDrinkImage.src = "energy_drink.png";
-const nutImage = new Image();
-nutImage.src = "nut.png";
-const waterBottleImage = new Image();
-waterBottleImage.src = "water_bottle.png";
+const imageSources = {
+  playerSprite: "playerSprite.png",
+  energyDrinkImage: "energy_drink.png",
+  nutImage: "nut.png",
+  waterBottleImage: "water_bottle.png",
+  cannedMeatImage: "canned_meat.png",
+  mushroomImage: "mushroom.png",
+  sausageImage: "sausage.png",
+  bloodPackImage: "blood_pack.png",
+  breadImage: "bread.png",
+  vodkaBottleImage: "vodka_bottle.png",
+  meatChunkImage: "meat_chunk.png",
+  bloodSyringeImage: "blood_syringe.png",
+  milkImage: "milk.png",
+  condensedMilkImage: "condensed_milk.png",
+  driedFishImage: "dried_fish.png",
+  balyaryImage: "balyary.png",
+  appleImage: "apple.png",
+  berriesImage: "berry.png",
+  carrotImage: "carrot.png",
+  npcSpriteImage: "npc_sprite.png",
+  npcPhotoImage: "fotoQuestNPC.png",
+  cyberHelmetImage: "cyber_helmet.png",
+  nanoArmorImage: "nano_armor.png",
+  tacticalBeltImage: "tactical_belt.png",
+  cyberPantsImage: "cyber_pants.png",
+  speedBootsImage: "speed_boots.png",
+  plasmaRifleImage: "plasma_rifle.png",
+  techGlovesImage: "tech_gloves.png",
+  wolfSprite: "wolfSprite.png",
+  wolfSkinImage: "wolfSkin.png",
+};
 
-// Добавляем новые изображения
-const cannedMeatImage = new Image();
-cannedMeatImage.src = "canned_meat.png";
-const mushroomImage = new Image();
-mushroomImage.src = "mushroom.png";
-const sausageImage = new Image();
-sausageImage.src = "sausage.png";
-const bloodPackImage = new Image();
-bloodPackImage.src = "blood_pack.png";
-const breadImage = new Image();
-breadImage.src = "bread.png";
-const vodkaBottleImage = new Image();
-vodkaBottleImage.src = "vodka_bottle.png";
-const meatChunkImage = new Image();
-meatChunkImage.src = "meat_chunk.png";
-const bloodSyringeImage = new Image();
-bloodSyringeImage.src = "blood_syringe.png";
-const milkImage = new Image();
-milkImage.src = "milk.png";
-const condensedMilkImage = new Image();
-condensedMilkImage.src = "condensed_milk.png";
-const driedFishImage = new Image();
-driedFishImage.src = "dried_fish.png";
-const balyaryImage = new Image();
-balyaryImage.src = "balyary.png";
-const appleImage = new Image();
-appleImage.src = "apple.png";
-const berriesImage = new Image();
-berriesImage.src = "berry.png";
-const carrotImage = new Image();
-carrotImage.src = "carrot.png";
-const npcSpriteImage = new Image();
-npcSpriteImage.src = "npc_sprite.png";
-const npcPhotoImage = new Image();
-npcPhotoImage.src = "fotoQuestNPC.png";
-const cyberHelmetImage = new Image();
-cyberHelmetImage.src = "cyber_helmet.png";
-const nanoArmorImage = new Image();
-nanoArmorImage.src = "nano_armor.png";
-const tacticalBeltImage = new Image();
-tacticalBeltImage.src = "tactical_belt.png";
-const cyberPantsImage = new Image();
-cyberPantsImage.src = "cyber_pants.png";
-const speedBootsImage = new Image();
-speedBootsImage.src = "speed_boots.png";
-const plasmaRifleImage = new Image();
-plasmaRifleImage.src = "plasma_rifle.png";
-const techGlovesImage = new Image();
-techGlovesImage.src = "tech_gloves.png";
+const images = {};
+let imagesLoaded = 0;
+const totalImages = Object.keys(imageSources).length;
 
-const wolfSprite = new Image();
-wolfSprite.src = "wolfSprite.png";
-const wolfSkinImage = new Image();
-wolfSkinImage.src = "wolfSkin.png";
+Object.entries(imageSources).forEach(([key, src]) => {
+  images[key] = new Image();
+  images[key].src = src;
+  images[key].onload = () => {
+    imagesLoaded++;
+    console.log(
+      `Изображение ${src} загружено (${imagesLoaded}/${totalImages})`
+    );
+    if (imagesLoaded === totalImages) {
+      window.addEventListener("resize", resizeCanvas);
+    }
+  };
+  images[key].onerror = () => {
+    console.error(`Ошибка загрузки изображения ${src}`);
+    images[key].src = "fallback.png"; // Запасное изображение
+    imagesLoaded++;
+    if (imagesLoaded === totalImages) {
+      window.addEventListener("resize", resizeCanvas);
+    }
+  };
+});
 
 let inventory = Array(20).fill(null);
 
 // Конфигурация эффектов предметов (расширяем ITEM_CONFIG)
+// Обновляем ITEM_CONFIG, чтобы использовать объект images
 const ITEM_CONFIG = {
   energy_drink: {
     effect: { energy: 20, water: 5 },
-    image: energyDrinkImage,
+    image: images.energyDrinkImage,
     description: "Энергетик: +20 эн. +5 воды.",
     rarity: 2,
   },
   nut: {
     effect: { food: 7 },
-    image: nutImage,
+    image: images.nutImage,
     description: "Орех: +7 еды.",
     rarity: 3,
   },
   water_bottle: {
     effect: { water: 30 },
-    image: waterBottleImage,
+    image: images.waterBottleImage,
     description: "Вода: +30 воды.",
     rarity: 3,
   },
   apple: {
     effect: { food: 8, water: 5 },
-    image: appleImage,
+    image: images.appleImage,
     description: "Яблоко: +8 еды, +5 воды.",
     rarity: 3,
   },
   berries: {
     effect: { food: 6, water: 6 },
-    image: berriesImage,
+    image: images.berriesImage,
     description: "Ягоды: +6 еды, +6 воды.",
     rarity: 3,
   },
   carrot: {
     effect: { food: 5, energy: 3 },
-    image: carrotImage,
+    image: images.carrotImage,
     description: "Морковь: +5 еды, +3 энергии.",
     rarity: 3,
   },
   canned_meat: {
     effect: { food: 20 },
-    image: cannedMeatImage,
+    image: images.cannedMeatImage,
     description: "Банка тушёнки: +20 еды.",
     rarity: 1,
   },
   mushroom: {
     effect: { food: 5, energy: 15 },
-    image: mushroomImage,
+    image: images.mushroomImage,
     description: "Гриб прущий: +15 энергии. +5 еды.",
     rarity: 1,
   },
   sausage: {
     effect: { food: 16, energy: 3 },
-    image: sausageImage,
+    image: images.sausageImage,
     description: "Колбаса: +16 еды, +3 энергии.",
     rarity: 2,
   },
   blood_pack: {
     effect: { health: 40 },
-    image: bloodPackImage,
+    image: images.bloodPackImage,
     description: "Пакет крови: +40 здоровья.",
     rarity: 1,
   },
   bread: {
     effect: { food: 13, water: -2 },
-    image: breadImage,
+    image: images.breadImage,
     description: "Хлеб: +13 еды, -2 воды.",
     rarity: 2,
   },
   vodka_bottle: {
     effect: { health: 5, energy: -2, water: 1, food: 2 },
-    image: vodkaBottleImage,
+    image: images.vodkaBottleImage,
     description: "Водка: +5 здоровья, -2 эн. +1 воды, +2 еды.",
     rarity: 2,
   },
   meat_chunk: {
     effect: { food: 20, energy: 5, water: -2 },
-    image: meatChunkImage,
+    image: images.meatChunkImage,
     description: "Кусок мяса: +20 еды, +5 эн. -2 воды.",
     rarity: 2,
   },
   blood_syringe: {
     effect: { health: 10 },
-    image: bloodSyringeImage,
+    image: images.bloodSyringeImage,
     description: "Шприц с кровью: +10 здоровья.",
     rarity: 2,
   },
   milk: {
     effect: { water: 15, food: 5 },
-    image: milkImage,
+    image: images.milkImage,
     description: "Молоко: +15 воды, +5 еды.",
     rarity: 2,
   },
   condensed_milk: {
     effect: { water: 5, food: 11, energy: 2 },
-    image: condensedMilkImage,
+    image: images.condensedMilkImage,
     description: "Сгущёнка: +11 еды, +5 воды, +2 эн.",
     rarity: 2,
   },
   dried_fish: {
     effect: { food: 10, water: -3 },
-    image: driedFishImage,
+    image: images.driedFishImage,
     description: "Сушёная рыба: +10 еды, -3 воды.",
     rarity: 2,
   },
   balyary: {
-    effect: {}, // Эффекта нет, это валюта
-    image: balyaryImage,
+    effect: {},
+    image: images.balyaryImage,
     description: "Баляр: игровая валюта.",
-    stackable: true, // Указываем, что предмет складывается
+    stackable: true,
     rarity: 2,
   },
   cyber_helmet: {
     type: "headgear",
     effect: { armor: 10, energy: 5 },
-    image: cyberHelmetImage,
+    image: images.cyberHelmetImage,
     description: "Кибершлем: +10 брони, +5 энергии",
     rarity: 4,
   },
   nano_armor: {
     type: "armor",
     effect: { armor: 20, health: 10 },
-    image: nanoArmorImage,
+    image: images.nanoArmorImage,
     description: "Нано-броня: +20 брони, +10 здоровья",
     rarity: 4,
   },
   tactical_belt: {
     type: "belt",
     effect: { armor: 5, food: 5 },
-    image: tacticalBeltImage,
+    image: images.tacticalBeltImage,
     description: "Тактический пояс: +5 брони, +5 еды",
     rarity: 4,
   },
   cyber_pants: {
     type: "pants",
     effect: { armor: 10, water: 5 },
-    image: cyberPantsImage,
+    image: images.cyberPantsImage,
     description: "Киберштаны: +10 брони, +5 воды",
     rarity: 4,
   },
   speed_boots: {
     type: "boots",
     effect: { armor: 5, energy: 10 },
-    image: speedBootsImage,
+    image: images.speedBootsImage,
     description: "Скоростные ботинки: +5 брони, +10 энергии",
     rarity: 4,
   },
   plasma_rifle: {
     type: "weapon",
     effect: { damage: 15 },
-    image: plasmaRifleImage,
+    image: images.plasmaRifleImage,
     description: "Плазменная винтовка: +15 урона",
     rarity: 4,
   },
   tech_gloves: {
     type: "gloves",
     effect: { armor: 5, energy: 5 },
-    image: techGlovesImage,
+    image: images.techGlovesImage,
     description: "Технические перчатки: +5 брони, +5 энергии",
     rarity: 4,
   },
   wolf_skin: {
-    effect: {}, // Без эффекта, просто предмет
-    image: wolfSkinImage,
+    effect: {},
+    image: images.wolfSkinImage,
     description: "Волчья шкура: материал для крафта.",
     rarity: 2,
   },
@@ -292,9 +288,7 @@ toLogin.addEventListener("click", () => {
 
 function reconnectWebSocket() {
   if (reconnectAttempts >= maxReconnectAttempts) {
-    console.error(
-      "Максимум попыток переподключения достигнут. Игра остановлена."
-    );
+    console.error("Максимум попыток переподключения достигнут.");
     authContainer.style.display = "flex";
     document.getElementById("gameContainer").style.display = "none";
     return;
@@ -322,6 +316,8 @@ function reconnectWebSocket() {
             })
           );
           console.log(`Повторная авторизация для ${lastUsername}`);
+          // Очищаем волков при переподключении
+          window.wolfSystem.clearWolves();
         } else {
           console.warn("Нет сохранённых данных для авторизации");
           authContainer.style.display = "flex";
@@ -340,7 +336,6 @@ function reconnectWebSocket() {
         event.code,
         event.reason
       );
-      // Если код 4000, не переподключаемся
       if (event.code === 4000) {
         console.log(
           "Отключён из-за неактивности, переподключение не требуется"
@@ -352,7 +347,18 @@ function reconnectWebSocket() {
       reconnectAttempts++;
       reconnectWebSocket();
     };
-  }, reconnectDelay);
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === "loginSuccess") {
+          ws.onmessage = handleGameMessage;
+          window.wolfSystem.clearWolves(); // Очищаем волков после успешного логина
+        }
+      } catch (error) {
+        console.error("Ошибка при обработке сообщения:", error);
+      }
+    };
+  }, reconnectDelay * (reconnectAttempts + 1)); // Экспоненциальная задержка
 }
 
 // Инициализация WebSocket
@@ -1232,20 +1238,17 @@ function handleGameMessage(event) {
         break;
       case "worldTransitionSuccess":
         {
-          const me = players.get(myId); // Получаем игрока из players
+          const me = players.get(myId);
           if (me) {
             window.worldSystem.switchWorld(data.worldId, me, data.x, data.y);
-            // Очищаем предметы из других миров
             items.forEach((item, itemId) => {
               if (item.worldId !== data.worldId) {
                 items.delete(itemId);
               }
             });
-            // Закрываем меню автомата, если открыто
             window.vendingMachine.hideVendingMenu();
-            // Реинициализируем свет
             window.lightsSystem.reset(data.worldId);
-            // Обновляем данные света от сервера, если они есть
+            window.wolfSystem.clearWolves(); // Очищаем волков при переходе
             if (data.lights) {
               lights.length = 0;
               data.lights.forEach((light) =>
@@ -1258,6 +1261,9 @@ function handleGameMessage(event) {
               console.log(
                 `Загружено ${lights.length} источников света при переходе в мир ${data.worldId}`
               );
+            }
+            if (data.wolves && data.worldId === 1) {
+              window.wolfSystem.syncWolves(data.wolves);
             }
           }
         }
@@ -1753,7 +1759,6 @@ function gameLoop(timestamp) {
 }
 
 // Инициализация изображений (без изменений)
-let imagesLoaded = 0;
 function onImageLoad() {
   imagesLoaded++;
   if (imagesLoaded === 25) window.addEventListener("resize", resizeCanvas);

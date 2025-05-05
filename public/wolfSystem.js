@@ -1,8 +1,9 @@
+// В начало файла, после определения wolfSystem
 const wolfSystem = {
-  wolves: new Map(), // Хранит волков: id -> {x, y, health, direction, state, frame, frameTime}
+  wolves: new Map(),
   wolfSprite: null,
   wolfSkinImage: null,
-  FRAME_DURATION: 400, // Длительность цикла анимации (мс)
+  FRAME_DURATION: 400,
 
   initialize(wolfSprite, wolfSkinImage) {
     this.wolfSprite = wolfSprite;
@@ -10,9 +11,15 @@ const wolfSystem = {
     console.log("WolfSystem инициализирован");
   },
 
+  // Новый метод для очистки волков при смене мира
+  clearWolves() {
+    this.wolves.clear();
+    console.log("Все волки очищены при смене мира");
+  },
+
   update(deltaTime) {
     const me = players.get(myId);
-    if (!me || me.worldId !== 1) return; // Волки только в Пустошах (worldId: 1)
+    if (!me || me.worldId !== 1) return; // Волки только в Пустошах
 
     this.wolves.forEach((wolf, id) => {
       if (wolf.state === "walking") {
@@ -42,7 +49,6 @@ const wolfSystem = {
       const screenX = wolf.x - camera.x;
       const screenY = wolf.y - camera.y;
 
-      // Пропускаем, если волк вне видимой области
       if (
         screenX < -40 ||
         screenX > canvas.width + 40 ||
@@ -52,10 +58,9 @@ const wolfSystem = {
         return;
       }
 
-      // Определяем строку спрайта в зависимости от направления/состояния
       let spriteY;
       if (wolf.state === "dying") {
-        spriteY = 160; // 5-я строка (смерть)
+        spriteY = 160;
       } else {
         spriteY =
           {
@@ -68,7 +73,6 @@ const wolfSystem = {
 
       const spriteX = wolf.frame * 40;
 
-      // Рисуем волка
       if (this.wolfSprite.complete) {
         ctx.drawImage(
           this.wolfSprite,
@@ -82,7 +86,6 @@ const wolfSystem = {
           40
         );
 
-        // Рисуем здоровье
         ctx.fillStyle = "red";
         ctx.fillRect(screenX, screenY - 10, 40, 5);
         ctx.fillStyle = "green";
@@ -92,23 +95,35 @@ const wolfSystem = {
   },
 
   syncWolves(wolvesData) {
+    const currentWorldId = window.worldSystem.currentWorldId;
+    if (currentWorldId !== 1) {
+      this.clearWolves(); // Очищаем волков, если не в Пустошах
+      return;
+    }
+
     this.wolves.clear();
     wolvesData.forEach((wolf) => {
-      this.wolves.set(wolf.id, {
-        id: wolf.id,
-        x: wolf.x,
-        y: wolf.y,
-        health: wolf.health,
-        direction: wolf.direction,
-        state: wolf.state,
-        frame: wolf.frame || 0,
-        frameTime: 0,
-      });
+      if (wolf.worldId === 1) {
+        // Проверяем, что волк в Пустошах
+        this.wolves.set(wolf.id, {
+          id: wolf.id,
+          x: wolf.x,
+          y: wolf.y,
+          health: wolf.health,
+          direction: wolf.direction,
+          state: wolf.state,
+          frame: wolf.frame || 0,
+          frameTime: 0,
+        });
+      }
     });
-    console.log(`Синхронизировано ${wolvesData.length} волков`);
+    console.log(`Синхронизировано ${this.wolves.size} волков в Пустошах`);
   },
 
   updateWolf(wolfData) {
+    const currentWorldId = window.worldSystem.currentWorldId;
+    if (currentWorldId !== 1 || wolfData.worldId !== 1) return; // Игнорируем, если не в Пустошах
+
     if (this.wolves.has(wolfData.id)) {
       const existingWolf = this.wolves.get(wolfData.id);
       this.wolves.set(wolfData.id, {
@@ -131,8 +146,10 @@ const wolfSystem = {
   },
 
   removeWolf(wolfId) {
-    this.wolves.delete(wolfId);
-    console.log(`Волк ${wolfId} удалён`);
+    if (this.wolves.has(wolfId)) {
+      this.wolves.delete(wolfId);
+      console.log(`Волк ${wolfId} удалён`);
+    }
   },
 };
 

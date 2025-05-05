@@ -6,13 +6,30 @@ const { MongoClient } = require("mongodb");
 
 const app = express();
 const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
+const wss = new WebSocket.Server({ server, pingInterval: 30000 }); // Добавляем pingInterval
 const clients = new Map();
 const players = new Map();
 const userDatabase = new Map();
 
 // В начало файла, после определения констант
-INACTIVITY_TIMEOUT = 15 * 60 * 1000;
+const INACTIVITY_TIMEOUT = 30 * 60 * 1000; // 30 минут
+
+// Обновляем middleware для статических файлов
+app.use(
+  express.static(path.join(__dirname, "public"), {
+    maxAge: "1d", // Кэширование на 1 день
+    setHeaders: (res, path) => {
+      if (path.endsWith(".png")) {
+        res.setHeader("Content-Type", "image/png");
+      }
+    },
+  })
+);
+
+// Добавляем маршрут для проверки статуса сервера
+app.get("/health", (req, res) => {
+  res.status(200).send("OK");
+});
 
 const ITEM_CONFIG = {
   blood_pack: { effect: { health: 40 }, rarity: 1 },
@@ -276,8 +293,6 @@ worlds.forEach((world) => {
 });
 
 const lastSaved = new Map();
-
-app.use(express.static(path.join(__dirname, "public")));
 
 function checkCollisionServer(x, y) {
   return false;
