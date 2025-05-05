@@ -67,6 +67,20 @@ const npcSpriteImage = new Image();
 npcSpriteImage.src = "npc_sprite.png";
 const npcPhotoImage = new Image();
 npcPhotoImage.src = "fotoQuestNPC.png";
+const cyberHelmetImage = new Image();
+cyberHelmetImage.src = "cyber_helmet.png";
+const nanoArmorImage = new Image();
+nanoArmorImage.src = "nano_armor.png";
+const tacticalBeltImage = new Image();
+tacticalBeltImage.src = "tactical_belt.png";
+const cyberPantsImage = new Image();
+cyberPantsImage.src = "cyber_pants.png";
+const speedBootsImage = new Image();
+speedBootsImage.src = "speed_boots.png";
+const plasmaRifleImage = new Image();
+plasmaRifleImage.src = "plasma_rifle.png";
+const techGlovesImage = new Image();
+techGlovesImage.src = "tech_gloves.png";
 
 let inventory = Array(20).fill(null);
 
@@ -180,6 +194,55 @@ const ITEM_CONFIG = {
     description: "Баляр: игровая валюта.",
     stackable: true, // Указываем, что предмет складывается
     rarity: 2,
+  },
+  cyber_helmet: {
+    type: "headgear",
+    effect: { armor: 10, energy: 5 },
+    image: cyberHelmetImage,
+    description: "Кибершлем: +10 брони, +5 энергии",
+    rarity: 4,
+  },
+  nano_armor: {
+    type: "armor",
+    effect: { armor: 20, health: 10 },
+    image: nanoArmorImage,
+    description: "Нано-броня: +20 брони, +10 здоровья",
+    rarity: 4,
+  },
+  tactical_belt: {
+    type: "belt",
+    effect: { armor: 5, food: 5 },
+    image: tacticalBeltImage,
+    description: "Тактический пояс: +5 брони, +5 еды",
+    rarity: 4,
+  },
+  cyber_pants: {
+    type: "pants",
+    effect: { armor: 10, water: 5 },
+    image: cyberPantsImage,
+    description: "Киберштаны: +10 брони, +5 воды",
+    rarity: 4,
+  },
+  speed_boots: {
+    type: "boots",
+    effect: { armor: 5, energy: 10 },
+    image: speedBootsImage,
+    description: "Скоростные ботинки: +5 брони, +10 энергии",
+    rarity: 4,
+  },
+  plasma_rifle: {
+    type: "weapon",
+    effect: { damage: 15 },
+    image: plasmaRifleImage,
+    description: "Плазменная винтовка: +15 урона",
+    rarity: 4,
+  },
+  tech_gloves: {
+    type: "gloves",
+    effect: { armor: 5, energy: 5 },
+    image: techGlovesImage,
+    description: "Технические перчатки: +5 брони, +5 энергии",
+    rarity: 4,
   },
 };
 
@@ -425,6 +488,9 @@ function handleAuthMessage(event) {
       }
       window.lightsSystem.reset(me.worldId); // Синхронизируем свет с текущим миром
       inventory = data.inventory || Array(20).fill(null);
+      window.equipmentSystem.syncEquipment(
+        data.equipment || window.equipmentSystem.equipmentSlots
+      );
       window.npcSystem.setNPCMet(data.npcMet || false);
       window.npcSystem.setSelectedQuest(data.selectedQuestId || null);
       window.npcSystem.checkQuestCompletion();
@@ -525,6 +591,10 @@ function startGame() {
         chatBtn.classList.toggle("active", !isChatVisible);
         if (!isChatVisible) chatInput.focus();
         else chatInput.blur();
+        e.preventDefault();
+        break;
+      case "e":
+        window.equipmentSystem.toggleEquipment();
         e.preventDefault();
         break;
     }
@@ -723,6 +793,7 @@ function startGame() {
     if (selectedSlot !== null) dropItem(selectedSlot);
   });
   window.tradeSystem.initialize(ws);
+  window.equipmentSystem.initialize();
   requestAnimationFrame(gameLoop);
 }
 
@@ -791,17 +862,36 @@ function selectSlot(slotIndex, slotElement) {
 // Использовать предмет
 function useItem(slotIndex) {
   const item = inventory[slotIndex];
-  if (!item || item.type === "balyary") return; // Ничего не делаем для Баляр
+  if (!item) return;
   const me = players.get(myId);
+
+  // Проверяем, является ли предмет экипировкой
+  if (window.equipmentSystem.EQUIPMENT_CONFIG[item.type]) {
+    window.equipmentSystem.equipItem(slotIndex);
+    return;
+  }
+
+  // Обычная логика использования для не-экипировки
+  if (item.type === "balyary") return; // Ничего не делаем для Баляр
   const effect = ITEM_CONFIG[item.type].effect;
 
   if (effect.health)
-    me.health = Math.min(100, Math.max(0, me.health + effect.health));
+    me.health = Math.min(
+      me.maxStats.health,
+      Math.max(0, me.health + effect.health)
+    );
   if (effect.energy)
-    me.energy = Math.min(100, Math.max(0, me.energy + effect.energy));
-  if (effect.food) me.food = Math.min(100, Math.max(0, me.food + effect.food));
+    me.energy = Math.min(
+      me.maxStats.energy,
+      Math.max(0, me.energy + effect.energy)
+    );
+  if (effect.food)
+    me.food = Math.min(me.maxStats.food, Math.max(0, me.food + effect.food));
   if (effect.water)
-    me.water = Math.min(100, Math.max(0, me.water + effect.water));
+    me.water = Math.min(
+      me.maxStats.water,
+      Math.max(0, me.water + effect.water)
+    );
 
   inventory[slotIndex] = null;
 
@@ -1286,6 +1376,9 @@ function handleGameMessage(event) {
         }
         if (data.player.id === myId) {
           inventory = data.player.inventory || inventory;
+          window.equipmentSystem.syncEquipment(
+            data.player.equipment || window.equipmentSystem.equipmentSlots
+          );
           setNPCMet(data.player.npcMet || false);
           levelSystem.setLevelData(
             data.player.level || 0,

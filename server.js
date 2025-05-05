@@ -40,6 +40,17 @@ const ITEM_CONFIG = {
   apple: { effect: { food: 8, water: 5 }, rarity: 3 },
   berries: { effect: { food: 6, water: 6 }, rarity: 3 },
   carrot: { effect: { food: 5, energy: 3 }, rarity: 3 },
+  cyber_helmet: {
+    type: "headgear",
+    effect: { armor: 10, energy: 5 },
+    rarity: 4,
+  },
+  nano_armor: { type: "armor", effect: { armor: 20, health: 10 }, rarity: 4 },
+  tactical_belt: { type: "belt", effect: { armor: 5, food: 5 }, rarity: 4 },
+  cyber_pants: { type: "pants", effect: { armor: 10, water: 5 }, rarity: 4 },
+  speed_boots: { type: "boots", effect: { armor: 5, energy: 10 }, rarity: 4 },
+  plasma_rifle: { type: "weapon", effect: { damage: 15 }, rarity: 4 },
+  tech_gloves: { type: "gloves", effect: { armor: 5, energy: 5 }, rarity: 4 },
 };
 
 const uri = process.env.MONGO_URI;
@@ -313,14 +324,23 @@ wss.on("connection", (ws) => {
           state: "idle",
           frame: 0,
           inventory: Array(20).fill(null),
+          equipment: {
+            head: null,
+            chest: null,
+            belt: null,
+            pants: null,
+            boots: null,
+            weapon: null,
+            gloves: null,
+          },
           npcMet: false,
           level: 0,
           xp: 0,
           maxStats: { health: 100, energy: 100, food: 100, water: 100 },
           upgradePoints: 0,
           availableQuests: [],
-          worldId: 0, // Начинаем в первом мире
-          worldPositions: { 0: { x: 222, y: 3205 } }, // Начальные координаты в мире 0
+          worldId: 0,
+          worldPositions: { 0: { x: 222, y: 3205 } },
         };
 
         userDatabase.set(data.username, newPlayer);
@@ -434,6 +454,15 @@ wss.on("connection", (ws) => {
         const playerData = {
           ...player,
           inventory: player.inventory || Array(20).fill(null),
+          equipment: player.equipment || {
+            head: null,
+            chest: null,
+            belt: null,
+            pants: null,
+            boots: null,
+            weapon: null,
+            gloves: null,
+          },
           npcMet: player.npcMet || false,
           selectedQuestId: player.selectedQuestId || null,
           level: player.level || 0,
@@ -468,6 +497,7 @@ wss.on("connection", (ws) => {
             state: playerData.state || "idle",
             frame: playerData.frame || 0,
             inventory: playerData.inventory,
+            equipment: playerData.equipment,
             npcMet: playerData.npcMet,
             selectedQuestId: playerData.selectedQuestId,
             level: playerData.level,
@@ -892,6 +922,91 @@ wss.on("connection", (ws) => {
           console.log(
             `Игрок ${id} использовал ${item.type} из слота ${slotIndex}`
           );
+        }
+      }
+    } else if (data.type === "equipItem") {
+      const id = clients.get(ws);
+      if (id) {
+        const player = players.get(id);
+        const slotIndex = data.slotIndex;
+        const item = player.inventory[slotIndex];
+        if (item && ITEM_CONFIG[item.type] && ITEM_CONFIG[item.type].type) {
+          const slotName = {
+            headgear: "head",
+            armor: "chest",
+            belt: "belt",
+            pants: "pants",
+            boots: "boots",
+            weapon: "weapon",
+            gloves: "gloves",
+          }[ITEM_CONFIG[item.type].type];
+
+          if (slotName) {
+            // Сохраняем старый предмет, если он есть
+            if (player.equipment[slotName]) {
+              const freeSlot = player.inventory.findIndex(
+                (slot) => slot === null
+              );
+              if (freeSlot === -1) {
+                ws.send(JSON.stringify({ type: "inventoryFull" }));
+                return;
+              }
+              player.inventory[freeSlot] = player.equipment[slotName];
+            }
+
+            // Экипируем новый предмет
+            player.equipment[slotName] = {
+              type: item.type,
+              itemId: item.itemId,
+            };
+            player.inventory[slotIndex] = null;
+
+            // Применяем эффекты
+            player.armor = 0;
+            player.maxStats = {
+              health: 100,
+              energy: 100,
+              food: 100,
+              water: 100,
+            };
+            Object.values(player.equipment).forEach((equippedItem) => {
+              if (equippedItem && ITEM_CONFIG[equippedItem.type]) {
+                const effect = ITEM_CONFIG[equippedItem.type].effect;
+                if (effect.armor) player.armor += effect.armor;
+                if (effect.health) player.maxStats.health += effect.health;
+                if (effect.energy) player.maxStats.energy += effect.energy;
+                if (effect.food) player.maxStats.food += effect.food;
+                if (effect.water) player.maxStats.water += effect.water;
+                if (effect.damage)
+                  player.damage = (player.damage || 0) + effect.damage;
+              }
+            });
+
+            // Ограничиваем характеристики
+            player.health = Math.min(player.health, player.maxStats.health);
+            player.energy = Math.min(player.energy, player.maxStats.energy);
+            player.food = Math.min(player.food, player.maxStats.food);
+            player.water = Math.min(player.water, player.maxStats.water);
+
+            players.set(id, { ...player });
+            userDatabase.set(id, { ...player });
+            await saveUserDatabase(dbCollection, id, player);
+
+            wss.clients.forEach((client) => {
+              if (
+                client.readyState === WebSocket.OPEN &&
+                clients.get(client) === id
+              ) {
+                client.send(
+                  JSON.stringify({ type: "update", player: { id, ...player } })
+                );
+              }
+            });
+
+            console.log(
+              `Игрок ${id} экипировал ${item.type} в слот ${slotName}`
+            );
+          }
         }
       }
     } else if (data.type === "dropItem") {
@@ -1430,7 +1545,9 @@ setInterval(() => {
           type = commonItems[Math.floor(Math.random() * commonItems.length)];
           commonCount--;
         } else {
-          const allTypes = Object.keys(ITEM_CONFIG);
+          const allTypes = Object.keys(ITEM_CONFIG).filter(
+            (type) => ITEM_CONFIG[type].rarity !== 4
+          );
           type = allTypes[Math.floor(Math.random() * allTypes.length)];
         }
 
