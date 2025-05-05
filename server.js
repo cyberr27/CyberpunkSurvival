@@ -170,6 +170,7 @@ const worlds = [
 ];
 
 const items = new Map(); // Храним предметы с указанием worldId
+const wolves = new Map(); // Хранит волков: id -> {x, y, health, direction, state, worldId, lastAttackTime}
 const lights = new Map(); // Храним источники света по мирам
 
 // Инициализация источников света для каждого мира
@@ -415,6 +416,16 @@ wss.on("connection", (ws) => {
             y: player.y,
             lights: lights.get(targetWorldId).map(({ id, ...rest }) => rest),
             players: worldPlayers, // Добавляем список игроков
+            wolves: Array.from(wolves.entries())
+              .filter(([_, wolf]) => wolf.worldId === playerData.worldId)
+              .map(([id, wolf]) => ({
+                id,
+                x: wolf.x,
+                y: wolf.y,
+                health: wolf.health,
+                direction: wolf.direction,
+                state: wolf.state,
+              })),
           })
         );
 
@@ -519,6 +530,16 @@ wss.on("connection", (ws) => {
                 type: item.type,
                 spawnTime: item.spawnTime,
                 worldId: item.worldId,
+              })),
+            wolves: Array.from(wolves.entries())
+              .filter(([_, wolf]) => wolf.worldId === playerData.worldId)
+              .map(([id, wolf]) => ({
+                id,
+                x: wolf.x,
+                y: wolf.y,
+                health: wolf.health,
+                direction: wolf.direction,
+                state: wolf.state,
               })),
             lights: lights
               .get(playerData.worldId)
@@ -1392,6 +1413,33 @@ wss.on("connection", (ws) => {
         await saveUserDatabase(dbCollection, id, player);
         console.log(`Игрок ${id} выбрал задание ID: ${data.questId || "null"}`);
       }
+    } else if (data.type === "attackWolf") {
+      const id = clients.get(ws);
+      if (id) {
+        const player = players.get(id);
+        if (player.worldId !== 1 || !wolves.has(data.wolfId)) return;
+
+        const wolf = wolves.get(data.wolfId);
+        const damage = data.damage || 10; // Например, стандартный урон 10
+        wolf.health = Math.max(0, wolf.health - damage);
+        wolves.set(data.wolfId, { ...wolf });
+
+        wss.clients.forEach((client) => {
+          if (
+            client.readyState === WebSocket.OPEN &&
+            players.get(clients.get(client))?.worldId === wolf.worldId
+          ) {
+            client.send(
+              JSON.stringify({
+                type: "updateWolf",
+                worldId: wolf.worldId,
+                wolf,
+              })
+            );
+          }
+        });
+        console.log(`Игрок ${id} нанёс ${damage} урона волку ${data.wolfId}`);
+      }
     }
   });
 
@@ -1599,6 +1647,220 @@ setInterval(() => {
           );
         }
       }
+      if (world.id === 1) {
+        // Только для Пустошей
+        const maxWolves = Math.max(5, playerCount * 2); // Максимум волков: минимум 5 или 2 на игрока
+        const currentWolves = Array.from(wolves.values()).filter(
+          (w) => w.worldId === world.id
+        ).length;
+
+        if (currentWolves < maxWolves) {
+          const wolvesToSpawn = maxWolves - currentWolves;
+          for (let i = 0; i < wolvesToSpawn; i++) {
+            let x,
+              y,
+              attempts = 0;
+            const maxAttempts = 10;
+            // Спавним на краю видимой зоны игрока
+            const player = Array.from(players.values()).find(
+              (p) => p.worldId === world.id
+            );
+            if (!player) continue;
+
+            do {
+              const edge = Math.floor(Math.random() * 4); // 0: верх, 1: низ, 2: лево, 3: право
+              switch (edge) {
+                case 0: // Верх
+                  x = player.x + (Math.random() - 0.5) * 1000;
+                  y = player.y - 500;
+                  break;
+                case 1: // Низ
+                  x = player.x + (Math.random() - 0.5) * 1000;
+                  y = player.y + 500;
+                  break;
+                case 2: // Лево
+                  x = player.x - 500;
+                  y = player.y + (Math.random() - 0.5) * 1000;
+                  break;
+                case 3: // Право
+                  x = player.x + 500;
+                  y = player.y + (Math.random() - 0.5) * 1000;
+                  break;
+              }
+              attempts++;
+            } while (checkCollisionServer(x, y) && attempts < maxAttempts);
+
+            if (attempts < maxAttempts) {
+              const wolfId = `wolf_${Date.now()}_${i}`;
+              const wolf = {
+                id: wolfId,
+                x,
+                y,
+                health: 100,
+                direction: "down",
+                state: "walking",
+                worldId: world.id,
+                lastAttackTime: 0,
+              };
+              wolves.set(wolfId, wolf);
+              console.log(
+                `Создан волк ${wolfId} в мире ${world.id} на x:${x}, y:${y}`
+              );
+
+              wss.clients.forEach((client) => {
+                if (
+                  client.readyState === WebSocket.OPEN &&
+                  players.get(clients.get(client))?.worldId === world.id
+                ) {
+                  client.send(
+                    JSON.stringify({
+                      type: "updateWolf",
+                      worldId: world.id,
+                      wolf,
+                    })
+                  );
+                }
+              });
+            }
+          }
+        }
+      }
+    }
+
+    if (world.id === 1) {
+      wolves.forEach((wolf, wolfId) => {
+        if (wolf.worldId !== world.id) return;
+
+        // Находим ближайшего игрока с health > 0
+        let closestPlayer = null;
+        let minDistance = Infinity;
+        players.forEach((player) => {
+          if (player.worldId === world.id && player.health > 0) {
+            const dx = wolf.x - player.x;
+            const dy = wolf.y - player.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            if (distance < minDistance) {
+              minDistance = distance;
+              closestPlayer = player;
+            }
+          }
+        });
+
+        if (closestPlayer) {
+          const dx = closestPlayer.x - wolf.x;
+          const dy = closestPlayer.y - wolf.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          const speed = 2; // Скорость волка (пикселей за кадр)
+
+          if (distance > 40) {
+            // Движение к игроку
+            const angle = Math.atan2(dy, dx);
+            wolf.x += Math.cos(angle) * speed;
+            wolf.y += Math.sin(angle) * speed;
+            wolf.state = "walking";
+            wolf.direction =
+              Math.abs(dx) > Math.abs(dy)
+                ? dx > 0
+                  ? "right"
+                  : "left"
+                : dy > 0
+                ? "down"
+                : "up";
+          } else {
+            // Атака игрока
+            const currentTime = Date.now();
+            if (currentTime - wolf.lastAttackTime >= 3000) {
+              const damage = Math.floor(Math.random() * 10) + 1; // 1–10 урона
+              closestPlayer.health = Math.max(0, closestPlayer.health - damage);
+              wolf.lastAttackTime = currentTime;
+              console.log(
+                `Волк ${wolfId} атаковал игрока ${closestPlayer.id}, урон: ${damage}`
+              );
+
+              players.set(closestPlayer.id, { ...closestPlayer });
+              userDatabase.set(closestPlayer.id, { ...closestPlayer });
+              saveUserDatabase(dbCollection, closestPlayer.id, closestPlayer);
+
+              wss.clients.forEach((client) => {
+                if (client.readyState === WebSocket.OPEN) {
+                  const clientPlayer = players.get(clients.get(client));
+                  if (clientPlayer && clientPlayer.worldId === world.id) {
+                    client.send(
+                      JSON.stringify({
+                        type: "update",
+                        player: closestPlayer,
+                      })
+                    );
+                  }
+                }
+              });
+            }
+          }
+
+          // Проверка смерти волка
+          if (wolf.health <= 0 && wolf.state !== "dying") {
+            wolf.state = "dying";
+            wolf.frame = 0;
+          }
+
+          wolves.set(wolfId, { ...wolf });
+          wss.clients.forEach((client) => {
+            if (
+              client.readyState === WebSocket.OPEN &&
+              players.get(clients.get(client))?.worldId === world.id
+            ) {
+              client.send(
+                JSON.stringify({
+                  type: "updateWolf",
+                  worldId: world.id,
+                  wolf,
+                })
+              );
+            }
+          });
+
+          // Удаление волка после смерти
+          if (wolf.state === "dying" && wolf.frame >= 3) {
+            wolves.delete(wolfId);
+            const itemId = `wolf_skin_${Date.now()}`;
+            items.set(itemId, {
+              x: wolf.x,
+              y: wolf.y,
+              type: "wolf_skin",
+              spawnTime: Date.now(),
+              worldId: world.id,
+              isDroppedByPlayer: false,
+            });
+
+            wss.clients.forEach((client) => {
+              if (
+                client.readyState === WebSocket.OPEN &&
+                players.get(clients.get(client))?.worldId === world.id
+              ) {
+                client.send(
+                  JSON.stringify({
+                    type: "removeWolf",
+                    worldId: world.id,
+                    wolfId,
+                  })
+                );
+                client.send(
+                  JSON.stringify({
+                    type: "itemDropped",
+                    itemId,
+                    x: wolf.x,
+                    y: wolf.y,
+                    type: "wolf_skin",
+                    spawnTime: Date.now(),
+                    worldId: world.id,
+                  })
+                );
+              }
+            });
+            console.log(`Волк ${wolfId} умер, дропнута волчья шкура ${itemId}`);
+          }
+        }
+      });
     }
 
     // Синхронизация предметов для игроков в этом мире

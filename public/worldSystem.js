@@ -222,6 +222,8 @@ const worldSystem = {
     // Сбрасываем и инициализируем свет для нового мира
     window.lightsSystem.reset(targetWorldId);
 
+    window.wolfSystem.syncWolves([]); // Очищаем волков при смене мира
+
     // Запрашиваем синхронизацию игроков
     this.syncPlayers();
 

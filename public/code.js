@@ -82,6 +82,11 @@ plasmaRifleImage.src = "plasma_rifle.png";
 const techGlovesImage = new Image();
 techGlovesImage.src = "tech_gloves.png";
 
+const wolfSprite = new Image();
+wolfSprite.src = "wolfSprite.png";
+const wolfSkinImage = new Image();
+wolfSkinImage.src = "wolfSkin.png";
+
 let inventory = Array(20).fill(null);
 
 // Конфигурация эффектов предметов (расширяем ITEM_CONFIG)
@@ -243,6 +248,12 @@ const ITEM_CONFIG = {
     image: techGlovesImage,
     description: "Технические перчатки: +5 брони, +5 энергии",
     rarity: 4,
+  },
+  wolf_skin: {
+    effect: {}, // Без эффекта, просто предмет
+    image: wolfSkinImage,
+    description: "Волчья шкура: материал для крафта.",
+    rarity: 2,
   },
 };
 
@@ -791,6 +802,7 @@ function startGame() {
   });
   window.tradeSystem.initialize(ws);
   window.equipmentSystem.initialize();
+  window.wolfSystem.initialize(wolfSprite, wolfSkinImage);
   const me = players.get(myId);
   if (me && me.equipment) {
     window.equipmentSystem.syncEquipment(me.equipment);
@@ -1438,6 +1450,21 @@ function handleGameMessage(event) {
       case "tradeCompleted":
         window.tradeSystem.handleTradeMessage(data);
         break;
+      case "syncWolves":
+        if (data.worldId === currentWorldId) {
+          window.wolfSystem.syncWolves(data.wolves);
+        }
+        break;
+      case "updateWolf":
+        if (data.worldId === currentWorldId) {
+          window.wolfSystem.updateWolf(data.wolf);
+        }
+        break;
+      case "removeWolf":
+        if (data.worldId === currentWorldId) {
+          window.wolfSystem.removeWolf(data.wolfId);
+        }
+        break;
     }
   } catch (error) {
     console.error("Ошибка в handleGameMessage:", error);
@@ -1459,6 +1486,7 @@ function update(deltaTime) {
 
   // Обновляем движение через movementSystem
   window.movementSystem.update(deltaTime);
+  window.wolfSystem.update(deltaTime);
 
   // Проверяем зоны перехода
   window.worldSystem.checkTransitionZones(me.x, me.y);
@@ -1551,6 +1579,7 @@ function draw(deltaTime) {
   drawNPC();
   npcSystem.drawNPC();
   window.vendingMachine.draw();
+  window.wolfSystem.draw(ctx, window.movementSystem.getCamera());
 
   players.forEach((player, id) => {
     if (
@@ -1727,5 +1756,5 @@ function gameLoop(timestamp) {
 let imagesLoaded = 0;
 function onImageLoad() {
   imagesLoaded++;
-  if (imagesLoaded === 23) window.addEventListener("resize", resizeCanvas);
+  if (imagesLoaded === 25) window.addEventListener("resize", resizeCanvas);
 }
