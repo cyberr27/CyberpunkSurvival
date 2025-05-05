@@ -159,6 +159,7 @@ let selectedQuest = null;
 let dialogStage = "greeting";
 let availableQuests = [];
 let isQuestActive = false; // Флаг, указывающий, активно ли задание
+let npcSprite = null; // Переменная для хранения изображения NPC
 
 const npcStyles = `
   .npc-dialog {
@@ -315,8 +316,8 @@ function drawNPC() {
   const screenX = NPC.x - camera.x;
   const screenY = NPC.y - camera.y;
 
-  if (npcSpriteImage.complete) {
-    ctx.drawImage(npcSpriteImage, screenX, screenY, NPC.width, NPC.height);
+  if (npcSprite && npcSprite.complete) {
+    ctx.drawImage(npcSprite, screenX, screenY, NPC.width, NPC.height);
   } else {
     ctx.fillStyle = "purple";
     ctx.fillRect(screenX, screenY, NPC.width, NPC.height);
@@ -635,7 +636,8 @@ window.npcSystem = {
   updateQuests: (questIds) => {
     setAvailableQuests(questIds);
   },
-  initialize: () => {
+  initialize: (spriteImage) => {
+    npcSprite = spriteImage; // Сохраняем переданное изображение
     initializeNPCStyles();
   },
 };

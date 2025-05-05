@@ -568,7 +568,7 @@ function startGame() {
   levelSystem.initialize(); // Инициализируем систему уровней
   window.vendingMachine.initialize();
   window.movementSystem.initialize(); // Инициализируем систему движения
-  window.npcSystem.initialize(); // Инициализируем стили NPC
+  window.npcSystem.initialize(images.npcSpriteImage); // Передаём изображение NPC
 
   // Проверяем, что изображения загружены перед инициализацией wolfSystem
   if (imagesLoaded === totalImages) {
