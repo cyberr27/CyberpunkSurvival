@@ -295,70 +295,93 @@ function reconnectWebSocket() {
   }
   console.log(`Попытка переподключения ${reconnectAttempts + 1}...`);
   setTimeout(() => {
-    ws = new WebSocket("wss://cyberpunksurvival.onrender.com");
-    ws.onopen = () => {
-      console.log("WebSocket успешно переподключен");
-      reconnectAttempts = 0;
-      if (myId) {
-        const lastUsername = document
-          .getElementById("loginUsername")
-          .value.trim();
-        const lastPassword = document
-          .getElementById("loginPassword")
-          .value.trim();
-        if (lastUsername && lastPassword) {
-          sendWhenReady(
-            ws,
-            JSON.stringify({
-              type: "login",
-              username: lastUsername,
-              password: lastPassword,
-            })
+    // Проверяем доступность сервера перед переподключением
+    fetch("https://cyberpunksurvival.onrender.com/health")
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Сервер недоступен");
+        }
+        ws = new WebSocket("wss://cyberpunksurvival.onrender.com");
+        ws.onopen = () => {
+          console.log("WebSocket успешно переподключен");
+          reconnectAttempts = 0;
+          if (myId) {
+            const lastUsername = document
+              .getElementById("loginUsername")
+              .value.trim();
+            const lastPassword = document
+              .getElementById("loginPassword")
+              .value.trim();
+            if (lastUsername && lastPassword) {
+              sendWhenReady(
+                ws,
+                JSON.stringify({
+                  type: "login",
+                  username: lastUsername,
+                  password: lastPassword,
+                })
+              );
+              console.log(`Повторная авторизация для ${lastUsername}`);
+              // Очищаем волков при переподключении
+              window.wolfSystem.clearWolves();
+            } else {
+              console.warn("Нет сохранённых данных для авторизации");
+              authContainer.style.display = "flex";
+              document.getElementById("gameContainer").style.display = "none";
+            }
+          }
+        };
+        ws.onerror = (error) => {
+          console.error("Ошибка WebSocket при переподключении:", error);
+          reconnectAttempts++;
+          reconnectWebSocket();
+        };
+        ws.onclose = (event) => {
+          console.log(
+            "WebSocket закрыт при переподключении:",
+            event.code,
+            event.reason
           );
-          console.log(`Повторная авторизация для ${lastUsername}`);
-          // Очищаем волков при переподключении
-          window.wolfSystem.clearWolves();
-        } else {
-          console.warn("Нет сохранённых данных для авторизации");
-          authContainer.style.display = "flex";
-          document.getElementById("gameContainer").style.display = "none";
-        }
-      }
-    };
-    ws.onerror = (error) => {
-      console.error("Ошибка WebSocket при переподключении:", error);
-      reconnectAttempts++;
-      reconnectWebSocket();
-    };
-    ws.onclose = (event) => {
-      console.log(
-        "WebSocket закрыт при переподключении:",
-        event.code,
-        event.reason
-      );
-      if (event.code === 4000) {
-        console.log(
-          "Отключён из-за неактивности, переподключение не требуется"
-        );
-        authContainer.style.display = "flex";
-        document.getElementById("gameContainer").style.display = "none";
-        return;
-      }
-      reconnectAttempts++;
-      reconnectWebSocket();
-    };
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === "loginSuccess") {
-          ws.onmessage = handleGameMessage;
-          window.wolfSystem.clearWolves(); // Очищаем волков после успешного логина
-        }
-      } catch (error) {
-        console.error("Ошибка при обработке сообщения:", error);
-      }
-    };
-  }, reconnectDelay * (reconnectAttempts + 1)); // Экспоненциальная задержка
+          if (event.code === 4000) {
+            console.log(
+              "Отключён из-за неактивности, переподключение не требуется"
+            );
+            authContainer.style.display = "flex";
+            document.getElementById("gameContainer").style.display = "none";
+            return;
+          }
+          reconnectAttempts++;
+          reconnectWebSocket();
+        };
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data.type === "loginSuccess") {
+              ws.onmessage = handleGameMessage;
+              window.wolfSystem.clearWolves();
+              // Синхронизируем игрока с сервером
+              const me = players.get(myId);
+              if (me) {
+                sendWhenReady(
+                  ws,
+                  JSON.stringify({
+                    type: "syncPlayers",
+                    worldId: me.worldId,
+                  })
+                );
+              }
+            }
+          } catch (error) {
+            console.error("Ошибка при обработке сообщения:", error);
+          }
+        };
+      })
+      .catch((error) => {
+        console.error("Сервер недоступен, повторная попытка:", error);
+        reconnectAttempts++;
+        reconnectWebSocket();
+      });
+  }, reconnectDelay * (reconnectAttempts + 1) * 1.5); // Увеличиваем задержку
 }
 
 // Инициализация WebSocket
@@ -1277,6 +1300,21 @@ function handleGameMessage(event) {
             }
           }
         }
+        // Добавляем задержку для стабилизации соединения после перехода
+        setTimeout(() => {
+          if (ws.readyState === WebSocket.OPEN) {
+            sendWhenReady(
+              ws,
+              JSON.stringify({
+                type: "syncPlayers",
+                worldId: data.worldId,
+              })
+            );
+            console.log(
+              `Запрошена синхронизация игроков для мира ${data.worldId}`
+            );
+          }
+        }, 1000); // Задержка 1 секунда
         break;
       case "newPlayer":
         if (!data.player || typeof data.player !== "object") {

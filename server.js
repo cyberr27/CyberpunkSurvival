@@ -12,7 +12,7 @@ const players = new Map();
 const userDatabase = new Map();
 
 // В начало файла, после определения констант
-const INACTIVITY_TIMEOUT = 30 * 60 * 1000; // 30 минут
+const INACTIVITY_TIMEOUT = 45 * 60 * 1000; // 45 минут
 
 // Обновляем middleware для статических файлов
 app.use(
@@ -377,6 +377,11 @@ wss.on("connection", (ws) => {
           return;
         }
 
+        // Логируем переход для отладки
+        console.log(
+          `Игрок ${id} переходит из мира ${oldWorldId} в мир ${targetWorldId} на x:${data.x}, y:${data.y}`
+        );
+
         // Обновляем данные игрока
         player.worldId = targetWorldId;
         player.x = data.x;
@@ -422,7 +427,19 @@ wss.on("connection", (ws) => {
           }
         });
 
-        // Отправляем клиенту подтверждение перехода и список игроков
+        // Собираем предметы в новом мире
+        const worldItems = Array.from(items.entries())
+          .filter(([_, item]) => item.worldId === targetWorldId)
+          .map(([itemId, item]) => ({
+            itemId,
+            x: item.x,
+            y: item.y,
+            type: item.type,
+            spawnTime: item.spawnTime,
+            worldId: item.worldId,
+          }));
+
+        // Отправляем клиенту подтверждение перехода
         ws.send(
           JSON.stringify({
             type: "worldTransitionSuccess",
@@ -430,9 +447,10 @@ wss.on("connection", (ws) => {
             x: player.x,
             y: player.y,
             lights: lights.get(targetWorldId).map(({ id, ...rest }) => rest),
-            players: worldPlayers, // Добавляем список игроков
+            players: worldPlayers,
+            items: worldItems,
             wolves: Array.from(wolves.entries())
-              .filter(([_, wolf]) => wolf.worldId === playerData.worldId)
+              .filter(([_, wolf]) => wolf.worldId === targetWorldId)
               .map(([id, wolf]) => ({
                 id,
                 x: wolf.x,
@@ -445,7 +463,7 @@ wss.on("connection", (ws) => {
         );
 
         console.log(
-          `Игрок ${id} перешёл из мира ${oldWorldId} в мир ${targetWorldId}, синхронизировано ${worldPlayers.length} игроков`
+          `Переход успешен: игрок ${id}, мир ${targetWorldId}, синхронизировано ${worldPlayers.length} игроков, ${worldItems.length} предметов`
         );
       }
     } else if (data.type === "syncPlayers") {
