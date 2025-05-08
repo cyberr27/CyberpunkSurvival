@@ -1015,7 +1015,10 @@ wss.on("connection", (ws) => {
             };
             player.inventory[slotIndex] = null;
 
-            // Применяем эффекты
+            // Сохраняем текущие maxStats
+            const currentMaxStats = { ...player.maxStats };
+
+            // Пересчитываем эффекты экипировки
             player.armor = 0;
             player.maxStats = {
               health: 100,
@@ -1035,6 +1038,24 @@ wss.on("connection", (ws) => {
                   player.damage = (player.damage || 0) + effect.damage;
               }
             });
+
+            // Восстанавливаем улучшенные значения maxStats
+            player.maxStats.health = Math.max(
+              player.maxStats.health,
+              currentMaxStats.health
+            );
+            player.maxStats.energy = Math.max(
+              player.maxStats.energy,
+              currentMaxStats.energy
+            );
+            player.maxStats.food = Math.max(
+              player.maxStats.food,
+              currentMaxStats.food
+            );
+            player.maxStats.water = Math.max(
+              player.maxStats.water,
+              currentMaxStats.water
+            );
 
             // Ограничиваем характеристики
             player.health = Math.min(player.health, player.maxStats.health);
@@ -1058,7 +1079,11 @@ wss.on("connection", (ws) => {
             });
 
             console.log(
-              `Игрок ${id} экипировал ${item.type} в слот ${slotName}`
+              `Игрок ${id} экипировал ${
+                item.type
+              } в слот ${slotName}, maxStats: ${JSON.stringify(
+                player.maxStats
+              )}`
             );
           }
         }

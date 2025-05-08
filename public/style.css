@@ -870,8 +870,10 @@ button:active {
 }
 
 #equipmentBtn {
+  position: absolute;
   top: 110px;
   right: 10px;
+  width: 9.5%;
 }
 
 /* Адаптация для мобильных устройств (max-width: 500px) */

@@ -76,51 +76,59 @@ function createUpgradeButtons() {
     existingButtons.forEach((btn) => btn.remove());
 
     console.log(`Создание кнопок, upgradePoints: ${upgradePoints}`);
-    if (upgradePoints > 0) {
-      const statTypes = ["health", "energy", "food", "water"];
-      const statElements = statsEl.querySelectorAll("span");
-
-      statElements.forEach((span, index) => {
-        const statType = statTypes[index];
-        if (!statType) return;
-
-        const button = document.createElement("button");
-        button.className = "upgrade-btn";
-        button.textContent = "+";
-        button.style.marginLeft = "10px";
-        button.style.fontSize = "14px";
-        button.style.padding = "4px 8px";
-        button.style.cursor = "pointer";
-
-        button.addEventListener("click", () => {
-          if (upgradePoints > 0) {
-            upgradePoints--;
-            maxStats[statType] += 1;
-            window.levelSystem.maxStats[statType] = maxStats[statType];
-            console.log(`Увеличен max ${statType} до ${maxStats[statType]}`);
-            updateStatsDisplay();
-            updateUpgradeButtons();
-
-            if (ws.readyState === WebSocket.OPEN) {
-              sendWhenReady(
-                ws,
-                JSON.stringify({
-                  type: "updateMaxStats",
-                  maxStats,
-                  upgradePoints,
-                })
-              );
-              console.log("Отправлено updateMaxStats на сервер");
-            } else {
-              console.warn("WebSocket не открыт, updateMaxStats не отправлено");
-            }
-          }
-        });
-
-        span.appendChild(button);
-        console.log(`Кнопка для ${statType} добавлена`);
-      });
+    if (upgradePoints <= 0) {
+      console.log("Нет очков улучшения, кнопки не создаются");
+      return;
     }
+
+    const statTypes = ["health", "energy", "food", "water"];
+    const statElements = statsEl.querySelectorAll("span");
+
+    statElements.forEach((span, index) => {
+      const statType = statTypes[index];
+      if (!statType) return;
+
+      const button = document.createElement("button");
+      button.className = "upgrade-btn";
+      button.textContent = "+";
+      button.style.marginLeft = "10px";
+      button.style.fontSize = "14px";
+      button.style.padding = "4px 8px";
+      button.style.cursor = "pointer";
+
+      button.addEventListener("click", () => {
+        if (upgradePoints <= 0) {
+          console.warn("Нет доступных очков улучшения");
+          return;
+        }
+
+        upgradePoints--;
+        maxStats[statType] = (maxStats[statType] || 100) + 1;
+        window.levelSystem.maxStats[statType] = maxStats[statType];
+        console.log(`Увеличен max ${statType} до ${maxStats[statType]}`);
+
+        // Обновляем отображение немедленно
+        updateStatsDisplay();
+
+        // Отправляем обновление на сервер
+        if (ws.readyState === WebSocket.OPEN) {
+          sendWhenReady(
+            ws,
+            JSON.stringify({
+              type: "updateMaxStats",
+              maxStats: { ...maxStats },
+              upgradePoints,
+            })
+          );
+          console.log("Отправлено updateMaxStats на сервер");
+        } else {
+          console.warn("WebSocket не открыт, updateMaxStats не отправлено");
+        }
+      });
+
+      span.appendChild(button);
+      console.log(`Кнопка для ${statType} добавлена`);
+    });
   } catch (error) {
     console.error("Ошибка в createUpgradeButtons:", error);
   }
@@ -135,12 +143,16 @@ function updateUpgradeButtons() {
       setTimeout(updateUpgradeButtons, 100);
       return;
     }
+
+    // Удаляем старые кнопки
+    const buttons = statsEl.querySelectorAll(".upgrade-btn");
+    buttons.forEach((btn) => btn.remove());
+
+    // Создаём новые кнопки, если есть очки
     if (upgradePoints > 0) {
       createUpgradeButtons();
     } else {
-      const buttons = statsEl.querySelectorAll(".upgrade-btn");
-      buttons.forEach((btn) => btn.remove());
-      console.log("Все кнопки '+' удалены, так как upgradePoints <= 0");
+      console.log("Нет очков улучшения, кнопки удалены");
     }
   } catch (error) {
     console.error("Ошибка в updateUpgradeButtons:", error);
@@ -194,15 +206,18 @@ function setLevelData(level, xp, maxStatsData, upgradePointsData) {
     );
     currentLevel = level || 0;
     currentXP = xp || 0;
-    maxStats = {
-      health: maxStatsData?.health || 100,
-      energy: maxStatsData?.energy || 100,
-      food: maxStatsData?.food || 100,
-      water: maxStatsData?.water || 100,
-    };
-    window.levelSystem.maxStats = { ...maxStats }; // Синхронизируем глобальный maxStats
     upgradePoints = upgradePointsData || 0;
     xpToNextLevel = calculateXPToNextLevel(currentLevel);
+
+    // Защищаем maxStats от сброса
+    maxStats = {
+      health: maxStatsData?.health || maxStats.health || 100,
+      energy: maxStatsData?.energy || maxStats.energy || 100,
+      food: maxStatsData?.food || maxStats.food || 100,
+      water: maxStatsData?.water || maxStats.water || 100,
+    };
+    window.levelSystem.maxStats = { ...maxStats }; // Синхронизируем глобальный maxStats
+
     if (!isInitialized) {
       console.log("Система уровней не инициализирована, запускаем...");
       initializeLevelSystem();
