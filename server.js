@@ -726,7 +726,19 @@ wss.on("connection", (ws) => {
         const player = players.get(id);
         player.level = data.level;
         player.xp = data.xp;
-        player.maxStats = data.maxStats || player.maxStats;
+        // Защищаем maxStats от сброса
+        player.maxStats = {
+          health: Math.max(
+            data.maxStats?.health || 100,
+            player.maxStats.health
+          ),
+          energy: Math.max(
+            data.maxStats?.energy || 100,
+            player.maxStats.energy
+          ),
+          food: Math.max(data.maxStats?.food || 100, player.maxStats.food),
+          water: Math.max(data.maxStats?.water || 100, player.maxStats.water),
+        };
         player.upgradePoints = data.upgradePoints || 0;
         players.set(id, { ...player });
         userDatabase.set(id, { ...player });
@@ -734,7 +746,7 @@ wss.on("connection", (ws) => {
         console.log(
           `Игрок ${id} обновил уровень: ${data.level}, XP: ${
             data.xp
-          }, maxStats: ${JSON.stringify(data.maxStats)}, upgradePoints: ${
+          }, maxStats: ${JSON.stringify(player.maxStats)}, upgradePoints: ${
             data.upgradePoints
           }`
         );
@@ -1015,8 +1027,8 @@ wss.on("connection", (ws) => {
             };
             player.inventory[slotIndex] = null;
 
-            // Сохраняем текущие maxStats
-            const currentMaxStats = { ...player.maxStats };
+            // Сохраняем улучшенные maxStats
+            const upgradedMaxStats = { ...player.maxStats };
 
             // Пересчитываем эффекты экипировки
             player.armor = 0;
@@ -1042,19 +1054,19 @@ wss.on("connection", (ws) => {
             // Восстанавливаем улучшенные значения maxStats
             player.maxStats.health = Math.max(
               player.maxStats.health,
-              currentMaxStats.health
+              upgradedMaxStats.health
             );
             player.maxStats.energy = Math.max(
               player.maxStats.energy,
-              currentMaxStats.energy
+              upgradedMaxStats.energy
             );
             player.maxStats.food = Math.max(
               player.maxStats.food,
-              currentMaxStats.food
+              upgradedMaxStats.food
             );
             player.maxStats.water = Math.max(
               player.maxStats.water,
-              currentMaxStats.water
+              upgradedMaxStats.water
             );
 
             // Ограничиваем характеристики

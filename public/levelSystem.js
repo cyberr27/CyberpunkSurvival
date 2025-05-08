@@ -359,13 +359,66 @@ function checkLevelUp() {
       currentXP -= xpToNextLevel;
       xpToNextLevel = calculateXPToNextLevel(currentLevel);
       upgradePoints += 10;
+      console.log(`Начислено 10 upgradePoints, всего: ${upgradePoints}`);
       showLevelUpEffect();
       updateUpgradeButtons();
+
+      // Отправляем обновление уровня и maxStats на сервер
+      if (ws.readyState === WebSocket.OPEN) {
+        sendWhenReady(
+          ws,
+          JSON.stringify({
+            type: "updateLevel",
+            level: currentLevel,
+            xp: currentXP,
+            maxStats: { ...maxStats }, // Гарантируем отправку актуальных maxStats
+            upgradePoints,
+          })
+        );
+        console.log("Отправлено updateLevel на сервер с maxStats");
+      } else {
+        console.warn(
+          "WebSocket не открыт, сообщение updateLevel не отправлено"
+        );
+      }
     }
     updateLevelDisplay();
     updateStatsDisplay();
   } catch (error) {
     console.error("Ошибка в checkLevelUp:", error);
+  }
+}
+
+function setLevelData(level, xp, maxStatsData, upgradePointsData) {
+  try {
+    console.log(
+      `Установка уровня: level=${level}, xp=${xp}, maxStats=${JSON.stringify(
+        maxStatsData
+      )}, upgradePoints=${upgradePointsData}`
+    );
+    currentLevel = level || 0;
+    currentXP = xp || 0;
+    upgradePoints = upgradePointsData || 0;
+    xpToNextLevel = calculateXPToNextLevel(currentLevel);
+
+    // Защищаем maxStats от сброса, берём максимум из присланных и текущих значений
+    maxStats = {
+      health: Math.max(maxStatsData?.health || 100, maxStats.health || 100),
+      energy: Math.max(maxStatsData?.energy || 100, maxStats.energy || 100),
+      food: Math.max(maxStatsData?.food || 100, maxStats.food || 100),
+      water: Math.max(maxStatsData?.water || 100, maxStats.water || 100),
+    };
+    window.levelSystem.maxStats = { ...maxStats }; // Синхронизируем глобальный maxStats
+
+    if (!isInitialized) {
+      console.log("Система уровней не инициализирована, запускаем...");
+      initializeLevelSystem();
+    }
+    updateLevelDisplay();
+    updateStatsDisplay();
+    updateUpgradeButtons();
+  } catch (error) {
+    console.error("Ошибка в setLevelData:", error);
   }
 }
 
