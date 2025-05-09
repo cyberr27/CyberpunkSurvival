@@ -7,6 +7,7 @@ function checkCollisionServer(x, y) {
 function runGameLoop(
   wss,
   dbCollection,
+  clients,
   players,
   items,
   wolves,

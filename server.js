@@ -165,7 +165,16 @@ async function initializeServer() {
     ITEM_CONFIG,
     INACTIVITY_TIMEOUT
   );
-  runGameLoop(wss, collection, players, items, wolves, worlds, ITEM_CONFIG);
+  runGameLoop(
+    wss,
+    collection,
+    clients,
+    players,
+    items,
+    wolves,
+    worlds,
+    ITEM_CONFIG
+  );
 
   return collection;
 }
