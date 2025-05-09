@@ -574,11 +574,93 @@ function updateMaxStatsServer({
   }
 }
 
+function handleUpdateLevel({
+  id,
+  data,
+  players,
+  userDatabase,
+  dbCollection,
+  wss,
+  clients,
+}) {
+  try {
+    const player = players.get(id);
+    if (!player) {
+      console.warn(`Игрок ${id} не найден для handleUpdateLevel`);
+      return;
+    }
+
+    updateLevelServer({
+      id,
+      level: data.level || player.level || 0,
+      xp: data.xp || player.xp || 0,
+      maxStats: data.maxStats ||
+        player.maxStats || {
+          health: 100,
+          energy: 100,
+          food: 100,
+          water: 100,
+        },
+      upgradePoints: data.upgradePoints || player.upgradePoints || 0,
+      players,
+      userDatabase,
+      dbCollection,
+      wss,
+      clients,
+    });
+
+    console.log(`Обработано updateLevel для игрока ${id}`);
+  } catch (error) {
+    console.error("Ошибка в handleUpdateLevel:", error);
+  }
+}
+
+function handleUpdateMaxStats({
+  id,
+  data,
+  players,
+  userDatabase,
+  dbCollection,
+  wss,
+  clients,
+}) {
+  try {
+    const player = players.get(id);
+    if (!player) {
+      console.warn(`Игрок ${id} не найден для handleUpdateMaxStats`);
+      return;
+    }
+
+    updateMaxStatsServer({
+      id,
+      maxStats: data.maxStats ||
+        player.maxStats || {
+          health: 100,
+          energy: 100,
+          food: 100,
+          water: 100,
+        },
+      upgradePoints: data.upgradePoints || player.upgradePoints || 0,
+      players,
+      userDatabase,
+      dbCollection,
+      wss,
+      clients,
+    });
+
+    console.log(`Обработано updateMaxStats для игрока ${id}`);
+  } catch (error) {
+    console.error("Ошибка в handleUpdateMaxStats:", error);
+  }
+}
+
 // Экспортируем функции для серверного использования
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     updateLevelServer,
     updateMaxStatsServer,
+    handleUpdateLevel,
+    handleUpdateMaxStats,
   };
 }
 
