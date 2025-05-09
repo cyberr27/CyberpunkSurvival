@@ -12,7 +12,8 @@ function runGameLoop(
   items,
   wolves,
   worlds,
-  ITEM_CONFIG
+  ITEM_CONFIG,
+  userDatabase
 ) {
   setInterval(() => {
     const currentTime = Date.now();

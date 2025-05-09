@@ -41,7 +41,7 @@ worlds.forEach((world) => {
         x: 1314,
         y: 332,
         color: "rgba(255, 0, 255, 0.4)",
-        radius: 1000,
+        radiusbury: 2,
       },
       {
         id: "light3",
@@ -173,7 +173,8 @@ async function initializeServer() {
     items,
     wolves,
     worlds,
-    ITEM_CONFIG
+    ITEM_CONFIG,
+    userDatabase
   );
 
   return collection;
