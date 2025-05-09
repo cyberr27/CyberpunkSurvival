@@ -724,12 +724,9 @@ wss.on("connection", (ws) => {
     } else if (data.type === "updateLevel") {
       const id = clients.get(ws);
       if (id) {
-        levelSystem.updateLevelServer({
+        levelSystem.handleUpdateLevel({
           id,
-          level: data.level,
-          xp: data.xp,
-          maxStats: data.maxStats,
-          upgradePoints: data.upgradePoints,
+          data,
           players,
           userDatabase,
           dbCollection,
@@ -740,10 +737,9 @@ wss.on("connection", (ws) => {
     } else if (data.type === "updateMaxStats") {
       const id = clients.get(ws);
       if (id) {
-        levelSystem.updateMaxStatsServer({
+        levelSystem.handleUpdateMaxStats({
           id,
-          maxStats: data.maxStats,
-          upgradePoints: data.upgradePoints,
+          data,
           players,
           userDatabase,
           dbCollection,
