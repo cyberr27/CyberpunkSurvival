@@ -480,7 +480,7 @@ function handleAuthMessage(event) {
         npcMet: data.npcMet || false,
         selectedQuestId: data.selectedQuestId || null,
         level: data.level || 0,
-        xp: data.xp || 0,
+        xp: data.xp || 99,
         maxStats: data.maxStats || {
           health: 100,
           energy: 100,

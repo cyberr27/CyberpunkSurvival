@@ -255,6 +255,7 @@ const equipmentSystem = {
         type: "equipItem",
         slotIndex,
         equipment: this.equipmentSlots,
+        maxStats: { ...window.levelSystem.maxStats }, // Отправляем актуальные maxStats
         health: me.health,
         energy: me.energy,
         food: me.food,
@@ -274,17 +275,12 @@ const equipmentSystem = {
   },
 
   applyEquipmentEffects: function (player) {
-    // Сохраняем улучшенные maxStats из levelSystem
-    const upgradedMaxStats = { ...window.levelSystem.maxStats };
+    // Используем текущие maxStats из levelSystem как базовые
+    const baseMaxStats = { ...window.levelSystem.maxStats };
 
-    // Сбрасываем текущие бонусы от экипировки
+    // Сбрасываем только бонусы от экипировки, сохраняя базовые значения
     player.armor = 0;
-    player.maxStats = {
-      health: 100,
-      energy: 100,
-      food: 100,
-      water: 100,
-    };
+    player.maxStats = { ...baseMaxStats };
 
     // Применяем эффекты от всех экипированных предметов
     Object.values(this.equipmentSlots).forEach((item) => {
@@ -298,24 +294,6 @@ const equipmentSystem = {
         if (effect.damage) player.damage = (player.damage || 0) + effect.damage;
       }
     });
-
-    // Восстанавливаем улучшенные значения maxStats
-    player.maxStats.health = Math.max(
-      player.maxStats.health,
-      upgradedMaxStats.health
-    );
-    player.maxStats.energy = Math.max(
-      player.maxStats.energy,
-      upgradedMaxStats.energy
-    );
-    player.maxStats.food = Math.max(
-      player.maxStats.food,
-      upgradedMaxStats.food
-    );
-    player.maxStats.water = Math.max(
-      player.maxStats.water,
-      upgradedMaxStats.water
-    );
 
     // Ограничиваем текущие характеристики
     player.health = Math.min(player.health, player.maxStats.health);

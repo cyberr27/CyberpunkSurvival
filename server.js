@@ -351,7 +351,7 @@ wss.on("connection", (ws) => {
           },
           npcMet: false,
           level: 0,
-          xp: 0,
+          xp: 99,
           maxStats: { health: 100, energy: 100, food: 100, water: 100 },
           upgradePoints: 0,
           availableQuests: [],
@@ -1027,17 +1027,16 @@ wss.on("connection", (ws) => {
             };
             player.inventory[slotIndex] = null;
 
-            // Сохраняем улучшенные maxStats
-            const upgradedMaxStats = { ...player.maxStats };
+            // Используем maxStats, переданные клиентом, как базовые
+            player.maxStats = {
+              health: data.maxStats?.health || player.maxStats.health || 100,
+              energy: data.maxStats?.energy || player.maxStats.energy || 100,
+              food: data.maxStats?.food || player.maxStats.food || 100,
+              water: data.maxStats?.water || player.maxStats.water || 100,
+            };
 
             // Пересчитываем эффекты экипировки
             player.armor = 0;
-            player.maxStats = {
-              health: 100,
-              energy: 100,
-              food: 100,
-              water: 100,
-            };
             Object.values(player.equipment).forEach((equippedItem) => {
               if (equippedItem && ITEM_CONFIG[equippedItem.type]) {
                 const effect = ITEM_CONFIG[equippedItem.type].effect;
@@ -1051,29 +1050,11 @@ wss.on("connection", (ws) => {
               }
             });
 
-            // Восстанавливаем улучшенные значения maxStats
-            player.maxStats.health = Math.max(
-              player.maxStats.health,
-              upgradedMaxStats.health
-            );
-            player.maxStats.energy = Math.max(
-              player.maxStats.energy,
-              upgradedMaxStats.energy
-            );
-            player.maxStats.food = Math.max(
-              player.maxStats.food,
-              upgradedMaxStats.food
-            );
-            player.maxStats.water = Math.max(
-              player.maxStats.water,
-              upgradedMaxStats.water
-            );
-
-            // Ограничиваем характеристики
-            player.health = Math.min(player.health, player.maxStats.health);
-            player.energy = Math.min(player.energy, player.maxStats.energy);
-            player.food = Math.min(player.food, player.maxStats.food);
-            player.water = Math.min(player.water, player.maxStats.water);
+            // Обновляем текущие характеристики
+            player.health = Math.min(data.health, player.maxStats.health);
+            player.energy = Math.min(data.energy, player.maxStats.energy);
+            player.food = Math.min(data.food, player.maxStats.food);
+            player.water = Math.min(data.water, player.maxStats.water);
 
             players.set(id, { ...player });
             userDatabase.set(id, { ...player });
