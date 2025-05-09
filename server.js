@@ -3,6 +3,7 @@ const http = require("http");
 const WebSocket = require("ws");
 const path = require("path");
 const { MongoClient } = require("mongodb");
+const levelSystem = require("./levelSystem.js");
 
 const app = express();
 const server = http.createServer(app);
@@ -723,68 +724,32 @@ wss.on("connection", (ws) => {
     } else if (data.type === "updateLevel") {
       const id = clients.get(ws);
       if (id) {
-        const player = players.get(id);
-        player.level = data.level;
-        player.xp = data.xp;
-        // Защищаем maxStats от сброса
-        player.maxStats = {
-          health: Math.max(
-            data.maxStats?.health || 100,
-            player.maxStats.health
-          ),
-          energy: Math.max(
-            data.maxStats?.energy || 100,
-            player.maxStats.energy
-          ),
-          food: Math.max(data.maxStats?.food || 100, player.maxStats.food),
-          water: Math.max(data.maxStats?.water || 100, player.maxStats.water),
-        };
-        player.upgradePoints = data.upgradePoints || 0;
-        players.set(id, { ...player });
-        userDatabase.set(id, { ...player });
-        await saveUserDatabase(dbCollection, id, player);
-        console.log(
-          `Игрок ${id} обновил уровень: ${data.level}, XP: ${
-            data.xp
-          }, maxStats: ${JSON.stringify(player.maxStats)}, upgradePoints: ${
-            data.upgradePoints
-          }`
-        );
-        wss.clients.forEach((client) => {
-          if (
-            client.readyState === WebSocket.OPEN &&
-            clients.get(client) === id
-          ) {
-            client.send(
-              JSON.stringify({ type: "update", player: { id, ...player } })
-            );
-          }
+        levelSystem.updateLevelServer({
+          id,
+          level: data.level,
+          xp: data.xp,
+          maxStats: data.maxStats,
+          upgradePoints: data.upgradePoints,
+          players,
+          userDatabase,
+          dbCollection,
+          wss,
+          clients,
         });
       }
     } else if (data.type === "updateMaxStats") {
       const id = clients.get(ws);
       if (id) {
-        const player = players.get(id);
-        player.maxStats = data.maxStats;
-        player.upgradePoints = data.upgradePoints;
-        players.set(id, { ...player });
-        userDatabase.set(id, { ...player });
-        await saveUserDatabase(dbCollection, id, player);
-        wss.clients.forEach((client) => {
-          if (
-            client.readyState === WebSocket.OPEN &&
-            clients.get(client) === id
-          ) {
-            client.send(
-              JSON.stringify({ type: "update", player: { id, ...player } })
-            );
-          }
+        levelSystem.updateMaxStatsServer({
+          id,
+          maxStats: data.maxStats,
+          upgradePoints: data.upgradePoints,
+          players,
+          userDatabase,
+          dbCollection,
+          wss,
+          clients,
         });
-        console.log(
-          `Игрок ${id} обновил maxStats: ${JSON.stringify(
-            data.maxStats
-          )}, upgradePoints: ${data.upgradePoints}`
-        );
       }
     } else if (data.type === "updateInventory") {
       const id = clients.get(ws);

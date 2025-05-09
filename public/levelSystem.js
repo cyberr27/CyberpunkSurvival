@@ -469,6 +469,119 @@ function showLevelUpEffect() {
   }
 }
 
+// Серверные функции для обработки уровней и характеристик
+function updateLevelServer({
+  id,
+  level,
+  xp,
+  maxStats,
+  upgradePoints,
+  players,
+  userDatabase,
+  dbCollection,
+  wss,
+  clients,
+}) {
+  try {
+    const player = players.get(id);
+    if (!player) {
+      console.warn(`Игрок ${id} не найден для updateLevel`);
+      return;
+    }
+
+    // Обновляем данные игрока
+    player.level = level || 0;
+    player.xp = xp || 0;
+    player.maxStats = {
+      health: Math.max(maxStats?.health || 100, player.maxStats.health || 100),
+      energy: Math.max(maxStats?.energy || 100, player.maxStats.energy || 100),
+      food: Math.max(maxStats?.food || 100, player.maxStats.food || 100),
+      water: Math.max(maxStats?.water || 100, player.maxStats.water || 100),
+    };
+    player.upgradePoints = upgradePoints || 0;
+
+    // Сохраняем изменения
+    players.set(id, { ...player });
+    userDatabase.set(id, { ...player });
+    saveUserDatabase(dbCollection, id, player);
+
+    // Уведомляем клиента
+    wss.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN && clients.get(client) === id) {
+        client.send(
+          JSON.stringify({ type: "update", player: { id, ...player } })
+        );
+      }
+    });
+
+    console.log(
+      `Игрок ${id} обновил уровень: ${level}, XP: ${xp}, maxStats: ${JSON.stringify(
+        player.maxStats
+      )}, upgradePoints: ${upgradePoints}`
+    );
+  } catch (error) {
+    console.error("Ошибка в updateLevelServer:", error);
+  }
+}
+
+function updateMaxStatsServer({
+  id,
+  maxStats,
+  upgradePoints,
+  players,
+  userDatabase,
+  dbCollection,
+  wss,
+  clients,
+}) {
+  try {
+    const player = players.get(id);
+    if (!player) {
+      console.warn(`Игрок ${id} не найден для updateMaxStats`);
+      return;
+    }
+
+    // Обновляем maxStats и upgradePoints
+    player.maxStats = {
+      health: Math.max(maxStats?.health || 100, player.maxStats.health || 100),
+      energy: Math.max(maxStats?.energy || 100, player.maxStats.energy || 100),
+      food: Math.max(maxStats?.food || 100, player.maxStats.food || 100),
+      water: Math.max(maxStats?.water || 100, player.maxStats.water || 100),
+    };
+    player.upgradePoints = upgradePoints || 0;
+
+    // Сохраняем изменения
+    players.set(id, { ...player });
+    userDatabase.set(id, { ...player });
+    saveUserDatabase(dbCollection, id, player);
+
+    // Уведомляем клиента
+    wss.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN && clients.get(client) === id) {
+        client.send(
+          JSON.stringify({ type: "update", player: { id, ...player } })
+        );
+      }
+    });
+
+    console.log(
+      `Игрок ${id} обновил maxStats: ${JSON.stringify(
+        maxStats
+      )}, upgradePoints: ${upgradePoints}`
+    );
+  } catch (error) {
+    console.error("Ошибка в updateMaxStatsServer:", error);
+  }
+}
+
+// Экспортируем функции для серверного использования
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    updateLevelServer,
+    updateMaxStatsServer,
+  };
+}
+
 window.levelSystem = {
   initialize: initializeLevelSystem,
   setLevelData,
