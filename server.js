@@ -4,6 +4,7 @@ const WebSocket = require("ws");
 const path = require("path");
 const { connectToDatabase, loadUserDatabase } = require("./database");
 const { setupWebSocket } = require("./websocket");
+const { setupLiWebSocket } = require("./serverLi"); // Добавлено
 const { runGameLoop } = require("./gameLogic");
 const { ITEM_CONFIG } = require("./items");
 
@@ -165,6 +166,7 @@ async function initializeServer() {
     ITEM_CONFIG,
     INACTIVITY_TIMEOUT
   );
+  setupLiWebSocket(wss, collection, clients, players, userDatabase, items); // Добавлено
   runGameLoop(
     wss,
     collection,

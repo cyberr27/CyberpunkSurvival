@@ -478,6 +478,7 @@ function handleAuthMessage(event) {
         frame: data.frame || 0,
         inventory: data.inventory || Array(20).fill(null),
         npcMet: data.npcMet || false,
+        npcLiMet: data.npcLiMet || false, // Добавлено
         selectedQuestId: data.selectedQuestId || null,
         level: data.level || 0,
         xp: data.xp || 99,
@@ -488,6 +489,13 @@ function handleAuthMessage(event) {
           water: 100,
         },
         upgradePoints: data.upgradePoints || 0,
+        availableQuests: data.availableQuests || [],
+        availableLiQuests: data.availableLiQuests || [
+          1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+        ], // Добавлено
+        itemsUsed: data.itemsUsed || 0, // Добавлено
+        itemsCollected: data.itemsCollected || 0, // Добавлено
+        balyaryEarned: data.balyaryEarned || 0, // Добавлено
         worldId: data.worldId || 0,
         worldPositions: data.worldPositions || { 0: { x: 222, y: 3205 } },
       };
@@ -526,6 +534,12 @@ function handleAuthMessage(event) {
         );
         console.log(`Загружено ${lights.length} источников света при логине`);
       }
+
+      window.npcLiSystem.setNPCMet(data.npcLiMet || false); // Добавлено
+      window.npcLiSystem.setAvailableQuests(
+        data.availableLiQuests || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+      ); // Добавлено
+
       window.lightsSystem.reset(me.worldId); // Синхронизируем свет с текущим миром
       inventory = data.inventory || Array(20).fill(null);
       window.npcSystem.setNPCMet(data.npcMet || false);
@@ -592,6 +606,7 @@ function startGame() {
   window.vendingMachine.initialize();
   window.movementSystem.initialize(); // Инициализируем систему движения
   window.npcSystem.initialize(images.npcSpriteImage); // Передаём изображение NPC
+  window.npcLiSystem.initialize(images.npcSpriteImage);
 
   // Проверяем, что изображения загружены перед инициализацией wolfSystem
   if (imagesLoaded === totalImages) {
@@ -946,6 +961,12 @@ function useItem(slotIndex) {
     );
 
   inventory[slotIndex] = null;
+
+  me.itemsUsed = (me.itemsUsed || 0) + 1;
+  sendWhenReady(
+    ws,
+    JSON.stringify({ type: "updatePlayerStats", itemsUsed: me.itemsUsed })
+  );
 
   sendWhenReady(
     ws,
@@ -1402,6 +1423,15 @@ function handleGameMessage(event) {
                 );
               }
             }
+            me.balyaryEarned =
+              (me.balyaryEarned || 0) + (data.item.quantity || 1); // Добавлено
+            sendWhenReady(
+              ws,
+              JSON.stringify({
+                type: "updatePlayerStats",
+                balyaryEarned: me.balyaryEarned,
+              })
+            );
           } else {
             const freeSlot = inventory.findIndex((slot) => slot === null);
             if (freeSlot !== -1) {
@@ -1411,6 +1441,14 @@ function handleGameMessage(event) {
               );
             }
           }
+          me.itemsCollected = (me.itemsCollected || 0) + 1; // Добавлено
+          sendWhenReady(
+            ws,
+            JSON.stringify({
+              type: "updatePlayerStats",
+              itemsCollected: me.itemsCollected,
+            })
+          );
           updateInventoryDisplay();
           levelSystem.handleItemPickup(
             data.item.type,
@@ -1540,6 +1578,7 @@ function update(deltaTime) {
 
   // Обновляем движение через movementSystem
   window.movementSystem.update(deltaTime);
+  window.npcLiSystem.checkInteraction();
   window.wolfSystem.update(deltaTime);
 
   // Проверяем зоны перехода
@@ -1632,6 +1671,7 @@ function draw(deltaTime) {
 
   drawNPC();
   npcSystem.drawNPC();
+  window.npcLiSystem.drawNPC();
   window.vendingMachine.draw();
   window.wolfSystem.draw(ctx, window.movementSystem.getCamera());
 

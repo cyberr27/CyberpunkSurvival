@@ -69,11 +69,16 @@ function setupWebSocket(
               gloves: null,
             },
             npcMet: false,
+            npcLiMet: false, // Добавлено
             level: 0,
             xp: 99,
             maxStats: { health: 100, energy: 100, food: 100, water: 100 },
             upgradePoints: 0,
             availableQuests: [],
+            availableLiQuests: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], // Добавлено
+            itemsUsed: 0, // Добавлено
+            itemsCollected: 0, // Добавлено
+            balyaryEarned: 0, // Добавлено
             worldId: 0,
             worldPositions: { 0: { x: 222, y: 3205 } },
           };
@@ -208,6 +213,7 @@ function setupWebSocket(
               gloves: null,
             },
             npcMet: player.npcMet || false,
+            npcLiMet: player.npcLiMet || false, // Добавлено
             selectedQuestId: player.selectedQuestId || null,
             level: player.level || 0,
             xp: player.xp || 0,
@@ -219,6 +225,12 @@ function setupWebSocket(
             },
             upgradePoints: player.upgradePoints || 0,
             availableQuests: player.availableQuests || [],
+            availableLiQuests: player.availableLiQuests || [
+              1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+            ], // Добавлено
+            itemsUsed: player.itemsUsed || 0, // Добавлено
+            itemsCollected: player.itemsCollected || 0, // Добавлено
+            balyaryEarned: player.balyaryEarned || 0, // Добавлено
             worldId: player.worldId || 0,
             worldPositions: player.worldPositions || {
               0: { x: player.x, y: player.y },
@@ -1186,6 +1198,32 @@ function setupWebSocket(
             }
           });
           console.log(`Игрок ${id} нанёс ${damage} урона волку ${data.wolfId}`);
+        } else if (data.type === "updatePlayerStats") {
+          const id = clients.get(ws);
+          if (id) {
+            const player = players.get(id);
+            if (data.itemsUsed !== undefined) player.itemsUsed = data.itemsUsed;
+            if (data.itemsCollected !== undefined)
+              player.itemsCollected = data.itemsCollected;
+            if (data.balyaryEarned !== undefined)
+              player.balyaryEarned = data.balyaryEarned;
+            players.set(id, { ...player });
+            userDatabase.set(id, { ...player });
+            await saveUserDatabase(dbCollection, id, player);
+            wss.clients.forEach((client) => {
+              if (
+                client.readyState === WebSocket.OPEN &&
+                clients.get(client) === id
+              ) {
+                client.send(
+                  JSON.stringify({ type: "update", player: { id, ...player } })
+                );
+              }
+            });
+            console.log(
+              `Игрок ${id} обновил статистику: itemsUsed=${player.itemsUsed}, itemsCollected=${player.itemsCollected}, balyaryEarned=${player.balyaryEarned}`
+            );
+          }
         }
       }
     });
