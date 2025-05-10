@@ -51,8 +51,7 @@ function performAttack() {
   if (currentTime - lastAttackTime < ATTACK_COOLDOWN) return;
 
   lastAttackTime = currentTime;
-  me.energy = Math.max(0, me.energy - 1); // Уменьшаем энергию на 1
-
+  let energyConsumed = false; // Флаг для отслеживания расхода энергии
   const equippedWeapon = me.equipment && me.equipment.weapon;
   const currentWorldId = window.worldSystem.currentWorldId;
 
@@ -62,7 +61,7 @@ function performAttack() {
 
     if (isRanged) {
       // Стрельба из дальнобойного оружия
-      const range = weaponConfig.effect.range || 500; // Минимальная дальность 500 пикселей
+      const range = weaponConfig.effect.range || 500;
       const damage = weaponConfig.effect.damage || 10;
 
       const bulletId = `bullet_${Date.now()}_${Math.random()}`;
@@ -70,7 +69,7 @@ function performAttack() {
 
       const bullet = {
         id: bulletId,
-        x: me.x + 20, // Центр игрока
+        x: me.x + 20,
         y: me.y + 20,
         vx: Math.cos(angle) * BULLET_SPEED,
         vy: Math.sin(angle) * BULLET_SPEED,
@@ -82,6 +81,8 @@ function performAttack() {
       };
 
       bullets.set(bulletId, bullet);
+      me.energy = Math.max(0, me.energy - 1); // Расход энергии при выстреле
+      energyConsumed = true;
 
       sendWhenReady(
         ws,
@@ -102,42 +103,45 @@ function performAttack() {
       // Ближний бой
       const damage =
         (Math.random() * 10 + (weaponConfig.effect.damage || 0)) | 0;
-      performMeleeAttack(damage, currentWorldId);
+      energyConsumed = performMeleeAttack(damage, currentWorldId);
     }
   } else {
     // Атака без оружия (кулаками)
     const damage = (Math.random() * 10) | 0;
-    performMeleeAttack(damage, currentWorldId);
+    energyConsumed = performMeleeAttack(damage, currentWorldId);
   }
 
-  // Обновляем данные игрока
-  sendWhenReady(
-    ws,
-    JSON.stringify({
-      type: "update",
-      player: {
-        id: myId,
-        x: me.x,
-        y: me.y,
-        health: me.health,
-        energy: me.energy,
-        food: me.food,
-        water: me.water,
-        armor: me.armor,
-        distanceTraveled: me.distanceTraveled,
-        direction: me.direction,
-        state: me.state,
-        frame: me.frame,
-        worldId: currentWorldId,
-      },
-    })
-  );
+  // Обновляем данные игрока только если была затрачена энергия
+  if (energyConsumed) {
+    sendWhenReady(
+      ws,
+      JSON.stringify({
+        type: "update",
+        player: {
+          id: myId,
+          x: me.x,
+          y: me.y,
+          health: me.health,
+          energy: me.energy,
+          food: me.food,
+          water: me.water,
+          armor: me.armor,
+          distanceTraveled: me.distanceTraveled,
+          direction: me.direction,
+          state: me.state,
+          frame: me.frame,
+          worldId: currentWorldId,
+        },
+      })
+    );
+  }
 }
 
 // Выполнение атаки ближнего боя
 function performMeleeAttack(damage, worldId) {
   const me = players.get(myId);
   const attackRange = 10; // Дальность атаки 10 пикселей
+  let hit = false; // Флаг успешного попадания
 
   // Проверка игроков
   players.forEach((player, id) => {
@@ -146,6 +150,8 @@ function performMeleeAttack(damage, worldId) {
       const dy = player.y - me.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
       if (distance <= attackRange) {
+        hit = true;
+        me.energy = Math.max(0, me.energy - 1); // Расход энергии при попадании
         sendWhenReady(
           ws,
           JSON.stringify({
@@ -167,6 +173,8 @@ function performMeleeAttack(damage, worldId) {
         const dy = wolf.y - me.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
         if (distance <= attackRange) {
+          hit = true;
+          me.energy = Math.max(0, me.energy - 1); // Расход энергии при попадании
           sendWhenReady(
             ws,
             JSON.stringify({
@@ -180,6 +188,8 @@ function performMeleeAttack(damage, worldId) {
       }
     });
   }
+
+  return hit; // Возвращаем, была ли атака успешной
 }
 
 // Получение угла поворота игрока
