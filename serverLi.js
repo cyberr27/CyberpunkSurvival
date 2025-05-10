@@ -81,10 +81,7 @@ function setupLiWebSocket(
             userDatabase.set(id, { ...player });
             await saveUserDatabase(dbCollection, id, player);
             ws.send(
-              JSON.stringify({
-                type: "update",
-                player: { id, ...player },
-              })
+              JSON.stringify({ type: "update", player: { id, ...player } })
             );
             console.log(
               `Игрок ${id} получил награду за задание ${data.questId}: XP +${

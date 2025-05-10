@@ -535,10 +535,20 @@ function handleAuthMessage(event) {
         console.log(`Загружено ${lights.length} источников света при логине`);
       }
 
-      window.npcLiSystem.setNPCMet(data.npcLiMet || false); // Добавлено
-      window.npcLiSystem.setAvailableQuests(
-        data.availableLiQuests || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-      ); // Добавлено
+      if (window.npcLiSystem) {
+        window.npcLiSystem.setNPCMet(data.npcLiMet || false);
+        window.npcLiSystem.setAvailableQuests(
+          data.availableLiQuests || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        );
+      } else {
+        // Сохраняем данные для последующей инициализации
+        window.npcLiData = {
+          npcLiMet: data.npcLiMet || false,
+          availableLiQuests: data.availableLiQuests || [
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+          ],
+        };
+      }
 
       window.lightsSystem.reset(me.worldId); // Синхронизируем свет с текущим миром
       inventory = data.inventory || Array(20).fill(null);
@@ -607,6 +617,12 @@ function startGame() {
   window.movementSystem.initialize(); // Инициализируем систему движения
   window.npcSystem.initialize(images.npcSpriteImage); // Передаём изображение NPC
   window.npcLiSystem.initialize(images.npcSpriteImage);
+
+  if (window.npcLiData) {
+    window.npcLiSystem.setNPCMet(window.npcLiData.npcLiMet);
+    window.npcLiSystem.setAvailableQuests(window.npcLiData.availableLiQuests);
+    delete window.npcLiData; // Очищаем временные данные
+  }
 
   // Проверяем, что изображения загружены перед инициализацией wolfSystem
   if (imagesLoaded === totalImages) {

@@ -76,6 +76,7 @@ const npcLiSystem = {
   initialize(spriteImage) {
     this.spriteImage = spriteImage;
     this.setupEventListeners();
+    console.log("npcLiSystem инициализирован");
   },
 
   setupEventListeners() {
@@ -86,11 +87,7 @@ const npcLiSystem = {
           npcLiMet = true;
           sendWhenReady(
             ws,
-            JSON.stringify({
-              type: "meetNPCLi",
-              npcMet: true,
-              availableQuests,
-            })
+            JSON.stringify({ type: "meetNPCLi", npcMet: true, availableQuests })
           );
           this.showQuestMenu();
         } else {
@@ -117,7 +114,7 @@ const npcLiSystem = {
     if (
       distance < NPC_LI_CONFIG.interactionRadius &&
       !npcLiDialogOpen &&
-      !chatContainer.style.display === "flex"
+      chatContainer.style.display !== "flex"
     ) {
       this.showDialogPrompt();
     } else if (distance >= NPC_LI_CONFIG.interactionRadius && npcLiDialogOpen) {
@@ -192,13 +189,7 @@ const npcLiSystem = {
     const quest = NPC_LI_CONFIG.quests.find((q) => q.id === questId);
     const me = players.get(myId);
     if (quest && quest.condition(me) && availableQuests.includes(questId)) {
-      sendWhenReady(
-        ws,
-        JSON.stringify({
-          type: "claimLiReward",
-          questId,
-        })
-      );
+      sendWhenReady(ws, JSON.stringify({ type: "claimLiReward", questId }));
       availableQuests = availableQuests.filter((id) => id !== questId);
     }
   },
@@ -234,4 +225,5 @@ const npcLiSystem = {
   },
 };
 
+// Инициализация выполняется в code.js в startGame
 window.npcLiSystem = npcLiSystem;
