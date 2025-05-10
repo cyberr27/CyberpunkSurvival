@@ -368,6 +368,9 @@ button:active {
   background: linear-gradient(135deg, #ff00cc, #00ff99);
   box-shadow: 0 0 20px rgba(255, 0, 204, 1);
 }
+#combatBtn {
+  right: 160px; /* Позиция после кнопок инвентаря и чата */
+}
 /* Контейнер инвентаря */
 #inventoryContainer {
   position: absolute;

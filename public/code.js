@@ -555,6 +555,40 @@ function handleAuthMessage(event) {
     case "loginFail":
       loginError.textContent = "Неверное имя или пароль";
       break;
+    case "shoot":
+      if (data.worldId === currentWorldId) {
+        bullets.set(data.bulletId, {
+          id: data.bulletId,
+          x: data.x,
+          y: data.y,
+          vx: data.vx,
+          vy: data.vy,
+          damage: data.damage,
+          range: data.range,
+          ownerId: data.ownerId,
+          spawnTime: data.spawnTime,
+          worldId: data.worldId,
+        });
+      }
+      break;
+    case "bulletCollision":
+      if (data.worldId === currentWorldId) {
+        data.bulletIds.forEach((bulletId) => bullets.delete(bulletId));
+      }
+      break;
+    case "removeBullet":
+      if (data.worldId === currentWorldId) {
+        bullets.delete(data.bulletId);
+      }
+      break;
+    case "attackPlayer":
+      if (data.worldId === currentWorldId && players.has(data.targetId)) {
+        const player = players.get(data.targetId);
+        player.health = Math.max(0, player.health - data.damage);
+        players.set(data.targetId, { ...player });
+        updateStatsDisplay();
+      }
+      break;
   }
 }
 
@@ -601,6 +635,7 @@ function startGame() {
       "Изображения волка не загружены, пропускаем инициализацию wolfSystem"
     );
   }
+  window.combatSystem.initialize();
 
   document.addEventListener("keydown", (e) => {
     const me = players.get(myId);
@@ -1541,6 +1576,7 @@ function update(deltaTime) {
   // Обновляем движение через movementSystem
   window.movementSystem.update(deltaTime);
   window.wolfSystem.update(deltaTime);
+  window.combatSystem.update(deltaTime);
 
   // Проверяем зоны перехода
   window.worldSystem.checkTransitionZones(me.x, me.y);
@@ -1634,6 +1670,7 @@ function draw(deltaTime) {
   npcSystem.drawNPC();
   window.vendingMachine.draw();
   window.wolfSystem.draw(ctx, window.movementSystem.getCamera());
+  window.combatSystem.draw();
 
   players.forEach((player, id) => {
     if (

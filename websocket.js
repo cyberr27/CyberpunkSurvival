@@ -1187,6 +1187,114 @@ function setupWebSocket(
           });
           console.log(`Игрок ${id} нанёс ${damage} урона волку ${data.wolfId}`);
         }
+      } else if (data.type === "shoot") {
+        const shooterId = clients.get(ws);
+        if (shooterId && players.has(shooterId)) {
+          const player = players.get(shooterId);
+          if (player.worldId === data.worldId) {
+            wss.clients.forEach((client) => {
+              if (client.readyState === WebSocket.OPEN) {
+                const clientPlayer = players.get(clients.get(client));
+                if (clientPlayer && clientPlayer.worldId === data.worldId) {
+                  client.send(
+                    JSON.stringify({
+                      type: "shoot",
+                      bulletId: data.bulletId,
+                      x: data.x,
+                      y: data.y,
+                      vx: data.vx,
+                      vy: data.vy,
+                      damage: data.damage,
+                      range: data.range,
+                      ownerId: data.ownerId,
+                      spawnTime: data.spawnTime,
+                      worldId: data.worldId,
+                    })
+                  );
+                }
+              }
+            });
+          }
+        }
+      } else if (data.type === "bulletCollision") {
+        if (data.worldId) {
+          wss.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+              const clientPlayer = players.get(clients.get(client));
+              if (clientPlayer && clientPlayer.worldId === data.worldId) {
+                client.send(
+                  JSON.stringify({
+                    type: "bulletCollision",
+                    bulletIds: data.bulletIds,
+                    worldId: data.worldId,
+                  })
+                );
+              }
+            }
+          });
+        }
+      } else if (data.type === "removeBullet") {
+        if (data.worldId) {
+          wss.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+              const clientPlayer = players.get(clients.get(client));
+              if (clientPlayer && clientPlayer.worldId === data.worldId) {
+                client.send(
+                  JSON.stringify({
+                    type: "removeBullet",
+                    bulletId: data.bulletId,
+                    worldId: data.worldId,
+                  })
+                );
+              }
+            }
+          });
+        }
+      } else if (data.type === "attackPlayer") {
+        const attackerId = clients.get(ws);
+        if (
+          attackerId &&
+          players.has(attackerId) &&
+          players.has(data.targetId)
+        ) {
+          const attacker = players.get(attackerId);
+          const target = players.get(data.targetId);
+          if (
+            attacker.worldId === data.worldId &&
+            target.worldId === data.worldId &&
+            target.health > 0
+          ) {
+            target.health = Math.max(0, target.health - data.damage);
+            players.set(data.targetId, { ...target });
+            userDatabase.set(data.targetId, { ...target });
+            await saveUserDatabase(dbCollection, data.targetId, target);
+
+            wss.clients.forEach((client) => {
+              if (client.readyState === WebSocket.OPEN) {
+                const clientPlayer = players.get(clients.get(client));
+                if (clientPlayer && clientPlayer.worldId === data.worldId) {
+                  client.send(
+                    JSON.stringify({
+                      type: "attackPlayer",
+                      targetId: data.targetId,
+                      damage: data.damage,
+                      worldId: data.worldId,
+                    })
+                  );
+                  client.send(
+                    JSON.stringify({
+                      type: "update",
+                      player: { id: data.targetId, ...target },
+                    })
+                  );
+                }
+              }
+            });
+            console.log(
+              `Игрок ${attackerId} нанёс ${data.damage} урона игроку ${data.targetId}`
+            );
+          }
+        }
       }
     });
 
