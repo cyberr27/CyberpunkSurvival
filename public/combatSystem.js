@@ -5,14 +5,13 @@ const BULLET_LIFETIME = 2000; // Время жизни пули в миллис�
 
 let bullets = new Map(); // Хранилище пуль
 let lastAttackTime = 0; // Время последней атаки
-let isCombatPanelOpen = false; // Состояние панели атаки
 
 // Инициализация системы боя
 function initializeCombatSystem() {
   const combatBtn = document.getElementById("combatBtn");
   combatBtn.addEventListener("click", (e) => {
     e.preventDefault();
-    toggleCombatPanel();
+    performAttack(); // Запускаем атаку при клике
   });
 
   // Обработчик атаки по нажатию мыши
@@ -35,11 +34,13 @@ function initializeCombatSystem() {
   });
 }
 
-// Переключение панели атаки
-function toggleCombatPanel() {
-  isCombatPanelOpen = !isCombatPanelOpen;
+// Запуск анимации мигания кнопки при атаке на игрока
+function triggerAttackAnimation() {
   const combatBtn = document.getElementById("combatBtn");
-  combatBtn.classList.toggle("active", isCombatPanelOpen);
+  combatBtn.classList.add("under-attack");
+  setTimeout(() => {
+    combatBtn.classList.remove("under-attack");
+  }, 2000); // Анимация длится 2 секунды
 }
 
 // Выполнение атаки
@@ -281,6 +282,10 @@ function updateBullets(deltaTime) {
               worldId: currentWorldId,
             })
           );
+          // Если атакован текущий игрок, запускаем анимацию
+          if (id === myId) {
+            triggerAttackAnimation();
+          }
         }
       }
     });
