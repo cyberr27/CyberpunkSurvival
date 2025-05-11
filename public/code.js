@@ -1123,6 +1123,14 @@ function updateResources() {
 
   const distance = Math.floor(me.distanceTraveled || 0);
 
+  // Энегрия: -1 каждые 650 пикселей
+  const energyLoss = Math.floor(distance / 650);
+  const prevEnergyLoss = Math.floor(lastDistance / 450);
+  if (energyLoss > prevEnergyLoss) {
+    me.energy = Math.max(0, me.energy - (energyLoss - prevEnergyLoss));
+    console.log(`Energy reduced to ${me.energy}`);
+  }
+
   // Еда: -1 каждые 450 пикселей
   const foodLoss = Math.floor(distance / 450);
   const prevFoodLoss = Math.floor(lastDistance / 450);
