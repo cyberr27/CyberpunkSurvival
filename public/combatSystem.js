@@ -51,7 +51,6 @@ function performAttack() {
   if (currentTime - lastAttackTime < ATTACK_COOLDOWN) return;
 
   lastAttackTime = currentTime;
-  let energyConsumed = false; // Флаг для отслеживания расхода энергии
   const equippedWeapon = me.equipment && me.equipment.weapon;
   const currentWorldId = window.worldSystem.currentWorldId;
 
@@ -82,7 +81,6 @@ function performAttack() {
 
       bullets.set(bulletId, bullet);
       me.energy = Math.max(0, me.energy - 1); // Расход энергии при выстреле
-      energyConsumed = true;
 
       sendWhenReady(
         ws,
@@ -99,48 +97,46 @@ function performAttack() {
           worldId: currentWorldId,
         })
       );
+
+      // Обновляем данные игрока на сервере
+      sendWhenReady(
+        ws,
+        JSON.stringify({
+          type: "update",
+          player: {
+            id: myId,
+            x: me.x,
+            y: me.y,
+            health: me.health,
+            energy: me.energy,
+            food: me.food,
+            water: me.water,
+            armor: me.armor,
+            distanceTraveled: me.distanceTraveled,
+            direction: me.direction,
+            state: me.state,
+            frame: me.frame,
+            worldId: currentWorldId,
+          },
+        })
+      );
     } else {
       // Ближний бой
       const damage =
         (Math.random() * 10 + (weaponConfig.effect.damage || 0)) | 0;
-      energyConsumed = performMeleeAttack(damage, currentWorldId);
+      performMeleeAttack(damage, currentWorldId);
     }
   } else {
     // Атака без оружия (кулаками)
     const damage = (Math.random() * 10) | 0;
-    energyConsumed = performMeleeAttack(damage, currentWorldId);
-  }
-
-  // Обновляем данные игрока только если была затрачена энергия
-  if (energyConsumed) {
-    sendWhenReady(
-      ws,
-      JSON.stringify({
-        type: "update",
-        player: {
-          id: myId,
-          x: me.x,
-          y: me.y,
-          health: me.health,
-          energy: me.energy,
-          food: me.food,
-          water: me.water,
-          armor: me.armor,
-          distanceTraveled: me.distanceTraveled,
-          direction: me.direction,
-          state: me.state,
-          frame: me.frame,
-          worldId: currentWorldId,
-        },
-      })
-    );
+    performMeleeAttack(damage, currentWorldId);
   }
 }
 
 // Выполнение атаки ближнего боя
 function performMeleeAttack(damage, worldId) {
   const me = players.get(myId);
-  const attackRange = 10; // Дальность атаки 10 пикселей
+  const attackRange = 50; // Увеличиваем дальность атаки до 50 пикселей
   let hit = false; // Флаг успешного попадания
 
   // Проверка игроков
@@ -187,6 +183,31 @@ function performMeleeAttack(damage, worldId) {
         }
       }
     });
+  }
+
+  // Обновляем данные игрока на сервере, если была затрачена энергия
+  if (hit) {
+    sendWhenReady(
+      ws,
+      JSON.stringify({
+        type: "update",
+        player: {
+          id: myId,
+          x: me.x,
+          y: me.y,
+          health: me.health,
+          energy: me.energy,
+          food: me.food,
+          water: me.water,
+          armor: me.armor,
+          distanceTraveled: me.distanceTraveled,
+          direction: me.direction,
+          state: me.state,
+          frame: me.frame,
+          worldId,
+        },
+      })
+    );
   }
 
   return hit; // Возвращаем, была ли атака успешной

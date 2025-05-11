@@ -1123,12 +1123,12 @@ function updateResources() {
 
   const distance = Math.floor(me.distanceTraveled || 0);
 
-  // Энегрия: -1 каждые 650 пикселей
-  const energyLoss = Math.floor(distance / 650);
-  const prevEnergyLoss = Math.floor(lastDistance / 450);
-  if (energyLoss > prevEnergyLoss) {
-    me.energy = Math.max(0, me.energy - (energyLoss - prevEnergyLoss));
-    console.log(`Energy reduced to ${me.energy}`);
+  // Вода: -1 каждые 250 пикселей
+  const waterLoss = Math.floor(distance / 250);
+  const prevWaterLoss = Math.floor(lastDistance / 250);
+  if (waterLoss > prevWaterLoss) {
+    me.water = Math.max(0, me.water - (waterLoss - prevWaterLoss));
+    console.log(`Вода уменьшена до ${me.water}`);
   }
 
   // Еда: -1 каждые 450 пикселей
@@ -1136,29 +1136,42 @@ function updateResources() {
   const prevFoodLoss = Math.floor(lastDistance / 450);
   if (foodLoss > prevFoodLoss) {
     me.food = Math.max(0, me.food - (foodLoss - prevFoodLoss));
-    console.log(`Food reduced to ${me.food}`);
+    console.log(`Еда уменьшена до ${me.food}`);
   }
 
-  // Вода: -1 каждые 250 пикселей
-  const waterLoss = Math.floor(distance / 250);
-  const prevWaterLoss = Math.floor(lastDistance / 250);
-  if (waterLoss > prevWaterLoss) {
-    me.water = Math.max(0, me.water - (waterLoss - prevWaterLoss));
-    console.log(`Water reduced to ${me.water}`);
+  // Энергия: -1 каждые 650 пикселей
+  const energyLoss = Math.floor(distance / 650);
+  const prevEnergyLoss = Math.floor(lastDistance / 650);
+  if (energyLoss > prevEnergyLoss) {
+    me.energy = Math.max(0, me.energy - (energyLoss - prevEnergyLoss));
+    console.log(`Энергия уменьшена до ${me.energy}`);
   }
 
-  // Здоровье: -1 каждые 150 пикселей, если ресурсы на нуле
-  if (me.energy === 0 || me.food === 0 || me.water === 0) {
-    const healthLoss = Math.floor(distance / 150);
-    const prevHealthLoss = Math.floor(lastDistance / 150);
-    if (healthLoss > prevHealthLoss) {
-      me.health = Math.max(0, me.health - (healthLoss - prevHealthLoss));
-      console.log(`Health reduced to ${me.health}`);
-    }
-  }
-
-  lastDistance = distance; // Обновляем lastDistance для следующего вызова
+  lastDistance = distance; // Обновляем lastDistance
   updateStatsDisplay();
+
+  // Отправляем обновленные данные на сервер
+  sendWhenReady(
+    ws,
+    JSON.stringify({
+      type: "update",
+      player: {
+        id: myId,
+        x: me.x,
+        y: me.y,
+        health: me.health,
+        energy: me.energy,
+        food: me.food,
+        water: me.water,
+        armor: me.armor,
+        distanceTraveled: me.distanceTraveled,
+        direction: me.direction,
+        state: me.state,
+        frame: me.frame,
+        worldId: window.worldSystem.currentWorldId,
+      },
+    })
+  );
 }
 
 function updateStatsDisplay() {
