@@ -1147,6 +1147,18 @@ function updateResources() {
     console.log(`Энергия уменьшена до ${me.energy}`);
   }
 
+  // Здоровье: -1 каждые 100 пикселей, если любой из показателей равен 0
+  if (me.energy === 0 || me.food === 0 || me.water === 0) {
+    const healthLoss = Math.floor(distance / 100);
+    const prevHealthLoss = Math.floor(lastDistance / 100);
+    if (healthLoss > prevHealthLoss) {
+      me.health = Math.max(0, me.health - (healthLoss - prevHealthLoss));
+      console.log(
+        `Здоровье уменьшено до ${me.health} из-за нулевых показателей`
+      );
+    }
+  }
+
   lastDistance = distance; // Обновляем lastDistance
   updateStatsDisplay();
 
