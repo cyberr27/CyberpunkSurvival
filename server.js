@@ -15,16 +15,6 @@ const players = new Map();
 const userDatabase = new Map();
 const items = new Map();
 const wolves = new Map();
-wolves.set("test_wolf", {
-  id: "test_wolf",
-  x: 300,
-  y: 3200,
-  health: 100,
-  direction: "down",
-  state: "walking",
-  worldId: 1,
-  targetPlayerId: null, // Добавляем поле для отслеживания игрока
-});
 const lights = new Map();
 const lastSaved = new Map();
 

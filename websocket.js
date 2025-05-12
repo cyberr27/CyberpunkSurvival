@@ -165,6 +165,45 @@ function setupWebSocket(
             })
           );
 
+          ws.send(
+            JSON.stringify({
+              type: "worldTransitionSuccess",
+              worldId: targetWorldId,
+              x: player.x,
+              y: player.y,
+              lights: lights.get(targetWorldId).map(({ id, ...rest }) => rest),
+              players: worldPlayers,
+              items: worldItems,
+              wolves: Array.from(wolves.entries())
+                .filter(([_, wolf]) => wolf.worldId === targetWorldId)
+                .map(([id, wolf]) => ({
+                  id,
+                  x: wolf.x,
+                  y: wolf.y,
+                  health: wolf.health,
+                  direction: wolf.direction,
+                  state: wolf.state,
+                })),
+            })
+          );
+
+          if (targetWorldId === 1) {
+            // Очищаем волков для игрока при входе в Пустоши
+            wolves.forEach((wolf, wolfId) => {
+              if (wolf.targetPlayerId === id) {
+                wolves.delete(wolfId);
+              }
+            });
+            // Отправляем клиенту пустой список волков
+            ws.send(
+              JSON.stringify({
+                type: "syncWolves",
+                wolves: [],
+                worldId: 1,
+              })
+            );
+          }
+
           console.log(
             `Переход успешен: игрок ${id}, мир ${targetWorldId}, синхронизировано ${worldPlayers.length} игроков, ${worldItems.length} предметов`
           );

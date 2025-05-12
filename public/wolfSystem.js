@@ -17,14 +17,12 @@ const wolfSystem = {
   // Очистка волков при входе в Пустоши или смене мира
   clearWolves() {
     this.wolves.clear();
-    // Очищаем все трекеры при входе в Пустоши
-    this.playerSpawnTrackers.clear();
-    console.log("Все волки и трекеры игроков очищены при входе в Пустоши");
+    console.log("Все волки очищены при входе в Пустоши");
   },
 
   update(deltaTime) {
     const currentWorldId = window.worldSystem.currentWorldId;
-    if (currentWorldId !== 1) return; // Волки только в Пустошах
+    if (currentWorldId !== 1) return; // Волки только в Пустошах (id: 1)
 
     // Проверяем всех игроков в мире Пустоши
     players.forEach((player, playerId) => {
@@ -323,7 +321,6 @@ const wolfSystem = {
     // При входе в Пустоши очищаем волков, игнорируя данные синхронизации
     this.wolves.clear();
     console.log("Волки очищены при синхронизации в Пустошах");
-    // Трекеры не очищаем, чтобы сохранить начальную дистанцию
   },
 
   updateWolf(wolfData) {
