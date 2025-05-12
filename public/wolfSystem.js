@@ -69,7 +69,7 @@ const wolfSystem = {
         const wolf = {
           id: wolfId,
           x: wolfX,
-          y: Attack,
+          y: wolfY, // Исправлено: используем wolfY вместо Attack
           health: 100,
           direction: "down",
           state: "walking",
