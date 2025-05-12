@@ -5,7 +5,7 @@ const wolfSystem = {
   wolfSkinImage: null,
   FRAME_DURATION: 400,
   lastSpawnDistance: 0, // Последнее расстояние, при котором спавнился волк
-  nextSpawnDistance: 300, // Расстояние до следующего спавна (инициализируем 300)
+  nextSpawnDistance: 500, // Расстояние до следующего спавна (инициализируем 500)
 
   initialize(wolfSprite, wolfSkinImage) {
     this.wolfSprite = wolfSprite;
@@ -27,12 +27,38 @@ const wolfSystem = {
     const distanceTraveled = me.distanceTraveled || 0;
     if (distanceTraveled >= this.lastSpawnDistance + this.nextSpawnDistance) {
       const wolfId = `wolf_${Date.now()}_${Math.random()}`;
-      const angle = Math.random() * Math.PI * 2;
-      const radius = 200; // Спавн на расстоянии 200 пикселей от игрока
+      const camera = window.movementSystem.getCamera();
+      const canvasWidth = canvas.width;
+      const canvasHeight = canvas.height;
+      const spawnMargin = 50; // Отступ за пределами видимой зоны
+
+      // Выбираем случайный край (0: верх, 1: низ, 2: лево, 3: право)
+      const edge = Math.floor(Math.random() * 4);
+      let wolfX, wolfY;
+
+      switch (edge) {
+        case 0: // Верх
+          wolfX = me.x + (Math.random() * canvasWidth - canvasWidth / 2);
+          wolfY = me.y - canvasHeight / 2 - spawnMargin;
+          break;
+        case 1: // Низ
+          wolfX = me.x + (Math.random() * canvasWidth - canvasWidth / 2);
+          wolfY = me.y + canvasHeight / 2 + spawnMargin;
+          break;
+        case 2: // Лево
+          wolfX = me.x - canvasWidth / 2 - spawnMargin;
+          wolfY = me.y + (Math.random() * canvasHeight - canvasHeight / 2);
+          break;
+        case 3: // Право
+          wolfX = me.x + canvasWidth / 2 + spawnMargin;
+          wolfY = me.y + (Math.random() * canvasHeight - canvasHeight / 2);
+          break;
+      }
+
       const wolf = {
         id: wolfId,
-        x: me.x + Math.cos(angle) * radius,
-        y: me.y + Math.sin(angle) * radius,
+        x: wolfX,
+        y: wolfY,
         health: 100,
         direction: "down",
         state: "walking",
@@ -57,10 +83,10 @@ const wolfSystem = {
       );
       console.log(`Волк ${wolfId} создан на x:${wolf.x}, y:${wolf.y}`);
       this.lastSpawnDistance = distanceTraveled;
-      this.nextSpawnDistance = 300 + Math.random() * 300; // 300–600 пикселей
+      this.nextSpawnDistance = 500 + Math.random() * 500; // 500–1000 пикселей
     }
 
-    // Обновление волков
+    // Обновление волков (без изменений)
     this.wolves.forEach((wolf, id) => {
       if (wolf.state === "walking") {
         // Находим ближайшего игрока
