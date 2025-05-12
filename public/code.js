@@ -1603,6 +1603,31 @@ function handleGameMessage(event) {
           window.wolfSystem.removeWolf(data.wolfId);
         }
         break;
+      case "wolfAttack":
+        if (data.worldId === currentWorldId && players.has(data.targetId)) {
+          const player = players.get(data.targetId);
+          player.health = Math.max(0, player.health - data.damage);
+          players.set(data.targetId, { ...player });
+          updateStatsDisplay();
+          if (data.targetId === myId) {
+            window.combatSystem.triggerAttackAnimation(); // Анимация атаки, если атакован текущий игрок
+          }
+        }
+        break;
+      case "addXP":
+        if (data.playerId === myId) {
+          const me = players.get(myId);
+          me.xp = (me.xp || 0) + data.xp;
+          levelSystem.setLevelData(
+            me.level,
+            me.xp,
+            me.maxStats,
+            me.upgradePoints
+          );
+          updateStatsDisplay();
+          console.log(`Получено ${data.xp} XP`);
+        }
+        break;
     }
   } catch (error) {
     console.error("Ошибка в handleGameMessage:", error);

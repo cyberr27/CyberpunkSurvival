@@ -322,6 +322,10 @@ function updateBullets(deltaTime) {
                 worldId: currentWorldId,
               })
             );
+            // Проверяем, убил ли выстрел волка
+            if (wolf.health - bullet.damage <= 0) {
+              window.wolfSystem.handleWolfDeath(wolfId, myId);
+            }
           }
         }
       });

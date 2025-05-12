@@ -1169,23 +1169,213 @@ function setupWebSocket(
           const wolf = wolves.get(data.wolfId);
           const damage = data.damage || 10;
           wolf.health = Math.max(0, wolf.health - damage);
-          wolves.set(data.wolfId, { ...wolf });
 
+          if (wolf.health <= 0) {
+            // Волк мёртв
+            wolves.delete(data.wolfId);
+            wss.clients.forEach((client) => {
+              if (client.readyState === WebSocket.OPEN) {
+                const clientPlayer = players.get(clients.get(client));
+                if (clientPlayer && clientPlayer.worldId === wolf.worldId) {
+                  client.send(
+                    JSON.stringify({
+                      type: "updateWolf",
+                      worldId: wolf.worldId,
+                      wolf: {
+                        id: wolf.id,
+                        x: wolf.x,
+                        y: wolf.y,
+                        health: wolf.health,
+                        direction: wolf.direction,
+                        state: "dying",
+                        killerId: id, // Передаём ID убийцы
+                      },
+                    })
+                  );
+                  client.send(
+                    JSON.stringify({
+                      type: "removeWolf",
+                      wolfId: data.wolfId,
+                      worldId: wolf.worldId,
+                    })
+                  );
+                }
+              }
+            });
+
+            // Дроп предмета с шансом 1/10
+            if (Math.random() < 0.1) {
+              const items = ["knuckles", "knife", "bat"];
+              const itemType = items[Math.floor(Math.random() * items.length)];
+              const itemId = `${itemType}_${Date.now()}`;
+              const angle = Math.random() * Math.PI * 2;
+              const radius = Math.random() * 30;
+              const dropX = wolf.x + Math.cos(angle) * radius;
+              const dropY = wolf.y + Math.sin(angle) * radius;
+
+              items.set(itemId, {
+                x: dropX,
+                y: dropY,
+                type: itemType,
+                spawnTime: Date.now(),
+                worldId: wolf.worldId,
+              });
+
+              wss.clients.forEach((client) => {
+                if (client.readyState === WebSocket.OPEN) {
+                  const clientPlayer = players.get(clients.get(client));
+                  if (clientPlayer && clientPlayer.worldId === wolf.worldId) {
+                    client.send(
+                      JSON.stringify({
+                        type: "itemDropped",
+                        itemId,
+                        x: dropX,
+                        y: dropY,
+                        type: itemType,
+                        spawnTime: Date.now(),
+                        worldId: wolf.worldId,
+                      })
+                    );
+                  }
+                }
+              });
+              console.log(
+                `Предмет ${itemType} выброшен из волка ${data.wolfId} на x:${dropX}, y:${dropY}`
+              );
+            }
+          } else {
+            // Волк ещё жив
+            wolves.set(data.wolfId, { ...wolf });
+            wss.clients.forEach((client) => {
+              if (client.readyState === WebSocket.OPEN) {
+                const clientPlayer = players.get(clients.get(client));
+                if (clientPlayer && clientPlayer.worldId === wolf.worldId) {
+                  client.send(
+                    JSON.stringify({
+                      type: "updateWolf",
+                      worldId: wolf.worldId,
+                      wolf,
+                    })
+                  );
+                }
+              }
+            });
+          }
+          console.log(`Игрок ${id} нанёс ${damage} урона волку ${data.wolfId}`);
+        }
+      } else if (data.type === "spawnWolf") {
+        const id = clients.get(ws);
+        if (id && data.worldId === 1) {
+          const player = players.get(id);
+          if (player.worldId !== 1) return;
+          wolves.set(data.wolfId, {
+            id: data.wolfId,
+            x: data.x,
+            y: data.y,
+            health: data.health,
+            direction: data.direction,
+            state: data.state,
+            worldId: data.worldId,
+            targetPlayerId: data.targetPlayerId,
+          });
+          wss.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+              const clientPlayer = players.get(clients.get(client));
+              if (clientPlayer && clientPlayer.worldId === data.worldId) {
+                client.send(
+                  JSON.stringify({
+                    type: "updateWolf",
+                    worldId: data.worldId,
+                    wolf: {
+                      id: data.wolfId,
+                      x: data.x,
+                      y: data.y,
+                      health: data.health,
+                      direction: data.direction,
+                      state: data.state,
+                      targetPlayerId: data.targetPlayerId,
+                    },
+                  })
+                );
+              }
+            }
+          });
+          console.log(`Волк ${data.wolfId} создан в мире 1 игроком ${id}`);
+        }
+      } else if (data.type === "wolfAttack") {
+        const wolf = wolves.get(data.wolfId);
+        if (wolf && wolf.worldId === data.worldId) {
+          const target = players.get(data.targetId);
+          if (target && target.worldId === data.worldId && target.health > 0) {
+            target.health = Math.max(0, target.health - data.damage);
+            players.set(data.targetId, { ...target });
+            userDatabase.set(data.targetId, { ...target });
+            await saveUserDatabase(dbCollection, data.targetId, target);
+            wss.clients.forEach((client) => {
+              if (client.readyState === WebSocket.OPEN) {
+                const clientPlayer = players.get(clients.get(client));
+                if (clientPlayer && clientPlayer.worldId === data.worldId) {
+                  client.send(
+                    JSON.stringify({
+                      type: "attackPlayer",
+                      targetId: data.targetId,
+                      damage: data.damage,
+                      worldId: data.worldId,
+                    })
+                  );
+                  client.send(
+                    JSON.stringify({
+                      type: "update",
+                      player: { id: data.targetId, ...target },
+                    })
+                  );
+                }
+              }
+            });
+            console.log(
+              `Волк ${data.wolfId} атаковал игрока ${data.targetId}, урон: ${data.damage}`
+            );
+          }
+        }
+      } else if (data.type === "addXP") {
+        const player = players.get(data.playerId);
+        if (player) {
+          player.xp = (player.xp || 0) + data.xp;
+          // Проверка повышения уровня
+          const levelThresholds = [
+            100, 200, 300, 400, 500, 600, 700, 800, 900, 1000,
+          ];
+          let newLevel = player.level || 0;
+          while (
+            newLevel < levelThresholds.length &&
+            player.xp >= levelThresholds[newLevel]
+          ) {
+            newLevel++;
+            player.upgradePoints = (player.upgradePoints || 0) + 1;
+          }
+          if (newLevel > player.level) {
+            player.level = newLevel;
+            console.log(
+              `Игрок ${data.playerId} повысил уровень до ${newLevel}`
+            );
+          }
+          players.set(data.playerId, { ...player });
+          userDatabase.set(data.playerId, { ...player });
+          await saveUserDatabase(dbCollection, data.playerId, player);
           wss.clients.forEach((client) => {
             if (
               client.readyState === WebSocket.OPEN &&
-              players.get(clients.get(client))?.worldId === wolf.worldId
+              clients.get(client) === data.playerId
             ) {
               client.send(
                 JSON.stringify({
-                  type: "updateWolf",
-                  worldId: wolf.worldId,
-                  wolf,
+                  type: "update",
+                  player: { id: data.playerId, ...player },
                 })
               );
             }
           });
-          console.log(`Игрок ${id} нанёс ${damage} урона волку ${data.wolfId}`);
+          console.log(`Игрок ${data.playerId} получил ${data.xp} XP`);
         }
       } else if (data.type === "shoot") {
         const shooterId = clients.get(ws);
