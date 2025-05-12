@@ -17,14 +17,9 @@ const wolfSystem = {
   // Очистка волков при входе в Пустоши или смене мира
   clearWolves() {
     this.wolves.clear();
-    // Очищаем трекеры игроков, не находящихся в мире Пустоши
-    this.playerSpawnTrackers.forEach((_, playerId) => {
-      const player = players.get(playerId);
-      if (!player || player.worldId !== 1) {
-        this.playerSpawnTrackers.delete(playerId);
-      }
-    });
-    console.log("Все волки и ненужные трекеры очищены");
+    // Очищаем все трекеры при входе в Пустоши
+    this.playerSpawnTrackers.clear();
+    console.log("Все волки и трекеры игроков очищены при входе в Пустоши");
   },
 
   update(deltaTime) {
@@ -36,9 +31,19 @@ const wolfSystem = {
       if (player.worldId !== 1 || player.health <= 0) return; // Пропускаем игроков не в Пустошах или мёртвых
 
       const distanceTraveled = player.distanceTraveled || 0;
-      let tracker = this.playerSpawnTrackers.get(playerId) || {
-        lastSpawnDistance: 0,
-      };
+      let tracker = this.playerSpawnTrackers.get(playerId);
+      if (!tracker) {
+        // Инициализируем трекер для нового игрока
+        tracker = {
+          lastSpawnDistance: 0,
+          initialDistance: distanceTraveled, // Запоминаем начальную дистанцию
+        };
+        this.playerSpawnTrackers.set(playerId, tracker);
+      }
+
+      // Проверяем, прошла ли достаточная дистанция с момента входа в Пустоши
+      const distanceSinceEntry = distanceTraveled - tracker.initialDistance;
+      if (distanceSinceEntry < this.SPAWN_DISTANCE) return; // Ждём, пока игрок пройдет 1500 пикселей
 
       // Если игрок прошёл 1500 пикселей с последнего спавна, создаём волка
       if (distanceTraveled >= tracker.lastSpawnDistance + this.SPAWN_DISTANCE) {
@@ -69,7 +74,7 @@ const wolfSystem = {
         const wolf = {
           id: wolfId,
           x: wolfX,
-          y: wolfY, // Исправлено: используем wolfY вместо Attack
+          y: wolfY,
           health: 100,
           direction: "down",
           state: "walking",
@@ -96,8 +101,11 @@ const wolfSystem = {
           `Волк ${wolfId} создан для игрока ${playerId} на x:${wolf.x}, y:${wolf.y}`
         );
         tracker.lastSpawnDistance =
-          Math.floor(distanceTraveled / this.SPAWN_DISTANCE) *
-          this.SPAWN_DISTANCE;
+          Math.floor(
+            (distanceTraveled - tracker.initialDistance) / this.SPAWN_DISTANCE
+          ) *
+            this.SPAWN_DISTANCE +
+          tracker.initialDistance;
         this.playerSpawnTrackers.set(playerId, tracker);
       }
     });
@@ -312,23 +320,10 @@ const wolfSystem = {
       return;
     }
 
+    // При входе в Пустоши очищаем волков, игнорируя данные синхронизации
     this.wolves.clear();
-    wolvesData.forEach((wolf) => {
-      if (wolf.worldId === 1) {
-        this.wolves.set(wolf.id, {
-          id: wolf.id,
-          x: wolf.x,
-          y: wolf.y,
-          health: wolf.health,
-          direction: wolf.direction,
-          state: wolf.state,
-          frame: wolf.frame || 0,
-          frameTime: 0,
-          targetPlayerId: wolf.targetPlayerId || null,
-        });
-      }
-    });
-    console.log(`Синхронизировано ${this.wolves.size} волков в Пустошах`);
+    console.log("Волки очищены при синхронизации в Пустошах");
+    // Трекеры не очищаем, чтобы сохранить начальную дистанцию
   },
 
   updateWolf(wolfData) {

@@ -219,6 +219,11 @@ const worldSystem = {
       console.log(`Создан новый игрок ${myId} в players:`, players.get(myId));
     }
 
+    // Очищаем волков при входе в Пустоши
+    if (targetWorldId === 1) {
+      window.wolfSystem.clearWolves();
+    }
+
     // Сбрасываем и инициализируем свет для нового мира
     window.lightsSystem.reset(targetWorldId);
 
