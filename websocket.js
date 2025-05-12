@@ -1,5 +1,8 @@
 const { saveUserDatabase } = require("./database");
 
+const WORLD_WIDTH = 4000;
+const WORLD_HEIGHT = 4000;
+
 function setupWebSocket(
   wss,
   dbCollection,
@@ -1268,6 +1271,25 @@ function setupWebSocket(
         if (id && data.worldId === 1) {
           const player = players.get(id);
           if (player.worldId !== 1) return;
+
+          // Проверяем, что координаты волка находятся на границах мира
+          const isValidSpawn =
+            (data.x === 0 ||
+              data.x === WORLD_WIDTH ||
+              data.y === 0 ||
+              data.y === WORLD_HEIGHT) &&
+            data.x >= 0 &&
+            data.x <= WORLD_WIDTH &&
+            data.y >= 0 &&
+            data.y <= WORLD_HEIGHT;
+
+          if (!isValidSpawn) {
+            console.log(
+              `Недопустимые координаты спавна волка ${data.wolfId}: x=${data.x}, y=${data.y}`
+            );
+            return;
+          }
+
           wolves.set(data.wolfId, {
             id: data.wolfId,
             x: data.x,
@@ -1300,7 +1322,9 @@ function setupWebSocket(
               }
             }
           });
-          console.log(`Волк ${data.wolfId} создан в мире 1 игроком ${id}`);
+          console.log(
+            `Волк ${data.wolfId} создан в мире 1 игроком ${id} на x:${data.x}, y:${data.y}`
+          );
         }
       } else if (data.type === "wolfAttack") {
         const wolf = wolves.get(data.wolfId);
