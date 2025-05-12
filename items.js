@@ -29,8 +29,27 @@ const ITEM_CONFIG = {
   tactical_belt: { type: "belt", effect: { armor: 5, food: 5 }, rarity: 4 },
   cyber_pants: { type: "pants", effect: { armor: 10, water: 5 }, rarity: 4 },
   speed_boots: { type: "boots", effect: { armor: 5, energy: 10 }, rarity: 4 },
-  plasma_rifle: { type: "weapon", effect: { damage: 15 }, rarity: 4 },
   tech_gloves: { type: "gloves", effect: { armor: 5, energy: 5 }, rarity: 4 },
+  plasma_rifle: {
+    type: "weapon",
+    effect: { damage: 15, range: 500 }, // Добавляем range для дальнобойного оружия
+    rarity: 4,
+  },
+  knuckles: {
+    type: "weapon",
+    effect: { damage: { min: 3, max: 7 } }, // Кастет: 3-7 урона
+    rarity: 3,
+  },
+  knife: {
+    type: "weapon",
+    effect: { damage: { min: 4, max: 6 } }, // Нож: 4-6 урона
+    rarity: 3,
+  },
+  bat: {
+    type: "weapon",
+    effect: { damage: { min: 5, max: 10 } }, // Бита: 5-10 урона
+    rarity: 3,
+  },
 };
 
 module.exports = { ITEM_CONFIG };
