@@ -1,4 +1,3 @@
-// В начало файла, после определения wolfSystem
 const wolfSystem = {
   wolves: new Map(),
   wolfSprite: null,
@@ -15,7 +14,7 @@ const wolfSystem = {
     console.log("WolfSystem инициализирован");
   },
 
-  // Новый метод для очистки волков при смене мира
+  // Очистка волков при входе в Пустоши или смене мира
   clearWolves() {
     this.wolves.clear();
     // Очищаем трекеры игроков, не находящихся в мире Пустоши
@@ -25,7 +24,7 @@ const wolfSystem = {
         this.playerSpawnTrackers.delete(playerId);
       }
     });
-    console.log("Все волки и ненужные трекеры очищены при смене мира");
+    console.log("Все волки и ненужные трекеры очищены");
   },
 
   update(deltaTime) {
@@ -70,7 +69,7 @@ const wolfSystem = {
         const wolf = {
           id: wolfId,
           x: wolfX,
-          y: wolfY,
+          y: Attack,
           health: 100,
           direction: "down",
           state: "walking",
@@ -251,104 +250,6 @@ const wolfSystem = {
         wolf.frameTime = 0;
       }
     });
-
-    // Обновление волков (без изменений)
-    this.wolves.forEach((wolf, id) => {
-      if (wolf.state === "walking") {
-        // Находим ближайшего игрока
-        let closestPlayer = null;
-        let minDistance = Infinity;
-        players.forEach((player, playerId) => {
-          if (player.health > 0 && player.worldId === 1) {
-            const dx = wolf.x - player.x;
-            const dy = wolf.y - player.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            if (distance < minDistance) {
-              minDistance = distance;
-              closestPlayer = player;
-            }
-          }
-        });
-
-        if (closestPlayer && minDistance > 10) {
-          // Двигаем волка к ближайшему игроку
-          const dx = closestPlayer.x - wolf.x;
-          const dy = closestPlayer.y - wolf.y;
-          const angle = Math.atan2(dy, dx);
-          const speed = 2; // Скорость волка (пикселей за кадр)
-          wolf.x += Math.cos(angle) * speed * (deltaTime / 16.67);
-          wolf.y += Math.sin(angle) * speed * (deltaTime / 16.67);
-
-          // Определяем направление волка
-          if (Math.abs(dx) > Math.abs(dy)) {
-            wolf.direction = dx > 0 ? "right" : "left";
-          } else {
-            wolf.direction = dy > 0 ? "down" : "up";
-          }
-
-          // Отправляем обновление волка на сервер
-          sendWhenReady(
-            ws,
-            JSON.stringify({
-              type: "updateWolf",
-              wolfId: id,
-              x: wolf.x,
-              y: wolf.y,
-              health: wolf.health,
-              direction: wolf.direction,
-              state: wolf.state,
-              worldId: 1,
-            })
-          );
-        } else if (closestPlayer) {
-          // Волк рядом с игроком, атакуем
-          wolf.state = "attacking";
-          sendWhenReady(
-            ws,
-            JSON.stringify({
-              type: "wolfAttack",
-              wolfId: id,
-              targetId: closestPlayer.id,
-              damage: 5, // Урон волка
-              worldId: 1,
-            })
-          );
-        }
-
-        wolf.frameTime += deltaTime;
-        if (wolf.frameTime >= this.FRAME_DURATION / 4) {
-          wolf.frameTime -= this.FRAME_DURATION / 4;
-          wolf.frame = (wolf.frame + 1) % 4;
-        }
-      } else if (wolf.state === "dying") {
-        wolf.frameTime += deltaTime;
-        if (wolf.frameTime >= this.FRAME_DURATION / 4) {
-          wolf.frameTime = 0;
-          if (wolf.frame < 3) wolf.frame += 1;
-          else {
-            this.wolves.delete(id);
-            sendWhenReady(
-              ws,
-              JSON.stringify({
-                type: "removeWolf",
-                wolfId: id,
-                worldId: 1,
-              })
-            );
-          }
-        }
-      } else if (wolf.state === "attacking") {
-        wolf.frameTime += deltaTime;
-        if (wolf.frameTime >= this.FRAME_DURATION / 4) {
-          wolf.frameTime -= this.FRAME_DURATION / 4;
-          wolf.frame = (wolf.frame + 1) % 4;
-          wolf.state = "walking"; // Возвращаем в состояние ходьбы после атаки
-        }
-      } else {
-        wolf.frame = 0;
-        wolf.frameTime = 0;
-      }
-    });
   },
 
   draw(ctx, camera) {
@@ -414,7 +315,6 @@ const wolfSystem = {
     this.wolves.clear();
     wolvesData.forEach((wolf) => {
       if (wolf.worldId === 1) {
-        // Проверяем, что волк в Пустошах
         this.wolves.set(wolf.id, {
           id: wolf.id,
           x: wolf.x,
@@ -424,6 +324,7 @@ const wolfSystem = {
           state: wolf.state,
           frame: wolf.frame || 0,
           frameTime: 0,
+          targetPlayerId: wolf.targetPlayerId || null,
         });
       }
     });
@@ -432,10 +333,9 @@ const wolfSystem = {
 
   updateWolf(wolfData) {
     const currentWorldId = window.worldSystem.currentWorldId;
-    if (currentWorldId !== 1 || wolfData.worldId !== 1) return; // Игнорируем, если не в Пустошах
+    if (currentWorldId !== 1 || wolfData.worldId !== 1) return;
 
     if (wolfData.health <= 0 && this.wolves.has(wolfData.id)) {
-      // Волк мёртв, вызываем обработчик смерти
       this.handleWolfDeath(wolfData.id, wolfData.killerId || myId);
       return;
     }
@@ -446,6 +346,7 @@ const wolfSystem = {
         ...existingWolf,
         ...wolfData,
         frameTime: existingWolf.frameTime || 0,
+        targetPlayerId: wolfData.targetPlayerId || existingWolf.targetPlayerId,
       });
     } else {
       this.wolves.set(wolfData.id, {
@@ -473,13 +374,11 @@ const wolfSystem = {
     const wolf = this.wolves.get(wolfId);
     if (!wolf) return;
 
-    // Устанавливаем состояние смерти
     wolf.state = "dying";
     wolf.frame = 0;
     wolf.frameTime = 0;
     this.wolves.set(wolfId, wolf);
 
-    // Отправляем обновление волка на сервер
     sendWhenReady(
       ws,
       JSON.stringify({
@@ -494,14 +393,13 @@ const wolfSystem = {
       })
     );
 
-    // Начисление опыта игроку, убившему волка
     const killer = players.get(killerId);
     if (killer) {
-      let xpGain = 1; // Базовый опыт
+      let xpGain = 1;
       if (killer.level <= 1) {
-        xpGain = 5; // 0–1 уровень: 5 XP
+        xpGain = 5;
       } else if (killer.level <= 3) {
-        xpGain = 3; // 2–3 уровень: 3 XP
+        xpGain = 3;
       }
       sendWhenReady(
         ws,
@@ -516,13 +414,12 @@ const wolfSystem = {
       );
     }
 
-    // Дроп предмета с шансом 1/10
     if (Math.random() < 0.1) {
       const items = ["knuckles", "knife", "bat"];
       const itemType = items[Math.floor(Math.random() * items.length)];
       const itemId = `${itemType}_${Date.now()}`;
       const angle = Math.random() * Math.PI * 2;
-      const radius = Math.random() * 30; // Радиус дропа 30 пикселей
+      const radius = Math.random() * 30;
       const dropX = wolf.x + Math.cos(angle) * radius;
       const dropY = wolf.y + Math.sin(angle) * radius;
 
