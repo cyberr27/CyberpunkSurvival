@@ -1329,6 +1329,28 @@ function setupWebSocket(
             return;
           }
 
+          // Ограничиваем количество волков (например, не более 5 в мире)
+          const worldWolves = Array.from(wolves.values()).filter(
+            (wolf) => wolf.worldId === 1
+          );
+          if (worldWolves.length >= 5) {
+            console.log(
+              `Достигнут лимит волков в мире 1 (${worldWolves.length}), спавн отклонён`
+            );
+            return;
+          }
+
+          // Проверяем, нет ли уже волка для этого игрока
+          const existingWolf = worldWolves.find(
+            (wolf) => wolf.targetPlayerId === id
+          );
+          if (existingWolf) {
+            console.log(
+              `Волк для игрока ${id} уже существует (ID: ${existingWolf.id}), спавн отклонён`
+            );
+            return;
+          }
+
           wolves.set(data.wolfId, {
             id: data.wolfId,
             x: data.x,

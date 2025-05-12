@@ -24,29 +24,32 @@ const wolfSystem = {
     const currentWorldId = window.worldSystem.currentWorldId;
     if (currentWorldId !== 1) return; // Волки только в Пустошах (id: 1)
 
+    let wolfSpawnedThisFrame = false; // Флаг для ограничения спавна за кадр
+
     // Проверяем всех игроков в мире Пустоши
     players.forEach((player, playerId) => {
       if (player.worldId !== 1 || player.health <= 0) return; // Пропускаем игроков не в Пустошах или мёртвых
+      if (wolfSpawnedThisFrame) return; // Ограничиваем спавн одним волком за кадр
 
       const distanceTraveled = player.distanceTraveled || 0;
       let tracker = this.playerSpawnTrackers.get(playerId);
       if (!tracker) {
-        // Инициализируем трекер для нового игрока
         tracker = {
           lastSpawnDistance: 0,
-          initialDistance: distanceTraveled, // Запоминаем начальную дистанцию
+          initialDistance: distanceTraveled,
         };
         this.playerSpawnTrackers.set(playerId, tracker);
       }
 
-      // Проверяем, прошла ли достаточная дистанция с момента входа в Пустоши
       const distanceSinceEntry = distanceTraveled - tracker.initialDistance;
-      if (distanceSinceEntry < this.SPAWN_DISTANCE) return; // Ждём, пока игрок пройдет 1500 пикселей
+      if (distanceSinceEntry < this.SPAWN_DISTANCE) return;
 
-      // Если игрок прошёл 1500 пикселей с последнего спавна, создаём волка
-      if (distanceTraveled >= tracker.lastSpawnDistance + this.SPAWN_DISTANCE) {
+      // Проверяем, не превышает ли текущее количество волков лимит
+      if (
+        distanceTraveled >= tracker.lastSpawnDistance + this.SPAWN_DISTANCE &&
+        this.wolves.size < 5 // Глобальный лимит на волков
+      ) {
         const wolfId = `wolf_${Date.now()}_${Math.random()}`;
-        // Выбираем случайный край мира (0: верх, 1: низ, 2: лево, 3: право)
         const edge = Math.floor(Math.random() * 4);
         let wolfX, wolfY;
 
@@ -78,7 +81,7 @@ const wolfSystem = {
           state: "walking",
           frame: 0,
           frameTime: 0,
-          targetPlayerId: playerId, // Волк привязан к игроку, который вызвал спавн
+          targetPlayerId: playerId,
         };
         this.wolves.set(wolfId, wolf);
         sendWhenReady(
@@ -105,13 +108,13 @@ const wolfSystem = {
             this.SPAWN_DISTANCE +
           tracker.initialDistance;
         this.playerSpawnTrackers.set(playerId, tracker);
+        wolfSpawnedThisFrame = true; // Устанавливаем флаг, чтобы больше не спавнить в этом кадре
       }
     });
 
-    // Обновление волков
+    // Обновление волков (без изменений)
     this.wolves.forEach((wolf, id) => {
       if (wolf.state === "walking") {
-        // Находим целевого игрока (по targetPlayerId)
         const targetPlayer = players.get(wolf.targetPlayerId);
         if (
           targetPlayer &&
@@ -123,20 +126,17 @@ const wolfSystem = {
           const distance = Math.sqrt(dx * dx + dy * dy);
 
           if (distance > 10) {
-            // Двигаем волка к целевому игроку
             const angle = Math.atan2(dy, dx);
-            const speed = 2; // Скорость волка
+            const speed = 2;
             wolf.x += Math.cos(angle) * speed * (deltaTime / 16.67);
             wolf.y += Math.sin(angle) * speed * (deltaTime / 16.67);
 
-            // Определяем направление волка
             if (Math.abs(dx) > Math.abs(dy)) {
               wolf.direction = dx > 0 ? "right" : "left";
             } else {
               wolf.direction = dy > 0 ? "down" : "up";
             }
 
-            // Отправляем обновление волка на сервер
             sendWhenReady(
               ws,
               JSON.stringify({
@@ -151,7 +151,6 @@ const wolfSystem = {
               })
             );
           } else {
-            // Волк рядом с игроком, атакуем
             wolf.state = "attacking";
             sendWhenReady(
               ws,
@@ -165,7 +164,6 @@ const wolfSystem = {
             );
           }
         } else {
-          // Если целевой игрок мёртв или покинул мир, ищем ближайшего
           let closestPlayer = null;
           let minDistance = Infinity;
           players.forEach((player, playerId) => {
@@ -314,13 +312,26 @@ const wolfSystem = {
   syncWolves(wolvesData) {
     const currentWorldId = window.worldSystem.currentWorldId;
     if (currentWorldId !== 1) {
-      this.clearWolves(); // Очищаем волков, если не в Пустошах
+      this.clearWolves();
       return;
     }
 
-    // При входе в Пустоши очищаем волков, игнорируя данные синхронизации
+    // Синхронизируем волков с сервера
     this.wolves.clear();
-    console.log("Волки очищены при синхронизации в Пустошах");
+    wolvesData.forEach((wolf) => {
+      this.wolves.set(wolf.id, {
+        id: wolf.id,
+        x: wolf.x,
+        y: wolf.y,
+        health: wolf.health,
+        direction: wolf.direction,
+        state: wolf.state,
+        frame: 0,
+        frameTime: 0,
+        targetPlayerId: wolf.targetPlayerId || null,
+      });
+    });
+    console.log(`Синхронизировано ${wolvesData.length} волков в Пустошах`);
   },
 
   updateWolf(wolfData) {
