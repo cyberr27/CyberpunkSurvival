@@ -50,10 +50,13 @@ const imageSources = {
   tacticalBeltImage: "tactical_belt.png",
   cyberPantsImage: "cyber_pants.png",
   speedBootsImage: "speed_boots.png",
-  plasmaRifleImage: "plasma_rifle.png",
   techGlovesImage: "tech_gloves.png",
   wolfSprite: "wolfSprite.png",
   wolfSkinImage: "wolfSkin.png",
+  plasmaRifleImage: "plasma_rifle.png",
+  knucklesImage: "knuckles.png",
+  knifeImage: "knife.png",
+  batImage: "bat.png",
 };
 
 const images = {};
@@ -231,13 +234,6 @@ const ITEM_CONFIG = {
     description: "Скоростные ботинки: +5 брони, +10 энергии",
     rarity: 4,
   },
-  plasma_rifle: {
-    type: "weapon",
-    effect: { damage: 15 },
-    image: images.plasmaRifleImage,
-    description: "Плазменная винтовка: +15 урона",
-    rarity: 4,
-  },
   tech_gloves: {
     type: "gloves",
     effect: { armor: 5, energy: 5 },
@@ -250,6 +246,34 @@ const ITEM_CONFIG = {
     image: images.wolfSkinImage,
     description: "Волчья шкура: материал для крафта.",
     rarity: 2,
+  },
+  plasma_rifle: {
+    type: "weapon",
+    effect: { damage: 15, range: 500 },
+    image: images.plasmaRifleImage,
+    description: "Плазменная винтовка: +15 урона, дальнобойная",
+    rarity: 4,
+  },
+  knuckles: {
+    type: "weapon",
+    effect: { damage: { min: 3, max: 7 } },
+    image: images.knucklesImage,
+    description: "Кастет: 3-7 урона в ближнем бою",
+    rarity: 3,
+  },
+  knife: {
+    type: "weapon",
+    effect: { damage: { min: 4, max: 6 } },
+    image: images.knifeImage,
+    description: "Нож: 4-6 урона в ближнем бою",
+    rarity: 3,
+  },
+  bat: {
+    type: "weapon",
+    effect: { damage: { min: 5, max: 10 } },
+    image: images.batImage,
+    description: "Бита: 5-10 урона в ближнем бою",
+    rarity: 3,
   },
 };
 

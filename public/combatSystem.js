@@ -123,8 +123,24 @@ function performAttack() {
       );
     } else {
       // Ближний бой
-      const damage =
-        (Math.random() * 10 + (weaponConfig.effect.damage || 0)) | 0;
+      let damage;
+      if (
+        weaponConfig.effect.damage &&
+        weaponConfig.effect.damage.min &&
+        weaponConfig.effect.damage.max
+      ) {
+        // Для оружия с диапазоном урона (кастет, нож, бита)
+        damage = Math.floor(
+          Math.random() *
+            (weaponConfig.effect.damage.max -
+              weaponConfig.effect.damage.min +
+              1) +
+            weaponConfig.effect.damage.min
+        );
+      } else {
+        // Для других случаев (если вдруг есть оружие без диапазона)
+        damage = (Math.random() * 10 + (weaponConfig.effect.damage || 0)) | 0;
+      }
       performMeleeAttack(damage, currentWorldId);
     }
   } else {
@@ -137,7 +153,7 @@ function performAttack() {
 // Выполнение атаки ближнего боя
 function performMeleeAttack(damage, worldId) {
   const me = players.get(myId);
-  const attackRange = 50; // Увеличиваем дальность атаки до 50 пикселей
+  const attackRange = 50; // Дальность атаки
   let hit = false; // Флаг успешного попадания
 
   // Проверка игроков
@@ -148,7 +164,6 @@ function performMeleeAttack(damage, worldId) {
       const distance = Math.sqrt(dx * dx + dy * dy);
       if (distance <= attackRange) {
         hit = true;
-        me.energy = Math.max(0, me.energy - 1); // Расход энергии при попадании
         sendWhenReady(
           ws,
           JSON.stringify({
@@ -171,7 +186,6 @@ function performMeleeAttack(damage, worldId) {
         const distance = Math.sqrt(dx * dx + dy * dy);
         if (distance <= attackRange) {
           hit = true;
-          me.energy = Math.max(0, me.energy - 1); // Расход энергии при попадании
           sendWhenReady(
             ws,
             JSON.stringify({
@@ -188,6 +202,7 @@ function performMeleeAttack(damage, worldId) {
 
   // Обновляем данные игрока на сервере, если была затрачена энергия
   if (hit) {
+    me.energy = Math.max(0, me.energy - 1); // Расход энергии при попадании
     sendWhenReady(
       ws,
       JSON.stringify({
