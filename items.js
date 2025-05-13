@@ -33,7 +33,7 @@ const ITEM_CONFIG = {
   plasma_rifle: {
     type: "weapon",
     effect: { damage: 15, range: 500 }, // Добавляем range для дальнобойного оружия
-    rarity: 4,
+    rarity: 3,
   },
   knuckles: {
     type: "weapon",
