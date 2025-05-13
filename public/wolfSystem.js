@@ -27,9 +27,9 @@ const wolfSystem = {
     let wolfSpawnedThisFrame = false; // Флаг для ограничения спавна за кадр
 
     // Проверяем всех игроков в мире Пустоши
-    players.forEach((player, playerId) => {
-      if (player.worldId !== 1 || player.health <= 0) return; // Пропускаем игроков не в Пустошах или мёртвых
-      if (wolfSpawnedThisFrame) return; // Ограничиваем спавн одним волком за кадр
+    for (const [playerId, player] of players) {
+      if (player.worldId !== 1 || player.health <= 0) continue; // Пропускаем игроков не в Пустошах или мёртвых
+      if (wolfSpawnedThisFrame) break; // Ограничиваем спавн одним волком за кадр
 
       const distanceTraveled = player.distanceTraveled || 0;
       let tracker = this.playerSpawnTrackers.get(playerId);
@@ -42,13 +42,23 @@ const wolfSystem = {
       }
 
       const distanceSinceEntry = distanceTraveled - tracker.initialDistance;
-      if (distanceSinceEntry < this.SPAWN_DISTANCE) return;
+      if (distanceSinceEntry < this.SPAWN_DISTANCE) continue;
 
       // Проверяем, не превышает ли текущее количество волков лимит
       if (
         distanceTraveled >= tracker.lastSpawnDistance + this.SPAWN_DISTANCE &&
         this.wolves.size < 5 // Глобальный лимит на волков
       ) {
+        // Проверяем, нет ли уже волка, привязанного к этому игроку
+        let hasWolf = false;
+        for (const wolf of this.wolves.values()) {
+          if (wolf.targetPlayerId === playerId) {
+            hasWolf = true;
+            break;
+          }
+        }
+        if (hasWolf) continue; // Пропускаем, если у игрока уже есть волк
+
         const wolfId = `wolf_${Date.now()}_${Math.random()}`;
         const edge = Math.floor(Math.random() * 4);
         let wolfX, wolfY;
@@ -102,15 +112,11 @@ const wolfSystem = {
           `Волк ${wolfId} создан для игрока ${playerId} на x:${wolf.x}, y:${wolf.y}`
         );
         tracker.lastSpawnDistance =
-          Math.floor(
-            (distanceTraveled - tracker.initialDistance) / this.SPAWN_DISTANCE
-          ) *
-            this.SPAWN_DISTANCE +
-          tracker.initialDistance;
+          tracker.lastSpawnDistance + this.SPAWN_DISTANCE;
         this.playerSpawnTrackers.set(playerId, tracker);
         wolfSpawnedThisFrame = true; // Устанавливаем флаг, чтобы больше не спавнить в этом кадре
       }
-    });
+    }
 
     // Обновление волков (без изменений)
     this.wolves.forEach((wolf, id) => {
