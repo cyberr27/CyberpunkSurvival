@@ -824,6 +824,71 @@ function setupWebSocket(
             }
           }
         }
+      } else if (data.type === "unequipItem") {
+        const id = clients.get(ws);
+        if (id) {
+          const player = players.get(id);
+          const slotName = data.slotName;
+          if (!player.equipment[slotName]) return;
+
+          // Проверяем наличие свободного слота в инвентаре
+          const freeSlot = player.inventory.findIndex((slot) => slot === null);
+          if (freeSlot === -1) {
+            ws.send(JSON.stringify({ type: "inventoryFull" }));
+            return;
+          }
+
+          // Переносим предмет в инвентарь
+          player.inventory[freeSlot] = player.equipment[slotName];
+          player.equipment[slotName] = null;
+
+          // Пересчитываем характеристики
+          player.armor = 0;
+          player.maxStats = {
+            health: data.maxStats?.health || player.maxStats.health || 100,
+            energy: data.maxStats?.energy || player.maxStats.energy || 100,
+            food: data.maxStats?.food || player.maxStats.food || 100,
+            water: data.maxStats?.water || player.maxStats.water || 100,
+          };
+          player.damage = 0;
+
+          Object.values(player.equipment).forEach((equippedItem) => {
+            if (equippedItem && ITEM_CONFIG[equippedItem.type]) {
+              const effect = ITEM_CONFIG[equippedItem.type].effect;
+              if (effect.armor) player.armor += effect.armor;
+              if (effect.health) player.maxStats.health += effect.health;
+              if (effect.energy) player.maxStats.energy += effect.energy;
+              if (effect.food) player.maxStats.food += effect.food;
+              if (effect.water) player.maxStats.water += effect.water;
+              if (effect.damage) player.damage += effect.damage;
+            }
+          });
+
+          player.health = Math.min(data.health, player.maxStats.health);
+          player.energy = Math.min(data.energy, player.maxStats.energy);
+          player.food = Math.min(data.food, player.maxStats.food);
+          player.water = Math.min(data.water, player.maxStats.water);
+
+          players.set(id, { ...player });
+          userDatabase.set(id, { ...player });
+          await saveUserDatabase(dbCollection, id, player);
+
+          wss.clients.forEach((client) => {
+            if (
+              client.readyState === WebSocket.OPEN &&
+              clients.get(client) === id
+            ) {
+              client.send(
+                JSON.stringify({
+                  type: "update",
+                  player: { id, ...player },
+                })
+              );
+            }
+          });
+
+          console.log(`Игрок ${id} снял предмет из слота ${slotName}`);
+        }
       } else if (data.type === "dropItem") {
         const id = clients.get(ws);
         console.log(

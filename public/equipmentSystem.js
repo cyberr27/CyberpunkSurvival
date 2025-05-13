@@ -175,6 +175,14 @@ const equipmentSystem = {
     if (this.equipmentSlots[slotName]) {
       screen.textContent =
         this.EQUIPMENT_CONFIG[this.equipmentSlots[slotName].type].description;
+
+      // Добавляем кнопку снятия экипировки
+      const unequipBtn = document.createElement("button");
+      unequipBtn.className = "cyber-btn";
+      unequipBtn.textContent = "Снять";
+      unequipBtn.onclick = () => this.unequipItem(slotName);
+      screen.innerHTML = "";
+      screen.appendChild(unequipBtn);
     } else {
       screen.textContent = `Слот ${slotName} пуст`;
     }
@@ -228,17 +236,16 @@ const equipmentSystem = {
     const slotName = this.EQUIPMENT_TYPES[item.type];
     if (!slotName) return;
 
-    // Проверяем, есть ли уже предмет в слоте
-    let oldItem = null;
+    // Проверяем, есть ли свободный слот в инвентаре для старого предмета
+    const freeSlot = inventory.findIndex((slot) => slot === null);
+    if (freeSlot === -1 && this.equipmentSlots[slotName]) {
+      alert("Инвентарь полон! Освободите место.");
+      return;
+    }
+
+    // Сохраняем старый предмет, если он есть
     if (this.equipmentSlots[slotName]) {
-      oldItem = this.equipmentSlots[slotName];
-      // Возвращаем старый предмет в инвентарь
-      const freeSlot = inventory.findIndex((slot) => slot === null);
-      if (freeSlot === -1) {
-        alert("Инвентарь полон! Освободите место.");
-        return;
-      }
-      inventory[freeSlot] = oldItem;
+      inventory[freeSlot] = this.equipmentSlots[slotName];
     }
 
     // Экипируем новый предмет
@@ -255,20 +262,63 @@ const equipmentSystem = {
         type: "equipItem",
         slotIndex,
         equipment: this.equipmentSlots,
-        maxStats: { ...window.levelSystem.maxStats }, // Отправляем актуальные maxStats
+        maxStats: { ...me.maxStats },
         health: me.health,
         energy: me.energy,
         food: me.food,
         water: me.water,
         armor: me.armor,
+        damage: me.damage || 0,
       })
     );
 
-    // Обновляем отображение
+    // Обновляем интерфейс
     selectedSlot = null;
     document.getElementById("useBtn").disabled = true;
     document.getElementById("dropBtn").disabled = true;
     document.getElementById("inventoryScreen").textContent = "";
+    updateStatsDisplay();
+    updateInventoryDisplay();
+    this.updateEquipmentDisplay();
+  },
+
+  // Новый метод для снятия экипировки
+  unequipItem: function (slotName) {
+    if (!this.equipmentSlots[slotName]) return;
+
+    const me = players.get(myId);
+    const freeSlot = inventory.findIndex((slot) => slot === null);
+    if (freeSlot === -1) {
+      alert("Инвентарь полон! Освободите место.");
+      return;
+    }
+
+    // Переносим предмет из слота экипировки в инвентарь
+    inventory[freeSlot] = this.equipmentSlots[slotName];
+    this.equipmentSlots[slotName] = null;
+
+    // Обновляем характеристики игрока
+    this.applyEquipmentEffects(me);
+
+    // Отправляем на сервер
+    sendWhenReady(
+      ws,
+      JSON.stringify({
+        type: "unequipItem",
+        slotName,
+        equipment: this.equipmentSlots,
+        maxStats: { ...me.maxStats },
+        health: me.health,
+        energy: me.energy,
+        food: me.food,
+        water: me.water,
+        armor: me.armor,
+        damage: me.damage || 0,
+      })
+    );
+
+    // Обновляем интерфейс
+    document.getElementById("equipmentScreen").textContent = "";
     updateStatsDisplay();
     updateInventoryDisplay();
     this.updateEquipmentDisplay();

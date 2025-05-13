@@ -977,7 +977,7 @@ function useItem(slotIndex) {
   const me = players.get(myId);
 
   // Проверяем, является ли предмет экипировкой
-  if (window.equipmentSystem.EQUIPMENT_CONFIG[item.type]) {
+  if (window.equipmentSystem.EQUIPMENT_TYPES[item.type]) {
     window.equipmentSystem.equipItem(slotIndex);
     return;
   }

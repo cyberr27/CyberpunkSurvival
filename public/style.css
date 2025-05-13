@@ -911,6 +911,12 @@ body {
   width: 9.5%;
 }
 
+#equipmentScreen .cyber-btn {
+  margin-top: 10px;
+  padding: 5px 10px;
+  font-size: 14px;
+}
+
 /* Адаптация для мобильных устройств (max-width: 500px) */
 @media (max-width: 500px) {
   body {
