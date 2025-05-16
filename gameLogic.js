@@ -168,7 +168,7 @@ function runGameLoop(
       }
 
       if (world.id === 1) {
-        const maxWolves = Math.max(5, playerCount * 2);
+        const maxWolves = Math.max(10, playerCount * 2);
         const currentWolves = Array.from(wolves.values()).filter(
           (w) => w.worldId === world.id
         ).length;
