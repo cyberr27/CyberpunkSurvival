@@ -47,7 +47,7 @@ const wolfSystem = {
       // Проверяем, не превышает ли текущее количество волков лимит
       if (
         distanceTraveled >= tracker.lastSpawnDistance + this.SPAWN_DISTANCE &&
-        this.wolves.size < 10 // Глобальный лимит на волков
+        this.wolves.size < 1 // Глобальный лимит на волков
       ) {
         // Проверяем, нет ли уже волка, привязанного к этому игроку
         let hasWolf = false;
