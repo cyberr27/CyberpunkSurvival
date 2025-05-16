@@ -1398,7 +1398,7 @@ function setupWebSocket(
           const worldWolves = Array.from(wolves.values()).filter(
             (wolf) => wolf.worldId === 1
           );
-          if (worldWolves.length >= 5) {
+          if (worldWolves.length >= 10) {
             console.log(
               `Достигнут лимит волков в мире 1 (${worldWolves.length}), спавн отклонён`
             );
