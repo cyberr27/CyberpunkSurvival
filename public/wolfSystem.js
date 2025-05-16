@@ -4,7 +4,7 @@ const wolfSystem = {
   wolfSkinImage: null,
   FRAME_DURATION: 400,
   playerSpawnTrackers: new Map(), // Отслеживание дистанции для каждого игрока
-  SPAWN_DISTANCE: 1500, // Спавн волка каждые 1500 пикселей
+  SPAWN_DISTANCE: 3000, // Спавн волка каждые 1500 пикселей
   WORLD_WIDTH: 4000, // Ширина мира Пустоши
   WORLD_HEIGHT: 4000, // Высота мира Пустоши
 
