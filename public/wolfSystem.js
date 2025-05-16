@@ -4,7 +4,7 @@ const wolfSystem = {
   wolfSkinImage: null,
   FRAME_DURATION: 400,
   playerSpawnTrackers: new Map(), // Отслеживание дистанции для каждого игрока
-  SPAWN_DISTANCE: 3000, // Спавн волка каждые 1500 пикселей
+  SPAWN_DISTANCE: 2000, // Спавн волка каждые 2000 пикселей
   WORLD_WIDTH: 4000, // Ширина мира Пустоши
   WORLD_HEIGHT: 4000, // Высота мира Пустоши
 
@@ -14,10 +14,23 @@ const wolfSystem = {
     console.log("WolfSystem инициализирован");
   },
 
-  // Очистка волков при входе в Пустоши или смене мира
+  // Очистка волков и сброс счетчиков при входе в Пустоши
   clearWolves() {
     this.wolves.clear();
-    console.log("Все волки очищены при входе в Пустоши");
+    this.playerSpawnTrackers.clear(); // Сбрасываем счетчики расстояния
+    console.log("Все волки и счетчики расстояния очищены");
+  },
+
+  // Сброс счетчика расстояния для конкретного игрока
+  resetPlayerTracker(playerId) {
+    const player = players.get(playerId);
+    if (player) {
+      this.playerSpawnTrackers.set(playerId, {
+        lastSpawnDistance: 0,
+        initialDistance: player.distanceTraveled || 0,
+      });
+      console.log(`Счетчик расстояния сброшен для игрока ${playerId}`);
+    }
   },
 
   update(deltaTime) {
@@ -44,9 +57,9 @@ const wolfSystem = {
       const distanceSinceEntry = distanceTraveled - tracker.initialDistance;
       if (distanceSinceEntry < this.SPAWN_DISTANCE) continue;
 
-      // Проверяем, не превышает ли текущее количество волков лимит
+      // Проверяем, не превышает ли текущее количество campione волков лимит
       if (
-        distanceTraveled >= tracker.lastSpawnDistance + this.SPAWN_DISTANCE &&
+        distanceSinceEntry >= tracker.lastSpawnDistance + this.SPAWN_DISTANCE &&
         this.wolves.size < 1 // Глобальный лимит на волков
       ) {
         // Проверяем, нет ли уже волка, привязанного к этому игроку

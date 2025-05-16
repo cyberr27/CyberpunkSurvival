@@ -1,5 +1,4 @@
 const worldSystem = {
-  // Определяем массив миров
   worlds: [
     {
       id: 0,
@@ -33,15 +32,10 @@ const worldSystem = {
     },
   ],
 
-  // Текущий мир
   currentWorldId: 0,
-
-  // Зоны перехода
   transitionZones: [],
 
-  // Инициализация системы миров
   initialize() {
-    // Устанавливаем пути к изображениям для каждого мира
     this.worlds[0].backgroundImage.src = "backgr.png";
     this.worlds[0].vegetationImage.src = "vegetation.png";
     this.worlds[0].rocksImage.src = "rocks.png";
@@ -57,9 +51,8 @@ const worldSystem = {
     this.worlds[2].rocksImage.src = "neon_city_rocks.png";
     this.worlds[2].cloudsImage.src = "neon_city_clouds.png";
 
-    // Отслеживаем загрузку изображений
     let imagesLoaded = 0;
-    const totalImages = this.worlds.length * 4; // 4 изображения на мир
+    const totalImages = this.worlds.length * 4;
     const onImageLoad = () => {
       imagesLoaded++;
       if (imagesLoaded === totalImages) {
@@ -74,14 +67,12 @@ const worldSystem = {
       world.cloudsImage.onload = onImageLoad;
     });
 
-    // Создаём тестовые зоны перехода
-    this.createTransitionZone(1056, 2487, 50, 1, 0); // Переход из мира 0 в мир 1
-    this.createTransitionZone(1622, 2719, 50, 0, 1); // Переход из мира 1 в мир 0
-    this.createTransitionZone(1906, 3123, 50, 2, 1); // Переход из мира 1 в мир 2
-    this.createTransitionZone(2481, 3108, 50, 1, 2); // Переход из мира 2 в мир 1
+    this.createTransitionZone(1056, 2487, 50, 1, 0);
+    this.createTransitionZone(1622, 2719, 50, 0, 1);
+    this.createTransitionZone(1906, 3123, 50, 2, 1);
+    this.createTransitionZone(2481, 3108, 50, 1, 2);
   },
 
-  // Функция создания зоны перехода
   createTransitionZone(x, y, radius, targetWorldId, sourceWorldId) {
     if (!this.worlds.find((world) => world.id === targetWorldId)) {
       console.error(`Мир с ID ${targetWorldId} не существует`);
@@ -107,19 +98,16 @@ const worldSystem = {
     );
   },
 
-  // Проверка попадания игрока в зону перехода
   checkTransitionZones(playerX, playerY) {
     const me = players.get(myId);
     if (!me) return;
 
-    const currentWorld = this.worlds[this.currentWorldId];
     for (const zone of this.transitionZones) {
       if (zone.sourceWorldId !== this.currentWorldId) continue;
       const dx = playerX - zone.x;
       const dy = playerY - zone.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
       if (distance < zone.radius) {
-        // Отправляем серверу сообщение о переходе
         sendWhenReady(
           ws,
           JSON.stringify({
@@ -134,7 +122,6 @@ const worldSystem = {
     }
   },
 
-  // Переключение мира
   switchWorld(targetWorldId, player, newX, newY) {
     if (targetWorldId === this.currentWorldId) {
       console.log(`Переход в тот же мир ${targetWorldId}, игнорируем`);
@@ -146,7 +133,6 @@ const worldSystem = {
     }
 
     // Сохраняем текущие координаты игрока
-    const prevWorld = this.worlds[this.currentWorldId];
     player.prevWorldX = player.x;
     player.prevWorldY = player.y;
     player.prevWorldId = this.currentWorldId;
@@ -186,7 +172,6 @@ const worldSystem = {
     }
     const currentPlayer = players.get(myId);
     if (currentPlayer) {
-      // Удаляем игроков, которые не в новом мире
       Array.from(players.keys()).forEach((playerId) => {
         if (playerId !== myId) {
           const p = players.get(playerId);
@@ -205,7 +190,6 @@ const worldSystem = {
       );
     } else {
       console.warn(`Игрок ${myId} не найден в players, создаём новый`);
-      // Удаляем игроков, которые не в новом мире
       Array.from(players.keys()).forEach((playerId) => {
         const p = players.get(playerId);
         if (p.worldId !== targetWorldId) {
@@ -219,9 +203,10 @@ const worldSystem = {
       console.log(`Создан новый игрок ${myId} в players:`, players.get(myId));
     }
 
-    // Очищаем волков при входе в Пустоши
-    if (targetWorldId === 1) {
+    // Сбрасываем счетчик расстояния для волков при входе или выходе из Пустошей
+    if (this.currentWorldId === 1 || player.prevWorldId === 1) {
       window.wolfSystem.clearWolves();
+      window.wolfSystem.resetPlayerTracker(myId);
     }
 
     // Сбрасываем и инициализируем свет для нового мира
@@ -244,7 +229,6 @@ const worldSystem = {
       return;
     }
     if (ws && ws.readyState === WebSocket.OPEN) {
-      // Проверяем, есть ли другие игроки в текущем мире
       const otherPlayersInWorld = Array.from(players.values()).some(
         (p) => p.id !== myId && p.worldId === this.currentWorldId
       );
@@ -269,12 +253,10 @@ const worldSystem = {
     }
   },
 
-  // Получение текущего мира
   getCurrentWorld() {
     return this.worlds[this.currentWorldId];
   },
 
-  // Эффект перехода между мирами
   showTransitionEffect() {
     const transitionOverlay = document.createElement("div");
     transitionOverlay.style.position = "fixed";
@@ -287,23 +269,19 @@ const worldSystem = {
     transitionOverlay.style.transition = "background 1s";
     document.body.appendChild(transitionOverlay);
 
-    // Затемнение
     setTimeout(() => {
       transitionOverlay.style.background = "rgba(0, 0, 0, 1)";
     }, 0);
 
-    // Плавное осветление
     setTimeout(() => {
       transitionOverlay.style.background = "rgba(0, 0, 0, 0)";
     }, 1000);
 
-    // Удаляем оверлей
     setTimeout(() => {
       document.body.removeChild(transitionOverlay);
     }, 2000);
   },
 
-  // Отрисовка зон перехода (для визуальной отладки)
   drawTransitionZones() {
     if (!window.movementSystem || !window.movementSystem.getCamera) {
       console.error("movementSystem или getCamera не определены");
@@ -332,5 +310,4 @@ const worldSystem = {
   },
 };
 
-// Экспортируем систему миров
 window.worldSystem = worldSystem;

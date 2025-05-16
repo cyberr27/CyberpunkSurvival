@@ -15,6 +15,9 @@ function runGameLoop(
   ITEM_CONFIG,
   userDatabase
 ) {
+  const playerDistanceTrackers = new Map(); // Отслеживание расстояния для игроков в Пустошах
+  const SPAWN_DISTANCE = 2000; // Спавн волков каждые 2000 пикселей
+
   setInterval(() => {
     const currentTime = Date.now();
     const playerCountPerWorld = new Map();
@@ -168,48 +171,75 @@ function runGameLoop(
       }
 
       if (world.id === 1) {
-        const maxWolves = Math.max(1, playerCount * 2);
-        const currentWolves = Array.from(wolves.values()).filter(
-          (w) => w.worldId === world.id
-        ).length;
+        // Отслеживание игроков в Пустошах
+        players.forEach((player, playerId) => {
+          if (player.worldId !== 1 || player.health <= 0) {
+            // Сбрасываем счетчик, если игрок покинул Пустоши или мёртв
+            if (playerDistanceTrackers.has(playerId)) {
+              playerDistanceTrackers.delete(playerId);
+              console.log(`Счетчик расстояния сброшен для игрока ${playerId}`);
+            }
+            return;
+          }
 
-        if (currentWolves < maxWolves) {
-          const wolvesToSpawn = maxWolves - currentWolves;
-          for (let i = 0; i < wolvesToSpawn; i++) {
+          let tracker = playerDistanceTrackers.get(playerId);
+          if (!tracker) {
+            tracker = {
+              initialDistance: player.distanceTraveled || 0,
+              lastSpawnDistance: 0,
+            };
+            playerDistanceTrackers.set(playerId, tracker);
+            console.log(
+              `Инициализирован счетчик расстояния для игрока ${playerId}`
+            );
+          }
+
+          const distanceSinceEntry =
+            (player.distanceTraveled || 0) - tracker.initialDistance;
+          if (
+            distanceSinceEntry >= tracker.lastSpawnDistance + SPAWN_DISTANCE &&
+            wolves.size < 1 // Лимит на волков
+          ) {
+            // Проверяем, нет ли уже волка для этого игрока
+            let hasWolf = false;
+            for (const wolf of wolves.values()) {
+              if (wolf.targetPlayerId === playerId) {
+                hasWolf = true;
+                break;
+              }
+            }
+            if (hasWolf) return;
+
             let x,
               y,
               attempts = 0;
             const maxAttempts = 10;
-            const player = Array.from(players.values()).find(
-              (p) => p.worldId === world.id
-            );
-            if (!player) continue;
-
             do {
               const edge = Math.floor(Math.random() * 4);
               switch (edge) {
                 case 0:
-                  x = player.x + (Math.random() - 0.5) * 1000;
-                  y = player.y - 500;
+                  x = Math.random() * world.width;
+                  y = 0;
                   break;
                 case 1:
-                  x = player.x + (Math.random() - 0.5) * 1000;
-                  y = player.y + 500;
+                  x = Math.random() * world.width;
+                  y = world.height;
                   break;
                 case 2:
-                  x = player.x - 500;
-                  y = player.y + (Math.random() - 0.5) * 1000;
+                  x = 0;
+                  y = Math.random() * world.height;
                   break;
                 case 3:
-                  x = player.x + 500;
-                  y = player.y + (Math.random() - 0.5) * 1000;
+                  x = world.width;
+                  y = Math.random() * world.height;
                   break;
               }
               attempts++;
             } while (checkCollisionServer(x, y) && attempts < maxAttempts);
 
             if (attempts < maxAttempts) {
-              const wolfId = `wolf_${Date.now()}_${i}`;
+              const wolfId = `wolf_${Date}from this point, continuing the artifact content:
+.now()}_${Math.random()}`;
               const wolf = {
                 id: wolfId,
                 x,
@@ -219,10 +249,11 @@ function runGameLoop(
                 state: "walking",
                 worldId: world.id,
                 lastAttackTime: 0,
+                targetPlayerId: playerId,
               };
               wolves.set(wolfId, wolf);
               console.log(
-                `Создан волк ${wolfId} в мире ${world.id} на x:${x}, y:${y}`
+                `Создан волк ${wolfId} для игрока ${playerId} в мире ${world.id} на x:${x}, y:${y}`
               );
 
               wss.clients.forEach((client) => {
@@ -232,16 +263,25 @@ function runGameLoop(
                 ) {
                   client.send(
                     JSON.stringify({
-                      type: "updateWolf",
+                      type: "spawnWolf",
+                      wolfId,
+                      x: wolf.x,
+                      y: wolf.y,
+                      health: wolf.health,
+                      direction: wolf.direction,
+                      state: wolf.state,
                       worldId: world.id,
-                      wolf,
+                      targetPlayerId: playerId,
                     })
                   );
                 }
               });
+
+              tracker.lastSpawnDistance += SPAWN_DISTANCE;
+              playerDistanceTrackers.set(playerId, tracker);
             }
           }
-        }
+        });
       }
 
       if (world.id === 1) {
