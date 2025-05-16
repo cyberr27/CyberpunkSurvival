@@ -106,6 +106,12 @@ function setupWebSocket(
           player.y = data.y;
           player.worldPositions[targetWorldId] = { x: data.x, y: data.y };
 
+          // Сбрасываем distanceTraveled при входе или выходе из Пустошей
+          if (oldWorldId === 1 || targetWorldId === 1) {
+            player.distanceTraveled = 0;
+            console.log(`Сброс distanceTraveled для игрока ${id}`);
+          }
+
           players.set(id, { ...player });
           userDatabase.set(id, { ...player });
           await saveUserDatabase(dbCollection, id, player);
@@ -122,15 +128,6 @@ function setupWebSocket(
           const worldPlayers = Array.from(players.values()).filter(
             (p) => p.id !== id && p.worldId === targetWorldId
           );
-
-          wss.clients.forEach((client) => {
-            if (client.readyState === WebSocket.OPEN) {
-              const clientPlayer = players.get(clients.get(client));
-              if (clientPlayer && clientPlayer.worldId === targetWorldId) {
-                client.send(JSON.stringify({ type: "newPlayer", player }));
-              }
-            }
-          });
 
           const worldItems = Array.from(items.entries())
             .filter(([_, item]) => item.worldId === targetWorldId)
@@ -161,28 +158,7 @@ function setupWebSocket(
                   health: wolf.health,
                   direction: wolf.direction,
                   state: wolf.state,
-                })),
-            })
-          );
-
-          ws.send(
-            JSON.stringify({
-              type: "worldTransitionSuccess",
-              worldId: targetWorldId,
-              x: player.x,
-              y: player.y,
-              lights: lights.get(targetWorldId).map(({ id, ...rest }) => rest),
-              players: worldPlayers,
-              items: worldItems,
-              wolves: Array.from(wolves.entries())
-                .filter(([_, wolf]) => wolf.worldId === targetWorldId)
-                .map(([id, wolf]) => ({
-                  id,
-                  x: wolf.x,
-                  y: wolf.y,
-                  health: wolf.health,
-                  direction: wolf.direction,
-                  state: wolf.state,
+                  targetPlayerId: wolf.targetPlayerId,
                 })),
             })
           );
@@ -192,9 +168,9 @@ function setupWebSocket(
             wolves.forEach((wolf, wolfId) => {
               if (wolf.targetPlayerId === id) {
                 wolves.delete(wolfId);
+                console.log(`Удалён волк ${wolfId} для игрока ${id}`);
               }
             });
-            // Отправляем клиенту пустой список волков
             ws.send(
               JSON.stringify({
                 type: "syncWolves",
@@ -316,6 +292,7 @@ function setupWebSocket(
                   health: wolf.health,
                   direction: wolf.direction,
                   state: wolf.state,
+                  targetPlayerId: wolf.targetPlayerId,
                 })),
               lights: lights
                 .get(playerData.worldId)
@@ -831,18 +808,15 @@ function setupWebSocket(
           const slotName = data.slotName;
           if (!player.equipment[slotName]) return;
 
-          // Проверяем наличие свободного слота в инвентаре
           const freeSlot = player.inventory.findIndex((slot) => slot === null);
           if (freeSlot === -1) {
             ws.send(JSON.stringify({ type: "inventoryFull" }));
             return;
           }
 
-          // Переносим предмет в инвентарь
           player.inventory[freeSlot] = player.equipment[slotName];
           player.equipment[slotName] = null;
 
-          // Пересчитываем характеристики
           player.armor = 0;
           player.maxStats = {
             health: data.maxStats?.health || player.maxStats.health || 100,
@@ -1278,7 +1252,6 @@ function setupWebSocket(
           wolf.health = Math.max(0, wolf.health - damage);
 
           if (wolf.health <= 0) {
-            // Волк мёртв
             wolves.delete(data.wolfId);
             wss.clients.forEach((client) => {
               if (client.readyState === WebSocket.OPEN) {
@@ -1295,7 +1268,7 @@ function setupWebSocket(
                         health: wolf.health,
                         direction: wolf.direction,
                         state: "dying",
-                        killerId: id, // Передаём ID убийцы
+                        killerId: id,
                       },
                     })
                   );
@@ -1310,7 +1283,6 @@ function setupWebSocket(
               }
             });
 
-            // Дроп предмета с шансом 1/10
             if (Math.random() < 0.1) {
               const items = ["knuckles", "knife", "bat"];
               const itemType = items[Math.floor(Math.random() * items.length)];
@@ -1351,7 +1323,6 @@ function setupWebSocket(
               );
             }
           } else {
-            // Волк ещё жив
             wolves.set(data.wolfId, { ...wolf });
             wss.clients.forEach((client) => {
               if (client.readyState === WebSocket.OPEN) {
@@ -1369,88 +1340,6 @@ function setupWebSocket(
             });
           }
           console.log(`Игрок ${id} нанёс ${damage} урона волку ${data.wolfId}`);
-        }
-      } else if (data.type === "spawnWolf") {
-        const id = clients.get(ws);
-        if (id && data.worldId === 1) {
-          const player = players.get(id);
-          if (player.worldId !== 1) return;
-
-          // Проверяем, что координаты волка находятся на границах мира
-          const isValidSpawn =
-            (data.x === 0 ||
-              data.x === WORLD_WIDTH ||
-              data.y === 0 ||
-              data.y === WORLD_HEIGHT) &&
-            data.x >= 0 &&
-            data.x <= WORLD_WIDTH &&
-            data.y >= 0 &&
-            data.y <= WORLD_HEIGHT;
-
-          if (!isValidSpawn) {
-            console.log(
-              `Недопустимые координаты спавна волка ${data.wolfId}: x=${data.x}, y=${data.y}`
-            );
-            return;
-          }
-
-          // Ограничиваем количество волков (например, не более 5 в мире)
-          const worldWolves = Array.from(wolves.values()).filter(
-            (wolf) => wolf.worldId === 1
-          );
-          if (worldWolves.length >= 1) {
-            console.log(
-              `Достигнут лимит волков в мире 1 (${worldWolves.length}), спавн отклонён`
-            );
-            return;
-          }
-
-          // Проверяем, нет ли уже волка для этого игрока
-          const existingWolf = worldWolves.find(
-            (wolf) => wolf.targetPlayerId === id
-          );
-          if (existingWolf) {
-            console.log(
-              `Волк для игрока ${id} уже существует (ID: ${existingWolf.id}), спавн отклонён`
-            );
-            return;
-          }
-
-          wolves.set(data.wolfId, {
-            id: data.wolfId,
-            x: data.x,
-            y: data.y,
-            health: data.health,
-            direction: data.direction,
-            state: data.state,
-            worldId: data.worldId,
-            targetPlayerId: data.targetPlayerId,
-          });
-          wss.clients.forEach((client) => {
-            if (client.readyState === WebSocket.OPEN) {
-              const clientPlayer = players.get(clients.get(client));
-              if (clientPlayer && clientPlayer.worldId === data.worldId) {
-                client.send(
-                  JSON.stringify({
-                    type: "updateWolf",
-                    worldId: data.worldId,
-                    wolf: {
-                      id: data.wolfId,
-                      x: data.x,
-                      y: data.y,
-                      health: data.health,
-                      direction: data.direction,
-                      state: data.state,
-                      targetPlayerId: data.targetPlayerId,
-                    },
-                  })
-                );
-              }
-            }
-          });
-          console.log(
-            `Волк ${data.wolfId} создан в мире 1 игроком ${id} на x:${data.x}, y:${data.y}`
-          );
         }
       } else if (data.type === "wolfAttack") {
         const wolf = wolves.get(data.wolfId);
@@ -1491,7 +1380,6 @@ function setupWebSocket(
         const player = players.get(data.playerId);
         if (player) {
           player.xp = (player.xp || 0) + data.xp;
-          // Проверка повышения уровня
           const levelThresholds = [
             100, 200, 300, 400, 500, 600, 700, 800, 900, 1000,
           ];
