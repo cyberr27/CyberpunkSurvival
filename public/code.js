@@ -245,14 +245,14 @@ const ITEM_CONFIG = {
     effect: {},
     image: images.wolfSkinImage,
     description: "Волчья шкура: материал для крафта.",
-    rarity: 2,
+    rarity: 4,
   },
   plasma_rifle: {
     type: "weapon",
     effect: { damage: 15, range: 500 },
     image: images.plasmaRifleImage,
     description: "Плазменная винтовка: +15 урона, дальнобойная",
-    rarity: 4,
+    rarity: 3,
   },
   knuckles: {
     type: "weapon",

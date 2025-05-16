@@ -20,6 +20,10 @@ const ITEM_CONFIG = {
   apple: { effect: { food: 8, water: 5 }, rarity: 3 },
   berries: { effect: { food: 6, water: 6 }, rarity: 3 },
   carrot: { effect: { food: 5, energy: 3 }, rarity: 3 },
+  wolf_skin: {
+    effect: {},
+    rarity: 4,
+  },
   cyber_helmet: {
     type: "headgear",
     effect: { armor: 10, energy: 5 },

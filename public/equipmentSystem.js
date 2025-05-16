@@ -60,9 +60,26 @@ const equipmentSystem = {
     },
     plasma_rifle: {
       type: "weapon",
-      effect: { damage: 15 },
-      description: "Плазменная винтовка: +15 урона",
-      rarity: 4,
+      effect: { damage: 15, range: 500 }, // Добавляем range для дальнобойного оружия
+      rarity: 3,
+      image: new Image(),
+    },
+    knuckles: {
+      type: "weapon",
+      effect: { damage: { min: 3, max: 7 } }, // Кастет: 3-7 урона
+      rarity: 3,
+      image: new Image(),
+    },
+    knife: {
+      type: "weapon",
+      effect: { damage: { min: 4, max: 6 } }, // Нож: 4-6 урона
+      rarity: 3,
+      image: new Image(),
+    },
+    bat: {
+      type: "weapon",
+      effect: { damage: { min: 5, max: 10 } }, // Бита: 5-10 урона
+      rarity: 3,
       image: new Image(),
     },
     tech_gloves: {
@@ -81,8 +98,11 @@ const equipmentSystem = {
     this.EQUIPMENT_CONFIG.tactical_belt.image.src = "tactical_belt.png";
     this.EQUIPMENT_CONFIG.cyber_pants.image.src = "cyber_pants.png";
     this.EQUIPMENT_CONFIG.speed_boots.image.src = "speed_boots.png";
-    this.EQUIPMENT_CONFIG.plasma_rifle.image.src = "plasma_rifle.png";
     this.EQUIPMENT_CONFIG.tech_gloves.image.src = "tech_gloves.png";
+    this.EQUIPMENT_CONFIG.plasma_rifle.image.src = "plasma_rifle.png";
+    this.EQUIPMENT_CONFIG.knife.image.src = "knife.png";
+    this.EQUIPMENT_CONFIG.bat.image.src = "bat.png";
+    this.EQUIPMENT_CONFIG.knuckles.image.src = "knuckles.png";
 
     // Создаем кнопку экипировки
     const equipmentBtn = document.createElement("button");
