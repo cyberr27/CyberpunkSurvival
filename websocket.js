@@ -195,9 +195,33 @@ function setupWebSocket(
             );
             return;
           }
-          const worldPlayers = Array.from(players.values()).filter(
-            (p) => p.id !== id && p.worldId === worldId
-          );
+          const worldPlayers = Array.from(players.values())
+            .filter(
+              (p) =>
+                p.id !== id &&
+                p.worldId === worldId &&
+                p && // Убедимся, что игрок существует
+                typeof p === "object" &&
+                p.id && // Убедимся, что у игрока есть ID
+                p.x !== undefined && // Проверяем наличие координат
+                p.y !== undefined &&
+                p.health !== undefined // Проверяем наличие здоровья
+            )
+            .map((p) => ({
+              id: p.id,
+              x: p.x,
+              y: p.y,
+              health: p.health,
+              energy: p.energy,
+              food: p.food,
+              water: p.water,
+              armor: p.armor,
+              distanceTraveled: p.distanceTraveled,
+              direction: p.direction,
+              state: p.state,
+              frame: p.frame,
+              worldId: p.worldId,
+            }));
           ws.send(
             JSON.stringify({
               type: "syncPlayers",

@@ -1362,23 +1362,46 @@ function handleGameMessage(event) {
         if (data.players && data.worldId === currentWorldId) {
           const myPlayer = players.get(myId);
           players.clear();
-          if (myPlayer) {
+          if (myPlayer && typeof myPlayer === "object") {
             players.set(myId, { ...myPlayer, frameTime: 0 });
+          } else {
+            console.warn(`Игрок ${myId} не найден в players при синхронизации`);
           }
-          data.players.forEach((p) => {
-            if (p && p.id && p.id !== myId && typeof p === "object") {
-              players.set(p.id, { ...p, frameTime: 0 });
-            }
-          });
-          console.log(
-            `Синхронизировано ${data.players.length} игроков в мире ${data.worldId}`
+          if (Array.isArray(data.players)) {
+            data.players.forEach((p) => {
+              if (
+                p &&
+                typeof p === "object" &&
+                p.id &&
+                p.id !== myId &&
+                p.worldId === currentWorldId
+              ) {
+                players.set(p.id, { ...p, frameTime: 0 });
+              } else {
+                console.warn(
+                  `Некорректные данные игрока при синхронизации:`,
+                  p
+                );
+              }
+            });
+            console.log(
+              `Синхронизировано ${data.players.length} игроков в мире ${data.worldId}`
+            );
+          } else {
+            console.error(`data.players не является массивом:`, data.players);
+          }
+        } else {
+          console.warn(
+            `Некорректные данные для syncPlayers: players=${!!data.players}, worldId=${
+              data.worldId
+            }, currentWorldId=${currentWorldId}`
           );
         }
         break;
       case "worldTransitionSuccess":
         {
           const me = players.get(myId);
-          if (me) {
+          if (me && typeof me === "object") {
             window.worldSystem.switchWorld(data.worldId, me, data.x, data.y);
             items.forEach((item, itemId) => {
               if (item.worldId !== data.worldId) {
@@ -1404,6 +1427,20 @@ function handleGameMessage(event) {
             if (data.wolves && data.worldId === 1) {
               window.wolfSystem.syncWolves(data.wolves);
             }
+            // Обновляем данные игрока
+            me.worldId = data.worldId;
+            me.x = data.x;
+            me.y = data.y;
+            me.worldPositions = {
+              ...me.worldPositions,
+              [data.worldId]: { x: data.x, y: data.y },
+            };
+            players.set(myId, { ...me, frameTime: 0 });
+          } else {
+            console.error(
+              `Игрок ${myId} не найден при переходе в мир ${data.worldId}`
+            );
+            return; // Прерываем обработку, чтобы избежать дальнейших ошибок
           }
         }
         setTimeout(() => {
