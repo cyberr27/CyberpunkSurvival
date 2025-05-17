@@ -470,36 +470,24 @@ function handleAuthMessage(event) {
   switch (data.type) {
     case "loginSuccess":
       myId = data.id;
-      authContainer.style.display = "none";
-      document.getElementById("gameContainer").style.display = "block";
-
-      const me = {
-        id: data.id,
-        x: data.x || 222,
-        y: data.y || 3205,
-        health: data.health || 100,
-        energy: data.energy || 100,
-        food: data.food || 100,
-        water: data.water || 100,
-        armor: data.armor || 0,
+      if (!myId) {
+        console.error("Получен loginSuccess без id");
+        return;
+      }
+      const playerData = {
+        id: myId,
+        x: data.x,
+        y: data.y,
+        health: data.health,
+        energy: data.energy,
+        food: data.food,
+        water: data.water,
+        armor: data.armor,
         distanceTraveled: data.distanceTraveled || 0,
         direction: data.direction || "down",
         state: data.state || "idle",
         frame: data.frame || 0,
         inventory: data.inventory || Array(20).fill(null),
-        npcMet: data.npcMet || false,
-        selectedQuestId: data.selectedQuestId || null,
-        level: data.level || 0,
-        xp: data.xp || 99,
-        maxStats: data.maxStats || {
-          health: 100,
-          energy: 100,
-          food: 100,
-          water: 100,
-        },
-        upgradePoints: data.upgradePoints || 0,
-        worldId: data.worldId || 0,
-        worldPositions: data.worldPositions || { 0: { x: 222, y: 3205 } },
         equipment: data.equipment || {
           head: null,
           chest: null,
@@ -509,60 +497,67 @@ function handleAuthMessage(event) {
           weapon: null,
           gloves: null,
         },
+        npcMet: data.npcMet || false,
+        selectedQuestId: data.selectedQuestId || null,
+        level: data.level || 0,
+        xp: data.xp || 0,
+        maxStats: data.maxStats || {
+          health: 100,
+          energy: 100,
+          food: 100,
+          water: 100,
+        },
+        upgradePoints: data.upgradePoints || 0,
+        availableQuests: data.availableQuests || [],
+        worldId: data.worldId || 0,
+        worldPositions: data.worldPositions || {
+          [data.worldId || 0]: { x: data.x, y: data.y },
+        },
+        frameTime: 0,
       };
-      players.set(myId, me);
-      window.worldSystem.currentWorldId = me.worldId;
+      players.set(myId, playerData);
+      currentWorldId = data.worldId || 0;
+      window.worldSystem.currentWorldId = currentWorldId;
+
+      // Очищаем игроков из других миров
+      Array.from(players.keys()).forEach((playerId) => {
+        if (playerId !== myId) {
+          const p = players.get(playerId);
+          if (p && p.worldId !== currentWorldId) {
+            players.delete(playerId);
+          }
+        }
+      });
 
       if (data.players) {
         data.players.forEach((p) => {
-          if (p.id !== myId) {
-            players.set(p.id, p);
+          if (
+            p &&
+            typeof p === "object" &&
+            p.id &&
+            p.id !== myId &&
+            p.worldId === currentWorldId
+          ) {
+            players.set(p.id, { ...p, frameTime: 0 });
           }
         });
       }
-
-      lastDistance = me.distanceTraveled;
       if (data.items) {
-        items.clear();
-        data.items.forEach((item) =>
-          items.set(item.itemId, {
-            x: item.x,
-            y: item.y,
-            type: item.type,
-            spawnTime: item.spawnTime,
-            worldId: item.worldId,
-          })
-        );
+        data.items.forEach((item) => {
+          if (item && item.itemId && item.worldId === currentWorldId) {
+            items.set(item.itemId, { ...item });
+          }
+        });
+      }
+      if (data.wolves && data.worldId === 1) {
+        window.wolfSystem.syncWolves(data.wolves);
       }
       if (data.lights) {
         lights.length = 0;
-        data.lights.forEach((light) =>
-          lights.push({
-            ...light,
-            baseRadius: light.radius,
-            pulseSpeed: 0.001,
-          })
-        );
-        console.log(`Загружено ${lights.length} источников света при логине`);
+        data.lights.forEach((light) => lights.push({ ...light }));
+        window.lightsSystem.reset(data.worldId);
       }
-      window.lightsSystem.reset(me.worldId);
-      inventory = data.inventory || Array(20).fill(null);
-      window.npcSystem.setNPCMet(data.npcMet || false);
-      window.npcSystem.setSelectedQuest(data.selectedQuestId || null);
-      window.npcSystem.checkQuestCompletion();
-      window.npcSystem.setAvailableQuests(data.availableQuests || []);
-      levelSystem.setLevelData(
-        data.level || 0,
-        data.xp || 0,
-        data.maxStats || { health: 100, energy: 100, food: 100, water: 100 },
-        data.upgradePoints || 0
-      );
-      window.equipmentSystem.syncEquipment(data.equipment || {});
-      resizeCanvas();
-      ws.onmessage = handleGameMessage;
-      console.log("Переключен обработчик на handleGameMessage");
-      startGame();
-      updateOnlineCount(0);
+      console.log(`Игрок ${myId} вошёл в мир ${currentWorldId}`);
       break;
     case "registerSuccess":
       registerError.textContent = "Регистрация успешна! Войдите.";
@@ -1360,39 +1355,38 @@ function handleGameMessage(event) {
     switch (data.type) {
       case "syncPlayers":
         if (data.players && data.worldId === currentWorldId) {
+          if (!Array.isArray(data.players)) {
+            console.error(`data.players не является массивом:`, data.players);
+            return;
+          }
           const myPlayer = players.get(myId);
           players.clear();
           if (myPlayer && typeof myPlayer === "object") {
             players.set(myId, { ...myPlayer, frameTime: 0 });
           } else {
-            console.warn(`Игрок ${myId} не найден в players при синхронизации`);
-          }
-          if (Array.isArray(data.players)) {
-            data.players.forEach((p) => {
-              if (
-                p &&
-                typeof p === "object" &&
-                p.id &&
-                p.id !== myId &&
-                p.worldId === currentWorldId
-              ) {
-                players.set(p.id, { ...p, frameTime: 0 });
-              } else {
-                console.warn(
-                  `Некорректные данные игрока при синхронизации:`,
-                  p
-                );
-              }
-            });
-            console.log(
-              `Синхронизировано ${data.players.length} игроков в мире ${data.worldId}`
+            console.warn(
+              `Игрок ${myId} не найден в players, пропускаем добавление текущего игрока`
             );
-          } else {
-            console.error(`data.players не является массивом:`, data.players);
           }
+          data.players.forEach((p) => {
+            if (
+              p &&
+              typeof p === "object" &&
+              p.id &&
+              p.id !== myId &&
+              p.worldId === currentWorldId
+            ) {
+              players.set(p.id, { ...p, frameTime: 0 });
+            } else {
+              console.warn(`Некорректные данные игрока:`, p);
+            }
+          });
+          console.log(
+            `Синхронизировано ${data.players.length} игроков в мире ${data.worldId}`
+          );
         } else {
           console.warn(
-            `Некорректные данные для syncPlayers: players=${!!data.players}, worldId=${
+            `Некорректные данные syncPlayers: players=${!!data.players}, worldId=${
               data.worldId
             }, currentWorldId=${currentWorldId}`
           );
@@ -1401,33 +1395,42 @@ function handleGameMessage(event) {
       case "worldTransitionSuccess":
         {
           const me = players.get(myId);
-          if (me && typeof me === "object") {
+          if (!myId) {
+            console.error("myId не определён при переходе в мир!");
+            return;
+          }
+          if (!me) {
+            console.error(
+              `Игрок ${myId} не найден в players при переходе в мир ${data.worldId}, создаём временные данные`
+            );
+            // Создаём временные данные игрока, если не найдены
+            const tempPlayer = {
+              id: myId,
+              x: data.x || 222,
+              y: data.y || 3205,
+              worldId: data.worldId,
+              worldPositions: {
+                [data.worldId]: { x: data.x || 222, y: data.y || 3205 },
+              },
+              health: 100,
+              energy: 100,
+              food: 100,
+              water: 100,
+              armor: 0,
+              distanceTraveled: 0,
+              direction: "down",
+              state: "idle",
+              frame: 0,
+            };
+            players.set(myId, tempPlayer);
+            window.worldSystem.switchWorld(
+              data.worldId,
+              tempPlayer,
+              data.x,
+              data.y
+            );
+          } else {
             window.worldSystem.switchWorld(data.worldId, me, data.x, data.y);
-            items.forEach((item, itemId) => {
-              if (item.worldId !== data.worldId) {
-                items.delete(itemId);
-              }
-            });
-            window.vendingMachine.hideVendingMenu();
-            window.lightsSystem.reset(data.worldId);
-            window.wolfSystem.clearWolves();
-            if (data.lights) {
-              lights.length = 0;
-              data.lights.forEach((light) =>
-                lights.push({
-                  ...light,
-                  baseRadius: light.radius,
-                  pulseSpeed: 0.001,
-                })
-              );
-              console.log(
-                `Загружено ${lights.length} источников света при переходе в мир ${data.worldId}`
-              );
-            }
-            if (data.wolves && data.worldId === 1) {
-              window.wolfSystem.syncWolves(data.wolves);
-            }
-            // Обновляем данные игрока
             me.worldId = data.worldId;
             me.x = data.x;
             me.y = data.y;
@@ -1436,11 +1439,31 @@ function handleGameMessage(event) {
               [data.worldId]: { x: data.x, y: data.y },
             };
             players.set(myId, { ...me, frameTime: 0 });
-          } else {
-            console.error(
-              `Игрок ${myId} не найден при переходе в мир ${data.worldId}`
+          }
+
+          items.forEach((item, itemId) => {
+            if (item.worldId !== data.worldId) {
+              items.delete(itemId);
+            }
+          });
+          window.vendingMachine.hideVendingMenu();
+          window.lightsSystem.reset(data.worldId);
+          window.wolfSystem.clearWolves();
+          if (data.lights) {
+            lights.length = 0;
+            data.lights.forEach((light) =>
+              lights.push({
+                ...light,
+                baseRadius: light.radius,
+                pulseSpeed: 0.001,
+              })
             );
-            return; // Прерываем обработку, чтобы избежать дальнейших ошибок
+            console.log(
+              `Загружено ${lights.length} источников света при переходе в мир ${data.worldId}`
+            );
+          }
+          if (data.wolves && data.worldId === 1) {
+            window.wolfSystem.syncWolves(data.wolves);
           }
         }
         setTimeout(() => {
@@ -1456,7 +1479,7 @@ function handleGameMessage(event) {
               `Запрошена синхронизация игроков для мира ${data.worldId}`
             );
           }
-        }, 1000);
+        }, 1500); // Увеличиваем задержку до 1500 мс
         break;
       case "newPlayer":
         if (!data.player || typeof data.player !== "object") {

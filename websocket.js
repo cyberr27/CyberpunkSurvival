@@ -106,7 +106,6 @@ function setupWebSocket(
           player.y = data.y;
           player.worldPositions[targetWorldId] = { x: data.x, y: data.y };
 
-          // Сбрасываем distanceTraveled при входе или выходе из Пустошей
           if (oldWorldId === 1 || targetWorldId === 1) {
             player.distanceTraveled = 0;
             console.log(`Сброс distanceTraveled для игрока ${id}`);
@@ -125,9 +124,23 @@ function setupWebSocket(
             }
           });
 
-          const worldPlayers = Array.from(players.values()).filter(
-            (p) => p.id !== id && p.worldId === targetWorldId
-          );
+          const worldPlayers = Array.from(players.values())
+            .filter((p) => p.worldId === targetWorldId) // Включаем всех игроков, включая текущего
+            .map((p) => ({
+              id: p.id,
+              x: p.x,
+              y: p.y,
+              health: p.health,
+              energy: p.energy,
+              food: p.food,
+              water: p.water,
+              armor: p.armor,
+              distanceTraveled: p.distanceTraveled,
+              direction: p.direction,
+              state: p.state,
+              frame: p.frame,
+              worldId: p.worldId,
+            }));
 
           const worldItems = Array.from(items.entries())
             .filter(([_, item]) => item.worldId === targetWorldId)
@@ -164,7 +177,6 @@ function setupWebSocket(
           );
 
           if (targetWorldId === 1) {
-            // Очищаем волков для игрока при входе в Пустоши
             wolves.forEach((wolf, wolfId) => {
               if (wolf.targetPlayerId === id) {
                 wolves.delete(wolfId);
@@ -198,14 +210,13 @@ function setupWebSocket(
           const worldPlayers = Array.from(players.values())
             .filter(
               (p) =>
-                p.id !== id &&
                 p.worldId === worldId &&
-                p && // Убедимся, что игрок существует
+                p &&
                 typeof p === "object" &&
-                p.id && // Убедимся, что у игрока есть ID
-                p.x !== undefined && // Проверяем наличие координат
+                p.id &&
+                p.x !== undefined &&
                 p.y !== undefined &&
-                p.health !== undefined // Проверяем наличие здоровья
+                p.health !== undefined
             )
             .map((p) => ({
               id: p.id,

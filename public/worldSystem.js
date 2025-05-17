@@ -131,6 +131,10 @@ const worldSystem = {
       console.error(`Попытка перейти в несуществующий мир ${targetWorldId}`);
       return;
     }
+    if (!myId) {
+      console.error("myId не определён при переходе в мир!");
+      return;
+    }
 
     // Сохраняем текущие координаты игрока
     player.prevWorldX = player.x;
@@ -161,47 +165,39 @@ const worldSystem = {
     // Сохраняем координаты
     if (!player.worldPositions) player.worldPositions = {};
     player.worldPositions[targetWorldId] = { x: player.x, y: player.y };
-
-    // Обновляем worldId игрока
     player.worldId = targetWorldId;
 
-    // Проверяем и обновляем текущего игрока в players
-    if (!myId) {
-      console.error("myId не определён при переходе в мир!");
-      return;
-    }
+    // Обновляем текущего игрока в players
     const currentPlayer = players.get(myId);
     if (currentPlayer) {
-      Array.from(players.keys()).forEach((playerId) => {
-        if (playerId !== myId) {
-          const p = players.get(playerId);
-          if (p.worldId !== targetWorldId) {
-            players.delete(playerId);
-            console.log(
-              `Удалён игрок ${playerId} из players, так как он в другом мире (${p.worldId})`
-            );
-          }
-        }
+      players.set(myId, {
+        ...currentPlayer,
+        ...player,
+        frameTime: 0,
+        id: myId,
       });
-      players.set(myId, { ...currentPlayer, ...player, frameTime: 0 });
       console.log(
         `Обновлён игрок ${myId} в мире ${targetWorldId}:`,
         players.get(myId)
       );
     } else {
       console.warn(`Игрок ${myId} не найден в players, создаём новый`);
-      Array.from(players.keys()).forEach((playerId) => {
+      players.set(myId, { ...player, id: myId, frameTime: 0 });
+      console.log(`Создан игрок ${myId} в players:`, players.get(myId));
+    }
+
+    // Удаляем игроков из других миров
+    Array.from(players.keys()).forEach((playerId) => {
+      if (playerId !== myId) {
         const p = players.get(playerId);
-        if (p.worldId !== targetWorldId) {
+        if (p && p.worldId !== targetWorldId) {
           players.delete(playerId);
           console.log(
             `Удалён игрок ${playerId} из players, так как он в другом мире (${p.worldId})`
           );
         }
-      });
-      players.set(myId, { ...player, id: myId, frameTime: 0 });
-      console.log(`Создан новый игрок ${myId} в players:`, players.get(myId));
-    }
+      }
+    });
 
     // Сбрасываем счетчик расстояния для волков при входе или выходе из Пустошей
     if (this.currentWorldId === 1 || player.prevWorldId === 1) {
@@ -219,7 +215,7 @@ const worldSystem = {
     this.showTransitionEffect();
 
     console.log(
-      `Игрок ${player.id} перешёл в мир ${newWorld.name} (ID: ${targetWorldId}) на координаты x=${player.x}, y=${player.y}`
+      `Игрок ${myId} перешёл в мир ${newWorld.name} (ID: ${targetWorldId}) на координаты x=${player.x}, y=${player.y}`
     );
   },
 
