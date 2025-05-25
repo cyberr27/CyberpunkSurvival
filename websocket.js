@@ -736,6 +736,7 @@ function setupWebSocket(
               };
 
               player.armor = 0;
+              player.damage = 0; // Сбрасываем damage
               Object.values(player.equipment).forEach((equippedItem) => {
                 if (equippedItem && ITEM_CONFIG[equippedItem.type]) {
                   const effect = ITEM_CONFIG[equippedItem.type].effect;
@@ -744,8 +745,17 @@ function setupWebSocket(
                   if (effect.energy) player.maxStats.energy += effect.energy;
                   if (effect.food) player.maxStats.food += effect.food;
                   if (effect.water) player.maxStats.water += effect.water;
-                  if (effect.damage)
-                    player.damage = (player.damage || 0) + effect.damage;
+                  if (effect.damage) {
+                    if (
+                      typeof effect.damage === "object" &&
+                      effect.damage.min &&
+                      effect.damage.max
+                    ) {
+                      player.damage = effect.damage; // Сохраняем объект { min, max }
+                    } else {
+                      player.damage = (player.damage || 0) + effect.damage; // Суммируем фиксированный урон
+                    }
+                  }
                 }
               });
 
@@ -777,7 +787,7 @@ function setupWebSocket(
                   item.type
                 } в слот ${slotName}, maxStats: ${JSON.stringify(
                   player.maxStats
-                )}`
+                )}, damage: ${JSON.stringify(player.damage)}`
               );
             }
           }
