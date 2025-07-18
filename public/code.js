@@ -1214,11 +1214,22 @@ function updateStatsDisplay() {
   const me = players.get(myId);
   if (!me) return;
   statsEl.innerHTML = `
-    <span class="health">Здоровье: ${me.health}/${levelSystem.maxStats.health}</span><br>
-    <span class="energy">Энергия: ${me.energy}/${levelSystem.maxStats.energy}</span><br>
+    <span class="health">Здоровье: ${me.health}/${
+    levelSystem.maxStats.health
+  }</span><br>
+    <span class="energy">Энергия: ${me.energy}/${
+    levelSystem.maxStats.energy
+  }</span><br>
     <span class="food">Еда: ${me.food}/${levelSystem.maxStats.food}</span><br>
-    <span class="water">Вода: ${me.water}/${levelSystem.maxStats.water}</span><br>
+    <span class="water">Вода: ${me.water}/${
+    levelSystem.maxStats.water
+  }</span><br>
     <span class="armor">Броня: ${me.armor}</span>
+    <span class="damage">Урон: ${
+      typeof me.damage === "object"
+        ? `${me.damage.min}-${me.damage.max}`
+        : me.damage || 0
+    }</span>
   `;
   document.getElementById("coords").innerHTML = `X: ${Math.floor(
     me.x
