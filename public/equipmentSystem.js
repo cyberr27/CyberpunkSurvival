@@ -279,13 +279,13 @@ const equipmentSystem = {
         type: "equipItem",
         slotIndex,
         equipment: this.equipmentSlots,
-        maxStats: { ...window.levelSystem.maxStats }, // Отправляем актуальные maxStats
+        maxStats: { ...window.levelSystem.maxStats },
         health: me.health,
         energy: me.energy,
         food: me.food,
         water: me.water,
         armor: me.armor,
-        damage: me.damage, // Добавляем отправку damage
+        damage: me.damage,
       })
     );
 
