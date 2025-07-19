@@ -265,14 +265,11 @@ const equipmentSystem = {
       inventory[freeSlot] = oldItem;
     }
 
-    // Экипируем новый предмет
-    this.equipmentSlots[slotName] = { type: item.type, itemId: item.itemId };
-    inventory[slotIndex] = null;
+    // Экипируем новый предмет (Только локально, не удаляем из инвентаря!)
+    // this.equipmentSlots[slotName] = { type: item.type, itemId: item.itemId };
+    // inventory[slotIndex] = null;
 
-    // Обновляем характеристики игрока
-    this.applyEquipmentEffects(me);
-
-    // Отправляем на сервер
+    // Отправляем на сервер только запрос на экипировку
     sendWhenReady(
       ws,
       JSON.stringify({
@@ -289,14 +286,11 @@ const equipmentSystem = {
       })
     );
 
-    // Обновляем отображение
+    // Кнопки и экран — можно сбросить сразу
     selectedSlot = null;
     document.getElementById("useBtn").disabled = true;
     document.getElementById("dropBtn").disabled = true;
     document.getElementById("inventoryScreen").textContent = "";
-    updateStatsDisplay();
-    updateInventoryDisplay();
-    this.updateEquipmentDisplay();
   },
 
   applyEquipmentEffects: function (player) {
