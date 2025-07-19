@@ -1529,16 +1529,21 @@ function handleGameMessage(event) {
         } else if (data.player.id !== myId) {
           players.delete(data.player.id); // Удаляем игрока, если он в другом мире
         }
-        if (data.player.id === myId) {
+        if (data.player && data.player.id === myId) {
+          // Обновляем локальные данные игрока
+          players.set(myId, { ...players.get(myId), ...data.player });
           inventory = data.player.inventory || inventory;
-          if (data.player.equipment) {
-            window.equipmentSystem.syncEquipment(data.player.equipment);
-          }
-          setNPCMet(data.player.npcMet || false);
+          // Синхронизируем экипировку и характеристики
+          window.equipmentSystem.syncEquipment(data.player.equipment);
           levelSystem.setLevelData(
             data.player.level || 0,
             data.player.xp || 0,
-            data.player.maxStats || levelSystem.maxStats,
+            data.player.maxStats || {
+              health: 100,
+              energy: 100,
+              food: 100,
+              water: 100,
+            },
             data.player.upgradePoints || 0
           );
           updateStatsDisplay();
