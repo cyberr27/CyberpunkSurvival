@@ -265,9 +265,13 @@ const equipmentSystem = {
       inventory[freeSlot] = oldItem;
     }
 
-    // Экипируем новый предмет (Только локально, не удаляем из инвентаря!)
-    // this.equipmentSlots[slotName] = { type: item.type, itemId: item.itemId };
-    // inventory[slotIndex] = null;
+    // Локально отображаем предмет в слоте экипировки (до ответа сервера)
+    this.equipmentSlots[slotName] = { type: item.type, itemId: item.itemId };
+    // Не удаляем из инвентаря до ответа сервера!
+    this.updateEquipmentDisplay();
+    console.log(
+      `[ЭКИПИРОВКА] ${item.type} помещён в слот ${slotName} (локально, до ответа сервера)`
+    );
 
     // Отправляем на сервер только запрос на экипировку
     sendWhenReady(
@@ -291,6 +295,9 @@ const equipmentSystem = {
     document.getElementById("useBtn").disabled = true;
     document.getElementById("dropBtn").disabled = true;
     document.getElementById("inventoryScreen").textContent = "";
+    updateStatsDisplay();
+    updateInventoryDisplay();
+    this.updateEquipmentDisplay();
   },
 
   applyEquipmentEffects: function (player) {
