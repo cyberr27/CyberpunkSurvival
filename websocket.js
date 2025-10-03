@@ -776,7 +776,7 @@ function setupWebSocket(
                   client.send(
                     JSON.stringify({
                       type: "update",
-                      player: { id, ...player },
+                      player: { id, ...player }, // player должен содержать equipment!
                     })
                   );
                 }

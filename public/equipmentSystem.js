@@ -343,6 +343,8 @@ const equipmentSystem = {
 
   syncEquipment: function (equipment) {
     this.equipmentSlots = equipment;
+    this.updateEquipmentDisplay();
+    console.log("syncEquipment: ", equipment);
     const me = players.get(myId);
     this.applyEquipmentEffects(me);
 
