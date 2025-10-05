@@ -972,16 +972,13 @@ function selectSlot(slotIndex, slotElement) {
 
 // Использовать предмет
 function useItem(slotIndex) {
+  console.log("UseItem вызван для слота:", slotIndex);
   const item = inventory[slotIndex];
   if (!item) return;
   const me = players.get(myId);
 
-  // Проверяем, является ли предмет экипировкой
-  if (
-    ITEM_CONFIG[item.type] &&
-    ITEM_CONFIG[item.type].type &&
-    window.equipmentSystem.EQUIPMENT_CONFIG[item.type]
-  ) {
+  // Проверяем, является ли предмет экипировкой (только по EQUIPMENT_CONFIG)
+  if (window.equipmentSystem.EQUIPMENT_CONFIG[item.type]) {
     window.equipmentSystem.equipItem(slotIndex);
     return;
   }
@@ -1519,35 +1516,20 @@ function handleGameMessage(event) {
         pendingPickups.delete(data.itemId);
         break;
       case "update":
-        if (data.player.worldId === currentWorldId) {
-          const existingPlayer = players.get(data.player.id);
-          players.set(data.player.id, {
-            ...existingPlayer,
-            ...data.player,
-            frameTime: existingPlayer.frameTime || 0,
-          });
-        } else if (data.player.id !== myId) {
-          players.delete(data.player.id); // Удаляем игрока, если он в другом мире
-        }
         if (data.player && data.player.id === myId) {
-          // Обновляем локальные данные игрока
+          // Сохраняем обновлённые данные игрока
           players.set(myId, { ...players.get(myId), ...data.player });
-          inventory = data.player.inventory || inventory;
-          // Синхронизируем экипировку и характеристики
-          window.equipmentSystem.syncEquipment(data.player.equipment);
-          levelSystem.setLevelData(
-            data.player.level || 0,
-            data.player.xp || 0,
-            data.player.maxStats || {
-              health: 100,
-              energy: 100,
-              food: 100,
-              water: 100,
-            },
-            data.player.upgradePoints || 0
-          );
+
+          // Синхронизируем экипировку
+          if (data.player.equipment) {
+            window.equipmentSystem.syncEquipment(data.player.equipment);
+          }
+          // Синхронизируем инвентарь
+          if (data.player.inventory) {
+            inventory = data.player.inventory;
+            updateInventoryDisplay();
+          }
           updateStatsDisplay();
-          updateInventoryDisplay();
         }
         break;
       case "itemDropped":
