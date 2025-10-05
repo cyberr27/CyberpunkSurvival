@@ -1517,19 +1517,16 @@ function handleGameMessage(event) {
         break;
       case "update":
         if (data.player && data.player.id === myId) {
-          // Сохраняем обновлённые данные игрока
           players.set(myId, { ...players.get(myId), ...data.player });
-
-          // Синхронизируем экипировку
           if (data.player.equipment) {
             window.equipmentSystem.syncEquipment(data.player.equipment);
           }
-          // Синхронизируем инвентарь
           if (data.player.inventory) {
             inventory = data.player.inventory;
             updateInventoryDisplay();
           }
           updateStatsDisplay();
+          console.log("Получено обновление игрока:", data.player);
         }
         break;
       case "itemDropped":
