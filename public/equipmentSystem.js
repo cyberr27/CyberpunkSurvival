@@ -150,9 +150,7 @@ const equipmentSystem = {
     equipmentGrid.style.display = "grid";
     equipmentGrid.style.gridTemplateAreas = `
         ". head ."
-        "gloves ."
-        "chest ."
-        "weapon ."
+        "gloves chest weapon"
         ". belt ."
         ". pants ."
         ". boots ."
