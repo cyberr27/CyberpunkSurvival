@@ -1014,8 +1014,6 @@ function useItem(slotIndex) {
       Math.max(0, me.water + effect.water)
     );
 
-  inventory[slotIndex] = null;
-
   sendWhenReady(
     ws,
     JSON.stringify({
