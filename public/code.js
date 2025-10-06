@@ -977,9 +977,18 @@ function useItem(slotIndex) {
   if (!item) return;
   const me = players.get(myId);
 
-  // Проверяем, является ли предмет экипировкой (только по EQUIPMENT_CONFIG)
+  // Проверяем, является ли предмет экипировкой (оружие, броня и т.д.)
   if (window.equipmentSystem.EQUIPMENT_CONFIG[item.type]) {
+    console.log("Попытка экипировать предмет:", item.type);
     window.equipmentSystem.equipItem(slotIndex);
+    // После экипировки очищаем слот (сервер сам вернёт старый предмет, если был)
+    inventory[slotIndex] = null;
+    selectedSlot = null;
+    document.getElementById("useBtn").disabled = true;
+    document.getElementById("dropBtn").disabled = true;
+    document.getElementById("inventoryScreen").textContent = "";
+    updateStatsDisplay();
+    updateInventoryDisplay();
     return;
   }
 
