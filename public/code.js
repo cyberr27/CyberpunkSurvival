@@ -888,7 +888,7 @@ function startGame() {
   const useBtn = document.getElementById("useBtn");
   const dropBtn = document.getElementById("dropBtn");
 
-  useBtn.addEventListener("click", (e) => {
+  useBtn.addEventListener("click", (j) => {
     e.preventDefault();
     if (selectedSlot !== null) {
       useItem(selectedSlot);
