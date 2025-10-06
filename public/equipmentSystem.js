@@ -249,7 +249,9 @@ const equipmentSystem = {
     if (!item || !this.EQUIPMENT_CONFIG[item.type]) return;
 
     const me = players.get(myId);
-    const slotName = this.EQUIPMENT_TYPES[item.type];
+    // Исправлено: сначала получаем тип экипировки, потом слот
+    const equipType = this.EQUIPMENT_CONFIG[item.type].type;
+    const slotName = this.EQUIPMENT_TYPES[equipType];
     if (!slotName) return;
 
     // Проверяем, есть ли уже предмет в слоте
