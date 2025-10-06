@@ -982,8 +982,7 @@ function useItem(slotIndex) {
   if (window.equipmentSystem.EQUIPMENT_CONFIG[item.type]) {
     console.log("Попытка экипировать предмет:", item.type);
     window.equipmentSystem.equipItem(slotIndex);
-    // После экипировки очищаем слот (сервер сам вернёт старый предмет, если был)
-    inventory[slotIndex] = null;
+    // НЕ удаляем предмет из инвентаря локально!
     selectedSlot = null;
     document.getElementById("useBtn").disabled = true;
     document.getElementById("dropBtn").disabled = true;
