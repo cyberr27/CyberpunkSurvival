@@ -888,7 +888,7 @@ function startGame() {
   const useBtn = document.getElementById("useBtn");
   const dropBtn = document.getElementById("dropBtn");
 
-  useBtn.addEventListener("click", (e) => {
+  useBtn.addEventListener("click", (е) => {
     e.preventDefault();
     if (selectedSlot !== null) {
       useItem(selectedSlot);
@@ -982,7 +982,7 @@ function useItem(slotIndex) {
   if (window.equipmentSystem.EQUIPMENT_CONFIG[item.type]) {
     console.log("Попытка экипировать предмет:", item.type);
     window.equipmentSystem.equipItem(slotIndex);
-    // НЕ удаляем предмет из инвентаря локально!
+    // После экипировки очищаем слот (сервер сам вернёт старый предмет, если был)
     selectedSlot = null;
     document.getElementById("useBtn").disabled = true;
     document.getElementById("dropBtn").disabled = true;
@@ -1013,6 +1013,8 @@ function useItem(slotIndex) {
       me.maxStats.water,
       Math.max(0, me.water + effect.water)
     );
+
+  inventory[slotIndex] = null;
 
   sendWhenReady(
     ws,
