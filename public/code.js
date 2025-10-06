@@ -890,9 +890,10 @@ function startGame() {
 
   useBtn.addEventListener("click", (e) => {
     e.preventDefault();
-    if (selectedSlot !== null) useItem(selectedSlot);
+    if (selectedSlot !== null) {
+      useItem(selectedSlot);
+    }
   });
-
   dropBtn.addEventListener("click", (e) => {
     e.preventDefault();
     if (selectedSlot !== null) dropItem(selectedSlot);
