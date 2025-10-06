@@ -1525,17 +1525,20 @@ function handleGameMessage(event) {
         pendingPickups.delete(data.itemId);
         break;
       case "update":
+        // Синхронизируем игрока, инвентарь и экипировку
         if (data.player && data.player.id === myId) {
+          // Обновляем игрока
           players.set(myId, { ...players.get(myId), ...data.player });
-          if (data.player.equipment) {
-            window.equipmentSystem.syncEquipment(data.player.equipment);
-          }
+          // Обновляем инвентарь
           if (data.player.inventory) {
             inventory = data.player.inventory;
             updateInventoryDisplay();
           }
+          // Обновляем экипировку
+          if (data.player.equipment) {
+            window.equipmentSystem.syncEquipment(data.player.equipment);
+          }
           updateStatsDisplay();
-          console.log("Получено обновление игрока:", data.player);
         }
         break;
       case "itemDropped":
