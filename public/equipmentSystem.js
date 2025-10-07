@@ -303,7 +303,7 @@ const equipmentSystem = {
   },
 
   applyEquipmentEffects: function (player) {
-    // Используем текущие maxStats из levelSystem как базовые
+    // Используем базовые maxStats из levelSystem (без бонусов экипировки)
     const baseMaxStats = { ...window.levelSystem.maxStats };
 
     // Сбрасываем только бонусы от экипировки, сохраняя базовые значения
