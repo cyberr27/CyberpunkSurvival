@@ -176,8 +176,46 @@ const equipmentSystem = {
       slotEl.addEventListener("click", () =>
         this.selectEquipmentSlot(slot.name)
       );
+      // Добавляем обработчик двойного клика для снятия экипировки
+      slotEl.addEventListener("dblclick", () => {
+        this.unequipItem(slot.name);
+      });
       equipmentGrid.appendChild(slotEl);
     });
+  },
+
+  unequipItem: function (slotName) {
+    const me = players.get(myId);
+    if (!this.equipmentSlots[slotName]) return; // Нет предмета в слоте
+
+    // Ищем свободный слот в инвентаре
+    const freeSlot = inventory.findIndex((slot) => slot === null);
+    if (freeSlot === -1) {
+      alert("Инвентарь полон! Освободите место.");
+      return;
+    }
+
+    // Возвращаем предмет в инвентарь
+    inventory[freeSlot] = this.equipmentSlots[slotName];
+
+    // Снимаем экипировку
+    this.equipmentSlots[slotName] = null;
+    this.updateEquipmentDisplay();
+
+    // Отправляем на сервер обновление экипировки и инвентаря
+    sendWhenReady(
+      ws,
+      JSON.stringify({
+        type: "updateInventory",
+        inventory,
+        equipment: this.equipmentSlots,
+      })
+    );
+
+    // Применяем эффекты экипировки заново
+    this.applyEquipmentEffects(me);
+    updateStatsDisplay();
+    updateInventoryDisplay();
   },
 
   toggleEquipment: function () {
