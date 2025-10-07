@@ -23,17 +23,17 @@ const ITEM_CONFIG = {
   cyber_helmet: {
     type: "headgear",
     effect: { armor: 10, energy: 5 },
-    rarity: 4,
+    rarity: 3, // Было 4, стало 3
   },
-  nano_armor: { type: "armor", effect: { armor: 20, health: 10 }, rarity: 4 },
-  tactical_belt: { type: "belt", effect: { armor: 5, food: 5 }, rarity: 4 },
-  cyber_pants: { type: "pants", effect: { armor: 10, water: 5 }, rarity: 4 },
-  speed_boots: { type: "boots", effect: { armor: 5, energy: 10 }, rarity: 4 },
-  tech_gloves: { type: "gloves", effect: { armor: 5, energy: 5 }, rarity: 4 },
+  nano_armor: { type: "armor", effect: { armor: 20, health: 10 }, rarity: 3 }, // Было 4
+  tactical_belt: { type: "belt", effect: { armor: 5, food: 5 }, rarity: 3 }, // Было 4
+  cyber_pants: { type: "pants", effect: { armor: 10, water: 5 }, rarity: 3 }, // Было 4
+  speed_boots: { type: "boots", effect: { armor: 5, energy: 10 }, rarity: 3 }, // Было 4
+  tech_gloves: { type: "gloves", effect: { armor: 5, energy: 5 }, rarity: 3 }, // Было 4
   plasma_rifle: {
     type: "weapon",
-    effect: { damage: 15, range: 500 }, // Добавляем range для дальнобойного оружия
-    rarity: 4,
+    effect: { damage: 15, range: 500 },
+    rarity: 3, // Было 4
   },
   knuckles: {
     type: "weapon",
