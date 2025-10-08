@@ -407,6 +407,7 @@ function setupWebSocket(
           players.set(id, updatedPlayer);
           userDatabase.set(id, updatedPlayer);
           await saveUserDatabase(dbCollection, id, updatedPlayer);
+          // Рассылаем обновление всем игрокам в том же мире
           wss.clients.forEach((client) => {
             if (client.readyState === WebSocket.OPEN) {
               const clientPlayer = players.get(clients.get(client));
@@ -415,7 +416,10 @@ function setupWebSocket(
                 clientPlayer.worldId === updatedPlayer.worldId
               ) {
                 client.send(
-                  JSON.stringify({ type: "update", player: updatedPlayer })
+                  JSON.stringify({
+                    type: "update",
+                    player: updatedPlayer,
+                  })
                 );
               }
             }
@@ -1276,18 +1280,11 @@ function setupWebSocket(
             userDatabase.set(data.targetId, { ...target });
             await saveUserDatabase(dbCollection, data.targetId, target);
 
+            // Рассылаем обновление всем игрокам в том же мире
             wss.clients.forEach((client) => {
               if (client.readyState === WebSocket.OPEN) {
                 const clientPlayer = players.get(clients.get(client));
-                if (clientPlayer && clientPlayer.worldId === data.worldId) {
-                  client.send(
-                    JSON.stringify({
-                      type: "attackPlayer",
-                      targetId: data.targetId,
-                      damage: data.damage,
-                      worldId: data.worldId,
-                    })
-                  );
+                if (clientPlayer && clientPlayer.worldId === target.worldId) {
                   client.send(
                     JSON.stringify({
                       type: "update",

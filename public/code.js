@@ -1540,6 +1540,12 @@ function handleGameMessage(event) {
             window.equipmentSystem.syncEquipment(data.player.equipment);
           }
           updateStatsDisplay();
+        } else if (data.player && data.player.id) {
+          // обновление других игроков
+          players.set(data.player.id, {
+            ...players.get(data.player.id),
+            ...data.player,
+          });
         }
         break;
       case "itemDropped":
