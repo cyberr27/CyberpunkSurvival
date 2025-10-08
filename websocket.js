@@ -223,6 +223,11 @@ function setupWebSocket(
             worldPositions: player.worldPositions || {
               0: { x: player.x, y: player.y },
             },
+            // --- ВАЖНО: не подставляй 100, а используй player.health и т.д. ---
+            health: player.health !== undefined ? player.health : 100,
+            energy: player.energy !== undefined ? player.energy : 100,
+            food: player.food !== undefined ? player.food : 100,
+            water: player.water !== undefined ? player.water : 100,
           };
           players.set(data.username, playerData);
           ws.send(
