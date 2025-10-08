@@ -1225,16 +1225,16 @@ function updateStatsDisplay() {
   const me = players.get(myId);
   if (!me) return;
   statsEl.innerHTML = `
-    <span class="health">Здоровье: ${me.health}/${levelSystem.maxStats.health}</span><br>
-    <span class="energy">Энергия: ${me.energy}/${levelSystem.maxStats.energy}</span><br>
-    <span class="food">Еда: ${me.food}/${levelSystem.maxStats.food}</span><br>
-    <span class="water">Вода: ${me.water}/${levelSystem.maxStats.water}</span><br>
+    <span class="health">Здоровье: ${me.health}/${me.maxStats.health}</span><br>
+    <span class="energy">Энергия: ${me.energy}/${me.maxStats.energy}</span><br>
+    <span class="food">Еда: ${me.food}/${me.maxStats.food}</span><br>
+    <span class="water">Вода: ${me.water}/${me.maxStats.water}</span><br>
     <span class="armor">Броня: ${me.armor}</span>
   `;
   document.getElementById("coords").innerHTML = `X: ${Math.floor(
     me.x
   )}<br>Y: ${Math.floor(me.y)}`;
-  levelSystem.updateUpgradeButtons(); // Добавляем вызов для обновления кнопок
+  levelSystem.updateUpgradeButtons();
 }
 
 function updateInventoryDisplay() {

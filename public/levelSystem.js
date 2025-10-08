@@ -51,10 +51,10 @@ function updateStatsDisplay() {
       return;
     }
     statsEl.innerHTML = `
-      <span class="health">Здоровье: ${me.health}/${window.levelSystem.maxStats.health}</span><br>
-      <span class="energy">Энергия: ${me.energy}/${window.levelSystem.maxStats.energy}</span><br>
-      <span class="food">Еда: ${me.food}/${window.levelSystem.maxStats.food}</span><br>
-      <span class="water">Вода: ${me.water}/${window.levelSystem.maxStats.water}</span><br>
+      <span class="health">Здоровье: ${me.health}/${me.maxStats.health}</span><br>
+      <span class="energy">Энергия: ${me.energy}/${me.maxStats.energy}</span><br>
+      <span class="food">Еда: ${me.food}/${me.maxStats.food}</span><br>
+      <span class="water">Вода: ${me.water}/${me.maxStats.water}</span><br>
       <span class="armor">Броня: ${me.armor}</span>
     `;
     console.log("Статы обновлены в DOM");
