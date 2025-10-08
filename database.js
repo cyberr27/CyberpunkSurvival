@@ -38,10 +38,10 @@ async function loadUserDatabase(collection, userDatabase) {
       const userData = {
         ...user,
         maxStats: user.maxStats || {
-          health: 100,
-          energy: 100,
-          food: 100,
-          water: 100,
+          health: player.health,
+          energy: player.energy,  
+          food: player.food,
+          water: player.water,
         },
       };
       userDatabase.set(user.id, userData);
@@ -62,10 +62,10 @@ async function saveUserDatabase(collection, username, player) {
     const playerData = {
       ...player,
       maxStats: player.maxStats || {
-        health: 100,
-        energy: 100,
-        food: 100,
-        water: 100,
+        health: player.health,
+        energy: player.energy,
+        food: player.food,
+        water: player.water,
       },
     };
     await collection.updateOne(
