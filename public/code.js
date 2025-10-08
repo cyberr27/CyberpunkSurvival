@@ -1221,6 +1221,7 @@ function updateResources() {
 }
 
 function updateStatsDisplay() {
+  console.log("UpdateStatsDisplay вызван");
   const me = players.get(myId);
   if (!me) return;
   statsEl.innerHTML = `
