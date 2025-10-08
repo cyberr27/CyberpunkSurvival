@@ -187,7 +187,7 @@ const equipmentSystem = {
   unequipItem: function (slotName) {
     const me = players.get(myId);
     const item = this.equipmentSlots[slotName];
-    if (!item) return; // Нет предмета в слоте
+    if (!item) return;
 
     // Ищем свободный слот в инвентаре
     const freeSlot = inventory.findIndex((slot) => slot === null);
@@ -196,23 +196,22 @@ const equipmentSystem = {
       return;
     }
 
-    // Перемещаем предмет из экипировки в инвентарь
-    inventory[freeSlot] = item; // Переносим именно этот объект (с itemId)
-    this.equipmentSlots[slotName] = null; // Очищаем слот экипировки
-
+    // Локально убираем предмет из экипировки и кладём в инвентарь
+    inventory[freeSlot] = item;
+    this.equipmentSlots[slotName] = null;
     this.updateEquipmentDisplay();
 
-    // Отправляем на сервер обновление экипировки и инвентаря
+    // Отправляем серверу ЧЁТКИЙ запрос на снятие экипировки
     sendWhenReady(
       ws,
       JSON.stringify({
-        type: "updateInventory",
-        inventory,
-        equipment: this.equipmentSlots,
+        type: "unequipItem",
+        slotName, // какой слот экипировки
+        inventorySlot: freeSlot, // куда положить в инвентаре
+        itemId: item.itemId, // какой предмет
       })
     );
 
-    // Применяем эффекты экипировки заново
     this.applyEquipmentEffects(me);
     updateStatsDisplay();
     updateInventoryDisplay();

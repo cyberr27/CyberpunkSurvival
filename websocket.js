@@ -506,6 +506,36 @@ function setupWebSocket(
             }, selectedQuestId: ${player.selectedQuestId || "null"}`
           );
         }
+      } else if (data.type === "unequipItem") {
+        const id = clients.get(ws);
+        if (id) {
+          const player = players.get(id);
+          const { slotName, inventorySlot, itemId } = data;
+          if (
+            player &&
+            player.equipment &&
+            player.equipment[slotName] &&
+            player.equipment[slotName].itemId === itemId &&
+            player.inventory &&
+            player.inventory[inventorySlot] === null
+          ) {
+            // Перемещаем предмет из экипировки в инвентарь
+            player.inventory[inventorySlot] = player.equipment[slotName];
+            player.equipment[slotName] = null;
+
+            players.set(id, { ...player });
+            userDatabase.set(id, { ...player });
+            await saveUserDatabase(dbCollection, id, player);
+
+            // Отправляем обновлённые данные только этому игроку
+            ws.send(
+              JSON.stringify({ type: "update", player: { id, ...player } })
+            );
+            console.log(
+              `Игрок ${id} снял экипировку ${itemId} из ${slotName} в слот инвентаря ${inventorySlot}`
+            );
+          }
+        }
       } else if (data.type === "updateQuests") {
         const id = clients.get(ws);
         if (id) {
