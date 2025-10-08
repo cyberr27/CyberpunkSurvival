@@ -312,6 +312,9 @@ const equipmentSystem = {
       `[ЭКИПИРОВКА] ${item.type} помещён в слот ${slotName} (локально, до ответа сервера)`
     );
 
+    this.applyEquipmentEffects(me);
+    updateStatsDisplay();
+
     // Отправляем на сервер только запрос на экипировку
     sendWhenReady(
       ws,
