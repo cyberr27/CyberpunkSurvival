@@ -741,58 +741,23 @@ function setupWebSocket(
             }[ITEM_CONFIG[item.type].type];
 
             if (slotName) {
+              // Снимаем старый предмет, если есть
               if (player.equipment[slotName]) {
                 const freeSlot = player.inventory.findIndex(
                   (slot) => slot === null
                 );
-                if (freeSlot === -1) {
-                  ws.send(JSON.stringify({ type: "inventoryFull" }));
-                  return;
+                if (freeSlot !== -1) {
+                  player.inventory[freeSlot] = player.equipment[slotName];
                 }
-                player.inventory[freeSlot] = player.equipment[slotName];
               }
-
+              // Экипируем новый предмет
               player.equipment[slotName] = {
                 type: item.type,
                 itemId: item.itemId,
               };
               player.inventory[slotIndex] = null;
 
-              player.maxStats = {
-                health: data.maxStats?.health || player.maxStats.health || 100,
-                energy: data.maxStats?.energy || player.maxStats.energy || 100,
-                food: data.maxStats?.food || player.maxStats.food || 100,
-                water: data.maxStats?.water || player.maxStats.water || 100,
-              };
-
-              player.armor = 0;
-              player.damage = 0; // Сбрасываем damage
-              Object.values(player.equipment).forEach((equippedItem) => {
-                if (equippedItem && ITEM_CONFIG[equippedItem.type]) {
-                  const effect = ITEM_CONFIG[equippedItem.type].effect;
-                  if (effect.armor) player.armor += effect.armor;
-                  if (effect.health) player.maxStats.health += effect.health;
-                  if (effect.energy) player.maxStats.energy += effect.energy;
-                  if (effect.food) player.maxStats.food += effect.food;
-                  if (effect.water) player.maxStats.water += effect.water;
-                  if (effect.damage) {
-                    if (
-                      typeof effect.damage === "object" &&
-                      effect.damage.min &&
-                      effect.damage.max
-                    ) {
-                      player.damage = effect.damage; // Сохраняем объект { min, max }
-                    } else {
-                      player.damage = (player.damage || 0) + effect.damage; // Суммируем фиксированный урон
-                    }
-                  }
-                }
-              });
-
-              player.health = Math.min(data.health, player.maxStats.health);
-              player.energy = Math.min(data.energy, player.maxStats.energy);
-              player.food = Math.min(data.food, player.maxStats.food);
-              player.water = Math.min(data.water, player.maxStats.water);
+              // --- НЕ изменяем player.maxStats! ---
 
               players.set(id, { ...player });
               userDatabase.set(id, { ...player });
@@ -806,18 +771,14 @@ function setupWebSocket(
                   client.send(
                     JSON.stringify({
                       type: "update",
-                      player: { id, ...player }, // player должен содержать equipment!
+                      player: { id, ...player },
                     })
                   );
                 }
               });
 
               console.log(
-                `Игрок ${id} экипировал ${
-                  item.type
-                } в слот ${slotName}, maxStats: ${JSON.stringify(
-                  player.maxStats
-                )}, damage: ${JSON.stringify(player.damage)}`
+                `Игрок ${id} экипировал ${item.type} в слот ${slotName}`
               );
             }
           }

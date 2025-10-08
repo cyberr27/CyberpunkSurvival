@@ -343,15 +343,13 @@ const equipmentSystem = {
   },
 
   applyEquipmentEffects: function (player) {
-    // Используем базовые maxStats из levelSystem (без бонусов экипировки)
+    // Базовые значения — только из levelSystem
     const baseMaxStats = { ...window.levelSystem.maxStats };
 
-    // Сбрасываем только бонусы от экипировки, сохраняя базовые значения
     player.armor = 0;
-    player.damage = 0; // Сбрасываем damage
+    player.damage = 0;
     player.maxStats = { ...baseMaxStats };
 
-    // Применяем эффекты от всех экипированных предметов
     Object.values(this.equipmentSlots).forEach((item) => {
       if (item && this.EQUIPMENT_CONFIG[item.type]) {
         const effect = this.EQUIPMENT_CONFIG[item.type].effect;
@@ -366,10 +364,8 @@ const equipmentSystem = {
             effect.damage.min &&
             effect.damage.max
           ) {
-            // Для предметов с переменным уроном (bat, knife, knuckles)
             player.damage = effect.damage;
           } else {
-            // Для предметов с фиксированным уроном (plasma_rifle)
             player.damage = (player.damage || 0) + effect.damage;
           }
         }
