@@ -406,6 +406,7 @@ function setupWebSocket(
           }
           players.set(id, updatedPlayer);
           userDatabase.set(id, updatedPlayer);
+          await saveUserDatabase(dbCollection, id, updatedPlayer);
           wss.clients.forEach((client) => {
             if (client.readyState === WebSocket.OPEN) {
               const clientPlayer = players.get(clients.get(client));
