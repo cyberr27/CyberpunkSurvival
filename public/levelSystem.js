@@ -39,6 +39,7 @@ function createLevelDisplayElement() {
 
 function updateStatsDisplay() {
   try {
+    console.log("UpdateStatsDisplay вызван");
     const statsEl = document.getElementById("stats");
     if (!statsEl) {
       console.warn("Элемент stats не найден для обновления");
