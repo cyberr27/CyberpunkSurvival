@@ -146,7 +146,11 @@
   // Обновление движения персонажа
   function updateMovement(deltaTime) {
     const me = players.get(myId);
-    if (!me || me.health <= 0) return;
+    if (!me || me.health <= 0) {
+      // Даже если игрок не может двигаться, камера должна следовать за ним
+      if (me) updateCamera(me);
+      return;
+    }
 
     if (isMoving) {
       // Вычисляем вектор направления
