@@ -703,10 +703,10 @@ body {
 /* Кнопка ТОРГ */
 #tradeBtn {
   display: block;
-  top: 83%;
+  top: 76%;
   right: 10px;
-  width: 13.5%;
-  height: 7%;
+  width: 4.5%;
+  height: 10%;
   background: linear-gradient(135deg, #ff0066, #00ccff);
   border: 2px solid #ff0066;
   color: #00ccff;
@@ -905,10 +905,10 @@ body {
 }
 
 #equipmentBtn {
-  top: 83%;
-  left: 67%;
-  width: 13.5%;
-  height: 7%;
+  top: 76%;
+  left: 89.5%;
+  width: 4.5%;
+  height: 10%;
 }
 
 /* Адаптация для мобильных устройств (max-width: 500px) */
@@ -931,8 +931,8 @@ body {
   #chatContainer {
     width: 220px;
     height: 120px;
-    top: 18%;
-    left: 32.5%;
+    top: 70.5%;
+    left: -1%;
   }
   #chatMessages {
     font-size: 10px;
@@ -940,6 +940,7 @@ body {
   #chatInput {
     font-size: 10px;
     padding: 6px;
+    width: 92.5%;
   }
   .auth-box {
     width: 80%;
@@ -996,6 +997,21 @@ body {
   #inventoryContainer .inventory-slot {
     width: 45px;
     height: 45px;
+  }
+  #equipmentBtn {
+    width: 13.5%;
+    height: 7%;
+    top:83%;
+    left: 67%;
+    padding: 10px;
+  }
+  #tradeBtn {
+    width: 13.5%;
+    height: 7%;
+    top:83%;
+    left: 83.5%;
+    padding: 10px;
+    font-size: 12px;
   }
   .action-btn {
     width: 100px;
