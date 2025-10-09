@@ -288,6 +288,20 @@
     return camera;
   }
 
+  function centerCameraOnPlayer(player) {
+    const canvas = document.getElementById("gameCanvas");
+    camera.x = Math.max(
+      0,
+      Math.min(player.x - canvas.width / 2, worldWidth - canvas.width)
+    );
+    camera.y = Math.max(
+      0,
+      Math.min(player.y - canvas.height / 2, worldHeight - canvas.height)
+    );
+    camera.targetX = camera.x;
+    camera.targetY = camera.y;
+  }
+
   // Экспортируем функции для использования в code.js
   window.movementSystem = {
     initialize: initializeMovement,
