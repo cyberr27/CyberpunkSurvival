@@ -518,8 +518,6 @@ function handleAuthMessage(event) {
       players.set(myId, me);
       window.worldSystem.currentWorldId = me.worldId;
 
-      window.movementSystem.updateCamera(me);
-
       if (data.players) {
         data.players.forEach((p) => {
           if (p.id !== myId) {
