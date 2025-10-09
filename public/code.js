@@ -1627,6 +1627,7 @@ function resizeCanvas() {
 
 function update(deltaTime) {
   const me = players.get(myId);
+  window.movementSystem.update(0);
   if (!me || me.health <= 0) return;
 
   // Обновляем движение через movementSystem
