@@ -1902,13 +1902,6 @@ function gameLoop(timestamp) {
   const deltaTime = timestamp - lastTime;
   lastTime = timestamp;
 
-  const me = players.get(myId);
-  if (!me || me.health <= 0) {
-    // Даже если игрок не может двигаться, камера должна следовать за ним
-    if (me) updateCamera(me);
-    return;
-  }
-
   update(deltaTime);
   draw(deltaTime);
   requestAnimationFrame(gameLoop);
