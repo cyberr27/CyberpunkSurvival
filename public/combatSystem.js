@@ -13,25 +13,6 @@ function initializeCombatSystem() {
     e.preventDefault();
     performAttack(); // Запускаем атаку при клике
   });
-
-  // Обработчик атаки по нажатию мыши
-  canvas.addEventListener("mousedown", (e) => {
-    if (e.button === 0) {
-      const me = players.get(myId);
-      if (!me || me.health <= 0) return;
-      if (isInventoryOpen || chatContainer.style.display === "flex") return;
-      performAttack();
-    }
-  });
-
-  // Обработчик атаки по касанию (для мобильных устройств)
-  canvas.addEventListener("touchstart", (e) => {
-    e.preventDefault();
-    const me = players.get(myId);
-    if (!me || me.health <= 0) return;
-    if (isInventoryOpen || chatContainer.style.display === "flex") return;
-    performAttack();
-  });
 }
 
 // Запуск анимации мигания кнопки при атаке на игрока
@@ -46,7 +27,7 @@ function triggerAttackAnimation() {
 // Выполнение атаки
 function performAttack() {
   const me = players.get(myId);
-  if (!me || me.health <= 0 || me.energy <= 0) return;
+  if (!me || me.health <= 0) return;
 
   const currentTime = Date.now();
   if (currentTime - lastAttackTime < ATTACK_COOLDOWN) return;
@@ -81,7 +62,6 @@ function performAttack() {
       };
 
       bullets.set(bulletId, bullet);
-      me.energy = Math.max(0, me.energy - 1); // Расход энергии при выстреле
 
       sendWhenReady(
         ws,
@@ -202,7 +182,6 @@ function performMeleeAttack(damage, worldId) {
 
   // Обновляем данные игрока на сервере, если была затрачена энергия
   if (hit) {
-    me.energy = Math.max(0, me.energy - 1); // Расход энергии при попадании
     sendWhenReady(
       ws,
       JSON.stringify({
