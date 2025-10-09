@@ -518,11 +518,6 @@ function handleAuthMessage(event) {
       players.set(myId, me);
       window.worldSystem.currentWorldId = me.worldId;
 
-      setTimeout(() => {
-        const me = players.get(myId);
-        if (me) window.movementSystem.centerCameraOnPlayer(me);
-      }, 0);
-
       if (data.players) {
         data.players.forEach((p) => {
           if (p.id !== myId) {
@@ -1623,10 +1618,10 @@ function handleGameMessage(event) {
 
 function resizeCanvas() {
   canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
+  canvas.height = window.innerHeight; // 100% высоты
   const me = players.get(myId);
   if (me) {
-    window.movementSystem.centerCameraOnPlayer(me);
+    window.movementSystem.update(0); // Обновляем камеру
   }
 }
 
