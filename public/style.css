@@ -218,8 +218,8 @@ body {
 /* Окно чата */
 #chatContainer {
   position: absolute;
-  bottom: 15%;
-  left: 1%;
+  top: 80%;
+  right: 10%;
   width: 300px;
   height: 200px;
   background: linear-gradient(180deg, #1a1a1a, #0f0f0f);
@@ -409,8 +409,8 @@ body {
 /* Контейнер инвентаря */
 #inventoryContainer {
   position: absolute;
-  bottom: 15%;
-  right: 1%;
+  top: 17.5%;
+  right: 14%;
   width: 300px;
   height: 480px;
   background: linear-gradient(180deg, #1a1a1a, #0f0f0f);
@@ -703,10 +703,10 @@ body {
 /* Кнопка ТОРГ */
 #tradeBtn {
   display: block;
-  bottom: 20px;
-  right: 150px;
-  width: 60px;
-  height: 60px;
+  top: 83%;
+  right: 10px;
+  width: 13.5%;
+  height: 7%;
   background: linear-gradient(135deg, #ff0066, #00ccff);
   border: 2px solid #ff0066;
   color: #00ccff;
@@ -905,10 +905,10 @@ body {
 }
 
 #equipmentBtn {
-  position: absolute;
-  top: 110px;
-  right: 10px;
-  width: 9.5%;
+  top: 83%;
+  left: 67%;
+  width: 13.5%;
+  height: 7%;
 }
 
 /* Адаптация для мобильных устройств (max-width: 500px) */

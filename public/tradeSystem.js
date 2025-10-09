@@ -20,7 +20,7 @@ const tradeSystem = {
     const tradeBtn = document.createElement("button");
     tradeBtn.id = "tradeBtn";
     tradeBtn.className = "cyber-btn";
-    tradeBtn.textContent = "ТОРГ";
+    tradeBtn.textContent = "T";
     tradeBtn.disabled = true; // Кнопка неактивна по умолчанию
     document.getElementById("gameContainer").appendChild(tradeBtn);
 

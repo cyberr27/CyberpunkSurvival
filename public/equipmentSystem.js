@@ -112,9 +112,8 @@ const equipmentSystem = {
     const equipmentBtn = document.createElement("button");
     equipmentBtn.id = "equipmentBtn";
     equipmentBtn.className = "cyber-btn";
-    equipmentBtn.textContent = "Экипировка";
+    equipmentBtn.textContent = "E";
     equipmentBtn.style.position = "absolute";
-    equipmentBtn.style.top = "80%";
     equipmentBtn.style.right = "10px";
     document.getElementById("gameContainer").appendChild(equipmentBtn);
 
