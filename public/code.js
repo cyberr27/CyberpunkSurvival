@@ -663,10 +663,6 @@ function startGame() {
 
   document.addEventListener("keydown", (e) => {
     const me = players.get(myId);
-    if (me) {
-    window.movementSystem.getCamera().x = me.x - canvas.width / 2;
-    window.movementSystem.getCamera().y = me.y - canvas.height / 2;
-  }
     if (!me || me.health <= 0) return;
 
     if (e.key === "Escape") {
@@ -1905,6 +1901,13 @@ function gameLoop(timestamp) {
   if (!lastTime) lastTime = timestamp;
   const deltaTime = timestamp - lastTime;
   lastTime = timestamp;
+
+  const me = players.get(myId);
+  if (!me || me.health <= 0) {
+    // Даже если игрок не может двигаться, камера должна следовать за ним
+    if (me) updateCamera(me);
+    return;
+  }
 
   update(deltaTime);
   draw(deltaTime);
