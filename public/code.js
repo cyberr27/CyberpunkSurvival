@@ -518,7 +518,7 @@ function handleAuthMessage(event) {
       players.set(myId, me);
       window.worldSystem.currentWorldId = me.worldId;
 
-      window.movementSystem.update(0); // Обновляем камеру сразу после установки позиции
+      window.movementSystem.updateCamera(me);
 
       if (data.players) {
         data.players.forEach((p) => {
