@@ -1005,6 +1005,12 @@ body {
     left: 67%;
     padding: 10px;
   }
+#equipmentContainer {
+    width: 66%;
+    height: 53.5%;
+    top: 46%;
+    padding: 10px;
+  }
   #tradeBtn {
     width: 13.5%;
     height: 7%;
