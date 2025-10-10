@@ -66,17 +66,30 @@
       </div>
       <div id="coords"></div>
       <div id="onlineCount" class="cyber-text"></div>
-      <button id="chatBtn" class="cyber-btn">Chat</button>
-      <button id="inventoryBtn" class="cyber-btn">Inv</button>
-      <button id="combatBtn" class="cyber-btn">A</button>
-      <!-- Новая кнопка -->
+      <img
+        id="chatBtn"
+        class="cyber-btn-img"
+        src="images/chat.png"
+        alt="Chat"
+      />
+      <img
+        id="inventoryBtn"
+        class="cyber-btn-img"
+        src="images/inventory.png"
+        alt="Inventory"
+      />
+      <img
+        id="combatBtn"
+        class="cyber-btn-img"
+        src="images/combat.png"
+        alt="Combat"
+      />
       <div id="chatContainer">
         <div id="chatMessages"></div>
         <input type="text" id="chatInput" placeholder="Сообщение..." />
       </div>
       <div id="inventoryContainer">
         <div id="inventoryScreen"></div>
-        <!-- Ячейки будут добавляться через JS как раньше -->
         <div id="inventoryActions">
           <button id="useBtn" class="action-btn use-btn" disabled>
             Использовать

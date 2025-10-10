@@ -17,11 +17,13 @@ const tradeSystem = {
   },
 
   setupTradeButton() {
-    const tradeBtn = document.createElement("button");
+    const tradeBtn = document.createElement("img");
     tradeBtn.id = "tradeBtn";
-    tradeBtn.className = "cyber-btn";
-    tradeBtn.textContent = "T";
-    tradeBtn.disabled = true; // Кнопка неактивна по умолчанию
+    tradeBtn.className = "cyber-btn-img";
+    tradeBtn.src = "images/trade.png";
+    tradeBtn.alt = "Trade";
+    tradeBtn.style.pointerEvents =
+      this.selectedPlayerId && this.canInitiateTrade() ? "auto" : "none"; // Управляем кликабельностью
     document.getElementById("gameContainer").appendChild(tradeBtn);
 
     tradeBtn.addEventListener("click", () => {
@@ -34,7 +36,9 @@ const tradeSystem = {
   selectPlayer(playerId) {
     this.selectedPlayerId = playerId;
     const tradeBtn = document.getElementById("tradeBtn");
-    tradeBtn.disabled = !(playerId && this.canInitiateTrade()); // Активируем только если выбран игрок и условия соблюдены
+    tradeBtn.style.pointerEvents =
+      playerId && this.canInitiateTrade() ? "auto" : "none";
+    tradeBtn.style.opacity = playerId && this.canInitiateTrade() ? "1" : "0.5";
   },
 
   setupTradeDialog() {
@@ -292,12 +296,14 @@ const tradeSystem = {
   openTradeWindow() {
     this.isTradeWindowOpen = true;
     document.getElementById("tradeWindow").style.display = "flex";
+    document.getElementById("tradeBtn").classList.add("active");
     this.updateTradeWindow();
   },
 
   closeTradeWindow() {
     this.isTradeWindowOpen = false;
     document.getElementById("tradeWindow").style.display = "none";
+    document.getElementById("tradeBtn").classList.remove("active");
   },
 
   addToOffer(slotIndex) {

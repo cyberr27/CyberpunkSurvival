@@ -108,11 +108,12 @@ const equipmentSystem = {
     this.EQUIPMENT_CONFIG.knife.image.src = "knife.png";
     this.EQUIPMENT_CONFIG.bat.image.src = "bat.png";
 
-    // Создаем кнопку экипировки
-    const equipmentBtn = document.createElement("button");
+    // Создаем изображение для кнопки экипировки
+    const equipmentBtn = document.createElement("img");
     equipmentBtn.id = "equipmentBtn";
-    equipmentBtn.className = "cyber-btn";
-    equipmentBtn.textContent = "E";
+    equipmentBtn.className = "cyber-btn-img";
+    equipmentBtn.src = "images/equipment.png";
+    equipmentBtn.alt = "Equipment";
     equipmentBtn.style.position = "absolute";
     equipmentBtn.style.right = "10px";
     document.getElementById("gameContainer").appendChild(equipmentBtn);
@@ -122,9 +123,9 @@ const equipmentSystem = {
     equipmentContainer.id = "equipmentContainer";
     equipmentContainer.style.display = "none";
     equipmentContainer.innerHTML = `
-        <div id="equipmentGrid"></div>
-        <div id="equipmentScreen"></div>
-      `;
+    <div id="equipmentGrid"></div>
+    <div id="equipmentScreen"></div>
+  `;
     document.getElementById("gameContainer").appendChild(equipmentContainer);
 
     // Создаем ячейки экипировки

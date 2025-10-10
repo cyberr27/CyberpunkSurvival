@@ -120,6 +120,9 @@ body {
   width: 100%;
   height: 100%;
   overflow: hidden;
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cg fill='none' stroke='%2300FFFF' stroke-width='2'%3E%3Ccircle cx='16' cy='16' r='12' stroke-dasharray='4 4'/%3E%3Cline x1='16' y1='4' x2='16' y2='8'/%3E%3Cline x1='16' y1='24' x2='16' y2='28'/%3E%3Cline x1='4' y1='16' x2='8' y2='16'/%3E%3Cline x1='24' y1='16' x2='28' y2='16'/%3E%3C/g%3E%3C/svg%3E")
+      16 16,
+    auto;
 }
 
 #gameCanvas {
@@ -145,21 +148,25 @@ body {
   text-shadow: 0 0 5px #ff0000, 0 0 10px #ff0000, 0 0 15px #ff00ff;
   animation: flicker 1.5s infinite alternate;
 }
+
 #stats .energy {
   color: #00ff00;
   text-shadow: 0 0 5px #00ff00, 0 0 10px #00ff00, 0 0 15px #00ffff;
   animation: flicker 1.5s infinite alternate;
 }
+
 #stats .food {
   color: #ffff00;
   text-shadow: 0 0 5px #ffff00, 0 0 10px #ffff00, 0 0 15px #ff00ff;
   animation: flicker 1.5s infinite alternate;
 }
+
 #stats .water {
   color: #0000ff;
   text-shadow: 0 0 5px #0000ff, 0 0 10px #0000ff, 0 0 15px #00ffff;
   animation: flicker 1.5s infinite alternate;
 }
+
 #stats .armor {
   color: #ff4500;
   text-shadow: 0 0 5px #ff4500, 0 0 10px #ff4500, 0 0 15px #ff00ff,
@@ -218,10 +225,10 @@ body {
 /* Окно чата */
 #chatContainer {
   position: absolute;
-  top: 80%;
-  right: 10%;
-  width: 300px;
-  height: 200px;
+  top: 60%;
+  left: 9%;
+  width: 30%;
+  height: 30%;
   background: linear-gradient(180deg, #1a1a1a, #0f0f0f);
   border: 2px solid #ff0066;
   border-radius: 0;
@@ -298,112 +305,82 @@ body {
   }
 }
 
-/* Кнопки чата, инвентаря и атаки */
-.cyber-btn {
+/* Кнопки в виде изображений */
+.cyber-btn-img {
   position: absolute;
-  padding: 10px;
-  font-size: 14px;
-  font-family: "Orbitron", sans-serif;
-  background: #0a0a0a;
-  border: 2px solid #00ccff;
-  color: #00ccff;
-  border-radius: 0;
+  width: 6%;
+  height: 12%;
   cursor: pointer;
-  box-shadow: 0 0 10px rgba(0, 204, 255, 0.5);
   transition: all 0.2s;
   z-index: 60;
-  text-transform: uppercase;
+  box-sizing: border-box;
 }
 
-.cyber-btn:hover {
-  box-shadow: 0 0 15px rgba(0, 204, 255, 0.9);
-  background: #1a1a1a;
+.cyber-btn-img:hover {
   transform: translateY(-2px);
 }
 
-.cyber-btn:active {
+.cyber-btn-img:active {
   transform: translateY(0);
-  box-shadow: 0 0 5px rgba(0, 204, 255, 0.3);
 }
 
-/* Активное состояние кнопок */
-#chatBtn.active,
-#inventoryBtn.active,
-#combatBtn.active {
-  border-color: #ff0066;
-  color: #ff0066;
-  box-shadow: 0 0 15px rgba(255, 0, 102, 0.9);
-  background: #1a1a1a;
-}
-
-/* Кнопка чата */
+/* Позиционирование кнопок */
 #chatBtn {
-  bottom: 20px;
-  right: 10px;
-  width: 60px;
-  height: 60px;
+  position: absolute;
+  top: 10%;
+  left: 93.2%;
 }
 
-#chatBtn.active {
-  background: linear-gradient(135deg, #ff00cc, #00ff99);
-  box-shadow: 0 0 20px rgba(255, 0, 204, 1);
-}
-
-/* Кнопка инвентаря */
 #inventoryBtn {
-  bottom: 20px;
-  right: 80px;
-  width: 60px;
-  height: 60px;
+  position: absolute;
+  top: 22%;
+  left: 0%;
 }
 
-#inventoryBtn.active {
-  background: linear-gradient(135deg, #ff00cc, #00ff99);
-  box-shadow: 0 0 20px rgba(255, 0, 204, 1);
+
+#equipmentBtn {
+  position: absolute;
+  top: 35%;
+  left: 0%;
 }
 
-/* Кнопка атаки */
+#tradeBtn {
+  position: absolute;
+  top: 49%;
+  left: 0.5%;
+}
+
+/* Специфичные стили для combatBtn */
 #combatBtn {
-  bottom: 20px;
-  right: 220px;
-  width: 60px;
-  height: 60px;
-  font-family: "Orbitron", sans-serif;
-  font-size: 16px;
-  background: linear-gradient(135deg, #1a1a1a, #0f0f0f);
-  border: 2px solid #ff0000;
-  color: #ff0000;
-  box-shadow: 0 0 10px rgba(255, 0, 0, 0.7);
-  text-transform: uppercase;
+  position: absolute;
+  width: 10%;
+  height: 20%;
+  top: 80%;
+  left: 90%;
 }
-
-#combatBtn:hover {
-  box-shadow: 0 0 20px rgba(255, 0, 0, 1);
-  background: #2a2a2a;
-  transform: translateY(-2px);
-}
-
-#combatBtn:active {
-  transform: translateY(0);
-  box-shadow: 0 0 5px rgba(255, 0, 0, 0.3);
-}
-
+/* Анимация красного мигания при атаке */
 #combatBtn.under-attack {
   animation: attackFlicker 0.3s infinite alternate;
 }
 
-/* Анимация красного мигания при атаке */
 @keyframes attackFlicker {
   0% {
     border-color: #ff0000;
-    color: #ff0000;
     box-shadow: 0 0 10px rgba(255, 0, 0, 0.7), 0 0 20px rgba(255, 0, 0, 0.5);
   }
   100% {
     border-color: #ff4444;
-    color: #ff4444;
     box-shadow: 0 0 20px rgba(255, 0, 0, 1), 0 0 30px rgba(255, 0, 0, 0.8);
   }
+}
+
+/* Неактивное состояние для tradeBtn */
+#tradeBtn:not(.active) {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+  box-shadow: 0 0 5px rgba(255, 0, 102, 0.3);
+  border-color: #4a4a4a;
 }
 
 /* Контейнер инвентаря */
@@ -545,19 +522,6 @@ body {
   transform: none;
 }
 
-/* Кастомный курсор для игрового контейнера */
-#gameContainer {
-  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cg fill='none' stroke='%2300FFFF' stroke-width='2'%3E%3Ccircle cx='16' cy='16' r='12' stroke-dasharray='4 4'/%3E%3Cline x1='16' y1='4' x2='16' y2='8'/%3E%3Cline x1='16' y1='24' x2='16' y2='28'/%3E%3Cline x1='4' y1='16' x2='8' y2='16'/%3E%3Cline x1='24' y1='16' x2='28' y2='16'/%3E%3C/g%3E%3C/svg%3E")
-      16 16,
-    auto;
-}
-
-/* Отключаем курсор для кнопок, чтобы не мешал */
-.cyber-btn,
-.action-btn {
-  cursor: pointer;
-}
-
 /* Форма выброса Баляр */
 .balyary-drop-form {
   display: flex;
@@ -672,71 +636,6 @@ body {
   box-shadow: none;
 }
 
-/* Анимация мерцания */
-@keyframes flicker {
-  0%,
-  19%,
-  21%,
-  23%,
-  25%,
-  54%,
-  56%,
-  100% {
-    opacity: 1;
-  }
-  20%,
-  24%,
-  55% {
-    opacity: 0.7;
-  }
-}
-
-@keyframes neonPulse {
-  0% {
-    box-shadow: 0 0 10px rgba(0, 255, 255, 0.5), 0 0 20px rgba(255, 0, 255, 0.3);
-  }
-  100% {
-    box-shadow: 0 0 20px rgba(0, 255, 255, 0.8), 0 0 30px rgba(255, 0, 255, 0.5);
-  }
-}
-
-/* Кнопка ТОРГ */
-#tradeBtn {
-  display: block;
-  top: 76%;
-  right: 10px;
-  width: 4.5%;
-  height: 10%;
-  background: linear-gradient(135deg, #ff0066, #00ccff);
-  border: 2px solid #ff0066;
-  color: #00ccff;
-  font-family: "Orbitron", sans-serif;
-  font-size: 14px;
-  text-transform: uppercase;
-  box-shadow: 0 0 10px rgba(255, 0, 102, 0.7);
-  transition: all 0.2s;
-  z-index: 60;
-}
-
-#tradeBtn:hover:not(:disabled) {
-  box-shadow: 0 0 20px rgba(255, 0, 102, 1);
-  transform: scale(1.1);
-}
-
-#tradeBtn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  box-shadow: 0 0 5px rgba(255, 0, 102, 0.3);
-  background: linear-gradient(135deg, #4a4a4a, #2a2a2a);
-  border-color: #4a4a4a;
-  color: #666666;
-}
-
-#tradeBtn:disabled:hover {
-  transform: none;
-  box-shadow: 0 0 5px rgba(255, 0, 102, 0.3);
-}
-
 /* Диалоговое окно приглашения */
 .trade-dialog {
   position: absolute;
@@ -830,21 +729,7 @@ body {
   gap: 8px;
 }
 
-/* Кнопка ТОРГ в неактивном состоянии */
-#tradeBtn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  box-shadow: 0 0 5px rgba(255, 0, 102, 0.3);
-  background: linear-gradient(135deg, #4a4a4a, #2a2a2a);
-  border-color: #4a4a4a;
-  color: #666666;
-}
-
-#tradeBtn:disabled:hover {
-  transform: none;
-  box-shadow: 0 0 5px rgba(255, 0, 102, 0.3);
-}
-
+/* Контейнер экипировки */
 #equipmentContainer {
   position: fixed;
   top: 50%;
@@ -904,13 +789,6 @@ body {
   margin-top: 10px;
 }
 
-#equipmentBtn {
-  top: 76%;
-  left: 89.5%;
-  width: 4.5%;
-  height: 10%;
-}
-
 /* Адаптация для мобильных устройств (max-width: 500px) */
 @media (max-width: 500px) {
   body {
@@ -922,26 +800,32 @@ body {
     padding: 8px 15px;
     font-size: 14px;
   }
+
   #stats {
     font-size: 16px;
   }
+
   #coords {
     font-size: 14px;
   }
+
   #chatContainer {
     width: 220px;
     height: 120px;
     top: 70.5%;
     left: -1%;
   }
+
   #chatMessages {
     font-size: 10px;
   }
+
   #chatInput {
     font-size: 10px;
     padding: 6px;
     width: 92.5%;
   }
+
   .auth-box {
     width: 80%;
   }
@@ -950,6 +834,7 @@ body {
     position: absolute;
     left: 0%;
   }
+
   .auth-box {
     left: 1%;
     right: 1%;
@@ -957,104 +842,108 @@ body {
     margin: 0 auto;
     position: absolute;
   }
-  .cyber-btn {
-    padding: 10px;
-    font-size: 14px;
+
+  .cyber-btn-img {
+    width: 50px;
+    height: 50px;
   }
 
   #chatBtn {
-    bottom: 15px;
-    right: 10px;
-    width: 50px;
-    height: 50px;
+    position: absolute;
+    top: 8.5%;
+    left: 87%;
+    width: 12%;
+    height: 8%;
   }
+
   #inventoryBtn {
-    bottom: 15px;
+    position: absolute;
+    top: 70%;
     right: 70px;
-    width: 50px;
-    height: 50px;
   }
+
   #combatBtn {
-    bottom: 15px;
-    right: 130px;
-    width: 50px;
-    height: 50px;
-    font-size: 14px;
+    position: absolute;
+    width: 22%;
+    height: 16%;
+    left: 70%;
   }
+
+  #equipmentBtn {
+    top: 76%;
+    left: 0%;
+  }
+
+  #tradeBtn {
+    top: 83%;
+    right: 10px;
+  }
+
   #inventoryScreen {
     height: 80px;
     font-size: 12px;
   }
+
   #inventoryGrid {
     gap: 6px;
   }
+
   #inventoryContainer {
     width: 260px;
     height: 420px;
     padding: 10px;
     bottom: 10%;
   }
+
   #inventoryContainer .inventory-slot {
     width: 45px;
     height: 45px;
   }
-  #equipmentBtn {
-    width: 13.5%;
-    height: 7%;
-    top:83%;
-    left: 67%;
-    padding: 10px;
-  }
-#equipmentContainer {
+
+  #equipmentContainer {
     width: 66%;
     height: 53.5%;
     top: 46%;
     padding: 10px;
   }
-  #tradeBtn {
-    width: 13.5%;
-    height: 7%;
-    top:83%;
-    left: 83.5%;
-    padding: 10px;
-    font-size: 12px;
-  }
+
   .action-btn {
     width: 100px;
     height: 35px;
     font-size: 12px;
     padding: 6px 12px;
   }
+
   .balyary-drop-form {
     padding: 5px;
   }
+
   .cyber-text {
     font-size: 12px;
     margin-bottom: 5px;
   }
+
   .cyber-input {
     width: 80px;
     font-size: 10px;
     padding: 6px;
   }
-  .action-btn {
-    width: 80px;
-    height: 30px;
-    font-size: 12px;
-    padding: 5px 10px;
-  }
+
   .error-text {
     font-size: 10px;
     margin-top: 3px;
   }
+
   .trade-dialog {
     width: 260px;
     padding: 15px;
   }
+
   .trade-window {
     width: 260px;
     padding: 15px;
   }
+
   .trade-slot,
   .offer-slot {
     width: 45px;
