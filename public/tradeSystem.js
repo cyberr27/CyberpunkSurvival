@@ -1,4 +1,3 @@
-// tradeSystem.js
 const tradeSystem = {
   isTradeWindowOpen: false,
   selectedPlayerId: null,
