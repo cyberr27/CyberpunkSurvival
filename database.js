@@ -39,7 +39,7 @@ async function loadUserDatabase(collection, userDatabase) {
         ...user,
         maxStats: user.maxStats || {
           health: player.health,
-          energy: player.energy,  
+          energy: player.energy,
           food: player.food,
           water: player.water,
         },
@@ -72,11 +72,6 @@ async function saveUserDatabase(collection, username, player) {
       { id: username },
       { $set: playerData },
       { upsert: true }
-    );
-    console.log(
-      `Данные игрока ${username} сохранены, maxStats: ${JSON.stringify(
-        playerData.maxStats
-      )}`
     );
   } catch (error) {
     console.error("Ошибка при сохранении данных в MongoDB:", error);
