@@ -911,7 +911,16 @@ function setupWebSocket(
         const distance = Math.sqrt(dx * dx + dy * dy);
 
         if (distance > 1000 || fromPlayer.health <= 0 || toPlayer.health <= 0)
-          return;
+          if (
+            distance > 1000 ||
+            fromPlayer.health <= 0 ||
+            toPlayer.health <= 0
+          ) {
+            console.log(
+              `ОТКАЗ в tradeRequest: fromId=${fromId}, toId=${data.toId}, distance=${distance}, fromHealth=${fromPlayer.health}, toHealth=${toPlayer.health}`
+            );
+            return;
+          }
 
         wss.clients.forEach((client) => {
           if (
@@ -927,6 +936,9 @@ function setupWebSocket(
             );
           }
         });
+        console.log(
+          `tradeRequest: fromId=${fromId}, toId=${data.toId}, distance=${distance}`
+        );
       } else if (data.type === "tradeAccepted") {
         const fromId = clients.get(ws);
         if (!fromId || !players.has(fromId) || !players.has(data.toId)) return;
@@ -945,6 +957,7 @@ function setupWebSocket(
             );
           }
         });
+        console.log(`tradeAccepted: fromId=${fromId}, toId=${data.toId}`);
       } else if (data.type === "tradeCancelled") {
         const fromId = clients.get(ws);
         if (!fromId || !players.has(fromId) || !players.has(data.toId)) return;
@@ -964,6 +977,7 @@ function setupWebSocket(
             );
           }
         });
+        console.log(`tradeCancelled: fromId=${fromId}, toId=${data.toId}`);
       } else if (data.type === "tradeOffer") {
         const fromId = clients.get(ws);
         if (!fromId || !players.has(fromId) || !players.has(data.toId)) return;
@@ -992,6 +1006,13 @@ function setupWebSocket(
             );
           }
         });
+        console.log(
+          `tradeOffer: fromId=${fromId}, toId=${
+            data.toId
+          }, offer=${JSON.stringify(data.offer)}, inventory=${JSON.stringify(
+            data.inventory
+          )}`
+        );
       } else if (data.type === "tradeConfirmed") {
         const fromId = clients.get(ws);
         if (!fromId || !players.has(fromId) || !players.has(data.toId)) return;
@@ -1010,6 +1031,7 @@ function setupWebSocket(
             );
           }
         });
+        console.log(`tradeConfirmed: fromId=${fromId}, toId=${data.toId}`);
       } else if (data.type === "tradeCompleted") {
         const fromId = clients.get(ws);
         if (!fromId || !players.has(fromId) || !players.has(data.toId)) return;
@@ -1055,6 +1077,9 @@ function setupWebSocket(
               );
             }
           });
+          console.log(
+            `ОТМЕНА tradeCompleted: fromOfferValid=${fromOfferValid}, toOfferValid=${toOfferValid}, fromId=${fromId}, toId=${data.toId}`
+          );
           return;
         }
 
@@ -1087,6 +1112,9 @@ function setupWebSocket(
               );
             }
           });
+          console.log(
+            `ОТМЕНА tradeCompleted: недостаточно слотов. fromFreeSlots=${fromFreeSlots}, toFreeSlots=${toFreeSlots}, fromOfferCount=${fromOfferCount}, toOfferCount=${toOfferCount}`
+          );
           return;
         }
 
@@ -1162,6 +1190,13 @@ function setupWebSocket(
             }
           }
         });
+        console.log(
+          `tradeCompleted: fromId=${fromId}, toId=${
+            data.toId
+          }, myOffer=${JSON.stringify(
+            data.myOffer
+          )}, partnerOffer=${JSON.stringify(data.partnerOffer)}`
+        );
       } else if (data.type === "selectQuest") {
         const id = clients.get(ws);
         if (id) {
