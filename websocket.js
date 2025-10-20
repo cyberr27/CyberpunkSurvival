@@ -1036,19 +1036,8 @@ function setupWebSocket(
         if (!fromPlayer.inventory || !toPlayer.inventory) return;
 
         // Проверка наличия предметов по itemId
+
         const fromOfferValid = data.myOffer.every((item) => {
-          if (!item) return true;
-          return fromPlayer.inventory.some(
-            (slot) => slot && slot.itemId === item.itemId
-          );
-        });
-        const toOfferValid = data.partnerOffer.every((item) => {
-          if (!item) return true;
-          return toPlayer.inventory.some(
-            (slot) => slot && slot.itemId === item.itemId
-          );
-        });
-        fromOfferValid = data.myOffer.every((item) => {
           if (!item) return true;
           const found = fromPlayer.inventory.some(
             (slot) => slot && slot.itemId === item.itemId
@@ -1062,7 +1051,7 @@ function setupWebSocket(
             );
           return found;
         });
-        toOfferValid = data.partnerOffer.every((item) => {
+        const toOfferValid = data.partnerOffer.every((item) => {
           if (!item) return true;
           const found = toPlayer.inventory.some(
             (slot) => slot && slot.itemId === item.itemId
@@ -1076,6 +1065,7 @@ function setupWebSocket(
             );
           return found;
         });
+
         if (!fromOfferValid || !toOfferValid) {
           wss.clients.forEach((client) => {
             if (
