@@ -1304,12 +1304,18 @@ function setupWebSocket(
         const fromId = data.fromId; // B принимает, fromId = B, toId = A (инициатор)
         const toId = data.toId;
         const tradeKey = `${toId}-${fromId}`; // Ключ от инициатора
+        console.log(
+          `[TRADE] tradeAccepted: fromId=${fromId}, toId=${toId}, tradeKey=${tradeKey}`
+        );
         if (
           !tradeRequests.has(tradeKey) ||
           tradeRequests.get(tradeKey).status !== "pending"
-        )
+        ) {
+          console.log(
+            `[TRADE] tradeAccepted: нет tradeRequests по ключу ${tradeKey}`
+          );
           return;
-
+        }
         tradeRequests.set(tradeKey, { status: "accepted" });
         tradeOffers.set(tradeKey, {
           myOffer: Array(3).fill(null),
@@ -1317,7 +1323,14 @@ function setupWebSocket(
           myConfirmed: false,
           partnerConfirmed: false,
         });
-
+        console.log(
+          `[TRADE] tradeAccepted: tradeRequests[${tradeKey}] =`,
+          tradeRequests.get(tradeKey)
+        );
+        console.log(
+          `[TRADE] tradeAccepted: tradeOffers[${tradeKey}] =`,
+          tradeOffers.get(tradeKey)
+        );
         // Уведомляем обоих о старте
         wss.clients.forEach((client) => {
           if (client.readyState === WebSocket.OPEN) {
@@ -1330,29 +1343,48 @@ function setupWebSocket(
                   toId: fromId,
                 })
               ); // fromId = инициатор для обоих
+              console.log(
+                `[TRADE] tradeAccepted: tradeAccepted отправлен клиенту ${clientId}`
+              );
             }
           }
         });
-        console.log(`Торговля принята между ${toId} и ${fromId}`);
+        console.log(
+          `[TRADE] tradeAccepted: Торговля принята между ${toId} и ${fromId}`
+        );
       } else if (data.type === "tradeOffer") {
         const fromId = clients.get(ws);
-        if (!fromId) return;
+        if (!fromId) {
+          console.log(`[TRADE] tradeOffer: отсутствует fromId`);
+          return;
+        }
         const toId = data.toId;
         const tradeKey =
           fromId < toId ? `${fromId}-${toId}` : `${toId}-${fromId}`; // Симметричный ключ
-
-        if (!tradeOffers.has(tradeKey)) return;
-
+        console.log(
+          `[TRADE] tradeOffer: fromId=${fromId}, toId=${toId}, tradeKey=${tradeKey}`
+        );
+        if (!tradeOffers.has(tradeKey)) {
+          console.log(
+            `[TRADE] tradeOffer: нет tradeOffers по ключу ${tradeKey}`
+          );
+          return;
+        }
         // Обновляем offer от fromId
         const offers = tradeOffers.get(tradeKey);
         if (fromId === tradeKey.split("-")[0]) {
           // A - инициатор
           offers.myOffer = data.offer;
+          console.log(`[TRADE] tradeOffer: myOffer обновлён:`, data.offer);
         } else {
           offers.partnerOffer = data.offer;
+          console.log(`[TRADE] tradeOffer: partnerOffer обновлён:`, data.offer);
         }
         tradeOffers.set(tradeKey, offers);
-
+        console.log(
+          `[TRADE] tradeOffer: tradeOffers[${tradeKey}] =`,
+          tradeOffers.get(tradeKey)
+        );
         // Пересылаем партнеру (динамическое обновление)
         wss.clients.forEach((client) => {
           if (
@@ -1362,29 +1394,49 @@ function setupWebSocket(
             client.send(
               JSON.stringify({ type: "tradeOffer", fromId, offer: data.offer })
             );
+            console.log(
+              `[TRADE] tradeOffer: tradeOffer отправлен клиенту ${toId}`
+            );
           }
         });
-        console.log(`Обновление оффера от ${fromId} к ${toId}`);
+        console.log(
+          `[TRADE] tradeOffer: Обновление оффера от ${fromId} к ${toId}`
+        );
       } else if (data.type === "tradeConfirmed") {
         const fromId = clients.get(ws);
         const toId = data.toId;
         const tradeKey =
           fromId < toId ? `${fromId}-${toId}` : `${toId}-${fromId}`;
-
-        if (!tradeOffers.has(tradeKey)) return;
-
+        console.log(
+          `[TRADE] tradeConfirmed: fromId=${fromId}, toId=${toId}, tradeKey=${tradeKey}`
+        );
+        if (!tradeOffers.has(tradeKey)) {
+          console.log(
+            `[TRADE] tradeConfirmed: нет tradeOffers по ключу ${tradeKey}`
+          );
+          return;
+        }
         const offers = tradeOffers.get(tradeKey);
         if (fromId === tradeKey.split("-")[0]) {
           offers.myConfirmed = true;
+          console.log(`[TRADE] tradeConfirmed: myConfirmed=true`);
         } else {
           offers.partnerConfirmed = true;
+          console.log(`[TRADE] tradeConfirmed: partnerConfirmed=true`);
         }
-
+        console.log(`[TRADE] tradeConfirmed: offers=`, offers);
         // Если оба подтвердили — обмен
         if (offers.myConfirmed && offers.partnerConfirmed) {
           const playerA = players.get(tradeKey.split("-")[0]);
           const playerB = players.get(tradeKey.split("-")[1]);
-
+          console.log(
+            `[TRADE] tradeConfirmed: playerA.inventory=`,
+            playerA.inventory
+          );
+          console.log(
+            `[TRADE] tradeConfirmed: playerB.inventory=`,
+            playerB.inventory
+          );
           // Проверяем слоты (count free slots)
           const freeA = playerA.inventory.filter(
             (slot) => slot === null
@@ -1394,8 +1446,12 @@ function setupWebSocket(
           ).length;
           const offerCountB = offers.partnerOffer.filter((item) => item).length;
           const offerCountA = offers.myOffer.filter((item) => item).length;
+          console.log(
+            `[TRADE] tradeConfirmed: freeA=${freeA}, freeB=${freeB}, offerCountA=${offerCountA}, offerCountB=${offerCountB}`
+          );
           if (freeA < offerCountB || freeB < offerCountA) {
             // Отмена если нет места
+            console.log(`[TRADE] tradeConfirmed: нет места для обмена`);
             wss.clients.forEach((client) => {
               if (
                 clients.get(client) === playerA.id ||
@@ -1407,12 +1463,16 @@ function setupWebSocket(
                     message: "Нет места в инвентаре",
                   })
                 );
+                console.log(
+                  `[TRADE] tradeConfirmed: tradeCancelled отправлен клиенту ${clients.get(
+                    client
+                  )}`
+                );
               }
             });
             tradeOffers.delete(tradeKey);
             return;
           }
-
           // Обмен: A получает partnerOffer, B — myOffer
           offers.partnerOffer.forEach((item) => {
             if (item) {
@@ -1423,6 +1483,12 @@ function setupWebSocket(
                 ...item,
                 itemId: `${item.type}_${Date.now()}`,
               };
+              console.log(
+                `[TRADE] tradeConfirmed: playerA получил предмет`,
+                item,
+                `в слот`,
+                freeSlot
+              );
             }
           });
           offers.myOffer.forEach((item) => {
@@ -1434,9 +1500,22 @@ function setupWebSocket(
                 ...item,
                 itemId: `${item.type}_${Date.now()}`,
               };
+              console.log(
+                `[TRADE] tradeConfirmed: playerB получил предмет`,
+                item,
+                `в слот`,
+                freeSlot
+              );
             }
           });
-
+          console.log(
+            `[TRADE] tradeConfirmed: после обмена playerA.inventory=`,
+            playerA.inventory
+          );
+          console.log(
+            `[TRADE] tradeConfirmed: после обмена playerB.inventory=`,
+            playerB.inventory
+          );
           // Сохраняем
           players.set(playerA.id, playerA);
           players.set(playerB.id, playerB);
@@ -1444,7 +1523,6 @@ function setupWebSocket(
           userDatabase.set(playerB.id, playerB);
           await saveUserDatabase(dbCollection, playerA.id, playerA);
           await saveUserDatabase(dbCollection, playerB.id, playerB);
-
           // Уведомляем
           wss.clients.forEach((client) => {
             const clientId = clients.get(client);
@@ -1455,6 +1533,9 @@ function setupWebSocket(
                   newInventory: playerA.inventory,
                 })
               );
+              console.log(
+                `[TRADE] tradeConfirmed: tradeCompleted отправлен клиенту ${clientId}`
+              );
             } else if (clientId === playerB.id) {
               client.send(
                 JSON.stringify({
@@ -1462,15 +1543,23 @@ function setupWebSocket(
                   newInventory: playerB.inventory,
                 })
               );
+              console.log(
+                `[TRADE] tradeConfirmed: tradeCompleted отправлен клиенту ${clientId}`
+              );
             }
           });
           tradeOffers.delete(tradeKey);
-          console.log(`Торговля завершена между ${playerA.id} и ${playerB.id}`);
+          console.log(
+            `[TRADE] tradeConfirmed: Торговля завершена между ${playerA.id} и ${playerB.id}`
+          );
         } else {
           // Пересылаем подтверждение партнеру
           wss.clients.forEach((client) => {
             if (clients.get(client) === toId) {
               client.send(JSON.stringify({ type: "tradeConfirmed", fromId }));
+              console.log(
+                `[TRADE] tradeConfirmed: tradeConfirmed отправлен клиенту ${toId}`
+              );
             }
           });
         }
@@ -1479,16 +1568,24 @@ function setupWebSocket(
         const toId = data.toId;
         const tradeKey =
           fromId < toId ? `${fromId}-${toId}` : `${toId}-${fromId}`;
-
+        console.log(
+          `[TRADE] tradeCancelled: fromId=${fromId}, toId=${toId}, tradeKey=${tradeKey}`
+        );
         tradeRequests.delete(tradeKey);
         tradeOffers.delete(tradeKey);
-
         wss.clients.forEach((client) => {
           if (clients.get(client) === fromId || clients.get(client) === toId) {
             client.send(JSON.stringify({ type: "tradeCancelled" }));
+            console.log(
+              `[TRADE] tradeCancelled: tradeCancelled отправлен клиенту ${clients.get(
+                client
+              )}`
+            );
           }
         });
-        console.log(`Торговля отменена между ${fromId} и ${toId}`);
+        console.log(
+          `[TRADE] tradeCancelled: Торговля отменена между ${fromId} и ${toId}`
+        );
       } else if (data.type === "attackPlayer") {
         const attackerId = clients.get(ws);
         if (
