@@ -159,75 +159,6 @@ const tradeSystem = {
     this.tradeStatus = "pending";
   },
 
-  handleTradeMessage(data) {
-    switch (data.type) {
-      case "tradeRequest":
-        if (data.toId === myId && !this.isTradeWindowOpen) {
-          this.tradePartnerId = data.fromId;
-          this.tradeStatus = "pending";
-          this.showTradeDialog(`Игрок ${data.fromId} предлагает торговлю`);
-        }
-        break;
-      case "tradeAccepted":
-        if (data.fromId === this.tradePartnerId || data.toId === myId) {
-          this.tradeStatus = "accepted";
-          this.openTradeWindow();
-        }
-        break;
-      case "tradeCancelled":
-        if (data.fromId === this.tradePartnerId || data.toId === myId) {
-          // Возвращаем свои предметы в инвентарь
-          this.myOffer.forEach((item, index) => {
-            if (item) {
-              const freeSlot = inventory.findIndex((slot) => slot === null);
-              if (freeSlot !== -1) {
-                inventory[freeSlot] = {
-                  ...item,
-                  itemId: `${item.type}_${Date.now()}`,
-                };
-                this.myOffer[index] = null;
-              }
-            }
-          });
-          this.closeTradeWindow();
-          this.resetTrade();
-          updateInventoryDisplay();
-        }
-        break;
-      case "tradeOffer":
-        if (data.fromId === this.tradePartnerId) {
-          this.partnerOffer = data.offer;
-          // Если партнёр отправил инвентарь, обновляем его локально
-          if (data.inventory && data.toId === myId) {
-            const partner = players.get(this.tradePartnerId);
-            if (partner) {
-              partner.inventory = data.inventory;
-              players.set(this.tradePartnerId, partner);
-            }
-          }
-          this.updateTradeWindow();
-        }
-        break;
-      case "tradeConfirmed":
-        if (data.fromId === this.tradePartnerId) {
-          this.partnerConfirmed = true;
-          this.updateTradeWindow();
-          if (this.myConfirmed) {
-            this.completeTrade();
-          }
-        }
-        break;
-      case "tradeCompleted":
-        if (data.toId === myId) {
-          inventory = data.newInventory;
-          this.closeTradeWindow();
-          this.resetTrade();
-          updateInventoryDisplay();
-        }
-        break;
-    }
-  },
-
   showTradeDialog(message) {
     const dialog = document.getElementById("tradeDialog");
     document.getElementById("tradeDialogText").textContent = message;
@@ -260,23 +191,7 @@ const tradeSystem = {
   },
 
   handleCancelTrade() {
-    // Возвращаем свои предметы в инвентарь
-    this.myOffer.forEach((item, index) => {
-      if (item) {
-        const freeSlot = inventory.findIndex((slot) => slot === null);
-        if (freeSlot !== -1) {
-          inventory[freeSlot] = {
-            ...item,
-            itemId: `${item.type}_${Date.now()}`,
-          };
-          this.myOffer[index] = null;
-        } else {
-          console.warn("Нет свободных слотов для возврата предмета при отмене");
-        }
-      }
-    });
-
-    // Отправляем сообщение об отмене
+    // Просто отправляем сообщение об отмене и сбрасываем состояние
     sendWhenReady(
       this.ws,
       JSON.stringify({
@@ -285,8 +200,6 @@ const tradeSystem = {
         toId: this.tradePartnerId,
       })
     );
-
-    // Закрываем окно и сбрасываем состояние
     this.closeTradeWindow();
     this.resetTrade();
     updateInventoryDisplay();
@@ -307,53 +220,23 @@ const tradeSystem = {
 
   addToOffer(slotIndex) {
     const item = inventory[slotIndex];
-    if (!item || this.myConfirmed || this.partnerConfirmed) return; // Нельзя менять предложение после подтверждения
+    if (!item || this.myConfirmed || this.partnerConfirmed) return;
 
     const freeSlot = this.myOffer.findIndex((slot) => slot === null);
-    if (freeSlot === -1) return; // Нет свободных слотов в предложении
+    if (freeSlot === -1) return;
 
-    // Сохраняем предмет в предложение с информацией о слоте
+    // Не добавлять один и тот же слот дважды
+    if (
+      this.myOffer.some(
+        (offerItem) => offerItem && offerItem.originalSlot === slotIndex
+      )
+    )
+      return;
+
+    // Добавляем предмет в предложение (только ссылка на слот)
     this.myOffer[freeSlot] = { ...item, originalSlot: slotIndex };
-    // Удаляем предмет из инвентаря
-    inventory[slotIndex] = null;
 
-    // Отправляем обновление серверу
-    sendWhenReady(
-      this.ws,
-      JSON.stringify({
-        type: "tradeOffer",
-        fromId: myId,
-        toId: this.tradePartnerId,
-        offer: this.myOffer,
-        inventory: inventory, // Отправляем обновлённый инвентарь
-      })
-    );
-
-    // Обновляем отображение
-    this.updateTradeWindow();
-    updateInventoryDisplay();
-  },
-
-  removeFromOffer(slotIndex) {
-    if (!this.myOffer[slotIndex] || this.myConfirmed || this.partnerConfirmed)
-      return;
-
-    const item = this.myOffer[slotIndex];
-    // Ищем свободный слот в инвентаре
-    const freeInventorySlot = inventory.findIndex((slot) => slot === null);
-    if (freeInventorySlot === -1) {
-      console.warn("Нет свободных слотов в инвентаре для возврата предмета");
-      return;
-    }
-
-    // Возвращаем предмет в инвентарь
-    inventory[freeInventorySlot] = {
-      ...item,
-      itemId: `${item.type}_${Date.now()}`, // Новый ID для предмета
-    };
-    this.myOffer[slotIndex] = null;
-
-    // Отправляем обновление серверу
+    // inventory не меняем! В tradeOffer отправляем inventory как есть
     sendWhenReady(
       this.ws,
       JSON.stringify({
@@ -365,7 +248,29 @@ const tradeSystem = {
       })
     );
 
-    // Обновляем отображение
+    this.updateTradeWindow();
+    updateInventoryDisplay();
+  },
+
+  removeFromOffer(slotIndex) {
+    if (!this.myOffer[slotIndex] || this.myConfirmed || this.partnerConfirmed)
+      return;
+
+    // Просто убираем предмет из предложения (в инвентаре он и так есть)
+    this.myOffer[slotIndex] = null;
+
+    // inventory не меняем! В tradeOffer отправляем inventory как есть
+    sendWhenReady(
+      this.ws,
+      JSON.stringify({
+        type: "tradeOffer",
+        fromId: myId,
+        toId: this.tradePartnerId,
+        offer: this.myOffer,
+        inventory: inventory,
+      })
+    );
+
     this.updateTradeWindow();
     updateInventoryDisplay();
   },
@@ -427,6 +332,11 @@ const tradeSystem = {
     const partnerOfferGrid =
       document.getElementById("partnerOfferGrid").children;
 
+    // Слоты, которые участвуют в предложении
+    const offeredSlots = this.myOffer
+      .filter(Boolean)
+      .map((item) => item.originalSlot);
+
     for (let i = 0; i < myTradeGrid.length; i++) {
       myTradeGrid[i].innerHTML = "";
       if (inventory[i]) {
@@ -434,12 +344,14 @@ const tradeSystem = {
         img.src = ITEM_CONFIG[inventory[i].type].image.src;
         img.style.width = "100%";
         img.style.height = "100%";
+        if (offeredSlots.includes(i)) {
+          img.style.opacity = "0.3"; // Визуально скрываем/делаем неактивным
+        }
         myTradeGrid[i].appendChild(img);
       }
     }
 
     for (let i = 0; i < 3; i++) {
-      // Было myOfferGrid.length, теперь явно 3
       myOfferGrid[i].innerHTML = "";
       if (this.myOffer[i]) {
         const img = document.createElement("img");
@@ -451,7 +363,6 @@ const tradeSystem = {
     }
 
     for (let i = 0; i < 3; i++) {
-      // Было partnerOfferGrid.length, теперь явно 3
       partnerOfferGrid[i].innerHTML = "";
       if (this.partnerOffer[i]) {
         const img = document.createElement("img");
@@ -463,6 +374,64 @@ const tradeSystem = {
     }
 
     document.getElementById("confirmTradeBtn").disabled = this.myConfirmed;
+  },
+
+  handleTradeMessage(data) {
+    switch (data.type) {
+      case "tradeRequest":
+        if (data.toId === myId && !this.isTradeWindowOpen) {
+          this.tradePartnerId = data.fromId;
+          this.tradeStatus = "pending";
+          this.showTradeDialog(`Игрок ${data.fromId} предлагает торговлю`);
+        }
+        break;
+      case "tradeAccepted":
+        this.tradePartnerId = data.fromId === myId ? data.toId : data.fromId; // Симметрично
+        this.tradeStatus = "accepted";
+        this.openTradeWindow();
+        break;
+      case "tradeOffer":
+        if (data.fromId === this.tradePartnerId) {
+          this.partnerOffer = data.offer;
+          this.updateTradeWindow(); // Динамическое обновление
+        }
+        break;
+      case "tradeConfirmed":
+        if (data.fromId === this.tradePartnerId) {
+          this.partnerConfirmed = true;
+          this.updateTradeWindow();
+          if (this.myConfirmed) {
+            this.completeTrade();
+          }
+        }
+        break;
+      case "tradeCompleted":
+        inventory = data.newInventory;
+        this.closeTradeWindow();
+        this.resetTrade();
+        updateInventoryDisplay();
+        break;
+      case "tradeCancelled":
+        this.myOffer.forEach((item, index) => {
+          if (item) {
+            const freeSlot = inventory.findIndex((slot) => slot === null);
+            if (freeSlot !== -1) {
+              inventory[freeSlot] = {
+                ...item,
+                itemId: `${item.type}_${Date.now()}`,
+              };
+              this.myOffer[index] = null;
+            }
+          }
+        });
+        this.closeTradeWindow();
+        this.resetTrade();
+        updateInventoryDisplay();
+        break;
+      case "tradeError":
+        alert(data.message); // Показываем ошибки от сервера
+        break;
+    }
   },
 };
 

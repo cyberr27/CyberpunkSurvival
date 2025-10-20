@@ -383,6 +383,7 @@ function reconnectWebSocket() {
             if (data.type === "loginSuccess") {
               ws.onmessage = handleGameMessage;
               window.wolfSystem.clearWolves();
+              tradeSystem.initialize(ws);
               // Синхронизируем игрока с сервером
               const me = players.get(myId);
               if (me) {
