@@ -3,6 +3,10 @@ const { saveUserDatabase } = require("./database");
 const tradeRequests = new Map(); // Запросы: key = `${fromId}-${toId}`, value = { status: 'pending' }
 const tradeOffers = new Map(); // Офферы: key = `${fromId}-${toId}`, value = { myOffer: [], partnerOffer: [], myConfirmed: false, partnerConfirmed: false }
 
+function logTradeEvent(event, details) {
+  console.log(`[TRADE] ${event}:`, JSON.stringify(details, null, 2));
+}
+
 function setupWebSocket(
   wss,
   dbCollection,
@@ -85,6 +89,151 @@ function setupWebSocket(
           await saveUserDatabase(dbCollection, data.username, newPlayer);
           ws.send(JSON.stringify({ type: "registerSuccess" }));
         }
+      } else if (data.type === "tradeRequest") {
+        // Игрок инициирует запрос на обмен
+        const { fromId, toId } = data;
+        logTradeEvent("tradeRequest", { fromId, toId, status: "pending" });
+        tradeRequests.set(`${fromId}-${toId}`, { status: "pending" });
+        wss.clients.forEach((client) => {
+          if (
+            clients.get(client) === toId &&
+            client.readyState === WebSocket.OPEN
+          ) {
+            client.send(JSON.stringify({ type: "tradeRequest", fromId }));
+          }
+        });
+      } else if (data.type === "tradeAccept") {
+        // Игрок принимает запрос на обмен
+        const { fromId, toId } = data;
+        logTradeEvent("tradeAccept", { fromId, toId });
+        tradeRequests.set(`${fromId}-${toId}`, { status: "accepted" });
+        // Создаём оффер
+        tradeOffers.set(`${fromId}-${toId}`, {
+          myOffer: [],
+          partnerOffer: [],
+          myConfirmed: false,
+          partnerConfirmed: false,
+        });
+        wss.clients.forEach((client) => {
+          if (
+            clients.get(client) === fromId &&
+            client.readyState === WebSocket.OPEN
+          ) {
+            client.send(JSON.stringify({ type: "tradeAccepted", toId }));
+          }
+        });
+      } else if (data.type === "tradeOfferUpdate") {
+        // Обновление оффера (предложение предметов)
+        const { fromId, toId, myOffer, partnerOffer } = data;
+        logTradeEvent("tradeOfferUpdate", {
+          fromId,
+          toId,
+          myOffer,
+          partnerOffer,
+        });
+        const offerKey = `${fromId}-${toId}`;
+        if (tradeOffers.has(offerKey)) {
+          const offer = tradeOffers.get(offerKey);
+          offer.myOffer = myOffer;
+          offer.partnerOffer = partnerOffer;
+          tradeOffers.set(offerKey, offer);
+        }
+        // Оповещаем обоих участников
+        wss.clients.forEach((client) => {
+          const pid = clients.get(client);
+          if (
+            (pid === fromId || pid === toId) &&
+            client.readyState === WebSocket.OPEN
+          ) {
+            client.send(
+              JSON.stringify({
+                type: "tradeOfferUpdate",
+                fromId,
+                toId,
+                myOffer,
+                partnerOffer,
+              })
+            );
+          }
+        });
+      } else if (data.type === "tradeConfirm") {
+        // Подтверждение обмена
+        const { fromId, toId, myConfirmed, partnerConfirmed } = data;
+        logTradeEvent("tradeConfirm", {
+          fromId,
+          toId,
+          myConfirmed,
+          partnerConfirmed,
+        });
+        const offerKey = `${fromId}-${toId}`;
+        if (tradeOffers.has(offerKey)) {
+          const offer = tradeOffers.get(offerKey);
+          offer.myConfirmed = myConfirmed;
+          offer.partnerConfirmed = partnerConfirmed;
+          tradeOffers.set(offerKey, offer);
+        }
+        // Оповещаем обоих участников
+        wss.clients.forEach((client) => {
+          const pid = clients.get(client);
+          if (
+            (pid === fromId || pid === toId) &&
+            client.readyState === WebSocket.OPEN
+          ) {
+            client.send(
+              JSON.stringify({
+                type: "tradeConfirm",
+                fromId,
+                toId,
+                myConfirmed,
+                partnerConfirmed,
+              })
+            );
+          }
+        });
+      } else if (data.type === "tradeComplete") {
+        // Завершение обмена
+        const { fromId, toId, myOffer, partnerOffer } = data;
+        logTradeEvent("tradeComplete", { fromId, toId, myOffer, partnerOffer });
+        // Здесь должна быть логика передачи предметов между игроками
+        // ...
+        // Удаляем оффер и запрос
+        tradeOffers.delete(`${fromId}-${toId}`);
+        tradeRequests.delete(`${fromId}-${toId}`);
+        // Оповещаем обоих участников
+        wss.clients.forEach((client) => {
+          const pid = clients.get(client);
+          if (
+            (pid === fromId || pid === toId) &&
+            client.readyState === WebSocket.OPEN
+          ) {
+            client.send(
+              JSON.stringify({
+                type: "tradeComplete",
+                fromId,
+                toId,
+                myOffer,
+                partnerOffer,
+              })
+            );
+          }
+        });
+      } else if (data.type === "tradeCancel") {
+        // Отмена обмена
+        const { fromId, toId, reason } = data;
+        logTradeEvent("tradeCancel", { fromId, toId, reason });
+        tradeOffers.delete(`${fromId}-${toId}`);
+        tradeRequests.delete(`${fromId}-${toId}`);
+        wss.clients.forEach((client) => {
+          const pid = clients.get(client);
+          if (
+            (pid === fromId || pid === toId) &&
+            client.readyState === WebSocket.OPEN
+          ) {
+            client.send(
+              JSON.stringify({ type: "tradeCancel", fromId, toId, reason })
+            );
+          }
+        });
       } else if (data.type === "worldTransition") {
         const id = clients.get(ws);
         if (id) {
