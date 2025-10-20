@@ -1035,8 +1035,6 @@ function setupWebSocket(
         const toPlayer = players.get(data.toId);
         if (!fromPlayer.inventory || !toPlayer.inventory) return;
 
-        // Проверка наличия предметов по itemId
-
         // Проверка наличия предметов строго по offerSlot
         let fromOfferValid = true;
         let toOfferValid = true;
@@ -1172,18 +1170,18 @@ function setupWebSocket(
           if (freeIdx !== -1) fromPlayer.inventory[freeIdx] = item;
         });
 
-        await saveUserDatabase(dbCollection, fromId, fromPlayer);
+        await saveUserDatabase(dbCollection, data.fromId, fromPlayer);
         await saveUserDatabase(dbCollection, data.toId, toPlayer);
 
         // Оповещаем обоих игроков
         wss.clients.forEach((client) => {
           if (client.readyState === 1) {
-            if (clients.get(client) === fromId) {
+            if (clients.get(client) === data.fromId) {
               client.send(
                 JSON.stringify({
                   type: "tradeCompleted",
                   fromId,
-                  toId: data.toId,
+                  toId: data.fromId,
                   newInventory: fromPlayer.inventory,
                 })
               );
