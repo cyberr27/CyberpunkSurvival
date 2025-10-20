@@ -1037,35 +1037,47 @@ function setupWebSocket(
 
         // Проверка наличия предметов по itemId
 
-        const fromOfferValid = data.myOffer.every((item) => {
-          if (!item) return true;
-          const found = fromPlayer.inventory.some(
-            (slot) => slot && slot.itemId === item.itemId
-          );
-          if (!found)
-            console.log(
-              "TRADE ERROR: fromPlayer missing item",
-              item.itemId,
-              item,
-              fromPlayer.inventory
-            );
-          return found;
-        });
-        const toOfferValid = data.partnerOffer.every((item) => {
-          if (!item) return true;
-          const found = toPlayer.inventory.some(
-            (slot) => slot && slot.itemId === item.itemId
-          );
-          if (!found)
-            console.log(
-              "TRADE ERROR: toPlayer missing item",
-              item.itemId,
-              item,
-              toPlayer.inventory
-            );
-          return found;
-        });
-
+        // Проверка наличия предметов строго по offerSlot
+        let fromOfferValid = true;
+        let toOfferValid = true;
+        for (let i = 0; i < data.myOffer.length; i++) {
+          const item = data.myOffer[i];
+          if (item) {
+            const slotIdx = item.originalSlot;
+            if (
+              typeof slotIdx !== "number" ||
+              !fromPlayer.inventory[slotIdx] ||
+              fromPlayer.inventory[slotIdx].itemId !== item.itemId
+            ) {
+              fromOfferValid = false;
+              console.log(
+                "TRADE ERROR: fromPlayer slot mismatch",
+                item,
+                fromPlayer.inventory[slotIdx]
+              );
+              break;
+            }
+          }
+        }
+        for (let i = 0; i < data.partnerOffer.length; i++) {
+          const item = data.partnerOffer[i];
+          if (item) {
+            const slotIdx = item.originalSlot;
+            if (
+              typeof slotIdx !== "number" ||
+              !toPlayer.inventory[slotIdx] ||
+              toPlayer.inventory[slotIdx].itemId !== item.itemId
+            ) {
+              toOfferValid = false;
+              console.log(
+                "TRADE ERROR: toPlayer slot mismatch",
+                item,
+                toPlayer.inventory[slotIdx]
+              );
+              break;
+            }
+          }
+        }
         if (!fromOfferValid || !toOfferValid) {
           wss.clients.forEach((client) => {
             if (
@@ -1122,21 +1134,28 @@ function setupWebSocket(
           );
           return;
         }
-
-        // Удаляем предметы из инвентарей
+        // Удаляем предметы строго из offerSlot
         data.myOffer.forEach((item) => {
           if (!item) return;
-          const idx = fromPlayer.inventory.findIndex(
-            (slot) => slot && slot.itemId === item.itemId
-          );
-          if (idx !== -1) fromPlayer.inventory[idx] = null;
+          const idx = item.originalSlot;
+          if (
+            typeof idx === "number" &&
+            fromPlayer.inventory[idx] &&
+            fromPlayer.inventory[idx].itemId === item.itemId
+          ) {
+            fromPlayer.inventory[idx] = null;
+          }
         });
         data.partnerOffer.forEach((item) => {
           if (!item) return;
-          const idx = toPlayer.inventory.findIndex(
-            (slot) => slot && slot.itemId === item.itemId
-          );
-          if (idx !== -1) toPlayer.inventory[idx] = null;
+          const idx = item.originalSlot;
+          if (
+            typeof idx === "number" &&
+            toPlayer.inventory[idx] &&
+            toPlayer.inventory[idx].itemId === item.itemId
+          ) {
+            toPlayer.inventory[idx] = null;
+          }
         });
 
         // Добавляем предметы партнёру
