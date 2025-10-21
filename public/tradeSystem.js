@@ -1,10 +1,11 @@
+// tradeSystem.js (updated)
 const tradeSystem = {
   isTradeWindowOpen: false,
   selectedPlayerId: null,
   tradePartnerId: null,
   tradeStatus: null, // 'pending', 'accepted', 'confirmed', 'completed', 'cancelled'
-  myOffer: Array(3).fill(null), // Было 4, стало 3
-  partnerOffer: Array(3).fill(null), // Было 4, стало 3
+  myOffer: Array(4).fill(null), // Было 3, стало 4
+  partnerOffer: Array(4).fill(null), // Было 3, стало 4
   myConfirmed: false,
   partnerConfirmed: false,
 
@@ -94,16 +95,16 @@ const tradeSystem = {
       document.getElementById("myTradeGrid").appendChild(slot);
     }
 
-    // Создаём 3 слота для myOfferGrid
-    for (let i = 0; i < 3; i++) {
+    // Создаём 4 слота для myOfferGrid
+    for (let i = 0; i < 4; i++) {
       const slot = document.createElement("div");
       slot.className = "offer-slot";
       slot.dataset.slotIndex = i;
       document.getElementById("myOfferGrid").appendChild(slot);
     }
 
-    // Создаём 3 слота для partnerOfferGrid
-    for (let i = 0; i < 3; i++) {
+    // Создаём 4 слота для partnerOfferGrid
+    for (let i = 0; i < 4; i++) {
       const slot = document.createElement("div");
       slot.className = "offer-slot";
       slot.dataset.slotIndex = i;
@@ -319,8 +320,8 @@ const tradeSystem = {
     this.selectedPlayerId = null;
     this.tradePartnerId = null;
     this.tradeStatus = null;
-    this.myOffer = Array(3).fill(null);
-    this.partnerOffer = Array(3).fill(null);
+    this.myOffer = Array(4).fill(null);
+    this.partnerOffer = Array(4).fill(null);
     this.myConfirmed = false;
     this.partnerConfirmed = false;
     document.getElementById("tradeBtn").disabled = true; // Отключаем кнопку
@@ -351,7 +352,7 @@ const tradeSystem = {
       }
     }
 
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 4; i++) {
       myOfferGrid[i].innerHTML = "";
       if (this.myOffer[i]) {
         const img = document.createElement("img");
@@ -362,7 +363,7 @@ const tradeSystem = {
       }
     }
 
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 4; i++) {
       partnerOfferGrid[i].innerHTML = "";
       if (this.partnerOffer[i]) {
         const img = document.createElement("img");
