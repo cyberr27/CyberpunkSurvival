@@ -43,7 +43,7 @@ const imageSources = {
   appleImage: "apple.png",
   berriesImage: "berry.png",
   carrotImage: "carrot.png",
-  npcSpriteImage: "npc_sprite.png",
+  johnSprite: "JohnSprite.png",
   npcPhotoImage: "fotoQuestNPC.png",
   cyberHelmetImage: "cyber_helmet.png",
   nanoArmorImage: "nano_armor.png",
@@ -650,7 +650,7 @@ function startGame() {
   levelSystem.initialize(); // Инициализируем систему уровней
   window.vendingMachine.initialize();
   window.movementSystem.initialize(); // Инициализируем систему движения
-  window.npcSystem.initialize(images.npcSpriteImage); // Передаём изображение NPC
+  window.npcSystem.initialize(images.johnSprite); // Передаём изображение NPC
 
   // Проверяем, что изображения загружены перед инициализацией wolfSystem
   if (imagesLoaded === totalImages) {
@@ -1230,7 +1230,7 @@ function updateStatsDisplay() {
     <span class="energy">Энергия: ${me.energy}/${me.maxStats.energy}</span><br>
     <span class="food">Еда: ${me.food}/${me.maxStats.food}</span><br>
     <span class="water">Вода: ${me.water}/${me.maxStats.water}</span><br>
-    <span class="armor">Броня: ${me.armor}</span>
+    <span class="armor">Броня: ${me.armor}/${me.maxStats.armor || 0}</span>
   `;
   document.getElementById("coords").innerHTML = `X: ${Math.floor(
     me.x
@@ -1724,8 +1724,7 @@ function draw(deltaTime) {
     );
   }
 
-  drawNPC();
-  npcSystem.drawNPC();
+  window.npcSystem.drawNPC(deltaTime);
   window.vendingMachine.draw();
   window.wolfSystem.draw(ctx, window.movementSystem.getCamera());
   window.combatSystem.draw();

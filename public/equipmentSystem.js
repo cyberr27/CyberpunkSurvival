@@ -196,6 +196,8 @@ const equipmentSystem = {
       return;
     }
 
+    this.applyEquipmentEffects(me);
+
     // Локально убираем предмет из экипировки и кладём в инвентарь
     inventory[freeSlot] = item;
     this.equipmentSlots[slotName] = null;
@@ -344,7 +346,7 @@ const equipmentSystem = {
 
   applyEquipmentEffects: function (player) {
     // Базовые значения — только из levelSystem
-    const baseMaxStats = { ...window.levelSystem.maxStats };
+    const baseMaxStats = { ...window.levelSystem.maxStats, armor: 0 };
 
     player.armor = 0;
     player.damage = 0;
@@ -353,7 +355,7 @@ const equipmentSystem = {
     Object.values(this.equipmentSlots).forEach((item) => {
       if (item && this.EQUIPMENT_CONFIG[item.type]) {
         const effect = this.EQUIPMENT_CONFIG[item.type].effect;
-        if (effect.armor) player.armor += effect.armor;
+        if (effect.armor) player.maxStats.armor += effect.armor;
         if (effect.health) player.maxStats.health += effect.health;
         if (effect.energy) player.maxStats.energy += effect.energy;
         if (effect.food) player.maxStats.food += effect.food;
@@ -377,6 +379,7 @@ const equipmentSystem = {
     player.energy = Math.min(player.energy, player.maxStats.energy);
     player.food = Math.min(player.food, player.maxStats.food);
     player.water = Math.min(player.water, player.maxStats.water);
+    player.armor = Math.min(player.armor, player.maxStats.armor);
   },
 
   syncEquipment: function (equipment) {

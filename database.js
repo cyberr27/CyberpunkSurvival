@@ -42,6 +42,7 @@ async function loadUserDatabase(collection, userDatabase) {
           energy: player.energy,
           food: player.food,
           water: player.water,
+          armor: player.armor || 0,
         },
       };
       userDatabase.set(user.id, userData);
@@ -66,6 +67,7 @@ async function saveUserDatabase(collection, username, player) {
         energy: player.energy,
         food: player.food,
         water: player.water,
+        armor: player.armor || 0,
       },
     };
     await collection.updateOne(

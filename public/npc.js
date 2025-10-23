@@ -161,6 +161,17 @@ let availableQuests = [];
 let isQuestActive = false; // Флаг, указывающий, активно ли задание
 let npcSprite = null; // Переменная для хранения изображения NPC
 
+// Новые переменные для анимации
+let npcFrame = 0; // Текущий кадр (0-39)
+let npcFrameTime = 0; // Накопленное время для смены кадра
+const NPC_FRAME_DURATION = 100; // мс на кадр (настрой для скорости анимации, ~10 fps)
+const NPC_TOTAL_FRAMES = 40; // Количество кадров в спрайте
+
+// Новые для периодической анимации
+let animationCooldownTimer = 0; // Таймер до следующего запуска анимации
+let isAnimating = false; // Идет ли анимация сейчас
+const ANIMATION_COOLDOWN = 20000; // 30 секунд между циклами анимации
+
 const npcStyles = `
   .npc-dialog {
     position: fixed;
@@ -308,7 +319,7 @@ function initializeNPCStyles() {
   document.head.appendChild(styleSheet);
 }
 
-function drawNPC() {
+function drawNPC(deltaTime) {
   // Проверяем, что текущий мир — это Неоновый город (id: 0)
   if (window.worldSystem.currentWorldId !== 0) return;
 
@@ -316,13 +327,71 @@ function drawNPC() {
   const screenX = NPC.x - camera.x;
   const screenY = NPC.y - camera.y;
 
-  if (npcSprite && npcSprite.complete) {
-    ctx.drawImage(npcSprite, screenX, screenY, NPC.width, NPC.height);
+  // Вычисляем расстояние до игрока (аналогично checkNPCProximity)
+  let isPlayerNear = false;
+  const me = players.get(myId);
+  if (me && me.health > 0) {
+    const dx = me.x + 20 - (NPC.x + 35);
+    const dy = me.y + 20 - (NPC.y + 35);
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    isPlayerNear = distance < NPC.interactionRadius;
+  }
+
+  if (isPlayerNear) {
+    // Если игрок близко: остановить анимацию, показать статичный кадр
+    npcFrame = 0;
+    isAnimating = false;
+    animationCooldownTimer = 0; // Сброс таймера, чтобы после ухода игрока отсчет начался заново
   } else {
+    // Если игрок далеко: управляем периодической анимацией
+    if (!isAnimating) {
+      // Ждем cooldown для запуска анимации
+      animationCooldownTimer += deltaTime;
+      if (animationCooldownTimer >= ANIMATION_COOLDOWN) {
+        isAnimating = true;
+        npcFrameTime = 0;
+        npcFrame = 0;
+        animationCooldownTimer = 0; // Сброс таймера после запуска
+      } else {
+        // Пока ждем: статичный кадр
+        npcFrame = 0;
+      }
+    } else {
+      // Анимация идет: обновляем кадры
+      npcFrameTime += deltaTime;
+      if (npcFrameTime >= NPC_FRAME_DURATION) {
+        npcFrameTime = 0;
+        npcFrame++;
+        if (npcFrame >= NPC_TOTAL_FRAMES) {
+          // Завершить цикл анимации
+          npcFrame = 0;
+          isAnimating = false;
+          animationCooldownTimer = 0; // Начать новый отсчет cooldown
+        }
+      }
+    }
+  }
+
+  if (npcSprite && npcSprite.complete) {
+    // Рисуем текущий кадр спрайта (горизонтальная полоса)
+    ctx.drawImage(
+      npcSprite,
+      npcFrame * NPC.width, // X-координата кадра в спрайте
+      0, // Y всегда 0 (одна строка)
+      NPC.width,
+      NPC.height,
+      screenX,
+      screenY,
+      NPC.width,
+      NPC.height
+    );
+  } else {
+    // Заглушка, если спрайт не загружен
     ctx.fillStyle = "purple";
     ctx.fillRect(screenX, screenY, NPC.width, NPC.height);
   }
 
+  // Рисуем имя (без изменений)
   ctx.fillStyle = isNPCMet ? "#ff00ff" : "#ffffff";
   ctx.font = "12px Arial";
   ctx.textAlign = "center";
@@ -637,7 +706,7 @@ window.npcSystem = {
     setAvailableQuests(questIds);
   },
   initialize: (spriteImage) => {
-    npcSprite = spriteImage; // Сохраняем переданное изображение
+    npcSprite = spriteImage; // Сохраняем переданный спрайт
     initializeNPCStyles();
   },
 };
