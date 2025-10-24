@@ -136,6 +136,35 @@ function runGameLoop(
               spawnTime: currentTime,
               worldId: world.id,
             };
+            if (type === "atom") {
+              console.log(
+                `Создан атом (${itemId}) в мире ${world.id} на координатах x:${
+                  newItem.x
+                }, y:${newItem.y} в ${new Date(currentTime).toLocaleString(
+                  "ru-RU"
+                )}`
+              );
+
+              // Если хочешь вывести в рендер (клиентам): отправляем специальное сообщение по WebSocket
+              // Это позволит клиентам логировать или показывать в UI (добавим обработку на клиенте ниже)
+              wss.clients.forEach((client) => {
+                if (
+                  client.readyState === WebSocket.OPEN &&
+                  players.get(clients.get(client))?.worldId === world.id
+                ) {
+                  client.send(
+                    JSON.stringify({
+                      type: "atomSpawned",
+                      message: `Создан атом (${itemId}) в мире ${
+                        world.id
+                      } на x:${newItem.x}, y:${newItem.y} в ${new Date(
+                        currentTime
+                      ).toLocaleString("ru-RU")}`,
+                    })
+                  );
+                }
+              });
+            }
             items.set(itemId, newItem);
             console.log(
               `Создан предмет ${type} (${itemId}) в мире ${world.id} на x:${newItem.x}, y:${newItem.y}`

@@ -57,6 +57,7 @@ const imageSources = {
   knucklesImage: "knuckles.png",
   knifeImage: "knife.png",
   batImage: "bat.png",
+  atomImage: "atom.png",
 };
 
 const images = {};
@@ -273,6 +274,13 @@ const ITEM_CONFIG = {
     effect: { damage: { min: 5, max: 10 } },
     image: images.batImage,
     description: "Бита: 5-10 урона в ближнем бою",
+    rarity: 3,
+  },
+  atom: {
+    effect: {},
+    image: images.atomImage,
+    description: "Atom",
+    stackable: true,
     rarity: 3,
   },
 };
@@ -613,6 +621,20 @@ function handleAuthMessage(event) {
         players.set(data.targetId, { ...player });
         updateStatsDisplay();
       }
+      break;
+    case "newItem":
+      const newItem = {
+        x: data.x,
+        y: data.y,
+        type: data.type,
+        spawnTime: data.spawnTime,
+        worldId: data.worldId,
+      };
+      if (newItem.type === "atom") {
+        newItem.frame = 0; // Начальный кадр
+        newItem.frameTime = 0; // Таймер для анимации
+      }
+      items.set(data.itemId, newItem);
       break;
   }
 }
@@ -1818,12 +1840,41 @@ function draw(deltaTime) {
       screenY >= -20 &&
       screenY <= canvas.height + 20
     ) {
-      const itemImage = ITEM_CONFIG[item.type]?.image;
-      if (itemImage && itemImage.complete) {
-        ctx.drawImage(itemImage, screenX + 10, screenY + 10, 20, 20);
+      if (item.type === "atom") {
+        item.frameTime += deltaTime; // deltaTime из gameLoop
+        const frameDuration = 100; // Скорость анимации (100ms на кадр, подстрой под нужное)
+        if (item.frameTime >= frameDuration) {
+          item.frameTime -= frameDuration;
+          item.frame = (item.frame + 1) % 40; // 40 кадров
+        }
+
+        // Рисуем анимированный спрайт (scale до 20x20, как другие предметы)
+        if (images.atomImage && images.atomImage.complete) {
+          ctx.drawImage(
+            images.atomImage,
+            item.frame * 50, // X-offset: кадр * 50px
+            0, // Y-offset: 0 (одна строка)
+            50,
+            50, // Исходный размер кадра
+            screenX + 10,
+            screenY + 10, // Позиция
+            20,
+            20 // Масштаб до 20x20, как другие итемы
+          );
+        } else {
+          // Заглушка
+          ctx.fillStyle = "purple"; // Или другой цвет для атома
+          ctx.fillRect(screenX + 7.5, screenY + 7.5, 5, 5);
+        }
       } else {
-        ctx.fillStyle = "yellow";
-        ctx.fillRect(screenX + 7.5, screenY + 7.5, 5, 5);
+        // Обычный draw для других итемов (твой старый код)
+        const itemImage = ITEM_CONFIG[item.type]?.image;
+        if (itemImage && itemImage.complete) {
+          ctx.drawImage(itemImage, screenX + 10, screenY + 10, 20, 20);
+        } else {
+          ctx.fillStyle = "yellow";
+          ctx.fillRect(screenX + 7.5, screenY + 7.5, 5, 5);
+        }
       }
     }
   });

@@ -50,6 +50,11 @@ const ITEM_CONFIG = {
     effect: { damage: { min: 5, max: 10 } }, // Бита: 5-10 урона
     rarity: 3,
   },
+  atom: {
+    effect: {},
+    rarity: 3,
+    stackable: true,
+  },
 };
 
 module.exports = { ITEM_CONFIG };
