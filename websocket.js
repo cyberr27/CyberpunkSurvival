@@ -1,7 +1,7 @@
 const { saveUserDatabase } = require("./database");
 
-const tradeRequests = new Map(); // Запросы: key = `${fromId}-${toId}`, value = { status: 'pending' }
-const tradeOffers = new Map(); // Офферы: key = `${fromId}-${toId}`, value = { myOffer: [], partnerOffer: [], myConfirmed: false, partnerConfirmed: false }
+const tradeRequests = new Map(); // Р—Р°РїСЂРѕСЃС‹: key = `${fromId}-${toId}`, value = { status: 'pending' }
+const tradeOffers = new Map(); // РћС„С„РµСЂС‹: key = `${fromId}-${toId}`, value = { myOffer: [], partnerOffer: [], myConfirmed: false, partnerConfirmed: false }
 
 function setupWebSocket(
   wss,
@@ -17,21 +17,25 @@ function setupWebSocket(
   INACTIVITY_TIMEOUT
 ) {
   function checkCollisionServer(x, y) {
-    return false; // Пока оставляем как есть
+    return false; // РџРѕРєР° РѕСЃС‚Р°РІР»СЏРµРј РєР°Рє РµСЃС‚СЊ
   }
 
   wss.on("connection", (ws) => {
-    console.log("Клиент подключился");
+    console.log("РљР»РёРµРЅС‚ РїРѕРґРєР»СЋС‡РёР»СЃСЏ");
 
     let inactivityTimer = setTimeout(() => {
-      console.log("Клиент отключён из-за неактивности");
+      console.log(
+        "РљР»РёРµРЅС‚ РѕС‚РєР»СЋС‡С‘РЅ РёР·-Р·Р° РЅРµР°РєС‚РёРІРЅРѕСЃС‚Рё"
+      );
       ws.close(4000, "Inactivity timeout");
     }, INACTIVITY_TIMEOUT);
 
     ws.on("message", async (message) => {
       clearTimeout(inactivityTimer);
       inactivityTimer = setTimeout(() => {
-        console.log("Клиент отключён из-за неактивности");
+        console.log(
+          "РљР»РёРµРЅС‚ РѕС‚РєР»СЋС‡С‘РЅ РёР·-Р·Р° РЅРµР°РєС‚РёРІРЅРѕСЃС‚Рё"
+        );
         ws.close(4000, "Inactivity timeout");
       }, INACTIVITY_TIMEOUT);
 
@@ -39,7 +43,7 @@ function setupWebSocket(
       try {
         data = JSON.parse(message);
       } catch (e) {
-        console.error("Неверный JSON:", e);
+        console.error("РќРµРІРµСЂРЅС‹Р№ JSON:", e);
         return;
       }
 
@@ -99,12 +103,14 @@ function setupWebSocket(
           const targetWorldId = data.targetWorldId;
 
           if (!worlds.find((w) => w.id === targetWorldId)) {
-            console.error(`Мир с ID ${targetWorldId} не существует`);
+            console.error(
+              `РњРёСЂ СЃ ID ${targetWorldId} РЅРµ СЃСѓС‰РµСЃС‚РІСѓРµС‚`
+            );
             return;
           }
 
           console.log(
-            `Игрок ${id} переходит из мира ${oldWorldId} в мир ${targetWorldId} на x:${data.x}, y:${data.y}`
+            `РРіСЂРѕРє ${id} РїРµСЂРµС…РѕРґРёС‚ РёР· РјРёСЂР° ${oldWorldId} РІ РјРёСЂ ${targetWorldId} РЅР° x:${data.x}, y:${data.y}`
           );
 
           player.worldId = targetWorldId;
@@ -172,7 +178,7 @@ function setupWebSocket(
           );
 
           console.log(
-            `Переход успешен: игрок ${id}, мир ${targetWorldId}, синхронизировано ${worldPlayers.length} игроков, ${worldItems.length} предметов`
+            `РџРµСЂРµС…РѕРґ СѓСЃРїРµС€РµРЅ: РёРіСЂРѕРє ${id}, РјРёСЂ ${targetWorldId}, СЃРёРЅС…СЂРѕРЅРёР·РёСЂРѕРІР°РЅРѕ ${worldPlayers.length} РёРіСЂРѕРєРѕРІ, ${worldItems.length} РїСЂРµРґРјРµС‚РѕРІ`
           );
         }
       } else if (data.type === "syncPlayers") {
@@ -182,7 +188,7 @@ function setupWebSocket(
           const worldId = data.worldId;
           if (player.worldId !== worldId) {
             console.warn(
-              `Игрок ${id} запросил syncPlayers для неверного мира ${worldId}`
+              `РРіСЂРѕРє ${id} Р·Р°РїСЂРѕСЃРёР» syncPlayers РґР»СЏ РЅРµРІРµСЂРЅРѕРіРѕ РјРёСЂР° ${worldId}`
             );
             return;
           }
@@ -197,7 +203,7 @@ function setupWebSocket(
             })
           );
           console.log(
-            `Отправлен список ${worldPlayers.length} игроков в мире ${worldId} для ${id}`
+            `РћС‚РїСЂР°РІР»РµРЅ СЃРїРёСЃРѕРє ${worldPlayers.length} РёРіСЂРѕРєРѕРІ РІ РјРёСЂРµ ${worldId} РґР»СЏ ${id}`
           );
         }
       } else if (data.type === "login") {
@@ -232,7 +238,7 @@ function setupWebSocket(
             worldPositions: player.worldPositions || {
               0: { x: player.x, y: player.y },
             },
-            // --- Исправлено: не подставляем 100, если значение 0 ---
+            // --- РСЃРїСЂР°РІР»РµРЅРѕ: РЅРµ РїРѕРґСЃС‚Р°РІР»СЏРµРј 100, РµСЃР»Рё Р·РЅР°С‡РµРЅРёРµ 0 ---
             health: typeof player.health === "number" ? player.health : 100,
             energy: typeof player.energy === "number" ? player.energy : 100,
             food: typeof player.food === "number" ? player.food : 100,
@@ -328,7 +334,7 @@ function setupWebSocket(
             JSON.stringify({
               type: "buyWaterResult",
               success: false,
-              error: "Недостаточно баляр!",
+              error: "РќРµРґРѕСЃС‚Р°С‚РѕС‡РЅРѕ Р±Р°Р»СЏСЂ!",
             })
           );
           return;
@@ -364,9 +370,11 @@ function setupWebSocket(
         );
 
         console.log(
-          `Игрок ${id} купил ${data.option} стакан воды, вода: ${
-            player.water
-          }, баляры: ${balyaryCount - data.cost}`
+          `РРіСЂРѕРє ${id} РєСѓРїРёР» ${
+            data.option
+          } СЃС‚Р°РєР°РЅ РІРѕРґС‹, РІРѕРґР°: ${player.water}, Р±Р°Р»СЏСЂС‹: ${
+            balyaryCount - data.cost
+          }`
         );
       } else if (data.type === "meetNPC") {
         const id = clients.get(ws);
@@ -380,7 +388,7 @@ function setupWebSocket(
           userDatabase.set(id, { ...player });
           await saveUserDatabase(dbCollection, id, player);
           console.log(
-            `Игрок ${id} познакомился с NPC: npcMet=${data.npcMet}, задания: ${player.availableQuests}`
+            `РРіСЂРѕРє ${id} РїРѕР·РЅР°РєРѕРјРёР»СЃСЏ СЃ NPC: npcMet=${data.npcMet}, Р·Р°РґР°РЅРёСЏ: ${player.availableQuests}`
           );
         }
       } else if (data.type === "move") {
@@ -416,7 +424,7 @@ function setupWebSocket(
           players.set(id, updatedPlayer);
           userDatabase.set(id, updatedPlayer);
           await saveUserDatabase(dbCollection, id, updatedPlayer);
-          // Рассылаем обновление всем игрокам в том же мире
+          // Р Р°СЃСЃС‹Р»Р°РµРј РѕР±РЅРѕРІР»РµРЅРёРµ РІСЃРµРј РёРіСЂРѕРєР°Рј РІ С‚РѕРј Р¶Рµ РјРёСЂРµ
           wss.clients.forEach((client) => {
             if (client.readyState === WebSocket.OPEN) {
               const clientPlayer = players.get(clients.get(client));
@@ -457,11 +465,11 @@ function setupWebSocket(
           userDatabase.set(id, { ...player });
           await saveUserDatabase(dbCollection, id, player);
           console.log(
-            `Игрок ${id} обновил уровень: ${data.level}, XP: ${
-              data.xp
-            }, maxStats: ${JSON.stringify(player.maxStats)}, upgradePoints: ${
-              data.upgradePoints
-            }`
+            `РРіСЂРѕРє ${id} РѕР±РЅРѕРІРёР» СѓСЂРѕРІРµРЅСЊ: ${
+              data.level
+            }, XP: ${data.xp}, maxStats: ${JSON.stringify(
+              player.maxStats
+            )}, upgradePoints: ${data.upgradePoints}`
           );
           wss.clients.forEach((client) => {
             if (
@@ -494,7 +502,7 @@ function setupWebSocket(
             }
           });
           console.log(
-            `Игрок ${id} обновил maxStats: ${JSON.stringify(
+            `РРіСЂРѕРє ${id} РѕР±РЅРѕРІРёР» maxStats: ${JSON.stringify(
               data.maxStats
             )}, upgradePoints: ${data.upgradePoints}`
           );
@@ -520,7 +528,7 @@ function setupWebSocket(
             }
           });
           console.log(
-            `Инвентарь и задания игрока ${id} обновлены: ${
+            `РРЅРІРµРЅС‚Р°СЂСЊ Рё Р·Р°РґР°РЅРёСЏ РёРіСЂРѕРєР° ${id} РѕР±РЅРѕРІР»РµРЅС‹: ${
               player.availableQuests
             }, selectedQuestId: ${player.selectedQuestId || "null"}`
           );
@@ -538,7 +546,7 @@ function setupWebSocket(
             player.inventory &&
             player.inventory[inventorySlot] === null
           ) {
-            // Перемещаем предмет из экипировки в инвентарь
+            // РџРµСЂРµРјРµС‰Р°РµРј РїСЂРµРґРјРµС‚ РёР· СЌРєРёРїРёСЂРѕРІРєРё РІ РёРЅРІРµРЅС‚Р°СЂСЊ
             player.inventory[inventorySlot] = player.equipment[slotName];
             player.equipment[slotName] = null;
 
@@ -546,12 +554,12 @@ function setupWebSocket(
             userDatabase.set(id, { ...player });
             await saveUserDatabase(dbCollection, id, player);
 
-            // Отправляем обновлённые данные только этому игроку
+            // РћС‚РїСЂР°РІР»СЏРµРј РѕР±РЅРѕРІР»С‘РЅРЅС‹Рµ РґР°РЅРЅС‹Рµ С‚РѕР»СЊРєРѕ СЌС‚РѕРјСѓ РёРіСЂРѕРєСѓ
             ws.send(
               JSON.stringify({ type: "update", player: { id, ...player } })
             );
             console.log(
-              `Игрок ${id} снял экипировку ${itemId} из ${slotName} в слот инвентаря ${inventorySlot}`
+              `РРіСЂРѕРє ${id} СЃРЅСЏР» СЌРєРёРїРёСЂРѕРІРєСѓ ${itemId} РёР· ${slotName} РІ СЃР»РѕС‚ РёРЅРІРµРЅС‚Р°СЂСЏ ${inventorySlot}`
             );
           }
         }
@@ -565,7 +573,7 @@ function setupWebSocket(
           userDatabase.set(id, { ...player });
           await saveUserDatabase(dbCollection, id, player);
           console.log(
-            `Задания игрока ${id} обновлены: ${player.availableQuests}`
+            `Р—Р°РґР°РЅРёСЏ РёРіСЂРѕРєР° ${id} РѕР±РЅРѕРІР»РµРЅС‹: ${player.availableQuests}`
           );
         }
       } else if (data.type === "pickup") {
@@ -627,64 +635,6 @@ function setupWebSocket(
         players.set(id, { ...player });
         userDatabase.set(id, { ...player });
         await saveUserDatabase(dbCollection, id, player);
-
-        if (item.type === "atom") {
-          // Спавним новый Атом в том же мире
-          const atomId = `atom_${Date.now()}`;
-          let x,
-            y,
-            attempts = 0;
-          const maxAttempts = 10;
-          do {
-            x = Math.random() * world.width; // world — из worlds.find((w) => w.id === item.worldId);
-            const world = worlds.find((w) => w.id === item.worldId);
-            if (!world) return; // Если мир не найден
-            x = Math.random() * world.width;
-            y = Math.random() * world.height;
-            attempts++;
-          } while (checkCollisionServer(x, y) && attempts < maxAttempts);
-
-          if (attempts < maxAttempts) {
-            const newAtom = {
-              x,
-              y,
-              type: "atom",
-              spawnTime: Date.now(),
-              worldId: item.worldId,
-            };
-            items.set(atomId, newAtom);
-            console.log(
-              `Создан новый Атом (${atomId}) после pickup в мире ${
-                item.worldId
-              } на x:${newAtom.x}, y:${
-                newAtom.y
-              } (время: ${new Date().toISOString()})`
-            );
-
-            wss.clients.forEach((client) => {
-              if (
-                client.readyState === WebSocket.OPEN &&
-                players.get(clients.get(client))?.worldId === item.worldId
-              ) {
-                client.send(
-                  JSON.stringify({
-                    type: "newItem",
-                    itemId: atomId,
-                    x: newAtom.x,
-                    y: newAtom.y,
-                    type: newAtom.type,
-                    spawnTime: newAtom.spawnTime,
-                    worldId: item.worldId,
-                  })
-                );
-              }
-            });
-          } else {
-            console.log(
-              `Не удалось найти место для нового Атома в мире ${item.worldId}`
-            );
-          }
-        }
 
         wss.clients.forEach((client) => {
           if (client.readyState === WebSocket.OPEN) {
@@ -796,7 +746,7 @@ function setupWebSocket(
               }
             });
             console.log(
-              `Игрок ${id} использовал ${item.type} из слота ${slotIndex}`
+              `РРіСЂРѕРє ${id} РёСЃРїРѕР»СЊР·РѕРІР°Р» ${item.type} РёР· СЃР»РѕС‚Р° ${slotIndex}`
             );
           }
         }
@@ -851,7 +801,7 @@ function setupWebSocket(
               });
 
               console.log(
-                `Игрок ${id} экипировал ${item.type} в слот ${slotName}`
+                `РРіСЂРѕРє ${id} СЌРєРёРїРёСЂРѕРІР°Р» ${item.type} РІ СЃР»РѕС‚ ${slotName}`
               );
             }
           }
@@ -859,9 +809,9 @@ function setupWebSocket(
       } else if (data.type === "dropItem") {
         const id = clients.get(ws);
         console.log(
-          `Получен запрос dropItem от ${id}, slotIndex: ${data.slotIndex}, x: ${
-            data.x
-          }, y: ${data.y}, quantity: ${data.quantity || 1}`
+          `РџРѕР»СѓС‡РµРЅ Р·Р°РїСЂРѕСЃ dropItem РѕС‚ ${id}, slotIndex: ${
+            data.slotIndex
+          }, x: ${data.x}, y: ${data.y}, quantity: ${data.quantity || 1}`
         );
         if (id) {
           const player = players.get(id);
@@ -873,7 +823,7 @@ function setupWebSocket(
               const currentQuantity = item.quantity || 1;
               if (quantityToDrop > currentQuantity) {
                 console.log(
-                  `У игрока ${id} недостаточно Баляр для выброса: ${quantityToDrop} > ${currentQuantity}`
+                  `РЈ РёРіСЂРѕРєР° ${id} РЅРµРґРѕСЃС‚Р°С‚РѕС‡РЅРѕ Р‘Р°Р»СЏСЂ РґР»СЏ РІС‹Р±СЂРѕСЃР°: ${quantityToDrop} > ${currentQuantity}`
                 );
                 return;
               }
@@ -955,7 +905,7 @@ function setupWebSocket(
                 }
               });
               console.log(
-                `Игрок ${id} выбросил ${quantityToDrop} ${item.type} в мире ${player.worldId} на x:${dropX}, y:${dropY}`
+                `РРіСЂРѕРє ${id} РІС‹Р±СЂРѕСЃРёР» ${quantityToDrop} ${item.type} РІ РјРёСЂРµ ${player.worldId} РЅР° x:${dropX}, y:${dropY}`
               );
             }
           }
@@ -970,12 +920,17 @@ function setupWebSocket(
         const dy = fromPlayer.y - toPlayer.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
 
-        if (distance > 1000 || fromPlayer.health <= 0 || toPlayer.health <= 0) {
-          console.log(
-            `ОТКАЗ в tradeRequest: fromId=${fromId}, toId=${data.toId}, distance=${distance}, fromHealth=${fromPlayer.health}, toHealth=${toPlayer.health}`
-          );
-          return;
-        }
+        if (distance > 1000 || fromPlayer.health <= 0 || toPlayer.health <= 0)
+          if (
+            distance > 1000 ||
+            fromPlayer.health <= 0 ||
+            toPlayer.health <= 0
+          ) {
+            console.log(
+              `РћРўРљРђР— РІ tradeRequest: fromId=${fromId}, toId=${data.toId}, distance=${distance}, fromHealth=${fromPlayer.health}, toHealth=${toPlayer.health}`
+            );
+            return;
+          }
 
         wss.clients.forEach((client) => {
           if (
@@ -1133,7 +1088,7 @@ function setupWebSocket(
             }
           });
           console.log(
-            `ОТМЕНА tradeCompleted: fromOfferValid=${fromOfferValid}, toOfferValid=${toOfferValid}, fromId=${fromId}, toId=${data.toId}`
+            `РћРўРњР•РќРђ tradeCompleted: fromOfferValid=${fromOfferValid}, toOfferValid=${toOfferValid}, fromId=${fromId}, toId=${data.toId}`
           );
           return;
         }
@@ -1168,7 +1123,7 @@ function setupWebSocket(
             }
           });
           console.log(
-            `ОТМЕНА tradeCompleted: недостаточно слотов. fromFreeSlots=${fromFreeSlots}, toFreeSlots=${toFreeSlots}, fromOfferCount=${fromOfferCount}, toOfferCount=${toOfferCount}`
+            `РћРўРњР•РќРђ tradeCompleted: РЅРµРґРѕСЃС‚Р°С‚РѕС‡РЅРѕ СЃР»РѕС‚РѕРІ. fromFreeSlots=${fromFreeSlots}, toFreeSlots=${toFreeSlots}, fromOfferCount=${fromOfferCount}, toOfferCount=${toOfferCount}`
           );
           return;
         }
@@ -1261,7 +1216,9 @@ function setupWebSocket(
           userDatabase.set(id, { ...player });
           await saveUserDatabase(dbCollection, id, player);
           console.log(
-            `Игрок ${id} выбрал задание ID: ${data.questId || "null"}`
+            `РРіСЂРѕРє ${id} РІС‹Р±СЂР°Р» Р·Р°РґР°РЅРёРµ ID: ${
+              data.questId || "null"
+            }`
           );
         }
       } else if (data.type === "attackWolf") {
@@ -1289,7 +1246,9 @@ function setupWebSocket(
               );
             }
           });
-          console.log(`Игрок ${id} нанёс ${damage} урона волку ${data.wolfId}`);
+          console.log(
+            `РРіСЂРѕРє ${id} РЅР°РЅС‘СЃ ${damage} СѓСЂРѕРЅР° РІРѕР»РєСѓ ${data.wolfId}`
+          );
         }
       } else if (data.type === "shoot") {
         const shooterId = clients.get(ws);
@@ -1361,7 +1320,7 @@ function setupWebSocket(
         const playerA = players.get(fromId);
         const playerB = players.get(toId);
 
-        // Проверки: расстояние, здоровье, не в торговле уже
+        // РџСЂРѕРІРµСЂРєРё: СЂР°СЃСЃС‚РѕСЏРЅРёРµ, Р·РґРѕСЂРѕРІСЊРµ, РЅРµ РІ С‚РѕСЂРіРѕРІР»Рµ СѓР¶Рµ
         if (!playerA || !playerB || playerA.worldId !== playerB.worldId) return;
         const dx = playerA.x - playerB.x;
         const dy = playerA.y - playerB.y;
@@ -1370,17 +1329,17 @@ function setupWebSocket(
           ws.send(
             JSON.stringify({
               type: "tradeError",
-              message: "Слишком далеко или мертвы",
+              message: "РЎР»РёС€РєРѕРј РґР°Р»РµРєРѕ РёР»Рё РјРµСЂС‚РІС‹",
             })
           );
           return;
         }
 
-        // Сохраняем запрос
+        // РЎРѕС…СЂР°РЅСЏРµРј Р·Р°РїСЂРѕСЃ
         const tradeKey = `${fromId}-${toId}`;
         tradeRequests.set(tradeKey, { status: "pending" });
 
-        // Отправляем B запрос
+        // РћС‚РїСЂР°РІР»СЏРµРј B Р·Р°РїСЂРѕСЃ
         wss.clients.forEach((client) => {
           if (
             client.readyState === WebSocket.OPEN &&
@@ -1389,11 +1348,11 @@ function setupWebSocket(
             client.send(JSON.stringify({ type: "tradeRequest", fromId, toId }));
           }
         });
-        console.log(`Запрос торговли от ${fromId} к ${toId}`);
+        console.log(`Р—Р°РїСЂРѕСЃ С‚РѕСЂРіРѕРІР»Рё РѕС‚ ${fromId} Рє ${toId}`);
       } else if (data.type === "tradeAccepted") {
-        const fromId = data.fromId; // B принимает, fromId = B, toId = A (инициатор)
+        const fromId = data.fromId; // B РїСЂРёРЅРёРјР°РµС‚, fromId = B, toId = A (РёРЅРёС†РёР°С‚РѕСЂ)
         const toId = data.toId;
-        const tradeKey = `${toId}-${fromId}`; // Ключ от инициатора
+        const tradeKey = `${toId}-${fromId}`; // РљР»СЋС‡ РѕС‚ РёРЅРёС†РёР°С‚РѕСЂР°
         if (
           !tradeRequests.has(tradeKey) ||
           tradeRequests.get(tradeKey).status !== "pending"
@@ -1408,7 +1367,7 @@ function setupWebSocket(
           partnerConfirmed: false,
         });
 
-        // Уведомляем обоих о старте
+        // РЈРІРµРґРѕРјР»СЏРµРј РѕР±РѕРёС… Рѕ СЃС‚Р°СЂС‚Рµ
         wss.clients.forEach((client) => {
           if (client.readyState === WebSocket.OPEN) {
             const clientId = clients.get(client);
@@ -1419,31 +1378,33 @@ function setupWebSocket(
                   fromId: toId,
                   toId: fromId,
                 })
-              ); // fromId = инициатор для обоих
+              ); // fromId = РёРЅРёС†РёР°С‚РѕСЂ РґР»СЏ РѕР±РѕРёС…
             }
           }
         });
-        console.log(`Торговля принята между ${toId} и ${fromId}`);
+        console.log(
+          `РўРѕСЂРіРѕРІР»СЏ РїСЂРёРЅСЏС‚Р° РјРµР¶РґСѓ ${toId} Рё ${fromId}`
+        );
       } else if (data.type === "tradeOffer") {
         const fromId = clients.get(ws);
         if (!fromId) return;
         const toId = data.toId;
         const tradeKey =
-          fromId < toId ? `${fromId}-${toId}` : `${toId}-${fromId}`; // Симметричный ключ
+          fromId < toId ? `${fromId}-${toId}` : `${toId}-${fromId}`; // РЎРёРјРјРµС‚СЂРёС‡РЅС‹Р№ РєР»СЋС‡
 
         if (!tradeOffers.has(tradeKey)) return;
 
-        // Обновляем offer от fromId
+        // РћР±РЅРѕРІР»СЏРµРј offer РѕС‚ fromId
         const offers = tradeOffers.get(tradeKey);
         if (fromId === tradeKey.split("-")[0]) {
-          // A - инициатор
+          // A - РёРЅРёС†РёР°С‚РѕСЂ
           offers.myOffer = data.offer;
         } else {
           offers.partnerOffer = data.offer;
         }
         tradeOffers.set(tradeKey, offers);
 
-        // Пересылаем партнёру (динамическое обновление)
+        // РџРµСЂРµСЃС‹Р»Р°РµРј РїР°СЂС‚РЅРµСЂСѓ (РґРёРЅР°РјРёС‡РµСЃРєРѕРµ РѕР±РЅРѕРІР»РµРЅРёРµ)
         wss.clients.forEach((client) => {
           if (
             client.readyState === WebSocket.OPEN &&
@@ -1454,7 +1415,9 @@ function setupWebSocket(
             );
           }
         });
-        console.log(`Обновление оффера от ${fromId} к ${toId}`);
+        console.log(
+          `РћР±РЅРѕРІР»РµРЅРёРµ РѕС„С„РµСЂР° РѕС‚ ${fromId} Рє ${toId}`
+        );
       } else if (data.type === "tradeConfirmed") {
         const fromId = clients.get(ws);
         const toId = data.toId;
@@ -1470,12 +1433,12 @@ function setupWebSocket(
           offers.partnerConfirmed = true;
         }
 
-        // Если оба подтвердили — обмен
+        // Р•СЃР»Рё РѕР±Р° РїРѕРґС‚РІРµСЂРґРёР»Рё вЂ” РѕР±РјРµРЅ
         if (offers.myConfirmed && offers.partnerConfirmed) {
           const playerA = players.get(tradeKey.split("-")[0]);
           const playerB = players.get(tradeKey.split("-")[1]);
 
-          // Проверяем слоты (count free slots)
+          // РџСЂРѕРІРµСЂСЏРµРј СЃР»РѕС‚С‹ (count free slots)
           const freeA = playerA.inventory.filter(
             (slot) => slot === null
           ).length;
@@ -1485,7 +1448,7 @@ function setupWebSocket(
           const offerCountB = offers.partnerOffer.filter((item) => item).length;
           const offerCountA = offers.myOffer.filter((item) => item).length;
           if (freeA < offerCountB || freeB < offerCountA) {
-            // Отмена если нет места
+            // РћС‚РјРµРЅР° РµСЃР»Рё РЅРµС‚ РјРµСЃС‚Р°
             wss.clients.forEach((client) => {
               if (
                 clients.get(client) === playerA.id ||
@@ -1494,7 +1457,7 @@ function setupWebSocket(
                 client.send(
                   JSON.stringify({
                     type: "tradeCancelled",
-                    message: "Нет места в инвентаре",
+                    message: "РќРµС‚ РјРµСЃС‚Р° РІ РёРЅРІРµРЅС‚Р°СЂРµ",
                   })
                 );
               }
@@ -1503,7 +1466,7 @@ function setupWebSocket(
             return;
           }
 
-          // Обмен: A получает partnerOffer, B — myOffer
+          // РћР±РјРµРЅ: A РїРѕР»СѓС‡Р°РµС‚ partnerOffer, B вЂ” myOffer
           offers.partnerOffer.forEach((item) => {
             if (item) {
               const freeSlot = playerA.inventory.findIndex(
@@ -1527,7 +1490,7 @@ function setupWebSocket(
             }
           });
 
-          // Сохраняем
+          // РЎРѕС…СЂР°РЅСЏРµРј
           players.set(playerA.id, playerA);
           players.set(playerB.id, playerB);
           userDatabase.set(playerA.id, playerA);
@@ -1535,7 +1498,7 @@ function setupWebSocket(
           await saveUserDatabase(dbCollection, playerA.id, playerA);
           await saveUserDatabase(dbCollection, playerB.id, playerB);
 
-          // Уведомляем
+          // РЈРІРµРґРѕРјР»СЏРµРј
           wss.clients.forEach((client) => {
             const clientId = clients.get(client);
             if (clientId === playerA.id) {
@@ -1555,9 +1518,11 @@ function setupWebSocket(
             }
           });
           tradeOffers.delete(tradeKey);
-          console.log(`Торговля завершена между ${playerA.id} и ${playerB.id}`);
+          console.log(
+            `РўРѕСЂРіРѕРІР»СЏ Р·Р°РІРµСЂС€РµРЅР° РјРµР¶РґСѓ ${playerA.id} Рё ${playerB.id}`
+          );
         } else {
-          // Пересылаем подтверждение партнёру
+          // РџРµСЂРµСЃС‹Р»Р°РµРј РїРѕРґС‚РІРµСЂР¶РґРµРЅРёРµ РїР°СЂС‚РЅРµСЂСѓ
           wss.clients.forEach((client) => {
             if (clients.get(client) === toId) {
               client.send(JSON.stringify({ type: "tradeConfirmed", fromId }));
@@ -1578,7 +1543,9 @@ function setupWebSocket(
             client.send(JSON.stringify({ type: "tradeCancelled" }));
           }
         });
-        console.log(`Торговля отменена между ${fromId} и ${toId}`);
+        console.log(
+          `РўРѕСЂРіРѕРІР»СЏ РѕС‚РјРµРЅРµРЅР° РјРµР¶РґСѓ ${fromId} Рё ${toId}`
+        );
       } else if (data.type === "attackPlayer") {
         const attackerId = clients.get(ws);
         if (
@@ -1598,7 +1565,7 @@ function setupWebSocket(
             userDatabase.set(data.targetId, { ...target });
             await saveUserDatabase(dbCollection, data.targetId, target);
 
-            // Рассылаем обновление всем игрокам в том же мире
+            // Р Р°СЃСЃС‹Р»Р°РµРј РѕР±РЅРѕРІР»РµРЅРёРµ РІСЃРµРј РёРіСЂРѕРєР°Рј РІ С‚РѕРј Р¶Рµ РјРёСЂРµ
             wss.clients.forEach((client) => {
               if (client.readyState === WebSocket.OPEN) {
                 const clientPlayer = players.get(clients.get(client));
@@ -1613,7 +1580,7 @@ function setupWebSocket(
               }
             });
             console.log(
-              `Игрок ${attackerId} нанёс ${data.damage} урона игроку ${data.targetId}`
+              `РРіСЂРѕРє ${attackerId} РЅР°РЅС‘СЃ ${data.damage} СѓСЂРѕРЅР° РёРіСЂРѕРєСѓ ${data.targetId}`
             );
           }
         }
@@ -1628,7 +1595,7 @@ function setupWebSocket(
           userDatabase.set(id, { ...player });
           await saveUserDatabase(dbCollection, id, player);
           console.log(
-            `Данные игрока ${id} сохранены перед отключением. Код: ${code}, Причина: ${reason}`
+            `Р”Р°РЅРЅС‹Рµ РёРіСЂРѕРєР° ${id} СЃРѕС…СЂР°РЅРµРЅС‹ РїРµСЂРµРґ РѕС‚РєР»СЋС‡РµРЅРёРµРј. РљРѕРґ: ${code}, РџСЂРёС‡РёРЅР°: ${reason}`
           );
 
           const itemsToRemove = [];
@@ -1641,7 +1608,7 @@ function setupWebSocket(
           itemsToRemove.forEach((itemId) => {
             items.delete(itemId);
             console.log(
-              `Предмет ${itemId} удалён из-за отключения игрока ${id}`
+              `РџСЂРµРґРјРµС‚ ${itemId} СѓРґР°Р»С‘РЅ РёР·-Р·Р° РѕС‚РєР»СЋС‡РµРЅРёСЏ РёРіСЂРѕРєР° ${id}`
             );
             wss.clients.forEach((client) => {
               if (client.readyState === WebSocket.OPEN) {
@@ -1652,7 +1619,7 @@ function setupWebSocket(
         }
         clients.delete(ws);
         players.delete(id);
-        console.log("Клиент отключился:", id);
+        console.log("РљР»РёРµРЅС‚ РѕС‚РєР»СЋС‡РёР»СЃСЏ:", id);
         wss.clients.forEach((client) => {
           if (client.readyState === WebSocket.OPEN) {
             client.send(JSON.stringify({ type: "playerLeft", id }));
@@ -1663,7 +1630,7 @@ function setupWebSocket(
     });
 
     ws.on("error", (error) => {
-      console.error("Ошибка WebSocket:", error);
+      console.error("РћС€РёР±РєР° WebSocket:", error);
       clearTimeout(inactivityTimer);
     });
   });
