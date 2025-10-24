@@ -22,6 +22,10 @@ let myId;
 const items = new Map();
 const pendingPickups = new Set();
 
+let atomFrame = 0;
+let atomFrameTime = 0;
+const ATOM_FRAME_DURATION = 100;
+
 // Загрузка изображений
 const imageSources = {
   playerSprite: "playerSprite.png",
@@ -57,6 +61,7 @@ const imageSources = {
   knucklesImage: "knuckles.png",
   knifeImage: "knife.png",
   batImage: "bat.png",
+  atomImage: "atom.png",
 };
 
 const images = {};
@@ -274,6 +279,12 @@ const ITEM_CONFIG = {
     image: images.batImage,
     description: "Бита: 5-10 урона в ближнем бою",
     rarity: 3,
+  },
+  atom: {
+    effect: {},
+    image: images.atomImage,
+    description: "Атом: редкий предмет.",
+    rarity: 1,
   },
 };
 
@@ -1515,6 +1526,18 @@ function handleGameMessage(event) {
         }
         updateStatsDisplay();
         break;
+      case "newItem":
+        items.set(data.itemId, {
+          x: data.x,
+          y: data.y,
+          type: data.type,
+          spawnTime: data.spawnTime,
+          worldId: data.worldId,
+        });
+        console.log(
+          `Создан предмет ${data.type} (${data.itemId}) в мире ${data.worldId} на x:${data.x}, y:${data.y}`
+        );
+        break;
       case "itemNotFound":
         items.delete(data.itemId);
         pendingPickups.delete(data.itemId);
@@ -1648,20 +1671,38 @@ function update(deltaTime) {
     const screenX = item.x - window.movementSystem.getCamera().x;
     const screenY = item.y - window.movementSystem.getCamera().y;
     if (
-      screenX >= -40 &&
-      screenX <= canvas.width + 40 &&
-      screenY >= -40 &&
-      screenY <= canvas.height + 40
+      screenX >= -20 &&
+      screenX <= canvas.width + 20 &&
+      screenY >= -20 &&
+      screenY <= canvas.height + 20
     ) {
       const itemImage = ITEM_CONFIG[item.type]?.image;
       if (itemImage && itemImage.complete) {
-        ctx.drawImage(itemImage, screenX, screenY, 40, 40);
+        if (item.type === "atom") {
+          // Анимация для Атома
+          atomFrameTime += deltaTime;
+          if (atomFrameTime >= ATOM_FRAME_DURATION) {
+            atomFrameTime -= ATOM_FRAME_DURATION;
+            atomFrame = (atomFrame + 1) % 40; // 40 кадров
+          }
+          ctx.drawImage(
+            itemImage,
+            atomFrame * 50, // Сдвиг по X (кадры горизонтально)
+            0,
+            50, // Ширина кадра
+            50, // Высота
+            screenX + 5, // Сдвиг для центрирования (размер 40x40)
+            screenY + 5,
+            40, // Размер отрисовки (чуть меньше для стиля)
+            40
+          );
+        } else {
+          // Обычные предметы (существующий код)
+          ctx.drawImage(itemImage, screenX + 10, screenY + 10, 20, 20);
+        }
       } else {
-        console.warn(
-          `Изображение для ${item.type} не загружено, рисую заглушку`
-        );
         ctx.fillStyle = "yellow";
-        ctx.fillRect(screenX, screenY, 10, 10);
+        ctx.fillRect(screenX + 7.5, screenY + 7.5, 5, 5);
       }
     }
   });
