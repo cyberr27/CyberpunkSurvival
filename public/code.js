@@ -630,9 +630,12 @@ function handleAuthMessage(event) {
         spawnTime: data.spawnTime,
         worldId: data.worldId,
       };
-      if (newItem.type === "atom") {
-        newItem.frame = 0; // Начальный кадр
-        newItem.frameTime = 0; // Таймер для анимации
+      if (data.type === "atom") {
+        newItem.frame = 0; // Инициализируем для анимации
+        newItem.frameTime = 0;
+        console.log(
+          `Атом ${data.itemId} добавлен с анимацией: frame=${newItem.frame}, frameTime=${newItem.frameTime}`
+        );
       }
       items.set(data.itemId, newItem);
       break;
@@ -1661,30 +1664,97 @@ function update(deltaTime) {
   // Проверяем зоны перехода
   window.worldSystem.checkTransitionZones(me.x, me.y);
 
-  // Удаление предметов по таймауту и отрисовка только для текущего мира
+  // Отрисовка предметов
   const currentTime = Date.now();
   const currentWorldId = window.worldSystem.currentWorldId;
+  console.log(`Обрабатываем ${items.size} предметов в мире ${currentWorldId}`);
+
   items.forEach((item, itemId) => {
-    if (item.worldId !== currentWorldId) return; // Пропускаем предметы из других миров
-    const camera = window.movementSystem.getCamera();
+    // Проверяем, в правильном ли мире предмет
+    if (item.worldId !== currentWorldId) {
+      console.log(
+        `Предмет ${itemId} (${item.type}) в другом мире (${item.worldId}), пропускаем`
+      );
+      return;
+    }
+
+    // Проверяем, существует ли предмет
+    if (!items.has(itemId)) {
+      console.log(`Предмет ${itemId} уже удалён, пропускаем`);
+      return;
+    }
+
+    // Вычисляем экранные координаты
     const screenX = item.x - window.movementSystem.getCamera().x;
     const screenY = item.y - window.movementSystem.getCamera().y;
+    console.log(
+      `Предмет ${itemId} (${item.type}) на позиции worldX: ${item.x}, worldY: ${item.y}, screenX: ${screenX}, screenY: ${screenY}`
+    );
+
+    // Проверяем, находится ли предмет в видимой области
     if (
       screenX >= -40 &&
       screenX <= canvas.width + 40 &&
       screenY >= -40 &&
       screenY <= canvas.height + 40
     ) {
-      const itemImage = ITEM_CONFIG[item.type]?.image;
-      if (itemImage && itemImage.complete) {
-        ctx.drawImage(itemImage, screenX, screenY, 40, 40);
-      } else {
-        console.warn(
-          `Изображение для ${item.type} не загружено, рисую заглушку`
-        );
-        ctx.fillStyle = "yellow";
-        ctx.fillRect(screenX, screenY, 10, 10);
+      // Проверяем наличие конфигурации
+      if (!ITEM_CONFIG[item.type]) {
+        console.warn(`ITEM_CONFIG для ${item.type} не найден`);
+        return;
       }
+
+      // Проверяем наличие и загруженность изображения
+      if (
+        !ITEM_CONFIG[item.type].image ||
+        !ITEM_CONFIG[item.type].image.complete
+      ) {
+        console.warn(
+          `Изображение для ${item.type} не загружено или отсутствует`
+        );
+        ctx.fillStyle = "yellow"; // Заглушка
+        ctx.fillRect(screenX, screenY, 20, 20);
+        console.log(
+          `Отрисована заглушка для ${item.type} на ${screenX}, ${screenY}`
+        );
+        return;
+      }
+
+      // Специальная обработка для атома
+      if (item.type === "atom") {
+        if (item.frameTime === undefined) item.frameTime = 0;
+        if (item.frame === undefined) item.frame = 0;
+        item.frameTime += deltaTime;
+        const frameDuration = 300; // Скорость анимации
+        if (item.frameTime >= frameDuration) {
+          item.frameTime -= frameDuration;
+          item.frame = (item.frame + 1) % 40; // 40 кадров
+        }
+        ctx.drawImage(
+          ITEM_CONFIG[item.type].image,
+          item.frame * 50,
+          0,
+          50,
+          50,
+          screenX,
+          screenY,
+          50,
+          50
+        );
+        console.log(
+          `Отрисован атом ${itemId}, frame: ${item.frame}, x: ${screenX}, y: ${screenY}`
+        );
+      } else {
+        // Отрисовка остальных предметов
+        ctx.drawImage(ITEM_CONFIG[item.type].image, screenX, screenY, 20, 20);
+        console.log(
+          `Отрисован предмет ${item.type} (${itemId}), x: ${screenX}, y: ${screenY}`
+        );
+      }
+    } else {
+      console.log(
+        `Предмет ${itemId} (${item.type}) вне видимой области, x: ${screenX}, y: ${screenY}`
+      );
     }
   });
 }
@@ -1706,7 +1776,7 @@ function draw(deltaTime) {
   const rocksOffsetX = window.movementSystem.getCamera().x * rocksSpeed;
   const cloudsOffsetX = window.movementSystem.getCamera().x * cloudsSpeed;
 
-  // Рисуем фон с учётом смещения камеры
+  // Рисуем фон
   if (currentWorld.backgroundImage.complete) {
     ctx.fillStyle = ctx.createPattern(currentWorld.backgroundImage, "repeat");
     ctx.save();
@@ -1732,6 +1802,87 @@ function draw(deltaTime) {
 
   window.lightsSystem.draw(deltaTime);
 
+  // Отрисовка предметов (перенесено из update)
+  const currentTime = Date.now();
+  items.forEach((item, itemId) => {
+    if (item.worldId !== currentWorldId) {
+      console.log(
+        `Предмет ${itemId} (${item.type}) в другом мире (${item.worldId}), пропускаем`
+      );
+      return;
+    }
+    if (!items.has(itemId)) {
+      console.log(`Предмет ${itemId} уже удалён, пропускаем`);
+      return;
+    }
+    const screenX = item.x - window.movementSystem.getCamera().x;
+    const screenY = item.y - window.movementSystem.getCamera().y;
+    console.log(
+      `Предмет ${itemId} (${item.type}) на позиции worldX: ${item.x}, worldY: ${item.y}, screenX: ${screenX}, screenY: ${screenY}`
+    );
+
+    if (
+      screenX >= -40 &&
+      screenX <= canvas.width + 40 &&
+      screenY >= -40 &&
+      screenY <= canvas.height + 40
+    ) {
+      if (!ITEM_CONFIG[item.type]) {
+        console.warn(`ITEM_CONFIG для ${item.type} не найден`);
+        return;
+      }
+      if (
+        !ITEM_CONFIG[item.type].image ||
+        !ITEM_CONFIG[item.type].image.complete
+      ) {
+        console.warn(
+          `Изображение для ${item.type} не загружено или отсутствует`
+        );
+        ctx.fillStyle = "yellow"; // Заглушка
+        ctx.fillRect(screenX, screenY, 20, 20);
+        console.log(
+          `Отрисована заглушка для ${item.type} на ${screenX}, ${screenY}`
+        );
+        return;
+      }
+
+      if (item.type === "atom") {
+        if (item.frameTime === undefined) item.frameTime = 0;
+        if (item.frame === undefined) item.frame = 0;
+        item.frameTime += deltaTime;
+        const frameDuration = 300; // Скорость анимации
+        if (item.frameTime >= frameDuration) {
+          item.frameTime -= frameDuration;
+          item.frame = (item.frame + 1) % 40; // 40 кадров
+        }
+        ctx.drawImage(
+          ITEM_CONFIG[item.type].image,
+          item.frame * 50,
+          0,
+          50,
+          50,
+          screenX,
+          screenY,
+          50,
+          50
+        );
+        console.log(
+          `Отрисован атом ${itemId}, frame: ${item.frame}, x: ${screenX}, y: ${screenY}`
+        );
+      } else {
+        ctx.drawImage(ITEM_CONFIG[item.type].image, screenX, screenY, 20, 20);
+        console.log(
+          `Отрисован предмет ${item.type} (${itemId}), x: ${screenX}, y: ${screenY}`
+        );
+      }
+    } else {
+      console.log(
+        `Предмет ${itemId} (${item.type}) вне видимой области, x: ${screenX}, y: ${screenY}`
+      );
+    }
+  });
+
+  // Остальные слои
   if (currentWorld.rocksImage.complete) {
     ctx.drawImage(
       currentWorld.rocksImage,
@@ -1751,6 +1902,7 @@ function draw(deltaTime) {
   window.wolfSystem.draw(ctx, window.movementSystem.getCamera());
   window.combatSystem.draw();
 
+  // Отрисовка игроков
   players.forEach((player, id) => {
     if (
       !player ||
@@ -1758,7 +1910,7 @@ function draw(deltaTime) {
       !player.hasOwnProperty("worldId")
     ) {
       console.warn(`Некорректные данные игрока ${id} в players:`, player);
-      players.delete(id); // Удаляем некорректную запись
+      players.delete(id);
       updateOnlineCount();
       console.log(
         `Удалён игрок ${id} из players, текущие игроки:`,
@@ -1766,7 +1918,7 @@ function draw(deltaTime) {
       );
       return;
     }
-    if (player.worldId !== currentWorldId) return; // Пропускаем игроков из других миров
+    if (player.worldId !== currentWorldId) return;
     const screenX = player.x - window.movementSystem.getCamera().x;
     const screenY = player.y - window.movementSystem.getCamera().y;
 
@@ -1795,7 +1947,6 @@ function draw(deltaTime) {
         ? 160
         : { up: 0, down: 40, left: 80, right: 120 }[player.direction] || 40;
 
-    // Исправленный код отрисовки
     if (images.playerSprite && images.playerSprite.complete) {
       ctx.drawImage(
         images.playerSprite,
@@ -1809,7 +1960,6 @@ function draw(deltaTime) {
         40
       );
     } else {
-      // Заглушка, если изображение не загружено
       ctx.fillStyle = "blue";
       ctx.fillRect(screenX, screenY, 40, 40);
     }
@@ -1822,61 +1972,6 @@ function draw(deltaTime) {
     ctx.fillRect(screenX, screenY - 15, 40, 5);
     ctx.fillStyle = "green";
     ctx.fillRect(screenX, screenY - 15, (player.health / 100) * 40, 5);
-  });
-
-  items.forEach((item, itemId) => {
-    if (item.worldId !== currentWorldId) return; // Пропускаем предметы из других миров
-    if (!items.has(itemId)) {
-      console.log(
-        `Предмет ${itemId} пропущен при отрисовке, так как уже удалён`
-      );
-      return;
-    }
-    const screenX = item.x - window.movementSystem.getCamera().x;
-    const screenY = item.y - window.movementSystem.getCamera().y;
-    if (
-      screenX >= -20 &&
-      screenX <= canvas.width + 20 &&
-      screenY >= -20 &&
-      screenY <= canvas.height + 20
-    ) {
-      if (item.type === "atom") {
-        item.frameTime += deltaTime; // deltaTime из gameLoop
-        const frameDuration = 100; // Скорость анимации (100ms на кадр, подстрой под нужное)
-        if (item.frameTime >= frameDuration) {
-          item.frameTime -= frameDuration;
-          item.frame = (item.frame + 1) % 40; // 40 кадров
-        }
-
-        // Рисуем анимированный спрайт (scale до 20x20, как другие предметы)
-        if (images.atomImage && images.atomImage.complete) {
-          ctx.drawImage(
-            images.atomImage,
-            item.frame * 50, // X-offset: кадр * 50px
-            0, // Y-offset: 0 (одна строка)
-            50,
-            50, // Исходный размер кадра
-            screenX + 10,
-            screenY + 10, // Позиция
-            20,
-            20 // Масштаб до 20x20, как другие итемы
-          );
-        } else {
-          // Заглушка
-          ctx.fillStyle = "purple"; // Или другой цвет для атома
-          ctx.fillRect(screenX + 7.5, screenY + 7.5, 5, 5);
-        }
-      } else {
-        // Обычный draw для других итемов (твой старый код)
-        const itemImage = ITEM_CONFIG[item.type]?.image;
-        if (itemImage && itemImage.complete) {
-          ctx.drawImage(itemImage, screenX + 10, screenY + 10, 20, 20);
-        } else {
-          ctx.fillStyle = "yellow";
-          ctx.fillRect(screenX + 7.5, screenY + 7.5, 5, 5);
-        }
-      }
-    }
   });
 
   if (currentWorld.vegetationImage.complete) {
@@ -1907,7 +2002,6 @@ function draw(deltaTime) {
     );
   }
 
-  // Отрисовка зон перехода
   window.worldSystem.drawTransitionZones();
 }
 
