@@ -636,6 +636,64 @@ function setupWebSocket(
         userDatabase.set(id, { ...player });
         await saveUserDatabase(dbCollection, id, player);
 
+        if (item.type === "atom") {
+          // Спавним новый Атом в том же мире
+          const atomId = `atom_${Date.now()}`;
+          let x,
+            y,
+            attempts = 0;
+          const maxAttempts = 10;
+          do {
+            x = Math.random() * world.width; // world — из worlds.find((w) => w.id === item.worldId);
+            const world = worlds.find((w) => w.id === item.worldId);
+            if (!world) return; // Если мир не найден
+            x = Math.random() * world.width;
+            y = Math.random() * world.height;
+            attempts++;
+          } while (checkCollisionServer(x, y) && attempts < maxAttempts);
+
+          if (attempts < maxAttempts) {
+            const newAtom = {
+              x,
+              y,
+              type: "atom",
+              spawnTime: Date.now(),
+              worldId: item.worldId,
+            };
+            items.set(atomId, newAtom);
+            console.log(
+              `Создан новый Атом (${atomId}) после pickup в мире ${
+                item.worldId
+              } на x:${newAtom.x}, y:${
+                newAtom.y
+              } (время: ${new Date().toISOString()})`
+            );
+
+            wss.clients.forEach((client) => {
+              if (
+                client.readyState === WebSocket.OPEN &&
+                players.get(clients.get(client))?.worldId === item.worldId
+              ) {
+                client.send(
+                  JSON.stringify({
+                    type: "newItem",
+                    itemId: atomId,
+                    x: newAtom.x,
+                    y: newAtom.y,
+                    type: newAtom.type,
+                    spawnTime: newAtom.spawnTime,
+                    worldId: item.worldId,
+                  })
+                );
+              }
+            });
+          } else {
+            console.log(
+              `Не удалось найти место для нового Атома в мире ${item.worldId}`
+            );
+          }
+        }
+
         wss.clients.forEach((client) => {
           if (client.readyState === WebSocket.OPEN) {
             const clientPlayer = players.get(clients.get(client));
