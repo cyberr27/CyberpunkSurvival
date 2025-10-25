@@ -52,7 +52,7 @@ const ITEM_CONFIG = {
   },
   atom: {
     effect: {},
-    rarity: 3,
+    rarity: 1,
     stackable: true,
   },
 };

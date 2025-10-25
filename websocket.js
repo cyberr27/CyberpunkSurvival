@@ -581,21 +581,23 @@ function setupWebSocket(
         const player = players.get(id);
         if (!player.inventory) player.inventory = Array(20).fill(null);
 
-        if (item.type === "balyary") {
+        // НОВОЕ: Расширили условие на atom, чтобы он тоже стекался как balyary
+        if (item.type === "balyary" || item.type === "atom") {
           const quantityToAdd = item.quantity || 1;
-          const balyarySlot = player.inventory.findIndex(
-            (slot) => slot && slot.type === "balyary"
+          // ИЗМЕНЕНО: Ищем слот с соответствующим типом (balyary или atom)
+          const stackSlot = player.inventory.findIndex(
+            (slot) => slot && slot.type === item.type // Теперь проверяем item.type, чтобы работало для atom
           );
-          if (balyarySlot !== -1) {
-            player.inventory[balyarySlot].quantity =
-              (player.inventory[balyarySlot].quantity || 1) + quantityToAdd;
+          if (stackSlot !== -1) {
+            player.inventory[stackSlot].quantity =
+              (player.inventory[stackSlot].quantity || 1) + quantityToAdd;
           } else {
             const freeSlot = player.inventory.findIndex(
               (slot) => slot === null
             );
             if (freeSlot !== -1) {
               player.inventory[freeSlot] = {
-                type: "balyary",
+                type: item.type, // Используем item.type, чтобы было "atom" или "balyary"
                 quantity: quantityToAdd,
                 itemId: data.itemId,
               };
