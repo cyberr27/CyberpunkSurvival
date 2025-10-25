@@ -1353,7 +1353,6 @@ function updateInventoryDisplay() {
     if (inventory[i]) {
       const item = inventory[i];
       if (item.type === "atom") {
-        // НОВОЕ: Изменили условие на "atom" (было отдельно, но интегрировали)
         // Создаем canvas для атома
         const canvas = document.createElement("canvas");
         canvas.width = 40; // Размер ячейки инвентаря
@@ -1386,7 +1385,7 @@ function updateInventoryDisplay() {
           40
         );
 
-        // НОВОЕ: Добавили отображение количества для atom, если >1 (аналогично balyary)
+        // Отображение количества для atom, если >1
         if (item.quantity > 1) {
           const quantityEl = document.createElement("div");
           quantityEl.textContent = item.quantity;
@@ -1398,17 +1397,27 @@ function updateInventoryDisplay() {
           quantityEl.style.textShadow = "0 0 5px rgba(0, 255, 255, 0.7)";
           slot.appendChild(quantityEl);
         }
-      } else if (item.type === "balyary" && item.quantity > 1) {
-        // ИЗМЕНЕНО: Перенесли это условие сюда, чтобы оно было отдельно от atom, но в цикле
-        const quantityEl = document.createElement("div");
-        quantityEl.textContent = item.quantity;
-        quantityEl.style.position = "absolute";
-        quantityEl.style.top = "0";
-        quantityEl.style.right = "0";
-        quantityEl.style.color = "#00ffff";
-        quantityEl.style.fontSize = "14px";
-        quantityEl.style.textShadow = "0 0 5px rgba(0, 255, 255, 0.7)";
-        slot.appendChild(quantityEl);
+      } else if (item.type === "balyary") {
+        // Для "balyary" добавляем изображение независимо от количества
+        const img = document.createElement("img");
+        img.src = ITEM_CONFIG[item.type].image.src;
+        img.style.width = "100%";
+        img.style.height = "100%";
+        slot.appendChild(img);
+        img.style.pointerEvents = "none";
+
+        // Отображение количества для balyary, если >1
+        if (item.quantity > 1) {
+          const quantityEl = document.createElement("div");
+          quantityEl.textContent = item.quantity;
+          quantityEl.style.position = "absolute";
+          quantityEl.style.top = "0";
+          quantityEl.style.right = "0";
+          quantityEl.style.color = "#00ffff";
+          quantityEl.style.fontSize = "14px";
+          quantityEl.style.textShadow = "0 0 5px rgba(0, 255, 255, 0.7)";
+          slot.appendChild(quantityEl);
+        }
       } else {
         // Статическое изображение для остальных предметов
         const img = document.createElement("img");
