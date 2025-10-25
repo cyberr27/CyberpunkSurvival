@@ -72,19 +72,19 @@ const tradeSystem = {
     tradeWindow.className = "trade-window";
     tradeWindow.style.display = "none";
     tradeWindow.innerHTML = `
-        <div class="trade-panel">
-          <h3 class="cyber-text">Ваш инвентарь</h3>
-          <div id="myTradeGrid" class="trade-grid"></div>
-          <h3 class="cyber-text">Ваше предложение</h3>
-          <div id="myOfferGrid" class="trade-offer-grid"></div>
-          <h3 class="cyber-text">Предложение партнёра</h3>
-          <div id="partnerOfferGrid" class="trade-offer-grid"></div>
-          <div class="trade-buttons">
-            <button id="confirmTradeBtn" class="action-btn use-btn" disabled>Подтвердить</button>
-            <button id="cancelTradeWindowBtn" class="action-btn drop-btn">Отмена</button>
-          </div>
+      <div class="trade-panel">
+        <h3 class="cyber-text">Ваш инвентарь</h3>
+        <div id="myTradeGrid" class="trade-grid"></div>
+        <h3 class="cyber-text">Ваше предложение</h3>
+        <div id="myOfferGrid" class="trade-offer-grid"></div>
+        <h3 class="cyber-text">Предложение партнёра</h3>
+        <div id="partnerOfferGrid" class="trade-offer-grid"></div>
+        <div class="trade-buttons">
+          <button id="confirmTradeBtn" class="action-btn use-btn" disabled>Подтвердить</button>
+          <button id="cancelTradeWindowBtn" class="action-btn drop-btn">Отмена</button>
         </div>
-      `;
+      </div>
+    `;
     document.getElementById("gameContainer").appendChild(tradeWindow);
 
     // Создаём слоты для myTradeGrid (20 слотов инвентаря)
@@ -111,6 +111,19 @@ const tradeSystem = {
       document.getElementById("partnerOfferGrid").appendChild(slot);
     }
 
+    // Хранилище для анимации атомов
+    this.atomAnimations = {
+      myTradeGrid: Array(20)
+        .fill(null)
+        .map(() => ({ frame: 0, frameTime: 0 })),
+      myOfferGrid: Array(4)
+        .fill(null)
+        .map(() => ({ frame: 0, frameTime: 0 })),
+      partnerOfferGrid: Array(4)
+        .fill(null)
+        .map(() => ({ frame: 0, frameTime: 0 })),
+    };
+
     document.getElementById("myTradeGrid").addEventListener("click", (e) => {
       const slot = e.target.closest(".trade-slot");
       if (slot && slot.dataset.slotIndex) {
@@ -134,6 +147,9 @@ const tradeSystem = {
       .addEventListener("click", () => {
         this.handleCancelTrade();
       });
+
+    // Запускаем анимацию для атомов в окне торговли
+    this.startAtomAnimation();
   },
 
   canInitiateTrade() {
@@ -211,12 +227,26 @@ const tradeSystem = {
     document.getElementById("tradeWindow").style.display = "flex";
     document.getElementById("tradeBtn").classList.add("active");
     this.updateTradeWindow();
+    this.startAtomAnimation(); // Запускаем анимацию при открытии окна
   },
 
   closeTradeWindow() {
     this.isTradeWindowOpen = false;
     document.getElementById("tradeWindow").style.display = "none";
     document.getElementById("tradeBtn").classList.remove("active");
+    // Сбрасываем состояния анимации
+    this.atomAnimations.myTradeGrid.forEach((anim) => {
+      anim.frame = 0;
+      anim.frameTime = 0;
+    });
+    this.atomAnimations.myOfferGrid.forEach((anim) => {
+      anim.frame = 0;
+      anim.frameTime = 0;
+    });
+    this.atomAnimations.partnerOfferGrid.forEach((anim) => {
+      anim.frame = 0;
+      anim.frameTime = 0;
+    });
   },
 
   addToOffer(slotIndex) {
@@ -338,13 +368,28 @@ const tradeSystem = {
       .filter(Boolean)
       .map((item) => item.originalSlot);
 
+    // Обновляем myTradeGrid (инвентарь)
     for (let i = 0; i < myTradeGrid.length; i++) {
       myTradeGrid[i].innerHTML = "";
-      if (inventory[i]) {
+      if (inventory[i] && inventory[i].type) {
         const img = document.createElement("img");
-        img.src = ITEM_CONFIG[inventory[i].type].image.src;
-        img.style.width = "100%";
-        img.style.height = "100%";
+        if (inventory[i].type === "atom") {
+          // Для атома используем sprite sheet
+          img.src = ITEM_CONFIG[inventory[i].type].image.src;
+          img.style.width = "100%";
+          img.style.height = "100%";
+          img.style.objectFit = "none"; // Отключаем масштабирование
+          img.style.objectPosition = `-${
+            this.atomAnimations.myTradeGrid[i].frame * 50
+          }px 0`; // Смещение для текущего кадра
+          img.dataset.isAtom = "true"; // Метка для анимации
+          img.dataset.slotIndex = i;
+          img.dataset.grid = "myTradeGrid";
+        } else {
+          img.src = ITEM_CONFIG[inventory[i].type].image.src;
+          img.style.width = "100%";
+          img.style.height = "100%";
+        }
         if (offeredSlots.includes(i)) {
           img.style.opacity = "0.3"; // Визуально скрываем/делаем неактивным
         }
@@ -352,29 +397,150 @@ const tradeSystem = {
       }
     }
 
+    // Обновляем myOfferGrid (ваше предложение)
     for (let i = 0; i < 4; i++) {
       myOfferGrid[i].innerHTML = "";
-      if (this.myOffer[i]) {
+      if (this.myOffer[i] && this.myOffer[i].type) {
         const img = document.createElement("img");
-        img.src = ITEM_CONFIG[this.myOffer[i].type].image.src;
-        img.style.width = "100%";
-        img.style.height = "100%";
+        if (this.myOffer[i].type === "atom") {
+          img.src = ITEM_CONFIG[this.myOffer[i].type].image.src;
+          img.style.width = "100%";
+          img.style.height = "100%";
+          img.style.objectFit = "none";
+          img.style.objectPosition = `-${
+            this.atomAnimations.myOfferGrid[i].frame * 50
+          }px 0`;
+          img.dataset.isAtom = "true";
+          img.dataset.slotIndex = i;
+          img.dataset.grid = "myOfferGrid";
+        } else {
+          img.src = ITEM_CONFIG[this.myOffer[i].type].image.src;
+          img.style.width = "100%";
+          img.style.height = "100%";
+        }
         myOfferGrid[i].appendChild(img);
       }
     }
 
+    // Обновляем partnerOfferGrid (предложение партнёра)
     for (let i = 0; i < 4; i++) {
       partnerOfferGrid[i].innerHTML = "";
-      if (this.partnerOffer[i]) {
+      if (this.partnerOffer[i] && this.partnerOffer[i].type) {
         const img = document.createElement("img");
-        img.src = ITEM_CONFIG[this.partnerOffer[i].type].image.src;
-        img.style.width = "100%";
-        img.style.height = "100%";
+        if (this.partnerOffer[i].type === "atom") {
+          img.src = ITEM_CONFIG[this.partnerOffer[i].type].image.src;
+          img.style.width = "100%";
+          img.style.height = "100%";
+          img.style.objectFit = "none";
+          img.style.objectPosition = `-${
+            this.atomAnimations.partnerOfferGrid[i].frame * 50
+          }px 0`;
+          img.dataset.isAtom = "true";
+          img.dataset.slotIndex = i;
+          img.dataset.grid = "partnerOfferGrid";
+        } else {
+          img.src = ITEM_CONFIG[this.partnerOffer[i].type].image.src;
+          img.style.width = "100%";
+          img.style.height = "100%";
+        }
         partnerOfferGrid[i].appendChild(img);
       }
     }
 
     document.getElementById("confirmTradeBtn").disabled = this.myConfirmed;
+  },
+
+  startAtomAnimation() {
+    const animate = (timestamp) => {
+      if (!this.isTradeWindowOpen) return; // Останавливаем анимацию, если окно закрыто
+
+      const deltaTime = timestamp - (this.lastAnimationTime || timestamp);
+      this.lastAnimationTime = timestamp;
+
+      // Обновляем анимацию для myTradeGrid
+      for (let i = 0; i < 20; i++) {
+        if (inventory[i] && inventory[i].type === "atom") {
+          this.atomAnimations.myTradeGrid[i].frameTime += deltaTime;
+          const frameDuration = 300; // Скорость анимации, как в code.js
+          if (this.atomAnimations.myTradeGrid[i].frameTime >= frameDuration) {
+            this.atomAnimations.myTradeGrid[i].frameTime -= frameDuration;
+            this.atomAnimations.myTradeGrid[i].frame =
+              (this.atomAnimations.myTradeGrid[i].frame + 1) % 40; // 40 кадров
+            const img = document.querySelector(
+              `#myTradeGrid .trade-slot[data-slot-index="${i}"] img[data-is-atom="true"]`
+            );
+            if (img) {
+              img.style.objectPosition = `-${
+                this.atomAnimations.myTradeGrid[i].frame * 50
+              }px 0`;
+            }
+          }
+        } else {
+          this.atomAnimations.myTradeGrid[i].frame = 0;
+          this.atomAnimations.myTradeGrid[i].frameTime = 0;
+        }
+      }
+
+      // Обновляем анимацию для myOfferGrid
+      for (let i = 0; i < 4; i++) {
+        if (this.myOffer[i] && this.myOffer[i].type === "atom") {
+          this.atomAnimations.myOfferGrid[i].frameTime += deltaTime;
+          const frameDuration = 300;
+          if (this.atomAnimations.myOfferGrid[i].frameTime >= frameDuration) {
+            this.atomAnimations.myOfferGrid[i].frameTime -= frameDuration;
+            this.atomAnimations.myOfferGrid[i].frame =
+              (this.atomAnimations.myOfferGrid[i].frame + 1) % 40;
+            const img = document.querySelector(
+              `#myOfferGrid .offer-slot[data-slot-index="${i}"] img[data-is-atom="true"]`
+            );
+            if (img) {
+              img.style.objectPosition = `-${
+                this.atomAnimations.myOfferGrid[i].frame * 50
+              }px 0`;
+            }
+          }
+        } else {
+          this.atomAnimations.myOfferGrid[i].frame = 0;
+          this.atomAnimations.myOfferGrid[i].frameTime = 0;
+        }
+      }
+
+      // Обновляем анимацию для partnerOfferGrid
+      for (let i = 0; i < 4; i++) {
+        if (this.partnerOffer[i] && this.partnerOffer[i].type === "atom") {
+          this.atomAnimations.partnerOfferGrid[i].frameTime += deltaTime;
+          const frameDuration = 300;
+          if (
+            this.atomAnimations.partnerOfferGrid[i].frameTime >= frameDuration
+          ) {
+            this.atomAnimations.partnerOfferGrid[i].frameTime -= frameDuration;
+            this.atomAnimations.partnerOfferGrid[i].frame =
+              (this.atomAnimations.partnerOfferGrid[i].frame + 1) % 40;
+            const img = document.querySelector(
+              `#partnerOfferGrid .offer-slot[data-slot-index="${i}"] img[data-is-atom="true"]`
+            );
+            if (img) {
+              img.style.objectPosition = `-${
+                this.atomAnimations.partnerOfferGrid[i].frame * 50
+              }px 0`;
+            }
+          }
+        } else {
+          this.atomAnimations.partnerOfferGrid[i].frame = 0;
+          this.atomAnimations.partnerOfferGrid[i].frameTime = 0;
+        }
+      }
+
+      if (this.isTradeWindowOpen) {
+        requestAnimationFrame(animate);
+      }
+    };
+
+    // Запускаем анимацию, только если окно торговли открыто
+    if (this.isTradeWindowOpen) {
+      this.lastAnimationTime = 0;
+      requestAnimationFrame(animate);
+    }
   },
 
   handleTradeMessage(data) {

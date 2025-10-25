@@ -1263,6 +1263,64 @@ function updateStatsDisplay() {
   levelSystem.updateUpgradeButtons();
 }
 
+function startAtomAnimation(atomAnimations) {
+  let lastTime = null;
+
+  function animate(timestamp) {
+    if (!lastTime) lastTime = timestamp;
+    const deltaTime = timestamp - lastTime;
+    lastTime = timestamp;
+
+    atomAnimations.forEach((atom) => {
+      // Проверяем, что слот всё ещё содержит атом
+      if (
+        inventory[atom.slotIndex] &&
+        inventory[atom.slotIndex].type === "atom"
+      ) {
+        atom.frameTime += deltaTime;
+        const frameDuration = 300; // Скорость анимации (как на игровом поле)
+        if (atom.frameTime >= frameDuration) {
+          atom.frameTime -= frameDuration;
+          atom.frame = (atom.frame + 1) % 40; // 40 кадров в спрайт-листе
+        }
+
+        // Очищаем canvas и рендерим текущий кадр
+        atom.ctx.clearRect(0, 0, atom.canvas.width, atom.canvas.height);
+        atom.ctx.drawImage(
+          ITEM_CONFIG["atom"].image,
+          atom.frame * 50,
+          0,
+          50,
+          50,
+          0,
+          0,
+          40,
+          40
+        );
+      } else {
+        // Если атома больше нет в слоте, очищаем canvas
+        atom.ctx.clearRect(0, 0, atom.canvas.width, atom.canvas.height);
+      }
+    });
+
+    // Продолжаем анимацию, если есть активные атомы
+    if (
+      atomAnimations.length > 0 &&
+      atomAnimations.some(
+        (atom) =>
+          inventory[atom.slotIndex] && inventory[atom.slotIndex].type === "atom"
+      )
+    ) {
+      requestAnimationFrame(animate);
+    }
+  }
+
+  // Запускаем анимацию, если есть атомы
+  if (atomAnimations.length > 0) {
+    requestAnimationFrame(animate);
+  }
+}
+
 function updateInventoryDisplay() {
   const inventoryGrid = document.getElementById("inventoryGrid");
   const slots = inventoryGrid.children;
@@ -1286,19 +1344,59 @@ function updateInventoryDisplay() {
     screen.textContent = ITEM_CONFIG[inventory[selectedSlot].type].description;
   }
 
+  // Хранилище для анимации атомов
+  const atomAnimations = [];
+
   for (let i = 0; i < slots.length; i++) {
     const slot = slots[i];
     slot.innerHTML = "";
     if (inventory[i]) {
-      const img = document.createElement("img");
-      img.src = ITEM_CONFIG[inventory[i].type].image.src;
-      img.style.width = "100%";
-      img.style.height = "100%";
-      slot.appendChild(img);
+      const item = inventory[i];
+      if (item.type === "atom") {
+        // Создаем canvas для атома
+        const canvas = document.createElement("canvas");
+        canvas.width = 40; // Размер ячейки инвентаря
+        canvas.height = 40;
+        canvas.style.width = "100%";
+        canvas.style.height = "100%";
+        const ctx = canvas.getContext("2d");
+        slot.appendChild(canvas);
 
-      if (inventory[i].type === "balyary" && inventory[i].quantity > 1) {
+        // Инициализация анимации для атома
+        const atomState = {
+          slotIndex: i,
+          canvas: canvas,
+          ctx: ctx,
+          frame: 0,
+          frameTime: 0,
+        };
+        atomAnimations.push(atomState);
+
+        // Начальный рендеринг
+        ctx.drawImage(
+          ITEM_CONFIG[item.type].image,
+          atomState.frame * 50,
+          0,
+          50,
+          50,
+          0,
+          0,
+          40,
+          40
+        );
+      } else {
+        // Статическое изображение для остальных предметов
+        const img = document.createElement("img");
+        img.src = ITEM_CONFIG[item.type].image.src;
+        img.style.width = "100%";
+        img.style.height = "100%";
+        slot.appendChild(img);
+        img.style.pointerEvents = "none";
+      }
+
+      if (item.type === "balyary" && item.quantity > 1) {
         const quantityEl = document.createElement("div");
-        quantityEl.textContent = inventory[i].quantity;
+        quantityEl.textContent = item.quantity;
         quantityEl.style.position = "absolute";
         quantityEl.style.top = "0";
         quantityEl.style.right = "0";
@@ -1342,14 +1440,15 @@ function updateInventoryDisplay() {
         console.log(`Клик по слоту ${i}, предмет: ${inventory[i].type}`);
         selectSlot(i, slot);
       };
-
-      img.style.pointerEvents = "none";
     } else {
       slot.onmouseover = null;
       slot.onmouseout = null;
       slot.onclick = null;
     }
   }
+
+  // Запускаем анимацию для атомов
+  startAtomAnimation(atomAnimations);
 }
 
 function handleGameMessage(event) {
