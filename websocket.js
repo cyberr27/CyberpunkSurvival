@@ -811,11 +811,11 @@ function setupWebSocket(
           const item = player.inventory[slotIndex];
           if (item) {
             let quantityToDrop = data.quantity || 1;
-            if (item.type === "balyary") {
+            if (ITEM_CONFIG[item.type]?.stackable) {
               const currentQuantity = item.quantity || 1;
               if (quantityToDrop > currentQuantity) {
                 console.log(
-                  `Player ${id} has insufficient balyary to drop: ${quantityToDrop} > ${currentQuantity}`
+                  `Player ${id} has insufficient ${item.type} to drop: ${quantityToDrop} > ${currentQuantity}`
                 );
                 return;
               }
@@ -838,7 +838,7 @@ function setupWebSocket(
 
             if (attempts < maxAttempts) {
               const itemId = `${item.type}_${Date.now()}`;
-              if (item.type === "balyary") {
+              if (ITEM_CONFIG[item.type]?.stackable) {
                 if (quantityToDrop === item.quantity) {
                   player.inventory[slotIndex] = null;
                 } else {
@@ -879,8 +879,9 @@ function setupWebSocket(
                         y: dropY,
                         type: item.type,
                         spawnTime: Date.now(),
-                        quantity:
-                          item.type === "balyary" ? quantityToDrop : undefined,
+                        quantity: ITEM_CONFIG[item.type]?.stackable
+                          ? quantityToDrop
+                          : undefined,
                         isDroppedByPlayer: true,
                         worldId: player.worldId,
                       })

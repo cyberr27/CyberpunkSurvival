@@ -920,9 +920,10 @@ function startGame() {
       useItem(selectedSlot);
     }
   });
-  dropBtn.addEventListener("click", (e) => {
-    e.preventDefault();
-    if (selectedSlot !== null) dropItem(selectedSlot);
+  dropBtn.addEventListener("click", () => {
+    if (selectedSlot !== null) {
+      dropItem(selectedSlot);
+    }
   });
   window.tradeSystem.initialize(ws);
   window.equipmentSystem.initialize();
@@ -990,10 +991,10 @@ function selectSlot(slotIndex, slotElement) {
   }
 
   selectedSlot = slotIndex;
-  // Если ранее была форма "Баляр", убираем её и показываем описание
+  // Если ранее была форма для stackable, убираем её и показываем описание
   screen.textContent = ITEM_CONFIG[inventory[slotIndex].type].description;
   useBtn.textContent = "Использовать"; // Сбрасываем текст
-  useBtn.disabled = inventory[slotIndex].type === "balyary"; // Отключаем для "Баляр"
+  useBtn.disabled = ITEM_CONFIG[inventory[slotIndex].type].stackable; // Отключаем для stackable предметов (balyary и atom)
   dropBtn.disabled = false;
 }
 
@@ -1071,19 +1072,19 @@ function dropItem(slotIndex) {
   const useBtn = document.getElementById("useBtn");
   const dropBtn = document.getElementById("dropBtn");
 
-  if (item.type === "balyary") {
-    // Логика для "Баляр" с формой ввода количества
+  if (ITEM_CONFIG[item.type].stackable) {
+    // Логика для stackable (balyary и atom) с формой ввода количества, стили как раньше
     screen.innerHTML = `
       <div class="balyary-drop-form">
         <p class="cyber-text">Сколько выкинуть?</p>
-        <input type="number" id="balyaryAmount" class="cyber-input" min="1" max="${
+        <input type="number" id="stackableAmount" class="cyber-input" min="1" max="${
           item.quantity || 1
         }" placeholder="0" value="" autofocus />
-        <p id="balyaryError" class="error-text"></p>
+        <p id="stackableError" class="error-text"></p>
       </div>
     `;
-    const input = document.getElementById("balyaryAmount");
-    const errorEl = document.getElementById("balyaryError");
+    const input = document.getElementById("stackableAmount");
+    const errorEl = document.getElementById("stackableError");
 
     requestAnimationFrame(() => {
       input.focus();
@@ -1091,7 +1092,7 @@ function dropItem(slotIndex) {
     });
 
     input.addEventListener("input", () => {
-      console.log("Ввод в balyaryAmount:", input.value);
+      console.log("Ввод в stackableAmount:", input.value);
       input.value = input.value.replace(/[^0-9]/g, "");
       if (input.value === "") input.value = "";
     });
@@ -1122,7 +1123,7 @@ function dropItem(slotIndex) {
       }
 
       if (amount > currentQuantity) {
-        errorEl.textContent = "Не хватает Баляр!";
+        errorEl.textContent = "Не хватает " + item.type + "!";
         return;
       }
 
@@ -1146,7 +1147,7 @@ function dropItem(slotIndex) {
       useBtn.textContent = "Использовать";
       useBtn.disabled = true;
       dropBtn.disabled = true;
-      useBtn.onclick = () => useItem(slotIndex);
+      useBtn.onclick = () => useItem(slotIndex); // Восстанавливаем оригинальный onclick для useBtn (предполагаю, что useItem — функция использования)
       selectedSlot = null;
       screen.innerHTML = "";
       updateInventoryDisplay();
@@ -1184,24 +1185,24 @@ function updateResources() {
   const distance = Math.floor(me.distanceTraveled || 0);
 
   // Вода: -1 каждые 250 пикселей
-  const waterLoss = Math.floor(distance / 250);
-  const prevWaterLoss = Math.floor(lastDistance / 250);
+  const waterLoss = Math.floor(distance / 500);
+  const prevWaterLoss = Math.floor(lastDistance / 500);
   if (waterLoss > prevWaterLoss) {
     me.water = Math.max(0, me.water - (waterLoss - prevWaterLoss));
     console.log(`Вода уменьшена до ${me.water}`);
   }
 
   // Еда: -1 каждые 450 пикселей
-  const foodLoss = Math.floor(distance / 450);
-  const prevFoodLoss = Math.floor(lastDistance / 450);
+  const foodLoss = Math.floor(distance / 900);
+  const prevFoodLoss = Math.floor(lastDistance / 900);
   if (foodLoss > prevFoodLoss) {
     me.food = Math.max(0, me.food - (foodLoss - prevFoodLoss));
     console.log(`Еда уменьшена до ${me.food}`);
   }
 
   // Энергия: -1 каждые 650 пикселей
-  const energyLoss = Math.floor(distance / 650);
-  const prevEnergyLoss = Math.floor(lastDistance / 650);
+  const energyLoss = Math.floor(distance / 1300);
+  const prevEnergyLoss = Math.floor(lastDistance / 1300);
   if (energyLoss > prevEnergyLoss) {
     me.energy = Math.max(0, me.energy - (energyLoss - prevEnergyLoss));
     console.log(`Энергия уменьшена до ${me.energy}`);
@@ -1209,8 +1210,8 @@ function updateResources() {
 
   // Здоровье: -1 каждые 100 пикселей, если любой из показателей равен 0
   if (me.energy === 0 || me.food === 0 || me.water === 0) {
-    const healthLoss = Math.floor(distance / 100);
-    const prevHealthLoss = Math.floor(lastDistance / 100);
+    const healthLoss = Math.floor(distance / 200);
+    const prevHealthLoss = Math.floor(lastDistance / 200);
     if (healthLoss > prevHealthLoss) {
       me.health = Math.max(0, me.health - (healthLoss - prevHealthLoss));
       console.log(
@@ -1328,15 +1329,15 @@ function updateInventoryDisplay() {
   const useBtn = document.getElementById("useBtn");
   const dropBtn = document.getElementById("dropBtn");
 
-  // Проверяем, была ли уже показана форма выброса "Баляр"
-  const isBalyaryFormActive =
+  // Проверяем, была ли уже показана форма выброса stackable
+  const isStackableFormActive =
     selectedSlot !== null &&
     inventory[selectedSlot] &&
-    inventory[selectedSlot].type === "balyary" &&
-    screen.querySelector(".balyary-drop-form");
+    ITEM_CONFIG[inventory[selectedSlot].type].stackable &&
+    screen.querySelector(".balyary-drop-form"); // Класс оставлен для совместимости, но форма теперь общая для stackable
 
-  if (isBalyaryFormActive) {
-    // Сохраняем форму, если выбраны "Баляры" и форма уже есть
+  if (isStackableFormActive) {
+    // Сохраняем форму, если выбраны stackable и форма уже есть
     // Ничего не делаем с содержимым экрана
   } else if (selectedSlot === null) {
     screen.innerHTML = "";
@@ -1397,8 +1398,8 @@ function updateInventoryDisplay() {
           quantityEl.style.textShadow = "0 0 5px rgba(0, 255, 255, 0.7)";
           slot.appendChild(quantityEl);
         }
-      } else if (item.type === "balyary") {
-        // Для "balyary" добавляем изображение независимо от количества
+      } else if (ITEM_CONFIG[item.type].stackable) {
+        // Для stackable (balyary и atom, но atom уже обработан выше) добавляем изображение независимо от количества
         const img = document.createElement("img");
         img.src = ITEM_CONFIG[item.type].image.src;
         img.style.width = "100%";
@@ -1406,7 +1407,7 @@ function updateInventoryDisplay() {
         slot.appendChild(img);
         img.style.pointerEvents = "none";
 
-        // Отображение количества для balyary, если >1
+        // Отображение количества для stackable, если >1
         if (item.quantity > 1) {
           const quantityEl = document.createElement("div");
           quantityEl.textContent = item.quantity;
@@ -1432,10 +1433,10 @@ function updateInventoryDisplay() {
         if (inventory[i] && selectedSlot !== i) {
           if (
             inventory[selectedSlot] &&
-            inventory[selectedSlot].type === "balyary" &&
+            ITEM_CONFIG[inventory[selectedSlot].type].stackable &&
             screen.querySelector(".balyary-drop-form")
           ) {
-            // Сохраняем форму выброса "Баляр" при наведении на другие слоты
+            // Сохраняем форму выброса stackable при наведении на другие слоты
             return;
           }
           screen.textContent = ITEM_CONFIG[inventory[i].type].description;
@@ -1445,10 +1446,10 @@ function updateInventoryDisplay() {
         if (
           selectedSlot === null ||
           (inventory[selectedSlot] &&
-            inventory[selectedSlot].type === "balyary" &&
+            ITEM_CONFIG[inventory[selectedSlot].type].stackable &&
             screen.querySelector(".balyary-drop-form"))
         ) {
-          // Ничего не очищаем, если форма "Баляр" активна
+          // Ничего не очищаем, если форма stackable активна
           return;
         }
         screen.textContent =
@@ -1707,6 +1708,9 @@ function handleGameMessage(event) {
             spawnTime: data.spawnTime,
             worldId: data.worldId,
           });
+          if (data.quantity && ITEM_CONFIG[data.type]?.stackable) {
+            items.get(data.itemId).quantity = data.quantity;
+          }
           updateInventoryDisplay();
         }
         break;
