@@ -204,14 +204,6 @@ function setupWebSocket(
         const player = userDatabase.get(data.username);
         if (player && player.password === data.password) {
           clients.set(ws, data.username);
-
-          console.log(`\n[WS → login] Успешный вход: ${data.username}`);
-          console.log(
-            `  Данные из БД: maxStats=${JSON.stringify(
-              player.maxStats
-            )}, water=${player.water}`
-          );
-
           const playerData = {
             ...player,
             inventory: player.inventory || Array(20).fill(null),
@@ -228,46 +220,25 @@ function setupWebSocket(
             selectedQuestId: player.selectedQuestId || null,
             level: player.level || 0,
             xp: player.xp || 0,
+            maxStats: player.maxStats || {
+              health: 100,
+              energy: 100,
+              food: 100,
+              water: 100,
+            },
             upgradePoints: player.upgradePoints || 0,
             availableQuests: player.availableQuests || [],
             worldId: player.worldId || 0,
             worldPositions: player.worldPositions || {
               0: { x: player.x, y: player.y },
             },
-
-            // === КЛЮЧЕВОЕ: НЕ ПЕРЕЗАПИСЫВАЕМ maxStats и статы! ===
-            maxStats: player.maxStats || {
-              health: 100,
-              energy: 100,
-              food: 100,
-              water: 100,
-              armor: 0,
-            },
-            health:
-              typeof player.health === "number"
-                ? player.health
-                : player.maxStats?.health || 100,
-            energy:
-              typeof player.energy === "number"
-                ? player.energy
-                : player.maxStats?.energy || 100,
-            food:
-              typeof player.food === "number"
-                ? player.food
-                : player.maxStats?.food || 100,
-            water:
-              typeof player.water === "number"
-                ? player.water
-                : player.maxStats?.water || 100,
-            armor: typeof player.armor === "number" ? player.armor : 0,
+            // Fixed: don't set 100 if value is 0
+            health: typeof player.health === "number" ? player.health : 100,
+            energy: typeof player.energy === "number" ? player.energy : 100,
+            food: typeof player.food === "number" ? player.food : 100,
+            water: typeof player.water === "number" ? player.water : 100,
           };
-
-          console.log(
-            `  → Отправляем клиенту: water=${playerData.water}/${playerData.maxStats.water}`
-          );
-
           players.set(data.username, playerData);
-
           ws.send(
             JSON.stringify({
               type: "loginSuccess",
@@ -323,8 +294,6 @@ function setupWebSocket(
                 .map(({ id, ...rest }) => rest),
             })
           );
-
-          // Уведомляем других
           wss.clients.forEach((client) => {
             if (client !== ws && client.readyState === WebSocket.OPEN) {
               const clientPlayer = players.get(clients.get(client));
