@@ -14,7 +14,7 @@ const ITEM_CONFIG = {
   bread: { effect: { food: 13, water: -2 }, rarity: 2 },
   sausage: { effect: { food: 16, energy: 3 }, rarity: 2 },
   energy_drink: { effect: { energy: 20, water: 5 }, rarity: 2 },
-  balyary: { effect: {}, rarity: 2, stackable: true },
+  balyary: { effect: {}, rarity: 2, stackable: true, balyary: true },
   water_bottle: { effect: { water: 30 }, rarity: 3 },
   nut: { effect: { food: 7 }, rarity: 3 },
   apple: { effect: { food: 8, water: 5 }, rarity: 3 },
@@ -51,7 +51,7 @@ const ITEM_CONFIG = {
     rarity: 3,
   },
   atom: {
-    effect: {},
+    effect: { armor: 5 },
     rarity: 1,
     stackable: true,
   },

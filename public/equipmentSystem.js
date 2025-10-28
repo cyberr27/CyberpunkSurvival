@@ -1,5 +1,9 @@
+// equipmentSystem.js
+
 const equipmentSystem = {
   isEquipmentOpen: false,
+  isInitialized: false, // ИСПРАВЛЕНИЕ: Добавь этот флаг
+  lastApplied: false,
   equipmentSlots: {
     head: null,
     chest: null,
@@ -140,9 +144,13 @@ const equipmentSystem = {
     // Синхронизация экипировки при загрузке
     const me = players.get(myId);
     if (me && me.equipment) {
-      this.equipmentSlots = me.equipment;
+      this.syncEquipment(me.equipment);
       this.updateEquipmentDisplay();
+      this.applyEquipmentEffects(me);
+      this.lastApplied = true; // Устанавливаем флаг применения
     }
+
+    this.isInitialized = true; // Устанавливаем флаг инициализации
   },
 
   setupEquipmentGrid: function () {
@@ -176,7 +184,6 @@ const equipmentSystem = {
       slotEl.addEventListener("click", () =>
         this.selectEquipmentSlot(slot.name)
       );
-      // Добавляем обработчик двойного клика для снятия экипировки
       slotEl.addEventListener("dblclick", () => {
         this.unequipItem(slot.name);
       });
@@ -187,36 +194,93 @@ const equipmentSystem = {
   unequipItem: function (slotName) {
     const me = players.get(myId);
     const item = this.equipmentSlots[slotName];
-    if (!item) return;
+    if (!item) {
+      console.warn(`Нет предмета в слоте ${slotName} для снятия`);
+      return;
+    }
+
+    if (!me || !me.inventory) {
+      console.error("Игрок или инвентарь не найден для снятия экипировки");
+      return;
+    }
 
     // Ищем свободный слот в инвентаре
-    const freeSlot = inventory.findIndex((slot) => slot === null);
+    const freeSlot = me.inventory.findIndex((slot) => slot === null);
     if (freeSlot === -1) {
       alert("Инвентарь полон! Освободите место.");
       return;
     }
 
+    // Перемещаем предмет в инвентарь (с учётом quantity для stackable)
+    const isStackable = ITEM_CONFIG[item.type]?.stackable;
+    me.inventory[freeSlot] = {
+      type: item.type,
+      quantity: isStackable ? item.quantity || 1 : 1,
+      itemId: item.itemId, // Сохраняем itemId для синхронизации с сервером
+    };
+    this.equipmentSlots[slotName] = null;
+
+    // Синхронизируем глобальную inventory с me.inventory
+    inventory = me.inventory.map((slot) => (slot ? { ...slot } : null));
+    players.set(myId, me);
+
+    // Применяем эффекты экипировки после снятия
     this.applyEquipmentEffects(me);
 
-    // Локально убираем предмет из экипировки и кладём в инвентарь
-    inventory[freeSlot] = item;
-    this.equipmentSlots[slotName] = null;
+    // Проверяем, инициализирован ли интерфейс инвентаря
+    const inventoryGrid = document.getElementById("inventoryGrid");
+    if (inventoryGrid) {
+      updateInventoryDisplay();
+    } else {
+      console.warn(
+        "Элемент inventoryGrid не найден, обновление инвентаря отложено"
+      );
+      setTimeout(() => {
+        if (document.getElementById("inventoryGrid")) {
+          updateInventoryDisplay();
+        }
+      }, 100);
+    }
+
+    // Обновляем отображение экипировки
     this.updateEquipmentDisplay();
 
-    // Отправляем серверу ЧЁТКИЙ запрос на снятие экипировки
-    sendWhenReady(
-      ws,
-      JSON.stringify({
-        type: "unequipItem",
-        slotName, // какой слот экипировки
-        inventorySlot: freeSlot, // куда положить в инвентаре
-        itemId: item.itemId, // какой предмет
-      })
-    );
-
-    this.applyEquipmentEffects(me);
+    // Обновляем статы
     updateStatsDisplay();
-    updateInventoryDisplay();
+
+    // Отправляем обновление на сервер
+    if (ws.readyState === WebSocket.OPEN) {
+      sendWhenReady(
+        ws,
+        JSON.stringify({
+          type: "unequipItem",
+          slotName,
+          inventorySlot: freeSlot,
+          itemId: item.itemId,
+        })
+      );
+      sendWhenReady(
+        ws,
+        JSON.stringify({
+          type: "updateInventory",
+          inventory: me.inventory,
+        })
+      );
+      sendWhenReady(
+        ws,
+        JSON.stringify({
+          type: "updateEquipment",
+          equipment: this.equipmentSlots,
+        })
+      );
+      console.log(`Отправлено сообщение unequipItem для слота ${slotName}`);
+    } else {
+      console.warn("WebSocket не открыт, сообщение unequipItem не отправлено");
+    }
+
+    console.log(
+      `Предмет ${item.type} снят из слота ${slotName} и помещён в инвентарь`
+    );
   },
 
   toggleEquipment: function () {
@@ -247,7 +311,6 @@ const equipmentSystem = {
     const equipmentGrid = document.getElementById("equipmentGrid");
     const screen = document.getElementById("equipmentScreen");
 
-    // Проверяем, существует ли equipmentGrid
     if (!equipmentGrid || !screen) {
       console.warn(
         "equipmentGrid или equipmentScreen не найдены, откладываем обновление экипировки"
@@ -285,19 +348,28 @@ const equipmentSystem = {
 
   equipItem: function (slotIndex) {
     const item = inventory[slotIndex];
-    if (!item || !this.EQUIPMENT_CONFIG[item.type]) return;
+    if (!item || !this.EQUIPMENT_CONFIG[item.type]) {
+      console.warn(`Предмет ${item?.type} не найден в EQUIPMENT_CONFIG`);
+      return;
+    }
 
     const me = players.get(myId);
-    // Исправлено: сначала получаем тип экипировки, потом слот
+    if (!me) {
+      console.warn("Игрок не найден для экипировки");
+      return;
+    }
+
     const equipType = this.EQUIPMENT_CONFIG[item.type].type;
     const slotName = this.EQUIPMENT_TYPES[equipType];
-    if (!slotName) return;
+    if (!slotName) {
+      console.warn(`Слот для типа ${equipType} не найден`);
+      return;
+    }
 
     // Проверяем, есть ли уже предмет в слоте
     let oldItem = null;
     if (this.equipmentSlots[slotName]) {
       oldItem = this.equipmentSlots[slotName];
-      // Возвращаем старый предмет в инвентарь
       const freeSlot = inventory.findIndex((slot) => slot === null);
       if (freeSlot === -1) {
         alert("Инвентарь полон! Освободите место.");
@@ -306,35 +378,42 @@ const equipmentSystem = {
       inventory[freeSlot] = oldItem;
     }
 
-    // Локально отображаем предмет в слоте экипировки (до ответа сервера)
+    // Локально экипируем предмет
     this.equipmentSlots[slotName] = { type: item.type, itemId: item.itemId };
-    // Не удаляем из инвентаря до ответа сервера!
+    inventory[slotIndex] = null; // Удаляем предмет из инвентаря
     this.updateEquipmentDisplay();
     console.log(
-      `[ЭКИПИРОВКА] ${item.type} помещён в слот ${slotName} (локально, до ответа сервера)`
+      `[ЭКИПИРОВКА] ${item.type} помещён в слот ${slotName} (локально)`
     );
 
+    // Применяем эффекты экипировки
     this.applyEquipmentEffects(me);
-    updateStatsDisplay();
 
-    // Отправляем на сервер только запрос на экипировку
-    sendWhenReady(
-      ws,
-      JSON.stringify({
-        type: "equipItem",
-        slotIndex,
-        equipment: this.equipmentSlots,
-        maxStats: { ...window.levelSystem.maxStats },
-        health: me.health,
-        energy: me.energy,
-        food: me.food,
-        water: me.water,
-        armor: me.armor,
-        damage: me.damage,
-      })
-    );
+    // Отправляем запрос на сервер
+    if (ws.readyState === WebSocket.OPEN) {
+      sendWhenReady(
+        ws,
+        JSON.stringify({
+          type: "equipItem",
+          slotIndex,
+          equipment: this.equipmentSlots,
+          maxStats: { ...me.maxStats },
+          stats: {
+            health: me.health,
+            energy: me.energy,
+            food: me.food,
+            water: me.water,
+            armor: me.armor,
+            damage: me.damage,
+          },
+        })
+      );
+      console.log(`Отправлено сообщение equipItem для ${item.type}`);
+    } else {
+      console.warn("WebSocket не открыт, сообщение equipItem не отправлено");
+    }
 
-    // Кнопки и экран — можно сбросить сразу
+    // Обновляем интерфейс
     selectedSlot = null;
     document.getElementById("useBtn").disabled = true;
     document.getElementById("dropBtn").disabled = true;
@@ -345,13 +424,14 @@ const equipmentSystem = {
   },
 
   applyEquipmentEffects: function (player) {
-    // Базовые значения — только из levelSystem
-    const baseMaxStats = { ...window.levelSystem.maxStats, armor: 0 };
+    // Базовые значения из levelSystem
+    const baseMaxStats = { ...window.levelSystem.maxStats };
 
-    player.armor = 0;
-    player.damage = 0;
+    // Сбрасываем maxStats и урон
     player.maxStats = { ...baseMaxStats };
+    player.damage = 0;
 
+    // Применяем эффекты экипировки
     Object.values(this.equipmentSlots).forEach((item) => {
       if (item && this.EQUIPMENT_CONFIG[item.type]) {
         const effect = this.EQUIPMENT_CONFIG[item.type].effect;
@@ -374,26 +454,40 @@ const equipmentSystem = {
       }
     });
 
-    // Ограничиваем текущие характеристики
+    // Ограничиваем текущие характеристики максимумами
     player.health = Math.min(player.health, player.maxStats.health);
     player.energy = Math.min(player.energy, player.maxStats.energy);
     player.food = Math.min(player.food, player.maxStats.food);
     player.water = Math.min(player.water, player.maxStats.water);
     player.armor = Math.min(player.armor, player.maxStats.armor);
+
+    console.log(
+      `Эффекты экипировки применены: maxStats=${JSON.stringify(
+        player.maxStats
+      )}, stats=${JSON.stringify({
+        health: player.health,
+        energy: player.energy,
+        food: player.food,
+        water: player.water,
+        armor: player.armor,
+        damage: player.damage,
+      })}`
+    );
   },
 
   syncEquipment: function (equipment) {
     this.equipmentSlots = equipment;
+    const me = players.get(myId);
+    if (me) {
+      this.applyEquipmentEffects(me);
+    }
     this.updateEquipmentDisplay();
     console.log("syncEquipment: ", equipment);
-    const me = players.get(myId);
-    this.applyEquipmentEffects(me);
 
     // Проверяем, инициализирован ли интерфейс
     if (document.getElementById("equipmentGrid")) {
       this.updateEquipmentDisplay();
     } else {
-      // Откладываем обновление до полной инициализации
       setTimeout(() => this.updateEquipmentDisplay(), 100);
     }
     updateStatsDisplay();

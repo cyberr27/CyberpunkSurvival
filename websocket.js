@@ -89,12 +89,6 @@ function setupWebSocket(
 
           userDatabase.set(data.username, newPlayer);
           await saveUserDatabase(dbCollection, data.username, newPlayer);
-          logPlayerStats(
-            data.username,
-            "register",
-            {},
-            { fromLevel: { armor: 0 }, fromItems: { armor: 0 } }
-          );
           ws.send(JSON.stringify({ type: "registerSuccess" }));
         }
       } else if (data.type === "worldTransition") {
@@ -300,16 +294,6 @@ function setupWebSocket(
                 .map(({ id, ...rest }) => rest),
             })
           );
-          logPlayerStats(
-            data.username,
-            "login",
-            {},
-            {
-              oldStats: { health: 100, armor: 0 },
-              fromLevel: { armor: 0 },
-              fromItems: { armor: 0 },
-            }
-          );
           wss.clients.forEach((client) => {
             if (client !== ws && client.readyState === WebSocket.OPEN) {
               const clientPlayer = players.get(clients.get(client));
@@ -468,18 +452,6 @@ function setupWebSocket(
             food: Math.max(data.maxStats?.food || 100, player.maxStats.food),
             water: Math.max(data.maxStats?.water || 100, player.maxStats.water),
           };
-          logPlayerStats(
-            id,
-            "updateLevel",
-            { maxStats: player.maxStats },
-            {
-              oldStats: { maxStats: oldMaxStats },
-              fromLevel: {
-                health: (data.maxStats?.health || 100) - 100,
-                armor: 0,
-              },
-            }
-          );
           player.upgradePoints = data.upgradePoints || 0;
           players.set(id, { ...player });
           userDatabase.set(id, { ...player });
@@ -669,38 +641,9 @@ function setupWebSocket(
               100,
               player.maxStats.water - itemConfig.effect.water
             );
-          logPlayerStats(
-            playerId,
-            "unequipItem",
-            {
-              maxStats: player.maxStats,
-              armor: player.armor,
-            },
-            {
-              oldStats: { maxStats: oldMaxStats, armor: oldArmor },
-              equippedItem: { type: itemType },
-              fromItems: { armor: -(itemConfig?.effect?.armor || 0) },
-            }
-          );
           if (itemConfig.effect.damage) {
             player.damage = player.damage ? { min: 0, max: 0 } : 0; // Сбрасываем урон, если был
           }
-          logPlayerStats(
-            id,
-            "equipItem",
-            {
-              maxStats: player.maxStats,
-              armor: player.armor,
-            },
-            {
-              oldStats: { maxStats: oldMaxStats, armor: oldArmor },
-              equippedItem: item,
-              fromItems: {
-                armor: effect.armor || 0,
-                health: effect.health || 0,
-              },
-            }
-          );
         }
 
         // Ограничиваем текущие статы новыми максимумами
@@ -916,15 +859,6 @@ function setupWebSocket(
         ) {
           // Увеличиваем броню на 5, но не выше maxStats.armor
           player.armor = Math.min(player.armor + 5, player.maxStats.armor);
-          logPlayerStats(
-            id,
-            "useAtom",
-            { armor: player.armor },
-            {
-              oldStats: { armor: oldArmor },
-              fromItems: { armor: 5 },
-            }
-          );
           player.inventory[slotIndex] = null;
 
           // Сохраняем изменения
@@ -971,21 +905,6 @@ function setupWebSocket(
               player.water + effect.water,
               player.maxStats.water
             );
-          logPlayerStats(
-            id,
-            "useItem",
-            {
-              health: player.health,
-              energy: player.energy,
-              food: player.food,
-              water: player.water,
-            },
-            {
-              oldStats,
-              usedItem: { type: item.type },
-              fromItems: { health: effect.health || 0 },
-            }
-          );
 
           // Удаляем использованный предмет
           player.inventory[slotIndex] = null;
