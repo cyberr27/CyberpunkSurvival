@@ -204,6 +204,14 @@ function setupWebSocket(
         const player = userDatabase.get(data.username);
         if (player && player.password === data.password) {
           clients.set(ws, data.username);
+
+          console.log(`\n[WS → login] Успешный вход: ${data.username}`);
+          console.log(
+            `  Данные из БД: maxStats=${JSON.stringify(
+              player.maxStats
+            )}, water=${player.water}`
+          );
+
           const playerData = {
             ...player,
             inventory: player.inventory || Array(20).fill(null),
@@ -220,25 +228,46 @@ function setupWebSocket(
             selectedQuestId: player.selectedQuestId || null,
             level: player.level || 0,
             xp: player.xp || 0,
-            maxStats: player.maxStats || {
-              health: 100,
-              energy: 100,
-              food: 100,
-              water: 100,
-            },
             upgradePoints: player.upgradePoints || 0,
             availableQuests: player.availableQuests || [],
             worldId: player.worldId || 0,
             worldPositions: player.worldPositions || {
               0: { x: player.x, y: player.y },
             },
-            // Fixed: don't set 100 if value is 0
-            health: typeof player.health === "number" ? player.health : 100,
-            energy: typeof player.energy === "number" ? player.energy : 100,
-            food: typeof player.food === "number" ? player.food : 100,
-            water: typeof player.water === "number" ? player.water : 100,
+
+            // === КЛЮЧЕВОЕ: НЕ ПЕРЕЗАПИСЫВАЕМ maxStats и статы! ===
+            maxStats: player.maxStats || {
+              health: 100,
+              energy: 100,
+              food: 100,
+              water: 100,
+              armor: 0,
+            },
+            health:
+              typeof player.health === "number"
+                ? player.health
+                : player.maxStats?.health || 100,
+            energy:
+              typeof player.energy === "number"
+                ? player.energy
+                : player.maxStats?.energy || 100,
+            food:
+              typeof player.food === "number"
+                ? player.food
+                : player.maxStats?.food || 100,
+            water:
+              typeof player.water === "number"
+                ? player.water
+                : player.maxStats?.water || 100,
+            armor: typeof player.armor === "number" ? player.armor : 0,
           };
+
+          console.log(
+            `  → Отправляем клиенту: water=${playerData.water}/${playerData.maxStats.water}`
+          );
+
           players.set(data.username, playerData);
+
           ws.send(
             JSON.stringify({
               type: "loginSuccess",
@@ -294,6 +323,8 @@ function setupWebSocket(
                 .map(({ id, ...rest }) => rest),
             })
           );
+
+          // Уведомляем других
           wss.clients.forEach((client) => {
             if (client !== ws && client.readyState === WebSocket.OPEN) {
               const clientPlayer = players.get(clients.get(client));
@@ -526,35 +557,185 @@ function setupWebSocket(
           );
         }
       } else if (data.type === "unequipItem") {
-        const id = clients.get(ws);
-        if (id) {
-          const player = players.get(id);
-          const { slotName, inventorySlot, itemId } = data;
-          if (
-            player &&
-            player.equipment &&
-            player.equipment[slotName] &&
-            player.equipment[slotName].itemId === itemId &&
-            player.inventory &&
-            player.inventory[inventorySlot] === null
-          ) {
-            // Move item from equipment to inventory
-            player.inventory[inventorySlot] = player.equipment[slotName];
-            player.equipment[slotName] = null;
+        const playerId = clients.get(ws);
+        if (!playerId) {
+          console.warn("Игрок не идентифицирован для сообщения unequipItem");
+          ws.send(
+            JSON.stringify({
+              type: "unequipItemFail",
+              error: "Игрок не найден",
+            })
+          );
+          return;
+        }
 
-            players.set(id, { ...player });
-            userDatabase.set(id, { ...player });
-            await saveUserDatabase(dbCollection, id, player);
+        const player = players.get(playerId);
+        if (!player || !player.equipment || !player.inventory) {
+          console.warn(
+            `Игрок ${playerId} или его данные не найдены для снятия экипировки`
+          );
+          ws.send(
+            JSON.stringify({
+              type: "unequipItemFail",
+              error: "Данные игрока недоступны",
+            })
+          );
+          return;
+        }
 
-            // Send updated data only to this player
-            ws.send(
-              JSON.stringify({ type: "update", player: { id, ...player } })
+        const { slotName, inventorySlot, itemId } = data;
+
+        // Проверяем валидность слота
+        const validSlots = [
+          "head",
+          "chest",
+          "belt",
+          "pants",
+          "boots",
+          "weapon",
+          "gloves",
+        ];
+        if (!validSlots.includes(slotName)) {
+          console.warn(`Недопустимый слот ${slotName} для снятия экипировки`);
+          ws.send(
+            JSON.stringify({
+              type: "unequipItemFail",
+              error: "Недопустимый слот",
+            })
+          );
+          return;
+        }
+
+        // Проверяем наличие предмета и совпадение itemId
+        if (
+          !player.equipment[slotName] ||
+          player.equipment[slotName].itemId !== itemId
+        ) {
+          console.warn(
+            `Слот ${slotName} пуст или itemId не совпадает (${itemId})`
+          );
+          ws.send(
+            JSON.stringify({
+              type: "unequipItemFail",
+              error: "Предмет не найден или неверный ID",
+            })
+          );
+          return;
+        }
+
+        // Проверяем, свободен ли слот инвентаря
+        if (player.inventory[inventorySlot] !== null) {
+          console.warn(`Слот инвентаря ${inventorySlot} занят`);
+          ws.send(
+            JSON.stringify({
+              type: "unequipItemFail",
+              error: "Слот инвентаря занят",
+            })
+          );
+          return;
+        }
+
+        // Перемещаем предмет в инвентарь
+        player.inventory[inventorySlot] = {
+          type: player.equipment[slotName].type,
+          quantity: player.equipment[slotName].quantity || 1,
+          itemId: player.equipment[slotName].itemId,
+        };
+        player.equipment[slotName] = null;
+
+        // Пересчитываем maxStats (снимаем эффекты предмета)
+        const itemType = player.inventory[inventorySlot].type;
+        const itemConfig = ITEM_CONFIG[itemType];
+        if (itemConfig && itemConfig.effect) {
+          if (itemConfig.effect.armor)
+            player.maxStats.armor = Math.max(
+              0,
+              player.maxStats.armor - itemConfig.effect.armor
             );
-            console.log(
-              `Player ${id} unequipped ${itemId} from ${slotName} to inventory slot ${inventorySlot}`
+          if (itemConfig.effect.health)
+            player.maxStats.health = Math.max(
+              100,
+              player.maxStats.health - itemConfig.effect.health
             );
+          if (itemConfig.effect.energy)
+            player.maxStats.energy = Math.max(
+              100,
+              player.maxStats.energy - itemConfig.effect.energy
+            );
+          if (itemConfig.effect.food)
+            player.maxStats.food = Math.max(
+              100,
+              player.maxStats.food - itemConfig.effect.food
+            );
+          if (itemConfig.effect.water)
+            player.maxStats.water = Math.max(
+              100,
+              player.maxStats.water - itemConfig.effect.water
+            );
+          if (itemConfig.effect.damage) {
+            player.damage = player.damage ? { min: 0, max: 0 } : 0; // Сбрасываем урон, если был
           }
         }
+
+        // Ограничиваем текущие статы новыми максимумами
+        player.armor = Math.min(player.armor, player.maxStats.armor);
+        player.health = Math.min(player.health, player.maxStats.health);
+        player.energy = Math.min(player.energy, player.maxStats.energy);
+        player.food = Math.min(player.food, player.maxStats.food);
+        player.water = Math.min(player.water, player.maxStats.water);
+
+        // Сохраняем изменения
+        players.set(playerId, { ...player });
+        userDatabase.set(playerId, { ...player });
+        await saveUserDatabase(dbCollection, playerId, player);
+
+        // Отправляем подтверждение клиенту
+        ws.send(
+          JSON.stringify({
+            type: "unequipItemSuccess",
+            slotName,
+            inventorySlot,
+            inventory: player.inventory,
+            equipment: player.equipment,
+            maxStats: player.maxStats,
+            stats: {
+              health: player.health,
+              energy: player.energy,
+              food: player.food,
+              water: player.water,
+              armor: player.armor,
+              damage: player.damage,
+            },
+          })
+        );
+
+        // Отправляем обновление другим игрокам в том же мире
+        wss.clients.forEach((client) => {
+          if (client !== ws && client.readyState === WebSocket.OPEN) {
+            const clientPlayer = players.get(clients.get(client));
+            if (clientPlayer && clientPlayer.worldId === player.worldId) {
+              client.send(
+                JSON.stringify({
+                  type: "update",
+                  player: {
+                    id: playerId,
+                    maxStats: player.maxStats,
+                    health: player.health,
+                    energy: player.energy,
+                    food: player.food,
+                    water: player.water,
+                    armor: player.armor,
+                    damage: player.damage,
+                  },
+                })
+              );
+            }
+          }
+        });
+
+        console.log(
+          `Игрок ${playerId} снял предмет ${itemId} из слота ${slotName} в слот инвентаря ${inventorySlot}`
+        );
       } else if (data.type === "updateQuests") {
         const id = clients.get(ws);
         if (id) {
@@ -696,51 +877,88 @@ function setupWebSocket(
             }
           });
         }
+      } else if (data.type === "useAtom") {
+        const id = clients.get(ws);
+        if (!id || !players.has(id)) return;
+
+        const player = players.get(id);
+        const slotIndex = data.slotIndex;
+        if (
+          slotIndex >= 0 &&
+          slotIndex < player.inventory.length &&
+          player.inventory[slotIndex]?.type === "atom"
+        ) {
+          // Увеличиваем броню на 5, но не выше maxStats.armor
+          player.armor = Math.min(player.armor + 5, player.maxStats.armor);
+          player.inventory[slotIndex] = null;
+
+          // Сохраняем изменения
+          players.set(id, { ...player });
+          userDatabase.set(id, { ...player });
+          await saveUserDatabase(dbCollection, id, player);
+
+          // Отправляем подтверждение клиенту
+          ws.send(
+            JSON.stringify({
+              type: "useAtomSuccess",
+              armor: player.armor,
+              inventory: player.inventory,
+            })
+          );
+          console.log(`Игрок ${id} использовал атом, броня: ${player.armor}`);
+        }
       } else if (data.type === "useItem") {
         const id = clients.get(ws);
-        if (id) {
-          const player = players.get(id);
-          const slotIndex = data.slotIndex;
-          const item = player.inventory[slotIndex];
-          if (item) {
-            const effect = ITEM_CONFIG[item.type].effect;
-            if (effect.health)
-              player.health = Math.min(
-                player.maxStats.health,
-                Math.max(0, player.health + effect.health)
-              );
-            if (effect.energy)
-              player.energy = Math.min(
-                player.maxStats.energy,
-                Math.max(0, player.energy + effect.energy)
-              );
-            if (effect.food)
-              player.food = Math.min(
-                player.maxStats.food,
-                Math.max(0, player.food + effect.food)
-              );
-            if (effect.water)
-              player.water = Math.min(
-                player.maxStats.water,
-                Math.max(0, player.water + effect.water)
-              );
+        if (!id || !players.has(id)) return;
 
-            player.inventory[slotIndex] = null;
-            players.set(id, { ...player });
-            userDatabase.set(id, { ...player });
-            await saveUserDatabase(dbCollection, id, player);
-
-            wss.clients.forEach((client) => {
-              if (client.readyState === WebSocket.OPEN) {
-                client.send(
-                  JSON.stringify({ type: "update", player: { id, ...player } })
-                );
-              }
-            });
-            console.log(
-              `Player ${id} used ${item.type} from slot ${slotIndex}`
+        const player = players.get(id);
+        const slotIndex = data.slotIndex;
+        const item = player.inventory[slotIndex];
+        if (item && ITEM_CONFIG[item.type]?.effect) {
+          const effect = ITEM_CONFIG[item.type].effect;
+          if (effect.health)
+            player.health = Math.min(
+              player.health + effect.health,
+              player.maxStats.health
             );
-          }
+          if (effect.energy)
+            player.energy = Math.min(
+              player.energy + effect.energy,
+              player.maxStats.energy
+            );
+          if (effect.food)
+            player.food = Math.min(
+              player.food + effect.food,
+              player.maxStats.food
+            );
+          if (effect.water)
+            player.water = Math.min(
+              player.water + effect.water,
+              player.maxStats.water
+            );
+
+          // Удаляем использованный предмет
+          player.inventory[slotIndex] = null;
+
+          // Сохраняем изменения
+          players.set(id, { ...player });
+          userDatabase.set(id, { ...player });
+          await saveUserDatabase(dbCollection, id, player);
+
+          // Отправляем подтверждение клиенту
+          ws.send(
+            JSON.stringify({
+              type: "useItemSuccess",
+              stats: {
+                health: player.health,
+                energy: player.energy,
+                food: player.food,
+                water: player.water,
+              },
+              inventory: player.inventory,
+            })
+          );
+          console.log(`Игрок ${id} использовал предмет ${item.type}`);
         }
       } else if (data.type === "equipItem") {
         const id = clients.get(ws);
