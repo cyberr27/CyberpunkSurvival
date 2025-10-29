@@ -107,13 +107,6 @@ async function saveUserDatabase(collection, username, player) {
     console.log(
       `Нормализованные stats: health=${playerData.health}, energy=${playerData.energy}, food=${playerData.food}, water=${playerData.water}, armor=${playerData.armor}`
     );
-    console.log(
-      `Полные нормализованные данные playerData: ${JSON.stringify(
-        playerData,
-        null,
-        2
-      )}`
-    );
 
     const result = await collection.updateOne(
       { id: username },
