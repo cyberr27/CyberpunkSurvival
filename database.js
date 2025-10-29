@@ -3,6 +3,7 @@
 const { MongoClient } = require("mongodb");
 
 async function connectToDatabase(uri) {
+  console.log("Попытка подключения к MongoDB...");
   if (!uri || typeof uri !== "string" || !uri.trim()) {
     console.error(
       "Ошибка: Переменная окружения MONGO_URI не определена или пуста!"
@@ -25,18 +26,27 @@ async function connectToDatabase(uri) {
 
   try {
     await mongoClient.connect();
-    console.log("Подключено к MongoDB");
-    return mongoClient.db("cyberpunk_survival").collection("users");
+    console.log("Подключено к MongoDB успешно");
+    const db = mongoClient.db("cyberpunk_survival");
+    const collection = db.collection("users");
+    console.log("Получена коллекция 'users' из базы 'cyberpunk_survival'");
+    return collection;
   } catch (error) {
-    console.error("Ошибка подключения к MongoDB:", error);
+    console.error("Ошибка подключения к MongoDB:", error.message);
+    console.error("Полная ошибка:", error);
     process.exit(1);
   }
 }
 
 async function loadUserDatabase(collection, userDatabase) {
+  console.log("Начало загрузки базы данных пользователей из MongoDB...");
   try {
     const users = await collection.find({}).toArray();
-    users.forEach((user) => {
+    console.log(`Найдено ${users.length} пользователей в коллекции`);
+    users.forEach((user, index) => {
+      console.log(
+        `Обработка пользователя ${index + 1}/${users.length}: id=${user.id}`
+      );
       const userData = {
         ...user,
         maxStats: {
@@ -52,20 +62,29 @@ async function loadUserDatabase(collection, userDatabase) {
         water: Math.min(user.water || 100, user.maxStats?.water || 100),
         armor: Math.min(user.armor || 0, user.maxStats?.armor || 0),
       };
-      userDatabase.set(user.id, userData);
       console.log(
-        `Загружен игрок ${user.id}, maxStats: ${JSON.stringify(
+        `Нормализованные maxStats для ${user.id}: ${JSON.stringify(
           userData.maxStats
         )}`
       );
+      console.log(
+        `Нормализованные stats для ${user.id}: health=${userData.health}, energy=${userData.energy}, food=${userData.food}, water=${userData.water}, armor=${userData.armor}`
+      );
+      userDatabase.set(user.id, userData);
+      console.log(`Пользователь ${user.id} добавлен в userDatabase`);
     });
-    console.log("База данных пользователей загружена из MongoDB");
+    console.log(
+      `База данных пользователей загружена из MongoDB: загружено ${users.length} записей`
+    );
   } catch (error) {
-    console.error("Ошибка при загрузке базы данных из MongoDB:", error);
+    console.error("Ошибка при загрузке базы данных из MongoDB:", error.message);
+    console.error("Полная ошибка:", error);
   }
 }
 
 async function saveUserDatabase(collection, username, player) {
+  console.log(`Начало сохранения пользователя ${username}...`);
+  console.log(`Входные данные player: ${JSON.stringify(player, null, 2)}`);
   try {
     const playerData = {
       ...player,
@@ -82,13 +101,36 @@ async function saveUserDatabase(collection, username, player) {
       water: Math.min(player.water, player.maxStats?.water || 100),
       armor: Math.min(player.armor, player.maxStats?.armor || 0),
     };
-    await collection.updateOne(
+    console.log(
+      `Нормализованные maxStats: ${JSON.stringify(playerData.maxStats)}`
+    );
+    console.log(
+      `Нормализованные stats: health=${playerData.health}, energy=${playerData.energy}, food=${playerData.food}, water=${playerData.water}, armor=${playerData.armor}`
+    );
+    console.log(
+      `Полные нормализованные данные playerData: ${JSON.stringify(
+        playerData,
+        null,
+        2
+      )}`
+    );
+
+    const result = await collection.updateOne(
       { id: username },
       { $set: playerData },
       { upsert: true }
     );
+    console.log(
+      `Результат обновления: matchedCount=${
+        result.matchedCount
+      }, modifiedCount=${result.modifiedCount}, upsertedId=${
+        result.upsertedId ? result.upsertedId._id : "none"
+      }`
+    );
+    console.log(`Пользователь ${username} сохранён успешно`);
   } catch (error) {
-    console.error("Ошибка при сохранении данных в MongoDB:", error);
+    console.error("Ошибка при сохранении данных в MongoDB:", error.message);
+    console.error("Полная ошибка:", error);
   }
 }
 
