@@ -83,8 +83,7 @@ async function loadUserDatabase(collection, userDatabase) {
 }
 
 async function saveUserDatabase(collection, username, player) {
-  console.log(`Начало сохранения пользователя ${username}...`);
-  console.log(`Входные данные player: ${JSON.stringify(player, null, 2)}`);
+  console.log(`Сохранение ${username}...`);
   try {
     const playerData = {
       ...player,
@@ -101,11 +100,12 @@ async function saveUserDatabase(collection, username, player) {
       water: Math.min(player.water, player.maxStats?.water || 100),
       armor: Math.min(player.armor, player.maxStats?.armor || 0),
     };
+
+    // КРАТКИЙ ОТЛАДОЧНЫЙ ЛОГ — ТОЛЬКО СТАТЫ
     console.log(
-      `Нормализованные maxStats: ${JSON.stringify(playerData.maxStats)}`
-    );
-    console.log(
-      `Нормализованные stats: health=${playerData.health}, energy=${playerData.energy}, food=${playerData.food}, water=${playerData.water}, armor=${playerData.armor}`
+      `${username} → maxStats: ${JSON.stringify(playerData.maxStats)} | ` +
+        `stats: health=${playerData.health}, energy=${playerData.energy}, ` +
+        `food=${playerData.food}, water=${playerData.water}, armor=${playerData.armor}`
     );
 
     const result = await collection.updateOne(
@@ -113,17 +113,13 @@ async function saveUserDatabase(collection, username, player) {
       { $set: playerData },
       { upsert: true }
     );
+
     console.log(
-      `Результат обновления: matchedCount=${
-        result.matchedCount
-      }, modifiedCount=${result.modifiedCount}, upsertedId=${
-        result.upsertedId ? result.upsertedId._id : "none"
-      }`
+      `Сохранено: matched=${result.matchedCount}, modified=${result.modifiedCount}` +
+        (result.upsertedId ? `, upsertedId=${result.upsertedId}` : "")
     );
-    console.log(`Пользователь ${username} сохранён успешно`);
   } catch (error) {
-    console.error("Ошибка при сохранении данных в MongoDB:", error.message);
-    console.error("Полная ошибка:", error);
+    console.error(`Ошибка сохранения ${username}:`, error.message);
   }
 }
 
