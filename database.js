@@ -46,13 +46,6 @@ async function loadUserDatabase(collection, userDatabase) {
           water: user.maxStats?.water || 100,
           armor: user.maxStats?.armor || 0,
         },
-        upgradeMaxStats: {
-          health: user.upgradeMaxStats?.health || 0,
-          energy: user.upgradeMaxStats?.energy || 0,
-          food: user.upgradeMaxStats?.food || 0,
-          water: user.upgradeMaxStats?.water || 0,
-          armor: user.upgradeMaxStats?.armor || 0,
-        },
         health: Math.min(user.health || 100, user.maxStats?.health || 100),
         energy: Math.min(user.energy || 100, user.maxStats?.energy || 100),
         food: Math.min(user.food || 100, user.maxStats?.food || 100),
@@ -63,7 +56,7 @@ async function loadUserDatabase(collection, userDatabase) {
       console.log(
         `Загружен игрок ${user.id}, maxStats: ${JSON.stringify(
           userData.maxStats
-        )}, upgradeMaxStats: ${JSON.stringify(userData.upgradeMaxStats)}`
+        )}`
       );
     });
     console.log("База данных пользователей загружена из MongoDB");
@@ -83,29 +76,16 @@ async function saveUserDatabase(collection, username, player) {
         water: player.maxStats?.water || 100,
         armor: player.maxStats?.armor || 0,
       },
-      upgradeMaxStats: {
-        health: player.upgradeMaxStats?.health || 0,
-        energy: player.upgradeMaxStats?.energy || 0,
-        food: player.upgradeMaxStats?.food || 0,
-        water: player.upgradeMaxStats?.water || 0,
-        armor: player.upgradeMaxStats?.armor || 0,
-      },
       health: Math.min(player.health, player.maxStats?.health || 100),
       energy: Math.min(player.energy, player.maxStats?.energy || 100),
       food: Math.min(player.food, player.maxStats?.food || 100),
       water: Math.min(player.water, player.maxStats?.water || 100),
       armor: Math.min(player.armor, player.maxStats?.armor || 0),
     };
-
     await collection.updateOne(
       { id: username },
       { $set: playerData },
       { upsert: true }
-    );
-    console.log(
-      `Сохранен игрок ${player.id}, maxStats: ${JSON.stringify(
-        playerData.maxStats
-      )}, upgradeMaxStats: ${JSON.stringify(playerData.upgradeMaxStats)}`
     );
   } catch (error) {
     console.error("Ошибка при сохранении данных в MongoDB:", error);
