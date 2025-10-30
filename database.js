@@ -103,9 +103,9 @@ async function saveUserDatabase(collection, username, player) {
       { upsert: true }
     );
     console.log(
-      `Сохранен игрок ${user.id}, maxStats: ${JSON.stringify(
-        userData.maxStats
-      )}, upgradeMaxStats: ${JSON.stringify(userData.upgradeMaxStats)}`
+      `Сохранен игрок ${player.id}, maxStats: ${JSON.stringify(
+        playerData.maxStats
+      )}, upgradeMaxStats: ${JSON.stringify(playerData.upgradeMaxStats)}`
     );
   } catch (error) {
     console.error("Ошибка при сохранении данных в MongoDB:", error);
