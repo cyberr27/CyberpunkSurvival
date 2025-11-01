@@ -225,6 +225,7 @@ function setupWebSocket(
               energy: 100,
               food: 100,
               water: 100,
+              armor: 0,
             },
             upgradePoints: player.upgradePoints || 0,
             availableQuests: player.availableQuests || [],
@@ -232,12 +233,14 @@ function setupWebSocket(
             worldPositions: player.worldPositions || {
               0: { x: player.x, y: player.y },
             },
-            // Fixed: don't set 100 if value is 0
-            health: typeof player.health === "number" ? player.health : 100,
-            energy: typeof player.energy === "number" ? player.energy : 100,
-            food: typeof player.food === "number" ? player.food : 100,
-            water: typeof player.water === "number" ? player.water : 100,
+
+            // ДОБАВЛЯЕМ ПОЛЯ УЛУЧШЕНИЙ
+            healthUpgrade: player.healthUpgrade || 0,
+            energyUpgrade: player.energyUpgrade || 0,
+            foodUpgrade: player.foodUpgrade || 0,
+            waterUpgrade: player.waterUpgrade || 0,
           };
+
           players.set(data.username, playerData);
           ws.send(
             JSON.stringify({
@@ -262,6 +265,10 @@ function setupWebSocket(
               xp: playerData.xp,
               maxStats: playerData.maxStats,
               upgradePoints: playerData.upgradePoints,
+              healthUpgrade: playerData.healthUpgrade,
+              energyUpgrade: playerData.energyUpgrade,
+              foodUpgrade: playerData.foodUpgrade,
+              waterUpgrade: playerData.waterUpgrade,
               availableQuests: playerData.availableQuests,
               worldId: playerData.worldId,
               worldPositions: playerData.worldPositions,
@@ -480,9 +487,19 @@ function setupWebSocket(
           const player = players.get(id);
           player.maxStats = data.maxStats;
           player.upgradePoints = data.upgradePoints;
+
+          // СОХРАНЯЕМ UPGRADE ПОЛЯ
+          player.healthUpgrade =
+            data.healthUpgrade || player.healthUpgrade || 0;
+          player.energyUpgrade =
+            data.energyUpgrade || player.energyUpgrade || 0;
+          player.foodUpgrade = data.foodUpgrade || player.foodUpgrade || 0;
+          player.waterUpgrade = data.waterUpgrade || player.waterUpgrade || 0;
+
           players.set(id, { ...player });
           userDatabase.set(id, { ...player });
           await saveUserDatabase(dbCollection, id, player);
+
           wss.clients.forEach((client) => {
             if (
               client.readyState === WebSocket.OPEN &&
@@ -493,11 +510,7 @@ function setupWebSocket(
               );
             }
           });
-          console.log(
-            `Player ${id} updated maxStats: ${JSON.stringify(
-              data.maxStats
-            )}, upgradePoints: ${data.upgradePoints}`
-          );
+          console.log(`Player ${id} updated maxStats + upgrades`);
         }
       } else if (data.type === "updateInventory") {
         const id = clients.get(ws);

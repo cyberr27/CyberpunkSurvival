@@ -591,16 +591,11 @@ function handleAuthMessage(event) {
       window.npcSystem.checkQuestCompletion();
       window.npcSystem.setAvailableQuests(data.availableQuests || []);
       window.levelSystem.setLevelData(
-        data.level || 0,
-        data.xp || 0,
-        data.maxStats || {
-          health: 100,
-          energy: 100,
-          food: 100,
-          water: 100,
-          armor: 0,
-        },
-        data.upgradePoints || 0
+        data.level,
+        data.xp,
+        data.maxStats,
+        data.upgradePoints
+        // Теперь не нужно передавать upgrade-поля — они уже в me
       );
       resizeCanvas();
       ws.onmessage = handleGameMessage;

@@ -105,22 +105,28 @@ function createUpgradeButtons() {
         }
 
         upgradePoints--;
-        maxStats[statType] = (maxStats[statType] || 100) + 1;
+
+        // Увеличиваем upgrade-поле
+        const upgradeField = `${statType}Upgrade`;
+        window.levelSystem[upgradeField] =
+          (window.levelSystem[upgradeField] || 0) + 1;
+
+        // Обновляем maxStats
+        maxStats[statType] =
+          (maxStatsData?.[statType] || 100) + window.levelSystem[upgradeField];
         window.levelSystem.maxStats[statType] = maxStats[statType];
 
         const me = players.get(myId);
         if (me) {
           me.maxStats[statType] = maxStats[statType];
-          me[statType] = Math.min(me[statType], maxStats[statType]); // Ограничиваем текущую характеристику
-          console.log(`Увеличен max ${statType} до ${maxStats[statType]}`);
-        } else {
-          console.warn("Игрок не найден, maxStats обновлены локально");
+          me[statType] = Math.min(me[statType] || 100, maxStats[statType]);
+
+          // Сохраняем upgrade-поле в игроке
+          me[upgradeField] = window.levelSystem[upgradeField];
         }
 
-        // Обновляем отображение немедленно
         updateStatsDisplay();
 
-        // Отправляем обновление на сервер
         if (ws.readyState === WebSocket.OPEN) {
           sendWhenReady(
             ws,
@@ -128,20 +134,13 @@ function createUpgradeButtons() {
               type: "updateMaxStats",
               maxStats: { ...maxStats },
               upgradePoints,
-              stats: me
-                ? {
-                    health: me.health,
-                    energy: me.energy,
-                    food: me.food,
-                    water: me.water,
-                    armor: me.armor,
-                  }
-                : undefined,
+              healthUpgrade: window.levelSystem.healthUpgrade || 0,
+              energyUpgrade: window.levelSystem.energyUpgrade || 0,
+              foodUpgrade: window.levelSystem.foodUpgrade || 0,
+              waterUpgrade: window.levelSystem.waterUpgrade || 0,
             })
           );
-          console.log("Отправлено updateMaxStats на сервер");
-        } else {
-          console.warn("WebSocket не открыт, updateMaxStats не отправлено");
+          console.log(`Отправлено updateMaxStats с ${upgradeField}`);
         }
       });
 
@@ -228,19 +227,30 @@ function setLevelData(level, xp, maxStatsData, upgradePointsData) {
     upgradePoints = upgradePointsData || 0;
     xpToNextLevel = calculateXPToNextLevel(currentLevel);
 
-    // Устанавливаем maxStats с учётом базовых значений и данных с сервера
+    const me = players.get(myId);
+    if (!me) {
+      console.warn("Игрок не найден при setLevelData");
+      return;
+    }
+
+    // ВОССТАНАВЛИВАЕМ UPGRADE ПОЛЯ ИЗ me
+    window.levelSystem.healthUpgrade = me.healthUpgrade || 0;
+    window.levelSystem.energyUpgrade = me.energyUpgrade || 0;
+    window.levelSystem.foodUpgrade = me.foodUpgrade || 0;
+    window.levelSystem.waterUpgrade = me.waterUpgrade || 0;
+
+    // ПЕРЕСЧИТЫВАЕМ maxStats с учётом upgrade
     maxStats = {
-      health:
-        (maxStatsData?.health || 100) + (maxStatsData?.healthUpgrade || 0),
-      energy:
-        (maxStatsData?.energy || 100) + (maxStatsData?.energyUpgrade || 0),
-      food: (maxStatsData?.food || 100) + (maxStatsData?.foodUpgrade || 0),
-      water: (maxStatsData?.water || 100) + (maxStatsData?.waterUpgrade || 0),
-      armor: maxStatsData?.armor || 0, // Броня только от экипировки
+      health: (maxStatsData?.health || 100) + window.levelSystem.healthUpgrade,
+      energy: (maxStatsData?.energy || 100) + window.levelSystem.energyUpgrade,
+      food: (maxStatsData?.food || 100) + window.levelSystem.foodUpgrade,
+      water: (maxStatsData?.water || 100) + window.levelSystem.waterUpgrade,
+      armor: maxStatsData?.armor || 0,
     };
+
     window.levelSystem.maxStats = { ...maxStats };
 
-    const me = players.get(myId);
+    // Синхронизируем с игроком
     if (me) {
       me.maxStats = { ...maxStats };
       me.health = Math.min(me.health || 100, maxStats.health);
@@ -248,19 +258,9 @@ function setLevelData(level, xp, maxStatsData, upgradePointsData) {
       me.food = Math.min(me.food || 100, maxStats.food);
       me.water = Math.min(me.water || 100, maxStats.water);
       me.armor = Math.min(me.armor || 0, maxStats.armor);
-      console.log(
-        `Обновлены характеристики игрока: ${JSON.stringify({
-          health: me.health,
-          energy: me.energy,
-          food: me.food,
-          water: me.water,
-          armor: me.armor,
-        })}`
-      );
     }
 
     if (!isInitialized) {
-      console.log("Система уровней не инициализирована, запускаем...");
       initializeLevelSystem();
     }
     updateLevelDisplay();
