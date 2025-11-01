@@ -239,6 +239,12 @@ function setupWebSocket(
             energyUpgrade: player.energyUpgrade || 0,
             foodUpgrade: player.foodUpgrade || 0,
             waterUpgrade: player.waterUpgrade || 0,
+
+            // Fixed: don't set 100 if value is 0
+            health: typeof player.health === "number" ? player.health : 100,
+            energy: typeof player.energy === "number" ? player.energy : 100,
+            food: typeof player.food === "number" ? player.food : 100,
+            water: typeof player.water === "number" ? player.water : 100,
           };
 
           players.set(data.username, playerData);
@@ -265,13 +271,13 @@ function setupWebSocket(
               xp: playerData.xp,
               maxStats: playerData.maxStats,
               upgradePoints: playerData.upgradePoints,
-              healthUpgrade: playerData.healthUpgrade,
-              energyUpgrade: playerData.energyUpgrade,
-              foodUpgrade: playerData.foodUpgrade,
-              waterUpgrade: playerData.waterUpgrade,
               availableQuests: playerData.availableQuests,
               worldId: playerData.worldId,
               worldPositions: playerData.worldPositions,
+              healthUpgrade: playerData.healthUpgrade || 0,
+              energyUpgrade: playerData.energyUpgrade || 0,
+              foodUpgrade: playerData.foodUpgrade || 0,
+              waterUpgrade: playerData.waterUpgrade || 0,
               players: Array.from(players.values()).filter(
                 (p) =>
                   p.id !== data.username && p.worldId === playerData.worldId
@@ -299,6 +305,10 @@ function setupWebSocket(
               lights: lights
                 .get(playerData.worldId)
                 .map(({ id, ...rest }) => rest),
+              healthUpgrade: playerData.healthUpgrade,
+              energyUpgrade: playerData.energyUpgrade,
+              foodUpgrade: playerData.foodUpgrade,
+              waterUpgrade: playerData.waterUpgrade,
             })
           );
           wss.clients.forEach((client) => {

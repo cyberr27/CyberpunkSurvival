@@ -106,23 +106,24 @@ function createUpgradeButtons() {
 
         upgradePoints--;
 
-        // Увеличиваем upgrade-поле
+        // Увеличиваем upgrade-поле в window.levelSystem
         const upgradeField = `${statType}Upgrade`;
         window.levelSystem[upgradeField] =
           (window.levelSystem[upgradeField] || 0) + 1;
 
-        // Обновляем maxStats
-        maxStats[statType] =
-          (maxStatsData?.[statType] || 100) + window.levelSystem[upgradeField];
+        // БАЗОВОЕ ЗНАЧЕНИЕ — 100, БРОНИ — 0
+        const baseValue = statType === "armor" ? 0 : 100;
+        maxStats[statType] = baseValue + window.levelSystem[upgradeField];
         window.levelSystem.maxStats[statType] = maxStats[statType];
 
         const me = players.get(myId);
         if (me) {
           me.maxStats[statType] = maxStats[statType];
-          me[statType] = Math.min(me[statType] || 100, maxStats[statType]);
-
-          // Сохраняем upgrade-поле в игроке
-          me[upgradeField] = window.levelSystem[upgradeField];
+          me[statType] = Math.min(
+            me[statType] || baseValue,
+            maxStats[statType]
+          );
+          me[upgradeField] = window.levelSystem[upgradeField]; // сохраняем в игроке
         }
 
         updateStatsDisplay();
@@ -140,7 +141,7 @@ function createUpgradeButtons() {
               waterUpgrade: window.levelSystem.waterUpgrade || 0,
             })
           );
-          console.log(`Отправлено updateMaxStats с ${upgradeField}`);
+          console.log(`Отправлено updateMaxStats: ${statType} +1`);
         }
       });
 
