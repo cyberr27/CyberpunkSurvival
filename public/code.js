@@ -524,16 +524,15 @@ function handleAuthMessage(event) {
         selectedQuestId: data.selectedQuestId || null,
         level: data.level || 0,
         xp: data.xp || 99,
-        maxStats: data.maxStats || {
-          health: 100,
-          energy: 100,
-          food: 100,
-          water: 100,
-          armor: 0, // Добавляем armor по умолчанию
-        },
         upgradePoints: data.upgradePoints || 0,
         worldId: data.worldId || 0,
         worldPositions: data.worldPositions || { 0: { x: 222, y: 3205 } },
+
+        // ДОБАВЬ ЭТИ ПОЛЯ (из data)
+        healthUpgrade: data.healthUpgrade || 0,
+        energyUpgrade: data.energyUpgrade || 0,
+        foodUpgrade: data.foodUpgrade || 0,
+        waterUpgrade: data.waterUpgrade || 0,
       };
       players.set(myId, me);
       window.worldSystem.currentWorldId = me.worldId;

@@ -85,6 +85,12 @@ function setupWebSocket(
             availableQuests: [],
             worldId: 0,
             worldPositions: { 0: { x: 222, y: 3205 } },
+
+            // ДОБАВЬ ЭТИ ПОЛЯ (базово 0)
+            healthUpgrade: 0,
+            energyUpgrade: 0,
+            foodUpgrade: 0,
+            waterUpgrade: 0,
           };
 
           userDatabase.set(data.username, newPlayer);
@@ -234,17 +240,11 @@ function setupWebSocket(
               0: { x: player.x, y: player.y },
             },
 
-            // ДОБАВЛЯЕМ ПОЛЯ УЛУЧШЕНИЙ
+            // ДОБАВЬ ЭТИ ПОЛЯ
             healthUpgrade: player.healthUpgrade || 0,
             energyUpgrade: player.energyUpgrade || 0,
             foodUpgrade: player.foodUpgrade || 0,
             waterUpgrade: player.waterUpgrade || 0,
-
-            // Fixed: don't set 100 if value is 0
-            health: typeof player.health === "number" ? player.health : 100,
-            energy: typeof player.energy === "number" ? player.energy : 100,
-            food: typeof player.food === "number" ? player.food : 100,
-            water: typeof player.water === "number" ? player.water : 100,
           };
 
           players.set(data.username, playerData);
@@ -302,13 +302,13 @@ function setupWebSocket(
                   direction: wolf.direction,
                   state: wolf.state,
                 })),
-              lights: lights
-                .get(playerData.worldId)
-                .map(({ id, ...rest }) => rest),
               healthUpgrade: playerData.healthUpgrade,
               energyUpgrade: playerData.energyUpgrade,
               foodUpgrade: playerData.foodUpgrade,
               waterUpgrade: playerData.waterUpgrade,
+              lights: lights
+                .get(playerData.worldId)
+                .map(({ id, ...rest }) => rest),
             })
           );
           wss.clients.forEach((client) => {

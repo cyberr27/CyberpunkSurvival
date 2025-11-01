@@ -240,12 +240,12 @@ function setLevelData(level, xp, maxStatsData, upgradePointsData) {
     window.levelSystem.foodUpgrade = me.foodUpgrade || 0;
     window.levelSystem.waterUpgrade = me.waterUpgrade || 0;
 
-    // ПЕРЕСЧИТЫВАЕМ maxStats с учётом upgrade
+    // БЕРЁМ maxStats ПРЯМО С СЕРВЕРА (УЖЕ С УЧЁТОМ UPGRADE, БЕЗ ПЕРЕСЧЁТА)
     maxStats = {
-      health: (maxStatsData?.health || 100) + window.levelSystem.healthUpgrade,
-      energy: (maxStatsData?.energy || 100) + window.levelSystem.energyUpgrade,
-      food: (maxStatsData?.food || 100) + window.levelSystem.foodUpgrade,
-      water: (maxStatsData?.water || 100) + window.levelSystem.waterUpgrade,
+      health: maxStatsData?.health || 100,
+      energy: maxStatsData?.energy || 100,
+      food: maxStatsData?.food || 100,
+      water: maxStatsData?.water || 100,
       armor: maxStatsData?.armor || 0,
     };
 
