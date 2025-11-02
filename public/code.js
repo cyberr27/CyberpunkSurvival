@@ -22,26 +22,6 @@ let myId;
 const items = new Map();
 const pendingPickups = new Set();
 
-// === БАТЧИНГ ДВИЖЕНИЯ (10 FPS) ===
-let moveBuffer = null;
-function sendMove(x, y, dir) {
-  if (!ws || ws.readyState !== WebSocket.OPEN) return;
-  if (moveBuffer) return; // Уже в очереди
-
-  moveBuffer = setTimeout(() => {
-    sendWhenReady(
-      ws,
-      JSON.stringify({
-        type: "move",
-        x: Math.round(x),
-        y: Math.round(y),
-        direction: dir,
-      })
-    );
-    moveBuffer = null;
-  }, 100); // 100 мс = 10 FPS
-}
-
 // Загрузка изображений
 const imageSources = {
   playerSprite: "playerSprite.png",
@@ -521,7 +501,6 @@ function handleAuthMessage(event) {
       authContainer.style.display = "none";
       document.getElementById("gameContainer").style.display = "block";
 
-      // === СОЗДАЁМ ОБЪЕКТ ИГРОКА (me) ===
       const me = {
         id: data.id,
         x: data.x || 222,
@@ -546,7 +525,7 @@ function handleAuthMessage(event) {
           gloves: null,
         },
         npcMet: data.npcMet || false,
-        jackMet: data.jackMet || false, // <-- КРИТИЧНО: загружаем из сервера
+        jackMet: data.jackMet || false,
         selectedQuestId: data.selectedQuestId || null,
         level: data.level || 0,
         xp: data.xp || 99,
@@ -554,36 +533,31 @@ function handleAuthMessage(event) {
         worldId: data.worldId || 0,
         worldPositions: data.worldPositions || { 0: { x: 222, y: 3205 } },
 
-        // === UPGRADE ПОЛЯ (из data) ===
+        // ДОБАВЬ ЭТИ ПОЛЯ (из data)
         healthUpgrade: data.healthUpgrade || 0,
         energyUpgrade: data.energyUpgrade || 0,
         foodUpgrade: data.foodUpgrade || 0,
         waterUpgrade: data.waterUpgrade || 0,
       };
-
-      // === СОХРАНЯЕМ В ГЛОБАЛЬНЫЕ СТРУКТУРЫ ===
       players.set(myId, me);
       window.worldSystem.currentWorldId = me.worldId;
+      window.jackSystem.setJackMet(data.jackMet);
 
-      // === ПРИМЕНЯЕМ СОСТОЯНИЯ NPC И JACK ===
-      window.npcSystem.setNPCMet(me.npcMet);
-      window.jackSystem.setJackMet(me.jackMet); // <-- ВАЖНО: теперь статус сохраняется после перезахода
-
-      // === ИНИЦИАЛИЗАЦИЯ СИСТЕМ ===
+      // Инициализация систем, если не сделано
       if (window.equipmentSystem && !window.equipmentSystem.isInitialized) {
         window.equipmentSystem.initialize();
       }
 
+      // Применяем эффекты экипировки
       if (window.equipmentSystem && me.equipment) {
         window.equipmentSystem.syncEquipment(me.equipment);
       }
 
-      // === ИНВЕНТАРЬ И UI ===
+      // Устанавливаем инвентарь и обновляем UI
       inventory = me.inventory.map((item) => (item ? { ...item } : null));
       updateInventoryDisplay();
       updateStatsDisplay();
 
-      // === СИНХРОНИЗАЦИЯ ДРУГИХ ИГРОКОВ ===
       if (data.players) {
         data.players.forEach((p) => {
           if (p.id !== myId) {
@@ -592,9 +566,7 @@ function handleAuthMessage(event) {
         });
       }
 
-      // === ДИСТАНЦИЯ, ПРЕДМЕТЫ, СВЕТ ===
       lastDistance = me.distanceTraveled;
-
       if (data.items) {
         items.clear();
         data.items.forEach((item) =>
@@ -607,7 +579,6 @@ function handleAuthMessage(event) {
           })
         );
       }
-
       if (data.lights) {
         lights.length = 0;
         data.lights.forEach((light) =>
@@ -619,29 +590,25 @@ function handleAuthMessage(event) {
         );
         console.log(`Загружено ${lights.length} источников света при логине`);
       }
-
       window.lightsSystem.reset(me.worldId);
-
-      // === КВЕСТЫ И УРОВЕНЬ ===
-      window.npcSystem.setSelectedQuest(me.selectedQuestId);
+      window.npcSystem.setNPCMet(data.npcMet || false);
+      window.npcSystem.setSelectedQuest(data.selectedQuestId || null);
       window.npcSystem.checkQuestCompletion();
       window.npcSystem.setAvailableQuests(data.availableQuests || []);
-
       window.levelSystem.setLevelData(
-        me.level,
-        me.xp,
+        data.level,
+        data.xp,
         data.maxStats,
-        me.upgradePoints
+        data.upgradePoints
+        // Теперь не нужно передавать upgrade-поля — они уже в me
       );
-
-      // === ЗАПУСК ИГРЫ ===
       resizeCanvas();
       ws.onmessage = handleGameMessage;
       console.log("Переключен обработчик на handleGameMessage");
       startGame();
       updateOnlineCount(0);
-
       break;
+
     case "registerSuccess":
       registerError.textContent = "Регистрация успешна! Войдите.";
       registerForm.style.display = "none";
@@ -703,13 +670,6 @@ function handleAuthMessage(event) {
         );
       }
       items.set(data.itemId, newItem);
-      break;
-    case "batchUpdate":
-      data.players.forEach((p) => updatePlayer(p));
-      data.wolves.forEach((w) => updateWolf(w));
-      data.newItems.forEach((i) => addItem(i));
-      data.removeWolves.forEach((id) => removeWolf(id));
-      data.removeItems.forEach((id) => removeItem(id));
       break;
   }
 }
@@ -2153,7 +2113,6 @@ function draw(deltaTime) {
       `Предмет ${itemId} (${item.type}) на позиции worldX: ${item.x}, worldY: ${item.y}, screenX: ${screenX}, screenY: ${screenY}`
     );
 
-    // Проверка видимости с буфером (уже есть, но уточняем буфер для items ~20x20)
     if (
       screenX >= -40 &&
       screenX <= canvas.width + 40 &&
@@ -2236,7 +2195,7 @@ function draw(deltaTime) {
   window.wolfSystem.draw(ctx, window.movementSystem.getCamera());
   window.combatSystem.draw();
 
-  // Отрисовка игроков (добавляем проверку видимости с буфером для 70x70 спрайтов)
+  // Отрисовка игроков
   players.forEach((player, id) => {
     if (
       !player ||
@@ -2256,75 +2215,63 @@ function draw(deltaTime) {
     const screenX = player.x - window.movementSystem.getCamera().x;
     const screenY = player.y - window.movementSystem.getCamera().y;
 
-    // Проверка видимости с буфером (для игроков 70x70, буфер побольше)
-    if (
-      screenX >= -70 &&
-      screenX <= canvas.width + 70 &&
-      screenY >= -70 &&
-      screenY <= canvas.height + 70
-    ) {
-      if (player.id !== myId) {
-        if (player.state === "walking") {
-          player.frameTime += deltaTime;
-          if (player.frameTime >= GAME_CONFIG.FRAME_DURATION / 40) {
-            // Изменено на 40 кадров
-            player.frameTime -= GAME_CONFIG.FRAME_DURATION / 40;
-            player.frame = (player.frame + 1) % 40; // Цикл по 40 кадрам
-          }
-        } else if (player.state === "dying") {
-          // Убрана анимация dying (нет 5-й строки), используем статичный кадр из down
-          player.frame = 0; // Фиксированный кадр
-          player.frameTime = 0;
-        } else {
-          player.frame = 0;
-          player.frameTime = 0;
+    if (player.id !== myId) {
+      if (player.state === "walking") {
+        player.frameTime += deltaTime;
+        if (player.frameTime >= GAME_CONFIG.FRAME_DURATION / 40) {
+          // Изменено на 40 кадров
+          player.frameTime -= GAME_CONFIG.FRAME_DURATION / 40;
+          player.frame = (player.frame + 1) % 40; // Цикл по 40 кадрам
         }
-      }
-
-      let spriteX = player.frame * 70; // Кадры по 70 пикселей в ширину
-      let spriteY;
-      if (player.state === "dying") {
-        spriteY = 70; // Используем строку down (Y=70) для dying, так как 5-я строка убрана
+      } else if (player.state === "dying") {
+        // Убрана анимация dying (нет 5-й строки), используем статичный кадр из down
+        player.frame = 0; // Фиксированный кадр
+        player.frameTime = 0;
       } else {
-        spriteY =
-          {
-            up: 0,
-            down: 70,
-            left: 210, // Лево теперь Y=210 (4-я строка)
-            right: 140, // Право Y=140 (3-я строка)
-          }[player.direction] || 0; // По умолчанию down
+        player.frame = 0;
+        player.frameTime = 0;
       }
-
-      if (images.playerSprite && images.playerSprite.complete) {
-        ctx.drawImage(
-          images.playerSprite,
-          spriteX,
-          spriteY,
-          70, // Размер кадра 70x70
-          70,
-          screenX,
-          screenY,
-          70, // Отрисовка на экране 70x70 (игрок крупнее)
-          70
-        );
-      } else {
-        ctx.fillStyle = "blue";
-        ctx.fillRect(screenX, screenY, 70, 70); // Заглушка тоже 70x70
-      }
-
-      ctx.fillStyle = "white";
-      ctx.font = "12px Arial";
-      ctx.textAlign = "center";
-      ctx.fillText(player.id, screenX + 35, screenY - 20); // Смещение текста на центр (35 вместо 20)
-      ctx.fillStyle = "red";
-      ctx.fillRect(screenX, screenY - 15, 70, 5); // Здоровье бар шире (70 вместо 40)
-      ctx.fillStyle = "green";
-      ctx.fillRect(screenX, screenY - 15, (player.health / 100) * 70, 5); // Масштаб под новый размер
-    } else {
-      console.log(
-        `Игрок ${id} вне видимой области, x: ${screenX}, y: ${screenY}`
-      );
     }
+
+    let spriteX = player.frame * 70; // Кадры по 70 пикселей в ширину
+    let spriteY;
+    if (player.state === "dying") {
+      spriteY = 70; // Используем строку down (Y=70) для dying, так как 5-я строка убрана
+    } else {
+      spriteY =
+        {
+          up: 0,
+          down: 70,
+          left: 210, // Лево теперь Y=210 (4-я строка)
+          right: 140, // Право Y=140 (3-я строка)
+        }[player.direction] || 0; // По умолчанию down
+    }
+
+    if (images.playerSprite && images.playerSprite.complete) {
+      ctx.drawImage(
+        images.playerSprite,
+        spriteX,
+        spriteY,
+        70, // Размер кадра 70x70
+        70,
+        screenX,
+        screenY,
+        70, // Отрисовка на экране 70x70 (игрок крупнее)
+        70
+      );
+    } else {
+      ctx.fillStyle = "blue";
+      ctx.fillRect(screenX, screenY, 70, 70); // Заглушка тоже 70x70
+    }
+
+    ctx.fillStyle = "white";
+    ctx.font = "12px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText(player.id, screenX + 35, screenY - 20); // Смещение текста на центр (35 вместо 20)
+    ctx.fillStyle = "red";
+    ctx.fillRect(screenX, screenY - 15, 70, 5); // Здоровье бар шире (70 вместо 40)
+    ctx.fillStyle = "green";
+    ctx.fillRect(screenX, screenY - 15, (player.health / 100) * 70, 5); // Масштаб под новый размер
   });
 
   if (currentWorld.vegetationImage.complete) {
@@ -2415,6 +2362,7 @@ function gameLoop(timestamp) {
   draw(deltaTime);
   requestAnimationFrame(gameLoop);
 }
+
 // Инициализация изображений (без изменений)
 function onImageLoad() {
   imagesLoaded++;
