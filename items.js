@@ -23,7 +23,7 @@ const ITEM_CONFIG = {
   cyber_helmet: {
     type: "headgear",
     effect: { armor: 10, energy: 5 },
-    rarity: 3, // Было 4, стало 3
+    rarity: 4, // Было 4, стало 3
   },
   nano_armor: { type: "armor", effect: { armor: 20, health: 10 }, rarity: 3 }, // Было 4
   tactical_belt: { type: "belt", effect: { armor: 5, food: 5 }, rarity: 3 }, // Было 4
@@ -33,22 +33,22 @@ const ITEM_CONFIG = {
   plasma_rifle: {
     type: "weapon",
     effect: { damage: 15, range: 500 },
-    rarity: 3, // Было 4
+    rarity: 4, // Было 4
   },
   knuckles: {
     type: "weapon",
     effect: { damage: { min: 3, max: 7 } }, // Кастет: 3-7 урона
-    rarity: 3,
+    rarity: 4,
   },
   knife: {
     type: "weapon",
     effect: { damage: { min: 4, max: 6 } }, // Нож: 4-6 урона
-    rarity: 3,
+    rarity: 4,
   },
   bat: {
     type: "weapon",
     effect: { damage: { min: 5, max: 10 } }, // Бита: 5-10 урона
-    rarity: 3,
+    rarity: 4,
   },
   atom: {
     effect: { armor: 5 },

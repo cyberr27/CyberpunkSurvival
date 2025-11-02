@@ -72,6 +72,7 @@ function setupWebSocket(
               gloves: null,
             },
             npcMet: false,
+            jackMet: false,
             level: 0,
             xp: 99,
             maxStats: {
@@ -223,6 +224,7 @@ function setupWebSocket(
               gloves: null,
             },
             npcMet: player.npcMet || false,
+            jackMet: player.jackMet || false,
             selectedQuestId: player.selectedQuestId || null,
             level: player.level || 0,
             xp: player.xp || 0,
@@ -1773,6 +1775,15 @@ function setupWebSocket(
               `Player ${attackerId} dealt ${data.damage} damage to player ${data.targetId}`
             );
           }
+        }
+      } else if (data.type === "meetJack") {
+        const id = clients.get(ws);
+        if (id) {
+          const player = players.get(id);
+          player.jackMet = true;
+          players.set(id, { ...player });
+          userDatabase.set(id, { ...player });
+          await saveUserDatabase(dbCollection, id, player);
         }
       }
     });
