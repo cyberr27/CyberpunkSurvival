@@ -1,5 +1,9 @@
 const { saveUserDatabase } = require("./database");
 
+const UPDATE_INTERVAL = 100; // 10 FPS для всех обновлений
+let updateTimeout = null;
+const updateBuffer = new Map();
+
 function checkCollisionServer(x, y) {
   return false; // Пока оставляем как есть
 }
@@ -16,425 +20,280 @@ function runGameLoop(
   userDatabase
 ) {
   setInterval(() => {
-    const currentTime = Date.now();
-    const playerCountPerWorld = new Map();
-    worlds.forEach((world) => {
-      playerCountPerWorld.set(
-        world.id,
-        Array.from(players.values()).filter((p) => p.worldId === world.id)
-          .length
-      );
-    });
+  const currentTime = Date.now();
 
-    const totalPlayers = players.size;
-    wss.clients.forEach((client) => {
+  // 1. Подсчёт игроков по мирам
+  const playerCountPerWorld = new Map();
+  const worldPlayers = new Map(); // worldId -> [player]
+  const worldWolves = new Map();  // worldId -> [wolf]
+  const worldItems = new Map();   // worldId -> [item]
+
+  for (const world of worlds) {
+    playerCountPerWorld.set(world.id, 0);
+    worldPlayers.set(world.id, []);
+    worldWolves.set(world.id, []);
+    worldItems.set(world.id, []);
+  }
+
+  // Оптимизация: один проход по игрокам
+  for (const player of players.values()) {
+    if (worldPlayers.has(player.worldId)) {
+      playerCountPerWorld.set(player.worldId, playerCountPerWorld.get(player.worldId) + 1);
+      worldPlayers.get(player.worldId).push(player);
+    }
+  }
+
+  // Один проход по волкам
+  for (const wolf of wolves.values()) {
+    if (worldWolves.has(wolf.worldId)) {
+      worldWolves.get(wolf.worldId).push(wolf);
+    }
+  }
+
+  // Один проход по предметам
+  for (const [itemId, item] of items) {
+    if (worldItems.has(item.worldId)) {
+      worldItems.get(item.worldId).push({ itemId, ...item });
+    }
+  }
+
+  const totalPlayers = players.size;
+
+  // 2. Отправка totalOnline (раз в 10 сек)
+  if (Math.floor(currentTime / 10000) !== Math.floor((currentTime - 100) / 10000)) {
+    for (const client of wss.clients) {
       if (client.readyState === WebSocket.OPEN) {
-        client.send(
-          JSON.stringify({ type: "totalOnline", count: totalPlayers })
-        );
+        client.send(JSON.stringify({ type: "totalOnline", count: totalPlayers }));
       }
-    });
+    }
+  }
 
-    items.forEach((item, itemId) => {
-      if (currentTime - item.spawnTime > 10 * 60 * 1000) {
-        items.delete(itemId);
-        console.log(
-          `Предмет ${item.type} (${itemId}) в мире ${item.worldId} исчез из-за таймаута`
-        );
-        wss.clients.forEach((client) => {
-          if (
-            client.readyState === WebSocket.OPEN &&
-            players.get(clients.get(client))?.worldId === item.worldId
-          ) {
-            client.send(JSON.stringify({ type: "itemPicked", itemId }));
-          }
-        });
-      }
-    });
+  // 3. Удаление старых предметов
+  for (const [itemId, item] of items) {
+    if (currentTime - item.spawnTime > 10 * 60 * 1000) {
+      items.delete(itemId);
+      const worldBuf = updateBuffer.get(item.worldId) || { removeItems: [] };
+      worldBuf.removeItems = worldBuf.removeItems || [];
+      worldBuf.removeItems.push(itemId);
+      updateBuffer.set(item.worldId, worldBuf);
+    }
+  }
 
-    worlds.forEach((world) => {
-      const playerCount = playerCountPerWorld.get(world.id);
-      const worldItems = Array.from(items.values()).filter(
-        (item) => item.worldId === world.id
-      );
+  // === ЛОГИКА ПО МИРАМ ===
+  for (const world of worlds) {
+    const playerCount = playerCountPerWorld.get(world.id) || 0;
+    const playersInWorld = worldPlayers.get(world.id) || [];
+    const wolvesInWorld = worldWolves.get(world.id) || [];
+    const itemsInWorld = worldItems.get(world.id) || [];
 
-      const itemCounts = {};
-      for (const [type] of Object.entries(ITEM_CONFIG)) {
-        itemCounts[type] = worldItems.filter(
-          (item) => item.type === type
-        ).length;
-      }
+    const worldBuf = updateBuffer.get(world.id) || {};
+    worldBuf.players = worldBuf.players || [];
+    worldBuf.wolves = worldBuf.wolves || [];
+    worldBuf.items = worldBuf.items || [];
+    worldBuf.removeWolves = worldBuf.removeWolves || [];
+    worldBuf.removeItems = worldBuf.removeItems || [];
+    updateBuffer.set(world.id, worldBuf);
 
-      const rareItems = Object.entries(ITEM_CONFIG)
-        .filter(([_, config]) => config.rarity === 1)
-        .map(([type]) => type);
-      const mediumItems = Object.entries(ITEM_CONFIG)
-        .filter(([_, config]) => config.rarity === 2)
-        .map(([type]) => type);
-      const commonItems = Object.entries(ITEM_CONFIG)
-        .filter(([_, config]) => config.rarity === 3)
-        .map(([type]) => type);
+    // === СПАВН ПРЕДМЕТОВ ===
+    const itemCounts = {};
+    for (const [type] of Object.entries(ITEM_CONFIG)) {
+      itemCounts[type] = 0;
+    }
+    for (const item of itemsInWorld) {
+      if (itemCounts[item.type] !== undefined) itemCounts[item.type]++;
+    }
 
-      const desiredTotalItems = playerCount * 10;
-      const currentTotalItems = worldItems.length;
+    const desiredTotalItems = playerCount * 10;
+    const currentTotalItems = itemsInWorld.length;
 
-      if (currentTotalItems < desiredTotalItems) {
-        const itemsToSpawn = desiredTotalItems - currentTotalItems;
+    if (currentTotalItems < desiredTotalItems) {
+      const itemsToSpawn = Math.min(desiredTotalItems - currentTotalItems, 5); // не больше 5 за тик
 
-        let rareCount = playerCount * 2;
-        let mediumCount = playerCount * 3;
-        let commonCount = playerCount * 5;
+      const rareItems = Object.keys(ITEM_CONFIG).filter(t => ITEM_CONFIG[t].rarity === 1);
+      const mediumItems = Object.keys(ITEM_CONFIG).filter(t => ITEM_CONFIG[t].rarity === 2);
+      const commonItems = Object.keys(ITEM_CONFIG).filter(t => ITEM_CONFIG[t].rarity === 3);
 
-        for (let i = 0; i < itemsToSpawn; i++) {
-          let type;
-          if (
-            rareCount > 0 &&
-            rareItems.length > 0 &&
-            itemCounts[rareItems[rareCount % rareItems.length]] < rareCount
-          ) {
-            type = rareItems[Math.floor(Math.random() * rareItems.length)];
-            rareCount--;
-          } else if (
-            mediumCount > 0 &&
-            mediumItems.length > 0 &&
-            itemCounts[mediumItems[mediumCount % mediumItems.length]] <
-              mediumCount
-          ) {
-            type = mediumItems[Math.floor(Math.random() * mediumItems.length)];
-            mediumCount--;
-          } else if (
-            commonCount > 0 &&
-            commonItems.length > 0 &&
-            itemCounts[commonItems[commonCount % commonItems.length]] <
-              commonCount
-          ) {
-            type = commonItems[Math.floor(Math.random() * commonItems.length)];
-            commonCount--;
-          } else {
-            const allTypes = Object.keys(ITEM_CONFIG).filter(
-              (type) => ITEM_CONFIG[type].rarity !== 4
-            );
-            type = allTypes[Math.floor(Math.random() * allTypes.length)];
-          }
+      let rareCount = playerCount * 2;
+      let mediumCount = playerCount * 3;
+      let commonCount = playerCount * 5;
 
-          let x,
-            y,
-            attempts = 0;
-          const maxAttempts = 10;
-          do {
-            x = Math.random() * world.width;
-            y = Math.random() * world.height;
-            attempts++;
-          } while (checkCollisionServer(x, y) && attempts < maxAttempts);
-
-          if (attempts < maxAttempts) {
-            const itemId = `${type}_${Date.now()}_${i}`;
-            const newItem = {
-              x,
-              y,
-              type,
-              spawnTime: currentTime,
-              worldId: world.id,
-            };
-            if (type === "atom") {
-              console.log(
-                `Создан атом (${itemId}) в мире ${world.id} на координатах x:${
-                  newItem.x
-                }, y:${newItem.y} в ${new Date(currentTime).toLocaleString(
-                  "ru-RU"
-                )}`
-              );
-
-              // Если хочешь вывести в рендер (клиентам): отправляем специальное сообщение по WebSocket
-              // Это позволит клиентам логировать или показывать в UI (добавим обработку на клиенте ниже)
-              wss.clients.forEach((client) => {
-                if (
-                  client.readyState === WebSocket.OPEN &&
-                  players.get(clients.get(client))?.worldId === world.id
-                ) {
-                  client.send(
-                    JSON.stringify({
-                      type: "atomSpawned",
-                      message: `Создан атом (${itemId}) в мире ${
-                        world.id
-                      } на x:${newItem.x}, y:${newItem.y} в ${new Date(
-                        currentTime
-                      ).toLocaleString("ru-RU")}`,
-                    })
-                  );
-                }
-              });
-            }
-            items.set(itemId, newItem);
-            console.log(
-              `Создан предмет ${type} (${itemId}) в мире ${world.id} на x:${newItem.x}, y:${newItem.y}`
-            );
-
-            wss.clients.forEach((client) => {
-              if (
-                client.readyState === WebSocket.OPEN &&
-                players.get(clients.get(client))?.worldId === world.id
-              ) {
-                client.send(
-                  JSON.stringify({
-                    type: "newItem",
-                    itemId: itemId,
-                    x: newItem.x,
-                    y: newItem.y,
-                    type: newItem.type,
-                    spawnTime: newItem.spawnTime,
-                    worldId: world.id,
-                  })
-                );
-              }
-            });
-          } else {
-            console.log(
-              `Не удалось найти место для спавна предмета ${type} в мире ${world.id}`
-            );
-          }
+      for (let i = 0; i < itemsToSpawn; i++) {
+        let type;
+        if (rareCount > 0 && rareItems.length > 0 && itemCounts[rareItems[0]] < rareCount) {
+          type = rareItems[Math.floor(Math.random() * rareItems.length)];
+          rareCount--;
+        } else if (mediumCount > 0 && mediumItems.length > 0 && itemCounts[mediumItems[0]] < mediumCount) {
+          type = mediumItems[Math.floor(Math.random() * mediumItems.length)];
+          mediumCount--;
+        } else if (commonCount > 0 && commonItems.length > 0 && itemCounts[commonItems[0]] < commonCount) {
+          type = commonItems[Math.floor(Math.random() * commonItems.length)];
+          commonCount--;
+        } else {
+          const all = Object.keys(ITEM_CONFIG).filter(t => ITEM_CONFIG[t].rarity !== 4);
+          type = all[Math.floor(Math.random() * all.length)];
         }
-      }
 
-      if (world.id === 1) {
-        const maxWolves = Math.max(5, playerCount * 2);
-        const currentWolves = Array.from(wolves.values()).filter(
-          (w) => w.worldId === world.id
-        ).length;
+        let x, y, attempts = 0;
+        do {
+          x = Math.random() * world.width;
+          y = Math.random() * world.height;
+          attempts++;
+        } while (checkCollisionServer(x, y) && attempts < 10);
 
-        if (currentWolves < maxWolves) {
-          const wolvesToSpawn = maxWolves - currentWolves;
-          for (let i = 0; i < wolvesToSpawn; i++) {
-            let x,
-              y,
-              attempts = 0;
-            const maxAttempts = 10;
-            const player = Array.from(players.values()).find(
-              (p) => p.worldId === world.id
-            );
-            if (!player) continue;
+        if (attempts < 10) {
+          const itemId = `${type}_${currentTime}_${i}`;
+          const newItem = { x, y, type, spawnTime: currentTime, worldId: world.id };
+          items.set(itemId, newItem);
 
-            do {
-              const edge = Math.floor(Math.random() * 4);
-              switch (edge) {
-                case 0:
-                  x = player.x + (Math.random() - 0.5) * 1000;
-                  y = player.y - 500;
-                  break;
-                case 1:
-                  x = player.x + (Math.random() - 0.5) * 1000;
-                  y = player.y + 500;
-                  break;
-                case 2:
-                  x = player.x - 500;
-                  y = player.y + (Math.random() - 0.5) * 1000;
-                  break;
-                case 3:
-                  x = player.x + 500;
-                  y = player.y + (Math.random() - 0.5) * 1000;
-                  break;
-              }
-              attempts++;
-            } while (checkCollisionServer(x, y) && attempts < maxAttempts);
-
-            if (attempts < maxAttempts) {
-              const wolfId = `wolf_${Date.now()}_${i}`;
-              const wolf = {
-                id: wolfId,
-                x,
-                y,
-                health: 100,
-                direction: "down",
-                state: "walking",
-                worldId: world.id,
-                lastAttackTime: 0,
-              };
-              wolves.set(wolfId, wolf);
-              console.log(
-                `Создан волк ${wolfId} в мире ${world.id} на x:${x}, y:${y}`
-              );
-
-              wss.clients.forEach((client) => {
-                if (
-                  client.readyState === WebSocket.OPEN &&
-                  players.get(clients.get(client))?.worldId === world.id
-                ) {
-                  client.send(
-                    JSON.stringify({
-                      type: "updateWolf",
-                      worldId: world.id,
-                      wolf,
-                    })
-                  );
-                }
-              });
-            }
-          }
-        }
-      }
-
-      if (world.id === 1) {
-        wolves.forEach((wolf, wolfId) => {
-          if (wolf.worldId !== world.id) return;
-
-          let closestPlayer = null;
-          let minDistance = Infinity;
-          players.forEach((player) => {
-            if (player.worldId === world.id && player.health > 0) {
-              const dx = wolf.x - player.x;
-              const dy = wolf.y - player.y;
-              const distance = Math.sqrt(dx * dx + dy * dy);
-              if (distance < minDistance) {
-                minDistance = distance;
-                closestPlayer = player;
-              }
-            }
+          worldBuf.items.push({
+            itemId,
+            x: newItem.x,
+            y: newItem.y,
+            type: newItem.type,
+            spawnTime: newItem.spawnTime,
+            worldId: world.id
           });
 
-          if (closestPlayer) {
-            const dx = closestPlayer.x - wolf.x;
-            const dy = closestPlayer.y - wolf.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            const speed = 2;
-
-            if (distance > 40) {
-              const angle = Math.atan2(dy, dx);
-              wolf.x += Math.cos(angle) * speed;
-              wolf.y += Math.sin(angle) * speed;
-              wolf.state = "walking";
-              wolf.direction =
-                Math.abs(dx) > Math.abs(dy)
-                  ? dx > 0
-                    ? "right"
-                    : "left"
-                  : dy > 0
-                  ? "down"
-                  : "up";
-            } else {
-              const currentTime = Date.now();
-              if (currentTime - wolf.lastAttackTime >= 3000) {
-                const damage = Math.floor(Math.random() * 10) + 1;
-                closestPlayer.health = Math.max(
-                  0,
-                  closestPlayer.health - damage
-                );
-                wolf.lastAttackTime = currentTime;
-                console.log(
-                  `Волк ${wolfId} атаковал игрока ${closestPlayer.id}, урон: ${damage}`
-                );
-
-                players.set(closestPlayer.id, { ...closestPlayer });
-                userDatabase.set(closestPlayer.id, { ...closestPlayer });
-                saveUserDatabase(dbCollection, closestPlayer.id, closestPlayer);
-
-                wss.clients.forEach((client) => {
-                  if (client.readyState === WebSocket.OPEN) {
-                    const clientPlayer = players.get(clients.get(client));
-                    if (clientPlayer && clientPlayer.worldId === world.id) {
-                      client.send(
-                        JSON.stringify({
-                          type: "update",
-                          player: closestPlayer,
-                        })
-                      );
-                    }
-                  }
-                });
-              }
-            }
-
-            if (wolf.health <= 0 && wolf.state !== "dying") {
-              wolf.state = "dying";
-              wolf.frame = 0;
-            }
-
-            wolves.set(wolfId, { ...wolf });
-            wss.clients.forEach((client) => {
-              if (
-                client.readyState === WebSocket.OPEN &&
-                players.get(clients.get(client))?.worldId === world.id
-              ) {
-                client.send(
-                  JSON.stringify({
-                    type: "updateWolf",
-                    worldId: world.id,
-                    wolf,
-                  })
-                );
-              }
-            });
-
-            if (wolf.state === "dying" && wolf.frame >= 3) {
-              wolves.delete(wolfId);
-              const itemId = `wolf_skin_${Date.now()}`;
-              items.set(itemId, {
-                x: wolf.x,
-                y: wolf.y,
-                type: "wolf_skin",
-                spawnTime: Date.now(),
-                worldId: world.id,
-                isDroppedByPlayer: false,
-              });
-
-              wss.clients.forEach((client) => {
-                if (
-                  client.readyState === WebSocket.OPEN &&
-                  players.get(clients.get(client))?.worldId === world.id
-                ) {
-                  client.send(
-                    JSON.stringify({
-                      type: "removeWolf",
-                      worldId: world.id,
-                      wolfId,
-                    })
-                  );
-                  client.send(
-                    JSON.stringify({
-                      type: "itemDropped",
-                      itemId,
-                      x: wolf.x,
-                      y: wolf.y,
-                      type: "wolf_skin",
-                      spawnTime: Date.now(),
-                      worldId: world.id,
-                    })
-                  );
-                }
-              });
-              console.log(
-                `Волк ${wolfId} умер, дропнута волчья шкура ${itemId}`
-              );
-            }
+          if (type === "atom") {
+            console.log(`АТОМ: ${itemId} @ ${world.id} (${x.toFixed(1)}, ${y.toFixed(1)})`);
           }
-        });
+        }
+      }
+    }
+
+    // === ВОЛКИ (только мир 1) ===
+    if (world.id === 1) {
+      const maxWolves = Math.max(5, playerCount * 2);
+      const currentWolves = wolvesInWorld.length;
+
+      if (currentWolves < maxWolves && playersInWorld.length > 0) {
+        const toSpawn = Math.min(maxWolves - currentWolves, 3);
+        const player = playersInWorld[0]; // ближайший — первый
+
+        for (let i = 0; i < toSpawn; i++) {
+          let x, y, attempts = 0;
+          do {
+            const edge = Math.floor(Math.random() * 4);
+            switch (edge) {
+              case 0: x = player.x + (Math.random() - 0.5) * 1000; y = player.y - 500; break;
+              case 1: x = player.x + (Math.random() - 0.5) * 1000; y = player.y + 500; break;
+              case 2: x = player.x - 500; y = player.y + (Math.random() - 0.5) * 1000; break;
+              case 3: x = player.x + 500; y = player.y + (Math.random() - 0.5) * 1000; break;
+            }
+            attempts++;
+          } while (checkCollisionServer(x, y) && attempts < 10);
+
+          if (attempts < 10) {
+            const wolfId = `wolf_${currentTime}_${i}`;
+            const wolf = {
+              id: wolfId, x, y, health: 100, direction: "down", state: "walking",
+              worldId: world.id, lastAttackTime: 0, frame: 0
+            };
+            wolves.set(wolfId, wolf);
+            worldBuf.wolves.push(wolf);
+          }
+        }
       }
 
-      const allItems = Array.from(items.entries())
-        .filter(([_, item]) => item.worldId === world.id)
-        .map(([itemId, item]) => ({
-          itemId,
-          x: item.x,
-          y: item.y,
-          type: item.type,
-          spawnTime: item.spawnTime,
-          worldId: item.worldId,
-        }));
-      wss.clients.forEach((client) => {
-        if (
-          client.readyState === WebSocket.OPEN &&
-          players.get(clients.get(client))?.worldId === world.id
-        ) {
-          client.send(
-            JSON.stringify({
-              type: "syncItems",
-              items: allItems,
-              worldId: world.id,
-            })
-          );
+      // === ЛОГИКА ВОЛКОВ ===
+      for (const wolf of wolvesInWorld) {
+        let closest = null;
+        let minDist = Infinity;
+
+        for (const player of playersInWorld) {
+          if (player.health <= 0) continue;
+          const dx = wolf.x - player.x;
+          const dy = wolf.y - player.y;
+          const dist = dx * dx + dy * dy;
+          if (dist < minDist) {
+            minDist = dist;
+            closest = player;
+          }
         }
-      });
-    });
-  }, 10 * 1000);
+
+        if (closest) {
+          const dx = closest.x - wolf.x;
+          const dy = closest.y - wolf.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+
+          if (distance > 40) {
+            const angle = Math.atan2(dy, dx);
+            wolf.x += Math.cos(angle) * 2;
+            wolf.y += Math.sin(angle) * 2;
+            wolf.state = "walking";
+            wolf.direction = Math.abs(dx) > Math.abs(dy)
+              ? dx > 0 ? "right" : "left"
+              : dy > 0 ? "down" : "up";
+          } else if (currentTime - wolf.lastAttackTime >= 3000) {
+            const damage = Math.floor(Math.random() * 10) + 1;
+            closest.health = Math.max(0, closest.health - damage);
+            wolf.lastAttackTime = currentTime;
+
+            players.set(closest.id, { ...closest });
+            userDatabase.set(closest.id, { ...closest });
+            saveUserDatabase(dbCollection, closest.id, closest);
+
+            worldBuf.players.push(closest);
+          }
+
+          if (wolf.health <= 0 && wolf.state !== "dying") {
+            wolf.state = "dying";
+            wolf.frame = 0;
+          }
+
+          if (wolf.state === "dying") {
+            wolf.frame = (wolf.frame || 0) + 1;
+            if (wolf.frame >= 3) {
+              wolves.delete(wolf.id);
+              worldBuf.removeWolves.push(wolf.id);
+
+              const itemId = `wolf_skin_${currentTime}`;
+              items.set(itemId, {
+                x: wolf.x, y: wolf.y, type: "wolf_skin",
+                spawnTime: currentTime, worldId: world.id
+              });
+              worldBuf.items.push({
+                itemId, x: wolf.x, y: wolf.y, type: "wolf_skin",
+                spawnTime: currentTime, worldId: world.id
+              });
+            }
+          }
+
+          worldBuf.wolves.push(wolf);
+        }
+      }
+    }
+  }
+
+  // === ОТПРАВКА БАТЧЕЙ ===
+  if (updateTimeout) return;
+
+  updateTimeout = setTimeout(() => {
+    updateTimeout = null;
+
+    for (const [worldId, buf] of updateBuffer) {
+      const message = {
+        type: "batchUpdate",
+        worldId,
+        players: buf.players || [],
+        wolves: buf.wolves || [],
+        newItems: buf.items || [],
+        removeWolves: buf.removeWolves || [],
+        removeItems: buf.removeItems || []
+      };
+
+      for (const client of wss.clients) {
+        if (client.readyState !== WebSocket.OPEN) continue;
+        const player = players.get(clients.get(client));
+        if (player && player.worldId === worldId) {
+          client.send(JSON.stringify(message));
+        }
+      }
+    }
+
+    updateBuffer.clear();
+  }, UPDATE_INTERVAL);
+}, 100); // каждые 100 мс
 }
 
 module.exports = { runGameLoop };

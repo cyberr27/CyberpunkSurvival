@@ -305,6 +305,8 @@ let lastDistance = 0; // Добавляем глобальную перемен�
 
 // Добавляем переменные для управления анимацией
 let lastTime = 0; // Время последнего кадра для расчета deltaTime
+let lastRender = 0; // Новая для трекинга последнего рендера
+const FPS = 10; // Целевой FPS, можно изменить
 
 // Переключение форм
 toRegister.addEventListener("click", () => {
@@ -681,6 +683,13 @@ function handleAuthMessage(event) {
         );
       }
       items.set(data.itemId, newItem);
+      break;
+    case "batchUpdate":
+      data.players.forEach((p) => updatePlayer(p));
+      data.wolves.forEach((w) => updateWolf(w));
+      data.newItems.forEach((i) => addItem(i));
+      data.removeWolves.forEach((id) => removeWolf(id));
+      data.removeItems.forEach((id) => removeItem(id));
       break;
   }
 }
@@ -2124,6 +2133,7 @@ function draw(deltaTime) {
       `Предмет ${itemId} (${item.type}) на позиции worldX: ${item.x}, worldY: ${item.y}, screenX: ${screenX}, screenY: ${screenY}`
     );
 
+    // Проверка видимости с буфером (уже есть, но уточняем буфер для items ~20x20)
     if (
       screenX >= -40 &&
       screenX <= canvas.width + 40 &&
@@ -2206,7 +2216,7 @@ function draw(deltaTime) {
   window.wolfSystem.draw(ctx, window.movementSystem.getCamera());
   window.combatSystem.draw();
 
-  // Отрисовка игроков
+  // Отрисовка игроков (добавляем проверку видимости с буфером для 70x70 спрайтов)
   players.forEach((player, id) => {
     if (
       !player ||
@@ -2226,63 +2236,75 @@ function draw(deltaTime) {
     const screenX = player.x - window.movementSystem.getCamera().x;
     const screenY = player.y - window.movementSystem.getCamera().y;
 
-    if (player.id !== myId) {
-      if (player.state === "walking") {
-        player.frameTime += deltaTime;
-        if (player.frameTime >= GAME_CONFIG.FRAME_DURATION / 40) {
-          // Изменено на 40 кадров
-          player.frameTime -= GAME_CONFIG.FRAME_DURATION / 40;
-          player.frame = (player.frame + 1) % 40; // Цикл по 40 кадрам
+    // Проверка видимости с буфером (для игроков 70x70, буфер побольше)
+    if (
+      screenX >= -70 &&
+      screenX <= canvas.width + 70 &&
+      screenY >= -70 &&
+      screenY <= canvas.height + 70
+    ) {
+      if (player.id !== myId) {
+        if (player.state === "walking") {
+          player.frameTime += deltaTime;
+          if (player.frameTime >= GAME_CONFIG.FRAME_DURATION / 40) {
+            // Изменено на 40 кадров
+            player.frameTime -= GAME_CONFIG.FRAME_DURATION / 40;
+            player.frame = (player.frame + 1) % 40; // Цикл по 40 кадрам
+          }
+        } else if (player.state === "dying") {
+          // Убрана анимация dying (нет 5-й строки), используем статичный кадр из down
+          player.frame = 0; // Фиксированный кадр
+          player.frameTime = 0;
+        } else {
+          player.frame = 0;
+          player.frameTime = 0;
         }
-      } else if (player.state === "dying") {
-        // Убрана анимация dying (нет 5-й строки), используем статичный кадр из down
-        player.frame = 0; // Фиксированный кадр
-        player.frameTime = 0;
-      } else {
-        player.frame = 0;
-        player.frameTime = 0;
       }
-    }
 
-    let spriteX = player.frame * 70; // Кадры по 70 пикселей в ширину
-    let spriteY;
-    if (player.state === "dying") {
-      spriteY = 70; // Используем строку down (Y=70) для dying, так как 5-я строка убрана
+      let spriteX = player.frame * 70; // Кадры по 70 пикселей в ширину
+      let spriteY;
+      if (player.state === "dying") {
+        spriteY = 70; // Используем строку down (Y=70) для dying, так как 5-я строка убрана
+      } else {
+        spriteY =
+          {
+            up: 0,
+            down: 70,
+            left: 210, // Лево теперь Y=210 (4-я строка)
+            right: 140, // Право Y=140 (3-я строка)
+          }[player.direction] || 0; // По умолчанию down
+      }
+
+      if (images.playerSprite && images.playerSprite.complete) {
+        ctx.drawImage(
+          images.playerSprite,
+          spriteX,
+          spriteY,
+          70, // Размер кадра 70x70
+          70,
+          screenX,
+          screenY,
+          70, // Отрисовка на экране 70x70 (игрок крупнее)
+          70
+        );
+      } else {
+        ctx.fillStyle = "blue";
+        ctx.fillRect(screenX, screenY, 70, 70); // Заглушка тоже 70x70
+      }
+
+      ctx.fillStyle = "white";
+      ctx.font = "12px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText(player.id, screenX + 35, screenY - 20); // Смещение текста на центр (35 вместо 20)
+      ctx.fillStyle = "red";
+      ctx.fillRect(screenX, screenY - 15, 70, 5); // Здоровье бар шире (70 вместо 40)
+      ctx.fillStyle = "green";
+      ctx.fillRect(screenX, screenY - 15, (player.health / 100) * 70, 5); // Масштаб под новый размер
     } else {
-      spriteY =
-        {
-          up: 0,
-          down: 70,
-          left: 210, // Лево теперь Y=210 (4-я строка)
-          right: 140, // Право Y=140 (3-я строка)
-        }[player.direction] || 0; // По умолчанию down
-    }
-
-    if (images.playerSprite && images.playerSprite.complete) {
-      ctx.drawImage(
-        images.playerSprite,
-        spriteX,
-        spriteY,
-        70, // Размер кадра 70x70
-        70,
-        screenX,
-        screenY,
-        70, // Отрисовка на экране 70x70 (игрок крупнее)
-        70
+      console.log(
+        `Игрок ${id} вне видимой области, x: ${screenX}, y: ${screenY}`
       );
-    } else {
-      ctx.fillStyle = "blue";
-      ctx.fillRect(screenX, screenY, 70, 70); // Заглушка тоже 70x70
     }
-
-    ctx.fillStyle = "white";
-    ctx.font = "12px Arial";
-    ctx.textAlign = "center";
-    ctx.fillText(player.id, screenX + 35, screenY - 20); // Смещение текста на центр (35 вместо 20)
-    ctx.fillStyle = "red";
-    ctx.fillRect(screenX, screenY - 15, 70, 5); // Здоровье бар шире (70 вместо 40)
-    ctx.fillStyle = "green";
-    ctx.fillRect(screenX, screenY - 15, (player.health / 100) * 70, 5); // Масштаб под новый размер
   });
 
   if (currentWorld.vegetationImage.complete) {
@@ -2356,15 +2378,23 @@ function checkCollisions() {
 }
 
 function gameLoop(timestamp) {
-  if (!lastTime) lastTime = timestamp;
+  if (!lastTime) lastTime = timestamp; // Инициализация, как у тебя
+
+  // Проверяем, пора ли рендерить (не чаще 30 FPS)
+  if (timestamp - lastRender < 1000 / FPS) {
+    requestAnimationFrame(gameLoop);
+    return;
+  }
+
+  // Рассчитываем deltaTime только для рендера
   const deltaTime = timestamp - lastTime;
   lastTime = timestamp;
+  lastRender = timestamp; // Обновляем время последнего рендера
 
   update(deltaTime);
   draw(deltaTime);
   requestAnimationFrame(gameLoop);
 }
-
 // Инициализация изображений (без изменений)
 function onImageLoad() {
   imagesLoaded++;
