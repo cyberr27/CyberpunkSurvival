@@ -45,6 +45,8 @@ const imageSources = {
   carrotImage: "carrot.png",
   johnSprite: "JohnSprite.png",
   npcPhotoImage: "fotoQuestNPC.png",
+  jackSprite: "jackSprite.png", // Создай файл спрайта (аналог johnSprite.png, 70x(40 кадров))
+  jackPhotoImage: "jackPhoto.png", // Фото для диалога (аналог fotoQuestNPC.png)
   cyberHelmetImage: "cyber_helmet.png",
   nanoArmorImage: "nano_armor.png",
   tacticalBeltImage: "tactical_belt.png",
@@ -521,6 +523,7 @@ function handleAuthMessage(event) {
           gloves: null,
         },
         npcMet: data.npcMet || false,
+        jackMet: data.jackMet || false,
         selectedQuestId: data.selectedQuestId || null,
         level: data.level || 0,
         xp: data.xp || 99,
@@ -536,6 +539,7 @@ function handleAuthMessage(event) {
       };
       players.set(myId, me);
       window.worldSystem.currentWorldId = me.worldId;
+      window.jackSystem.setJackMet(data.jackMet);
 
       // Инициализация систем, если не сделано
       if (window.equipmentSystem && !window.equipmentSystem.isInitialized) {
@@ -1810,6 +1814,7 @@ function handleGameMessage(event) {
             inventory = data.player.inventory;
             updateInventoryDisplay();
           }
+
           // Обновляем экипировку
           if (data.player.equipment) {
             window.equipmentSystem.syncEquipment(data.player.equipment);
@@ -2182,6 +2187,7 @@ function draw(deltaTime) {
   }
 
   window.npcSystem.drawNPC(deltaTime);
+  window.jackSystem.drawJack(deltaTime);
   window.vendingMachine.draw();
   window.wolfSystem.draw(ctx, window.movementSystem.getCamera());
   window.combatSystem.draw();
@@ -2348,5 +2354,5 @@ function gameLoop(timestamp) {
 // Инициализация изображений (без изменений)
 function onImageLoad() {
   imagesLoaded++;
-  if (imagesLoaded === 25) window.addEventListener("resize", resizeCanvas);
+  if (imagesLoaded === 27) window.addEventListener("resize", resizeCanvas);
 }

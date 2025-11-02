@@ -206,6 +206,7 @@
 
         // Проверяем взаимодействие с NPC, квестами и торговым автоматом
         window.npcSystem.checkNPCProximity();
+        window.jackSystem.checkJackProximity();
         window.npcSystem.checkQuestCompletion();
         window.vendingMachine.checkProximity();
 
