@@ -263,21 +263,21 @@ const ITEM_CONFIG = {
     effect: { damage: { min: 3, max: 7 } },
     image: images.knucklesImage,
     description: "Кастет: 3-7 урона в ближнем бою",
-    rarity: 3,
+    rarity: 4,
   },
   knife: {
     type: "weapon",
     effect: { damage: { min: 4, max: 6 } },
     image: images.knifeImage,
     description: "Нож: 4-6 урона в ближнем бою",
-    rarity: 3,
+    rarity: 4,
   },
   bat: {
     type: "weapon",
     effect: { damage: { min: 5, max: 10 } },
     image: images.batImage,
     description: "Бита: 5-10 урона в ближнем бою",
-    rarity: 3,
+    rarity: 4,
   },
   atom: {
     effect: { armor: 5 },
@@ -706,6 +706,7 @@ function startGame() {
   window.vendingMachine.initialize();
   window.movementSystem.initialize(); // Инициализируем систему движения
   window.npcSystem.initialize(images.johnSprite); // Передаём изображение NPC
+  window.jackSystem.initialize(images.jackSprite);
 
   // Проверяем, что изображения загружены перед инициализацией wolfSystem
   if (imagesLoaded === totalImages) {
