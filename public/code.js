@@ -499,6 +499,7 @@ function handleAuthMessage(event) {
       authContainer.style.display = "none";
       document.getElementById("gameContainer").style.display = "block";
 
+      // === СОЗДАЁМ ОБЪЕКТ ИГРОКА (me) ===
       const me = {
         id: data.id,
         x: data.x || 222,
@@ -523,7 +524,7 @@ function handleAuthMessage(event) {
           gloves: null,
         },
         npcMet: data.npcMet || false,
-        jackMet: data.jackMet || false,
+        jackMet: data.jackMet || false, // <-- КРИТИЧНО: загружаем из сервера
         selectedQuestId: data.selectedQuestId || null,
         level: data.level || 0,
         xp: data.xp || 99,
@@ -531,31 +532,36 @@ function handleAuthMessage(event) {
         worldId: data.worldId || 0,
         worldPositions: data.worldPositions || { 0: { x: 222, y: 3205 } },
 
-        // ДОБАВЬ ЭТИ ПОЛЯ (из data)
+        // === UPGRADE ПОЛЯ (из data) ===
         healthUpgrade: data.healthUpgrade || 0,
         energyUpgrade: data.energyUpgrade || 0,
         foodUpgrade: data.foodUpgrade || 0,
         waterUpgrade: data.waterUpgrade || 0,
       };
+
+      // === СОХРАНЯЕМ В ГЛОБАЛЬНЫЕ СТРУКТУРЫ ===
       players.set(myId, me);
       window.worldSystem.currentWorldId = me.worldId;
-      window.jackSystem.setJackMet(data.jackMet);
 
-      // Инициализация систем, если не сделано
+      // === ПРИМЕНЯЕМ СОСТОЯНИЯ NPC И JACK ===
+      window.npcSystem.setNPCMet(me.npcMet);
+      window.jackSystem.setJackMet(me.jackMet); // <-- ВАЖНО: теперь статус сохраняется после перезахода
+
+      // === ИНИЦИАЛИЗАЦИЯ СИСТЕМ ===
       if (window.equipmentSystem && !window.equipmentSystem.isInitialized) {
         window.equipmentSystem.initialize();
       }
 
-      // Применяем эффекты экипировки
       if (window.equipmentSystem && me.equipment) {
         window.equipmentSystem.syncEquipment(me.equipment);
       }
 
-      // Устанавливаем инвентарь и обновляем UI
+      // === ИНВЕНТАРЬ И UI ===
       inventory = me.inventory.map((item) => (item ? { ...item } : null));
       updateInventoryDisplay();
       updateStatsDisplay();
 
+      // === СИНХРОНИЗАЦИЯ ДРУГИХ ИГРОКОВ ===
       if (data.players) {
         data.players.forEach((p) => {
           if (p.id !== myId) {
@@ -564,7 +570,9 @@ function handleAuthMessage(event) {
         });
       }
 
+      // === ДИСТАНЦИЯ, ПРЕДМЕТЫ, СВЕТ ===
       lastDistance = me.distanceTraveled;
+
       if (data.items) {
         items.clear();
         data.items.forEach((item) =>
@@ -577,6 +585,7 @@ function handleAuthMessage(event) {
           })
         );
       }
+
       if (data.lights) {
         lights.length = 0;
         data.lights.forEach((light) =>
@@ -588,25 +597,29 @@ function handleAuthMessage(event) {
         );
         console.log(`Загружено ${lights.length} источников света при логине`);
       }
+
       window.lightsSystem.reset(me.worldId);
-      window.npcSystem.setNPCMet(data.npcMet || false);
-      window.npcSystem.setSelectedQuest(data.selectedQuestId || null);
+
+      // === КВЕСТЫ И УРОВЕНЬ ===
+      window.npcSystem.setSelectedQuest(me.selectedQuestId);
       window.npcSystem.checkQuestCompletion();
       window.npcSystem.setAvailableQuests(data.availableQuests || []);
+
       window.levelSystem.setLevelData(
-        data.level,
-        data.xp,
+        me.level,
+        me.xp,
         data.maxStats,
-        data.upgradePoints
-        // Теперь не нужно передавать upgrade-поля — они уже в me
+        me.upgradePoints
       );
+
+      // === ЗАПУСК ИГРЫ ===
       resizeCanvas();
       ws.onmessage = handleGameMessage;
       console.log("Переключен обработчик на handleGameMessage");
       startGame();
       updateOnlineCount(0);
-      break;
 
+      break;
     case "registerSuccess":
       registerError.textContent = "Регистрация успешна! Войдите.";
       registerForm.style.display = "none";
