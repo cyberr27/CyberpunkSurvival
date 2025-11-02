@@ -4,7 +4,7 @@
   let isMoving = false;
   let targetX = 0;
   let targetY = 0;
-  const baseSpeed = 100; // Пикселей в секунду
+  const baseSpeed = 65; // Пикселей в секунду
   const worldWidth = 3135;
   const worldHeight = 3300;
 
