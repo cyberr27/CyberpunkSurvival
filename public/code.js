@@ -22,6 +22,26 @@ let myId;
 const items = new Map();
 const pendingPickups = new Set();
 
+// === БАТЧИНГ ДВИЖЕНИЯ (10 FPS) ===
+let moveBuffer = null;
+function sendMove(x, y, dir) {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  if (moveBuffer) return; // Уже в очереди
+
+  moveBuffer = setTimeout(() => {
+    sendWhenReady(
+      ws,
+      JSON.stringify({
+        type: "move",
+        x: Math.round(x),
+        y: Math.round(y),
+        direction: dir,
+      })
+    );
+    moveBuffer = null;
+  }, 100); // 100 мс = 10 FPS
+}
+
 // Загрузка изображений
 const imageSources = {
   playerSprite: "playerSprite.png",
