@@ -31,7 +31,8 @@ const wolfSystem = {
     if (this._cachedWorldId !== worldId) {
       this._cachedWorldId = worldId;
       this._isWasteland = worldId === 1;
-      if (!this._isWasteland) this.clearWolves();
+      // УБРАЛИ: if (!this._isWasteland) this.clearWolves();
+      // → Теперь волки не удаляются при смене мира!
     }
     this._me = players.get(myId);
   },
@@ -105,51 +106,61 @@ const wolfSystem = {
 
   syncWolves(wolvesData) {
     this._updateWorldCache();
+
+    // НЕ УДАЛЯЕМ ВОЛКОВ, если не в Пустоши — просто игнорируем новые данные
     if (!this._isWasteland) {
-      this.clearWolves();
-      return;
+      return; // ← УБРАЛИ clearWolves()!
     }
 
     const newMap = new Map();
 
     for (const data of wolvesData) {
+      // Принимаем ТОЛЬКО волков из мира 1
       if (data.worldId !== 1) continue;
 
       const existing = this.wolves.get(data.id);
       const offset =
-        existing?._offsetTime ?? Math.random() * this.FRAME_DURATION;
+        existing?._offsetTime ?? Math.random() * this.FRAME_DURATION * 4;
 
       newMap.set(data.id, {
         id: data.id,
         x: data.x,
         y: data.y,
         health: data.health,
-        direction: data.direction,
-        state: data.state,
+        direction: data.direction || "down",
+        state: data.state || "walking",
         frame: data.frame ?? 0,
-        _offsetTime: offset, // для рассинхронизации анимации
+        _offsetTime: offset,
       });
     }
 
-    this.wolves = newMap;
+    // Только если мы в Пустоши — обновляем
+    if (this._isWasteland) {
+      this.wolves = newMap;
+    }
   },
 
   updateWolf(wolfData) {
     this._updateWorldCache();
     if (!this._isWasteland || wolfData.worldId !== 1) return;
 
-    const existing = this.wolves.get(wolfData.id);
-    const offset = existing?._offsetTime ?? Math.random() * this.FRAME_DURATION;
+    const wolf = this.wolves.get(wolfData.id);
+    if (!wolf) return;
 
-    this.wolves.set(wolfData.id, {
-      ...(existing ?? {}),
-      ...wolfData,
-      frame: wolfData.frame ?? 0,
-      _offsetTime: offset,
+    // Обновляем только нужные поля
+    Object.assign(wolf, {
+      x: wolfData.x,
+      y: wolfData.y,
+      health: wolfData.health,
+      direction: wolfData.direction,
+      state: wolfData.state,
+      frame: wolfData.frame ?? wolf.frame,
     });
   },
 
   removeWolf(wolfId) {
+    this._updateWorldCache();
+    if (!this._isWasteland) return;
     this.wolves.delete(wolfId);
   },
 };
