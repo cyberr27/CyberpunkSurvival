@@ -1,151 +1,156 @@
-// В начало файла, после определения wolfSystem
+// wolfSystem.js – оптимизированная версия
 const wolfSystem = {
   wolves: new Map(),
   wolfSprite: null,
   wolfSkinImage: null,
-  FRAME_DURATION: 400,
+  FRAME_DURATION: 400, // длительность кадра в мс
+  SPRITE_SIZE: 40,
+  _totalTime: 0, // накопленное время для анимации
+  _isWasteland: false, // кэш текущего мира
+  _cachedWorldId: null,
+  _me: null,
+  _spriteReady: false,
+
+  // Направления → Y-координата в спрайт-листе
+  _DIRECTION_Y: { up: 0, down: 40, left: 80, right: 120 },
 
   initialize(wolfSprite, wolfSkinImage) {
     this.wolfSprite = wolfSprite;
     this.wolfSkinImage = wolfSkinImage;
+    this._spriteReady = wolfSprite.complete;
+    wolfSprite.onload = () => (this._spriteReady = true);
   },
 
-  // Новый метод для очистки волков при смене мира
   clearWolves() {
     this.wolves.clear();
+    this._totalTime = 0;
+  },
+
+  _updateWorldCache() {
+    const worldId = window.worldSystem.currentWorldId;
+    if (this._cachedWorldId !== worldId) {
+      this._cachedWorldId = worldId;
+      this._isWasteland = worldId === 1;
+      if (!this._isWasteland) this.clearWolves();
+    }
+    this._me = players.get(myId);
   },
 
   update(deltaTime) {
-    const me = players.get(myId);
-    if (!me || me.worldId !== 1) return; // Волки только в Пустошах
+    this._updateWorldCache();
+    if (!this._isWasteland || !this._me) return;
 
-    this.wolves.forEach((wolf, id) => {
+    this._totalTime += deltaTime;
+
+    const frameDuration = this.FRAME_DURATION / 4;
+    const animTime = this._totalTime;
+
+    for (const [id, wolf] of this.wolves) {
       if (wolf.state === "walking") {
-        wolf.frameTime += deltaTime;
-        if (wolf.frameTime >= this.FRAME_DURATION / 4) {
-          wolf.frameTime -= this.FRAME_DURATION / 4;
-          wolf.frame = (wolf.frame + 1) % 4;
-        }
+        const localTime = (wolf._offsetTime ?? 0) + animTime;
+        wolf.frame = Math.floor(localTime / frameDuration) % 4;
       } else if (wolf.state === "dying") {
-        wolf.frameTime += deltaTime;
-        if (wolf.frameTime >= this.FRAME_DURATION / 4) {
-          wolf.frameTime = 0;
-          if (wolf.frame < 3) wolf.frame += 1;
-        }
+        const localTime = (wolf._offsetTime ?? 0) + animTime;
+        const frame = Math.floor(localTime / frameDuration);
+        wolf.frame = frame < 4 ? frame : 3;
       } else {
         wolf.frame = 0;
-        wolf.frameTime = 0;
       }
-    });
+    }
   },
 
   draw(ctx, camera) {
-    const currentWorldId = window.worldSystem.currentWorldId;
-    if (currentWorldId !== 1) return; // Рисуем только в Пустошах
+    if (!this._isWasteland || !this._spriteReady) return;
 
-    this.wolves.forEach((wolf) => {
+    const { width, height } = canvas;
+    const offscreen = this.SPRITE_SIZE;
+
+    for (const wolf of this.wolves.values()) {
       const screenX = wolf.x - camera.x;
       const screenY = wolf.y - camera.y;
 
       if (
-        screenX < -40 ||
-        screenX > canvas.width + 40 ||
-        screenY < -40 ||
-        screenY > canvas.height + 40
+        screenX < -offscreen ||
+        screenX > width + offscreen ||
+        screenY < -offscreen ||
+        screenY > height + offscreen
       ) {
-        return;
+        continue;
       }
 
-      let spriteY;
-      if (wolf.state === "dying") {
-        spriteY = 160;
-      } else {
-        spriteY =
-          {
-            up: 0,
-            down: 40,
-            left: 80,
-            right: 120,
-          }[wolf.direction] || 40;
-      }
+      const spriteY =
+        wolf.state === "dying" ? 160 : this._DIRECTION_Y[wolf.direction] ?? 40;
+      const spriteX = wolf.frame * this.SPRITE_SIZE;
 
-      const spriteX = wolf.frame * 40;
+      ctx.drawImage(
+        this.wolfSprite,
+        spriteX,
+        spriteY,
+        this.SPRITE_SIZE,
+        this.SPRITE_SIZE,
+        screenX,
+        screenY,
+        this.SPRITE_SIZE,
+        this.SPRITE_SIZE
+      );
 
-      if (this.wolfSprite.complete) {
-        ctx.drawImage(
-          this.wolfSprite,
-          spriteX,
-          spriteY,
-          40,
-          40,
-          screenX,
-          screenY,
-          40,
-          40
-        );
-
-        ctx.fillStyle = "red";
-        ctx.fillRect(screenX, screenY - 10, 40, 5);
-        ctx.fillStyle = "green";
-        ctx.fillRect(screenX, screenY - 10, (wolf.health / 100) * 40, 5);
-      }
-    });
+      // HP бар
+      const barY = screenY - 10;
+      ctx.fillStyle = "red";
+      ctx.fillRect(screenX, barY, this.SPRITE_SIZE, 5);
+      ctx.fillStyle = "green";
+      ctx.fillRect(screenX, barY, (wolf.health / 100) * this.SPRITE_SIZE, 5);
+    }
   },
 
   syncWolves(wolvesData) {
-    const currentWorldId = window.worldSystem.currentWorldId;
-    if (currentWorldId !== 1) {
-      this.clearWolves(); // Очищаем волков, если не в Пустошах
+    this._updateWorldCache();
+    if (!this._isWasteland) {
+      this.clearWolves();
       return;
     }
 
-    this.wolves.clear();
-    wolvesData.forEach((wolf) => {
-      if (wolf.worldId === 1) {
-        // Проверяем, что волк в Пустошах
-        this.wolves.set(wolf.id, {
-          id: wolf.id,
-          x: wolf.x,
-          y: wolf.y,
-          health: wolf.health,
-          direction: wolf.direction,
-          state: wolf.state,
-          frame: wolf.frame || 0,
-          frameTime: 0,
-        });
-      }
-    });
+    const newMap = new Map();
+
+    for (const data of wolvesData) {
+      if (data.worldId !== 1) continue;
+
+      const existing = this.wolves.get(data.id);
+      const offset =
+        existing?._offsetTime ?? Math.random() * this.FRAME_DURATION;
+
+      newMap.set(data.id, {
+        id: data.id,
+        x: data.x,
+        y: data.y,
+        health: data.health,
+        direction: data.direction,
+        state: data.state,
+        frame: data.frame ?? 0,
+        _offsetTime: offset, // для рассинхронизации анимации
+      });
+    }
+
+    this.wolves = newMap;
   },
 
   updateWolf(wolfData) {
-    const currentWorldId = window.worldSystem.currentWorldId;
-    if (currentWorldId !== 1 || wolfData.worldId !== 1) return; // Игнорируем, если не в Пустошах
+    this._updateWorldCache();
+    if (!this._isWasteland || wolfData.worldId !== 1) return;
 
-    if (this.wolves.has(wolfData.id)) {
-      const existingWolf = this.wolves.get(wolfData.id);
-      this.wolves.set(wolfData.id, {
-        ...existingWolf,
-        ...wolfData,
-        frameTime: existingWolf.frameTime || 0,
-      });
-    } else {
-      this.wolves.set(wolfData.id, {
-        id: wolfData.id,
-        x: wolfData.x,
-        y: wolfData.y,
-        health: wolfData.health,
-        direction: wolfData.direction,
-        state: wolfData.state,
-        frame: wolfData.frame || 0,
-        frameTime: 0,
-      });
-    }
+    const existing = this.wolves.get(wolfData.id);
+    const offset = existing?._offsetTime ?? Math.random() * this.FRAME_DURATION;
+
+    this.wolves.set(wolfData.id, {
+      ...(existing ?? {}),
+      ...wolfData,
+      frame: wolfData.frame ?? 0,
+      _offsetTime: offset,
+    });
   },
 
   removeWolf(wolfId) {
-    if (this.wolves.has(wolfId)) {
-      this.wolves.delete(wolfId);
-    }
+    this.wolves.delete(wolfId);
   },
 };
 
