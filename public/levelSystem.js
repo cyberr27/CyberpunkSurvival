@@ -23,32 +23,24 @@ function createLevelDisplayElement() {
       levelDisplay.className = "cyber-text level-display";
       if (document.body) {
         document.body.appendChild(levelDisplay);
-        console.log("Элемент levelDisplay создан и добавлен в DOM");
       } else {
-        console.warn(
-          "document.body не готов, откладываем создание levelDisplay"
-        );
         setTimeout(createLevelDisplayElement, 100);
       }
     }
     return levelDisplay;
   } catch (error) {
-    console.error("Ошибка в createLevelDisplayElement:", error);
     return null;
   }
 }
 
 function updateStatsDisplay() {
   try {
-    console.log("UpdateStatsDisplay вызван");
     const statsEl = document.getElementById("stats");
     if (!statsEl) {
-      console.warn("Элемент stats не найден для обновления");
       return;
     }
     const me = players.get(myId);
     if (!me) {
-      console.warn("Игрок не найден для обновления статов");
       return;
     }
     statsEl.innerHTML = `
@@ -58,18 +50,14 @@ function updateStatsDisplay() {
       <span class="water">Вода: ${me.water}/${me.maxStats.water}</span><br>
       <span class="armor">Броня: ${me.armor}/${me.maxStats.armor}</span>
     `;
-    console.log("Статы обновлены в DOM");
     updateUpgradeButtons();
-  } catch (error) {
-    console.error("Ошибка в updateStatsDisplay:", error);
-  }
+  } catch (error) {}
 }
 
 function createUpgradeButtons() {
   try {
     const statsEl = document.getElementById("stats");
     if (!statsEl) {
-      console.warn("Элемент stats не найден, откладываем создание кнопок");
       setTimeout(createUpgradeButtons, 100);
       return;
     }
@@ -77,9 +65,7 @@ function createUpgradeButtons() {
     const existingButtons = statsEl.querySelectorAll(".upgrade-btn");
     existingButtons.forEach((btn) => btn.remove());
 
-    console.log(`Создание кнопок, upgradePoints: ${upgradePoints}`);
     if (upgradePoints <= 0) {
-      console.log("Нет очков улучшения, кнопки не создаются");
       return;
     }
 
@@ -141,24 +127,18 @@ function createUpgradeButtons() {
               waterUpgrade: window.levelSystem.waterUpgrade || 0,
             })
           );
-          console.log(`Отправлено updateMaxStats: ${statType} +1`);
         }
       });
 
       span.appendChild(button);
-      console.log(`Кнопка для ${statType} добавлена`);
     });
-  } catch (error) {
-    console.error("Ошибка в createUpgradeButtons:", error);
-  }
+  } catch (error) {}
 }
 
 function updateUpgradeButtons() {
   try {
-    console.log(`Обновление кнопок, upgradePoints: ${upgradePoints}`);
     const statsEl = document.getElementById("stats");
     if (!statsEl) {
-      console.warn("Элемент stats не найден, откладываем обновление кнопок");
       setTimeout(updateUpgradeButtons, 100);
       return;
     }
@@ -171,58 +151,39 @@ function updateUpgradeButtons() {
     if (upgradePoints > 0) {
       createUpgradeButtons();
     } else {
-      console.log("Нет очков улучшения, кнопки удалены");
     }
-  } catch (error) {
-    console.error("Ошибка в updateUpgradeButtons:", error);
-  }
+  } catch (error) {}
 }
 
 function initializeLevelSystem() {
   try {
     if (isInitialized) {
-      console.log("Система уровней уже инициализирована, пропускаем");
       return;
     }
     createLevelDisplayElement();
     isInitialized = true;
-    console.log("Система уровней инициализирована, братишка!");
     updateLevelDisplay();
     updateStatsDisplay();
     updateUpgradeButtons();
-  } catch (error) {
-    console.error("Ошибка в initializeLevelSystem:", error);
-  }
+  } catch (error) {}
 }
 
 function updateLevelDisplay() {
   try {
     let levelDisplay = document.getElementById("levelDisplay");
     if (!levelDisplay) {
-      console.warn("Элемент levelDisplay не найден, создаём...");
       levelDisplay = createLevelDisplayElement();
     }
     if (levelDisplay) {
       levelDisplay.innerHTML = `Level: ${currentLevel} | xp : ${currentXP} / ${xpToNextLevel}`;
-      console.log(
-        `Обновлено отображение: Level ${currentLevel}, XP ${currentXP}/${xpToNextLevel}`
-      );
     } else {
-      console.warn("Не удалось создать levelDisplay, попробуем позже");
       setTimeout(updateLevelDisplay, 100);
     }
-  } catch (error) {
-    console.error("Ошибка в updateLevelDisplay:", error);
-  }
+  } catch (error) {}
 }
 
 function setLevelData(level, xp, maxStatsData, upgradePointsData) {
   try {
-    console.log(
-      `Установка уровня: level=${level}, xp=${xp}, maxStats=${JSON.stringify(
-        maxStatsData
-      )}, upgradePoints=${upgradePointsData}`
-    );
     currentLevel = level || 0;
     currentXP = xp || 0;
     upgradePoints = upgradePointsData || 0;
@@ -267,9 +228,7 @@ function setLevelData(level, xp, maxStatsData, upgradePointsData) {
     updateLevelDisplay();
     updateStatsDisplay();
     updateUpgradeButtons();
-  } catch (error) {
-    console.error("Ошибка в setLevelData:", error);
-  }
+  } catch (error) {}
 }
 
 function calculateXPToNextLevel(level) {
@@ -277,24 +236,18 @@ function calculateXPToNextLevel(level) {
     if (level >= 100) return 0;
     return 100 * Math.pow(2, level);
   } catch (error) {
-    console.error("Ошибка в calculateXPToNextLevel:", error);
     return 100;
   }
 }
 
 function handleItemPickup(itemType, isDroppedByPlayer) {
   try {
-    console.log(
-      `Поднят предмет: ${itemType}, выброшен игроком: ${isDroppedByPlayer}`
-    );
     const me = players.get(myId);
     if (!me) {
-      console.warn("Игрок не найден, пропускаем начисление опыта");
       return;
     }
 
     if (isDroppedByPlayer) {
-      console.log(`Предмет ${itemType} выброшен игроком, опыт не начисляется`);
       return;
     }
 
@@ -314,9 +267,6 @@ function handleItemPickup(itemType, isDroppedByPlayer) {
         xpGained = 1;
     }
 
-    console.log(
-      `Начислено ${xpGained} XP за предмет ${itemType} (rarity: ${rarity})`
-    );
     currentXP += xpGained;
     checkLevelUp();
 
@@ -331,22 +281,17 @@ function handleItemPickup(itemType, isDroppedByPlayer) {
           upgradePoints,
         })
       );
-      console.log("Отправлено сообщение updateLevel на сервер");
     } else {
-      console.warn("WebSocket не открыт, сообщение updateLevel не отправлено");
     }
 
     showXPEffect(xpGained);
-  } catch (error) {
-    console.error("Ошибка в handleItemPickup:", error);
-  }
+  } catch (error) {}
 }
 
 function handleQuestCompletion(rarity) {
   try {
     const me = players.get(myId);
     if (!me) {
-      console.warn("Игрок не найден, пропускаем начисление опыта за задание");
       return;
     }
 
@@ -365,9 +310,6 @@ function handleQuestCompletion(rarity) {
         xpGained = 1;
     }
 
-    console.log(
-      `Начислено ${xpGained} XP за выполнение задания (rarity: ${rarity})`
-    );
     currentXP += xpGained;
     checkLevelUp();
 
@@ -382,26 +324,21 @@ function handleQuestCompletion(rarity) {
           upgradePoints,
         })
       );
-      console.log("Отправлено сообщение updateLevel на сервер");
     } else {
-      console.warn("WebSocket не открыт, сообщение updateLevel не отправлено");
     }
 
     showXPEffect(xpGained);
-  } catch (error) {
-    console.error("Ошибка в handleQuestCompletion:", error);
-  }
+  } catch (error) {}
 }
 
 function checkLevelUp() {
   try {
     while (currentXP >= xpToNextLevel && currentLevel < 100) {
-      console.log(`Повышение уровня: ${currentLevel} -> ${currentLevel + 1}`);
       currentLevel++;
       currentXP -= xpToNextLevel;
       xpToNextLevel = calculateXPToNextLevel(currentLevel);
       upgradePoints += 10;
-      console.log(`Начислено 10 upgradePoints, всего: ${upgradePoints}`);
+
       showLevelUpEffect();
       updateUpgradeButtons();
 
@@ -416,18 +353,12 @@ function checkLevelUp() {
             upgradePoints,
           })
         );
-        console.log("Отправлено updateLevel на сервер с maxStats");
       } else {
-        console.warn(
-          "WebSocket не открыт, сообщение updateLevel не отправлено"
-        );
       }
     }
     updateLevelDisplay();
     updateStatsDisplay();
-  } catch (error) {
-    console.error("Ошибка в checkLevelUp:", error);
-  }
+  } catch (error) {}
 }
 
 function showXPEffect(xpGained) {
@@ -447,9 +378,7 @@ function showXPEffect(xpGained) {
     }, 10);
 
     setTimeout(() => effect.remove(), 1000);
-  } catch (error) {
-    console.error("Ошибка в showXPEffect:", error);
-  }
+  } catch (error) {}
 }
 
 function showLevelUpEffect() {
@@ -472,9 +401,7 @@ function showLevelUpEffect() {
     }, 10);
 
     setTimeout(() => effect.remove(), 1000);
-  } catch (error) {
-    console.error("Ошибка в showLevelUpEffect:", error);
-  }
+  } catch (error) {}
 }
 
 window.levelSystem = {

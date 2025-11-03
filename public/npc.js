@@ -522,7 +522,6 @@ function showQuestSelectionDialog(container) {
 function selectQuest(quest) {
   selectedQuest = quest;
   isQuestActive = true; // Задание активно
-  console.log(`Выбрано задание: ${quest.title}`);
   sendWhenReady(ws, JSON.stringify({ type: "selectQuest", questId: quest.id }));
 
   const me = players.get(myId);
@@ -598,8 +597,6 @@ function completeQuest() {
     const freeSlot = inventory.findIndex((slot) => slot === null);
     if (freeSlot !== -1) {
       inventory[freeSlot] = { type: "balyary", quantity: reward.quantity };
-    } else {
-      console.warn("Инвентарь полон, награда не добавлена!");
     }
   }
 
@@ -633,10 +630,6 @@ function completeQuest() {
   // Начисляем опыт через levelSystem
   const rarity = selectedQuest.rarity || 3;
   window.levelSystem.handleQuestCompletion(rarity);
-
-  console.log(
-    `Задание "${selectedQuest.title}" выполнено! Получено ${reward.quantity} баляр.`
-  );
 
   // Сбрасываем выбранное задание и флаг активности
   selectedQuest = null;

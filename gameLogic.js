@@ -38,9 +38,6 @@ function runGameLoop(
     items.forEach((item, itemId) => {
       if (currentTime - item.spawnTime > 10 * 60 * 1000) {
         items.delete(itemId);
-        console.log(
-          `Предмет ${item.type} (${itemId}) в мире ${item.worldId} исчез из-за таймаута`
-        );
         wss.clients.forEach((client) => {
           if (
             client.readyState === WebSocket.OPEN &&
@@ -137,14 +134,6 @@ function runGameLoop(
               worldId: world.id,
             };
             if (type === "atom") {
-              console.log(
-                `Создан атом (${itemId}) в мире ${world.id} на координатах x:${
-                  newItem.x
-                }, y:${newItem.y} в ${new Date(currentTime).toLocaleString(
-                  "ru-RU"
-                )}`
-              );
-
               // Если хочешь вывести в рендер (клиентам): отправляем специальное сообщение по WebSocket
               // Это позволит клиентам логировать или показывать в UI (добавим обработку на клиенте ниже)
               wss.clients.forEach((client) => {
@@ -166,9 +155,6 @@ function runGameLoop(
               });
             }
             items.set(itemId, newItem);
-            console.log(
-              `Создан предмет ${type} (${itemId}) в мире ${world.id} на x:${newItem.x}, y:${newItem.y}`
-            );
 
             wss.clients.forEach((client) => {
               if (
@@ -188,10 +174,6 @@ function runGameLoop(
                 );
               }
             });
-          } else {
-            console.log(
-              `Не удалось найти место для спавна предмета ${type} в мире ${world.id}`
-            );
           }
         }
       }
@@ -250,9 +232,6 @@ function runGameLoop(
                 lastAttackTime: 0,
               };
               wolves.set(wolfId, wolf);
-              console.log(
-                `Создан волк ${wolfId} в мире ${world.id} на x:${x}, y:${y}`
-              );
 
               wss.clients.forEach((client) => {
                 if (
@@ -319,9 +298,6 @@ function runGameLoop(
                   closestPlayer.health - damage
                 );
                 wolf.lastAttackTime = currentTime;
-                console.log(
-                  `Волк ${wolfId} атаковал игрока ${closestPlayer.id}, урон: ${damage}`
-                );
 
                 players.set(closestPlayer.id, { ...closestPlayer });
                 userDatabase.set(closestPlayer.id, { ...closestPlayer });
@@ -401,9 +377,6 @@ function runGameLoop(
                   );
                 }
               });
-              console.log(
-                `Волк ${wolfId} умер, дропнута волчья шкура ${itemId}`
-              );
             }
           }
         });

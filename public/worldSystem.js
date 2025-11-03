@@ -62,9 +62,6 @@ const worldSystem = {
     const totalImages = this.worlds.length * 4; // 4 изображения на мир
     const onImageLoad = () => {
       imagesLoaded++;
-      if (imagesLoaded === totalImages) {
-        console.log("Все изображения миров загружены");
-      }
     };
 
     this.worlds.forEach((world) => {
@@ -84,15 +81,12 @@ const worldSystem = {
   // Функция создания зоны перехода
   createTransitionZone(x, y, radius, targetWorldId, sourceWorldId) {
     if (!this.worlds.find((world) => world.id === targetWorldId)) {
-      console.error(`Мир с ID ${targetWorldId} не существует`);
       return;
     }
     if (!this.worlds.find((world) => world.id === sourceWorldId)) {
-      console.error(`Мир с ID ${sourceWorldId} не существует`);
       return;
     }
     if (radius <= 0) {
-      console.error("Радиус зоны должен быть положительным");
       return;
     }
     this.transitionZones.push({
@@ -102,9 +96,6 @@ const worldSystem = {
       targetWorldId,
       sourceWorldId,
     });
-    console.log(
-      `Создана зона перехода: x=${x}, y=${y}, radius=${radius}, из мира ${sourceWorldId} в мир ${targetWorldId}`
-    );
   },
 
   // Проверка попадания игрока в зону перехода
@@ -137,11 +128,9 @@ const worldSystem = {
   // Переключение мира
   switchWorld(targetWorldId, player, newX, newY) {
     if (targetWorldId === this.currentWorldId) {
-      console.log(`Переход в тот же мир ${targetWorldId}, игнорируем`);
       return;
     }
     if (!this.worlds.find((world) => world.id === targetWorldId)) {
-      console.error(`Попытка перейти в несуществующий мир ${targetWorldId}`);
       return;
     }
 
@@ -181,7 +170,6 @@ const worldSystem = {
 
     // Проверяем и обновляем текущего игрока в players
     if (!myId) {
-      console.error("myId не определён при переходе в мир!");
       return;
     }
     const currentPlayer = players.get(myId);
@@ -192,31 +180,19 @@ const worldSystem = {
           const p = players.get(playerId);
           if (p.worldId !== targetWorldId) {
             players.delete(playerId);
-            console.log(
-              `Удалён игрок ${playerId} из players, так как он в другом мире (${p.worldId})`
-            );
           }
         }
       });
       players.set(myId, { ...currentPlayer, ...player, frameTime: 0 });
-      console.log(
-        `Обновлён игрок ${myId} в мире ${targetWorldId}:`,
-        players.get(myId)
-      );
     } else {
-      console.warn(`Игрок ${myId} не найден в players, создаём новый`);
       // Удаляем игроков, которые не в новом мире
       Array.from(players.keys()).forEach((playerId) => {
         const p = players.get(playerId);
         if (p.worldId !== targetWorldId) {
           players.delete(playerId);
-          console.log(
-            `Удалён игрок ${playerId} из players, так как он в другом мире (${p.worldId})`
-          );
         }
       });
       players.set(myId, { ...player, id: myId, frameTime: 0 });
-      console.log(`Создан новый игрок ${myId} в players:`, players.get(myId));
     }
 
     // Сбрасываем и инициализируем свет для нового мира
@@ -227,15 +203,10 @@ const worldSystem = {
 
     // Эффект перехода
     this.showTransitionEffect();
-
-    console.log(
-      `Игрок ${player.id} перешёл в мир ${newWorld.name} (ID: ${targetWorldId}) на координаты x=${player.x}, y=${player.y}`
-    );
   },
 
   syncPlayers() {
     if (!myId) {
-      console.error("myId не определён, синхронизация игроков невозможна");
       return;
     }
     if (ws && ws.readyState === WebSocket.OPEN) {
@@ -251,16 +222,8 @@ const worldSystem = {
             worldId: this.currentWorldId,
           })
         );
-        console.log(
-          `Отправлен запрос syncPlayers для мира ${this.currentWorldId}, myId: ${myId}`
-        );
       } else {
-        console.log(
-          `Синхронизация не требуется, в мире ${this.currentWorldId} уже есть игроки`
-        );
       }
-    } else {
-      console.error("WebSocket не готов для отправки syncPlayers");
     }
   },
 
@@ -301,7 +264,6 @@ const worldSystem = {
   // Отрисовка зон перехода (для визуальной отладки)
   drawTransitionZones() {
     if (!window.movementSystem || !window.movementSystem.getCamera) {
-      console.error("movementSystem или getCamera не определены");
       return;
     }
     const camera = window.movementSystem.getCamera();

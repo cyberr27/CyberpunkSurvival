@@ -71,15 +71,11 @@ Object.entries(imageSources).forEach(([key, src]) => {
   images[key].src = src;
   images[key].onload = () => {
     imagesLoaded++;
-    console.log(
-      `Изображение ${src} загружено (${imagesLoaded}/${totalImages})`
-    );
     if (imagesLoaded === totalImages) {
       window.addEventListener("resize", resizeCanvas);
     }
   };
   images[key].onerror = () => {
-    console.error(`Ошибка загрузки изображения ${src}`);
     images[key].src = "fallback.png"; // Запасное изображение
     imagesLoaded++;
     if (imagesLoaded === totalImages) {
@@ -325,12 +321,10 @@ toLogin.addEventListener("click", () => {
 
 function reconnectWebSocket() {
   if (reconnectAttempts >= maxReconnectAttempts) {
-    console.error("Максимум попыток переподключения достигнут.");
     authContainer.style.display = "flex";
     document.getElementById("gameContainer").style.display = "none";
     return;
   }
-  console.log(`Попытка переподключения ${reconnectAttempts + 1}...`);
   setTimeout(() => {
     // Проверяем доступность сервера перед переподключением
     fetch("https://cyberpunksurvival.onrender.com/health")
@@ -340,7 +334,6 @@ function reconnectWebSocket() {
         }
         ws = new WebSocket("wss://cyberpunksurvival.onrender.com");
         ws.onopen = () => {
-          console.log("WebSocket успешно переподключен");
           reconnectAttempts = 0;
           if (myId) {
             const lastUsername = document
@@ -358,31 +351,20 @@ function reconnectWebSocket() {
                   password: lastPassword,
                 })
               );
-              console.log(`Повторная авторизация для ${lastUsername}`);
               // Очищаем волков при переподключении
               window.wolfSystem.clearWolves();
             } else {
-              console.warn("Нет сохранённых данных для авторизации");
               authContainer.style.display = "flex";
               document.getElementById("gameContainer").style.display = "none";
             }
           }
         };
         ws.onerror = (error) => {
-          console.error("Ошибка WebSocket при переподключении:", error);
           reconnectAttempts++;
           reconnectWebSocket();
         };
         ws.onclose = (event) => {
-          console.log(
-            "WebSocket закрыт при переподключении:",
-            event.code,
-            event.reason
-          );
           if (event.code === 4000) {
-            console.log(
-              "Отключён из-за неактивности, переподключение не требуется"
-            );
             authContainer.style.display = "flex";
             document.getElementById("gameContainer").style.display = "none";
             return;
@@ -588,7 +570,6 @@ function handleAuthMessage(event) {
             pulseSpeed: 0.001,
           })
         );
-        console.log(`Загружено ${lights.length} источников света при логине`);
       }
       window.lightsSystem.reset(me.worldId);
       window.npcSystem.setNPCMet(data.npcMet || false);
@@ -604,7 +585,6 @@ function handleAuthMessage(event) {
       );
       resizeCanvas();
       ws.onmessage = handleGameMessage;
-      console.log("Переключен обработчик на handleGameMessage");
       startGame();
       updateOnlineCount(0);
       break;
@@ -665,9 +645,6 @@ function handleAuthMessage(event) {
       if (data.type === "atom") {
         newItem.frame = 0; // Инициализируем для анимации
         newItem.frameTime = 0;
-        console.log(
-          `Атом ${data.itemId} добавлен с анимацией: frame=${newItem.frame}, frameTime=${newItem.frameTime}`
-        );
       }
       items.set(data.itemId, newItem);
       break;
@@ -714,9 +691,6 @@ function startGame() {
   if (imagesLoaded === totalImages) {
     window.wolfSystem.initialize(images.wolfSprite, images.wolfSkinImage);
   } else {
-    console.error(
-      "Изображения волка не загружены, пропускаем инициализацию wolfSystem"
-    );
   }
   window.combatSystem.initialize();
 
@@ -789,16 +763,10 @@ function startGame() {
             e.clientY <= slotRect.bottom &&
             inventory[i]
           ) {
-            console.log(
-              `Клик по слоту ${i} (x:${touch.clientX}, y:${touch.clientY}), предмет: ${inventory[i].type}`
-            );
             selectSlot(i, slots[i]);
             return;
           }
         }
-        console.log(
-          `Клик вне слотов инвентаря (x:${e.clientX}, y:${e.clientY})`
-        );
       } else {
         const camera = window.movementSystem.getCamera();
         const worldX = e.clientX + window.movementSystem.getCamera().x;
@@ -850,16 +818,10 @@ function startGame() {
           touch.clientY <= slotRect.bottom &&
           inventory[i]
         ) {
-          console.log(
-            `Тач по слоту ${i} (x:${touch.clientX}, y:${touch.clientY}), предмет: ${inventory[i].type}`
-          );
           selectSlot(i, slots[i]);
           return;
         }
       }
-      console.log(
-        `Тач вне слотов инвентаря (x:${touch.clientX}, y:${touch.clientY})`
-      );
     } else {
       const camera = window.movementSystem.getCamera();
       const worldX = touch.clientX + window.movementSystem.getCamera().x;
@@ -1015,9 +977,6 @@ function toggleInventory() {
 // Выбрать слот и показать кнопки
 function selectSlot(slotIndex, slotElement) {
   if (!inventory[slotIndex]) return;
-  console.log(
-    `Выбран слот ${slotIndex}, предмет: ${inventory[slotIndex].type}`
-  );
   const screen = document.getElementById("inventoryScreen");
   const useBtn = document.getElementById("useBtn");
   const dropBtn = document.getElementById("dropBtn");
@@ -1044,20 +1003,15 @@ function useItem(slotIndex) {
   console.log("UseItem вызван для слота:", slotIndex);
   const item = inventory[slotIndex];
   if (!item || !ITEM_CONFIG[item.type]) {
-    console.warn(
-      `Предмет в слоте ${slotIndex} не существует или не найден в ITEM_CONFIG`
-    );
     return;
   }
   const me = players.get(myId);
   if (!me) {
-    console.warn("Игрок не найден для использования предмета");
     return;
   }
 
   // Проверяем, является ли предмет экипировкой
   if (window.equipmentSystem.EQUIPMENT_CONFIG[item.type]) {
-    console.log("Попытка экипировать предмет:", item.type);
     window.equipmentSystem.equipItem(slotIndex);
     selectedSlot = null;
     document.getElementById("useBtn").disabled = true;
@@ -1070,16 +1024,12 @@ function useItem(slotIndex) {
 
   // Проверяем, является ли предмет баляром
   if (item.type === "balyary") {
-    console.log("Баляр не может быть использован");
     return;
   }
 
   // Обработка атома
   if (item.type === "atom") {
     me.armor = Math.min(me.armor + 5, me.maxStats.armor);
-    console.log(
-      `Использован атом, броня увеличена до ${me.armor}/${me.maxStats.armor}`
-    );
 
     // Удаляем атом из инвентаря
     inventory[slotIndex] = null;
@@ -1095,9 +1045,7 @@ function useItem(slotIndex) {
           inventory,
         })
       );
-      console.log("Отправлено сообщение useAtom на сервер");
     } else {
-      console.warn("WebSocket не открыт, сообщение useAtom не отправлено");
     }
   } else {
     // Обработка других предметов (еда, вода, здоровье, энергия)
@@ -1139,9 +1087,7 @@ function useItem(slotIndex) {
           inventory,
         })
       );
-      console.log("Отправлено сообщение useItem на сервер");
     } else {
-      console.warn("WebSocket не открыт, сообщение useItem не отправлено");
     }
   }
 
@@ -1183,7 +1129,6 @@ function dropItem(slotIndex) {
     });
 
     input.addEventListener("input", () => {
-      console.log("Ввод в stackableAmount:", input.value);
       input.value = input.value.replace(/[^0-9]/g, "");
       if (input.value === "") input.value = "";
     });
@@ -1280,7 +1225,6 @@ function updateResources() {
   const prevWaterLoss = Math.floor(lastDistance / 500);
   if (waterLoss > prevWaterLoss) {
     me.water = Math.max(0, me.water - (waterLoss - prevWaterLoss));
-    console.log(`Вода уменьшена до ${me.water}`);
   }
 
   // Еда: -1 каждые 450 пикселей
@@ -1288,7 +1232,6 @@ function updateResources() {
   const prevFoodLoss = Math.floor(lastDistance / 900);
   if (foodLoss > prevFoodLoss) {
     me.food = Math.max(0, me.food - (foodLoss - prevFoodLoss));
-    console.log(`Еда уменьшена до ${me.food}`);
   }
 
   // Энергия: -1 каждые 650 пикселей
@@ -1296,7 +1239,6 @@ function updateResources() {
   const prevEnergyLoss = Math.floor(lastDistance / 1300);
   if (energyLoss > prevEnergyLoss) {
     me.energy = Math.max(0, me.energy - (energyLoss - prevEnergyLoss));
-    console.log(`Энергия уменьшена до ${me.energy}`);
   }
 
   // Здоровье: -1 каждые 100 пикселей, если любой из показателей равен 0
@@ -1305,9 +1247,6 @@ function updateResources() {
     const prevHealthLoss = Math.floor(lastDistance / 200);
     if (healthLoss > prevHealthLoss) {
       me.health = Math.max(0, me.health - (healthLoss - prevHealthLoss));
-      console.log(
-        `Здоровье уменьшено до ${me.health} из-за нулевых показателей`
-      );
     }
   }
 
@@ -1339,7 +1278,6 @@ function updateResources() {
 }
 
 function updateStatsDisplay() {
-  console.log("UpdateStatsDisplay вызван");
   const me = players.get(myId);
   if (!me) return;
   statsEl.innerHTML = `
@@ -1421,16 +1359,12 @@ function updateInventoryDisplay() {
   const dropBtn = document.getElementById("dropBtn");
 
   if (!inventoryGrid || !inventoryScreen) {
-    console.warn(
-      "Элементы inventoryGrid или inventoryScreen не найдены, обновление инвентаря пропущено"
-    );
     return;
   }
 
   // Получаем данные игрока
   const me = players.get(myId);
   if (!me || !me.inventory) {
-    console.warn("Игрок или инвентарь не найден");
     return;
   }
 
@@ -1568,7 +1502,6 @@ function updateInventoryDisplay() {
       slot.onclick = (e) => {
         e.preventDefault();
         e.stopPropagation();
-        console.log(`Клик по слоту ${i}, предмет: ${inventory[i].type}`);
         selectSlot(i, slot);
       };
     } else {
@@ -1586,8 +1519,6 @@ function updateInventoryDisplay() {
 
   // Запускаем анимацию для атомов
   startAtomAnimation(atomAnimations);
-
-  console.log("Инвентарь обновлён");
 }
 
 function handleGameMessage(event) {
@@ -1606,26 +1537,13 @@ function handleGameMessage(event) {
           if (myPlayer) {
             players.set(myId, { ...myPlayer, frameTime: 0 });
           } else {
-            console.warn(
-              `Игрок ${myId} не найден при синхронизации, пропускаем сохранение`
-            );
           }
           data.players.forEach((p) => {
             if (p && p.id && p.id !== myId && typeof p === "object") {
               players.set(p.id, { ...p, frameTime: 0 });
             } else {
-              console.warn(`Пропущен некорректный игрок при синхронизации:`, p);
             }
           });
-
-          console.log(
-            `Синхронизировано ${data.players.length} игроков в мире ${data.worldId}, players:`,
-            Array.from(players.keys())
-          );
-        } else {
-          console.warn(
-            `Получен syncPlayers для неверного мира ${data.worldId} или без игроков`
-          );
         }
         break;
       case "unequipItemSuccess":
@@ -1639,11 +1557,6 @@ function handleGameMessage(event) {
           window.equipmentSystem.updateEquipmentDisplay();
           updateInventoryDisplay();
           updateStatsDisplay();
-          console.log(
-            `Успешно снята экипировка: slot=${data.slotName}, inventorySlot=${data.inventorySlot}`
-          );
-        } else {
-          console.warn("Игрок не найден для обработки unequipItemSuccess");
         }
         break;
       case "worldTransitionSuccess":
@@ -1668,9 +1581,6 @@ function handleGameMessage(event) {
                   pulseSpeed: 0.001,
                 })
               );
-              console.log(
-                `Загружено ${lights.length} источников света при переходе в мир ${data.worldId}`
-              );
             }
             if (data.wolves && data.worldId === 1) {
               window.wolfSystem.syncWolves(data.wolves);
@@ -1686,9 +1596,6 @@ function handleGameMessage(event) {
                 type: "syncPlayers",
                 worldId: data.worldId,
               })
-            );
-            console.log(
-              `Запрошена синхронизация игроков для мира ${data.worldId}`
             );
           }
         }, 1000); // Задержка 1 секунда
@@ -1706,21 +1613,12 @@ function handleGameMessage(event) {
           break;
         }
         if (data.player.worldId !== currentWorldId) {
-          console.log(
-            `newPlayer: Игрок ${data.player.id} в другом мире (${data.player.worldId}), текущий мир: ${currentWorldId}, пропускаем`
-          );
           break;
         }
         if (players.has(data.player.id)) {
-          console.log(
-            `newPlayer: Игрок ${data.player.id} уже существует в мире ${currentWorldId}, обновляем данные`
-          );
           players.set(data.player.id, { ...data.player, frameTime: 0 });
         } else {
           players.set(data.player.id, { ...data.player, frameTime: 0 });
-          console.log(
-            `Добавлен новый игрок ${data.player.id} в мире ${currentWorldId}`
-          );
         }
         break;
       case "playerLeft":
@@ -1743,9 +1641,6 @@ function handleGameMessage(event) {
         });
         data.items.forEach((item) => {
           if (pendingPickups.has(item.itemId)) {
-            console.log(
-              `Предмет ${item.itemId} всё ещё в мире, убираем из pendingPickups`
-            );
             pendingPickups.delete(item.itemId);
           }
         });
@@ -1753,7 +1648,6 @@ function handleGameMessage(event) {
       case "itemPicked":
         items.delete(data.itemId);
         pendingPickups.delete(data.itemId);
-        console.log(`Предмет ${data.itemId} удалён из мира (itemPicked)`);
         const me = players.get(myId);
         if (me && data.playerId === myId && data.item) {
           if (data.item.type === "balyary") {
@@ -1763,9 +1657,6 @@ function handleGameMessage(event) {
             if (balyarySlot !== -1) {
               inventory[balyarySlot].quantity =
                 (inventory[balyarySlot].quantity || 1) + 1;
-              console.log(
-                `Добавлено 1 Баляр, теперь их ${inventory[balyarySlot].quantity}`
-              );
             } else {
               const freeSlot = inventory.findIndex((slot) => slot === null);
               if (freeSlot !== -1) {
@@ -1774,18 +1665,12 @@ function handleGameMessage(event) {
                   quantity: 1,
                   itemId: data.itemId,
                 };
-                console.log(
-                  `Баляры добавлены в слот ${freeSlot}, количество: 1`
-                );
               }
             }
           } else {
             const freeSlot = inventory.findIndex((slot) => slot === null);
             if (freeSlot !== -1) {
               inventory[freeSlot] = data.item;
-              console.log(
-                `Предмет ${data.item.type} добавлен в слот ${freeSlot}`
-              );
             }
           }
           updateInventoryDisplay();
@@ -1799,12 +1684,8 @@ function handleGameMessage(event) {
       case "itemNotFound":
         items.delete(data.itemId);
         pendingPickups.delete(data.itemId);
-        console.log(
-          `Предмет ${data.itemId} не найден на сервере, удалён из локального items`
-        );
         break;
       case "inventoryFull":
-        console.log(`Инвентарь полон, предмет ${data.itemId} не поднят`);
         pendingPickups.delete(data.itemId);
         break;
       case "update":
@@ -1833,9 +1714,6 @@ function handleGameMessage(event) {
         break;
       case "itemDropped":
         if (data.worldId === currentWorldId) {
-          console.log(
-            `Получено itemDropped: itemId=${data.itemId}, type=${data.type}, x=${data.x}, y=${data.y}, worldId=${data.worldId}`
-          );
           items.set(data.itemId, {
             x: data.x,
             y: data.y,
@@ -1860,18 +1738,13 @@ function handleGameMessage(event) {
           updateStatsDisplay();
           updateInventoryDisplay();
           window.vendingMachine.hideVendingMenu();
-          console.log(
-            `Куплено ${data.option} воды, вода: ${me.water}, баляры: ${data.balyaryCount}`
-          );
         } else {
           const errorEl = document.getElementById("vendingError");
           errorEl.textContent = data.error || "Ошибка покупки";
-          console.log(`Ошибка покупки: ${data.error}`);
         }
         break;
       case "totalOnline":
         updateOnlineCount(data.count);
-        console.log(`Получено общее количество игроков: ${data.count}`);
         break;
       case "tradeRequest":
       case "tradeAccepted":
@@ -1902,7 +1775,6 @@ function handleGameMessage(event) {
         inventory = data.inventory;
         updateStatsDisplay();
         updateInventoryDisplay();
-        console.log(`Подтверждено использование атома, броня: ${me.armor}`);
         break;
       case "useItemSuccess":
         me = players.get(myId);
@@ -1913,7 +1785,6 @@ function handleGameMessage(event) {
         inventory = data.inventory;
         updateStatsDisplay();
         updateInventoryDisplay();
-        console.log(`Подтверждено использование предмета`);
         break;
     }
   } catch (error) {

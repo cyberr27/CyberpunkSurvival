@@ -596,7 +596,6 @@ const tradeSystem = {
         updateInventoryDisplay();
         break;
       case "tradeError":
-        alert(data.message); // Показываем ошибки от сервера
         break;
     }
   },
