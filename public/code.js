@@ -1865,22 +1865,21 @@ function draw(deltaTime) {
   const cloudsOffsetX = window.movementSystem.getCamera().x * cloudsSpeed;
 
   // Рисуем фон
-  if (currentWorld.backgroundImage.complete) {
-    ctx.fillStyle = ctx.createPattern(currentWorld.backgroundImage, "repeat");
+  if (currentWorld.bg && currentWorld.bg.complete) {
+    ctx.fillStyle = ctx.createPattern(currentWorld.bg, "repeat");
     ctx.save();
     ctx.translate(
-      -(groundOffsetX % currentWorld.backgroundImage.width),
+      -(groundOffsetX % currentWorld.bg.width),
       -(window.movementSystem.getCamera().y * groundSpeed) %
-        currentWorld.backgroundImage.height
+        currentWorld.bg.height
     );
     ctx.fillRect(
-      (groundOffsetX % currentWorld.backgroundImage.width) -
-        currentWorld.backgroundImage.width,
+      (groundOffsetX % currentWorld.bg.width) - currentWorld.bg.width,
       ((window.movementSystem.getCamera().y * groundSpeed) %
-        currentWorld.backgroundImage.height) -
-        currentWorld.backgroundImage.height,
-      currentWorld.width + currentWorld.backgroundImage.width,
-      currentWorld.height + currentWorld.backgroundImage.height
+        currentWorld.bg.height) -
+        currentWorld.bg.height,
+      currentWorld.w + currentWorld.bg.width,
+      currentWorld.h + currentWorld.bg.height
     );
     ctx.restore();
   } else {
@@ -1937,9 +1936,9 @@ function draw(deltaTime) {
   });
 
   // Остальные слои
-  if (currentWorld.rocksImage.complete) {
+  if (currentWorld.rocks.complete) {
     ctx.drawImage(
-      currentWorld.rocksImage,
+      currentWorld.rocks,
       rocksOffsetX,
       window.movementSystem.getCamera().y * rocksSpeed,
       canvas.width,
@@ -2029,9 +2028,9 @@ function draw(deltaTime) {
     ctx.fillRect(screenX, screenY - 15, (player.health / 100) * 70, 5);
   });
 
-  if (currentWorld.vegetationImage.complete) {
+  if (currentWorld.veg.complete) {
     ctx.drawImage(
-      currentWorld.vegetationImage,
+      currentWorld.veg,
       vegetationOffsetX,
       window.movementSystem.getCamera().y * vegetationSpeed,
       canvas.width,
@@ -2043,9 +2042,9 @@ function draw(deltaTime) {
     );
   }
 
-  if (currentWorld.cloudsImage.complete) {
+  if (currentWorld.clouds.complete) {
     ctx.drawImage(
-      currentWorld.cloudsImage,
+      currentWorld.clouds,
       cloudsOffsetX,
       window.movementSystem.getCamera().y * cloudsSpeed,
       canvas.width,
