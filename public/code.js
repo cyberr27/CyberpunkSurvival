@@ -1943,7 +1943,7 @@ function update(deltaTime) {
     window.equipmentSystem.syncEquipment(me.equipment);
     window.equipmentSystem.lastApplied = true;
     updateStatsDisplay();
-    console.log("Применены эффекты экипировки в update");
+    // Убрал console.log, чтобы не нагружать CPU на каждом кадре
   }
 
   // Обновляем движение через movementSystem
@@ -1956,97 +1956,22 @@ function update(deltaTime) {
   // Проверяем зоны перехода
   window.worldSystem.checkTransitionZones(me.x, me.y);
 
-  // Отрисовка предметов
-  const currentTime = Date.now();
+  // Обновление анимаций предметов (без отрисовки и без console.log)
   const currentWorldId = window.worldSystem.currentWorldId;
-  console.log(`Обрабатываем ${items.size} предметов в мире ${currentWorldId}`);
+  items.forEach((item) => {
+    // Пропускаем предметы из других миров сразу, без логов
+    if (item.worldId !== currentWorldId) return;
 
-  items.forEach((item, itemId) => {
-    // Проверяем, в правильном ли мире предмет
-    if (item.worldId !== currentWorldId) {
-      console.log(
-        `Предмет ${itemId} (${item.type}) в другом мире (${item.worldId}), пропускаем`
-      );
-      return;
-    }
-
-    // Проверяем, существует ли предмет
-    if (!items.has(itemId)) {
-      console.log(`Предмет ${itemId} уже удалён, пропускаем`);
-      return;
-    }
-
-    // Вычисляем экранные координаты
-    const screenX = item.x - window.movementSystem.getCamera().x;
-    const screenY = item.y - window.movementSystem.getCamera().y;
-    console.log(
-      `Предмет ${itemId} (${item.type}) на позиции worldX: ${item.x}, worldY: ${item.y}, screenX: ${screenX}, screenY: ${screenY}`
-    );
-
-    // Проверяем, находится ли предмет в видимой области
-    if (
-      screenX >= -40 &&
-      screenX <= canvas.width + 40 &&
-      screenY >= -40 &&
-      screenY <= canvas.height + 40
-    ) {
-      // Проверяем наличие конфигурации
-      if (!ITEM_CONFIG[item.type]) {
-        console.warn(`ITEM_CONFIG для ${item.type} не найден`);
-        return;
+    // Специальная обработка только для атома: обновляем frame (анимация)
+    if (item.type === "atom") {
+      if (item.frameTime === undefined) item.frameTime = 0;
+      if (item.frame === undefined) item.frame = 0;
+      item.frameTime += deltaTime;
+      const frameDuration = 300; // Скорость анимации
+      if (item.frameTime >= frameDuration) {
+        item.frameTime -= frameDuration;
+        item.frame = (item.frame + 1) % 40; // 40 кадров
       }
-
-      // Проверяем наличие и загруженность изображения
-      if (
-        !ITEM_CONFIG[item.type].image ||
-        !ITEM_CONFIG[item.type].image.complete
-      ) {
-        console.warn(
-          `Изображение для ${item.type} не загружено или отсутствует`
-        );
-        ctx.fillStyle = "yellow"; // Заглушка
-        ctx.fillRect(screenX, screenY, 20, 20);
-        console.log(
-          `Отрисована заглушка для ${item.type} на ${screenX}, ${screenY}`
-        );
-        return;
-      }
-
-      // Специальная обработка для атома
-      if (item.type === "atom") {
-        if (item.frameTime === undefined) item.frameTime = 0;
-        if (item.frame === undefined) item.frame = 0;
-        item.frameTime += deltaTime;
-        const frameDuration = 300; // Скорость анимации
-        if (item.frameTime >= frameDuration) {
-          item.frameTime -= frameDuration;
-          item.frame = (item.frame + 1) % 40; // 40 кадров
-        }
-        ctx.drawImage(
-          ITEM_CONFIG[item.type].image,
-          item.frame * 50,
-          0,
-          50,
-          50,
-          screenX,
-          screenY,
-          50,
-          50
-        );
-        console.log(
-          `Отрисован атом ${itemId}, frame: ${item.frame}, x: ${screenX}, y: ${screenY}`
-        );
-      } else {
-        // Отрисовка остальных предметов
-        ctx.drawImage(ITEM_CONFIG[item.type].image, screenX, screenY, 20, 20);
-        console.log(
-          `Отрисован предмет ${item.type} (${itemId}), x: ${screenX}, y: ${screenY}`
-        );
-      }
-    } else {
-      console.log(
-        `Предмет ${itemId} (${item.type}) вне видимой области, x: ${screenX}, y: ${screenY}`
-      );
     }
   });
 }
@@ -2094,83 +2019,49 @@ function draw(deltaTime) {
 
   window.lightsSystem.draw(deltaTime);
 
-  // Отрисовка предметов (перенесено из update)
-  const currentTime = Date.now();
+  // Отрисовка предметов (оптимизировано: без дубликатов, с ранней проверкой видимости)
+  const cameraX = window.movementSystem.getCamera().x;
+  const cameraY = window.movementSystem.getCamera().y;
+  const viewWidth = canvas.width + 80; // Буфер для видимости (40 слева/справа)
+  const viewHeight = canvas.height + 80;
   items.forEach((item, itemId) => {
-    if (item.worldId !== currentWorldId) {
-      console.log(
-        `Предмет ${itemId} (${item.type}) в другом мире (${item.worldId}), пропускаем`
-      );
-      return;
-    }
-    if (!items.has(itemId)) {
-      console.log(`Предмет ${itemId} уже удалён, пропускаем`);
-      return;
-    }
-    const screenX = item.x - window.movementSystem.getCamera().x;
-    const screenY = item.y - window.movementSystem.getCamera().y;
-    console.log(
-      `Предмет ${itemId} (${item.type}) на позиции worldX: ${item.x}, worldY: ${item.y}, screenX: ${screenX}, screenY: ${screenY}`
-    );
+    if (item.worldId !== currentWorldId) return; // Ранняя проверка мира
 
+    const screenX = item.x - cameraX;
+    const screenY = item.y - cameraY;
+
+    // Быстрая проверка видимости без Math.sqrt (bounding box)
     if (
-      screenX >= -40 &&
-      screenX <= canvas.width + 40 &&
-      screenY >= -40 &&
-      screenY <= canvas.height + 40
+      screenX < -40 ||
+      screenX > viewWidth ||
+      screenY < -40 ||
+      screenY > viewHeight
     ) {
-      if (!ITEM_CONFIG[item.type]) {
-        console.warn(`ITEM_CONFIG для ${item.type} не найден`);
-        return;
-      }
-      if (
-        !ITEM_CONFIG[item.type].image ||
-        !ITEM_CONFIG[item.type].image.complete
-      ) {
-        console.warn(
-          `Изображение для ${item.type} не загружено или отсутствует`
-        );
-        ctx.fillStyle = "yellow"; // Заглушка
-        ctx.fillRect(screenX, screenY, 20, 20);
-        console.log(
-          `Отрисована заглушка для ${item.type} на ${screenX}, ${screenY}`
-        );
-        return;
-      }
+      return; // Пропускаем невидимые предметы раньше
+    }
 
-      if (item.type === "atom") {
-        if (item.frameTime === undefined) item.frameTime = 0;
-        if (item.frame === undefined) item.frame = 0;
-        item.frameTime += deltaTime;
-        const frameDuration = 300; // Скорость анимации
-        if (item.frameTime >= frameDuration) {
-          item.frameTime -= frameDuration;
-          item.frame = (item.frame + 1) % 40; // 40 кадров
-        }
-        ctx.drawImage(
-          ITEM_CONFIG[item.type].image,
-          item.frame * 50,
-          0,
-          50,
-          50,
-          screenX,
-          screenY,
-          50,
-          50
-        );
-        console.log(
-          `Отрисован атом ${itemId}, frame: ${item.frame}, x: ${screenX}, y: ${screenY}`
-        );
-      } else {
-        ctx.drawImage(ITEM_CONFIG[item.type].image, screenX, screenY, 20, 20);
-        console.log(
-          `Отрисован предмет ${item.type} (${itemId}), x: ${screenX}, y: ${screenY}`
-        );
-      }
-    } else {
-      console.log(
-        `Предмет ${itemId} (${item.type}) вне видимой области, x: ${screenX}, y: ${screenY}`
+    if (!ITEM_CONFIG[item.type] || !ITEM_CONFIG[item.type].image?.complete) {
+      // Упрощённая заглушка без console.warn (чтобы не нагружать)
+      ctx.fillStyle = "yellow";
+      ctx.fillRect(screenX, screenY, 20, 20);
+      return;
+    }
+
+    if (item.type === "atom") {
+      // Рисуем на основе состояния из update()
+      ctx.drawImage(
+        ITEM_CONFIG[item.type].image,
+        item.frame * 50,
+        0,
+        50,
+        50,
+        screenX,
+        screenY,
+        50,
+        50
       );
+    } else {
+      ctx.drawImage(ITEM_CONFIG[item.type].image, screenX, screenY, 20, 20);
     }
   });
 
@@ -2195,83 +2086,76 @@ function draw(deltaTime) {
   window.wolfSystem.draw(ctx, window.movementSystem.getCamera());
   window.combatSystem.draw();
 
-  // Отрисовка игроков
-  players.forEach((player, id) => {
+  // Отрисовка игроков (оптимизировано: без console.log, с ранней проверкой)
+  players.forEach((player) => {
+    if (player.worldId !== currentWorldId) return;
+
+    const screenX = player.x - cameraX;
+    const screenY = player.y - cameraY;
+
+    // Быстрая проверка видимости
     if (
-      !player ||
-      typeof player !== "object" ||
-      !player.hasOwnProperty("worldId")
+      screenX < -70 ||
+      screenX > viewWidth ||
+      screenY < -70 ||
+      screenY > viewHeight
     ) {
-      console.warn(`Некорректные данные игрока ${id} в players:`, player);
-      players.delete(id);
-      updateOnlineCount();
-      console.log(
-        `Удалён игрок ${id} из players, текущие игроки:`,
-        Array.from(players.keys())
-      );
       return;
     }
-    if (player.worldId !== currentWorldId) return;
-    const screenX = player.x - window.movementSystem.getCamera().x;
-    const screenY = player.y - window.movementSystem.getCamera().y;
 
-    if (player.id !== myId) {
-      if (player.state === "walking") {
-        player.frameTime += deltaTime;
-        if (player.frameTime >= GAME_CONFIG.FRAME_DURATION / 40) {
-          // Изменено на 40 кадров
-          player.frameTime -= GAME_CONFIG.FRAME_DURATION / 40;
-          player.frame = (player.frame + 1) % 40; // Цикл по 40 кадрам
-        }
-      } else if (player.state === "dying") {
-        // Убрана анимация dying (нет 5-й строки), используем статичный кадр из down
-        player.frame = 0; // Фиксированный кадр
-        player.frameTime = 0;
-      } else {
-        player.frame = 0;
-        player.frameTime = 0;
+    if (player.state === "walking") {
+      player.frameTime += deltaTime;
+      if (player.frameTime >= GAME_CONFIG.FRAME_DURATION / 40) {
+        player.frameTime -= GAME_CONFIG.FRAME_DURATION / 40;
+        player.frame = (player.frame + 1) % 40;
       }
+    } else if (player.state === "dying") {
+      player.frame = 0;
+      player.frameTime = 0;
+    } else {
+      player.frame = 0;
+      player.frameTime = 0;
     }
 
-    let spriteX = player.frame * 70; // Кадры по 70 пикселей в ширину
+    let spriteX = player.frame * 70;
     let spriteY;
     if (player.state === "dying") {
-      spriteY = 70; // Используем строку down (Y=70) для dying, так как 5-я строка убрана
+      spriteY = 70;
     } else {
       spriteY =
         {
           up: 0,
           down: 70,
-          left: 210, // Лево теперь Y=210 (4-я строка)
-          right: 140, // Право Y=140 (3-я строка)
-        }[player.direction] || 0; // По умолчанию down
+          left: 210,
+          right: 140,
+        }[player.direction] || 0;
     }
 
-    if (images.playerSprite && images.playerSprite.complete) {
+    if (images.playerSprite?.complete) {
       ctx.drawImage(
         images.playerSprite,
         spriteX,
         spriteY,
-        70, // Размер кадра 70x70
+        70,
         70,
         screenX,
         screenY,
-        70, // Отрисовка на экране 70x70 (игрок крупнее)
+        70,
         70
       );
     } else {
       ctx.fillStyle = "blue";
-      ctx.fillRect(screenX, screenY, 70, 70); // Заглушка тоже 70x70
+      ctx.fillRect(screenX, screenY, 70, 70);
     }
 
     ctx.fillStyle = "white";
     ctx.font = "12px Arial";
     ctx.textAlign = "center";
-    ctx.fillText(player.id, screenX + 35, screenY - 20); // Смещение текста на центр (35 вместо 20)
+    ctx.fillText(player.id, screenX + 35, screenY - 20);
     ctx.fillStyle = "red";
-    ctx.fillRect(screenX, screenY - 15, 70, 5); // Здоровье бар шире (70 вместо 40)
+    ctx.fillRect(screenX, screenY - 15, 70, 5);
     ctx.fillStyle = "green";
-    ctx.fillRect(screenX, screenY - 15, (player.health / 100) * 70, 5); // Масштаб под новый размер
+    ctx.fillRect(screenX, screenY - 15, (player.health / 100) * 70, 5);
   });
 
   if (currentWorld.vegetationImage.complete) {
@@ -2311,34 +2195,23 @@ function checkCollisions() {
 
   const currentWorldId = window.worldSystem.currentWorldId;
   items.forEach((item, id) => {
-    if (item.worldId !== currentWorldId) return; // Пропускаем предметы из других миров
-    if (!items.has(id)) {
-      console.log(`Предмет ${id} уже удалён из items, пропускаем`);
-      return;
-    }
-    if (pendingPickups.has(id)) {
-      console.log(
-        `Предмет ${id} в процессе поднятия (pendingPickups), пропускаем`
-      );
-      return;
-    }
-    const dx = me.x + 35 - (item.x + 10); // Смещение на центр игрока (35 вместо 20, под 70x70)
-    const dy = me.y + 35 - (item.y + 10); // Аналогично по Y
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    console.log(
-      `Проверка столкновения с ${item.type} (ID: ${id}), расстояние: ${distance}`
-    );
-    if (distance < 50) {
-      // Увеличен радиус до 50 (было 30), чтобы соответствовать большему размеру игрока 70x70
-      console.log(
-        `Игрок ${myId} пытается подобрать предмет ${item.type} (ID: ${id})`
-      );
+    if (item.worldId !== currentWorldId) return;
+    if (!items.has(id)) return; // Убрал console.log для оптимизации
+    if (pendingPickups.has(id)) return; // Убрал console.log
+
+    const dx = me.x + 35 - (item.x + 10);
+    const dy = me.y + 35 - (item.y + 10);
+    const distanceSquared = dx * dx + dy * dy; // Используем квадрат расстояния вместо Math.sqrt для снижения нагрузки на CPU
+    // Убрал console.log проверки расстояния
+
+    if (distanceSquared < 2500) {
+      // 50^2 = 2500, чтобы избежать дорогого Math.sqrt
       if (ws.readyState === WebSocket.OPEN) {
         pendingPickups.add(id);
         sendWhenReady(ws, JSON.stringify({ type: "pickup", itemId: id }));
-        console.log(`Отправлено сообщение pickup для ${id}`);
+        // Убрал console.log отправки и попытки подбора
       } else {
-        console.error("WebSocket не открыт, предмет не отправлен на сервер");
+        // Убрал console.error
       }
     }
   });

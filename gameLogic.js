@@ -434,7 +434,7 @@ function runGameLoop(
         }
       });
     });
-  }, 10 * 1000);
+  }, 10 * 3000);
 }
 
 module.exports = { runGameLoop };
