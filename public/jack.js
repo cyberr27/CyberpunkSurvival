@@ -146,10 +146,15 @@ function drawJack(deltaTime) {
     ctx.fillRect(screenX, screenY, 70, 70);
   }
 
-  ctx.fillStyle = "white";
+  // Рисуем имя (без изменений)
+  ctx.fillStyle = isJackMet ? "#15ce00ff" : "#ffffff";
   ctx.font = "12px Arial";
   ctx.textAlign = "center";
-  ctx.fillText(isJackMet ? JACK.name : "?", screenX + 35, screenY - 20);
+  ctx.fillText(
+    isJackMet ? JACK.name : "?",
+    screenX + NPC.width / 2,
+    screenY - 10
+  );
 }
 
 // Проверка расстояния
@@ -235,12 +240,7 @@ function showShopDialog(container) {
   const buyBtn = document.getElementById("buyBtn");
 
   // ЖЁСТКАЯ ФИЛЬТРАЦИЯ: убираем всё запрещённое
-  const BLACKLIST = [
-    "balyary",
-    "atom",
-    "blood_pack",
-    "blood_syringe",
-  ];
+  const BLACKLIST = ["balyary", "atom", "blood_pack", "blood_syringe"];
 
   const availableItems = Object.entries(ITEM_CONFIG).filter(([type, cfg]) => {
     const isBlacklisted = BLACKLIST.includes(type);
