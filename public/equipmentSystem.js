@@ -445,7 +445,6 @@ const equipmentSystem = {
       this.applyEquipmentEffects(me);
     }
     this.updateEquipmentDisplay();
-    console.log("syncEquipment: ", equipment);
 
     // Проверяем, инициализирован ли интерфейс
     if (document.getElementById("equipmentGrid")) {

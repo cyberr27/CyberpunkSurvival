@@ -21,7 +21,6 @@ let vendingMenu = null;
 
 // Инициализация автомата
 function initializeVendingMachine() {
-  console.log("Автомат с водой инициализирован");
   // Добавляем стили для меню
   const vendingStyles = `
     .vending-menu {

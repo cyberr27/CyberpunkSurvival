@@ -424,7 +424,6 @@ function initializeWebSocket() {
     myId = null;
     // Если код 4000 (неактивность), не пытаемся переподключиться
     if (event.code === 4000) {
-      console.log("Отключён из-за неактивности, переподключение не требуется");
       return;
     }
     // Иначе пробуем переподключиться
@@ -698,7 +697,6 @@ function startGame() {
       document.activeElement === chatInput ||
       document.activeElement === document.getElementById("balyaryAmount")
     ) {
-      console.log("Фокус на balyaryAmount, пропускаем keydown:", e.key);
       return;
     }
 
@@ -983,7 +981,6 @@ function selectSlot(slotIndex, slotElement) {
 
 // Использовать предмет
 function useItem(slotIndex) {
-  console.log("UseItem вызван для слота:", slotIndex);
   const item = inventory[slotIndex];
   if (!item || !ITEM_CONFIG[item.type]) {
     return;
@@ -1918,7 +1915,6 @@ function draw(deltaTime) {
   window.vendingMachine.draw();
   window.combatSystem.draw();
 
-  // Отрисовка игроков (оптимизировано: без console.log, с ранней проверкой)
   players.forEach((player) => {
     if (player.worldId !== currentWorldId) return;
 
