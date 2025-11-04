@@ -1,329 +1,431 @@
-// movement.js
-(function () {
-  // Глобальные переменные для управления движением
-  let isMoving = false;
-  let targetX = 0;
-  let targetY = 0;
-  const baseSpeed = 65; // Пикселей в секунду
-  const worldWidth = 3135;
-  const worldHeight = 3300;
+const { saveUserDatabase } = require("./database");
 
-  // Камера с интерполяцией для плавного следования
-  const camera = { x: 0, y: 0, targetX: 0, targetY: 0, lerpFactor: 0.1 };
+function checkCollisionServer(x, y) {
+  return false; // Пока оставляем как есть
+}
 
-  // Анимационные параметры
-  const frameDuration = 200; // Длительность одного кадра анимации в мс
-  const directions = [
-    "up",
-    "down",
-    "left",
-    "right",
-    "up-left",
-    "up-right",
-    "down-left",
-    "down-right",
-  ];
-  const spriteOffsets = {
-    up: 0,
-    down: 40,
-    left: 80,
-    right: 120,
-    "up-left": 80,
-    "up-right": 120,
-    "down-left": 80,
-    "down-right": 120,
-  };
+// КЭШИРОВАНИЕ: чтобы не пересчитывать одни и те же данные
+const worldPlayerCache = new Map(); // worldId → Set(playerId)
+const worldItemCache = new Map(); // worldId → Map(itemId, item)
+const worldWolfCache = new Map(); // worldId → Map(wolfId, wolf)
 
-  // Оптимизация: интервал отправки обновлений на сервер (в мс), чтобы не спамить каждый кадр
-  const sendInterval = 100; // Можно настроить, например, 200 для ещё меньшей нагрузки
-  let lastSendTime = 0;
+function runGameLoop(
+  wss,
+  dbCollection,
+  clients,
+  players,
+  items,
+  wolves,
+  worlds,
+  ITEM_CONFIG,
+  userDatabase
+) {
+  setInterval(() => {
+    const currentTime = Date.now();
+    const now = currentTime;
 
-  // Инициализация системы движения
-  function initializeMovement() {
-    const canvas = document.getElementById("gameCanvas");
+    // === 1. ОДНОКРАТНОЕ СОБИРАНИЕ ДАННЫХ ПО МИРАМ ===
+    worldPlayerCache.clear();
+    worldItemCache.clear();
+    worldWolfCache.clear();
 
-    // Кэшируем половину размеров канваса один раз для оптимизации камеры
-    const halfWidth = canvas.width / 2;
-    const halfHeight = canvas.height / 2;
-
-    // Обработчики мыши
-    canvas.addEventListener("mousedown", (e) => {
-      if (e.button === 0) {
-        const me = players.get(myId);
-        if (!me || me.health <= 0) return;
-
-        // Проверяем, не кликнули ли по инвентарю
-        const inventoryContainer =
-          document.getElementById("inventoryContainer");
-        const rect = inventoryContainer.getBoundingClientRect();
-        if (
-          isInventoryOpen &&
-          e.clientX >= rect.left &&
-          e.clientX <= rect.right &&
-          e.clientY >= rect.top &&
-          e.clientY <= rect.bottom
-        ) {
-          return; // Пропускаем, если клик по инвентарю
-        }
-
-        isMoving = true;
-        targetX = e.clientX + camera.x;
-        targetY = e.clientY + camera.y;
+    // Группируем игроков, предметы, волков по мирам
+    for (const player of players.values()) {
+      if (!worldPlayerCache.has(player.worldId)) {
+        worldPlayerCache.set(player.worldId, new Set());
       }
-    });
-
-    canvas.addEventListener("mousemove", (e) => {
-      if (isMoving) {
-        targetX = e.clientX + camera.x;
-        targetY = e.clientY + camera.y;
-      }
-    });
-
-    canvas.addEventListener("mouseup", (e) => {
-      if (e.button === 0) {
-        stopMovement();
-      }
-    });
-
-    // Обработчики тач-событий
-    canvas.addEventListener("touchstart", (e) => {
-      e.preventDefault();
-      const me = players.get(myId);
-      if (!me || me.health <= 0) return;
-
-      const touch = e.touches[0];
-      const inventoryContainer = document.getElementById("inventoryContainer");
-      const rect = inventoryContainer.getBoundingClientRect();
-
-      if (
-        isInventoryOpen &&
-        touch.clientX >= rect.left &&
-        touch.clientX <= rect.right &&
-        touch.clientY >= rect.top &&
-        touch.clientY <= rect.bottom
-      ) {
-        return; // Пропускаем, если тач по инвентарю
-      }
-
-      isMoving = true;
-      targetX = touch.clientX + camera.x;
-      targetY = touch.clientY + camera.y;
-    });
-
-    canvas.addEventListener("touchmove", (e) => {
-      e.preventDefault();
-      const touch = e.touches[0];
-      targetX = touch.clientX + camera.x;
-      targetY = touch.clientY + camera.y;
-    });
-
-    canvas.addEventListener("touchend", (e) => {
-      e.preventDefault();
-      stopMovement();
-    });
-
-    // Экспортируем halfWidth и halfHeight, если нужно, но не трогаем другие модули
-    // (они используются только в updateCamera, так что ок)
-  }
-
-  // Остановка движения
-  function stopMovement() {
-    isMoving = false;
-    const me = players.get(myId);
-    if (me) {
-      me.state = "idle";
-      me.frame = 0;
-      me.frameTime = 0;
-      // При остановке всегда отправляем, чтобы сервер знал сразу
-      sendMovementUpdate(me);
-    }
-  }
-
-  // Обновление движения персонажа
-  function updateMovement(deltaTime) {
-    const me = players.get(myId);
-    if (!me) {
-      return; // Нет игрока — выходим рано, чтобы сэкономить CPU
+      worldPlayerCache.get(player.worldId).add(player.id);
     }
 
-    const currentTime = Date.now(); // Для throttling отправок
-
-    if (me.health <= 0) {
-      // Если мёртв, только обновляем камеру и анимацию смерти, если нужно
-      if (me.state === "dying") {
-        me.frameTime += deltaTime;
-        if (me.frameTime >= frameDuration) {
-          me.frameTime -= frameDuration;
-          if (me.frame < 6) me.frame += 1;
-        }
-        // Отправляем только по интервалу или если анимация закончилась
-        if (currentTime - lastSendTime >= sendInterval || me.frame >= 6) {
-          sendMovementUpdate(me);
-          lastSendTime = currentTime;
-        }
+    for (const [itemId, item] of items) {
+      if (!worldItemCache.has(item.worldId)) {
+        worldItemCache.set(item.worldId, new Map());
       }
-      updateCamera(me);
-      return;
+      worldItemCache.get(item.worldId).set(itemId, item);
     }
 
-    if (isMoving) {
-      // Вычисляем вектор направления
-      const dx = targetX - me.x;
-      const dy = targetY - me.y;
-      const distance = Math.sqrt(dx * dx + dy * dy);
+    for (const [wolfId, wolf] of wolves) {
+      if (!worldWolfCache.has(wolf.worldId)) {
+        worldWolfCache.set(wolf.worldId, new Map());
+      }
+      worldWolfCache.get(wolf.worldId).set(wolfId, wolf);
+    }
 
-      if (distance > 5) {
-        const moveSpeed = baseSpeed * (deltaTime / 1000);
-        const normalizedDx = dx / distance;
-        const normalizedDy = dy / distance;
-        const moveX = normalizedDx * moveSpeed;
-        const moveY = normalizedDy * moveSpeed;
+    const totalPlayers = players.size;
 
-        const prevX = me.x;
-        const prevY = me.y;
+    // === 2. ОТПРАВКА totalOnline — ОДИН РАЗ ===
+    const totalOnlineMsg = JSON.stringify({
+      type: "totalOnline",
+      count: totalPlayers,
+    });
+    wss.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(totalOnlineMsg);
+      }
+    });
 
-        me.x += moveX;
-        me.y += moveY;
+    // === 3. УДАЛЕНИЕ СТАРЫХ ПРЕДМЕТОВ ===
+    const expiredItems = [];
+    for (const [itemId, item] of items) {
+      if (now - item.spawnTime > 10 * 60 * 1000) {
+        expiredItems.push({ itemId, worldId: item.worldId });
+        items.delete(itemId);
+      }
+    }
 
-        // Ограничиваем позицию в пределах мира
-        me.x = Math.max(0, Math.min(worldWidth - 40, me.x));
-        me.y = Math.max(0, Math.min(worldHeight - 40, me.y));
+    // Отправляем удаление предметов — группируем по миру
+    const removeItemByWorld = new Map();
+    for (const { itemId, worldId } of expiredItems) {
+      if (!removeItemByWorld.has(worldId)) removeItemByWorld.set(worldId, []);
+      removeItemByWorld.get(worldId).push(itemId);
+    }
 
-        // Проверка коллизий
-        if (checkCollision(me.x, me.y)) {
-          me.x = prevX;
-          me.y = prevY;
-          me.state = "idle";
-          me.frame = 0;
-          me.frameTime = 0;
-          isMoving = false;
-          sendMovementUpdate(me); // Отправляем сразу при коллизии
-          lastSendTime = currentTime;
-          updateCamera(me);
-          return;
+    // === 4. ОБРАБОТКА КАЖДОГО МИРА ===
+    for (const world of worlds) {
+      const worldId = world.id;
+      const playerIds = worldPlayerCache.get(worldId) || new Set();
+      const playerCount = playerIds.size;
+      const worldItemsMap = worldItemCache.get(worldId) || new Map();
+      const worldWolvesMap = worldWolfCache.get(worldId) || new Map();
+
+      // --- Удаление старых предметов ---
+      const removedItemIds = removeItemByWorld.get(worldId) || [];
+      if (removedItemIds.length > 0) {
+        const msg = JSON.stringify({
+          type: "itemPicked",
+          itemId: removedItemIds,
+        });
+        broadcastToWorld(wss, clients, players, worldId, msg);
+      }
+
+      // --- Подсчёт типов предметов ---
+      const itemCounts = {};
+      for (const [type] of Object.entries(ITEM_CONFIG)) {
+        itemCounts[type] = 0;
+      }
+      for (const item of worldItemsMap.values()) {
+        if (itemCounts[item.type] !== undefined) {
+          itemCounts[item.type]++;
+        }
+      }
+
+      // --- Категории редкости (кэшируем) ---
+      const rareItems = Object.keys(ITEM_CONFIG).filter(
+        (t) => ITEM_CONFIG[t].rarity === 1
+      );
+      const mediumItems = Object.keys(ITEM_CONFIG).filter(
+        (t) => ITEM_CONFIG[t].rarity === 2
+      );
+      const commonItems = Object.keys(ITEM_CONFIG).filter(
+        (t) => ITEM_CONFIG[t].rarity === 3
+      );
+
+      const desiredTotalItems = playerCount * 10;
+      const currentTotalItems = worldItemsMap.size;
+
+      // --- Спаун предметов ---
+      if (currentTotalItems < desiredTotalItems) {
+        const itemsToSpawn = desiredTotalItems - currentTotalItems;
+        let rareCount = playerCount * 2;
+        let mediumCount = playerCount * 3;
+        let commonCount = playerCount * 5;
+
+        const newItems = [];
+        const atomSpawns = [];
+
+        for (let i = 0; i < itemsToSpawn; i++) {
+          let type;
+          if (
+            rareCount > 0 &&
+            rareItems.length > 0 &&
+            itemCounts[rareItems[0]] < rareCount
+          ) {
+            type = rareItems[Math.floor(Math.random() * rareItems.length)];
+            rareCount--;
+          } else if (
+            mediumCount > 0 &&
+            mediumItems.length > 0 &&
+            itemCounts[mediumItems[0]] < mediumCount
+          ) {
+            type = mediumItems[Math.floor(Math.random() * mediumItems.length)];
+            mediumCount--;
+          } else if (
+            commonCount > 0 &&
+            commonItems.length > 0 &&
+            itemCounts[commonItems[0]] < commonCount
+          ) {
+            type = commonItems[Math.floor(Math.random() * commonItems.length)];
+            commonCount--;
+          } else {
+            const allTypes = Object.keys(ITEM_CONFIG).filter(
+              (t) => ITEM_CONFIG[t].rarity !== 4
+            );
+            type = allTypes[Math.floor(Math.random() * allTypes.length)];
+          }
+
+          let x,
+            y,
+            attempts = 0;
+          const maxAttempts = 10;
+          do {
+            x = Math.random() * world.width;
+            y = Math.random() * world.height;
+            attempts++;
+          } while (checkCollisionServer(x, y) && attempts < maxAttempts);
+
+          if (attempts < maxAttempts) {
+            const itemId = `${type}_${now}_${i}`;
+            const newItem = { x, y, type, spawnTime: now, worldId };
+            items.set(itemId, newItem);
+            worldItemsMap.set(itemId, newItem); // Обновляем кэш
+            newItems.push({ itemId, x, y, type, spawnTime: now, worldId });
+
+            if (type === "atom") {
+              atomSpawns.push(
+                `Создан атом (${itemId}) в мире ${worldId} на x:${x}, y:${y} в ${new Date(
+                  now
+                ).toLocaleString("ru-RU")}`
+              );
+            }
+          }
         }
 
-        // Определяем направление
-        me.state = "walking";
-        me.direction = getDirection(normalizedDx, normalizedDy); // Используем нормализованные, чтобы избежать повторного atan2 на dx/dy
+        // Отправляем новые предметы и атомы
+        if (newItems.length > 0) {
+          const msg = JSON.stringify({ type: "newItem", items: newItems });
+          broadcastToWorld(wss, clients, players, worldId, msg);
+        }
+        if (atomSpawns.length > 0) {
+          const atomMsg = JSON.stringify({
+            type: "atomSpawned",
+            messages: atomSpawns,
+          });
+          broadcastToWorld(wss, clients, players, worldId, atomMsg);
+        }
+      }
 
-        // Обновляем анимацию
-        me.frameTime += deltaTime;
-        if (me.frameTime >= frameDuration) {
-          me.frameTime = me.frameTime % frameDuration; // Оптимизация: используем % для предотвращения переполнения
-          me.frame = (me.frame + 1) % 7;
+      // === СПЕЦИАЛЬНО ДЛЯ МИРА 1: ВОЛКИ ===
+      if (worldId === 1) {
+        const maxWolves = Math.max(5, playerCount * 2);
+        const currentWolves = worldWolvesMap.size;
+
+        // --- Спаун волков ---
+        if (currentWolves < maxWolves) {
+          const wolvesToSpawn = maxWolves - currentWolves;
+          const playerList = Array.from(players.values()).filter(
+            (p) => p.worldId === 1
+          );
+          if (playerList.length === 0) continue;
+
+          const newWolves = [];
+          for (let i = 0; i < wolvesToSpawn; i++) {
+            const player =
+              playerList[Math.floor(Math.random() * playerList.length)];
+            let x,
+              y,
+              attempts = 0;
+            const maxAttempts = 10;
+            do {
+              const edge = Math.floor(Math.random() * 4);
+              switch (edge) {
+                case 0:
+                  x = player.x + (Math.random() - 0.5) * 1000;
+                  y = player.y - 500;
+                  break;
+                case 1:
+                  x = player.x + (Math.random() - 0.5) * 1000;
+                  y = player.y + 500;
+                  break;
+                case 2:
+                  x = player.x - 500;
+                  y = player.y + (Math.random() - 0.5) * 1000;
+                  break;
+                case 3:
+                  x = player.x + 500;
+                  y = player.y + (Math.random() - 0.5) * 1000;
+                  break;
+              }
+              attempts++;
+            } while (checkCollisionServer(x, y) && attempts < maxAttempts);
+
+            if (attempts < maxAttempts) {
+              const wolfId = `wolf_${now}_${i}`;
+              const wolf = {
+                id: wolfId,
+                x,
+                y,
+                health: 100,
+                direction: "down",
+                state: "walking",
+                worldId: 1,
+                lastAttackTime: 0,
+              };
+              wolves.set(wolfId, wolf);
+              worldWolvesMap.set(wolfId, wolf);
+              newWolves.push(wolf);
+            }
+          }
+          if (newWolves.length > 0) {
+            const msg = JSON.stringify({
+              type: "updateWolf",
+              worldId: 1,
+              wolves: newWolves,
+            });
+            broadcastToWorld(wss, clients, players, 1, msg);
+          }
         }
 
-        // Обновляем дистанцию
-        const traveled = Math.sqrt(
-          (me.x - prevX) ** 2 + (me.y - prevY) ** 2 // Используем **2 вместо pow для скорости в modern JS
+        // --- Логика волков (движение + атака) ---
+        const alivePlayers = Array.from(players.values()).filter(
+          (p) => p.worldId === 1 && p.health > 0
         );
-        me.distanceTraveled = (me.distanceTraveled || 0) + traveled;
+        const updateWolves = [];
+        const removeWolves = [];
+        const dropItems = [];
 
-        // Проверяем взаимодействие с NPC, квестами и торговым автоматом
-        window.npcSystem.checkNPCProximity();
-        window.jackSystem.checkJackProximity();
-        window.npcSystem.checkQuestCompletion();
-        window.vendingMachine.checkProximity();
+        for (const [wolfId, wolf] of worldWolvesMap) {
+          let closestPlayer = null;
+          let minDistance = Infinity;
 
-        // Обновляем ресурсы и коллизии
-        updateResources();
-        checkCollisions();
+          for (const player of alivePlayers) {
+            const dx = wolf.x - player.x;
+            const dy = wolf.y - player.y;
+            const distance = dx * dx + dy * dy;
+            if (distance < minDistance) {
+              minDistance = distance;
+              closestPlayer = player;
+            }
+          }
 
-        // Отправляем данные на сервер только по интервалу
-        if (currentTime - lastSendTime >= sendInterval) {
-          sendMovementUpdate(me);
-          lastSendTime = currentTime;
+          if (closestPlayer) {
+            const dx = closestPlayer.x - wolf.x;
+            const dy = closestPlayer.y - wolf.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            const speed = 2;
+
+            if (distance > 40) {
+              const angle = Math.atan2(dy, dx);
+              wolf.x += Math.cos(angle) * speed;
+              wolf.y += Math.sin(angle) * speed;
+              wolf.state = "walking";
+              wolf.direction =
+                Math.abs(dx) > Math.abs(dy)
+                  ? dx > 0
+                    ? "right"
+                    : "left"
+                  : dy > 0
+                  ? "down"
+                  : "up";
+            } else if (now - wolf.lastAttackTime >= 3000) {
+              const damage = Math.floor(Math.random() * 10) + 1;
+              closestPlayer.health = Math.max(0, closestPlayer.health - damage);
+              wolf.lastAttackTime = now;
+
+              players.set(closestPlayer.id, { ...closestPlayer });
+              userDatabase.set(closestPlayer.id, { ...closestPlayer });
+              saveUserDatabase(dbCollection, closestPlayer.id, closestPlayer); // Оставляем, но можно вынести в очередь
+
+              // Отправим апдейт игрока отдельно
+              const playerUpdateMsg = JSON.stringify({
+                type: "update",
+                player: closestPlayer,
+              });
+              broadcastToWorld(wss, clients, players, 1, playerUpdateMsg);
+            }
+
+            if (wolf.health <= 0 && wolf.state !== "dying") {
+              wolf.state = "dying";
+              wolf.frame = 0;
+            }
+
+            updateWolves.push({ ...wolf });
+
+            if (wolf.state === "dying" && wolf.frame >= 3) {
+              removeWolves.push(wolfId);
+              const itemId = `wolf_skin_${now}`;
+              const drop = {
+                x: wolf.x,
+                y: wolf.y,
+                type: "wolf_skin",
+                spawnTime: now,
+                worldId: 1,
+                isDroppedByPlayer: false,
+              };
+              items.set(itemId, drop);
+              worldItemsMap.set(itemId, drop);
+              dropItems.push({ itemId, ...drop });
+            }
+          }
         }
-      } else {
-        // Достигли цели
-        me.state = "idle";
-        me.frame = 0;
-        me.frameTime = 0;
-        isMoving = false;
-        sendMovementUpdate(me); // Отправляем сразу при остановке
-        lastSendTime = currentTime;
+
+        // Отправляем обновления волков
+        if (updateWolves.length > 0) {
+          const msg = JSON.stringify({
+            type: "updateWolf",
+            worldId: 1,
+            wolves: updateWolves,
+          });
+          broadcastToWorld(wss, clients, players, 1, msg);
+        }
+
+        // Удаление мёртвых волков + дроп
+        if (removeWolves.length > 0) {
+          const removeMsg = JSON.stringify({
+            type: "removeWolf",
+            worldId: 1,
+            wolfIds: removeWolves,
+          });
+          broadcastToWorld(wss, clients, players, 1, removeMsg);
+
+          if (dropItems.length > 0) {
+            const dropMsg = JSON.stringify({
+              type: "itemDropped",
+              items: dropItems,
+            });
+            broadcastToWorld(wss, clients, players, 1, dropMsg);
+          }
+
+          for (const wolfId of removeWolves) {
+            wolves.delete(wolfId);
+            worldWolvesMap.delete(wolfId);
+          }
+        }
       }
-    } else if (me.state === "dying") {
-      // Обработка анимации смерти
-      me.frameTime += deltaTime;
-      if (me.frameTime >= frameDuration) {
-        me.frameTime -= frameDuration;
-        if (me.frame < 6) me.frame += 1;
-      }
-      // Отправляем по интервалу
-      if (currentTime - lastSendTime >= sendInterval) {
-        sendMovementUpdate(me);
-        lastSendTime = currentTime;
+
+      // === 5. Синхронизация всех предметов (только если нужно) ===
+      const allItems = Array.from(worldItemsMap.entries()).map(
+        ([itemId, item]) => ({
+          itemId,
+          x: item.x,
+          y: item.y,
+          type: item.type,
+          spawnTime: item.spawnTime,
+          worldId,
+        })
+      );
+
+      if (allItems.length > 0) {
+        const syncMsg = JSON.stringify({
+          type: "syncItems",
+          items: allItems,
+          worldId,
+        });
+        broadcastToWorld(wss, clients, players, worldId, syncMsg);
       }
     }
+  }, 30_000); // 30 секунд
+}
 
-    // Обновляем камеру всегда в конце
-    updateCamera(me);
-  }
+// === УТИЛИТА: отправка сообщения всем в мире ===
+function broadcastToWorld(wss, clients, players, worldId, message) {
+  wss.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      const player = players.get(clients.get(client));
+      if (player && player.worldId === worldId) {
+        client.send(message);
+      }
+    }
+  });
+}
 
-  // Определение направления движения (оптимизировал условия для скорости)
-  function getDirection(dx, dy) {
-    const angle = Math.atan2(dy, dx) * (180 / Math.PI);
-    if (angle > -22.5 && angle <= 22.5) return "right";
-    if (angle > 22.5 && angle <= 67.5) return "down-right";
-    if (angle > 67.5 && angle <= 112.5) return "down";
-    if (angle > 112.5 && angle <= 157.5) return "down-left";
-    if (angle > 157.5 || angle <= -157.5) return "left";
-    if (angle > -157.5 && angle <= -112.5) return "up-left";
-    if (angle > -112.5 && angle <= -67.5) return "up";
-    if (angle > -67.5 && angle <= -22.5) return "up-right";
-    return "down"; // По умолчанию
-  }
-
-  // Отправка обновления движения на сервер
-  function sendMovementUpdate(player) {
-    sendWhenReady(
-      ws,
-      JSON.stringify({
-        type: "move",
-        x: player.x,
-        y: player.y,
-        health: player.health,
-        energy: player.energy,
-        food: player.food,
-        water: player.water,
-        armor: player.armor,
-        distanceTraveled: player.distanceTraveled,
-        direction: player.direction,
-        state: player.state,
-        frame: player.frame,
-      })
-    );
-  }
-
-  // Обновление камеры с интерполяцией
-  function updateCamera(player) {
-    const canvas = document.getElementById("gameCanvas");
-    const halfWidth = canvas.width / 2; // Кэшируем здесь, если не закешировано в init
-    const halfHeight = canvas.height / 2;
-
-    camera.targetX = player.x - halfWidth;
-    camera.targetY = player.y - halfHeight;
-
-    // Интерполяция для плавного следования
-    camera.x += (camera.targetX - camera.x) * camera.lerpFactor;
-    camera.y += (camera.targetY - camera.y) * camera.lerpFactor;
-
-    // Ограничиваем камеру в пределах мира
-    camera.x = Math.max(0, Math.min(camera.x, worldWidth - canvas.width));
-    camera.y = Math.max(0, Math.min(camera.y, worldHeight - canvas.height));
-  }
-
-  // Получение текущей позиции камеры
-  function getCamera() {
-    return camera;
-  }
-
-  // Экспортируем функции для использования в code.js
-  window.movementSystem = {
-    initialize: initializeMovement,
-    update: updateMovement,
-    getCamera: getCamera,
-  };
-})();
+module.exports = { runGameLoop };
