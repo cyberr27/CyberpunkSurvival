@@ -305,8 +305,6 @@ let lastDistance = 0; // Добавляем глобальную перемен�
 
 // Добавляем переменные для управления анимацией
 let lastTime = 0; // Время последнего кадра для расчета deltaTime
-let lastRender = 0; // Новая для трекинга последнего рендера
-const FPS = 10; // Целевой FPS, можно изменить
 
 // Переключение форм
 toRegister.addEventListener("click", () => {
@@ -2345,18 +2343,9 @@ function checkCollisions() {
 }
 
 function gameLoop(timestamp) {
-  if (!lastTime) lastTime = timestamp; // Инициализация, как у тебя
-
-  // Проверяем, пора ли рендерить (не чаще 30 FPS)
-  if (timestamp - lastRender < 1000 / FPS) {
-    requestAnimationFrame(gameLoop);
-    return;
-  }
-
-  // Рассчитываем deltaTime только для рендера
+  if (!lastTime) lastTime = timestamp;
   const deltaTime = timestamp - lastTime;
   lastTime = timestamp;
-  lastRender = timestamp; // Обновляем время последнего рендера
 
   update(deltaTime);
   draw(deltaTime);
