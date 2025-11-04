@@ -10,7 +10,6 @@ function setupWebSocket(
   players,
   userDatabase,
   items,
-  wolves,
   lights,
   worlds,
   ITEM_CONFIG,
@@ -160,16 +159,6 @@ function setupWebSocket(
               lights: lights.get(targetWorldId).map(({ id, ...rest }) => rest),
               players: worldPlayers,
               items: worldItems,
-              wolves: Array.from(wolves.entries())
-                .filter(([_, wolf]) => wolf.worldId === targetWorldId)
-                .map(([id, wolf]) => ({
-                  id,
-                  x: wolf.x,
-                  y: wolf.y,
-                  health: wolf.health,
-                  direction: wolf.direction,
-                  state: wolf.state,
-                })),
             })
           );
         }
@@ -278,16 +267,6 @@ function setupWebSocket(
                   type: item.type,
                   spawnTime: item.spawnTime,
                   worldId: item.worldId,
-                })),
-              wolves: Array.from(wolves.entries())
-                .filter(([_, wolf]) => wolf.worldId === playerData.worldId)
-                .map(([id, wolf]) => ({
-                  id,
-                  x: wolf.x,
-                  y: wolf.y,
-                  health: wolf.health,
-                  direction: wolf.direction,
-                  state: wolf.state,
                 })),
               healthUpgrade: playerData.healthUpgrade,
               energyUpgrade: playerData.energyUpgrade,
@@ -1318,32 +1297,6 @@ function setupWebSocket(
           players.set(id, { ...player });
           userDatabase.set(id, { ...player });
           await saveUserDatabase(dbCollection, id, player);
-        }
-      } else if (data.type === "attackWolf") {
-        const id = clients.get(ws);
-        if (id) {
-          const player = players.get(id);
-          if (player.worldId !== 1 || !wolves.has(data.wolfId)) return;
-
-          const wolf = wolves.get(data.wolfId);
-          const damage = data.damage || 10;
-          wolf.health = Math.max(0, wolf.health - damage);
-          wolves.set(data.wolfId, { ...wolf });
-
-          wss.clients.forEach((client) => {
-            if (
-              client.readyState === WebSocket.OPEN &&
-              players.get(clients.get(client))?.worldId === wolf.worldId
-            ) {
-              client.send(
-                JSON.stringify({
-                  type: "updateWolf",
-                  worldId: wolf.worldId,
-                  wolf,
-                })
-              );
-            }
-          });
         }
       } else if (data.type === "shoot") {
         const shooterId = clients.get(ws);

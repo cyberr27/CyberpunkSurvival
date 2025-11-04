@@ -157,29 +157,6 @@ function performMeleeAttack(damage, worldId) {
     }
   });
 
-  // Проверка волков (если в мире 1)
-  if (worldId === 1) {
-    window.wolfSystem.wolves.forEach((wolf, wolfId) => {
-      if (wolf.health > 0) {
-        const dx = wolf.x - me.x;
-        const dy = wolf.y - me.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        if (distance <= attackRange) {
-          hit = true;
-          sendWhenReady(
-            ws,
-            JSON.stringify({
-              type: "attackWolf",
-              wolfId,
-              damage,
-              worldId,
-            })
-          );
-        }
-      }
-    });
-  }
-
   // Обновляем данные игрока на сервере, если была затрачена энергия
   if (hit) {
     sendWhenReady(
@@ -283,28 +260,6 @@ function updateBullets(deltaTime) {
         }
       }
     });
-
-    // Проверка столкновений с волками
-    if (currentWorldId === 1) {
-      window.wolfSystem.wolves.forEach((wolf, wolfId) => {
-        if (wolf.health > 0) {
-          const dx = bullet.x - (wolf.x + 20);
-          const dy = bullet.y - (wolf.y + 20);
-          if (Math.sqrt(dx * dx + dy * dy) < 20) {
-            bullets.delete(bulletId);
-            sendWhenReady(
-              ws,
-              JSON.stringify({
-                type: "attackWolf",
-                wolfId,
-                damage: bullet.damage,
-                worldId: currentWorldId,
-              })
-            );
-          }
-        }
-      });
-    }
 
     // Удаление пули по истечении времени жизни или превышения дальности
     const timeElapsed = currentTime - bullet.spawnTime;

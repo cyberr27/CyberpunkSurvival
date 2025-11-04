@@ -14,7 +14,6 @@ const clients = new Map();
 const players = new Map();
 const userDatabase = new Map();
 const items = new Map();
-const wolves = new Map();
 const lights = new Map();
 const lastSaved = new Map();
 
@@ -159,7 +158,6 @@ async function initializeServer() {
     players,
     userDatabase,
     items,
-    wolves,
     lights,
     worlds,
     ITEM_CONFIG,
@@ -171,7 +169,6 @@ async function initializeServer() {
     clients,
     players,
     items,
-    wolves,
     worlds,
     ITEM_CONFIG,
     userDatabase
