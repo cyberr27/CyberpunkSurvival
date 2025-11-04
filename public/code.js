@@ -53,8 +53,6 @@ const imageSources = {
   cyberPantsImage: "cyber_pants.png",
   speedBootsImage: "speed_boots.png",
   techGlovesImage: "tech_gloves.png",
-  wolfSprite: "wolfSprite.png",
-  wolfSkinImage: "wolfSkin.png",
   plasmaRifleImage: "plasma_rifle.png",
   knucklesImage: "knuckles.png",
   knifeImage: "knife.png",
@@ -241,12 +239,6 @@ const ITEM_CONFIG = {
     description: "Технические перчатки: +5 брони, +5 энергии",
     rarity: 4,
   },
-  wolf_skin: {
-    effect: {},
-    image: images.wolfSkinImage,
-    description: "Волчья шкура: материал для крафта.",
-    rarity: 2,
-  },
   plasma_rifle: {
     type: "weapon",
     effect: { damage: 15, range: 500 },
@@ -351,8 +343,6 @@ function reconnectWebSocket() {
                   password: lastPassword,
                 })
               );
-              // Очищаем волков при переподключении
-              window.wolfSystem.clearWolves();
             } else {
               authContainer.style.display = "flex";
               document.getElementById("gameContainer").style.display = "none";
@@ -377,7 +367,6 @@ function reconnectWebSocket() {
             const data = JSON.parse(event.data);
             if (data.type === "loginSuccess") {
               ws.onmessage = handleGameMessage;
-              window.wolfSystem.clearWolves();
               tradeSystem.initialize(ws);
               // Синхронизируем игрока с сервером
               const me = players.get(myId);
@@ -687,11 +676,6 @@ function startGame() {
   window.npcSystem.initialize(images.johnSprite); // Передаём изображение NPC
   window.jackSystem.initialize(images.jackSprite);
 
-  // Проверяем, что изображения загружены перед инициализацией wolfSystem
-  if (imagesLoaded === totalImages) {
-    window.wolfSystem.initialize(images.wolfSprite, images.wolfSkinImage);
-  } else {
-  }
   window.combatSystem.initialize();
 
   document.addEventListener("keydown", (e) => {
@@ -930,7 +914,6 @@ function startGame() {
   });
   window.tradeSystem.initialize(ws);
   window.equipmentSystem.initialize();
-  window.wolfSystem.initialize(images.wolfSprite, images.wolfSkinImage);
   const me = players.get(myId);
   if (me && me.equipment) {
     window.equipmentSystem.syncEquipment(me.equipment);
@@ -1571,7 +1554,6 @@ function handleGameMessage(event) {
             });
             window.vendingMachine.hideVendingMenu();
             window.lightsSystem.reset(data.worldId);
-            window.wolfSystem.clearWolves(); // Очищаем волков при переходе
             if (data.lights) {
               lights.length = 0;
               data.lights.forEach((light) =>
@@ -1581,9 +1563,6 @@ function handleGameMessage(event) {
                   pulseSpeed: 0.001,
                 })
               );
-            }
-            if (data.wolves && data.worldId === 1) {
-              window.wolfSystem.syncWolves(data.wolves);
             }
           }
         }
@@ -1754,21 +1733,6 @@ function handleGameMessage(event) {
       case "tradeCompleted":
         window.tradeSystem.handleTradeMessage(data);
         break;
-      case "syncWolves":
-        if (data.worldId === currentWorldId) {
-          window.wolfSystem.syncWolves(data.wolves);
-        }
-        break;
-      case "updateWolf":
-        if (data.worldId === currentWorldId) {
-          window.wolfSystem.updateWolf(data.wolf);
-        }
-        break;
-      case "removeWolf":
-        if (data.worldId === currentWorldId) {
-          window.wolfSystem.removeWolf(data.wolfId);
-        }
-        break;
       case "useAtomSuccess":
         me = players.get(myId);
         me.armor = data.armor;
@@ -1821,7 +1785,6 @@ function update(deltaTime) {
   window.movementSystem.update(deltaTime);
   if (!me || me.health <= 0) return;
 
-  window.wolfSystem.update(deltaTime);
   window.combatSystem.update(deltaTime);
 
   // Проверяем зоны перехода
@@ -1953,7 +1916,6 @@ function draw(deltaTime) {
   window.npcSystem.drawNPC(deltaTime);
   window.jackSystem.drawJack(deltaTime);
   window.vendingMachine.draw();
-  window.wolfSystem.draw(ctx, window.movementSystem.getCamera());
   window.combatSystem.draw();
 
   // Отрисовка игроков (оптимизировано: без console.log, с ранней проверкой)
@@ -2109,5 +2071,5 @@ function gameLoop(timestamp) {
 // Инициализация изображений (без изменений)
 function onImageLoad() {
   imagesLoaded++;
-  if (imagesLoaded === 27) window.addEventListener("resize", resizeCanvas);
+  if (imagesLoaded === 25) window.addEventListener("resize", resizeCanvas);
 }

@@ -7,7 +7,6 @@ function checkCollisionServer(x, y) {
 // КЭШИРОВАНИЕ: чтобы не пересчитывать одни и те же данные
 const worldPlayerCache = new Map(); // worldId → Set(playerId)
 const worldItemCache = new Map(); // worldId → Map(itemId, item)
-const worldWolfCache = new Map(); // worldId → Map(wolfId, wolf)
 
 function runGameLoop(
   wss,
@@ -15,7 +14,6 @@ function runGameLoop(
   clients,
   players,
   items,
-  wolves,
   worlds,
   ITEM_CONFIG,
   userDatabase
@@ -27,7 +25,6 @@ function runGameLoop(
     // === 1. ОДНОКРАТНОЕ СОБИРАНИЕ ДАННЫХ ПО МИРАМ ===
     worldPlayerCache.clear();
     worldItemCache.clear();
-    worldWolfCache.clear();
 
     // Группируем игроков, предметы, волков по мирам
     for (const player of players.values()) {
@@ -42,13 +39,6 @@ function runGameLoop(
         worldItemCache.set(item.worldId, new Map());
       }
       worldItemCache.get(item.worldId).set(itemId, item);
-    }
-
-    for (const [wolfId, wolf] of wolves) {
-      if (!worldWolfCache.has(wolf.worldId)) {
-        worldWolfCache.set(wolf.worldId, new Map());
-      }
-      worldWolfCache.get(wolf.worldId).set(wolfId, wolf);
     }
 
     const totalPlayers = players.size;
@@ -86,7 +76,6 @@ function runGameLoop(
       const playerIds = worldPlayerCache.get(worldId) || new Set();
       const playerCount = playerIds.size;
       const worldItemsMap = worldItemCache.get(worldId) || new Map();
-      const worldWolvesMap = worldWolfCache.get(worldId) || new Map();
 
       // --- Удаление старых предметов ---
       const removedItemIds = removeItemByWorld.get(worldId) || [];
@@ -201,194 +190,6 @@ function runGameLoop(
             messages: atomSpawns,
           });
           broadcastToWorld(wss, clients, players, worldId, atomMsg);
-        }
-      }
-
-      // === СПЕЦИАЛЬНО ДЛЯ МИРА 1: ВОЛКИ ===
-      if (worldId === 1) {
-        const maxWolves = Math.max(5, playerCount * 2);
-        const currentWolves = worldWolvesMap.size;
-
-        // --- Спаун волков ---
-        if (currentWolves < maxWolves) {
-          const wolvesToSpawn = maxWolves - currentWolves;
-          const playerList = Array.from(players.values()).filter(
-            (p) => p.worldId === 1
-          );
-          if (playerList.length === 0) continue;
-
-          const newWolves = [];
-          for (let i = 0; i < wolvesToSpawn; i++) {
-            const player =
-              playerList[Math.floor(Math.random() * playerList.length)];
-            let x,
-              y,
-              attempts = 0;
-            const maxAttempts = 10;
-            do {
-              const edge = Math.floor(Math.random() * 4);
-              switch (edge) {
-                case 0:
-                  x = player.x + (Math.random() - 0.5) * 1000;
-                  y = player.y - 500;
-                  break;
-                case 1:
-                  x = player.x + (Math.random() - 0.5) * 1000;
-                  y = player.y + 500;
-                  break;
-                case 2:
-                  x = player.x - 500;
-                  y = player.y + (Math.random() - 0.5) * 1000;
-                  break;
-                case 3:
-                  x = player.x + 500;
-                  y = player.y + (Math.random() - 0.5) * 1000;
-                  break;
-              }
-              attempts++;
-            } while (checkCollisionServer(x, y) && attempts < maxAttempts);
-
-            if (attempts < maxAttempts) {
-              const wolfId = `wolf_${now}_${i}`;
-              const wolf = {
-                id: wolfId,
-                x,
-                y,
-                health: 100,
-                direction: "down",
-                state: "walking",
-                worldId: 1,
-                lastAttackTime: 0,
-              };
-              wolves.set(wolfId, wolf);
-              worldWolvesMap.set(wolfId, wolf);
-              newWolves.push(wolf);
-            }
-          }
-          if (newWolves.length > 0) {
-            const msg = JSON.stringify({
-              type: "updateWolf",
-              worldId: 1,
-              wolves: newWolves,
-            });
-            broadcastToWorld(wss, clients, players, 1, msg);
-          }
-        }
-
-        // --- Логика волков (движение + атака) ---
-        const alivePlayers = Array.from(players.values()).filter(
-          (p) => p.worldId === 1 && p.health > 0
-        );
-        const updateWolves = [];
-        const removeWolves = [];
-        const dropItems = [];
-
-        for (const [wolfId, wolf] of worldWolvesMap) {
-          let closestPlayer = null;
-          let minDistance = Infinity;
-
-          for (const player of alivePlayers) {
-            const dx = wolf.x - player.x;
-            const dy = wolf.y - player.y;
-            const distance = dx * dx + dy * dy;
-            if (distance < minDistance) {
-              minDistance = distance;
-              closestPlayer = player;
-            }
-          }
-
-          if (closestPlayer) {
-            const dx = closestPlayer.x - wolf.x;
-            const dy = closestPlayer.y - wolf.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            const speed = 2;
-
-            if (distance > 40) {
-              const angle = Math.atan2(dy, dx);
-              wolf.x += Math.cos(angle) * speed;
-              wolf.y += Math.sin(angle) * speed;
-              wolf.state = "walking";
-              wolf.direction =
-                Math.abs(dx) > Math.abs(dy)
-                  ? dx > 0
-                    ? "right"
-                    : "left"
-                  : dy > 0
-                  ? "down"
-                  : "up";
-            } else if (now - wolf.lastAttackTime >= 3000) {
-              const damage = Math.floor(Math.random() * 10) + 1;
-              closestPlayer.health = Math.max(0, closestPlayer.health - damage);
-              wolf.lastAttackTime = now;
-
-              players.set(closestPlayer.id, { ...closestPlayer });
-              userDatabase.set(closestPlayer.id, { ...closestPlayer });
-              saveUserDatabase(dbCollection, closestPlayer.id, closestPlayer); // Оставляем, но можно вынести в очередь
-
-              // Отправим апдейт игрока отдельно
-              const playerUpdateMsg = JSON.stringify({
-                type: "update",
-                player: closestPlayer,
-              });
-              broadcastToWorld(wss, clients, players, 1, playerUpdateMsg);
-            }
-
-            if (wolf.health <= 0 && wolf.state !== "dying") {
-              wolf.state = "dying";
-              wolf.frame = 0;
-            }
-
-            updateWolves.push({ ...wolf });
-
-            if (wolf.state === "dying" && wolf.frame >= 3) {
-              removeWolves.push(wolfId);
-              const itemId = `wolf_skin_${now}`;
-              const drop = {
-                x: wolf.x,
-                y: wolf.y,
-                type: "wolf_skin",
-                spawnTime: now,
-                worldId: 1,
-                isDroppedByPlayer: false,
-              };
-              items.set(itemId, drop);
-              worldItemsMap.set(itemId, drop);
-              dropItems.push({ itemId, ...drop });
-            }
-          }
-        }
-
-        // Отправляем обновления волков
-        if (updateWolves.length > 0) {
-          const msg = JSON.stringify({
-            type: "updateWolf",
-            worldId: 1,
-            wolves: updateWolves,
-          });
-          broadcastToWorld(wss, clients, players, 1, msg);
-        }
-
-        // Удаление мёртвых волков + дроп
-        if (removeWolves.length > 0) {
-          const removeMsg = JSON.stringify({
-            type: "removeWolf",
-            worldId: 1,
-            wolfIds: removeWolves,
-          });
-          broadcastToWorld(wss, clients, players, 1, removeMsg);
-
-          if (dropItems.length > 0) {
-            const dropMsg = JSON.stringify({
-              type: "itemDropped",
-              items: dropItems,
-            });
-            broadcastToWorld(wss, clients, players, 1, dropMsg);
-          }
-
-          for (const wolfId of removeWolves) {
-            wolves.delete(wolfId);
-            worldWolvesMap.delete(wolfId);
-          }
         }
       }
 
