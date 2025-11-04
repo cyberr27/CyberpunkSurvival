@@ -511,7 +511,6 @@ function handleAuthMessage(event) {
       };
       players.set(myId, me);
       window.worldSystem.currentWorldId = me.worldId;
-      window.jackSystem.setJackMet(data.jackMet);
 
       // Инициализация систем, если не сделано
       if (window.equipmentSystem && !window.equipmentSystem.isInitialized) {
@@ -561,6 +560,7 @@ function handleAuthMessage(event) {
       }
       window.lightsSystem.reset(me.worldId);
       window.npcSystem.setNPCMet(data.npcMet || false);
+      window.jackSystem.setJackMet(data.jackMet || false);
       window.npcSystem.setSelectedQuest(data.selectedQuestId || null);
       window.npcSystem.checkQuestCompletion();
       window.npcSystem.setAvailableQuests(data.availableQuests || []);

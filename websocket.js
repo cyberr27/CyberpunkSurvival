@@ -242,6 +242,7 @@ function setupWebSocket(
               inventory: playerData.inventory,
               equipment: playerData.equipment,
               npcMet: playerData.npcMet,
+              jackMet: playerData.jackMet,
               selectedQuestId: playerData.selectedQuestId,
               level: playerData.level,
               xp: playerData.xp,
