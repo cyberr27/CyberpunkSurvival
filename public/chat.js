@@ -51,8 +51,6 @@ function sendWhenReady(webSocket, message) {
       }
     }, 100);
     setTimeout(() => clearInterval(checkInterval), 5000);
-  } else {
-    console.error("WebSocket не готов для отправки:", webSocket.readyState);
   }
 }
 
@@ -68,8 +66,6 @@ function sendWhenReady(ws, message) {
       }
     }, 100);
     setTimeout(() => clearInterval(checkInterval), 5000);
-  } else {
-    console.error("WebSocket не готов для отправки:", ws.readyState);
   }
 }
 
