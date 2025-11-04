@@ -106,8 +106,13 @@ function setupWebSocket(
           const targetWorldId = data.targetWorldId;
 
           if (!worlds.find((w) => w.id === targetWorldId)) {
+            console.error(`World with ID ${targetWorldId} does not exist`);
             return;
           }
+
+          console.log(
+            `Player ${id} transitioning from world ${oldWorldId} to world ${targetWorldId} at x:${data.x}, y:${data.y}`
+          );
 
           player.worldId = targetWorldId;
           player.x = data.x;
@@ -172,6 +177,10 @@ function setupWebSocket(
                 })),
             })
           );
+
+          console.log(
+            `Transition successful: player ${id}, world ${targetWorldId}, synchronized ${worldPlayers.length} players, ${worldItems.length} items`
+          );
         }
       } else if (data.type === "syncPlayers") {
         const id = clients.get(ws);
@@ -179,6 +188,9 @@ function setupWebSocket(
           const player = players.get(id);
           const worldId = data.worldId;
           if (player.worldId !== worldId) {
+            console.warn(
+              `Player ${id} requested syncPlayers for incorrect world ${worldId}`
+            );
             return;
           }
           const worldPlayers = Array.from(players.values()).filter(
@@ -190,6 +202,9 @@ function setupWebSocket(
               players: worldPlayers,
               worldId,
             })
+          );
+          console.log(
+            `Sent list of ${worldPlayers.length} players in world ${worldId} to ${id}`
           );
         }
       } else if (data.type === "login") {
@@ -366,6 +381,12 @@ function setupWebSocket(
                 : 0,
           })
         );
+
+        console.log(
+          `Player ${id} bought ${data.option} water, water: ${
+            player.water
+          }, balyary: ${balyaryCount - data.cost}`
+        );
       } else if (data.type === "meetNPC") {
         const id = clients.get(ws);
         if (id) {
@@ -377,6 +398,9 @@ function setupWebSocket(
           players.set(id, { ...player });
           userDatabase.set(id, { ...player });
           await saveUserDatabase(dbCollection, id, player);
+          console.log(
+            `Player ${id} met NPC: npcMet=${data.npcMet}, quests: ${player.availableQuests}`
+          );
         }
       } else if (data.type === "move") {
         const id = clients.get(ws);
@@ -451,6 +475,13 @@ function setupWebSocket(
           players.set(id, { ...player });
           userDatabase.set(id, { ...player });
           await saveUserDatabase(dbCollection, id, player);
+          console.log(
+            `Player ${id} updated level: ${data.level}, XP: ${
+              data.xp
+            }, maxStats: ${JSON.stringify(player.maxStats)}, upgradePoints: ${
+              data.upgradePoints
+            }`
+          );
           wss.clients.forEach((client) => {
             if (
               client.readyState === WebSocket.OPEN &&
@@ -491,6 +522,7 @@ function setupWebSocket(
               );
             }
           });
+          console.log(`Player ${id} updated maxStats + upgrades`);
         }
       } else if (data.type === "updateInventory") {
         const id = clients.get(ws);
@@ -512,10 +544,16 @@ function setupWebSocket(
               );
             }
           });
+          console.log(
+            `Player ${id} inventory and quests updated: ${
+              player.availableQuests
+            }, selectedQuestId: ${player.selectedQuestId || "null"}`
+          );
         }
       } else if (data.type === "unequipItem") {
         const playerId = clients.get(ws);
         if (!playerId) {
+          console.warn("Игрок не идентифицирован для сообщения unequipItem");
           ws.send(
             JSON.stringify({
               type: "unequipItemFail",
@@ -527,6 +565,9 @@ function setupWebSocket(
 
         const player = players.get(playerId);
         if (!player || !player.equipment || !player.inventory) {
+          console.warn(
+            `Игрок ${playerId} или его данные не найдены для снятия экипировки`
+          );
           ws.send(
             JSON.stringify({
               type: "unequipItemFail",
@@ -549,6 +590,7 @@ function setupWebSocket(
           "gloves",
         ];
         if (!validSlots.includes(slotName)) {
+          console.warn(`Недопустимый слот ${slotName} для снятия экипировки`);
           ws.send(
             JSON.stringify({
               type: "unequipItemFail",
@@ -563,6 +605,9 @@ function setupWebSocket(
           !player.equipment[slotName] ||
           player.equipment[slotName].itemId !== itemId
         ) {
+          console.warn(
+            `Слот ${slotName} пуст или itemId не совпадает (${itemId})`
+          );
           ws.send(
             JSON.stringify({
               type: "unequipItemFail",
@@ -574,6 +619,7 @@ function setupWebSocket(
 
         // Проверяем, свободен ли слот инвентаря
         if (player.inventory[inventorySlot] !== null) {
+          console.warn(`Слот инвентаря ${inventorySlot} занят`);
           ws.send(
             JSON.stringify({
               type: "unequipItemFail",
@@ -680,6 +726,10 @@ function setupWebSocket(
             }
           }
         });
+
+        console.log(
+          `Игрок ${playerId} снял предмет ${itemId} из слота ${slotName} в слот инвентаря ${inventorySlot}`
+        );
       } else if (data.type === "updateQuests") {
         const id = clients.get(ws);
         if (id) {
@@ -689,6 +739,7 @@ function setupWebSocket(
           players.set(id, { ...player });
           userDatabase.set(id, { ...player });
           await saveUserDatabase(dbCollection, id, player);
+          console.log(`Player ${id} quests updated: ${player.availableQuests}`);
         }
       } else if (data.type === "pickup") {
         const id = clients.get(ws);
@@ -848,6 +899,7 @@ function setupWebSocket(
               inventory: player.inventory,
             })
           );
+          console.log(`Игрок ${id} использовал атом, броня: ${player.armor}`);
         }
       } else if (data.type === "useItem") {
         const id = clients.get(ws);
@@ -900,6 +952,7 @@ function setupWebSocket(
               inventory: player.inventory,
             })
           );
+          console.log(`Игрок ${id} использовал предмет ${item.type}`);
         }
       } else if (data.type === "equipItem") {
         const id = clients.get(ws);
@@ -950,11 +1003,20 @@ function setupWebSocket(
                   );
                 }
               });
+
+              console.log(
+                `Player ${id} equipped ${item.type} to slot ${slotName}`
+              );
             }
           }
         }
       } else if (data.type === "dropItem") {
         const id = clients.get(ws);
+        console.log(
+          `Received dropItem request from ${id}, slotIndex: ${
+            data.slotIndex
+          }, x: ${data.x}, y: ${data.y}, quantity: ${data.quantity || 1}`
+        );
         if (id) {
           const player = players.get(id);
           const slotIndex = data.slotIndex;
@@ -964,6 +1026,9 @@ function setupWebSocket(
             if (ITEM_CONFIG[item.type]?.stackable) {
               const currentQuantity = item.quantity || 1;
               if (quantityToDrop > currentQuantity) {
+                console.log(
+                  `Player ${id} has insufficient ${item.type} to drop: ${quantityToDrop} > ${currentQuantity}`
+                );
                 return;
               }
             }
@@ -1044,6 +1109,9 @@ function setupWebSocket(
                   }
                 }
               });
+              console.log(
+                `Player ${id} dropped ${quantityToDrop} ${item.type} in world ${player.worldId} at x:${dropX}, y:${dropY}`
+              );
             }
           }
         }
@@ -1058,6 +1126,9 @@ function setupWebSocket(
         const distance = Math.sqrt(dx * dx + dy * dy);
 
         if (distance > 1000 || fromPlayer.health <= 0 || toPlayer.health <= 0) {
+          console.log(
+            `Trade request denied: fromId=${fromId}, toId=${data.toId}, distance=${distance}, fromHealth=${fromPlayer.health}, toHealth=${toPlayer.health}`
+          );
           return;
         }
 
@@ -1075,6 +1146,9 @@ function setupWebSocket(
             );
           }
         });
+        console.log(
+          `Trade request: fromId=${fromId}, toId=${data.toId}, distance=${distance}`
+        );
       } else if (data.type === "tradeAccepted") {
         const fromId = clients.get(ws);
         if (!fromId || !players.has(fromId) || !players.has(data.toId)) return;
@@ -1093,6 +1167,7 @@ function setupWebSocket(
             );
           }
         });
+        console.log(`Trade accepted: fromId=${fromId}, toId=${data.toId}`);
       } else if (data.type === "tradeCancelled") {
         const fromId = clients.get(ws);
         if (!fromId || !players.has(fromId) || !players.has(data.toId)) return;
@@ -1112,6 +1187,7 @@ function setupWebSocket(
             );
           }
         });
+        console.log(`Trade cancelled: fromId=${fromId}, toId=${data.toId}`);
       } else if (data.type === "tradeOffer") {
         const fromId = clients.get(ws);
         if (!fromId || !players.has(fromId) || !players.has(data.toId)) return;
@@ -1140,6 +1216,13 @@ function setupWebSocket(
             );
           }
         });
+        console.log(
+          `Trade offer: fromId=${fromId}, toId=${
+            data.toId
+          }, offer=${JSON.stringify(data.offer)}, inventory=${JSON.stringify(
+            data.inventory
+          )}`
+        );
       } else if (data.type === "tradeConfirmed") {
         const fromId = clients.get(ws);
         if (!fromId || !players.has(fromId) || !players.has(data.toId)) return;
@@ -1158,6 +1241,7 @@ function setupWebSocket(
             );
           }
         });
+        console.log(`Trade confirmed: fromId=${fromId}, toId=${data.toId}`);
       } else if (data.type === "tradeCompleted") {
         const fromId = clients.get(ws);
         if (!fromId || !players.has(fromId) || !players.has(data.toId)) return;
@@ -1203,6 +1287,9 @@ function setupWebSocket(
               );
             }
           });
+          console.log(
+            `Trade cancelled: fromOfferValid=${fromOfferValid}, toOfferValid=${toOfferValid}, fromId=${fromId}, toId=${data.toId}`
+          );
           return;
         }
 
@@ -1235,6 +1322,9 @@ function setupWebSocket(
               );
             }
           });
+          console.log(
+            `Trade cancelled: insufficient slots. fromFreeSlots=${fromFreeSlots}, toFreeSlots=${toFreeSlots}, fromOfferCount=${fromOfferCount}, toOfferCount=${toOfferCount}`
+          );
           return;
         }
 
@@ -1310,6 +1400,13 @@ function setupWebSocket(
             }
           }
         });
+        console.log(
+          `Trade completed: fromId=${fromId}, toId=${
+            data.toId
+          }, myOffer=${JSON.stringify(
+            data.myOffer
+          )}, partnerOffer=${JSON.stringify(data.partnerOffer)}`
+        );
       } else if (data.type === "selectQuest") {
         const id = clients.get(ws);
         if (id) {
@@ -1318,6 +1415,9 @@ function setupWebSocket(
           players.set(id, { ...player });
           userDatabase.set(id, { ...player });
           await saveUserDatabase(dbCollection, id, player);
+          console.log(
+            `Player ${id} selected quest ID: ${data.questId || "null"}`
+          );
         }
       } else if (data.type === "attackWolf") {
         const id = clients.get(ws);
@@ -1344,6 +1444,9 @@ function setupWebSocket(
               );
             }
           });
+          console.log(
+            `Player ${id} dealt ${damage} damage to wolf ${data.wolfId}`
+          );
         }
       } else if (data.type === "shoot") {
         const shooterId = clients.get(ws);
@@ -1443,6 +1546,7 @@ function setupWebSocket(
             client.send(JSON.stringify({ type: "tradeRequest", fromId, toId }));
           }
         });
+        console.log(`Trade request from ${fromId} to ${toId}`);
       } else if (data.type === "tradeAccepted") {
         const fromId = data.fromId; // B accepts, fromId = B, toId = A (initiator)
         const toId = data.toId;
@@ -1476,6 +1580,7 @@ function setupWebSocket(
             }
           }
         });
+        console.log(`Trade accepted between ${toId} and ${fromId}`);
       } else if (data.type === "tradeOffer") {
         const fromId = clients.get(ws);
         if (!fromId) return;
@@ -1506,6 +1611,7 @@ function setupWebSocket(
             );
           }
         });
+        console.log(`Offer updated from ${fromId} to ${toId}`);
       } else if (data.type === "tradeConfirmed") {
         const fromId = clients.get(ws);
         const toId = data.toId;
@@ -1606,6 +1712,9 @@ function setupWebSocket(
             }
           });
           tradeOffers.delete(tradeKey);
+          console.log(
+            `Trade completed between ${playerA.id} and ${playerB.id}`
+          );
         } else {
           // Send confirmation to partner
           wss.clients.forEach((client) => {
@@ -1628,6 +1737,7 @@ function setupWebSocket(
             client.send(JSON.stringify({ type: "tradeCancelled" }));
           }
         });
+        console.log(`Trade cancelled between ${fromId} and ${toId}`);
       } else if (data.type === "attackPlayer") {
         const attackerId = clients.get(ws);
         if (
@@ -1661,6 +1771,9 @@ function setupWebSocket(
                 }
               }
             });
+            console.log(
+              `Player ${attackerId} dealt ${data.damage} damage to player ${data.targetId}`
+            );
           }
         }
       } else if (data.type === "meetJack") {
@@ -1682,6 +1795,9 @@ function setupWebSocket(
         if (player) {
           userDatabase.set(id, { ...player });
           await saveUserDatabase(dbCollection, id, player);
+          console.log(
+            `Player ${id} data saved before disconnection. Code: ${code}, Reason: ${reason}`
+          );
 
           const itemsToRemove = [];
           items.forEach((item, itemId) => {
@@ -1692,6 +1808,9 @@ function setupWebSocket(
 
           itemsToRemove.forEach((itemId) => {
             items.delete(itemId);
+            console.log(
+              `Item ${itemId} removed due to player ${id} disconnection`
+            );
             wss.clients.forEach((client) => {
               if (client.readyState === WebSocket.OPEN) {
                 client.send(JSON.stringify({ type: "itemPicked", itemId }));

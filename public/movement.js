@@ -4,7 +4,7 @@
   let isMoving = false;
   let targetX = 0;
   let targetY = 0;
-  const baseSpeed = 65; // Пикселей в секунду
+  const baseSpeed = 100; // Пикселей в секунду
   const worldWidth = 3135;
   const worldHeight = 3300;
 
@@ -34,17 +34,9 @@
     "down-right": 120,
   };
 
-  // Оптимизация: интервал отправки обновлений на сервер (в мс), чтобы не спамить каждый кадр
-  const sendInterval = 100; // Можно настроить, например, 200 для ещё меньшей нагрузки
-  let lastSendTime = 0;
-
   // Инициализация системы движения
   function initializeMovement() {
     const canvas = document.getElementById("gameCanvas");
-
-    // Кэшируем половину размеров канваса один раз для оптимизации камеры
-    const halfWidth = canvas.width / 2;
-    const halfHeight = canvas.height / 2;
 
     // Обработчики мыши
     canvas.addEventListener("mousedown", (e) => {
@@ -121,9 +113,6 @@
       e.preventDefault();
       stopMovement();
     });
-
-    // Экспортируем halfWidth и halfHeight, если нужно, но не трогаем другие модули
-    // (они используются только в updateCamera, так что ок)
   }
 
   // Остановка движения
@@ -134,35 +123,32 @@
       me.state = "idle";
       me.frame = 0;
       me.frameTime = 0;
-      // При остановке всегда отправляем, чтобы сервер знал сразу
-      sendMovementUpdate(me);
+      sendWhenReady(
+        ws,
+        JSON.stringify({
+          type: "move",
+          x: me.x,
+          y: me.y,
+          health: me.health,
+          energy: me.energy,
+          food: me.food,
+          water: me.water,
+          armor: me.armor,
+          distanceTraveled: me.distanceTraveled,
+          direction: me.direction,
+          state: me.state,
+          frame: me.frame,
+        })
+      );
     }
   }
 
   // Обновление движения персонажа
   function updateMovement(deltaTime) {
     const me = players.get(myId);
-    if (!me) {
-      return; // Нет игрока — выходим рано, чтобы сэкономить CPU
-    }
-
-    const currentTime = Date.now(); // Для throttling отправок
-
-    if (me.health <= 0) {
-      // Если мёртв, только обновляем камеру и анимацию смерти, если нужно
-      if (me.state === "dying") {
-        me.frameTime += deltaTime;
-        if (me.frameTime >= frameDuration) {
-          me.frameTime -= frameDuration;
-          if (me.frame < 6) me.frame += 1;
-        }
-        // Отправляем только по интервалу или если анимация закончилась
-        if (currentTime - lastSendTime >= sendInterval || me.frame >= 6) {
-          sendMovementUpdate(me);
-          lastSendTime = currentTime;
-        }
-      }
-      updateCamera(me);
+    if (!me || me.health <= 0) {
+      // Даже если игрок не может двигаться, камера должна следовать за ним
+      if (me) updateCamera(me);
       return;
     }
 
@@ -197,26 +183,24 @@
           me.frame = 0;
           me.frameTime = 0;
           isMoving = false;
-          sendMovementUpdate(me); // Отправляем сразу при коллизии
-          lastSendTime = currentTime;
-          updateCamera(me);
+          sendMovementUpdate(me);
           return;
         }
 
         // Определяем направление
         me.state = "walking";
-        me.direction = getDirection(normalizedDx, normalizedDy); // Используем нормализованные, чтобы избежать повторного atan2 на dx/dy
+        me.direction = getDirection(normalizedDx, normalizedDy);
 
         // Обновляем анимацию
         me.frameTime += deltaTime;
         if (me.frameTime >= frameDuration) {
-          me.frameTime = me.frameTime % frameDuration; // Оптимизация: используем % для предотвращения переполнения
+          me.frameTime -= frameDuration;
           me.frame = (me.frame + 1) % 7;
         }
 
         // Обновляем дистанцию
         const traveled = Math.sqrt(
-          (me.x - prevX) ** 2 + (me.y - prevY) ** 2 // Используем **2 вместо pow для скорости в modern JS
+          Math.pow(me.x - prevX, 2) + Math.pow(me.y - prevY, 2)
         );
         me.distanceTraveled = (me.distanceTraveled || 0) + traveled;
 
@@ -230,19 +214,15 @@
         updateResources();
         checkCollisions();
 
-        // Отправляем данные на сервер только по интервалу
-        if (currentTime - lastSendTime >= sendInterval) {
-          sendMovementUpdate(me);
-          lastSendTime = currentTime;
-        }
+        // Отправляем данные на сервер
+        sendMovementUpdate(me);
       } else {
         // Достигли цели
         me.state = "idle";
         me.frame = 0;
         me.frameTime = 0;
         isMoving = false;
-        sendMovementUpdate(me); // Отправляем сразу при остановке
-        lastSendTime = currentTime;
+        sendMovementUpdate(me);
       }
     } else if (me.state === "dying") {
       // Обработка анимации смерти
@@ -251,28 +231,24 @@
         me.frameTime -= frameDuration;
         if (me.frame < 6) me.frame += 1;
       }
-      // Отправляем по интервалу
-      if (currentTime - lastSendTime >= sendInterval) {
-        sendMovementUpdate(me);
-        lastSendTime = currentTime;
-      }
+      sendMovementUpdate(me);
     }
 
-    // Обновляем камеру всегда в конце
+    // Обновляем камеру
     updateCamera(me);
   }
 
-  // Определение направления движения (оптимизировал условия для скорости)
+  // Определение направления движения
   function getDirection(dx, dy) {
     const angle = Math.atan2(dy, dx) * (180 / Math.PI);
-    if (angle > -22.5 && angle <= 22.5) return "right";
-    if (angle > 22.5 && angle <= 67.5) return "down-right";
-    if (angle > 67.5 && angle <= 112.5) return "down";
-    if (angle > 112.5 && angle <= 157.5) return "down-left";
-    if (angle > 157.5 || angle <= -157.5) return "left";
-    if (angle > -157.5 && angle <= -112.5) return "up-left";
-    if (angle > -112.5 && angle <= -67.5) return "up";
-    if (angle > -67.5 && angle <= -22.5) return "up-right";
+    if (angle >= -22.5 && angle < 22.5) return "right";
+    if (angle >= 22.5 && angle < 67.5) return "down-right";
+    if (angle >= 67.5 && angle < 112.5) return "down";
+    if (angle >= 112.5 && angle < 157.5) return "down-left";
+    if (angle >= 157.5 || angle < -157.5) return "left";
+    if (angle >= -157.5 && angle < -112.5) return "up-left";
+    if (angle >= -112.5 && angle < -67.5) return "up";
+    if (angle >= -67.5 && angle < -22.5) return "up-right";
     return "down"; // По умолчанию
   }
 
@@ -300,11 +276,8 @@
   // Обновление камеры с интерполяцией
   function updateCamera(player) {
     const canvas = document.getElementById("gameCanvas");
-    const halfWidth = canvas.width / 2; // Кэшируем здесь, если не закешировано в init
-    const halfHeight = canvas.height / 2;
-
-    camera.targetX = player.x - halfWidth;
-    camera.targetY = player.y - halfHeight;
+    camera.targetX = player.x - canvas.width / 2;
+    camera.targetY = player.y - canvas.height / 2;
 
     // Интерполяция для плавного следования
     camera.x += (camera.targetX - camera.x) * camera.lerpFactor;

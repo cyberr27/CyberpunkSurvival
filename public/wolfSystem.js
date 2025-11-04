@@ -8,11 +8,13 @@ const wolfSystem = {
   initialize(wolfSprite, wolfSkinImage) {
     this.wolfSprite = wolfSprite;
     this.wolfSkinImage = wolfSkinImage;
+    console.log("WolfSystem инициализирован");
   },
 
   // Новый метод для очистки волков при смене мира
   clearWolves() {
     this.wolves.clear();
+    console.log("Все волки очищены при смене мира");
   },
 
   update(deltaTime) {
@@ -115,6 +117,7 @@ const wolfSystem = {
         });
       }
     });
+    console.log(`Синхронизировано ${this.wolves.size} волков в Пустошах`);
   },
 
   updateWolf(wolfData) {
@@ -145,6 +148,7 @@ const wolfSystem = {
   removeWolf(wolfId) {
     if (this.wolves.has(wolfId)) {
       this.wolves.delete(wolfId);
+      console.log(`Волк ${wolfId} удалён`);
     }
   },
 };

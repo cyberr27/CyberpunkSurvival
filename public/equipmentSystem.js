@@ -195,10 +195,12 @@ const equipmentSystem = {
     const me = players.get(myId);
     const item = this.equipmentSlots[slotName];
     if (!item) {
+      console.warn(`Нет предмета в слоте ${slotName} для снятия`);
       return;
     }
 
     if (!me || !me.inventory) {
+      console.error("Игрок или инвентарь не найден для снятия экипировки");
       return;
     }
 
@@ -230,6 +232,9 @@ const equipmentSystem = {
     if (inventoryGrid) {
       updateInventoryDisplay();
     } else {
+      console.warn(
+        "Элемент inventoryGrid не найден, обновление инвентаря отложено"
+      );
       setTimeout(() => {
         if (document.getElementById("inventoryGrid")) {
           updateInventoryDisplay();
@@ -268,7 +273,14 @@ const equipmentSystem = {
           equipment: this.equipmentSlots,
         })
       );
+      console.log(`Отправлено сообщение unequipItem для слота ${slotName}`);
+    } else {
+      console.warn("WebSocket не открыт, сообщение unequipItem не отправлено");
     }
+
+    console.log(
+      `Предмет ${item.type} снят из слота ${slotName} и помещён в инвентарь`
+    );
   },
 
   toggleEquipment: function () {
@@ -300,6 +312,9 @@ const equipmentSystem = {
     const screen = document.getElementById("equipmentScreen");
 
     if (!equipmentGrid || !screen) {
+      console.warn(
+        "equipmentGrid или equipmentScreen не найдены, откладываем обновление экипировки"
+      );
       return;
     }
 
@@ -334,17 +349,20 @@ const equipmentSystem = {
   equipItem: function (slotIndex) {
     const item = inventory[slotIndex];
     if (!item || !this.EQUIPMENT_CONFIG[item.type]) {
+      console.warn(`Предмет ${item?.type} не найден в EQUIPMENT_CONFIG`);
       return;
     }
 
     const me = players.get(myId);
     if (!me) {
+      console.warn("Игрок не найден для экипировки");
       return;
     }
 
     const equipType = this.EQUIPMENT_CONFIG[item.type].type;
     const slotName = this.EQUIPMENT_TYPES[equipType];
     if (!slotName) {
+      console.warn(`Слот для типа ${equipType} не найден`);
       return;
     }
 
@@ -364,6 +382,9 @@ const equipmentSystem = {
     this.equipmentSlots[slotName] = { type: item.type, itemId: item.itemId };
     inventory[slotIndex] = null; // Удаляем предмет из инвентаря
     this.updateEquipmentDisplay();
+    console.log(
+      `[ЭКИПИРОВКА] ${item.type} помещён в слот ${slotName} (локально)`
+    );
 
     // Применяем эффекты экипировки
     this.applyEquipmentEffects(me);
@@ -387,6 +408,9 @@ const equipmentSystem = {
           },
         })
       );
+      console.log(`Отправлено сообщение equipItem для ${item.type}`);
+    } else {
+      console.warn("WebSocket не открыт, сообщение equipItem не отправлено");
     }
 
     // Обновляем интерфейс
@@ -436,6 +460,19 @@ const equipmentSystem = {
     player.food = Math.min(player.food, player.maxStats.food);
     player.water = Math.min(player.water, player.maxStats.water);
     player.armor = Math.min(player.armor, player.maxStats.armor);
+
+    console.log(
+      `Эффекты экипировки применены: maxStats=${JSON.stringify(
+        player.maxStats
+      )}, stats=${JSON.stringify({
+        health: player.health,
+        energy: player.energy,
+        food: player.food,
+        water: player.water,
+        armor: player.armor,
+        damage: player.damage,
+      })}`
+    );
   },
 
   syncEquipment: function (equipment) {

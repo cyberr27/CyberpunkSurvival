@@ -71,11 +71,15 @@ Object.entries(imageSources).forEach(([key, src]) => {
   images[key].src = src;
   images[key].onload = () => {
     imagesLoaded++;
+    console.log(
+      `Изображение ${src} загружено (${imagesLoaded}/${totalImages})`
+    );
     if (imagesLoaded === totalImages) {
       window.addEventListener("resize", resizeCanvas);
     }
   };
   images[key].onerror = () => {
+    console.error(`Ошибка загрузки изображения ${src}`);
     images[key].src = "fallback.png"; // Запасное изображение
     imagesLoaded++;
     if (imagesLoaded === totalImages) {
@@ -321,10 +325,12 @@ toLogin.addEventListener("click", () => {
 
 function reconnectWebSocket() {
   if (reconnectAttempts >= maxReconnectAttempts) {
+    console.error("Максимум попыток переподключения достигнут.");
     authContainer.style.display = "flex";
     document.getElementById("gameContainer").style.display = "none";
     return;
   }
+  console.log(`Попытка переподключения ${reconnectAttempts + 1}...`);
   setTimeout(() => {
     // Проверяем доступность сервера перед переподключением
     fetch("https://cyberpunksurvival.onrender.com/health")
@@ -334,6 +340,7 @@ function reconnectWebSocket() {
         }
         ws = new WebSocket("wss://cyberpunksurvival.onrender.com");
         ws.onopen = () => {
+          console.log("WebSocket успешно переподключен");
           reconnectAttempts = 0;
           if (myId) {
             const lastUsername = document
@@ -351,20 +358,31 @@ function reconnectWebSocket() {
                   password: lastPassword,
                 })
               );
+              console.log(`Повторная авторизация для ${lastUsername}`);
               // Очищаем волков при переподключении
               window.wolfSystem.clearWolves();
             } else {
+              console.warn("Нет сохранённых данных для авторизации");
               authContainer.style.display = "flex";
               document.getElementById("gameContainer").style.display = "none";
             }
           }
         };
         ws.onerror = (error) => {
+          console.error("Ошибка WebSocket при переподключении:", error);
           reconnectAttempts++;
           reconnectWebSocket();
         };
         ws.onclose = (event) => {
+          console.log(
+            "WebSocket закрыт при переподключении:",
+            event.code,
+            event.reason
+          );
           if (event.code === 4000) {
+            console.log(
+              "Отключён из-за неактивности, переподключение не требуется"
+            );
             authContainer.style.display = "flex";
             document.getElementById("gameContainer").style.display = "none";
             return;
@@ -570,6 +588,7 @@ function handleAuthMessage(event) {
             pulseSpeed: 0.001,
           })
         );
+        console.log(`Загружено ${lights.length} источников света при логине`);
       }
       window.lightsSystem.reset(me.worldId);
       window.npcSystem.setNPCMet(data.npcMet || false);
@@ -585,6 +604,7 @@ function handleAuthMessage(event) {
       );
       resizeCanvas();
       ws.onmessage = handleGameMessage;
+      console.log("Переключен обработчик на handleGameMessage");
       startGame();
       updateOnlineCount(0);
       break;
@@ -645,6 +665,9 @@ function handleAuthMessage(event) {
       if (data.type === "atom") {
         newItem.frame = 0; // Инициализируем для анимации
         newItem.frameTime = 0;
+        console.log(
+          `Атом ${data.itemId} добавлен с анимацией: frame=${newItem.frame}, frameTime=${newItem.frameTime}`
+        );
       }
       items.set(data.itemId, newItem);
       break;
@@ -691,6 +714,9 @@ function startGame() {
   if (imagesLoaded === totalImages) {
     window.wolfSystem.initialize(images.wolfSprite, images.wolfSkinImage);
   } else {
+    console.error(
+      "Изображения волка не загружены, пропускаем инициализацию wolfSystem"
+    );
   }
   window.combatSystem.initialize();
 
@@ -763,10 +789,16 @@ function startGame() {
             e.clientY <= slotRect.bottom &&
             inventory[i]
           ) {
+            console.log(
+              `Клик по слоту ${i} (x:${touch.clientX}, y:${touch.clientY}), предмет: ${inventory[i].type}`
+            );
             selectSlot(i, slots[i]);
             return;
           }
         }
+        console.log(
+          `Клик вне слотов инвентаря (x:${e.clientX}, y:${e.clientY})`
+        );
       } else {
         const camera = window.movementSystem.getCamera();
         const worldX = e.clientX + window.movementSystem.getCamera().x;
@@ -818,10 +850,16 @@ function startGame() {
           touch.clientY <= slotRect.bottom &&
           inventory[i]
         ) {
+          console.log(
+            `Тач по слоту ${i} (x:${touch.clientX}, y:${touch.clientY}), предмет: ${inventory[i].type}`
+          );
           selectSlot(i, slots[i]);
           return;
         }
       }
+      console.log(
+        `Тач вне слотов инвентаря (x:${touch.clientX}, y:${touch.clientY})`
+      );
     } else {
       const camera = window.movementSystem.getCamera();
       const worldX = touch.clientX + window.movementSystem.getCamera().x;
@@ -977,6 +1015,9 @@ function toggleInventory() {
 // Выбрать слот и показать кнопки
 function selectSlot(slotIndex, slotElement) {
   if (!inventory[slotIndex]) return;
+  console.log(
+    `Выбран слот ${slotIndex}, предмет: ${inventory[slotIndex].type}`
+  );
   const screen = document.getElementById("inventoryScreen");
   const useBtn = document.getElementById("useBtn");
   const dropBtn = document.getElementById("dropBtn");
@@ -1003,15 +1044,20 @@ function useItem(slotIndex) {
   console.log("UseItem вызван для слота:", slotIndex);
   const item = inventory[slotIndex];
   if (!item || !ITEM_CONFIG[item.type]) {
+    console.warn(
+      `Предмет в слоте ${slotIndex} не существует или не найден в ITEM_CONFIG`
+    );
     return;
   }
   const me = players.get(myId);
   if (!me) {
+    console.warn("Игрок не найден для использования предмета");
     return;
   }
 
   // Проверяем, является ли предмет экипировкой
   if (window.equipmentSystem.EQUIPMENT_CONFIG[item.type]) {
+    console.log("Попытка экипировать предмет:", item.type);
     window.equipmentSystem.equipItem(slotIndex);
     selectedSlot = null;
     document.getElementById("useBtn").disabled = true;
@@ -1024,12 +1070,16 @@ function useItem(slotIndex) {
 
   // Проверяем, является ли предмет баляром
   if (item.type === "balyary") {
+    console.log("Баляр не может быть использован");
     return;
   }
 
   // Обработка атома
   if (item.type === "atom") {
     me.armor = Math.min(me.armor + 5, me.maxStats.armor);
+    console.log(
+      `Использован атом, броня увеличена до ${me.armor}/${me.maxStats.armor}`
+    );
 
     // Удаляем атом из инвентаря
     inventory[slotIndex] = null;
@@ -1045,7 +1095,9 @@ function useItem(slotIndex) {
           inventory,
         })
       );
+      console.log("Отправлено сообщение useAtom на сервер");
     } else {
+      console.warn("WebSocket не открыт, сообщение useAtom не отправлено");
     }
   } else {
     // Обработка других предметов (еда, вода, здоровье, энергия)
@@ -1087,7 +1139,9 @@ function useItem(slotIndex) {
           inventory,
         })
       );
+      console.log("Отправлено сообщение useItem на сервер");
     } else {
+      console.warn("WebSocket не открыт, сообщение useItem не отправлено");
     }
   }
 
@@ -1129,6 +1183,7 @@ function dropItem(slotIndex) {
     });
 
     input.addEventListener("input", () => {
+      console.log("Ввод в stackableAmount:", input.value);
       input.value = input.value.replace(/[^0-9]/g, "");
       if (input.value === "") input.value = "";
     });
@@ -1225,6 +1280,7 @@ function updateResources() {
   const prevWaterLoss = Math.floor(lastDistance / 500);
   if (waterLoss > prevWaterLoss) {
     me.water = Math.max(0, me.water - (waterLoss - prevWaterLoss));
+    console.log(`Вода уменьшена до ${me.water}`);
   }
 
   // Еда: -1 каждые 450 пикселей
@@ -1232,6 +1288,7 @@ function updateResources() {
   const prevFoodLoss = Math.floor(lastDistance / 900);
   if (foodLoss > prevFoodLoss) {
     me.food = Math.max(0, me.food - (foodLoss - prevFoodLoss));
+    console.log(`Еда уменьшена до ${me.food}`);
   }
 
   // Энергия: -1 каждые 650 пикселей
@@ -1239,6 +1296,7 @@ function updateResources() {
   const prevEnergyLoss = Math.floor(lastDistance / 1300);
   if (energyLoss > prevEnergyLoss) {
     me.energy = Math.max(0, me.energy - (energyLoss - prevEnergyLoss));
+    console.log(`Энергия уменьшена до ${me.energy}`);
   }
 
   // Здоровье: -1 каждые 100 пикселей, если любой из показателей равен 0
@@ -1247,6 +1305,9 @@ function updateResources() {
     const prevHealthLoss = Math.floor(lastDistance / 200);
     if (healthLoss > prevHealthLoss) {
       me.health = Math.max(0, me.health - (healthLoss - prevHealthLoss));
+      console.log(
+        `Здоровье уменьшено до ${me.health} из-за нулевых показателей`
+      );
     }
   }
 
@@ -1278,6 +1339,7 @@ function updateResources() {
 }
 
 function updateStatsDisplay() {
+  console.log("UpdateStatsDisplay вызван");
   const me = players.get(myId);
   if (!me) return;
   statsEl.innerHTML = `
@@ -1359,12 +1421,16 @@ function updateInventoryDisplay() {
   const dropBtn = document.getElementById("dropBtn");
 
   if (!inventoryGrid || !inventoryScreen) {
+    console.warn(
+      "Элементы inventoryGrid или inventoryScreen не найдены, обновление инвентаря пропущено"
+    );
     return;
   }
 
   // Получаем данные игрока
   const me = players.get(myId);
   if (!me || !me.inventory) {
+    console.warn("Игрок или инвентарь не найден");
     return;
   }
 
@@ -1502,6 +1568,7 @@ function updateInventoryDisplay() {
       slot.onclick = (e) => {
         e.preventDefault();
         e.stopPropagation();
+        console.log(`Клик по слоту ${i}, предмет: ${inventory[i].type}`);
         selectSlot(i, slot);
       };
     } else {
@@ -1519,6 +1586,8 @@ function updateInventoryDisplay() {
 
   // Запускаем анимацию для атомов
   startAtomAnimation(atomAnimations);
+
+  console.log("Инвентарь обновлён");
 }
 
 function handleGameMessage(event) {
@@ -1537,13 +1606,26 @@ function handleGameMessage(event) {
           if (myPlayer) {
             players.set(myId, { ...myPlayer, frameTime: 0 });
           } else {
+            console.warn(
+              `Игрок ${myId} не найден при синхронизации, пропускаем сохранение`
+            );
           }
           data.players.forEach((p) => {
             if (p && p.id && p.id !== myId && typeof p === "object") {
               players.set(p.id, { ...p, frameTime: 0 });
             } else {
+              console.warn(`Пропущен некорректный игрок при синхронизации:`, p);
             }
           });
+
+          console.log(
+            `Синхронизировано ${data.players.length} игроков в мире ${data.worldId}, players:`,
+            Array.from(players.keys())
+          );
+        } else {
+          console.warn(
+            `Получен syncPlayers для неверного мира ${data.worldId} или без игроков`
+          );
         }
         break;
       case "unequipItemSuccess":
@@ -1557,6 +1639,11 @@ function handleGameMessage(event) {
           window.equipmentSystem.updateEquipmentDisplay();
           updateInventoryDisplay();
           updateStatsDisplay();
+          console.log(
+            `Успешно снята экипировка: slot=${data.slotName}, inventorySlot=${data.inventorySlot}`
+          );
+        } else {
+          console.warn("Игрок не найден для обработки unequipItemSuccess");
         }
         break;
       case "worldTransitionSuccess":
@@ -1581,6 +1668,9 @@ function handleGameMessage(event) {
                   pulseSpeed: 0.001,
                 })
               );
+              console.log(
+                `Загружено ${lights.length} источников света при переходе в мир ${data.worldId}`
+              );
             }
             if (data.wolves && data.worldId === 1) {
               window.wolfSystem.syncWolves(data.wolves);
@@ -1596,6 +1686,9 @@ function handleGameMessage(event) {
                 type: "syncPlayers",
                 worldId: data.worldId,
               })
+            );
+            console.log(
+              `Запрошена синхронизация игроков для мира ${data.worldId}`
             );
           }
         }, 1000); // Задержка 1 секунда
@@ -1613,12 +1706,21 @@ function handleGameMessage(event) {
           break;
         }
         if (data.player.worldId !== currentWorldId) {
+          console.log(
+            `newPlayer: Игрок ${data.player.id} в другом мире (${data.player.worldId}), текущий мир: ${currentWorldId}, пропускаем`
+          );
           break;
         }
         if (players.has(data.player.id)) {
+          console.log(
+            `newPlayer: Игрок ${data.player.id} уже существует в мире ${currentWorldId}, обновляем данные`
+          );
           players.set(data.player.id, { ...data.player, frameTime: 0 });
         } else {
           players.set(data.player.id, { ...data.player, frameTime: 0 });
+          console.log(
+            `Добавлен новый игрок ${data.player.id} в мире ${currentWorldId}`
+          );
         }
         break;
       case "playerLeft":
@@ -1641,6 +1743,9 @@ function handleGameMessage(event) {
         });
         data.items.forEach((item) => {
           if (pendingPickups.has(item.itemId)) {
+            console.log(
+              `Предмет ${item.itemId} всё ещё в мире, убираем из pendingPickups`
+            );
             pendingPickups.delete(item.itemId);
           }
         });
@@ -1648,6 +1753,7 @@ function handleGameMessage(event) {
       case "itemPicked":
         items.delete(data.itemId);
         pendingPickups.delete(data.itemId);
+        console.log(`Предмет ${data.itemId} удалён из мира (itemPicked)`);
         const me = players.get(myId);
         if (me && data.playerId === myId && data.item) {
           if (data.item.type === "balyary") {
@@ -1657,6 +1763,9 @@ function handleGameMessage(event) {
             if (balyarySlot !== -1) {
               inventory[balyarySlot].quantity =
                 (inventory[balyarySlot].quantity || 1) + 1;
+              console.log(
+                `Добавлено 1 Баляр, теперь их ${inventory[balyarySlot].quantity}`
+              );
             } else {
               const freeSlot = inventory.findIndex((slot) => slot === null);
               if (freeSlot !== -1) {
@@ -1665,12 +1774,18 @@ function handleGameMessage(event) {
                   quantity: 1,
                   itemId: data.itemId,
                 };
+                console.log(
+                  `Баляры добавлены в слот ${freeSlot}, количество: 1`
+                );
               }
             }
           } else {
             const freeSlot = inventory.findIndex((slot) => slot === null);
             if (freeSlot !== -1) {
               inventory[freeSlot] = data.item;
+              console.log(
+                `Предмет ${data.item.type} добавлен в слот ${freeSlot}`
+              );
             }
           }
           updateInventoryDisplay();
@@ -1684,8 +1799,12 @@ function handleGameMessage(event) {
       case "itemNotFound":
         items.delete(data.itemId);
         pendingPickups.delete(data.itemId);
+        console.log(
+          `Предмет ${data.itemId} не найден на сервере, удалён из локального items`
+        );
         break;
       case "inventoryFull":
+        console.log(`Инвентарь полон, предмет ${data.itemId} не поднят`);
         pendingPickups.delete(data.itemId);
         break;
       case "update":
@@ -1714,6 +1833,9 @@ function handleGameMessage(event) {
         break;
       case "itemDropped":
         if (data.worldId === currentWorldId) {
+          console.log(
+            `Получено itemDropped: itemId=${data.itemId}, type=${data.type}, x=${data.x}, y=${data.y}, worldId=${data.worldId}`
+          );
           items.set(data.itemId, {
             x: data.x,
             y: data.y,
@@ -1738,13 +1860,18 @@ function handleGameMessage(event) {
           updateStatsDisplay();
           updateInventoryDisplay();
           window.vendingMachine.hideVendingMenu();
+          console.log(
+            `Куплено ${data.option} воды, вода: ${me.water}, баляры: ${data.balyaryCount}`
+          );
         } else {
           const errorEl = document.getElementById("vendingError");
           errorEl.textContent = data.error || "Ошибка покупки";
+          console.log(`Ошибка покупки: ${data.error}`);
         }
         break;
       case "totalOnline":
         updateOnlineCount(data.count);
+        console.log(`Получено общее количество игроков: ${data.count}`);
         break;
       case "tradeRequest":
       case "tradeAccepted":
@@ -1775,6 +1902,7 @@ function handleGameMessage(event) {
         inventory = data.inventory;
         updateStatsDisplay();
         updateInventoryDisplay();
+        console.log(`Подтверждено использование атома, броня: ${me.armor}`);
         break;
       case "useItemSuccess":
         me = players.get(myId);
@@ -1785,6 +1913,7 @@ function handleGameMessage(event) {
         inventory = data.inventory;
         updateStatsDisplay();
         updateInventoryDisplay();
+        console.log(`Подтверждено использование предмета`);
         break;
     }
   } catch (error) {
@@ -1814,7 +1943,7 @@ function update(deltaTime) {
     window.equipmentSystem.syncEquipment(me.equipment);
     window.equipmentSystem.lastApplied = true;
     updateStatsDisplay();
-    // Убрал console.log, чтобы не нагружать CPU на каждом кадре
+    console.log("Применены эффекты экипировки в update");
   }
 
   // Обновляем движение через movementSystem
@@ -1827,22 +1956,97 @@ function update(deltaTime) {
   // Проверяем зоны перехода
   window.worldSystem.checkTransitionZones(me.x, me.y);
 
-  // Обновление анимаций предметов (без отрисовки и без console.log)
+  // Отрисовка предметов
+  const currentTime = Date.now();
   const currentWorldId = window.worldSystem.currentWorldId;
-  items.forEach((item) => {
-    // Пропускаем предметы из других миров сразу, без логов
-    if (item.worldId !== currentWorldId) return;
+  console.log(`Обрабатываем ${items.size} предметов в мире ${currentWorldId}`);
 
-    // Специальная обработка только для атома: обновляем frame (анимация)
-    if (item.type === "atom") {
-      if (item.frameTime === undefined) item.frameTime = 0;
-      if (item.frame === undefined) item.frame = 0;
-      item.frameTime += deltaTime;
-      const frameDuration = 300; // Скорость анимации
-      if (item.frameTime >= frameDuration) {
-        item.frameTime -= frameDuration;
-        item.frame = (item.frame + 1) % 40; // 40 кадров
+  items.forEach((item, itemId) => {
+    // Проверяем, в правильном ли мире предмет
+    if (item.worldId !== currentWorldId) {
+      console.log(
+        `Предмет ${itemId} (${item.type}) в другом мире (${item.worldId}), пропускаем`
+      );
+      return;
+    }
+
+    // Проверяем, существует ли предмет
+    if (!items.has(itemId)) {
+      console.log(`Предмет ${itemId} уже удалён, пропускаем`);
+      return;
+    }
+
+    // Вычисляем экранные координаты
+    const screenX = item.x - window.movementSystem.getCamera().x;
+    const screenY = item.y - window.movementSystem.getCamera().y;
+    console.log(
+      `Предмет ${itemId} (${item.type}) на позиции worldX: ${item.x}, worldY: ${item.y}, screenX: ${screenX}, screenY: ${screenY}`
+    );
+
+    // Проверяем, находится ли предмет в видимой области
+    if (
+      screenX >= -40 &&
+      screenX <= canvas.width + 40 &&
+      screenY >= -40 &&
+      screenY <= canvas.height + 40
+    ) {
+      // Проверяем наличие конфигурации
+      if (!ITEM_CONFIG[item.type]) {
+        console.warn(`ITEM_CONFIG для ${item.type} не найден`);
+        return;
       }
+
+      // Проверяем наличие и загруженность изображения
+      if (
+        !ITEM_CONFIG[item.type].image ||
+        !ITEM_CONFIG[item.type].image.complete
+      ) {
+        console.warn(
+          `Изображение для ${item.type} не загружено или отсутствует`
+        );
+        ctx.fillStyle = "yellow"; // Заглушка
+        ctx.fillRect(screenX, screenY, 20, 20);
+        console.log(
+          `Отрисована заглушка для ${item.type} на ${screenX}, ${screenY}`
+        );
+        return;
+      }
+
+      // Специальная обработка для атома
+      if (item.type === "atom") {
+        if (item.frameTime === undefined) item.frameTime = 0;
+        if (item.frame === undefined) item.frame = 0;
+        item.frameTime += deltaTime;
+        const frameDuration = 300; // Скорость анимации
+        if (item.frameTime >= frameDuration) {
+          item.frameTime -= frameDuration;
+          item.frame = (item.frame + 1) % 40; // 40 кадров
+        }
+        ctx.drawImage(
+          ITEM_CONFIG[item.type].image,
+          item.frame * 50,
+          0,
+          50,
+          50,
+          screenX,
+          screenY,
+          50,
+          50
+        );
+        console.log(
+          `Отрисован атом ${itemId}, frame: ${item.frame}, x: ${screenX}, y: ${screenY}`
+        );
+      } else {
+        // Отрисовка остальных предметов
+        ctx.drawImage(ITEM_CONFIG[item.type].image, screenX, screenY, 20, 20);
+        console.log(
+          `Отрисован предмет ${item.type} (${itemId}), x: ${screenX}, y: ${screenY}`
+        );
+      }
+    } else {
+      console.log(
+        `Предмет ${itemId} (${item.type}) вне видимой области, x: ${screenX}, y: ${screenY}`
+      );
     }
   });
 }
@@ -1865,21 +2069,22 @@ function draw(deltaTime) {
   const cloudsOffsetX = window.movementSystem.getCamera().x * cloudsSpeed;
 
   // Рисуем фон
-  if (currentWorld.bg && currentWorld.bg.complete) {
-    ctx.fillStyle = ctx.createPattern(currentWorld.bg, "repeat");
+  if (currentWorld.backgroundImage.complete) {
+    ctx.fillStyle = ctx.createPattern(currentWorld.backgroundImage, "repeat");
     ctx.save();
     ctx.translate(
-      -(groundOffsetX % currentWorld.bg.width),
+      -(groundOffsetX % currentWorld.backgroundImage.width),
       -(window.movementSystem.getCamera().y * groundSpeed) %
-        currentWorld.bg.height
+        currentWorld.backgroundImage.height
     );
     ctx.fillRect(
-      (groundOffsetX % currentWorld.bg.width) - currentWorld.bg.width,
+      (groundOffsetX % currentWorld.backgroundImage.width) -
+        currentWorld.backgroundImage.width,
       ((window.movementSystem.getCamera().y * groundSpeed) %
-        currentWorld.bg.height) -
-        currentWorld.bg.height,
-      currentWorld.w + currentWorld.bg.width,
-      currentWorld.h + currentWorld.bg.height
+        currentWorld.backgroundImage.height) -
+        currentWorld.backgroundImage.height,
+      currentWorld.width + currentWorld.backgroundImage.width,
+      currentWorld.height + currentWorld.backgroundImage.height
     );
     ctx.restore();
   } else {
@@ -1889,56 +2094,90 @@ function draw(deltaTime) {
 
   window.lightsSystem.draw(deltaTime);
 
-  // Отрисовка предметов (оптимизировано: без дубликатов, с ранней проверкой видимости)
-  const cameraX = window.movementSystem.getCamera().x;
-  const cameraY = window.movementSystem.getCamera().y;
-  const viewWidth = canvas.width + 80; // Буфер для видимости (40 слева/справа)
-  const viewHeight = canvas.height + 80;
+  // Отрисовка предметов (перенесено из update)
+  const currentTime = Date.now();
   items.forEach((item, itemId) => {
-    if (item.worldId !== currentWorldId) return; // Ранняя проверка мира
-
-    const screenX = item.x - cameraX;
-    const screenY = item.y - cameraY;
-
-    // Быстрая проверка видимости без Math.sqrt (bounding box)
-    if (
-      screenX < -40 ||
-      screenX > viewWidth ||
-      screenY < -40 ||
-      screenY > viewHeight
-    ) {
-      return; // Пропускаем невидимые предметы раньше
-    }
-
-    if (!ITEM_CONFIG[item.type] || !ITEM_CONFIG[item.type].image?.complete) {
-      // Упрощённая заглушка без console.warn (чтобы не нагружать)
-      ctx.fillStyle = "yellow";
-      ctx.fillRect(screenX, screenY, 20, 20);
+    if (item.worldId !== currentWorldId) {
+      console.log(
+        `Предмет ${itemId} (${item.type}) в другом мире (${item.worldId}), пропускаем`
+      );
       return;
     }
+    if (!items.has(itemId)) {
+      console.log(`Предмет ${itemId} уже удалён, пропускаем`);
+      return;
+    }
+    const screenX = item.x - window.movementSystem.getCamera().x;
+    const screenY = item.y - window.movementSystem.getCamera().y;
+    console.log(
+      `Предмет ${itemId} (${item.type}) на позиции worldX: ${item.x}, worldY: ${item.y}, screenX: ${screenX}, screenY: ${screenY}`
+    );
 
-    if (item.type === "atom") {
-      // Рисуем на основе состояния из update()
-      ctx.drawImage(
-        ITEM_CONFIG[item.type].image,
-        item.frame * 50,
-        0,
-        50,
-        50,
-        screenX,
-        screenY,
-        50,
-        50
-      );
+    if (
+      screenX >= -40 &&
+      screenX <= canvas.width + 40 &&
+      screenY >= -40 &&
+      screenY <= canvas.height + 40
+    ) {
+      if (!ITEM_CONFIG[item.type]) {
+        console.warn(`ITEM_CONFIG для ${item.type} не найден`);
+        return;
+      }
+      if (
+        !ITEM_CONFIG[item.type].image ||
+        !ITEM_CONFIG[item.type].image.complete
+      ) {
+        console.warn(
+          `Изображение для ${item.type} не загружено или отсутствует`
+        );
+        ctx.fillStyle = "yellow"; // Заглушка
+        ctx.fillRect(screenX, screenY, 20, 20);
+        console.log(
+          `Отрисована заглушка для ${item.type} на ${screenX}, ${screenY}`
+        );
+        return;
+      }
+
+      if (item.type === "atom") {
+        if (item.frameTime === undefined) item.frameTime = 0;
+        if (item.frame === undefined) item.frame = 0;
+        item.frameTime += deltaTime;
+        const frameDuration = 300; // Скорость анимации
+        if (item.frameTime >= frameDuration) {
+          item.frameTime -= frameDuration;
+          item.frame = (item.frame + 1) % 40; // 40 кадров
+        }
+        ctx.drawImage(
+          ITEM_CONFIG[item.type].image,
+          item.frame * 50,
+          0,
+          50,
+          50,
+          screenX,
+          screenY,
+          50,
+          50
+        );
+        console.log(
+          `Отрисован атом ${itemId}, frame: ${item.frame}, x: ${screenX}, y: ${screenY}`
+        );
+      } else {
+        ctx.drawImage(ITEM_CONFIG[item.type].image, screenX, screenY, 20, 20);
+        console.log(
+          `Отрисован предмет ${item.type} (${itemId}), x: ${screenX}, y: ${screenY}`
+        );
+      }
     } else {
-      ctx.drawImage(ITEM_CONFIG[item.type].image, screenX, screenY, 20, 20);
+      console.log(
+        `Предмет ${itemId} (${item.type}) вне видимой области, x: ${screenX}, y: ${screenY}`
+      );
     }
   });
 
   // Остальные слои
-  if (currentWorld.rocks.complete) {
+  if (currentWorld.rocksImage.complete) {
     ctx.drawImage(
-      currentWorld.rocks,
+      currentWorld.rocksImage,
       rocksOffsetX,
       window.movementSystem.getCamera().y * rocksSpeed,
       canvas.width,
@@ -1956,81 +2195,88 @@ function draw(deltaTime) {
   window.wolfSystem.draw(ctx, window.movementSystem.getCamera());
   window.combatSystem.draw();
 
-  // Отрисовка игроков (оптимизировано: без console.log, с ранней проверкой)
-  players.forEach((player) => {
-    if (player.worldId !== currentWorldId) return;
-
-    const screenX = player.x - cameraX;
-    const screenY = player.y - cameraY;
-
-    // Быстрая проверка видимости
+  // Отрисовка игроков
+  players.forEach((player, id) => {
     if (
-      screenX < -70 ||
-      screenX > viewWidth ||
-      screenY < -70 ||
-      screenY > viewHeight
+      !player ||
+      typeof player !== "object" ||
+      !player.hasOwnProperty("worldId")
     ) {
+      console.warn(`Некорректные данные игрока ${id} в players:`, player);
+      players.delete(id);
+      updateOnlineCount();
+      console.log(
+        `Удалён игрок ${id} из players, текущие игроки:`,
+        Array.from(players.keys())
+      );
       return;
     }
+    if (player.worldId !== currentWorldId) return;
+    const screenX = player.x - window.movementSystem.getCamera().x;
+    const screenY = player.y - window.movementSystem.getCamera().y;
 
-    if (player.state === "walking") {
-      player.frameTime += deltaTime;
-      if (player.frameTime >= GAME_CONFIG.FRAME_DURATION / 40) {
-        player.frameTime -= GAME_CONFIG.FRAME_DURATION / 40;
-        player.frame = (player.frame + 1) % 40;
+    if (player.id !== myId) {
+      if (player.state === "walking") {
+        player.frameTime += deltaTime;
+        if (player.frameTime >= GAME_CONFIG.FRAME_DURATION / 40) {
+          // Изменено на 40 кадров
+          player.frameTime -= GAME_CONFIG.FRAME_DURATION / 40;
+          player.frame = (player.frame + 1) % 40; // Цикл по 40 кадрам
+        }
+      } else if (player.state === "dying") {
+        // Убрана анимация dying (нет 5-й строки), используем статичный кадр из down
+        player.frame = 0; // Фиксированный кадр
+        player.frameTime = 0;
+      } else {
+        player.frame = 0;
+        player.frameTime = 0;
       }
-    } else if (player.state === "dying") {
-      player.frame = 0;
-      player.frameTime = 0;
-    } else {
-      player.frame = 0;
-      player.frameTime = 0;
     }
 
-    let spriteX = player.frame * 70;
+    let spriteX = player.frame * 70; // Кадры по 70 пикселей в ширину
     let spriteY;
     if (player.state === "dying") {
-      spriteY = 70;
+      spriteY = 70; // Используем строку down (Y=70) для dying, так как 5-я строка убрана
     } else {
       spriteY =
         {
           up: 0,
           down: 70,
-          left: 210,
-          right: 140,
-        }[player.direction] || 0;
+          left: 210, // Лево теперь Y=210 (4-я строка)
+          right: 140, // Право Y=140 (3-я строка)
+        }[player.direction] || 0; // По умолчанию down
     }
 
-    if (images.playerSprite?.complete) {
+    if (images.playerSprite && images.playerSprite.complete) {
       ctx.drawImage(
         images.playerSprite,
         spriteX,
         spriteY,
-        70,
+        70, // Размер кадра 70x70
         70,
         screenX,
         screenY,
-        70,
+        70, // Отрисовка на экране 70x70 (игрок крупнее)
         70
       );
     } else {
       ctx.fillStyle = "blue";
-      ctx.fillRect(screenX, screenY, 70, 70);
+      ctx.fillRect(screenX, screenY, 70, 70); // Заглушка тоже 70x70
     }
 
     ctx.fillStyle = "white";
     ctx.font = "12px Arial";
     ctx.textAlign = "center";
-    ctx.fillText(player.id, screenX + 35, screenY - 20);
+    ctx.fillText(player.id, screenX + 35, screenY - 20); // Смещение текста на центр (35 вместо 20)
     ctx.fillStyle = "red";
-    ctx.fillRect(screenX, screenY - 15, 70, 5);
+    ctx.fillRect(screenX, screenY - 15, 70, 5); // Здоровье бар шире (70 вместо 40)
     ctx.fillStyle = "green";
-    ctx.fillRect(screenX, screenY - 15, (player.health / 100) * 70, 5);
+    ctx.fillRect(screenX, screenY - 15, (player.health / 100) * 70, 5); // Масштаб под новый размер
   });
 
-  if (currentWorld.veg.complete) {
+  if (currentWorld.vegetationImage.complete) {
     ctx.drawImage(
-      currentWorld.veg,
+      currentWorld.vegetationImage,
       vegetationOffsetX,
       window.movementSystem.getCamera().y * vegetationSpeed,
       canvas.width,
@@ -2042,9 +2288,9 @@ function draw(deltaTime) {
     );
   }
 
-  if (currentWorld.clouds.complete) {
+  if (currentWorld.cloudsImage.complete) {
     ctx.drawImage(
-      currentWorld.clouds,
+      currentWorld.cloudsImage,
       cloudsOffsetX,
       window.movementSystem.getCamera().y * cloudsSpeed,
       canvas.width,
@@ -2065,23 +2311,34 @@ function checkCollisions() {
 
   const currentWorldId = window.worldSystem.currentWorldId;
   items.forEach((item, id) => {
-    if (item.worldId !== currentWorldId) return;
-    if (!items.has(id)) return; // Убрал console.log для оптимизации
-    if (pendingPickups.has(id)) return; // Убрал console.log
-
-    const dx = me.x + 35 - (item.x + 10);
-    const dy = me.y + 35 - (item.y + 10);
-    const distanceSquared = dx * dx + dy * dy; // Используем квадрат расстояния вместо Math.sqrt для снижения нагрузки на CPU
-    // Убрал console.log проверки расстояния
-
-    if (distanceSquared < 2500) {
-      // 50^2 = 2500, чтобы избежать дорогого Math.sqrt
+    if (item.worldId !== currentWorldId) return; // Пропускаем предметы из других миров
+    if (!items.has(id)) {
+      console.log(`Предмет ${id} уже удалён из items, пропускаем`);
+      return;
+    }
+    if (pendingPickups.has(id)) {
+      console.log(
+        `Предмет ${id} в процессе поднятия (pendingPickups), пропускаем`
+      );
+      return;
+    }
+    const dx = me.x + 35 - (item.x + 10); // Смещение на центр игрока (35 вместо 20, под 70x70)
+    const dy = me.y + 35 - (item.y + 10); // Аналогично по Y
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    console.log(
+      `Проверка столкновения с ${item.type} (ID: ${id}), расстояние: ${distance}`
+    );
+    if (distance < 50) {
+      // Увеличен радиус до 50 (было 30), чтобы соответствовать большему размеру игрока 70x70
+      console.log(
+        `Игрок ${myId} пытается подобрать предмет ${item.type} (ID: ${id})`
+      );
       if (ws.readyState === WebSocket.OPEN) {
         pendingPickups.add(id);
         sendWhenReady(ws, JSON.stringify({ type: "pickup", itemId: id }));
-        // Убрал console.log отправки и попытки подбора
+        console.log(`Отправлено сообщение pickup для ${id}`);
       } else {
-        // Убрал console.error
+        console.error("WebSocket не открыт, предмет не отправлен на сервер");
       }
     }
   });

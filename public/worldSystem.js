@@ -1,278 +1,331 @@
 const worldSystem = {
-  // Миры (с кэшированием изображений)
+  // Определяем массив миров
   worlds: [
-    { id: 0, w: 3135, h: 3300, name: "Неоновый Город" },
-    { id: 1, w: 3135, h: 3300, name: "Пустоши" },
-    { id: 2, w: 3135, h: 3300, name: "Токсичные Джунгли" },
-  ].map((w) => ({
-    ...w,
-    bg: null,
-    veg: null,
-    rocks: null,
-    clouds: null,
-    loaded: 0,
-  })),
+    {
+      id: 0,
+      width: 3135,
+      height: 3300,
+      backgroundImage: new Image(),
+      vegetationImage: new Image(),
+      rocksImage: new Image(),
+      cloudsImage: new Image(),
+      name: "Неоновый Город",
+    },
+    {
+      id: 1,
+      width: 3135,
+      height: 3300,
+      backgroundImage: new Image(),
+      vegetationImage: new Image(),
+      rocksImage: new Image(),
+      cloudsImage: new Image(),
+      name: "Пустоши",
+    },
+    {
+      id: 2,
+      width: 3135,
+      height: 3300,
+      backgroundImage: new Image(),
+      vegetationImage: new Image(),
+      rocksImage: new Image(),
+      cloudsImage: new Image(),
+      name: "Токсичные Джунгли",
+    },
+  ],
 
+  // Текущий мир
   currentWorldId: 0,
+
+  // Зоны перехода
   transitionZones: [],
 
-  // Кэш для оптимизации
-  _imageCache: new Map(),
-  _transitionPool: [],
-  _syncCache: { timestamp: 0, needsSync: true },
-  _drawCache: {
-    zonesToDraw: [],
-    lastCamera: { x: 0, y: 0 },
-    batchData: null,
-  },
-
+  // Инициализация системы миров
   initialize() {
-    const imgMap = {
-      0: ["backgr.png", "vegetation.png", "rocks.png", "clouds.png"],
-      1: [
-        "toxic_jungle_background.png",
-        "toxic_jungle_vegetation.png",
-        "toxic_jungle_rocks.png",
-        "toxic_jungle_clouds.png",
-      ],
-      2: [
-        "neon_city_background.png",
-        "neon_city_vegetation.png",
-        "neon_city_rocks.png",
-        "neon_city_clouds.png",
-      ],
+    // Устанавливаем пути к изображениям для каждого мира
+    this.worlds[0].backgroundImage.src = "backgr.png";
+    this.worlds[0].vegetationImage.src = "vegetation.png";
+    this.worlds[0].rocksImage.src = "rocks.png";
+    this.worlds[0].cloudsImage.src = "clouds.png";
+
+    this.worlds[1].backgroundImage.src = "toxic_jungle_background.png";
+    this.worlds[1].vegetationImage.src = "toxic_jungle_vegetation.png";
+    this.worlds[1].rocksImage.src = "toxic_jungle_rocks.png";
+    this.worlds[1].cloudsImage.src = "toxic_jungle_clouds.png";
+
+    this.worlds[2].backgroundImage.src = "neon_city_background.png";
+    this.worlds[2].vegetationImage.src = "neon_city_vegetation.png";
+    this.worlds[2].rocksImage.src = "neon_city_rocks.png";
+    this.worlds[2].cloudsImage.src = "neon_city_clouds.png";
+
+    // Отслеживаем загрузку изображений
+    let imagesLoaded = 0;
+    const totalImages = this.worlds.length * 4; // 4 изображения на мир
+    const onImageLoad = () => {
+      imagesLoaded++;
+      if (imagesLoaded === totalImages) {
+        console.log("Все изображения миров загружены");
+      }
     };
 
     this.worlds.forEach((world) => {
-      const paths = imgMap[world.id];
-      ["bg", "veg", "rocks", "clouds"].forEach((key, i) => {
-        const src = paths[i];
-        let img = this._imageCache.get(src);
-        if (!img) {
-          img = new Image();
-          img.src = src;
-          this._imageCache.set(src, img);
-        }
-        world[key] = img;
-        img.onload = img.onerror = () => world.loaded++;
-      });
+      world.backgroundImage.onload = onImageLoad;
+      world.vegetationImage.onload = onImageLoad;
+      world.rocksImage.onload = onImageLoad;
+      world.cloudsImage.onload = onImageLoad;
     });
 
-    // Тестовые зоны из пула (быстрее чем new Object)
-    this.createTransitionZone(1056, 2487, 50, 1, 0);
-    this.createTransitionZone(1622, 2719, 50, 0, 1);
-    this.createTransitionZone(1906, 3123, 50, 2, 1);
-    this.createTransitionZone(2481, 3108, 50, 1, 2);
+    // Создаём тестовые зоны перехода
+    this.createTransitionZone(1056, 2487, 50, 1, 0); // Переход из мира 0 в мир 1
+    this.createTransitionZone(1622, 2719, 50, 0, 1); // Переход из мира 1 в мир 0
+    this.createTransitionZone(1906, 3123, 50, 2, 1); // Переход из мира 1 в мир 2
+    this.createTransitionZone(2481, 3108, 50, 1, 2); // Переход из мира 2 в мир 1
   },
 
-  createTransitionZone(x, y, r, target, source) {
-    if (r <= 0 || ![target, source].every((id) => this.worlds[id])) return;
-
-    const zone = this._transitionPool.pop() || {};
-    zone.x = x;
-    zone.y = y;
-    zone.radius = r;
-    zone.radius2 = r * r; // Кэшируем квадрат радиуса
-    zone.targetWorldId = target;
-    zone.sourceWorldId = source;
-    this.transitionZones.push(zone);
+  // Функция создания зоны перехода
+  createTransitionZone(x, y, radius, targetWorldId, sourceWorldId) {
+    if (!this.worlds.find((world) => world.id === targetWorldId)) {
+      console.error(`Мир с ID ${targetWorldId} не существует`);
+      return;
+    }
+    if (!this.worlds.find((world) => world.id === sourceWorldId)) {
+      console.error(`Мир с ID ${sourceWorldId} не существует`);
+      return;
+    }
+    if (radius <= 0) {
+      console.error("Радиус зоны должен быть положительным");
+      return;
+    }
+    this.transitionZones.push({
+      x,
+      y,
+      radius,
+      targetWorldId,
+      sourceWorldId,
+    });
+    console.log(
+      `Создана зона перехода: x=${x}, y=${y}, radius=${radius}, из мира ${sourceWorldId} в мир ${targetWorldId}`
+    );
   },
 
-  checkTransitionZones(px, py) {
-    if (!players.has(myId)) return;
+  // Проверка попадания игрока в зону перехода
+  checkTransitionZones(playerX, playerY) {
+    const me = players.get(myId);
+    if (!me) return;
 
-    const zones = this.transitionZones;
-    const current = this.currentWorldId;
-    const len = zones.length;
-
-    for (let i = 0; i < len; i++) {
-      const z = zones[i];
-      if (z.sourceWorldId !== current) continue;
-
-      const dx = px - z.x;
-      const dy = py - z.y;
-      // УБРАЛ Math.sqrt() - сравниваем квадраты (в 10 раз быстрее!)
-      if (dx * dx + dy * dy < z.radius2) {
+    const currentWorld = this.worlds[this.currentWorldId];
+    for (const zone of this.transitionZones) {
+      if (zone.sourceWorldId !== this.currentWorldId) continue;
+      const dx = playerX - zone.x;
+      const dy = playerY - zone.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      if (distance < zone.radius) {
+        // Отправляем серверу сообщение о переходе
         sendWhenReady(
           ws,
           JSON.stringify({
             type: "worldTransition",
-            targetWorldId: z.targetWorldId,
-            x: px,
-            y: py,
+            targetWorldId: zone.targetWorldId,
+            x: playerX,
+            y: playerY,
           })
         );
-        return; // Выходим после первого срабатывания
+        break;
       }
     }
   },
 
-  switchWorld(targetId, player, newX, newY) {
-    if (targetId === this.currentWorldId || !this.worlds[targetId]) return;
+  // Переключение мира
+  switchWorld(targetWorldId, player, newX, newY) {
+    if (targetWorldId === this.currentWorldId) {
+      console.log(`Переход в тот же мир ${targetWorldId}, игнорируем`);
+      return;
+    }
+    if (!this.worlds.find((world) => world.id === targetWorldId)) {
+      console.error(`Попытка перейти в несуществующий мир ${targetWorldId}`);
+      return;
+    }
 
-    const prev = this.worlds[this.currentWorldId];
-    const next = this.worlds[targetId];
-
-    // Сохраняем позицию
+    // Сохраняем текущие координаты игрока
+    const prevWorld = this.worlds[this.currentWorldId];
     player.prevWorldX = player.x;
     player.prevWorldY = player.y;
     player.prevWorldId = this.currentWorldId;
 
-    // Определяем позицию в новом мире (один if)
+    // Переключаем мир
+    this.currentWorldId = targetWorldId;
+    const newWorld = this.worlds[targetWorldId];
+
+    // Устанавливаем координаты
     if (newX !== undefined && newY !== undefined) {
       player.x = newX;
       player.y = newY;
+    } else if (
+      player.worldPositions &&
+      player.worldPositions[targetWorldId] &&
+      player.worldPositions[targetWorldId].x !== undefined &&
+      player.worldPositions[targetWorldId].y !== undefined
+    ) {
+      player.x = player.worldPositions[targetWorldId].x;
+      player.y = player.worldPositions[targetWorldId].y;
     } else {
-      const saved = player.worldPositions?.[targetId];
-      player.x = saved?.x ?? next.w >> 1;
-      player.y = saved?.y ?? next.h >> 1;
+      player.x = newWorld.width / 2;
+      player.y = newWorld.height / 2;
     }
 
-    // Сохраняем
-    (player.worldPositions ??= {})[targetId] = { x: player.x, y: player.y };
-    player.worldId = targetId;
-    this.currentWorldId = targetId;
+    // Сохраняем координаты
+    if (!player.worldPositions) player.worldPositions = {};
+    player.worldPositions[targetWorldId] = { x: player.x, y: player.y };
 
-    // Очистка игроков ОДИН РАЗ (было дважды!)
-    if (myId) {
-      const keep = new Map();
-      players.forEach((p, id) => {
-        if (id === myId || p.worldId === targetId) {
-          keep.set(id, { ...p, frameTime: 0 });
+    // Обновляем worldId игрока
+    player.worldId = targetWorldId;
+
+    // Проверяем и обновляем текущего игрока в players
+    if (!myId) {
+      console.error("myId не определён при переходе в мир!");
+      return;
+    }
+    const currentPlayer = players.get(myId);
+    if (currentPlayer) {
+      // Удаляем игроков, которые не в новом мире
+      Array.from(players.keys()).forEach((playerId) => {
+        if (playerId !== myId) {
+          const p = players.get(playerId);
+          if (p.worldId !== targetWorldId) {
+            players.delete(playerId);
+            console.log(
+              `Удалён игрок ${playerId} из players, так как он в другом мире (${p.worldId})`
+            );
+          }
         }
       });
-      players.clear();
-      keep.forEach((p, id) => players.set(id, p));
+      players.set(myId, { ...currentPlayer, ...player, frameTime: 0 });
+      console.log(
+        `Обновлён игрок ${myId} в мире ${targetWorldId}:`,
+        players.get(myId)
+      );
+    } else {
+      console.warn(`Игрок ${myId} не найден в players, создаём новый`);
+      // Удаляем игроков, которые не в новом мире
+      Array.from(players.keys()).forEach((playerId) => {
+        const p = players.get(playerId);
+        if (p.worldId !== targetWorldId) {
+          players.delete(playerId);
+          console.log(
+            `Удалён игрок ${playerId} из players, так как он в другом мире (${p.worldId})`
+          );
+        }
+      });
+      players.set(myId, { ...player, id: myId, frameTime: 0 });
+      console.log(`Создан новый игрок ${myId} в players:`, players.get(myId));
     }
 
-    window.lightsSystem.reset(targetId);
-    this._syncCache.needsSync = true; // Принудительно обновляем кэш
+    // Сбрасываем и инициализируем свет для нового мира
+    window.lightsSystem.reset(targetWorldId);
+
+    // Запрашиваем синхронизацию игроков
+    this.syncPlayers();
+
+    // Эффект перехода
     this.showTransitionEffect();
+
+    console.log(
+      `Игрок ${player.id} перешёл в мир ${newWorld.name} (ID: ${targetWorldId}) на координаты x=${player.x}, y=${player.y}`
+    );
   },
 
   syncPlayers() {
-    if (!myId || !ws || ws.readyState !== WebSocket.OPEN) return;
-
-    const now = performance.now();
-    if (now - this._syncCache.timestamp < 5000 && !this._syncCache.needsSync) {
-      return; // Кэш валиден 5 секунд
+    if (!myId) {
+      console.error("myId не определён, синхронизация игроков невозможна");
+      return;
     }
-
-    this._syncCache.timestamp = now;
-    this._syncCache.needsSync = false;
-
-    // Проверяем только игроков в текущем мире (в 10 раз быстрее!)
-    let hasOthers = false;
-    for (const [id, p] of players) {
-      if (id !== myId && p.worldId === this.currentWorldId) {
-        hasOthers = true;
-        break;
-      }
-    }
-
-    if (!hasOthers) {
-      sendWhenReady(
-        ws,
-        JSON.stringify({
-          type: "syncPlayers",
-          worldId: this.currentWorldId,
-        })
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      // Проверяем, есть ли другие игроки в текущем мире
+      const otherPlayersInWorld = Array.from(players.values()).some(
+        (p) => p.id !== myId && p.worldId === this.currentWorldId
       );
+      if (!otherPlayersInWorld) {
+        sendWhenReady(
+          ws,
+          JSON.stringify({
+            type: "syncPlayers",
+            worldId: this.currentWorldId,
+          })
+        );
+        console.log(
+          `Отправлен запрос syncPlayers для мира ${this.currentWorldId}, myId: ${myId}`
+        );
+      } else {
+        console.log(
+          `Синхронизация не требуется, в мире ${this.currentWorldId} уже есть игроки`
+        );
+      }
+    } else {
+      console.error("WebSocket не готов для отправки syncPlayers");
     }
   },
 
+  // Получение текущего мира
   getCurrentWorld() {
     return this.worlds[this.currentWorldId];
   },
 
+  // Эффект перехода между мирами
   showTransitionEffect() {
-    const el = document.createElement("div");
-    Object.assign(el.style, {
-      position: "fixed",
-      top: 0,
-      left: 0,
-      width: "100%",
-      height: "100%",
-      background: "rgba(0,0,0,0)",
-      zIndex: "1000",
-      transition: "background 1s",
-      pointerEvents: "none",
-    });
-    document.body.appendChild(el);
+    const transitionOverlay = document.createElement("div");
+    transitionOverlay.style.position = "fixed";
+    transitionOverlay.style.top = "0";
+    transitionOverlay.style.left = "0";
+    transitionOverlay.style.width = "100%";
+    transitionOverlay.style.height = "100%";
+    transitionOverlay.style.background = "rgba(0, 0, 0, 0)";
+    transitionOverlay.style.zIndex = "1000";
+    transitionOverlay.style.transition = "background 1s";
+    document.body.appendChild(transitionOverlay);
 
-    requestAnimationFrame(() => (el.style.background = "rgba(0,0,0,1)"));
-    setTimeout(() => (el.style.background = "rgba(0,0,0,0)"), 1000);
-    setTimeout(() => el.remove(), 2000);
+    // Затемнение
+    setTimeout(() => {
+      transitionOverlay.style.background = "rgba(0, 0, 0, 1)";
+    }, 0);
+
+    // Плавное осветление
+    setTimeout(() => {
+      transitionOverlay.style.background = "rgba(0, 0, 0, 0)";
+    }, 1000);
+
+    // Удаляем оверлей
+    setTimeout(() => {
+      document.body.removeChild(transitionOverlay);
+    }, 2000);
   },
 
-  // СУПЕР-ОПТИМИЗИРОВАННАЯ отрисовка зон (вызывается 1 раз в 3 кадра)
+  // Отрисовка зон перехода (для визуальной отладки)
   drawTransitionZones() {
-    if (!window.movementSystem?.getCamera) return;
-
-    const cam = window.movementSystem.getCamera();
-    const cache = this._drawCache;
-
-    // Обновляем кэш только если камера сильно сдвинулась
-    if (
-      Math.abs(cam.x - cache.lastCamera.x) > 50 ||
-      Math.abs(cam.y - cache.lastCamera.y) > 50 ||
-      cache.zonesToDraw.length === 0
-    ) {
-      cache.lastCamera = { x: cam.x, y: cam.y };
-      cache.zonesToDraw.length = 0;
-
-      const camRight = cam.x + canvas.width;
-      const camBottom = cam.y + canvas.height;
-      const camLeft = cam.x - 50;
-      const camTop = cam.y - 50;
-
-      for (const z of this.transitionZones) {
-        if (z.sourceWorldId !== this.currentWorldId) continue;
-
-        const sx = z.x - cam.x;
-        if (
-          sx + z.radius > 0 &&
-          sx - z.radius < canvas.width &&
-          z.y - camBottom < z.radius &&
-          z.y - camTop > -z.radius
-        ) {
-          cache.zonesToDraw.push(sx, z.y - cam.y, z.radius);
-        }
-      }
-
-      // Подготавливаем данные для батчинга
-      if (cache.zonesToDraw.length) {
-        cache.batchData ??= [];
-        const data = cache.batchData;
-        data.length = 0;
-        for (let i = 0; i < cache.zonesToDraw.length; i += 3) {
-          const x = cache.zonesToDraw[i];
-          const y = cache.zonesToDraw[i + 1];
-          const r = cache.zonesToDraw[i + 2];
-          data.push(x - r, y - r, x + r, y - r, x + r, y + r, x - r, y + r);
-        }
-      }
+    if (!window.movementSystem || !window.movementSystem.getCamera) {
+      console.error("movementSystem или getCamera не определены");
+      return;
     }
-
-    if (!cache.batchData?.length) return;
-
-    const ctx2 = ctx;
-    ctx2.strokeStyle = "rgba(0,255,255,0.5)";
-    ctx2.fillStyle = "rgba(0,255,255,0.2)";
-    ctx2.lineWidth = 2;
-
-    // Батчинг: рисуем ВСЕ зоны одним вызовом
-    ctx2.beginPath();
-    for (let i = 0; i < cache.batchData.length; i += 8) {
-      ctx2.moveTo(cache.batchData[i], cache.batchData[i + 1]);
-      ctx2.lineTo(cache.batchData[i + 2], cache.batchData[i + 3]);
-      ctx2.lineTo(cache.batchData[i + 4], cache.batchData[i + 5]);
-      ctx2.lineTo(cache.batchData[i + 6], cache.batchData[i + 7]);
-      ctx2.closePath();
-    }
-    ctx2.fill();
-    ctx2.stroke();
+    const camera = window.movementSystem.getCamera();
+    this.transitionZones.forEach((zone) => {
+      if (zone.sourceWorldId !== this.currentWorldId) return;
+      const screenX = zone.x - camera.x;
+      const screenY = zone.y - camera.y;
+      if (
+        screenX + zone.radius > 0 &&
+        screenX - zone.radius < canvas.width &&
+        screenY + zone.radius > 0 &&
+        screenY - zone.radius < canvas.height
+      ) {
+        ctx.beginPath();
+        ctx.arc(screenX, screenY, zone.radius, 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(0, 255, 255, 0.5)";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.fillStyle = "rgba(0, 255, 255, 0.2)";
+        ctx.fill();
+      }
+    });
   },
 };
 
+// Экспортируем систему миров
 window.worldSystem = worldSystem;

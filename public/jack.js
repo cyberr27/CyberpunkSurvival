@@ -240,6 +240,7 @@ function showShopDialog(container) {
     "atom",
     "blood_pack",
     "blood_syringe",
+    "wolf_skin",
   ];
 
   const availableItems = Object.entries(ITEM_CONFIG).filter(([type, cfg]) => {
@@ -312,6 +313,8 @@ function buyItem(type, price) {
     .querySelectorAll(".shop-item")
     .forEach((el) => el.classList.remove("selected"));
   document.getElementById("buyBtn").disabled = true;
+
+  console.log(`Куплен ${type} за ${price} balyary.`);
 }
 
 // Экспорт

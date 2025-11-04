@@ -57,8 +57,16 @@ async function loadUserDatabase(collection, userDatabase) {
         armor: Math.min(user.armor || 0, user.maxStats?.armor || 0),
       };
       userDatabase.set(user.id, userData);
+      console.log(
+        `Загружен игрок ${user.id}, maxStats: ${JSON.stringify(
+          userData.maxStats
+        )}`
+      );
     });
-  } catch (error) {}
+    console.log("База данных пользователей загружена из MongoDB");
+  } catch (error) {
+    console.error("Ошибка при загрузке базы данных из MongoDB:", error);
+  }
 }
 
 async function saveUserDatabase(collection, username, player) {
@@ -88,7 +96,9 @@ async function saveUserDatabase(collection, username, player) {
       { $set: playerData },
       { upsert: true }
     );
-  } catch (error) {}
+  } catch (error) {
+    console.error("Ошибка при сохранении данных в MongoDB:", error);
+  }
 }
 
 module.exports = { connectToDatabase, loadUserDatabase, saveUserDatabase };
