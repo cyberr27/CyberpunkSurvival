@@ -158,25 +158,24 @@ let isNPCMet = false;
 let selectedQuest = null;
 let dialogStage = "greeting";
 let availableQuests = [];
-let isQuestActive = false; // Флаг, указывающий, активно ли задание
-let npcSprite = null; // Переменная для хранения изображения NPC
+let isQuestActive = false;
+let npcSprite = null;
 
-// Новые переменные для анимации
-let npcFrame = 0; // Текущий кадр (0-39)
-let npcFrameTime = 0; // Накопленное время для смены кадра
-const NPC_FRAME_DURATION = 100; // мс на кадр (настрой для скорости анимации, ~10 fps)
-const NPC_TOTAL_FRAMES = 40; // Количество кадров в спрайте
+// Анимация
+let npcFrame = 0;
+let npcFrameTime = 0;
+const NPC_FRAME_DURATION = 100;
+const NPC_TOTAL_FRAMES = 40;
 
-// Новые для периодической анимации
-let animationCooldownTimer = 0; // Таймер до следующего запуска анимации
-let isAnimating = false; // Идет ли анимация сейчас
-const ANIMATION_COOLDOWN = 20000; // 30 секунд между циклами анимации
+let animationCooldownTimer = 0;
+let isAnimating = false;
+const ANIMATION_COOLDOWN = 20000;
 
-// Флаг и контейнер для кнопок взаимодействия (с префиксом npc_ для уникальности)
+// Кнопки взаимодействия
 let isNPCButtonsShown = false;
 let npcButtonsContainer = null;
 
-// Темы для разговора (аналогично Jack)
+// Темы для разговора
 const npcTALK_TOPICS = {
   "О погоде":
     "Погода в неоновом городе всегда яркая и электрическая. Идеально для поиска предметов!",
@@ -426,14 +425,12 @@ function initializeNPCStyles() {
 }
 
 function drawNPC(deltaTime) {
-  // Проверяем, что текущий мир — это Неоновый город (id: 0)
   if (window.worldSystem.currentWorldId !== 0) return;
 
   const camera = window.movementSystem.getCamera();
   const screenX = NPC.x - camera.x;
   const screenY = NPC.y - camera.y;
 
-  // Вычисляем расстояние до игрока (аналогично checkNPCProximity)
   let isPlayerNear = false;
   const me = players.get(myId);
   if (me && me.health > 0) {
@@ -444,46 +441,39 @@ function drawNPC(deltaTime) {
   }
 
   if (isPlayerNear) {
-    // Если игрок близко: остановить анимацию, показать статичный кадр
     npcFrame = 0;
     isAnimating = false;
-    animationCooldownTimer = 0; // Сброс таймера, чтобы после ухода игрока отсчет начался заново
+    animationCooldownTimer = 0;
   } else {
-    // Если игрок далеко: управляем периодической анимацией
     if (!isAnimating) {
-      // Ждем cooldown для запуска анимации
       animationCooldownTimer += deltaTime;
       if (animationCooldownTimer >= ANIMATION_COOLDOWN) {
         isAnimating = true;
         npcFrameTime = 0;
         npcFrame = 0;
-        animationCooldownTimer = 0; // Сброс таймера после запуска
+        animationCooldownTimer = 0;
       } else {
-        // Пока ждем: статичный кадр
         npcFrame = 0;
       }
     } else {
-      // Анимация идет: обновляем кадры
       npcFrameTime += deltaTime;
       if (npcFrameTime >= NPC_FRAME_DURATION) {
         npcFrameTime = 0;
         npcFrame++;
         if (npcFrame >= NPC_TOTAL_FRAMES) {
-          // Завершить цикл анимации
           npcFrame = 0;
           isAnimating = false;
-          animationCooldownTimer = 0; // Начать новый отсчет cooldown
+          animationCooldownTimer = 0;
         }
       }
     }
   }
 
   if (npcSprite && npcSprite.complete) {
-    // Рисуем текущий кадр спрайта (горизонтальная полоса)
     ctx.drawImage(
       npcSprite,
-      npcFrame * NPC.width, // X-координата кадра в спрайте
-      0, // Y всегда 0 (одна строка)
+      npcFrame * NPC.width,
+      0,
       NPC.width,
       NPC.height,
       screenX,
@@ -492,12 +482,10 @@ function drawNPC(deltaTime) {
       NPC.height
     );
   } else {
-    // Заглушка, если спрайт не загружен
     ctx.fillStyle = "purple";
     ctx.fillRect(screenX, screenY, NPC.width, NPC.height);
   }
 
-  // Рисуем имя (без изменений)
   ctx.fillStyle = isNPCMet ? "#ff00ff" : "#ffffff";
   ctx.font = "12px Arial";
   ctx.textAlign = "center";
@@ -507,21 +495,20 @@ function drawNPC(deltaTime) {
     screenY - 10
   );
 
-  // Обновляем позицию кнопок, если они показаны
-  if (isNPCButtonsShown) {
+  // Обновляем позицию кнопок каждый кадр
+  if (isNPCButtonsShown && npcButtonsContainer) {
     updateButtonsPosition(screenX, screenY);
   }
 }
 
 function updateButtonsPosition(screenX, screenY) {
   if (npcButtonsContainer) {
-    npcButtonsContainer.style.left = `${screenX + NPC.width / 2 - 35}px`;
-    npcButtonsContainer.style.top = `${screenY - 70}px`; // Скорректировано для позиции четко над именем, без перекрытия NPC
+    npcButtonsContainer.style.left = `${screenX + NPC.width / 2 - 35}px`; // Центрируем (70/2 - 35)
+    npcButtonsContainer.style.top = `${screenY - 80}px`; // Над именем
   }
 }
 
 function checkNPCProximity() {
-  // Проверяем, что текущий мир — это Неоновый город (id: 0)
   if (window.worldSystem.currentWorldId !== 0) return;
 
   const me = players.get(myId);
@@ -535,7 +522,6 @@ function checkNPCProximity() {
     if (!isNPCMet) {
       if (!isNPCDialogOpen) openNPCDialog();
     } else {
-      // Показываем кнопки, если диалог закрыт и кнопки еще не отображаются
       if (!isNPCDialogOpen && !isNPCButtonsShown) {
         showInteractionButtons();
       }
@@ -556,7 +542,7 @@ function showInteractionButtons() {
   npcButtonsContainer = document.createElement("div");
   npcButtonsContainer.className = "npc-interaction-buttons";
   npcButtonsContainer.style.left = `${screenX + NPC.width / 2 - 35}px`;
-  npcButtonsContainer.style.top = `${screenY - 70}px`;
+  npcButtonsContainer.style.top = `${screenY - 80}px`;
 
   const questsBtn = document.createElement("button");
   questsBtn.className = "npc-button interaction quest";
@@ -598,7 +584,6 @@ function openNPCQuests() {
   dialogContainer.className = "npc-dialog";
   document.getElementById("gameContainer").appendChild(dialogContainer);
 
-  // Проверяем, есть ли задания и достаточно ли их
   if (availableQuests.length < 5) {
     const questsToAdd = 5 - availableQuests.length;
     const newQuests = getRandomQuests(
@@ -606,7 +591,6 @@ function openNPCQuests() {
       availableQuests.map((q) => q.id)
     );
     availableQuests = [...availableQuests, ...newQuests];
-    // Отправляем обновленный список заданий на сервер
     sendWhenReady(
       ws,
       JSON.stringify({
@@ -689,6 +673,17 @@ function closeNPCDialog() {
   isNPCDialogOpen = false;
   const dialogContainer = document.getElementById("npcDialog");
   if (dialogContainer) dialogContainer.remove();
+
+  // Важно: после закрытия диалога — показать кнопки, если игрок рядом
+  const me = players.get(myId);
+  if (me && isNPCMet) {
+    const dx = me.x + 20 - (NPC.x + 35);
+    const dy = me.y + 20 - (NPC.y + 35);
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    if (distance < NPC.interactionRadius && !isNPCButtonsShown) {
+      showInteractionButtons();
+    }
+  }
 }
 
 function showGreetingDialog(container) {
@@ -704,9 +699,7 @@ function showGreetingDialog(container) {
   document.getElementById("npcAgreeBtn").addEventListener("click", () => {
     isNPCMet = true;
     dialogStage = "questSelection";
-    // Инициализируем 5 случайных заданий
     availableQuests = getRandomQuests(5);
-    // Отправляем данные о встрече с NPC и заданиях на сервер
     sendWhenReady(
       ws,
       JSON.stringify({
@@ -739,7 +732,6 @@ function showQuestSelectionDialog(container) {
   availableQuests.forEach((quest) => {
     const questItem = document.createElement("div");
     questItem.className = "quest-item";
-    // Определяем опыт в зависимости от rarity
     const xpReward = quest.rarity === 1 ? 3 : quest.rarity === 2 ? 2 : 1;
     questItem.innerHTML = `
       <span class="quest-marker">></span>
@@ -759,7 +751,7 @@ function showQuestSelectionDialog(container) {
 
 function selectQuest(quest) {
   selectedQuest = quest;
-  isQuestActive = true; // Задание активно
+  isQuestActive = true;
   sendWhenReady(ws, JSON.stringify({ type: "selectQuest", questId: quest.id }));
 
   const me = players.get(myId);
@@ -781,7 +773,7 @@ function selectQuest(quest) {
 }
 
 function checkQuestCompletion() {
-  if (!selectedQuest || !isQuestActive) return; // Проверяем, активно ли задание
+  if (!selectedQuest || !isQuestActive) return;
 
   const me = players.get(myId);
   if (!me) return;
@@ -807,7 +799,6 @@ function completeQuest() {
   const me = players.get(myId);
   if (!me) return;
 
-  // Удаляем необходимые предметы из инвентаря
   let itemsToRemove = selectedQuest.target.quantity;
   for (let i = 0; i < inventory.length && itemsToRemove > 0; i++) {
     if (inventory[i] && inventory[i].type === selectedQuest.target.type) {
@@ -823,7 +814,6 @@ function completeQuest() {
     }
   }
 
-  // Добавляем награду (баляры) в инвентарь
   const reward = selectedQuest.reward;
   const balyarySlot = inventory.findIndex(
     (slot) => slot && slot.type === "balyary"
@@ -838,13 +828,9 @@ function completeQuest() {
     }
   }
 
-  // Сохраняем ID выполненного задания
   const previousQuestId = selectedQuest.id;
-
-  // Удаляем выполненное задание из списка доступных
   availableQuests = availableQuests.filter((q) => q.id !== previousQuestId);
 
-  // Пополняем список заданий до 5
   const questsToAdd = 5 - availableQuests.length;
   if (questsToAdd > 0) {
     const newQuests = getRandomQuests(
@@ -854,7 +840,6 @@ function completeQuest() {
     availableQuests = [...availableQuests, ...newQuests];
   }
 
-  // Отправляем обновление инвентаря и заданий на сервер
   sendWhenReady(
     ws,
     JSON.stringify({
@@ -865,18 +850,13 @@ function completeQuest() {
     })
   );
 
-  // Начисляем опыт через levelSystem
   const rarity = selectedQuest.rarity || 3;
   window.levelSystem.handleQuestCompletion(rarity);
 
-  // Сбрасываем выбранное задание и флаг активности
   selectedQuest = null;
   isQuestActive = false;
-
-  // Отправляем сброс selectedQuestId на сервер
   sendWhenReady(ws, JSON.stringify({ type: "selectQuest", questId: null }));
 
-  // Обновляем отображение инвентаря
   if (isInventoryOpen) {
     requestAnimationFrame(() => {
       updateInventoryDisplay();
@@ -899,14 +879,13 @@ function setNPCMet(met) {
 
 function setSelectedQuest(questId) {
   selectedQuest = QUESTS.find((q) => q.id === questId) || null;
-  isQuestActive = false; // Задание не активно при загрузке
+  isQuestActive = false;
 }
 
 function setAvailableQuests(questIds) {
   availableQuests =
     questIds.map((id) => QUESTS.find((q) => q.id === id)).filter((q) => q) ||
     [];
-  // Если заданий меньше 5, пополняем список
   const questsToAdd = 5 - availableQuests.length;
   if (questsToAdd > 0) {
     const newQuests = getRandomQuests(
@@ -914,7 +893,6 @@ function setAvailableQuests(questIds) {
       availableQuests.map((q) => q.id)
     );
     availableQuests = [...availableQuests, ...newQuests];
-    // Отправляем обновленный список на сервер
     sendWhenReady(
       ws,
       JSON.stringify({
@@ -925,7 +903,6 @@ function setAvailableQuests(questIds) {
   }
 }
 
-// Экспортируем функции для использования в других файлах
 window.npcSystem = {
   drawNPC,
   checkNPCProximity,
@@ -937,7 +914,7 @@ window.npcSystem = {
     setAvailableQuests(questIds);
   },
   initialize: (spriteImage) => {
-    npcSprite = spriteImage; // Сохраняем переданный спрайт
+    npcSprite = spriteImage;
     initializeNPCStyles();
   },
 };
