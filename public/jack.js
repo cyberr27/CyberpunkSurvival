@@ -25,22 +25,7 @@ let jackIsAnimating = false;
 let jackAnimationCooldownTimer = 0;
 const JACK_ANIMATION_COOLDOWN = 20000;
 
-// Флаг и контейнер для кнопок взаимодействия
-let isButtonsShown = false;
-let jackButtonsContainer = null;
-
-// Темы для разговора
-const TALK_TOPICS = {
-  "О погоде":
-    "Сегодня отличная погода для торговли! Небо ясное, никаких помех.",
-  "О твоем брате John":
-    "Мой брат John? Он всегда был авантюристом. Сейчас где-то в городе, ищет приключений.",
-  "О торговле":
-    "У меня лучшие товары в округе. Только редкие вещи, никаких подделок!",
-  Прощай: "",
-};
-
-// Стили
+// Стили — динамические: приветствие как у Джона, магазин — 80vw × 70vh
 const jackStyles = `
   .jack-dialog {
     position: fixed;
@@ -66,10 +51,6 @@ const jackStyles = `
   .jack-dialog.shop {
     width: 70vw;
     height: 74vh;
-  }
-  .jack-dialog.talk {
-    max-width: 450px;
-    width: 90%;
   }
   .jack-dialog-header {display:flex;align-items:center;justify-content:center;margin-bottom:15px;}
   .jack-photo {width:80px;height:80px;border:2px solid #ff00ff;border-radius:50%;margin-right:15px;box-shadow:0 0 15px rgba(255,0,255,0.5);object-fit:cover;}
@@ -101,104 +82,17 @@ const jackStyles = `
   .shop-item:hover {transform:scale(1.05);box-shadow:0 0 15px rgba(0,255,255,0.7),0 0 20px rgba(255,0,255,0.5);}
   .shop-item.selected {border:2px solid #ff00ff;box-shadow:0 0 12px rgba(255,0,255,0.8);}
   .shop-reward {color:#ff00ff;font-weight:bold;text-shadow:0 0 5px rgba(255,0,255,0.7);}
-  
-  .shop-buttons {
-    display: flex;
-    justify-content: center;
-    gap: 10px;
-    margin-top: 15px;
-  }
   .jack-button {
-    border: none;
-    color: #000;
-    padding: 10px 20px;
-    margin: 10px;
-    cursor: pointer;
-    border-radius: 5px;
-    font-size: 16px;
-    font-weight: bold;
-    text-shadow: 0 0 5px rgba(0,0,0,0.5);
-    transition: transform .2s, box-shadow .2s;
+    background: linear-gradient(135deg, #00ffff, #ff00ff);
+    border:none;color:#000;padding:10px 20px;margin:10px;cursor:pointer;border-radius:5px;
+    font-size:16px;font-weight:bold;text-shadow:0 0 5px rgba(0,0,0,0.5);
+    box-shadow:0 0 10px rgba(0,255,255,0.5),0 0 15px rgba(255,0,255,0.3);
+    transition:transform .2s,box-shadow .2s;
   }
-  .jack-button:hover {
-    transform: scale(1.05);
-    box-shadow: 0 0 15px rgba(0,255,255,0.7), 0 0 20px rgba(255,0,255,0.5);
-  }
-  .jack-button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none;
-  }
-  .jack-button.buy {
-    background: linear-gradient(135deg, #00ff00, #00ffff);
-    box-shadow: 0 0 10px rgba(0,255,0,0.5), 0 0 15px rgba(0,255,255,0.3);
-  }
-  .jack-button.buy:hover {
-    box-shadow: 0 0 15px rgba(0,255,0,0.7), 0 0 20px rgba(0,255,255,0.5);
-  }
-  .jack-button.exit {
-    background: linear-gradient(135deg, #ff0000, #ff00ff);
-    box-shadow: 0 0 10px rgba(255,0,0,0.5), 0 0 15px rgba(255,0,255,0.3);
-  }
-  .jack-button.exit:hover {
-    box-shadow: 0 0 15px rgba(255,0,0,0.7), 0 0 20px rgba(255,0,255,0.5);
-  }
-  .jack-button.interaction.trade {
-    background: linear-gradient(135deg, #00ffff, #00ccff);
-    box-shadow: 0 0 10px rgba(0,255,255,0.5), 0 0 15px rgba(0,204,255,0.3);
-    width: 70px;
-    height: 30px;
-    padding: 5px;
-    font-size: 12px;
-    border-radius: 3px;
-    margin: 3px 0;
-  }
-  .jack-button.interaction.trade:hover {
-    box-shadow: 0 0 15px rgba(0,255,255,0.7), 0 0 20px rgba(0,204,255,0.5);
-  }
-  .jack-button.interaction.talk {
-    background: linear-gradient(135deg, #ff00ff, #cc00cc);
-    box-shadow: 0 0 10px rgba(255,0,255,0.5), 0 0 15px rgba(204,0,204,0.3);
-    width: 70px;
-    height: 30px;
-    padding: 5px;
-    font-size: 12px;
-    border-radius: 3px;
-    margin: 3px 0;
-  }
-  .jack-button.interaction.talk:hover {
-    box-shadow: 0 0 15px rgba(255,0,255,0.7), 0 0 20px rgba(204,0,204,0.5);
-  }
-  @keyframes neonPulse {
-    from { box-shadow: 0 0 10px rgba(0,255,255,0.3); }
-    to { box-shadow: 0 0 20px rgba(0,255,255,0.7); }
-  }
-  @keyframes flicker {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.8; }
-  }
-  .jack-interaction-buttons {
-    position: absolute;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    z-index: 999;
-  }
-  .topic-list {
-    list-style: none;
-    padding: 0;
-    margin: 15px 0;
-  }
-  .topic-item {
-    cursor: pointer;
-    margin: 10px 0;
-    color: #ff00ff;
-    text-shadow: 0 0 5px rgba(255,0,255,0.7);
-    transition: color 0.2s;
-  }
-  .topic-item:hover {
-    color: #00ffff;
-  }
+  .jack-button:hover {transform:scale(1.05);box-shadow:0 0 15px rgba(0,255,255,0.7),0 0 20px rgba(255,0,255,0.5);}
+  .jack-button:disabled {opacity:0.5;cursor:not-allowed;transform:none;}
+  @keyframes neonPulse{from{box-shadow:0 0 10px rgba(0,255,255,0.3);}to{box-shadow:0 0 20px rgba(0,255,255,0.7);}}
+  @keyframes flicker{0%,100%{opacity:1;}50%{opacity:0.8;}}
 `;
 
 // Инициализация стилей
@@ -252,28 +146,15 @@ function drawJack(deltaTime) {
     ctx.fillRect(screenX, screenY, 70, 70);
   }
 
-  // Рисуем имя
+  // Рисуем имя (без изменений)
   ctx.fillStyle = isJackMet ? "#15ce00ff" : "#ffffff";
   ctx.font = "12px Arial";
   ctx.textAlign = "center";
   ctx.fillText(
     isJackMet ? JACK.name : "?",
-    screenX + JACK.width / 2,
+    screenX + NPC.width / 2,
     screenY - 10
   );
-
-  // Обновляем позицию кнопок, если они показаны
-  if (isButtonsShown) {
-    updateButtonsPosition(screenX, screenY);
-  }
-}
-
-// Обновление позиции кнопок
-function updateButtonsPosition(screenX, screenY) {
-  if (jackButtonsContainer) {
-    jackButtonsContainer.style.left = `${screenX + JACK.width / 2 - 50}px`;
-    jackButtonsContainer.style.top = `${screenY - 80}px`;
-  }
 }
 
 // Проверка расстояния
@@ -286,136 +167,13 @@ function checkJackProximity() {
   const distance = Math.sqrt(dx * dx + dy * dy);
 
   if (distance < JACK.interactionRadius) {
-    if (!isJackMet) {
-      if (!isJackDialogOpen) openJackDialog();
-    } else {
-      // Показываем кнопки, если диалог закрыт и кнопки еще не отображаются
-      if (!isJackDialogOpen && !isButtonsShown) {
-        showInteractionButtons();
-      }
-    }
+    if (!isJackDialogOpen) openJackDialog();
   } else {
     if (isJackDialogOpen) closeJackDialog();
-    if (isButtonsShown) hideInteractionButtons();
   }
 }
 
-// Показать кнопки взаимодействия над Jack
-function showInteractionButtons() {
-  if (isButtonsShown || jackButtonsContainer) return;
-
-  const camera = window.movementSystem.getCamera();
-  const screenX = JACK.x - camera.x;
-  const screenY = JACK.y - camera.y;
-
-  jackButtonsContainer = document.createElement("div");
-  jackButtonsContainer.className = "jack-interaction-buttons";
-  jackButtonsContainer.style.left = `${screenX + JACK.width / 2 - 35}px`; // Adjusted for button width
-  jackButtonsContainer.style.top = `${screenY - 80}px`;
-
-  const tradeBtn = document.createElement("button");
-  tradeBtn.className = "jack-button interaction trade";
-  tradeBtn.textContent = "Торг";
-  tradeBtn.addEventListener("click", () => {
-    hideInteractionButtons();
-    openJackShop();
-  });
-
-  const talkBtn = document.createElement("button");
-  talkBtn.className = "jack-button interaction talk";
-  talkBtn.textContent = "Говорить";
-  talkBtn.addEventListener("click", () => {
-    hideInteractionButtons();
-    openJackTalk();
-  });
-
-  jackButtonsContainer.appendChild(tradeBtn);
-  jackButtonsContainer.appendChild(talkBtn);
-  document.body.appendChild(jackButtonsContainer);
-  isButtonsShown = true;
-}
-
-// Скрыть кнопки
-function hideInteractionButtons() {
-  if (jackButtonsContainer) {
-    jackButtonsContainer.remove();
-    jackButtonsContainer = null;
-  }
-  isButtonsShown = false;
-}
-
-// Открыть магазин
-function openJackShop() {
-  if (isJackDialogOpen) return;
-  isJackDialogOpen = true;
-  jackDialogStage = "shop";
-
-  const container = document.createElement("div");
-  container.className = "jack-dialog shop";
-  container.id = "jackDialog";
-  document.body.appendChild(container);
-
-  showShopDialog(container);
-}
-
-// Открыть диалог разговора
-function openJackTalk() {
-  if (isJackDialogOpen) return;
-  isJackDialogOpen = true;
-  jackDialogStage = "talk";
-
-  const container = document.createElement("div");
-  container.className = "jack-dialog talk";
-  container.id = "jackDialog";
-  document.body.appendChild(container);
-
-  showTalkDialog(container);
-}
-
-// Показать список тем для разговора
-function showTalkDialog(container) {
-  container.innerHTML = `
-    <div class="jack-dialog-header">
-      <img src="jackPhoto.png" alt="Jack Photo" class="jack-photo">
-      <h2 class="jack-title">${JACK.name}</h2>
-    </div>
-    <p class="jack-text">О чем хочешь поговорить?</p>
-    <ul class="topic-list" id="topicList"></ul>
-  `;
-
-  const topicList = document.getElementById("topicList");
-  Object.keys(TALK_TOPICS).forEach((topic) => {
-    const li = document.createElement("li");
-    li.className = "topic-item";
-    li.textContent = topic;
-    li.addEventListener("click", () => {
-      if (topic === "Прощай") {
-        closeJackDialog();
-      } else {
-        showTopicResponse(container, topic);
-      }
-    });
-    topicList.appendChild(li);
-  });
-}
-
-// Показать ответ на тему
-function showTopicResponse(container, topic) {
-  container.innerHTML = `
-    <div class="jack-dialog-header">
-      <img src="jackPhoto.png" alt="Jack Photo" class="jack-photo">
-      <h2 class="jack-title">${JACK.name}</h2>
-    </div>
-    <p class="jack-text">${TALK_TOPICS[topic]}</p>
-    <button class="jack-button" id="backBtn">Назад</button>
-  `;
-
-  document.getElementById("backBtn").addEventListener("click", () => {
-    showTalkDialog(container);
-  });
-}
-
-// Открытие диалога (для greeting)
+// Открытие диалога
 function openJackDialog() {
   if (isJackDialogOpen) return;
   isJackDialogOpen = true;
@@ -428,6 +186,9 @@ function openJackDialog() {
   if (!isJackMet) {
     container.classList.add("greeting");
     jackShowGreetingDialog(container);
+  } else {
+    container.classList.add("shop");
+    showShopDialog(container);
   }
 }
 
@@ -436,7 +197,6 @@ function closeJackDialog() {
   const dlg = document.getElementById("jackDialog");
   if (dlg) dlg.remove();
   isJackDialogOpen = false;
-  jackDialogStage = "greeting";
 }
 
 // Приветствие
@@ -453,7 +213,11 @@ function jackShowGreetingDialog(container) {
   document.getElementById("meetJackBtn").addEventListener("click", () => {
     isJackMet = true;
     sendWhenReady(ws, JSON.stringify({ type: "meetJack" }));
-    closeJackDialog();
+
+    // Переключаем на магазин
+    container.classList.remove("greeting");
+    container.classList.add("shop");
+    showShopDialog(container);
   });
 }
 
@@ -469,16 +233,13 @@ function showShopDialog(container) {
     </div>
     <p class="jack-text">Что хочешь купить? Цены в balyary.</p>
     <div id="shopGrid" class="shop-grid"></div>
-    <div class="shop-buttons">
-      <button class="jack-button buy" id="buyBtn" disabled>Купить</button>
-      <button class="jack-button exit" id="exitBtn">Выход</button>
-    </div>
+    <button class="jack-button" id="buyBtn" disabled>Купить</button>
   `;
 
   const grid = document.getElementById("shopGrid");
   const buyBtn = document.getElementById("buyBtn");
-  const exitBtn = document.getElementById("exitBtn");
 
+  // ЖЁСТКАЯ ФИЛЬТРАЦИЯ: убираем всё запрещённое
   const BLACKLIST = ["balyary", "atom", "blood_pack", "blood_syringe"];
 
   const availableItems = Object.entries(ITEM_CONFIG).filter(([type, cfg]) => {
@@ -515,10 +276,6 @@ function showShopDialog(container) {
 
   buyBtn.addEventListener("click", () => {
     if (selectedItemType) buyItem(selectedItemType, selectedPrice);
-  });
-
-  exitBtn.addEventListener("click", () => {
-    closeJackDialog();
   });
 }
 
