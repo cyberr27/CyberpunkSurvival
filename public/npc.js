@@ -191,10 +191,37 @@ const npcStyles = `
     z-index: 1001;
     max-width: 450px;
     width: 90%;
+    height: 500px; /* ЖЁСТКО ФИКСИРОВАННАЯ ВЫСОТА */
+    display: flex;
+    flex-direction: column;
     box-shadow: 0 0 20px rgba(0, 255, 255, 0.5), 0 0 30px rgba(255, 0, 255, 0.3);
     animation: neonPulse 2s infinite alternate;
+    overflow: hidden;
   }
-  
+
+  .npc-dialog-content {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 10px;
+    margin-top: 10px;
+    scrollbar-width: thin;
+    scrollbar-color: #ff00ff rgba(0, 0, 0, 0.5);
+  }
+
+  .npc-dialog-content::-webkit-scrollbar {
+    width: 8px;
+  }
+  .npc-dialog-content::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.7);
+    border-radius: 4px;
+  }
+  .npc-dialog-content::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #00ffff, #ff00ff);
+    border-radius: 4px;
+    box-shadow: 0 0 10px rgba(255, 0, 255, 0.7);
+  }
+
   .npc-buttons-container {
     position: fixed;
     z-index: 1000;
@@ -253,6 +280,7 @@ const npcStyles = `
     align-items: center;
     justify-content: center;
     margin-bottom: 15px;
+    flex-shrink: 0;
   }
   .npc-photo {
     width: 80px;
@@ -276,29 +304,37 @@ const npcStyles = `
     text-shadow: 0 0 5px rgba(0, 255, 255, 0.7);
     line-height: 1.6;
     transition: all 0.3s ease;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    white-space: normal;
   }
   .npc-text.fullscreen {
-    margin: 10px 0;
-    font-size: 18px;
-    padding: 30px 20px;
+    margin: 0;
+    padding: 20px;
     background: rgba(0, 0, 0, 0.8);
     border: 1px solid rgba(255, 0, 255, 0.5);
     border-radius: 8px;
+    font-size: 18px;
     min-height: 200px;
+    flex: 1;
     display: flex;
-    align-items: center;
-    justify-content: center;
+    align-items: flex-start;
+    justify-content: flex-start;
+    text-align: center;
+    overflow-y: auto;
+    overflow-x: hidden;
+    word-wrap: break-word;
+    scrollbar-width: thin;
   }
   .talk-topics {
     max-height: 300px;
     overflow-y: auto;
-    margin-top: 15px;
+    overflow-x: hidden;
     background: rgba(10, 10, 10, 0.9);
     border: 1px solid #00ffff;
     border-radius: 5px;
     padding: 15px;
     box-shadow: inset 0 0 10px rgba(0, 255, 255, 0.3);
-    transition: opacity 0.3s ease;
   }
   .talk-topics.hidden {
     display: none;
@@ -314,7 +350,8 @@ const npcStyles = `
     font-size: 14px;
     text-shadow: 0 0 5px rgba(0, 255, 255, 0.7);
     transition: all 0.3s ease;
-    position: relative;
+    text-align: center;
+    word-wrap: break-word;
   }
   .talk-topic:hover {
     background: rgba(0, 255, 255, 0.15);
@@ -325,26 +362,13 @@ const npcStyles = `
   .quest-list {
     max-height: 250px;
     overflow-y: auto;
-    margin-top: 15px;
+    overflow-x: hidden;
     background: rgba(10, 10, 10, 0.9);
     border: 1px solid #ff00ff;
     border-radius: 5px;
     padding: 10px;
     box-shadow: inset 0 0 10px rgba(255, 0, 255, 0.3);
     scrollbar-width: thin;
-    scrollbar-color: #ff00ff rgba(0, 0, 0, 0.5);
-  }
-  .quest-list::-webkit-scrollbar {
-    width: 8px;
-  }
-  .quest-list::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.7);
-    border-radius: 4px;
-  }
-  .quest-list::-webkit-scrollbar-thumb {
-    background: linear-gradient(180deg, #00ffff, #ff00ff);
-    border-radius: 4px;
-    box-shadow: 0 0 10px rgba(255, 0, 255, 0.7);
   }
   .quest-item {
     background: rgba(0, 0, 0, 0.85);
@@ -358,9 +382,9 @@ const npcStyles = `
     text-shadow: 0 0 5px rgba(0, 255, 255, 0.7);
     box-shadow: 0 0 8px rgba(0, 255, 255, 0.3);
     transition: all 0.3s ease;
-    position: relative;
     display: flex;
     align-items: center;
+    word-wrap: break-word;
   }
   .quest-item:hover {
     background: rgba(0, 255, 255, 0.15);
@@ -392,6 +416,7 @@ const npcStyles = `
     transition: all 0.3s;
     text-transform: uppercase;
     margin-top: 15px;
+    flex-shrink: 0;
   }
   .neon-btn:hover {
     box-shadow: 0 0 20px rgba(0, 255, 255, 1), 0 0 30px rgba(255, 0, 255, 0.7);
@@ -411,9 +436,7 @@ const npcStyles = `
       font-size: 16px;
       min-width: 120px;
     }
-    .npc-buttons-container {
-      gap: 10px;
-    }
+    .npc-buttons-container { gap: 10px; }
   }
   @media (max-width: 500px) {
     .npc-button {
@@ -421,13 +444,11 @@ const npcStyles = `
       font-size: 18px;
       min-width: 140px;
     }
-    .npc-dialog { max-width: 90%; padding: 15px; }
+    .npc-dialog { padding: 15px; height: 450px; }
     .npc-photo { width: 60px; height: 60px; }
     .npc-title { font-size: 20px; }
     .npc-text { font-size: 14px; }
-    .npc-text.fullscreen { font-size: 16px; padding: 25px 15px; min-height: 180px; }
-    .quest-list { max-height: 200px; }
-    .quest-item { padding: 10px; font-size: 12px; }
+    .npc-text.fullscreen { font-size: 16px; padding: 15px; }
     .neon-btn { padding: 10px 20px; font-size: 14px; }
   }
 `;
@@ -440,16 +461,12 @@ function initializeNPCStyles() {
 }
 
 function createNPCButtons(screenX, screenY) {
-  if (npcButtonsContainer) {
-    document.body.removeChild(npcButtonsContainer);
-  }
+  if (npcButtonsContainer) document.body.removeChild(npcButtonsContainer);
 
   npcButtonsContainer = document.createElement("div");
   npcButtonsContainer.className = "npc-buttons-container";
 
-  const buttonHeight = 45;
-  const totalButtonsHeight = buttonHeight * 2 + 16;
-
+  const totalButtonsHeight = 45 * 2 + 16;
   npcButtonsContainer.style.left = screenX + NPC.width / 2 + "px";
   npcButtonsContainer.style.top = screenY - totalButtonsHeight - 25 + "px";
   npcButtonsContainer.style.transform = "translateX(-50%)";
@@ -466,7 +483,6 @@ function createNPCButtons(screenX, screenY) {
 
   npcButtonsContainer.appendChild(talkBtn);
   npcButtonsContainer.appendChild(questsBtn);
-
   document.body.appendChild(npcButtonsContainer);
 }
 
@@ -560,10 +576,6 @@ function drawNPC(deltaTime) {
   );
 }
 
-function checkNPCProximity() {
-  if (window.worldSystem.currentWorldId !== 0) return;
-}
-
 function openTalkDialog() {
   closeNPCDialog();
   const dialogContainer = document.createElement("div");
@@ -595,12 +607,15 @@ function openTalkDialog() {
       <img src="fotoQuestNPC.png" alt="NPC Photo" class="npc-photo">
       <h2 class="npc-title">${NPC.name}</h2>
     </div>
-    <p class="npc-text">Слушаю тебя, человек...</p>
-    <div id="talkTopics" class="talk-topics"></div>
+    <div class="npc-dialog-content">
+      <p class="npc-text">Слушаю тебя, человек...</p>
+      <div id="talkTopics" class="talk-topics"></div>
+    </div>
     <button id="closeTalkBtn" class="neon-btn">Закрыть</button>
   `;
 
-  const npcText = dialogContainer.querySelector(".npc-text");
+  const content = dialogContainer.querySelector(".npc-dialog-content");
+  const npcText = content.querySelector(".npc-text");
   const topicsContainer = document.getElementById("talkTopics");
   const closeBtn = document.getElementById("closeTalkBtn");
 
@@ -608,28 +623,20 @@ function openTalkDialog() {
     const topicDiv = document.createElement("div");
     topicDiv.className = "talk-topic";
     topicDiv.innerHTML = `<strong>${topic.title}</strong>`;
-
     topicDiv.addEventListener("click", () => {
-      // Скрываем темы
       topicsContainer.classList.add("hidden");
-      // Показываем большой текст
       npcText.classList.add("fullscreen");
-      npcText.textContent = topic.text;
-      // Меняем кнопку на "Понятно"
+      npcText.innerHTML = `<div style="flex:1; overflow-y:auto; padding-right:10px;">${topic.text}</div>`;
       closeBtn.textContent = "Понятно";
-      closeBtn.onclick = () => showTopics();
+      closeBtn.onclick = showTopics;
     });
-
     topicsContainer.appendChild(topicDiv);
   });
 
   function showTopics() {
-    // Показываем темы
     topicsContainer.classList.remove("hidden");
-    // Убираем fullscreen
     npcText.classList.remove("fullscreen");
     npcText.textContent = "Слушаю тебя, человек...";
-    // Возвращаем кнопку "Закрыть"
     closeBtn.textContent = "Закрыть";
     closeBtn.onclick = closeNPCDialog;
   }
@@ -664,64 +671,16 @@ function openQuestDialog() {
   showQuestSelectionDialog(dialogContainer);
 }
 
-function openNPCDialog() {
-  isNPCDialogOpen = true;
-  const dialogContainer = document.createElement("div");
-  dialogContainer.id = "npcDialog";
-  dialogContainer.className = "npc-dialog";
-  document.getElementById("gameContainer").appendChild(dialogContainer);
-
-  if (!isNPCMet) {
-    showGreetingDialog(dialogContainer);
-  }
-}
-
-function closeNPCDialog() {
-  isNPCDialogOpen = false;
-  const dialogContainer = document.getElementById("npcDialog");
-  if (dialogContainer) dialogContainer.remove();
-}
-
-function showGreetingDialog(container) {
-  dialogStage = "greeting";
-  container.innerHTML = `
-    <div class="npc-dialog-header">
-      <img src="fotoQuestNPC.png" alt="NPC Photo" class="npc-photo">
-      <h2 class="npc-title">${NPC.name}</h2>
-    </div>
-    <p class="npc-text">Привет, ого! Никогда еще не видел человека без модернизаций! Видимо с деньгами у тебя совсем туго... Меня зовут ${NPC.name}. Ели нужны деньги, можешь поработать на меня... Мои работники только и знают, как шкериться в темных углах города. Находи предметы, если они мне нужны, я заберу их. До встречи хм... человек!</p>
-    <button id="npcAgreeBtn" class="neon-btn">Хорошо</button>
-  `;
-  document.getElementById("npcAgreeBtn").addEventListener("click", () => {
-    isNPCMet = true;
-    dialogStage = "questSelection";
-    availableQuests = getRandomQuests(5);
-    sendWhenReady(
-      ws,
-      JSON.stringify({
-        type: "meetNPC",
-        npcMet: true,
-        availableQuests: availableQuests.map((q) => q.id),
-      })
-    );
-    closeNPCDialog();
-  });
-}
-
-function getRandomQuests(count, excludeIds = []) {
-  const filteredQuests = QUESTS.filter((q) => !excludeIds.includes(q.id));
-  const shuffled = filteredQuests.sort(() => 0.5 - Math.random());
-  return shuffled.slice(0, count);
-}
-
 function showQuestSelectionDialog(container) {
   container.innerHTML = `
     <div class="npc-dialog-header">
       <img src="fotoQuestNPC.png" alt="NPC Photo" class="npc-photo">
       <h2 class="npc-title">${NPC.name}</h2>
     </div>
-    <p class="npc-text">Что из этого ты сумеешь достать?</p>
-    <div id="questList" class="quest-list"></div>
+    <div class="npc-dialog-content">
+      <p class="npc-text">Что из этого ты сумеешь достать?</p>
+      <div id="questList" class="quest-list"></div>
+    </div>
     <button id="closeQuestsBtn" class="neon-btn">Закрыть</button>
   `;
 
@@ -744,6 +703,41 @@ function showQuestSelectionDialog(container) {
   document
     .getElementById("closeQuestsBtn")
     .addEventListener("click", closeNPCDialog);
+}
+
+function showGreetingDialog(container) {
+  dialogStage = "greeting";
+  container.innerHTML = `
+    <div class="npc-dialog-header">
+      <img src="fotoQuestNPC.png" alt="NPC Photo" class="npc-photo">
+      <h2 class="npc-title">${NPC.name}</h2>
+    </div>
+    <div class="npc-dialog-content">
+      <p class="npc-text">Привет, ого! Никогда еще не видел человека без модернизаций! Видимо с деньгами у тебя совсем туго... Меня зовут ${NPC.name}. Если нужны деньги, можешь поработать на меня... Мои работники только и знают, как шкериться в темных углах города. Находи предметы, если они мне нужны, я заберу их. До встречи хм... человек!</p>
+    </div>
+    <button id="npcAgreeBtn" class="neon-btn">Хорошо</button>
+  `;
+  document.getElementById("npcAgreeBtn").addEventListener("click", () => {
+    isNPCMet = true;
+    dialogStage = "questSelection";
+    availableQuests = getRandomQuests(5);
+    sendWhenReady(
+      ws,
+      JSON.stringify({
+        type: "meetNPC",
+        npcMet: true,
+        availableQuests: availableQuests.map((q) => q.id),
+      })
+    );
+    closeNPCDialog();
+  });
+}
+
+// Остальные функции без изменений
+function getRandomQuests(count, excludeIds = []) {
+  const filteredQuests = QUESTS.filter((q) => !excludeIds.includes(q.id));
+  const shuffled = filteredQuests.sort(() => 0.5 - Math.random());
+  return shuffled.slice(0, count);
 }
 
 function selectQuest(quest) {
@@ -871,11 +865,15 @@ function completeQuest() {
   updateStatsDisplay();
 }
 
+function closeNPCDialog() {
+  isNPCDialogOpen = false;
+  const dialogContainer = document.getElementById("npcDialog");
+  if (dialogContainer) dialogContainer.remove();
+}
+
 function setNPCMet(met) {
   isNPCMet = met;
-  if (!met) {
-    removeNPCButtons();
-  }
+  if (!met) removeNPCButtons();
 }
 
 function setSelectedQuest(questId) {
@@ -906,14 +904,12 @@ function setAvailableQuests(questIds) {
 
 window.npcSystem = {
   drawNPC,
-  checkNPCProximity,
+  checkNPCProximity: () => {},
   setNPCMet,
   setSelectedQuest,
   setAvailableQuests,
   checkQuestCompletion,
-  updateQuests: (questIds) => {
-    setAvailableQuests(questIds);
-  },
+  updateQuests: (questIds) => setAvailableQuests(questIds),
   initialize: (spriteImage) => {
     npcSprite = spriteImage;
     initializeNPCStyles();
