@@ -371,6 +371,7 @@ const npcStyles = `
     font-size: 12px;
     border-radius: 3px;
     margin: 3px 0;
+    animation: neonPulse 2s infinite alternate;
   }
   .npc-button.interaction.quest:hover {
     box-shadow: 0 0 15px rgba(0,255,255,0.7), 0 0 20px rgba(0,204,255,0.5);
@@ -384,6 +385,7 @@ const npcStyles = `
     font-size: 12px;
     border-radius: 3px;
     margin: 3px 0;
+    animation: neonPulse 2s infinite alternate;
   }
   .npc-button.interaction.talk:hover {
     box-shadow: 0 0 15px rgba(255,0,255,0.7), 0 0 20px rgba(204,0,204,0.5);
@@ -434,8 +436,8 @@ function drawNPC(deltaTime) {
   let isPlayerNear = false;
   const me = players.get(myId);
   if (me && me.health > 0) {
-    const dx = me.x + 20 - (NPC.x + 35);
-    const dy = me.y + 20 - (NPC.y + 35);
+    const dx = me.x + 35 - (NPC.x + 35);
+    const dy = me.y + 35 - (NPC.y + 35);
     const distance = Math.sqrt(dx * dx + dy * dy);
     isPlayerNear = distance < NPC.interactionRadius;
   }
@@ -503,8 +505,8 @@ function drawNPC(deltaTime) {
 
 function updateButtonsPosition(screenX, screenY) {
   if (npcButtonsContainer) {
-    npcButtonsContainer.style.left = `${screenX + NPC.width / 2 - 35}px`; // Центрируем (70/2 - 35)
-    npcButtonsContainer.style.top = `${screenY - 80}px`; // Над именем
+    npcButtonsContainer.style.left = `${screenX + NPC.width / 2 - 35}px`;
+    npcButtonsContainer.style.top = `${screenY - 80}px`;
   }
 }
 
@@ -514,8 +516,8 @@ function checkNPCProximity() {
   const me = players.get(myId);
   if (!me || me.health <= 0) return;
 
-  const dx = me.x + 20 - (NPC.x + 35);
-  const dy = me.y + 20 - (NPC.y + 35);
+  const dx = me.x + 35 - (NPC.x + 35);
+  const dy = me.y + 35 - (NPC.y + 35);
   const distance = Math.sqrt(dx * dx + dy * dy);
 
   if (distance < NPC.interactionRadius) {
@@ -677,8 +679,8 @@ function closeNPCDialog() {
   // Важно: после закрытия диалога — показать кнопки, если игрок рядом
   const me = players.get(myId);
   if (me && isNPCMet) {
-    const dx = me.x + 20 - (NPC.x + 35);
-    const dy = me.y + 20 - (NPC.y + 35);
+    const dx = me.x + 35 - (NPC.x + 35);
+    const dy = me.y + 35 - (NPC.y + 35);
     const distance = Math.sqrt(dx * dx + dy * dy);
     if (distance < NPC.interactionRadius && !isNPCButtonsShown) {
       showInteractionButtons();
