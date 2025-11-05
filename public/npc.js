@@ -274,7 +274,20 @@ const npcStyles = `
     margin: 15px 0;
     font-size: 16px;
     text-shadow: 0 0 5px rgba(0, 255, 255, 0.7);
-    line-height: 1.4;
+    line-height: 1.6;
+    transition: all 0.3s ease;
+  }
+  .npc-text.fullscreen {
+    margin: 10px 0;
+    font-size: 18px;
+    padding: 30px 20px;
+    background: rgba(0, 0, 0, 0.8);
+    border: 1px solid rgba(255, 0, 255, 0.5);
+    border-radius: 8px;
+    min-height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
   .talk-topics {
     max-height: 300px;
@@ -285,6 +298,10 @@ const npcStyles = `
     border-radius: 5px;
     padding: 15px;
     box-shadow: inset 0 0 10px rgba(0, 255, 255, 0.3);
+    transition: opacity 0.3s ease;
+  }
+  .talk-topics.hidden {
+    display: none;
   }
   .talk-topic {
     background: rgba(0, 0, 0, 0.85);
@@ -374,6 +391,7 @@ const npcStyles = `
     box-shadow: 0 0 10px rgba(0, 255, 255, 0.7), 0 0 20px rgba(255, 0, 255, 0.5);
     transition: all 0.3s;
     text-transform: uppercase;
+    margin-top: 15px;
   }
   .neon-btn:hover {
     box-shadow: 0 0 20px rgba(0, 255, 255, 1), 0 0 30px rgba(255, 0, 255, 0.7);
@@ -407,6 +425,7 @@ const npcStyles = `
     .npc-photo { width: 60px; height: 60px; }
     .npc-title { font-size: 20px; }
     .npc-text { font-size: 14px; }
+    .npc-text.fullscreen { font-size: 16px; padding: 25px 15px; min-height: 180px; }
     .quest-list { max-height: 200px; }
     .quest-item { padding: 10px; font-size: 12px; }
     .neon-btn { padding: 10px 20px; font-size: 14px; }
@@ -427,13 +446,12 @@ function createNPCButtons(screenX, screenY) {
 
   npcButtonsContainer = document.createElement("div");
   npcButtonsContainer.className = "npc-buttons-container";
-  
-  // Позиционируем относительно NPC (над именем)
-  const buttonHeight = 45; // Высота кнопки
-  const totalButtonsHeight = buttonHeight * 2 + 16; // 2 кнопки + gap
-  
+
+  const buttonHeight = 45;
+  const totalButtonsHeight = buttonHeight * 2 + 16;
+
   npcButtonsContainer.style.left = screenX + NPC.width / 2 + "px";
-  npcButtonsContainer.style.top = (screenY - totalButtonsHeight - 25) + "px";
+  npcButtonsContainer.style.top = screenY - totalButtonsHeight - 25 + "px";
   npcButtonsContainer.style.transform = "translateX(-50%)";
 
   const talkBtn = document.createElement("div");
@@ -448,7 +466,7 @@ function createNPCButtons(screenX, screenY) {
 
   npcButtonsContainer.appendChild(talkBtn);
   npcButtonsContainer.appendChild(questsBtn);
-  
+
   document.body.appendChild(npcButtonsContainer);
 }
 
@@ -475,7 +493,6 @@ function drawNPC(deltaTime) {
     isPlayerNear = distance < NPC.interactionRadius;
   }
 
-  // Управление кнопками
   if (isNPCMet && isPlayerNear && !isPlayerNearNPC) {
     isPlayerNearNPC = true;
     createNPCButtons(screenX, screenY);
@@ -483,12 +500,10 @@ function drawNPC(deltaTime) {
     isPlayerNearNPC = false;
     removeNPCButtons();
   } else if (isPlayerNearNPC && npcButtonsContainer) {
-    // Обновляем позицию кнопок при движении камеры
     npcButtonsContainer.style.left = screenX + NPC.width / 2 + "px";
-    npcButtonsContainer.style.top = (screenY - 115) + "px"; // Фиксированная позиция над NPC
+    npcButtonsContainer.style.top = screenY - 115 + "px";
   }
 
-  // Анимация NPC (без изменений)
   if (isPlayerNear) {
     npcFrame = 0;
     isAnimating = false;
@@ -535,7 +550,6 @@ function drawNPC(deltaTime) {
     ctx.fillRect(screenX, screenY, NPC.width, NPC.height);
   }
 
-  // Имя NPC
   ctx.fillStyle = isNPCMet ? "#ff00ff" : "#ffffff";
   ctx.font = "12px Arial";
   ctx.textAlign = "center";
@@ -548,7 +562,6 @@ function drawNPC(deltaTime) {
 
 function checkNPCProximity() {
   if (window.worldSystem.currentWorldId !== 0) return;
-  // Больше не открываем диалог автоматически - кнопки сами по себе
 }
 
 function openTalkDialog() {
@@ -559,10 +572,22 @@ function openTalkDialog() {
   document.getElementById("gameContainer").appendChild(dialogContainer);
 
   const topics = [
-    { title: "О Неоновом городе", text: "Этот город... он жрёт людей. Киборги везде, баляры решают всё. Без бабок ты никто." },
-    { title: "О балярах", text: "Баляры - кровь этого города. Без них даже воздух не продают. Собирай всё, что блестит." },
-    { title: "О киборгах", text: "Они думают, что лучше нас. Но железо ржавеет, а человек выживает. Помни это." },
-    { title: "О твоей работе", text: "Ты молодец, что не сдался. Продолжай собирать хабар - скоро станешь королём помойки!" }
+    {
+      title: "О Неоновом городе",
+      text: "Этот город... он жрёт людей. Киборги везде, баляры решают всё. Без бабок ты никто.",
+    },
+    {
+      title: "О балярах",
+      text: "Баляры - кровь этого города. Без них даже воздух не продают. Собирай всё, что блестит.",
+    },
+    {
+      title: "О киборгах",
+      text: "Они думают, что лучше нас. Но железо ржавеет, а человек выживает. Помни это.",
+    },
+    {
+      title: "О твоей работе",
+      text: "Ты молодец, что не сдался. Продолжай собирать хабар - скоро станешь королём помойки!",
+    },
   ];
 
   dialogContainer.innerHTML = `
@@ -575,45 +600,41 @@ function openTalkDialog() {
     <button id="closeTalkBtn" class="neon-btn">Закрыть</button>
   `;
 
+  const npcText = dialogContainer.querySelector(".npc-text");
   const topicsContainer = document.getElementById("talkTopics");
-  topics.forEach(topic => {
+  const closeBtn = document.getElementById("closeTalkBtn");
+
+  topics.forEach((topic) => {
     const topicDiv = document.createElement("div");
     topicDiv.className = "talk-topic";
     topicDiv.innerHTML = `<strong>${topic.title}</strong>`;
+
     topicDiv.addEventListener("click", () => {
-      document.querySelector(".npc-text").textContent = topic.text;
-      topicsContainer.innerHTML = `
-        <div style="text-align: center; color: #ff00ff; margin: 20px 0;">
-          ${topic.text}
-        </div>
-        <button id="backToTopicsBtn" class="neon-btn" style="margin-top: 10px;">Назад к темам</button>
-      `;
-      document.getElementById("backToTopicsBtn").addEventListener("click", () => {
-        document.querySelector(".npc-text").textContent = "Слушаю тебя, человек...";
-        topicsContainer.innerHTML = "";
-        topics.forEach(t => {
-          const topicDiv2 = document.createElement("div");
-          topicDiv2.className = "talk-topic";
-          topicDiv2.innerHTML = `<strong>${t.title}</strong>`;
-          topicDiv2.addEventListener("click", () => {
-            document.querySelector(".npc-text").textContent = t.text;
-            topicsContainer.innerHTML = `
-              <div style="text-align: center; color: #ff00ff; margin: 20px 0;">
-                ${t.text}
-              </div>
-              <button id="backToTopicsBtn2" class="neon-btn" style="margin-top: 10px;">Назад к темам</button>
-            `;
-            document.getElementById("backToTopicsBtn2").addEventListener("click", arguments.callee);
-          });
-          topicsContainer.appendChild(topicDiv2);
-        });
-      });
-      topicsContainer.appendChild(document.getElementById("backToTopicsBtn"));
+      // Скрываем темы
+      topicsContainer.classList.add("hidden");
+      // Показываем большой текст
+      npcText.classList.add("fullscreen");
+      npcText.textContent = topic.text;
+      // Меняем кнопку на "Понятно"
+      closeBtn.textContent = "Понятно";
+      closeBtn.onclick = () => showTopics();
     });
+
     topicsContainer.appendChild(topicDiv);
   });
 
-  document.getElementById("closeTalkBtn").addEventListener("click", closeNPCDialog);
+  function showTopics() {
+    // Показываем темы
+    topicsContainer.classList.remove("hidden");
+    // Убираем fullscreen
+    npcText.classList.remove("fullscreen");
+    npcText.textContent = "Слушаю тебя, человек...";
+    // Возвращаем кнопку "Закрыть"
+    closeBtn.textContent = "Закрыть";
+    closeBtn.onclick = closeNPCDialog;
+  }
+
+  closeBtn.onclick = closeNPCDialog;
   isNPCDialogOpen = true;
 }
 
@@ -644,7 +665,6 @@ function openQuestDialog() {
 }
 
 function openNPCDialog() {
-  // Устаревшая функция, теперь используется только для первого знакомства
   isNPCDialogOpen = true;
   const dialogContainer = document.createElement("div");
   dialogContainer.id = "npcDialog";
@@ -685,7 +705,6 @@ function showGreetingDialog(container) {
       })
     );
     closeNPCDialog();
-    // Кнопки появятся автоматически при следующем приближении
   });
 }
 
@@ -703,9 +722,9 @@ function showQuestSelectionDialog(container) {
     </div>
     <p class="npc-text">Что из этого ты сумеешь достать?</p>
     <div id="questList" class="quest-list"></div>
-    <button id="closeQuestsBtn" class="neon-btn" style="margin-top: 15px;">Закрыть</button>
+    <button id="closeQuestsBtn" class="neon-btn">Закрыть</button>
   `;
-  
+
   const questList = document.getElementById("questList");
   availableQuests.forEach((quest) => {
     const questItem = document.createElement("div");
@@ -722,7 +741,9 @@ function showQuestSelectionDialog(container) {
     questList.appendChild(questItem);
   });
 
-  document.getElementById("closeQuestsBtn").addEventListener("click", closeNPCDialog);
+  document
+    .getElementById("closeQuestsBtn")
+    .addEventListener("click", closeNPCDialog);
 }
 
 function selectQuest(quest) {
@@ -864,7 +885,8 @@ function setSelectedQuest(questId) {
 
 function setAvailableQuests(questIds) {
   availableQuests =
-    questIds.map((id) => QUESTS.find((q) => q.id === id)).filter((q) => q) || [];
+    questIds.map((id) => QUESTS.find((q) => q.id === id)).filter((q) => q) ||
+    [];
   const questsToAdd = 5 - availableQuests.length;
   if (questsToAdd > 0) {
     const newQuests = getRandomQuests(
