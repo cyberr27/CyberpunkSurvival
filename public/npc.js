@@ -158,19 +158,22 @@ let isNPCMet = false;
 let selectedQuest = null;
 let dialogStage = "greeting";
 let availableQuests = [];
-let isQuestActive = false; // Флаг, указывающий, активно ли задание
-let npcSprite = null; // Переменная для хранения изображения NPC
+let isQuestActive = false;
+let npcSprite = null;
+
+// Новые переменные для кнопок
+let npcButtonsContainer = null;
+let isPlayerNearNPC = false;
 
 // Новые переменные для анимации
-let npcFrame = 0; // Текущий кадр (0-39)
-let npcFrameTime = 0; // Накопленное время для смены кадра
-const NPC_FRAME_DURATION = 100; // мс на кадр (настрой для скорости анимации, ~10 fps)
-const NPC_TOTAL_FRAMES = 40; // Количество кадров в спрайте
+let npcFrame = 0;
+let npcFrameTime = 0;
+const NPC_FRAME_DURATION = 100;
+const NPC_TOTAL_FRAMES = 40;
 
-// Новые для периодической анимации
-let animationCooldownTimer = 0; // Таймер до следующего запуска анимации
-let isAnimating = false; // Идет ли анимация сейчас
-const ANIMATION_COOLDOWN = 20000; // 30 секунд между циклами анимации
+let animationCooldownTimer = 0;
+let isAnimating = false;
+const ANIMATION_COOLDOWN = 20000;
 
 const npcStyles = `
   .npc-dialog {
@@ -185,12 +188,66 @@ const npcStyles = `
     color: #00ffff;
     font-family: "Courier New", monospace;
     text-align: center;
-    z-index: 1000;
+    z-index: 1001;
     max-width: 450px;
     width: 90%;
     box-shadow: 0 0 20px rgba(0, 255, 255, 0.5), 0 0 30px rgba(255, 0, 255, 0.3);
     animation: neonPulse 2s infinite alternate;
   }
+  
+  .npc-buttons-container {
+    position: fixed;
+    z-index: 1000;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transform-origin: center top;
+  }
+  
+  .npc-button {
+    pointer-events: all;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-family: "Courier New", monospace;
+    font-weight: bold;
+    border: 2px solid transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    text-shadow: 0 0 5px rgba(0, 255, 255, 0.8);
+    transition: all 0.3s ease;
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.4);
+    min-width: 100px;
+    text-align: center;
+    user-select: none;
+  }
+  
+  .npc-talk-btn {
+    background: linear-gradient(135deg, rgba(0, 255, 255, 0.2), rgba(0, 150, 150, 0.3));
+    color: #00ffff;
+    border-color: #00ffff;
+  }
+  
+  .npc-quests-btn {
+    background: linear-gradient(135deg, rgba(255, 0, 255, 0.2), rgba(150, 0, 150, 0.3));
+    color: #ff00ff;
+    border-color: #ff00ff;
+  }
+  
+  .npc-talk-btn:hover,
+  .npc-quests-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.8);
+    background: rgba(0, 255, 255, 0.4);
+  }
+  
+  .npc-quests-btn:hover {
+    box-shadow: 0 0 20px rgba(255, 0, 255, 0.8);
+    background: rgba(255, 0, 255, 0.4);
+  }
+  
   .npc-dialog-header {
     display: flex;
     align-items: center;
@@ -218,6 +275,35 @@ const npcStyles = `
     font-size: 16px;
     text-shadow: 0 0 5px rgba(0, 255, 255, 0.7);
     line-height: 1.4;
+  }
+  .talk-topics {
+    max-height: 300px;
+    overflow-y: auto;
+    margin-top: 15px;
+    background: rgba(10, 10, 10, 0.9);
+    border: 1px solid #00ffff;
+    border-radius: 5px;
+    padding: 15px;
+    box-shadow: inset 0 0 10px rgba(0, 255, 255, 0.3);
+  }
+  .talk-topic {
+    background: rgba(0, 0, 0, 0.85);
+    padding: 15px;
+    margin: 10px 0;
+    cursor: pointer;
+    border: 1px solid #00ffff;
+    border-radius: 5px;
+    color: #00ffff;
+    font-size: 14px;
+    text-shadow: 0 0 5px rgba(0, 255, 255, 0.7);
+    transition: all 0.3s ease;
+    position: relative;
+  }
+  .talk-topic:hover {
+    background: rgba(0, 255, 255, 0.15);
+    border-color: #ff00ff;
+    box-shadow: 0 0 15px rgba(255, 0, 255, 0.5);
+    transform: translateX(5px);
   }
   .quest-list {
     max-height: 250px;
@@ -301,7 +387,22 @@ const npcStyles = `
     0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% { opacity: 1; text-shadow: 0 0 5px #00ffff, 0 0 10px #ff00ff; }
     20%, 24%, 55% { opacity: 0.7; text-shadow: 0 0 2px #00ffff, 0 0 5px #ff00ff; }
   }
+  @media (max-width: 768px) {
+    .npc-button {
+      padding: 12px 24px;
+      font-size: 16px;
+      min-width: 120px;
+    }
+    .npc-buttons-container {
+      gap: 10px;
+    }
+  }
   @media (max-width: 500px) {
+    .npc-button {
+      padding: 14px 28px;
+      font-size: 18px;
+      min-width: 140px;
+    }
     .npc-dialog { max-width: 90%; padding: 15px; }
     .npc-photo { width: 60px; height: 60px; }
     .npc-title { font-size: 20px; }
@@ -319,17 +420,54 @@ function initializeNPCStyles() {
   document.head.appendChild(styleSheet);
 }
 
+function createNPCButtons(screenX, screenY) {
+  if (npcButtonsContainer) {
+    document.body.removeChild(npcButtonsContainer);
+  }
+
+  npcButtonsContainer = document.createElement("div");
+  npcButtonsContainer.className = "npc-buttons-container";
+  
+  // Позиционируем относительно NPC (над именем)
+  const buttonHeight = 45; // Высота кнопки
+  const totalButtonsHeight = buttonHeight * 2 + 16; // 2 кнопки + gap
+  
+  npcButtonsContainer.style.left = screenX + NPC.width / 2 + "px";
+  npcButtonsContainer.style.top = (screenY - totalButtonsHeight - 25) + "px";
+  npcButtonsContainer.style.transform = "translateX(-50%)";
+
+  const talkBtn = document.createElement("div");
+  talkBtn.className = "npc-button npc-talk-btn";
+  talkBtn.textContent = "Говорить";
+  talkBtn.addEventListener("click", () => openTalkDialog());
+
+  const questsBtn = document.createElement("div");
+  questsBtn.className = "npc-button npc-quests-btn";
+  questsBtn.textContent = "Задания";
+  questsBtn.addEventListener("click", () => openQuestDialog());
+
+  npcButtonsContainer.appendChild(talkBtn);
+  npcButtonsContainer.appendChild(questsBtn);
+  
+  document.body.appendChild(npcButtonsContainer);
+}
+
+function removeNPCButtons() {
+  if (npcButtonsContainer) {
+    document.body.removeChild(npcButtonsContainer);
+    npcButtonsContainer = null;
+  }
+}
+
 function drawNPC(deltaTime) {
-  // Проверяем, что текущий мир — это Неоновый город (id: 0)
   if (window.worldSystem.currentWorldId !== 0) return;
 
   const camera = window.movementSystem.getCamera();
   const screenX = NPC.x - camera.x;
   const screenY = NPC.y - camera.y;
 
-  // Вычисляем расстояние до игрока (аналогично checkNPCProximity)
-  let isPlayerNear = false;
   const me = players.get(myId);
+  let isPlayerNear = false;
   if (me && me.health > 0) {
     const dx = me.x + 20 - (NPC.x + 35);
     const dy = me.y + 20 - (NPC.y + 35);
@@ -337,47 +475,54 @@ function drawNPC(deltaTime) {
     isPlayerNear = distance < NPC.interactionRadius;
   }
 
+  // Управление кнопками
+  if (isNPCMet && isPlayerNear && !isPlayerNearNPC) {
+    isPlayerNearNPC = true;
+    createNPCButtons(screenX, screenY);
+  } else if (isNPCMet && !isPlayerNear && isPlayerNearNPC) {
+    isPlayerNearNPC = false;
+    removeNPCButtons();
+  } else if (isPlayerNearNPC && npcButtonsContainer) {
+    // Обновляем позицию кнопок при движении камеры
+    npcButtonsContainer.style.left = screenX + NPC.width / 2 + "px";
+    npcButtonsContainer.style.top = (screenY - 115) + "px"; // Фиксированная позиция над NPC
+  }
+
+  // Анимация NPC (без изменений)
   if (isPlayerNear) {
-    // Если игрок близко: остановить анимацию, показать статичный кадр
     npcFrame = 0;
     isAnimating = false;
-    animationCooldownTimer = 0; // Сброс таймера, чтобы после ухода игрока отсчет начался заново
+    animationCooldownTimer = 0;
   } else {
-    // Если игрок далеко: управляем периодической анимацией
     if (!isAnimating) {
-      // Ждем cooldown для запуска анимации
       animationCooldownTimer += deltaTime;
       if (animationCooldownTimer >= ANIMATION_COOLDOWN) {
         isAnimating = true;
         npcFrameTime = 0;
         npcFrame = 0;
-        animationCooldownTimer = 0; // Сброс таймера после запуска
+        animationCooldownTimer = 0;
       } else {
-        // Пока ждем: статичный кадр
         npcFrame = 0;
       }
     } else {
-      // Анимация идет: обновляем кадры
       npcFrameTime += deltaTime;
       if (npcFrameTime >= NPC_FRAME_DURATION) {
         npcFrameTime = 0;
         npcFrame++;
         if (npcFrame >= NPC_TOTAL_FRAMES) {
-          // Завершить цикл анимации
           npcFrame = 0;
           isAnimating = false;
-          animationCooldownTimer = 0; // Начать новый отсчет cooldown
+          animationCooldownTimer = 0;
         }
       }
     }
   }
 
   if (npcSprite && npcSprite.complete) {
-    // Рисуем текущий кадр спрайта (горизонтальная полоса)
     ctx.drawImage(
       npcSprite,
-      npcFrame * NPC.width, // X-координата кадра в спрайте
-      0, // Y всегда 0 (одна строка)
+      npcFrame * NPC.width,
+      0,
       NPC.width,
       NPC.height,
       screenX,
@@ -386,12 +531,11 @@ function drawNPC(deltaTime) {
       NPC.height
     );
   } else {
-    // Заглушка, если спрайт не загружен
     ctx.fillStyle = "purple";
     ctx.fillRect(screenX, screenY, NPC.width, NPC.height);
   }
 
-  // Рисуем имя (без изменений)
+  // Имя NPC
   ctx.fillStyle = isNPCMet ? "#ff00ff" : "#ffffff";
   ctx.font = "12px Arial";
   ctx.textAlign = "center";
@@ -403,24 +547,104 @@ function drawNPC(deltaTime) {
 }
 
 function checkNPCProximity() {
-  // Проверяем, что текущий мир — это Неоновый город (id: 0)
   if (window.worldSystem.currentWorldId !== 0) return;
+  // Больше не открываем диалог автоматически - кнопки сами по себе
+}
 
-  const me = players.get(myId);
-  if (!me || me.health <= 0) return;
+function openTalkDialog() {
+  closeNPCDialog();
+  const dialogContainer = document.createElement("div");
+  dialogContainer.id = "npcDialog";
+  dialogContainer.className = "npc-dialog";
+  document.getElementById("gameContainer").appendChild(dialogContainer);
 
-  const dx = me.x + 20 - (NPC.x + 35);
-  const dy = me.y + 20 - (NPC.y + 35);
-  const distance = Math.sqrt(dx * dx + dy * dy);
+  const topics = [
+    { title: "О Неоновом городе", text: "Этот город... он жрёт людей. Киборги везде, баляры решают всё. Без бабок ты никто." },
+    { title: "О балярах", text: "Баляры - кровь этого города. Без них даже воздух не продают. Собирай всё, что блестит." },
+    { title: "О киборгах", text: "Они думают, что лучше нас. Но железо ржавеет, а человек выживает. Помни это." },
+    { title: "О твоей работе", text: "Ты молодец, что не сдался. Продолжай собирать хабар - скоро станешь королём помойки!" }
+  ];
 
-  if (distance < NPC.interactionRadius && !isNPCDialogOpen) {
-    openNPCDialog();
-  } else if (distance >= NPC.interactionRadius && isNPCDialogOpen) {
-    closeNPCDialog();
+  dialogContainer.innerHTML = `
+    <div class="npc-dialog-header">
+      <img src="fotoQuestNPC.png" alt="NPC Photo" class="npc-photo">
+      <h2 class="npc-title">${NPC.name}</h2>
+    </div>
+    <p class="npc-text">Слушаю тебя, человек...</p>
+    <div id="talkTopics" class="talk-topics"></div>
+    <button id="closeTalkBtn" class="neon-btn">Закрыть</button>
+  `;
+
+  const topicsContainer = document.getElementById("talkTopics");
+  topics.forEach(topic => {
+    const topicDiv = document.createElement("div");
+    topicDiv.className = "talk-topic";
+    topicDiv.innerHTML = `<strong>${topic.title}</strong>`;
+    topicDiv.addEventListener("click", () => {
+      document.querySelector(".npc-text").textContent = topic.text;
+      topicsContainer.innerHTML = `
+        <div style="text-align: center; color: #ff00ff; margin: 20px 0;">
+          ${topic.text}
+        </div>
+        <button id="backToTopicsBtn" class="neon-btn" style="margin-top: 10px;">Назад к темам</button>
+      `;
+      document.getElementById("backToTopicsBtn").addEventListener("click", () => {
+        document.querySelector(".npc-text").textContent = "Слушаю тебя, человек...";
+        topicsContainer.innerHTML = "";
+        topics.forEach(t => {
+          const topicDiv2 = document.createElement("div");
+          topicDiv2.className = "talk-topic";
+          topicDiv2.innerHTML = `<strong>${t.title}</strong>`;
+          topicDiv2.addEventListener("click", () => {
+            document.querySelector(".npc-text").textContent = t.text;
+            topicsContainer.innerHTML = `
+              <div style="text-align: center; color: #ff00ff; margin: 20px 0;">
+                ${t.text}
+              </div>
+              <button id="backToTopicsBtn2" class="neon-btn" style="margin-top: 10px;">Назад к темам</button>
+            `;
+            document.getElementById("backToTopicsBtn2").addEventListener("click", arguments.callee);
+          });
+          topicsContainer.appendChild(topicDiv2);
+        });
+      });
+      topicsContainer.appendChild(document.getElementById("backToTopicsBtn"));
+    });
+    topicsContainer.appendChild(topicDiv);
+  });
+
+  document.getElementById("closeTalkBtn").addEventListener("click", closeNPCDialog);
+  isNPCDialogOpen = true;
+}
+
+function openQuestDialog() {
+  closeNPCDialog();
+  const dialogContainer = document.createElement("div");
+  dialogContainer.id = "npcDialog";
+  dialogContainer.className = "npc-dialog";
+  document.getElementById("gameContainer").appendChild(dialogContainer);
+
+  if (availableQuests.length < 5) {
+    const questsToAdd = 5 - availableQuests.length;
+    const newQuests = getRandomQuests(
+      questsToAdd,
+      availableQuests.map((q) => q.id)
+    );
+    availableQuests = [...availableQuests, ...newQuests];
+    sendWhenReady(
+      ws,
+      JSON.stringify({
+        type: "updateQuests",
+        availableQuests: availableQuests.map((q) => q.id),
+      })
+    );
   }
+
+  showQuestSelectionDialog(dialogContainer);
 }
 
 function openNPCDialog() {
+  // Устаревшая функция, теперь используется только для первого знакомства
   isNPCDialogOpen = true;
   const dialogContainer = document.createElement("div");
   dialogContainer.id = "npcDialog";
@@ -429,26 +653,6 @@ function openNPCDialog() {
 
   if (!isNPCMet) {
     showGreetingDialog(dialogContainer);
-  } else {
-    // Проверяем, есть ли задания и достаточно ли их
-    if (availableQuests.length < 5) {
-      const questsToAdd = 5 - availableQuests.length;
-      const newQuests = getRandomQuests(
-        questsToAdd,
-        availableQuests.map((q) => q.id)
-      );
-      availableQuests = [...availableQuests, ...newQuests];
-      // Отправляем обновленный список заданий на сервер
-      sendWhenReady(
-        ws,
-        JSON.stringify({
-          type: "updateQuests",
-          availableQuests: availableQuests.map((q) => q.id),
-        })
-      );
-    }
-    dialogStage = "questSelection";
-    showQuestSelectionDialog(dialogContainer);
   }
 }
 
@@ -471,9 +675,7 @@ function showGreetingDialog(container) {
   document.getElementById("npcAgreeBtn").addEventListener("click", () => {
     isNPCMet = true;
     dialogStage = "questSelection";
-    // Инициализируем 5 случайных заданий
     availableQuests = getRandomQuests(5);
-    // Отправляем данные о встрече с NPC и заданиях на сервер
     sendWhenReady(
       ws,
       JSON.stringify({
@@ -482,7 +684,8 @@ function showGreetingDialog(container) {
         availableQuests: availableQuests.map((q) => q.id),
       })
     );
-    showQuestSelectionDialog(container);
+    closeNPCDialog();
+    // Кнопки появятся автоматически при следующем приближении
   });
 }
 
@@ -500,12 +703,13 @@ function showQuestSelectionDialog(container) {
     </div>
     <p class="npc-text">Что из этого ты сумеешь достать?</p>
     <div id="questList" class="quest-list"></div>
+    <button id="closeQuestsBtn" class="neon-btn" style="margin-top: 15px;">Закрыть</button>
   `;
+  
   const questList = document.getElementById("questList");
   availableQuests.forEach((quest) => {
     const questItem = document.createElement("div");
     questItem.className = "quest-item";
-    // Определяем опыт в зависимости от rarity
     const xpReward = quest.rarity === 1 ? 3 : quest.rarity === 2 ? 2 : 1;
     questItem.innerHTML = `
       <span class="quest-marker">></span>
@@ -517,11 +721,13 @@ function showQuestSelectionDialog(container) {
     });
     questList.appendChild(questItem);
   });
+
+  document.getElementById("closeQuestsBtn").addEventListener("click", closeNPCDialog);
 }
 
 function selectQuest(quest) {
   selectedQuest = quest;
-  isQuestActive = true; // Задание активно
+  isQuestActive = true;
   sendWhenReady(ws, JSON.stringify({ type: "selectQuest", questId: quest.id }));
 
   const me = players.get(myId);
@@ -543,7 +749,7 @@ function selectQuest(quest) {
 }
 
 function checkQuestCompletion() {
-  if (!selectedQuest || !isQuestActive) return; // Проверяем, активно ли задание
+  if (!selectedQuest || !isQuestActive) return;
 
   const me = players.get(myId);
   if (!me) return;
@@ -569,7 +775,6 @@ function completeQuest() {
   const me = players.get(myId);
   if (!me) return;
 
-  // Удаляем необходимые предметы из инвентаря
   let itemsToRemove = selectedQuest.target.quantity;
   for (let i = 0; i < inventory.length && itemsToRemove > 0; i++) {
     if (inventory[i] && inventory[i].type === selectedQuest.target.type) {
@@ -585,7 +790,6 @@ function completeQuest() {
     }
   }
 
-  // Добавляем награду (баляры) в инвентарь
   const reward = selectedQuest.reward;
   const balyarySlot = inventory.findIndex(
     (slot) => slot && slot.type === "balyary"
@@ -600,13 +804,9 @@ function completeQuest() {
     }
   }
 
-  // Сохраняем ID выполненного задания
   const previousQuestId = selectedQuest.id;
-
-  // Удаляем выполненное задание из списка доступных
   availableQuests = availableQuests.filter((q) => q.id !== previousQuestId);
 
-  // Пополняем список заданий до 5
   const questsToAdd = 5 - availableQuests.length;
   if (questsToAdd > 0) {
     const newQuests = getRandomQuests(
@@ -616,7 +816,6 @@ function completeQuest() {
     availableQuests = [...availableQuests, ...newQuests];
   }
 
-  // Отправляем обновление инвентаря и заданий на сервер
   sendWhenReady(
     ws,
     JSON.stringify({
@@ -627,18 +826,14 @@ function completeQuest() {
     })
   );
 
-  // Начисляем опыт через levelSystem
   const rarity = selectedQuest.rarity || 3;
   window.levelSystem.handleQuestCompletion(rarity);
 
-  // Сбрасываем выбранное задание и флаг активности
   selectedQuest = null;
   isQuestActive = false;
 
-  // Отправляем сброс selectedQuestId на сервер
   sendWhenReady(ws, JSON.stringify({ type: "selectQuest", questId: null }));
 
-  // Обновляем отображение инвентаря
   if (isInventoryOpen) {
     requestAnimationFrame(() => {
       updateInventoryDisplay();
@@ -657,18 +852,19 @@ function completeQuest() {
 
 function setNPCMet(met) {
   isNPCMet = met;
+  if (!met) {
+    removeNPCButtons();
+  }
 }
 
 function setSelectedQuest(questId) {
   selectedQuest = QUESTS.find((q) => q.id === questId) || null;
-  isQuestActive = false; // Задание не активно при загрузке
+  isQuestActive = false;
 }
 
 function setAvailableQuests(questIds) {
   availableQuests =
-    questIds.map((id) => QUESTS.find((q) => q.id === id)).filter((q) => q) ||
-    [];
-  // Если заданий меньше 5, пополняем список
+    questIds.map((id) => QUESTS.find((q) => q.id === id)).filter((q) => q) || [];
   const questsToAdd = 5 - availableQuests.length;
   if (questsToAdd > 0) {
     const newQuests = getRandomQuests(
@@ -676,7 +872,6 @@ function setAvailableQuests(questIds) {
       availableQuests.map((q) => q.id)
     );
     availableQuests = [...availableQuests, ...newQuests];
-    // Отправляем обновленный список на сервер
     sendWhenReady(
       ws,
       JSON.stringify({
@@ -687,7 +882,6 @@ function setAvailableQuests(questIds) {
   }
 }
 
-// Экспортируем функции для использования в других файлах
 window.npcSystem = {
   drawNPC,
   checkNPCProximity,
@@ -699,7 +893,7 @@ window.npcSystem = {
     setAvailableQuests(questIds);
   },
   initialize: (spriteImage) => {
-    npcSprite = spriteImage; // Сохраняем переданный спрайт
+    npcSprite = spriteImage;
     initializeNPCStyles();
   },
 };
