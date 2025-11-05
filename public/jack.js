@@ -6,7 +6,7 @@ const JACK = {
   y: 610,
   width: 70,
   height: 70,
-  interactionRadius: 100,
+  interactionRadius: 50,
   name: "Jack",
 };
 
