@@ -225,6 +225,14 @@ const jackStyles = `
     transform: translateX(5px);
   }
 
+  /* Новые стили для кнопок в магазине */
+  .shop-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-top: 15px;
+  }
+
   @keyframes neonPulse{from{box-shadow:0 0 10px rgba(0,255,255,0.3);}to{box-shadow:0 0 20px rgba(0,255,255,0.7);}}
   @keyframes flicker{0%,100%{opacity:1;}50%{opacity:0.8;}}
 `;
@@ -395,6 +403,7 @@ function closeJackDialog() {
   const dlg = document.getElementById("jackDialog");
   if (dlg) dlg.remove();
   isJackDialogOpen = false;
+  if (!isJackMet) hasJackGreetingBeenShown = false;
 }
 
 // Приветствие
@@ -412,9 +421,10 @@ function jackShowGreetingDialog(container) {
     isJackMet = true;
     sendWhenReady(ws, JSON.stringify({ type: "meetJack" }));
 
-    container.classList.remove("greeting");
-    container.classList.add("shop");
-    showShopDialog(container);
+    closeJackDialog();
+    isPlayerNearJack = true;
+    const camera = window.movementSystem.getCamera();
+    createJackButtons(JACK.x - camera.x, JACK.y - camera.y);
   });
 }
 
@@ -501,11 +511,17 @@ function showShopDialog(container) {
     </div>
     <p class="jack-text">Что хочешь купить? Цены в balyary.</p>
     <div id="shopGrid" class="shop-grid"></div>
-    <button class="jack-button" id="buyBtn" disabled>Купить</button>
+    <div class="shop-buttons">
+      <button class="jack-button" id="buyBtn" disabled>Купить</button>
+      <button class="jack-button" id="closeShopBtn">Закрыть</button>
+    </div>
   `;
 
   const grid = document.getElementById("shopGrid");
   const buyBtn = document.getElementById("buyBtn");
+  const closeBtn = document.getElementById("closeShopBtn");
+
+  closeBtn.addEventListener("click", closeJackDialog);
 
   const BLACKLIST = ["balyary", "atom", "blood_pack", "blood_syringe"];
 
