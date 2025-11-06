@@ -176,8 +176,6 @@ const ANIMATION_COOLDOWN = 20000;
 // КРИТИЧНО: Флаг для предотвращения повторного показа приветствия
 let hasGreetingBeenShown = false;
 
-let isPlayerNear = false;
-
 /* ============================== СТИЛИ ============================== */
 const npcStyles = `
   .npc-dialog {
@@ -465,11 +463,16 @@ function initializeNPCStyles() {
 }
 
 /* ============================== КНОПКИ ============================== */
-function createNPCButtons() {
+function createNPCButtons(screenX, screenY) {
   if (npcButtonsContainer) document.body.removeChild(npcButtonsContainer);
 
   npcButtonsContainer = document.createElement("div");
   npcButtonsContainer.className = "npc-buttons-container";
+
+  const totalButtonsHeight = 45 * 2 + 16;
+  npcButtonsContainer.style.left = screenX + NPC.width / 2 + "px";
+  npcButtonsContainer.style.top = screenY - totalButtonsHeight - 25 + "px";
+  npcButtonsContainer.style.transform = "translateX(-50%)";
 
   const talkBtn = document.createElement("div");
   talkBtn.className = "npc-button npc-talk-btn";
@@ -501,12 +504,39 @@ function drawNPC(deltaTime) {
   const screenX = NPC.x - camera.x;
   const screenY = NPC.y - camera.y;
 
-  /* ---------- КНОПКИ: ОБНОВЛЕНИЕ ПОЗИЦИИ ---------- */
-  if (isPlayerNearNPC && npcButtonsContainer) {
-    const totalButtonsHeight = 45 * 2 + 16;
+  const me = players.get(myId);
+  let isPlayerNear = false;
+  if (me && me.health > 0) {
+    const dx = me.x + 20 - (NPC.x + 35);
+    const dy = me.y + 20 - (NPC.y + 35);
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    isPlayerNear = distance < NPC.interactionRadius;
+  }
+
+  /* ---------- ПРИВЕТСТВЕННЫЙ ДИАЛОГ: ОДИН РАЗ ПРИ ПЕРВОМ ПОДХОДЕ ---------- */
+  if (!isNPCMet && isPlayerNear && !hasGreetingBeenShown && !isNPCDialogOpen) {
+    hasGreetingBeenShown = true;
+    openGreetingDialog();
+  }
+
+  /* ---------- ЗАКРЫТИЕ ЛЮБОГО ОТКРЫТОГО ДИАЛОГА ПРИ ОТХОДЕ ---------- */
+  if (isNPCDialogOpen && !isPlayerNear) {
+    closeNPCDialog();
+    if (dialogStage === "greeting") {
+      hasGreetingBeenShown = false; // Разрешаем показать снова при возвращении
+    }
+  }
+
+  /* ---------- КНОПКИ (только когда рядом и уже знаком) ---------- */
+  if (isNPCMet && isPlayerNear && !isPlayerNearNPC) {
+    isPlayerNearNPC = true;
+    createNPCButtons(screenX, screenY);
+  } else if (isNPCMet && !isPlayerNear && isPlayerNearNPC) {
+    isPlayerNearNPC = false;
+    removeNPCButtons();
+  } else if (isPlayerNearNPC && npcButtonsContainer) {
     npcButtonsContainer.style.left = screenX + NPC.width / 2 + "px";
-    npcButtonsContainer.style.top = screenY - totalButtonsHeight - 25 + "px";
-    npcButtonsContainer.style.transform = "translateX(-50%)";
+    npcButtonsContainer.style.top = screenY - 115 + "px";
   }
 
   /* ---------- АНИМАЦИЯ NPC ---------- */
@@ -567,43 +597,6 @@ function drawNPC(deltaTime) {
   );
 }
 
-/* ============================== ПРОВЕРКА БЛИЗОСТИ ============================== */
-function checkNPCProximity() {
-  const me = players.get(myId);
-  if (!me || me.health <= 0) return;
-
-  const dx = me.x + 35 - (NPC.x + 35);
-  const dy = me.y + 35 - (NPC.y + 35);
-  const distance = Math.sqrt(dx * dx + dy * dy);
-
-  const currentNear = distance < NPC.interactionRadius;
-
-  if (!currentNear) {
-    if (isNPCDialogOpen) {
-      closeNPCDialog();
-      // Если игрок отошёл во время приветствия, разрешаем показать его снова
-      if (dialogStage === "greeting") {
-        hasGreetingBeenShown = false;
-      }
-    }
-    if (isPlayerNearNPC) {
-      isPlayerNearNPC = false;
-      removeNPCButtons();
-    }
-  } else {
-    if (!isNPCMet && !hasGreetingBeenShown && !isNPCDialogOpen) {
-      hasGreetingBeenShown = true;
-      openGreetingDialog();
-    }
-    if (isNPCMet && !isPlayerNearNPC) {
-      isPlayerNearNPC = true;
-      createNPCButtons();
-    }
-  }
-
-  isPlayerNear = currentNear;
-}
-
 /* ============================== ДИАЛОГИ ============================== */
 function openGreetingDialog() {
   closeNPCDialog();
@@ -617,6 +610,7 @@ function openGreetingDialog() {
 }
 
 function showGreetingDialog(container) {
+  isNPCDialogOpen = true;
   container.innerHTML = `
     <div class="npc-dialog-header">
       <img src="fotoQuestNPC.png" alt="NPC Photo" class="npc-photo">
@@ -740,6 +734,7 @@ function openQuestDialog() {
 }
 
 function showQuestSelectionDialog(container) {
+  isNPCDialogOpen = true;
   container.innerHTML = `
     <div class="npc-dialog-header">
       <img src="fotoQuestNPC.png" alt="NPC Photo" class="npc-photo">
@@ -938,7 +933,7 @@ function setAvailableQuests(questIds) {
 /* ============================== ЭКСПОРТ ============================== */
 window.npcSystem = {
   drawNPC,
-  checkNPCProximity,
+  checkNPCProximity: () => {},
   setNPCMet,
   setSelectedQuest,
   setAvailableQuests,
