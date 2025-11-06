@@ -29,6 +29,9 @@ const JACK_ANIMATION_COOLDOWN = 20000;
 let jackButtonsContainer = null;
 let isPlayerNearJack = false;
 
+// КРИТИЧНО: Флаг для предотвращения повторного показа приветствия
+let hasJackGreetingBeenShown = false;
+
 // Стили — динамические: приветствие как у Джона, магазин — 80vw × 70vh
 const jackStyles = `
   .jack-dialog {
@@ -348,16 +351,23 @@ function checkJackProximity() {
   const distance = Math.sqrt(dx * dx + dy * dy);
   const isNear = distance < JACK.interactionRadius;
 
-  if (isNear && !isJackDialogOpen && isJackMet) {
-    if (!isPlayerNearJack) {
-      isPlayerNearJack = true;
-      const camera = window.movementSystem.getCamera();
-      createJackButtons(JACK.x - camera.x, JACK.y - camera.y);
+  if (isNear) {
+    if (!isJackDialogOpen) {
+      if (!isJackMet && !hasJackGreetingBeenShown) {
+        hasJackGreetingBeenShown = true;
+        openJackDialog();
+      } else if (isJackMet && !isPlayerNearJack) {
+        isPlayerNearJack = true;
+        const camera = window.movementSystem.getCamera();
+        createJackButtons(JACK.x - camera.x, JACK.y - camera.y);
+      }
     }
-  } else if (!isNear && isPlayerNearJack) {
-    isPlayerNearJack = false;
-    removeJackButtons();
+  } else {
     if (isJackDialogOpen) closeJackDialog();
+    if (isPlayerNearJack) {
+      isPlayerNearJack = false;
+      removeJackButtons();
+    }
   }
 }
 
@@ -580,10 +590,12 @@ window.jackSystem = {
     if (!met) {
       removeJackButtons();
       isPlayerNearJack = false;
+      hasJackGreetingBeenShown = false; // Разрешаем повторное приветствие при респавне
     }
   },
   initialize: (spriteImg) => {
     jackSprite = spriteImg;
     initializeJackStyles();
+    hasJackGreetingBeenShown = false; // Гарантируем чистое состояние
   },
 };
