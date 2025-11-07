@@ -1290,32 +1290,6 @@ function updateStatsDisplay() {
   levelSystem.updateUpgradeButtons();
 }
 
-function startAtomAnimation(atomAnimations) {
-  let lastTime = null;
-
-  function animate(timestamp) {
-    if (!lastTime) lastTime = timestamp;
-    const deltaTime = timestamp - lastTime;
-    lastTime = timestamp;
-
-    // Продолжаем анимацию, если есть активные атомы
-    if (
-      atomAnimations.length > 0 &&
-      atomAnimations.some(
-        (atom) =>
-          inventory[atom.slotIndex] && inventory[atom.slotIndex].type === "atom"
-      )
-    ) {
-      requestAnimationFrame(animate);
-    }
-  }
-
-  // Запускаем анимацию, если есть атомы
-  if (atomAnimations.length > 0) {
-    requestAnimationFrame(animate);
-  }
-}
-
 function updateInventoryDisplay() {
   // Проверяем наличие необходимых DOM-элементов
   const inventoryGrid = document.getElementById("inventoryGrid");
@@ -1479,6 +1453,24 @@ function updateInventoryDisplay() {
   }
 }
 
+function animateInventoryAtoms() {
+  if (
+    !isInventoryOpen ||
+    !window.atomAnimations ||
+    window.atomAnimations.length === 0
+  ) {
+    return;
+  }
+  const img = ITEM_CONFIG["atom"]?.image;
+  if (!img || !img.complete) return;
+  window.atomAnimations.forEach(({ ctx, slotIndex }) => {
+    if (inventory[slotIndex] && inventory[slotIndex].type === "atom") {
+      ctx.clearRect(0, 0, 40, 40);
+      ctx.drawImage(img, atomFrame * 50, 0, 50, 50, 0, 0, 40, 40);
+    }
+  });
+}
+
 function handleGameMessage(event) {
   try {
     const data = JSON.parse(event.data);
@@ -1603,21 +1595,21 @@ function handleGameMessage(event) {
         items.delete(data.itemId);
         pendingPickups.delete(data.itemId);
         const me = players.get(myId);
-        if (me && data.playerId === myId && data.item) {
-          if (data.item.type === "balyary") {
-            const balyarySlot = inventory.findIndex(
-              (slot) => slot && slot.type === "balyary"
+        if (data.playerId === myId && data.item) {
+          if (data.item.type === "balyary" || data.item.type === "atom") {
+            const stackSlot = inventory.findIndex(
+              (slot) => slot && slot.type === data.item.type
             );
-            if (balyarySlot !== -1) {
-              inventory[balyarySlot].quantity =
-                (inventory[balyarySlot].quantity || 1) + 1;
+            const quantityToAdd = data.item.quantity || 1;
+            if (stackSlot !== -1) {
+              inventory[stackSlot].quantity += quantityToAdd;
             } else {
               const freeSlot = inventory.findIndex((slot) => slot === null);
               if (freeSlot !== -1) {
                 inventory[freeSlot] = {
-                  type: "balyary",
-                  quantity: 1,
-                  itemId: data.itemId,
+                  type: data.item.type,
+                  quantity: quantityToAdd,
+                  itemId: data.item.itemId,
                 };
               }
             }
@@ -2045,6 +2037,7 @@ function gameLoop(timestamp) {
 
   update(deltaTime);
   draw(deltaTime);
+  animateInventoryAtoms();
   requestAnimationFrame(gameLoop);
 }
 
