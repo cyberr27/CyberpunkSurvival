@@ -1180,33 +1180,7 @@ function dropItem(slotIndex) {
       useBtn.textContent = "Использовать";
       useBtn.disabled = true;
       dropBtn.disabled = true;
-      useBtn.onclick = () => {
-        if (selectedSlot !== null && inventory[selectedSlot]) {
-          const itemType = inventory[selectedSlot].type;
-          if (itemType === "atom") {
-            // Отправляем специальное сообщение для атома
-            sendWhenReady(
-              ws,
-              JSON.stringify({
-                type: "useAtom",
-                slotIndex: selectedSlot,
-              })
-            );
-          } else {
-            // Для остальных — обычное useItem
-            sendWhenReady(
-              ws,
-              JSON.stringify({
-                type: "useItem",
-                slotIndex: selectedSlot,
-              })
-            );
-          }
-          // Опционально: сброс selectedSlot после использования
-          selectedSlot = null;
-          updateInventoryDisplay();
-        }
-      };
+      useBtn.onclick = () => useItem(slotIndex); // Восстанавливаем оригинальный onclick для useBtn (предполагаю, что useItem — функция использования)
       selectedSlot = null;
       screen.innerHTML = "";
       updateInventoryDisplay();
@@ -1735,18 +1709,14 @@ function handleGameMessage(event) {
         window.tradeSystem.handleTradeMessage(data);
         break;
       case "useAtomSuccess":
-        const meAtom = players.get(myId);
-        if (!meAtom) return; // Добавь эту строку для защиты
-        me = meAtom;
+        me = players.get(myId);
         me.armor = data.armor;
         inventory = data.inventory;
         updateStatsDisplay();
         updateInventoryDisplay();
         break;
       case "useItemSuccess":
-        const meItem = players.get(myId);
-        if (!meItem) return; // Добавь эту строку для защиты
-        me = meItem;
+        me = players.get(myId);
         me.health = data.stats.health;
         me.energy = data.stats.energy;
         me.food = data.stats.food;

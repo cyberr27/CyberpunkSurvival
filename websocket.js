@@ -813,14 +813,7 @@ function setupWebSocket(
         ) {
           // Увеличиваем броню на 5, но не выше maxStats.armor
           player.armor = Math.min(player.armor + 5, player.maxStats.armor);
-
-          // Уменьшаем количество, если stackable
-          const item = player.inventory[slotIndex];
-          if (item.quantity && item.quantity > 1) {
-            item.quantity -= 1; // Уменьшить на 1
-          } else {
-            player.inventory[slotIndex] = null; // Если 1 или не stackable — удалить
-          }
+          player.inventory[slotIndex] = null;
 
           // Сохраняем изменения
           players.set(id, { ...player });
@@ -865,13 +858,6 @@ function setupWebSocket(
               player.water + effect.water,
               player.maxStats.water
             );
-          // Удаляем или уменьшаем использованный предмет
-          const item = player.inventory[slotIndex];
-          if (ITEM_CONFIG[item.type]?.stackable && item.quantity > 1) {
-            item.quantity -= 1; // Уменьшить на 1 для stackable
-          } else {
-            player.inventory[slotIndex] = null; // Иначе удалить
-          }
 
           // Удаляем использованный предмет
           player.inventory[slotIndex] = null;
