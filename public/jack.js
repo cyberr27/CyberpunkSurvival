@@ -292,6 +292,8 @@ function removeJackButtons() {
 
 // Отрисовка Jack
 function drawJack(deltaTime) {
+  if (window.worldSystem.currentWorldId !== 0) return;
+
   const camera = window.movementSystem.getCamera();
   const screenX = JACK.x - camera.x;
   const screenY = JACK.y - camera.y;
