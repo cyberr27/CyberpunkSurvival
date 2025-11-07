@@ -806,14 +806,21 @@ function setupWebSocket(
 
         const player = players.get(id);
         const slotIndex = data.slotIndex;
+        const item = player.inventory[slotIndex];
         if (
           slotIndex >= 0 &&
           slotIndex < player.inventory.length &&
-          player.inventory[slotIndex]?.type === "atom"
+          item?.type === "atom"
         ) {
           // Увеличиваем броню на 5, но не выше maxStats.armor
           player.armor = Math.min(player.armor + 5, player.maxStats.armor);
-          player.inventory[slotIndex] = null;
+
+          // Добавь: обработка stackable
+          if (item.quantity > 1) {
+            item.quantity -= 1; // Уменьшаем на 1
+          } else {
+            player.inventory[slotIndex] = null; // Если 1, null
+          }
 
           // Сохраняем изменения
           players.set(id, { ...player });
@@ -859,8 +866,16 @@ function setupWebSocket(
               player.maxStats.water
             );
 
-          // Удаляем использованный предмет
-          player.inventory[slotIndex] = null;
+          // Добавь этот блок: обработка stackable
+          if (ITEM_CONFIG[item.type]?.stackable) {
+            if (item.quantity > 1) {
+              item.quantity -= 1; // Уменьшаем количество на 1
+            } else {
+              player.inventory[slotIndex] = null; // Если 1, то null
+            }
+          } else {
+            player.inventory[slotIndex] = null; // Для не-stackable — null
+          }
 
           // Сохраняем изменения
           players.set(id, { ...player });

@@ -1513,6 +1513,7 @@ function handleGameMessage(event) {
           window.equipmentSystem.equipmentSlots = data.equipment;
           window.equipmentSystem.applyEquipmentEffects(me);
           window.equipmentSystem.updateEquipmentDisplay();
+          players.set(myId, me);
           updateInventoryDisplay();
           updateStatsDisplay();
         }
@@ -1627,6 +1628,8 @@ function handleGameMessage(event) {
               inventory[freeSlot] = data.item;
             }
           }
+          me.inventory = inventory; // Добавь: обнови me.inventory после изменений
+          players.set(myId, me); // Добавь: сохрани
           updateInventoryDisplay();
           levelSystem.handleItemPickup(
             data.item.type,
@@ -1689,6 +1692,8 @@ function handleGameMessage(event) {
           const me = players.get(myId);
           me.water = data.water;
           inventory = data.inventory;
+          me.inventory = data.inventory; // Добавь
+          players.set(myId, me); // Добавь
           updateStatsDisplay();
           updateInventoryDisplay();
           window.vendingMachine.hideVendingMenu();
@@ -1711,7 +1716,9 @@ function handleGameMessage(event) {
       case "useAtomSuccess":
         me = players.get(myId);
         me.armor = data.armor;
-        inventory = data.inventory;
+        me.inventory = data.inventory; // Добавь: обновляем me.inventory
+        inventory = data.inventory; // Оставляем
+        players.set(myId, me); // Добавь: сохраняем в players
         updateStatsDisplay();
         updateInventoryDisplay();
         break;
@@ -1721,7 +1728,9 @@ function handleGameMessage(event) {
         me.energy = data.stats.energy;
         me.food = data.stats.food;
         me.water = data.stats.water;
-        inventory = data.inventory;
+        me.inventory = data.inventory; // Добавь эту строку: обновляем me.inventory
+        inventory = data.inventory; // Оставляем для глобальной
+        players.set(myId, me); // Добавь: сохраняем обновлённого me в players
         updateStatsDisplay();
         updateInventoryDisplay();
         break;
