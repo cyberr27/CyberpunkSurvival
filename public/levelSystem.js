@@ -212,16 +212,6 @@ function setLevelData(level, xp, maxStatsData, upgradePointsData) {
 
     window.levelSystem.maxStats = { ...maxStats };
 
-    // Синхронизируем с игроком
-    if (me) {
-      me.maxStats = { ...maxStats };
-      me.health = Math.min(me.health || 100, maxStats.health);
-      me.energy = Math.min(me.energy || 100, maxStats.energy);
-      me.food = Math.min(me.food || 100, maxStats.food);
-      me.water = Math.min(me.water || 100, maxStats.water);
-      me.armor = Math.min(me.armor || 0, maxStats.armor);
-    }
-
     if (!isInitialized) {
       initializeLevelSystem();
     }

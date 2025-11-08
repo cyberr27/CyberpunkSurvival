@@ -457,6 +457,11 @@ function setupWebSocket(
           player.foodUpgrade = data.foodUpgrade || player.foodUpgrade || 0;
           player.waterUpgrade = data.waterUpgrade || player.waterUpgrade || 0;
 
+          player.health = player.maxStats.health;
+          player.energy = player.maxStats.energy;
+          player.food = player.maxStats.food;
+          player.water = player.maxStats.water;
+
           players.set(id, { ...player });
           userDatabase.set(id, { ...player });
           await saveUserDatabase(dbCollection, id, player);
