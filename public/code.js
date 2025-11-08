@@ -1064,9 +1064,24 @@ function useItem(slotIndex) {
         me.maxStats.water,
         Math.max(0, me.water + effect.water)
       );
+    if (effect.armor)
+      me.armor = Math.min(
+        me.maxStats.armor,
+        Math.max(0, me.armor + effect.armor)
+      );
 
-    // Удаляем использованный предмет
-    inventory[slotIndex] = null;
+    // НОВОЕ: Проверка для stackable предметов (включая атом)
+    if (ITEM_CONFIG[item.type].stackable) {
+      if (item.quantity > 1) {
+        item.quantity -= 1; // Уменьшаем количество на 1, слот остаётся
+      } else {
+        inventory[slotIndex] = null; // Если был последний, удаляем слот
+      }
+    } else {
+      // Для не-stackable — как раньше, удаляем слот
+      inventory[slotIndex] = null;
+    }
+    // КОНЕЦ НОВОГО блока (остальная логика не меняется)
 
     // Отправляем обновление на сервер
     if (ws.readyState === WebSocket.OPEN) {
@@ -1080,11 +1095,11 @@ function useItem(slotIndex) {
             energy: me.energy,
             food: me.food,
             water: me.water,
+            armor: me.armor,
           },
           inventory,
         })
       );
-    } else {
     }
   }
 
@@ -1707,13 +1722,6 @@ function handleGameMessage(event) {
       case "tradeConfirmed":
       case "tradeCompleted":
         window.tradeSystem.handleTradeMessage(data);
-        break;
-      case "useAtomSuccess":
-        me = players.get(myId);
-        me.armor = data.armor;
-        inventory = data.inventory;
-        updateStatsDisplay();
-        updateInventoryDisplay();
         break;
       case "useItemSuccess":
         me = players.get(myId);
