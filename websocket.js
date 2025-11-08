@@ -800,6 +800,35 @@ function setupWebSocket(
             }
           });
         }
+      } else if (data.type === "useAtom") {
+        const id = clients.get(ws);
+        if (!id || !players.has(id)) return;
+
+        const player = players.get(id);
+        const slotIndex = data.slotIndex;
+        if (
+          slotIndex >= 0 &&
+          slotIndex < player.inventory.length &&
+          player.inventory[slotIndex]?.type === "atom"
+        ) {
+          // Увеличиваем броню на 5, но не выше maxStats.armor
+          player.armor = Math.min(player.armor + 5, player.maxStats.armor);
+          player.inventory[slotIndex] = null;
+
+          // Сохраняем изменения
+          players.set(id, { ...player });
+          userDatabase.set(id, { ...player });
+          await saveUserDatabase(dbCollection, id, player);
+
+          // Отправляем подтверждение клиенту
+          ws.send(
+            JSON.stringify({
+              type: "useAtomSuccess",
+              armor: player.armor,
+              inventory: player.inventory,
+            })
+          );
+        }
       } else if (data.type === "useItem") {
         const id = clients.get(ws);
         if (!id || !players.has(id)) return;
@@ -829,24 +858,9 @@ function setupWebSocket(
               player.water + effect.water,
               player.maxStats.water
             );
-          if (effect.armor)
-            player.armor = Math.min(
-              player.armor + effect.armor,
-              player.maxStats.armor
-            );
 
-          // НОВОЕ: Проверка для stackable предметов (включая атом)
-          if (ITEM_CONFIG[item.type]?.stackable) {
-            if (item.quantity > 1) {
-              item.quantity -= 1; // Уменьшаем количество на 1, слот остаётся
-            } else {
-              player.inventory[slotIndex] = null; // Если был последний, удаляем слот
-            }
-          } else {
-            // Для не-stackable — как раньше, удаляем слот
-            player.inventory[slotIndex] = null;
-          }
-          // КОНЕЦ НОВОГО блока
+          // Удаляем использованный предмет
+          player.inventory[slotIndex] = null;
 
           // Сохраняем изменения
           players.set(id, { ...player });
@@ -862,7 +876,6 @@ function setupWebSocket(
                 energy: player.energy,
                 food: player.food,
                 water: player.water,
-                armor: player.armor,
               },
               inventory: player.inventory,
             })
