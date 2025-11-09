@@ -1064,6 +1064,11 @@ function useItem(slotIndex) {
         me.maxStats.water,
         Math.max(0, me.water + effect.water)
       );
+    if (effect.armor)
+      me.armor = Math.min(
+        me.maxStats.armor,
+        Math.max(0, me.armor + effect.armor)
+      );
 
     // Удаляем использованный предмет
     inventory[slotIndex] = null;
@@ -1080,6 +1085,7 @@ function useItem(slotIndex) {
             energy: me.energy,
             food: me.food,
             water: me.water,
+            armor: me.armor,
           },
           inventory,
         })
@@ -1707,13 +1713,6 @@ function handleGameMessage(event) {
       case "tradeConfirmed":
       case "tradeCompleted":
         window.tradeSystem.handleTradeMessage(data);
-        break;
-      case "useAtomSuccess":
-        me = players.get(myId);
-        me.armor = data.armor;
-        inventory = data.inventory;
-        updateStatsDisplay();
-        updateInventoryDisplay();
         break;
       case "useItemSuccess":
         me = players.get(myId);
