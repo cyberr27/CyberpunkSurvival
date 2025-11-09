@@ -577,6 +577,7 @@ function handleAuthMessage(event) {
         data.upgradePoints
         // Теперь не нужно передавать upgrade-поля — они уже в me
       );
+      window.equipmentSystem.syncEquipment(data.equipment);
       resizeCanvas();
       ws.onmessage = handleGameMessage;
       startGame();
@@ -1966,7 +1967,13 @@ function draw(deltaTime) {
     ctx.fillStyle = "red";
     ctx.fillRect(screenX, screenY - 15, 70, 5);
     ctx.fillStyle = "green";
-    ctx.fillRect(screenX, screenY - 15, (player.health / 100) * 70, 5);
+    const displayHealth = Math.min(player.health, player.maxStats.health);
+    ctx.fillRect(
+      screenX,
+      screenY - 15,
+      (displayHealth / player.maxStats.health) * 70,
+      5
+    );
   });
 
   if (currentWorld.veg.complete) {

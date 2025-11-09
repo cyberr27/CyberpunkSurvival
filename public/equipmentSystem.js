@@ -143,12 +143,6 @@ const equipmentSystem = {
 
     // Синхронизация экипировки при загрузке
     const me = players.get(myId);
-    if (me && me.equipment) {
-      this.syncEquipment(me.equipment);
-      this.updateEquipmentDisplay();
-      this.applyEquipmentEffects(me);
-      this.lastApplied = true; // Устанавливаем флаг применения
-    }
 
     this.isInitialized = true; // Устанавливаем флаг инициализации
   },
@@ -429,13 +423,6 @@ const equipmentSystem = {
         }
       }
     });
-
-    // Ограничиваем текущие характеристики максимумами
-    player.health = Math.min(player.health, player.maxStats.health);
-    player.energy = Math.min(player.energy, player.maxStats.energy);
-    player.food = Math.min(player.food, player.maxStats.food);
-    player.water = Math.min(player.water, player.maxStats.water);
-    player.armor = Math.min(player.armor, player.maxStats.armor);
   },
 
   syncEquipment: function (equipment) {

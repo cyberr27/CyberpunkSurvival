@@ -74,13 +74,6 @@ function setupWebSocket(
             jackMet: false,
             level: 0,
             xp: 99,
-            maxStats: {
-              health: 100,
-              energy: 100,
-              food: 100,
-              water: 100,
-              armor: 0,
-            }, // Added armor: 0
             upgradePoints: 0,
             availableQuests: [],
             worldId: 0,
@@ -202,13 +195,6 @@ function setupWebSocket(
             selectedQuestId: player.selectedQuestId || null,
             level: player.level || 0,
             xp: player.xp || 0,
-            maxStats: player.maxStats || {
-              health: 100,
-              energy: 100,
-              food: 100,
-              water: 100,
-              armor: 0,
-            },
             upgradePoints: player.upgradePoints || 0,
             availableQuests: player.availableQuests || [],
             worldId: player.worldId || 0,
@@ -414,18 +400,6 @@ function setupWebSocket(
           const player = players.get(id);
           player.level = data.level;
           player.xp = data.xp;
-          player.maxStats = {
-            health: Math.max(
-              data.maxStats?.health || 100,
-              player.maxStats.health
-            ),
-            energy: Math.max(
-              data.maxStats?.energy || 100,
-              player.maxStats.energy
-            ),
-            food: Math.max(data.maxStats?.food || 100, player.maxStats.food),
-            water: Math.max(data.maxStats?.water || 100, player.maxStats.water),
-          };
           player.upgradePoints = data.upgradePoints || 0;
           players.set(id, { ...player });
           userDatabase.set(id, { ...player });

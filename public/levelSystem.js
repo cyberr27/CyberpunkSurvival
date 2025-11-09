@@ -44,12 +44,22 @@ function updateStatsDisplay() {
       return;
     }
     statsEl.innerHTML = `
-      <span class="health">Здоровье: ${me.health}/${me.maxStats.health}</span><br>
-      <span class="energy">Энергия: ${me.energy}/${me.maxStats.energy}</span><br>
-      <span class="food">Еда: ${me.food}/${me.maxStats.food}</span><br>
-      <span class="water">Вода: ${me.water}/${me.maxStats.water}</span><br>
-      <span class="armor">Броня: ${me.armor}/${me.maxStats.armor}</span>
-    `;
+  <span class="health">Здоровье: ${Math.min(me.health, me.maxStats.health)}/${
+      me.maxStats.health
+    }</span><br>
+  <span class="energy">Энергия: ${Math.min(me.energy, me.maxStats.energy)}/${
+      me.maxStats.energy
+    }</span><br>
+  <span class="food">Еда: ${Math.min(me.food, me.maxStats.food)}/${
+      me.maxStats.food
+    }</span><br>
+  <span class="water">Вода: ${Math.min(me.water, me.maxStats.water)}/${
+      me.maxStats.water
+    }</span><br>
+  <span class="armor">Броня: ${Math.min(me.armor, me.maxStats.armor)}/${
+      me.maxStats.armor
+    }</span>
+`;
     updateUpgradeButtons();
   } catch (error) {}
 }
@@ -214,6 +224,10 @@ function setLevelData(level, xp, maxStatsData, upgradePointsData) {
 
     window.levelSystem.maxStats = { ...maxStats };
 
+    if (window.equipmentSystem && me) {
+      window.equipmentSystem.applyEquipmentEffects(me);
+    }
+
     if (!isInitialized) {
       initializeLevelSystem();
     }
@@ -269,7 +283,6 @@ function handleItemPickup(itemType, isDroppedByPlayer) {
           type: "updateLevel",
           level: currentLevel,
           xp: currentXP,
-          maxStats: { ...maxStats },
           upgradePoints,
         })
       );
@@ -312,7 +325,6 @@ function handleQuestCompletion(rarity) {
           type: "updateLevel",
           level: currentLevel,
           xp: currentXP,
-          maxStats: { ...maxStats },
           upgradePoints,
         })
       );
@@ -341,7 +353,6 @@ function checkLevelUp() {
             type: "updateLevel",
             level: currentLevel,
             xp: currentXP,
-            maxStats: { ...maxStats },
             upgradePoints,
           })
         );
