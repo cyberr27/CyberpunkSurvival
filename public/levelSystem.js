@@ -112,6 +112,9 @@ function createUpgradeButtons() {
           me[upgradeField] = window.levelSystem[upgradeField]; // сохраняем в игроке
         }
 
+        // НОВОЕ: Переприменяем эффекты экипировки к новому base + upgrades
+        window.equipmentSystem.applyEquipmentEffects(me);
+
         updateStatsDisplay();
 
         if (ws.readyState === WebSocket.OPEN) {
@@ -119,7 +122,6 @@ function createUpgradeButtons() {
             ws,
             JSON.stringify({
               type: "updateMaxStats",
-              maxStats: { ...maxStats },
               upgradePoints,
               healthUpgrade: window.levelSystem.healthUpgrade || 0,
               energyUpgrade: window.levelSystem.energyUpgrade || 0,
@@ -201,13 +203,13 @@ function setLevelData(level, xp, maxStatsData, upgradePointsData) {
     window.levelSystem.foodUpgrade = me.foodUpgrade || 0;
     window.levelSystem.waterUpgrade = me.waterUpgrade || 0;
 
-    // БЕРЁМ maxStats ПРЯМО С СЕРВЕРА (УЖЕ С УЧЁТОМ UPGRADE, БЕЗ ПЕРЕСЧЁТА)
+    // ВЫЧИСЛЯЕМ maxStats ИЗ UPGRADE (base 100 + upgrades, armor 0; equip добавится позже в applyEquipmentEffects)
     maxStats = {
-      health: maxStatsData?.health || 100,
-      energy: maxStatsData?.energy || 100,
-      food: maxStatsData?.food || 100,
-      water: maxStatsData?.water || 100,
-      armor: maxStatsData?.armor || 0,
+      health: 100 + window.levelSystem.healthUpgrade,
+      energy: 100 + window.levelSystem.energyUpgrade,
+      food: 100 + window.levelSystem.foodUpgrade,
+      water: 100 + window.levelSystem.waterUpgrade,
+      armor: 0, // Броня только от equip
     };
 
     window.levelSystem.maxStats = { ...maxStats };

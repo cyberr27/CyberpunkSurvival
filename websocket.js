@@ -246,7 +246,6 @@ function setupWebSocket(
               selectedQuestId: playerData.selectedQuestId,
               level: playerData.level,
               xp: playerData.xp,
-              maxStats: playerData.maxStats,
               upgradePoints: playerData.upgradePoints,
               availableQuests: playerData.availableQuests,
               worldId: playerData.worldId,
@@ -446,9 +445,7 @@ function setupWebSocket(
         const id = clients.get(ws);
         if (id) {
           const player = players.get(id);
-          player.maxStats = data.maxStats;
           player.upgradePoints = data.upgradePoints;
-
           // СОХРАНЯЕМ UPGRADE ПОЛЯ
           player.healthUpgrade =
             data.healthUpgrade || player.healthUpgrade || 0;
@@ -456,16 +453,9 @@ function setupWebSocket(
             data.energyUpgrade || player.energyUpgrade || 0;
           player.foodUpgrade = data.foodUpgrade || player.foodUpgrade || 0;
           player.waterUpgrade = data.waterUpgrade || player.waterUpgrade || 0;
-
-          player.health = player.maxStats.health;
-          player.energy = player.maxStats.energy;
-          player.food = player.maxStats.food;
-          player.water = player.maxStats.water;
-
           players.set(id, { ...player });
           userDatabase.set(id, { ...player });
           await saveUserDatabase(dbCollection, id, player);
-
           wss.clients.forEach((client) => {
             if (
               client.readyState === WebSocket.OPEN &&
