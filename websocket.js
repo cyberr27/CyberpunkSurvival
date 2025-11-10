@@ -19,6 +19,53 @@ function setupWebSocket(
     return false; // Keeping as is
   }
 
+  function calculateMaxStats(player, ITEM_CONFIG) {
+    // Базовые значения: 100 + upgrades (armor без upgrade, базово 0)
+    const baseStats = {
+      health: 100 + (player.healthUpgrade || 0),
+      energy: 100 + (player.energyUpgrade || 0),
+      food: 100 + (player.foodUpgrade || 0),
+      water: 100 + (player.waterUpgrade || 0),
+      armor: 0, // Armor только от экипировки, без upgrade
+    };
+
+    // Сбрасываем damage (предполагаем только одно оружие)
+    player.damage = 0; // Или { min: 0, max: 0 } для melee
+
+    // Добавляем эффекты от всей текущей экипировки
+    Object.values(player.equipment || {}).forEach((item) => {
+      if (item && ITEM_CONFIG[item.type] && ITEM_CONFIG[item.type].effect) {
+        const effect = ITEM_CONFIG[item.type].effect;
+        if (effect.armor) baseStats.armor += effect.armor;
+        if (effect.health) baseStats.health += effect.health;
+        if (effect.energy) baseStats.energy += effect.energy;
+        if (effect.food) baseStats.food += effect.food;
+        if (effect.water) baseStats.water += effect.water;
+        if (effect.damage) {
+          if (
+            typeof effect.damage === "object" &&
+            effect.damage.min &&
+            effect.damage.max
+          ) {
+            player.damage = { ...effect.damage }; // Для melee (min-max)
+          } else {
+            player.damage += effect.damage; // Для ranged
+          }
+        }
+      }
+    });
+
+    // Устанавливаем новые maxStats
+    player.maxStats = { ...baseStats };
+
+    // Обрезаем текущие статы по новым максимумам (не трогаем, если <= max)
+    player.health = Math.min(player.health, player.maxStats.health);
+    player.energy = Math.min(player.energy, player.maxStats.energy);
+    player.food = Math.min(player.food, player.maxStats.food);
+    player.water = Math.min(player.water, player.maxStats.water);
+    player.armor = Math.min(player.armor, player.maxStats.armor);
+  }
+
   wss.on("connection", (ws) => {
     console.log("Client connected");
 
@@ -540,46 +587,8 @@ function setupWebSocket(
         };
         player.equipment[slotName] = null;
 
-        // Пересчитываем maxStats (снимаем эффекты предмета)
-        const itemType = player.inventory[inventorySlot].type;
-        const itemConfig = ITEM_CONFIG[itemType];
-        if (itemConfig && itemConfig.effect) {
-          if (itemConfig.effect.armor)
-            player.maxStats.armor = Math.max(
-              0,
-              player.maxStats.armor - itemConfig.effect.armor
-            );
-          if (itemConfig.effect.health)
-            player.maxStats.health = Math.max(
-              100,
-              player.maxStats.health - itemConfig.effect.health
-            );
-          if (itemConfig.effect.energy)
-            player.maxStats.energy = Math.max(
-              100,
-              player.maxStats.energy - itemConfig.effect.energy
-            );
-          if (itemConfig.effect.food)
-            player.maxStats.food = Math.max(
-              100,
-              player.maxStats.food - itemConfig.effect.food
-            );
-          if (itemConfig.effect.water)
-            player.maxStats.water = Math.max(
-              100,
-              player.maxStats.water - itemConfig.effect.water
-            );
-          if (itemConfig.effect.damage) {
-            player.damage = player.damage ? { min: 0, max: 0 } : 0; // Сбрасываем урон, если был
-          }
-        }
-
-        // Ограничиваем текущие статы новыми максимумами
-        player.armor = Math.min(player.armor, player.maxStats.armor);
-        player.health = Math.min(player.health, player.maxStats.health);
-        player.energy = Math.min(player.energy, player.maxStats.energy);
-        player.food = Math.min(player.food, player.maxStats.food);
-        player.water = Math.min(player.water, player.maxStats.water);
+        // Полностью пересчитываем maxStats и обрезаем текущие статы
+        calculateMaxStats(player, ITEM_CONFIG);
 
         // Сохраняем изменения
         players.set(playerId, { ...player });
@@ -851,6 +860,15 @@ function setupWebSocket(
                 );
                 if (freeSlot !== -1) {
                   player.inventory[freeSlot] = player.equipment[slotName];
+                } else {
+                  // Если нет места для swap, отменяем (добавил проверку, которой не было)
+                  ws.send(
+                    JSON.stringify({
+                      type: "equipItemFail",
+                      error: "Нет места в инвентаре для замены",
+                    })
+                  );
+                  return;
                 }
               }
               player.equipment[slotName] = {
@@ -859,21 +877,54 @@ function setupWebSocket(
               };
               player.inventory[slotIndex] = null;
 
+              // Полностью пересчитываем maxStats и обрезаем текущие статы
+              calculateMaxStats(player, ITEM_CONFIG);
+
+              // Сохраняем изменения
               players.set(id, { ...player });
               userDatabase.set(id, { ...player });
               await saveUserDatabase(dbCollection, id, player);
 
+              // Отправляем обновление клиенту (с новыми статами)
+              ws.send(
+                JSON.stringify({
+                  type: "update",
+                  player: {
+                    id,
+                    inventory: player.inventory,
+                    equipment: player.equipment,
+                    maxStats: player.maxStats,
+                    health: player.health,
+                    energy: player.energy,
+                    food: player.food,
+                    water: player.water,
+                    armor: player.armor,
+                    damage: player.damage,
+                  },
+                })
+              );
+
+              // Отправляем обновление другим игрокам в том же мире (только статы, если нужно)
               wss.clients.forEach((client) => {
-                if (
-                  client.readyState === WebSocket.OPEN &&
-                  clients.get(client) === id
-                ) {
-                  client.send(
-                    JSON.stringify({
-                      type: "update",
-                      player: { id, ...player },
-                    })
-                  );
+                if (client !== ws && client.readyState === WebSocket.OPEN) {
+                  const clientPlayer = players.get(clients.get(client));
+                  if (clientPlayer && clientPlayer.worldId === player.worldId) {
+                    client.send(
+                      JSON.stringify({
+                        type: "update",
+                        player: {
+                          id,
+                          maxStats: player.maxStats,
+                          health: player.health,
+                          energy: player.energy,
+                          food: player.food,
+                          water: player.water,
+                          armor: player.armor,
+                          damage: player.damage,
+                        },
+                      })
+                    );
+                  }
                 }
               });
             }
