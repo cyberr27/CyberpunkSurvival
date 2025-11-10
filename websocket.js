@@ -812,9 +812,15 @@ function setupWebSocket(
               player.armor + effect.armor,
               player.maxStats.armor
             );
-
-          // Удаляем использованный предмет
-          player.inventory[slotIndex] = null;
+          if (ITEM_CONFIG[item.type].stackable) {
+            if (item.quantity > 1) {
+              player.inventory[slotIndex].quantity -= 1;
+            } else {
+              player.inventory[slotIndex] = null;
+            }
+          } else {
+            player.inventory[slotIndex] = null;
+          }
 
           // Сохраняем изменения
           players.set(id, { ...player });

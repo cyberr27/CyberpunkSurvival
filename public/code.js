@@ -1071,8 +1071,15 @@ function useItem(slotIndex) {
         Math.max(0, me.armor + effect.armor)
       );
 
-    // Удаляем использованный предмет
-    inventory[slotIndex] = null;
+    if (ITEM_CONFIG[item.type].stackable) {
+      if (item.quantity > 1) {
+        inventory[slotIndex].quantity -= 1;
+      } else {
+        inventory[slotIndex] = null;
+      }
+    } else {
+      inventory[slotIndex] = null;
+    }
 
     // Отправляем обновление на сервер
     if (ws.readyState === WebSocket.OPEN) {
