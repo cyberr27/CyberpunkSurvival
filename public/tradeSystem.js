@@ -8,7 +8,6 @@ const tradeSystem = {
   partnerOffer: Array(4).fill(null), // Было 3, стало 4
   myConfirmed: false,
   partnerConfirmed: false,
-  isQuantityFormActive: false, // Новый флаг для блокировки hover пока форма активна
 
   initialize(ws) {
     this.ws = ws;
@@ -306,66 +305,34 @@ const tradeSystem = {
     const item = inventory[slotIndex];
     if (!item || this.myConfirmed || this.partnerConfirmed) return;
 
-    const offeredQuantities = this.calculateOfferedQuantities();
-    const availableQty =
-      (item.quantity || 1) - (offeredQuantities[slotIndex] || 0);
-    if (availableQty <= 0) return;
-
     const freeSlot = this.myOffer.findIndex((slot) => slot === null);
     if (freeSlot === -1) return;
 
-    const isStackable = item.type === "balyary" || item.type === "atom";
-    if (isStackable) {
-      // Показываем форму ввода количества на tradeScreen
-      this.showQuantityInputForm(slotIndex, availableQty, (qty) => {
-        if (qty > 0 && qty <= availableQty) {
-          const offerItem = {
-            type: item.type,
-            quantity: qty,
-            originalSlot: slotIndex,
-          };
-          if (qty === availableQty && item.quantity) {
-            offerItem.itemId = item.itemId; // Если весь стек, копируем ID если есть
-          }
-          this.myOffer[freeSlot] = offerItem;
+    // Не добавлять один и тот же слот дважды
+    if (
+      this.myOffer.some(
+        (offerItem) => offerItem && offerItem.originalSlot === slotIndex
+      )
+    )
+      return;
 
-          // Отправляем обновление
-          sendWhenReady(
-            this.ws,
-            JSON.stringify({
-              type: "tradeOffer",
-              fromId: myId,
-              toId: this.tradePartnerId,
-              offer: this.myOffer,
-              inventory: inventory,
-            })
-          );
+    // Добавляем предмет в предложение (только ссылка на слот)
+    this.myOffer[freeSlot] = { ...item, originalSlot: slotIndex };
 
-          this.updateTradeWindow();
-          updateInventoryDisplay();
-        }
-        // Восстанавливаем tradeScreen в режим описания
-        this.showItemDescription(null);
-      });
-    } else {
-      // Для non-stackable - как раньше
-      this.myOffer[freeSlot] = { ...item, originalSlot: slotIndex };
+    // inventory не меняем! В tradeOffer отправляем inventory как есть
+    sendWhenReady(
+      this.ws,
+      JSON.stringify({
+        type: "tradeOffer",
+        fromId: myId,
+        toId: this.tradePartnerId,
+        offer: this.myOffer,
+        inventory: inventory,
+      })
+    );
 
-      // inventory не меняем! В tradeOffer отправляем inventory как есть
-      sendWhenReady(
-        this.ws,
-        JSON.stringify({
-          type: "tradeOffer",
-          fromId: myId,
-          toId: this.tradePartnerId,
-          offer: this.myOffer,
-          inventory: inventory,
-        })
-      );
-
-      this.updateTradeWindow();
-      updateInventoryDisplay();
-    }
+    this.updateTradeWindow();
+    updateInventoryDisplay();
   },
 
   removeFromOffer(slotIndex) {
@@ -448,18 +415,16 @@ const tradeSystem = {
     const partnerOfferGrid =
       document.getElementById("partnerOfferGrid").children;
 
-    // Вычисляем offeredQuantities по originalSlot
-    const offeredQuantities = this.calculateOfferedQuantities();
+    // Слоты, которые участвуют в предложении
+    const offeredSlots = this.myOffer
+      .filter(Boolean)
+      .map((item) => item.originalSlot);
 
     // Обновляем myTradeGrid (инвентарь)
     for (let i = 0; i < myTradeGrid.length; i++) {
       myTradeGrid[i].innerHTML = "";
       if (inventory[i] && inventory[i].type) {
         const img = document.createElement("img");
-        const itemQty = inventory[i].quantity || 1;
-        const offeredQty = offeredQuantities[i] || 0;
-        const remainingQty = itemQty - offeredQty;
-
         if (inventory[i].type === "atom") {
           // Для атома используем sprite sheet
           img.src = ITEM_CONFIG[inventory[i].type].image.src;
@@ -477,20 +442,10 @@ const tradeSystem = {
           img.style.width = "100%";
           img.style.height = "100%";
         }
-        if (remainingQty <= 0) {
+        if (offeredSlots.includes(i)) {
           img.style.opacity = "0.3"; // Визуально скрываем/делаем неактивным
         }
         myTradeGrid[i].appendChild(img);
-
-        // Отображаем количество для stackable, если >1 или remaining
-        if (
-          (inventory[i].type === "balyary" || inventory[i].type === "atom") &&
-          remainingQty > 1
-        ) {
-          const qtyDiv = document.createElement("div");
-          qtyDiv.textContent = remainingQty;
-          myTradeGrid[i].appendChild(qtyDiv);
-        }
       }
     }
 
@@ -504,7 +459,7 @@ const tradeSystem = {
           img.style.width = "100%";
           img.style.height = "100%";
           img.style.objectFit = "none";
-          img.style.objectPosition = `-${
+          img.style.objectPosition = `-{${
             this.atomAnimations.myOfferGrid[i].frame * 50
           }px 0`;
           img.dataset.isAtom = "true";
@@ -516,18 +471,6 @@ const tradeSystem = {
           img.style.height = "100%";
         }
         myOfferGrid[i].appendChild(img);
-
-        // Отображаем количество для stackable
-        const offerQty = this.myOffer[i].quantity || 1;
-        if (
-          (this.myOffer[i].type === "balyary" ||
-            this.myOffer[i].type === "atom") &&
-          offerQty > 1
-        ) {
-          const qtyDiv = document.createElement("div");
-          qtyDiv.textContent = offerQty;
-          myOfferGrid[i].appendChild(qtyDiv);
-        }
       }
     }
 
@@ -541,7 +484,7 @@ const tradeSystem = {
           img.style.width = "100%";
           img.style.height = "100%";
           img.style.objectFit = "none";
-          img.style.objectPosition = `-${
+          img.style.objectPosition = `-{${
             this.atomAnimations.partnerOfferGrid[i].frame * 50
           }px 0`;
           img.dataset.isAtom = "true";
@@ -553,18 +496,6 @@ const tradeSystem = {
           img.style.height = "100%";
         }
         partnerOfferGrid[i].appendChild(img);
-
-        // Отображаем количество для stackable
-        const offerQty = this.partnerOffer[i].quantity || 1;
-        if (
-          (this.partnerOffer[i].type === "balyary" ||
-            this.partnerOffer[i].type === "atom") &&
-          offerQty > 1
-        ) {
-          const qtyDiv = document.createElement("div");
-          qtyDiv.textContent = offerQty;
-          partnerOfferGrid[i].appendChild(qtyDiv);
-        }
       }
     }
 
@@ -572,7 +503,6 @@ const tradeSystem = {
   },
 
   showItemDescription(item) {
-    if (this.isQuantityFormActive) return; // Блокируем изменения, если форма активна
     const tradeScreen = document.getElementById("tradeScreen");
     if (item && item.type && ITEM_CONFIG && ITEM_CONFIG[item.type]) {
       const config = ITEM_CONFIG[item.type];
@@ -604,7 +534,7 @@ const tradeSystem = {
               `#myTradeGrid .trade-slot[data-slot-index="${i}"] img[data-is-atom="true"]`
             );
             if (img) {
-              img.style.objectPosition = `-${
+              img.style.objectPosition = `-{${
                 this.atomAnimations.myTradeGrid[i].frame * 50
               }px 0`;
             }
@@ -628,7 +558,7 @@ const tradeSystem = {
               `#myOfferGrid .offer-slot[data-slot-index="${i}"] img[data-is-atom="true"]`
             );
             if (img) {
-              img.style.objectPosition = `-${
+              img.style.objectPosition = `-{${
                 this.atomAnimations.myOfferGrid[i].frame * 50
               }px 0`;
             }
@@ -654,7 +584,7 @@ const tradeSystem = {
               `#partnerOfferGrid .offer-slot[data-slot-index="${i}"] img[data-is-atom="true"]`
             );
             if (img) {
-              img.style.objectPosition = `-${
+              img.style.objectPosition = `-{${
                 this.atomAnimations.partnerOfferGrid[i].frame * 50
               }px 0`;
             }
@@ -732,50 +662,6 @@ const tradeSystem = {
       case "tradeError":
         break;
     }
-  },
-
-  // Новая функция: вычисляет суммарно предложенное по originalSlot
-  calculateOfferedQuantities() {
-    const offeredQuantities = {};
-    this.myOffer.forEach((offerItem) => {
-      if (offerItem && offerItem.originalSlot !== undefined) {
-        const slot = offerItem.originalSlot;
-        offeredQuantities[slot] =
-          (offeredQuantities[slot] || 0) + (offerItem.quantity || 1);
-      }
-    });
-    return offeredQuantities;
-  },
-
-  // Новая функция: показывает форму ввода количества на tradeScreen
-  showQuantityInputForm(slotIndex, maxQty, callback) {
-    const tradeScreen = document.getElementById("tradeScreen");
-    const originalContent = tradeScreen.innerHTML; // Сохраняем оригинал для восстановления
-    this.isQuantityFormActive = true; // Устанавливаем флаг
-
-    tradeScreen.innerHTML = `
-      <div class="balyary-drop-form">
-        <p class="cyber-text">Введите количество:</p>
-        <input type="number" class="cyber-input" id="tradeQtyInput" min="1" max="${maxQty}" value="1">
-        <div class="trade-buttons">
-          <button id="confirmQtyBtn" class="action-btn use-btn">Подтвердить</button>
-          <button id="cancelQtyBtn" class="action-btn drop-btn">Отмена</button>
-        </div>
-      </div>
-    `;
-
-    document.getElementById("confirmQtyBtn").addEventListener("click", () => {
-      const qty = parseInt(document.getElementById("tradeQtyInput").value);
-      callback(qty);
-      tradeScreen.innerHTML = originalContent; // Восстанавливаем
-      this.isQuantityFormActive = false; // Сбрасываем флаг
-    });
-
-    document.getElementById("cancelQtyBtn").addEventListener("click", () => {
-      callback(0); // Отмена
-      tradeScreen.innerHTML = originalContent; // Восстанавливаем
-      this.isQuantityFormActive = false; // Сбрасываем флаг
-    });
   },
 };
 
