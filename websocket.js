@@ -1109,26 +1109,12 @@ function setupWebSocket(
         const playerA = players.get(fromId);
         const playerB = players.get(toId);
 
-        // Checks: distance, health, not already trading
+        // УБРАНЫ ПРОВЕРКИ НА РАССТОЯНИЕ И ЗДОРОВЬЕ
         if (!playerA || !playerB || playerA.worldId !== playerB.worldId) return;
-        const dx = playerA.x - playerB.x;
-        const dy = playerA.y - playerB.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        if (distance > 1000 || playerA.health <= 0 || playerB.health <= 0) {
-          ws.send(
-            JSON.stringify({
-              type: "tradeError",
-              message: "Too far or dead",
-            })
-          );
-          return;
-        }
 
-        // Save request
         const tradeKey = `${fromId}-${toId}`;
         tradeRequests.set(tradeKey, { status: "pending" });
 
-        // Send request to player B
         wss.clients.forEach((client) => {
           if (
             client.readyState === WebSocket.OPEN &&

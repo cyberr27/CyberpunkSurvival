@@ -1,11 +1,11 @@
-// tradeSystem.js (исправленный с hover для tradeScreen)
+// tradeSystem.js (обновлён: убраны проверки расстояния и здоровья)
 const tradeSystem = {
   isTradeWindowOpen: false,
   selectedPlayerId: null,
   tradePartnerId: null,
   tradeStatus: null, // 'pending', 'accepted', 'confirmed', 'completed', 'cancelled'
-  myOffer: Array(4).fill(null), // Было 3, стало 4
-  partnerOffer: Array(4).fill(null), // Было 3, стало 4
+  myOffer: Array(4).fill(null),
+  partnerOffer: Array(4).fill(null),
   myConfirmed: false,
   partnerConfirmed: false,
 
@@ -22,12 +22,11 @@ const tradeSystem = {
     tradeBtn.className = "cyber-btn-img";
     tradeBtn.src = "images/trade.png";
     tradeBtn.alt = "Trade";
-    tradeBtn.style.pointerEvents =
-      this.selectedPlayerId && this.canInitiateTrade() ? "auto" : "none"; // Управляем кликабельностью
+    tradeBtn.style.pointerEvents = this.selectedPlayerId ? "auto" : "none";
     document.getElementById("gameContainer").appendChild(tradeBtn);
 
     tradeBtn.addEventListener("click", () => {
-      if (this.selectedPlayerId && this.canInitiateTrade()) {
+      if (this.selectedPlayerId) {
         this.sendTradeRequest(this.selectedPlayerId);
       }
     });
@@ -36,9 +35,8 @@ const tradeSystem = {
   selectPlayer(playerId) {
     this.selectedPlayerId = playerId;
     const tradeBtn = document.getElementById("tradeBtn");
-    tradeBtn.style.pointerEvents =
-      playerId && this.canInitiateTrade() ? "auto" : "none";
-    tradeBtn.style.opacity = playerId && this.canInitiateTrade() ? "1" : "0.5";
+    tradeBtn.style.pointerEvents = playerId ? "auto" : "none";
+    tradeBtn.style.opacity = playerId ? "1" : "0.5";
   },
 
   setupTradeDialog() {
@@ -88,7 +86,7 @@ const tradeSystem = {
     `;
     document.getElementById("gameContainer").appendChild(tradeWindow);
 
-    // Создаём слоты для myTradeGrid (20 слотов инвентаря)
+    // 20 слотов инвентаря
     for (let i = 0; i < 20; i++) {
       const slot = document.createElement("div");
       slot.className = "trade-slot";
@@ -96,7 +94,7 @@ const tradeSystem = {
       document.getElementById("myTradeGrid").appendChild(slot);
     }
 
-    // Создаём 4 слота для myOfferGrid
+    // 4 слота для предложений
     for (let i = 0; i < 4; i++) {
       const slot = document.createElement("div");
       slot.className = "offer-slot";
@@ -104,7 +102,6 @@ const tradeSystem = {
       document.getElementById("myOfferGrid").appendChild(slot);
     }
 
-    // Создаём 4 слота для partnerOfferGrid
     for (let i = 0; i < 4; i++) {
       const slot = document.createElement("div");
       slot.className = "offer-slot";
@@ -112,8 +109,7 @@ const tradeSystem = {
       document.getElementById("partnerOfferGrid").appendChild(slot);
     }
 
-    // ★★★ НОВЫЕ HOVER LISTENERS ДЛЯ ВСЕХ ГРИДОВ ★★★
-    // Hover для myTradeGrid (ваш инвентарь)
+    // HOVER LISTENERS (все гриды)
     document
       .getElementById("myTradeGrid")
       .addEventListener("mouseover", (e) => {
@@ -128,7 +124,6 @@ const tradeSystem = {
       tradeSystem.showItemDescription(null);
     });
 
-    // Hover для myOfferGrid (ваше предложение)
     document
       .getElementById("myOfferGrid")
       .addEventListener("mouseover", (e) => {
@@ -143,7 +138,6 @@ const tradeSystem = {
       tradeSystem.showItemDescription(null);
     });
 
-    // Hover для partnerOfferGrid (предложение партнёра)
     document
       .getElementById("partnerOfferGrid")
       .addEventListener("mouseover", (e) => {
@@ -159,9 +153,8 @@ const tradeSystem = {
       .addEventListener("mouseout", () => {
         tradeSystem.showItemDescription(null);
       });
-    // ★★★ КОНЕЦ HOVER LISTENERS ★★★
 
-    // Хранилище для анимации атомов
+    // Анимация атомов
     this.atomAnimations = {
       myTradeGrid: Array(20)
         .fill(null)
@@ -198,20 +191,16 @@ const tradeSystem = {
         this.handleCancelTrade();
       });
 
-    // Запускаем анимацию для атомов в окне торговли
     this.startAtomAnimation();
   },
 
+  // УБРАНЫ ПРОВЕРКИ НА РАССТОЯНИЕ И ЗДОРОВЬЕ
   canInitiateTrade() {
     const me = players.get(myId);
     const target = players.get(this.selectedPlayerId);
     if (!me || !target || this.isTradeWindowOpen || this.tradeStatus)
       return false;
-
-    const dx = me.x - target.x;
-    const dy = me.y - target.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    return distance < 1000 && me.health > 0 && target.health > 0;
+    return true; // Любое расстояние, любой health
   },
 
   sendTradeRequest(targetId) {
@@ -258,7 +247,6 @@ const tradeSystem = {
   },
 
   handleCancelTrade() {
-    // Просто отправляем сообщение об отмене и сбрасываем состояние
     sendWhenReady(
       this.ws,
       JSON.stringify({
@@ -277,16 +265,15 @@ const tradeSystem = {
     document.getElementById("tradeWindow").style.display = "flex";
     document.getElementById("tradeBtn").classList.add("active");
     this.updateTradeWindow();
-    this.showItemDescription(null); // Очистить экран при открытии
-    this.startAtomAnimation(); // Запускаем анимацию при открытии окна
+    this.showItemDescription(null);
+    this.startAtomAnimation();
   },
 
   closeTradeWindow() {
     this.isTradeWindowOpen = false;
     document.getElementById("tradeWindow").style.display = "none";
     document.getElementById("tradeBtn").classList.remove("active");
-    this.showItemDescription(null); // Очистить экран
-    // Сбрасываем состояния анимации
+    this.showItemDescription(null);
     this.atomAnimations.myTradeGrid.forEach((anim) => {
       anim.frame = 0;
       anim.frameTime = 0;
@@ -308,7 +295,6 @@ const tradeSystem = {
     const freeSlot = this.myOffer.findIndex((slot) => slot === null);
     if (freeSlot === -1) return;
 
-    // Не добавлять один и тот же слот дважды
     if (
       this.myOffer.some(
         (offerItem) => offerItem && offerItem.originalSlot === slotIndex
@@ -316,10 +302,8 @@ const tradeSystem = {
     )
       return;
 
-    // Добавляем предмет в предложение (только ссылка на слот)
     this.myOffer[freeSlot] = { ...item, originalSlot: slotIndex };
 
-    // inventory не меняем! В tradeOffer отправляем inventory как есть
     sendWhenReady(
       this.ws,
       JSON.stringify({
@@ -339,10 +323,8 @@ const tradeSystem = {
     if (!this.myOffer[slotIndex] || this.myConfirmed || this.partnerConfirmed)
       return;
 
-    // Просто убираем предмет из предложения (в инвентаре он и так есть)
     this.myOffer[slotIndex] = null;
 
-    // inventory не меняем! В tradeOffer отправляем inventory как есть
     sendWhenReady(
       this.ws,
       JSON.stringify({
@@ -406,7 +388,8 @@ const tradeSystem = {
     this.partnerOffer = Array(4).fill(null);
     this.myConfirmed = false;
     this.partnerConfirmed = false;
-    document.getElementById("tradeBtn").disabled = true; // Отключаем кнопку
+    const tradeBtn = document.getElementById("tradeBtn");
+    if (tradeBtn) tradeBtn.disabled = true;
   },
 
   updateTradeWindow() {
@@ -415,26 +398,23 @@ const tradeSystem = {
     const partnerOfferGrid =
       document.getElementById("partnerOfferGrid").children;
 
-    // Слоты, которые участвуют в предложении
     const offeredSlots = this.myOffer
       .filter(Boolean)
       .map((item) => item.originalSlot);
 
-    // Обновляем myTradeGrid (инвентарь)
     for (let i = 0; i < myTradeGrid.length; i++) {
       myTradeGrid[i].innerHTML = "";
       if (inventory[i] && inventory[i].type) {
         const img = document.createElement("img");
         if (inventory[i].type === "atom") {
-          // Для атома используем sprite sheet
           img.src = ITEM_CONFIG[inventory[i].type].image.src;
           img.style.width = "100%";
           img.style.height = "100%";
-          img.style.objectFit = "none"; // Отключаем масштабирование
+          img.style.objectFit = "none";
           img.style.objectPosition = `-${
             this.atomAnimations.myTradeGrid[i].frame * 50
-          }px 0`; // Смещение для текущего кадра
-          img.dataset.isAtom = "true"; // Метка для анимации
+          }px 0`;
+          img.dataset.isAtom = "true";
           img.dataset.slotIndex = i;
           img.dataset.grid = "myTradeGrid";
         } else {
@@ -443,13 +423,12 @@ const tradeSystem = {
           img.style.height = "100%";
         }
         if (offeredSlots.includes(i)) {
-          img.style.opacity = "0.3"; // Визуально скрываем/делаем неактивным
+          img.style.opacity = "0.3";
         }
         myTradeGrid[i].appendChild(img);
       }
     }
 
-    // Обновляем myOfferGrid (ваше предложение)
     for (let i = 0; i < 4; i++) {
       myOfferGrid[i].innerHTML = "";
       if (this.myOffer[i] && this.myOffer[i].type) {
@@ -459,7 +438,7 @@ const tradeSystem = {
           img.style.width = "100%";
           img.style.height = "100%";
           img.style.objectFit = "none";
-          img.style.objectPosition = `-{${
+          img.style.objectPosition = `-${
             this.atomAnimations.myOfferGrid[i].frame * 50
           }px 0`;
           img.dataset.isAtom = "true";
@@ -474,7 +453,6 @@ const tradeSystem = {
       }
     }
 
-    // Обновляем partnerOfferGrid (предложение партнёра)
     for (let i = 0; i < 4; i++) {
       partnerOfferGrid[i].innerHTML = "";
       if (this.partnerOffer[i] && this.partnerOffer[i].type) {
@@ -484,7 +462,7 @@ const tradeSystem = {
           img.style.width = "100%";
           img.style.height = "100%";
           img.style.objectFit = "none";
-          img.style.objectPosition = `-{${
+          img.style.objectPosition = `-${
             this.atomAnimations.partnerOfferGrid[i].frame * 50
           }px 0`;
           img.dataset.isAtom = "true";
@@ -506,9 +484,7 @@ const tradeSystem = {
     const tradeScreen = document.getElementById("tradeScreen");
     if (item && item.type && ITEM_CONFIG && ITEM_CONFIG[item.type]) {
       const config = ITEM_CONFIG[item.type];
-      let description = config.description || "Нет описания";
-
-      tradeScreen.textContent = description;
+      tradeScreen.textContent = config.description || "Нет описания";
     } else {
       tradeScreen.textContent = "Наведите на предмет для просмотра свойств";
     }
@@ -516,91 +492,56 @@ const tradeSystem = {
 
   startAtomAnimation() {
     const animate = (timestamp) => {
-      if (!this.isTradeWindowOpen) return; // Останавливаем анимацию, если окно закрыто
+      if (!this.isTradeWindowOpen) return;
 
       const deltaTime = timestamp - (this.lastAnimationTime || timestamp);
       this.lastAnimationTime = timestamp;
 
-      // Обновляем анимацию для myTradeGrid
-      for (let i = 0; i < 20; i++) {
-        if (inventory[i] && inventory[i].type === "atom") {
-          this.atomAnimations.myTradeGrid[i].frameTime += deltaTime;
-          const frameDuration = 300; // Скорость анимации, как в code.js
-          if (this.atomAnimations.myTradeGrid[i].frameTime >= frameDuration) {
-            this.atomAnimations.myTradeGrid[i].frameTime -= frameDuration;
-            this.atomAnimations.myTradeGrid[i].frame =
-              (this.atomAnimations.myTradeGrid[i].frame + 1) % 40; // 40 кадров
-            const img = document.querySelector(
-              `#myTradeGrid .trade-slot[data-slot-index="${i}"] img[data-is-atom="true"]`
-            );
-            if (img) {
-              img.style.objectPosition = `-{${
-                this.atomAnimations.myTradeGrid[i].frame * 50
-              }px 0`;
+      const updateGrid = (gridName, items, animArray, gridSelector) => {
+        for (let i = 0; i < items.length; i++) {
+          if (items[i] && items[i].type === "atom") {
+            animArray[i].frameTime += deltaTime;
+            if (animArray[i].frameTime >= 300) {
+              animArray[i].frameTime -= 300;
+              animArray[i].frame = (animArray[i].frame + 1) % 40;
+              const img = document.querySelector(
+                `${gridSelector} [data-slot-index="${i}"] img[data-is-atom="true"]`
+              );
+              if (img) {
+                img.style.objectPosition = `-${animArray[i].frame * 50}px 0`;
+              }
             }
+          } else {
+            animArray[i].frame = 0;
+            animArray[i].frameTime = 0;
           }
-        } else {
-          this.atomAnimations.myTradeGrid[i].frame = 0;
-          this.atomAnimations.myTradeGrid[i].frameTime = 0;
         }
-      }
+      };
 
-      // Обновляем анимацию для myOfferGrid
-      for (let i = 0; i < 4; i++) {
-        if (this.myOffer[i] && this.myOffer[i].type === "atom") {
-          this.atomAnimations.myOfferGrid[i].frameTime += deltaTime;
-          const frameDuration = 300;
-          if (this.atomAnimations.myOfferGrid[i].frameTime >= frameDuration) {
-            this.atomAnimations.myOfferGrid[i].frameTime -= frameDuration;
-            this.atomAnimations.myOfferGrid[i].frame =
-              (this.atomAnimations.myOfferGrid[i].frame + 1) % 40;
-            const img = document.querySelector(
-              `#myOfferGrid .offer-slot[data-slot-index="${i}"] img[data-is-atom="true"]`
-            );
-            if (img) {
-              img.style.objectPosition = `-{${
-                this.atomAnimations.myOfferGrid[i].frame * 50
-              }px 0`;
-            }
-          }
-        } else {
-          this.atomAnimations.myOfferGrid[i].frame = 0;
-          this.atomAnimations.myOfferGrid[i].frameTime = 0;
-        }
-      }
-
-      // Обновляем анимацию для partnerOfferGrid
-      for (let i = 0; i < 4; i++) {
-        if (this.partnerOffer[i] && this.partnerOffer[i].type === "atom") {
-          this.atomAnimations.partnerOfferGrid[i].frameTime += deltaTime;
-          const frameDuration = 300;
-          if (
-            this.atomAnimations.partnerOfferGrid[i].frameTime >= frameDuration
-          ) {
-            this.atomAnimations.partnerOfferGrid[i].frameTime -= frameDuration;
-            this.atomAnimations.partnerOfferGrid[i].frame =
-              (this.atomAnimations.partnerOfferGrid[i].frame + 1) % 40;
-            const img = document.querySelector(
-              `#partnerOfferGrid .offer-slot[data-slot-index="${i}"] img[data-is-atom="true"]`
-            );
-            if (img) {
-              img.style.objectPosition = `-{${
-                this.atomAnimations.partnerOfferGrid[i].frame * 50
-              }px 0`;
-            }
-          }
-        } else {
-          this.atomAnimations.partnerOfferGrid[i].frame = 0;
-          this.atomAnimations.partnerOfferGrid[i].frameTime = 0;
-        }
-      }
+      updateGrid(
+        "myTradeGrid",
+        inventory,
+        this.atomAnimations.myTradeGrid,
+        "#myTradeGrid .trade-slot"
+      );
+      updateGrid(
+        "myOfferGrid",
+        this.myOffer,
+        this.atomAnimations.myOfferGrid,
+        "#myOfferGrid .offer-slot"
+      );
+      updateGrid(
+        "partnerOfferGrid",
+        this.partnerOffer,
+        this.atomAnimations.partnerOfferGrid,
+        "#partnerOfferGrid .offer-slot"
+      );
 
       if (this.isTradeWindowOpen) {
         requestAnimationFrame(animate);
       }
     };
 
-    // Запускаем анимацию, только если окно торговли открыто
     if (this.isTradeWindowOpen) {
       this.lastAnimationTime = 0;
       requestAnimationFrame(animate);
@@ -617,14 +558,14 @@ const tradeSystem = {
         }
         break;
       case "tradeAccepted":
-        this.tradePartnerId = data.fromId === myId ? data.toId : data.fromId; // Симметрично
+        this.tradePartnerId = data.fromId === myId ? data.toId : data.fromId;
         this.tradeStatus = "accepted";
         this.openTradeWindow();
         break;
       case "tradeOffer":
         if (data.fromId === this.tradePartnerId) {
           this.partnerOffer = data.offer;
-          this.updateTradeWindow(); // Динамическое обновление
+          this.updateTradeWindow();
         }
         break;
       case "tradeConfirmed":
