@@ -1,4 +1,4 @@
-// tradeSystem.js (обновлён: убраны проверки расстояния и здоровья)
+// tradeSystem.js (обновлено: добавлен ввод количества для atom и balyary)
 const tradeSystem = {
   isTradeWindowOpen: false,
   selectedPlayerId: null,
@@ -8,6 +8,13 @@ const tradeSystem = {
   partnerOffer: Array(4).fill(null),
   myConfirmed: false,
   partnerConfirmed: false,
+
+  // Новое: для ввода количества
+  quantityInputActive: false,
+  pendingStackItem: null, // { slotIndex, type, maxQuantity }
+  quantityInput: null,
+  confirmQtyBtn: null,
+  cancelQtyBtn: null,
 
   initialize(ws) {
     this.ws = ws;
@@ -167,10 +174,19 @@ const tradeSystem = {
         .map(() => ({ frame: 0, frameTime: 0 })),
     };
 
+    // Клик по инвентарю — добавление в предложение
     document.getElementById("myTradeGrid").addEventListener("click", (e) => {
       const slot = e.target.closest(".trade-slot");
       if (slot && slot.dataset.slotIndex) {
-        this.addToOffer(parseInt(slot.dataset.slotIndex));
+        const slotIndex = parseInt(slot.dataset.slotIndex);
+        const item = inventory[slotIndex];
+        if (!item || this.myConfirmed || this.partnerConfirmed) return;
+
+        if (item.type === "atom" || item.type === "balyary") {
+          this.showQuantityInput(slotIndex, item);
+        } else {
+          this.addToOfferWithQuantity(slotIndex, 1);
+        }
       }
     });
 
@@ -192,6 +208,95 @@ const tradeSystem = {
       });
 
     this.startAtomAnimation();
+  },
+
+  // Показать ввод количества
+  showQuantityInput(slotIndex, item) {
+    if (this.quantityInputActive) return;
+
+    const maxQty = item.quantity || 1;
+    const tradeScreen = document.getElementById("tradeScreen");
+    tradeScreen.innerHTML = `
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 10px;">
+        <p class="cyber-text" style="margin: 0; font-size: 14px;">Количество (${item.type}):</p>
+        <input type="number" class="cyber-input" id="tradeQtyInput" min="1" max="${maxQty}" value="${maxQty}" style="width: 80px;">
+        <div style="display: flex; gap: 10px;">
+          <button id="confirmQtyBtn" class="action-btn use-btn" style="padding: 5px 10px; font-size: 12px;">Подтвердить</button>
+          <button id="cancelQtyBtn" class="action-btn drop-btn" style="padding: 5px 10px; font-size: 12px;">Отмена</button>
+        </div>
+      </div>
+    `;
+
+    this.quantityInputActive = true;
+    this.pendingStackItem = { slotIndex, type: item.type, maxQuantity: maxQty };
+
+    const input = document.getElementById("tradeQtyInput");
+    const confirmBtn = document.getElementById("confirmQtyBtn");
+    const cancelBtn = document.getElementById("cancelQtyBtn");
+
+    input.focus();
+    input.select();
+
+    const confirmHandler = () => {
+      const qty = parseInt(input.value);
+      if (qty >= 1 && qty <= maxQty) {
+        this.addToOfferWithQuantity(slotIndex, qty);
+      }
+      this.hideQuantityInput();
+    };
+
+    const cancelHandler = () => {
+      this.hideQuantityInput();
+    };
+
+    confirmBtn.onclick = confirmHandler;
+    cancelBtn.onclick = cancelHandler;
+    input.onkeydown = (e) => {
+      if (e.key === "Enter") confirmHandler();
+      if (e.key === "Escape") cancelHandler();
+    };
+  },
+
+  hideQuantityInput() {
+    this.quantityInputActive = false;
+    this.pendingStackItem = null;
+    this.showItemDescription(null);
+  },
+
+  // Универсальное добавление с количеством
+  addToOfferWithQuantity(slotIndex, quantity) {
+    const item = inventory[slotIndex];
+    if (!item || this.myConfirmed || this.partnerConfirmed) return;
+
+    const freeSlot = this.myOffer.findIndex((slot) => slot === null);
+    if (freeSlot === -1) return;
+
+    if (
+      this.myOffer.some(
+        (offerItem) => offerItem && offerItem.originalSlot === slotIndex
+      )
+    )
+      return;
+
+    this.myOffer[freeSlot] = {
+      ...item,
+      originalSlot: slotIndex,
+      quantity: quantity,
+    };
+
+    sendWhenReady(
+      this.ws,
+      JSON.stringify({
+        type: "tradeOffer",
+        fromId: myId,
+        toId: this.tradePartnerId,
+        offer: this.myOffer,
+        inventory: inventory,
+      })
+    );
+
+    this.updateTradeWindow();
+    updateInventoryDisplay();
   },
 
   // УБРАНЫ ПРОВЕРКИ НА РАССТОЯНИЕ И ЗДОРОВЬЕ
@@ -274,6 +379,7 @@ const tradeSystem = {
     document.getElementById("tradeWindow").style.display = "none";
     document.getElementById("tradeBtn").classList.remove("active");
     this.showItemDescription(null);
+    this.hideQuantityInput();
     this.atomAnimations.myTradeGrid.forEach((anim) => {
       anim.frame = 0;
       anim.frameTime = 0;
@@ -286,37 +392,6 @@ const tradeSystem = {
       anim.frame = 0;
       anim.frameTime = 0;
     });
-  },
-
-  addToOffer(slotIndex) {
-    const item = inventory[slotIndex];
-    if (!item || this.myConfirmed || this.partnerConfirmed) return;
-
-    const freeSlot = this.myOffer.findIndex((slot) => slot === null);
-    if (freeSlot === -1) return;
-
-    if (
-      this.myOffer.some(
-        (offerItem) => offerItem && offerItem.originalSlot === slotIndex
-      )
-    )
-      return;
-
-    this.myOffer[freeSlot] = { ...item, originalSlot: slotIndex };
-
-    sendWhenReady(
-      this.ws,
-      JSON.stringify({
-        type: "tradeOffer",
-        fromId: myId,
-        toId: this.tradePartnerId,
-        offer: this.myOffer,
-        inventory: inventory,
-      })
-    );
-
-    this.updateTradeWindow();
-    updateInventoryDisplay();
   },
 
   removeFromOffer(slotIndex) {
@@ -388,6 +463,7 @@ const tradeSystem = {
     this.partnerOffer = Array(4).fill(null);
     this.myConfirmed = false;
     this.partnerConfirmed = false;
+    this.hideQuantityInput();
     const tradeBtn = document.getElementById("tradeBtn");
     if (tradeBtn) tradeBtn.disabled = true;
   },
@@ -426,6 +502,24 @@ const tradeSystem = {
           img.style.opacity = "0.3";
         }
         myTradeGrid[i].appendChild(img);
+
+        // Показ количества в инвентаре
+        if (
+          (inventory[i].type === "atom" || inventory[i].type === "balyary") &&
+          inventory[i].quantity > 1
+        ) {
+          const qty = document.createElement("div");
+          qty.textContent = inventory[i].quantity;
+          qty.style.position = "absolute";
+          qty.style.bottom = "2px";
+          qty.style.right = "2px";
+          qty.style.fontSize = "10px";
+          qty.style.color = "#00ccff";
+          qty.style.fontFamily = "'Orbitron', sans-serif";
+          qty.style.pointerEvents = "none";
+          myTradeGrid[i].style.position = "relative";
+          myTradeGrid[i].appendChild(qty);
+        }
       }
     }
 
@@ -450,6 +544,25 @@ const tradeSystem = {
           img.style.height = "100%";
         }
         myOfferGrid[i].appendChild(img);
+
+        // Показ количества в предложении
+        if (
+          (this.myOffer[i].type === "atom" ||
+            this.myOffer[i].type === "balyary") &&
+          this.myOffer[i].quantity > 1
+        ) {
+          const qty = document.createElement("div");
+          qty.textContent = this.myOffer[i].quantity;
+          qty.style.position = "absolute";
+          qty.style.bottom = "2px";
+          qty.style.right = "2px";
+          qty.style.fontSize = "10px";
+          qty.style.color = "#00ccff";
+          qty.style.fontFamily = "'Orbitron', sans-serif";
+          qty.style.pointerEvents = "none";
+          myOfferGrid[i].style.position = "relative";
+          myOfferGrid[i].appendChild(qty);
+        }
       }
     }
 
@@ -474,6 +587,24 @@ const tradeSystem = {
           img.style.height = "100%";
         }
         partnerOfferGrid[i].appendChild(img);
+
+        if (
+          (this.partnerOffer[i].type === "atom" ||
+            this.partnerOffer[i].type === "balyary") &&
+          this.partnerOffer[i].quantity > 1
+        ) {
+          const qty = document.createElement("div");
+          qty.textContent = this.partnerOffer[i].quantity;
+          qty.style.position = "absolute";
+          qty.style.bottom = "2px";
+          qty.style.right = "2px";
+          qty.style.fontSize = "10px";
+          qty.style.color = "#00ccff";
+          qty.style.fontFamily = "'Orbitron', sans-serif";
+          qty.style.pointerEvents = "none";
+          partnerOfferGrid[i].style.position = "relative";
+          partnerOfferGrid[i].appendChild(qty);
+        }
       }
     }
 
@@ -482,9 +613,18 @@ const tradeSystem = {
 
   showItemDescription(item) {
     const tradeScreen = document.getElementById("tradeScreen");
+    if (this.quantityInputActive) return;
+
     if (item && item.type && ITEM_CONFIG && ITEM_CONFIG[item.type]) {
       const config = ITEM_CONFIG[item.type];
-      tradeScreen.textContent = config.description || "Нет описания";
+      let desc = config.description || "Нет описания";
+      if (
+        (item.type === "atom" || item.type === "balyary") &&
+        item.quantity > 1
+      ) {
+        desc += ` (x${item.quantity})`;
+      }
+      tradeScreen.textContent = desc;
     } else {
       tradeScreen.textContent = "Наведите на предмет для просмотра свойств";
     }
