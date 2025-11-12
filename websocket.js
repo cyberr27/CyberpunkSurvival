@@ -1333,66 +1333,26 @@ function setupWebSocket(
         // Удаление из отправителя (fromPlayer для myOffer, toPlayer для partnerOffer)
         offers.myOffer.forEach((item) => {
           if (item) {
-            let added = false;
-
-            // 1. Если это стэкаемый предмет — пытаемся мержнуть
+            const invItem = fromPlayer.inventory[item.originalSlot];
             if (isStackable(item.type) && item.quantity) {
-              for (let i = 0; i < toPlayer.inventory.length; i++) {
-                const slot = toPlayer.inventory[i];
-                if (slot && slot.type === item.type) {
-                  slot.quantity = (slot.quantity || 1) + item.quantity;
-                  added = true;
-                  break;
-                }
-              }
-            }
-
-            // 2. Если не добавлено (или не стэкаемый) — ищем свободный слот
-            if (!added) {
-              const freeSlot = toPlayer.inventory.findIndex(
-                (slot) => slot === null
-              );
-              if (freeSlot !== -1) {
-                toPlayer.inventory[freeSlot] = {
-                  type: item.type,
-                  quantity: item.quantity || 1,
-                  itemId: `${item.type}_${Date.now()}`,
-                };
-                added = true;
-              }
+              invItem.quantity -= item.quantity;
+              if (invItem.quantity <= 0)
+                fromPlayer.inventory[item.originalSlot] = null;
+            } else {
+              fromPlayer.inventory[item.originalSlot] = null;
             }
           }
         });
 
         offers.partnerOffer.forEach((item) => {
           if (item) {
-            let added = false;
-
-            // 1. Если это стэкаемый предмет — пытаемся мержнуть
+            const invItem = toPlayer.inventory[item.originalSlot];
             if (isStackable(item.type) && item.quantity) {
-              for (let i = 0; i < fromPlayer.inventory.length; i++) {
-                const slot = fromPlayer.inventory[i];
-                if (slot && slot.type === item.type) {
-                  slot.quantity = (slot.quantity || 1) + item.quantity;
-                  added = true;
-                  break;
-                }
-              }
-            }
-
-            // 2. Если не добавлено (или не стэкаемый) — ищем свободный слот
-            if (!added) {
-              const freeSlot = fromPlayer.inventory.findIndex(
-                (slot) => slot === null
-              );
-              if (freeSlot !== -1) {
-                fromPlayer.inventory[freeSlot] = {
-                  type: item.type,
-                  quantity: item.quantity || 1,
-                  itemId: `${item.type}_${Date.now()}`,
-                };
-                added = true;
-              }
+              invItem.quantity -= item.quantity;
+              if (invItem.quantity <= 0)
+                toPlayer.inventory[item.originalSlot] = null;
+            } else {
+              toPlayer.inventory[item.originalSlot] = null;
             }
           }
         });
