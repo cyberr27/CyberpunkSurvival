@@ -1112,7 +1112,9 @@ function setupWebSocket(
         // УБРАНЫ ПРОВЕРКИ НА РАССТОЯНИЕ И ЗДОРОВЬЕ
         if (!playerA || !playerB || playerA.worldId !== playerB.worldId) return;
 
-        const tradeKey = `${fromId}-${toId}`;
+        // ИСПРАВЛЕНИЕ: всегда сортированный ключ (меньший ID первым)
+        const sortedIds = [fromId, toId].sort();
+        const tradeKey = `${sortedIds[0]}-${sortedIds[1]}`;
         tradeRequests.set(tradeKey, { status: "pending" });
 
         wss.clients.forEach((client) => {
@@ -1126,7 +1128,9 @@ function setupWebSocket(
       } else if (data.type === "tradeAccepted") {
         const fromId = data.fromId; // B accepts, fromId = B, toId = A (initiator)
         const toId = data.toId;
-        const tradeKey = `${toId}-${fromId}`; // Key from initiator
+        // ИСПРАВЛЕНИЕ: всегда сортированный ключ (меньший ID первым)
+        const sortedIds = [fromId, toId].sort();
+        const tradeKey = `${sortedIds[0]}-${sortedIds[1]}`;
         if (
           !tradeRequests.has(tradeKey) ||
           tradeRequests.get(tradeKey).status !== "pending"
