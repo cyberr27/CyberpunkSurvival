@@ -1232,24 +1232,30 @@ function setupWebSocket(
 
         if (!fromPlayer.inventory || !toPlayer.inventory) return;
 
+        // Функция проверки стэка
+        const isStackable = (type) => ["atom", "balyary"].includes(type); // Или ITEM_CONFIG[type].stackable
+
+        // Валидация с учётом частичных стэков
         const fromOfferValid = offers.myOffer.every((item) => {
           if (!item) return true;
           const invItem = fromPlayer.inventory[item.originalSlot];
-          return (
-            invItem &&
-            invItem.type === item.type &&
-            (!item.quantity || invItem.quantity === item.quantity)
-          );
+          if (!invItem || invItem.type !== item.type) return false;
+          if (isStackable(item.type) && item.quantity) {
+            return invItem.quantity >= item.quantity;
+          } else {
+            return !item.quantity || invItem.quantity === item.quantity;
+          }
         });
 
         const toOfferValid = offers.partnerOffer.every((item) => {
           if (!item) return true;
           const invItem = toPlayer.inventory[item.originalSlot];
-          return (
-            invItem &&
-            invItem.type === item.type &&
-            (!item.quantity || invItem.quantity === item.quantity)
-          );
+          if (!invItem || invItem.type !== item.type) return false;
+          if (isStackable(item.type) && item.quantity) {
+            return invItem.quantity >= item.quantity;
+          } else {
+            return !item.quantity || invItem.quantity === item.quantity;
+          }
         });
 
         if (!fromOfferValid || !toOfferValid) {
@@ -1273,20 +1279,37 @@ function setupWebSocket(
           return;
         }
 
+        // Подсчёт требуемых слотов с учётом мержа стэков
+        const calculateRequiredSlots = (inventory, incomingOffer) => {
+          let required = 0;
+          incomingOffer.forEach((item) => {
+            if (item) {
+              const canMerge =
+                isStackable(item.type) &&
+                inventory.some((slot) => slot && slot.type === item.type);
+              if (!canMerge) required++;
+            }
+          });
+          return required;
+        };
+
+        const fromRequired = calculateRequiredSlots(
+          fromPlayer.inventory,
+          offers.partnerOffer
+        );
+        const toRequired = calculateRequiredSlots(
+          toPlayer.inventory,
+          offers.myOffer
+        );
+
         const fromFreeSlots = fromPlayer.inventory.filter(
           (slot) => slot === null
         ).length;
         const toFreeSlots = toPlayer.inventory.filter(
           (slot) => slot === null
         ).length;
-        const fromOfferCount = offers.myOffer.filter(
-          (item) => item !== null
-        ).length;
-        const toOfferCount = offers.partnerOffer.filter(
-          (item) => item !== null
-        ).length;
 
-        if (fromFreeSlots < toOfferCount || toFreeSlots < fromOfferCount) {
+        if (fromFreeSlots < fromRequired || toFreeSlots < toRequired) {
           wss.clients.forEach((client) => {
             if (
               client.readyState === WebSocket.OPEN &&
@@ -1307,44 +1330,86 @@ function setupWebSocket(
           return;
         }
 
+        // Удаление из отправителя (fromPlayer для myOffer, toPlayer для partnerOffer)
         offers.myOffer.forEach((item) => {
           if (item) {
-            fromPlayer.inventory[item.originalSlot] = null;
-          }
-        });
-
-        offers.partnerOffer.forEach((item) => {
-          if (item) {
-            toPlayer.inventory[item.originalSlot] = null;
-          }
-        });
-
-        offers.myOffer.forEach((item) => {
-          if (item) {
-            const freeSlot = toPlayer.inventory.findIndex(
-              (slot) => slot === null
-            );
-            if (freeSlot !== -1) {
-              toPlayer.inventory[freeSlot] = {
-                type: item.type,
-                quantity: item.quantity,
-                itemId: `${item.type}_${Date.now()}`,
-              };
+            const invItem = fromPlayer.inventory[item.originalSlot];
+            if (isStackable(item.type) && item.quantity) {
+              invItem.quantity -= item.quantity;
+              if (invItem.quantity <= 0)
+                fromPlayer.inventory[item.originalSlot] = null;
+            } else {
+              fromPlayer.inventory[item.originalSlot] = null;
             }
           }
         });
 
         offers.partnerOffer.forEach((item) => {
           if (item) {
-            const freeSlot = fromPlayer.inventory.findIndex(
-              (slot) => slot === null
-            );
-            if (freeSlot !== -1) {
-              fromPlayer.inventory[freeSlot] = {
-                type: item.type,
-                quantity: item.quantity,
-                itemId: `${item.type}_${Date.now()}`,
-              };
+            const invItem = toPlayer.inventory[item.originalSlot];
+            if (isStackable(item.type) && item.quantity) {
+              invItem.quantity -= item.quantity;
+              if (invItem.quantity <= 0)
+                toPlayer.inventory[item.originalSlot] = null;
+            } else {
+              toPlayer.inventory[item.originalSlot] = null;
+            }
+          }
+        });
+
+        // Добавление к получателю (toPlayer для myOffer, fromPlayer для partnerOffer)
+        offers.myOffer.forEach((item) => {
+          if (item) {
+            let added = false;
+            if (isStackable(item.type) && item.quantity) {
+              for (let i = 0; i < toPlayer.inventory.length; i++) {
+                const slot = toPlayer.inventory[i];
+                if (slot && slot.type === item.type) {
+                  slot.quantity = (slot.quantity || 1) + item.quantity;
+                  added = true;
+                  break;
+                }
+              }
+            }
+            if (!added) {
+              const freeSlot = toPlayer.inventory.findIndex(
+                (slot) => slot === null
+              );
+              if (freeSlot !== -1) {
+                toPlayer.inventory[freeSlot] = {
+                  type: item.type,
+                  quantity: item.quantity || 1,
+                  itemId: `${item.type}_${Date.now()}`,
+                };
+              }
+            }
+          }
+        });
+
+        offers.partnerOffer.forEach((item) => {
+          if (item) {
+            let added = false;
+            if (isStackable(item.type) && item.quantity) {
+              for (let i = 0; i < fromPlayer.inventory.length; i++) {
+                const slot = fromPlayer.inventory[i];
+                if (slot && slot.type === item.type) {
+                  slot.quantity = (slot.quantity || 1) + item.quantity;
+                  added = true;
+                  break;
+                }
+              }
+            }
+            if (!added) {
+              const freeSlot = fromPlayer.inventory.findIndex(
+                (slot) => slot === null
+              );
+              if (freeSlot !== -1) {
+                fromPlayer.inventory[freeSlot] = {
+                  type: item.type,
+                  quantity: item.quantity || 1,
+                  itemId: `${item.type}_${Date.now()}`,
+                };
+              }
             }
           }
         });

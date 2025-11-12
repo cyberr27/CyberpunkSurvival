@@ -16,6 +16,10 @@ const tradeSystem = {
   confirmQtyBtn: null,
   cancelQtyBtn: null,
 
+  isStackable(type) {
+    return ["atom", "balyary"].includes(type); // Или по ITEM_CONFIG[type].stackable, если доступно
+  },
+
   initialize(ws) {
     this.ws = ws;
     this.setupTradeButton();
@@ -278,6 +282,16 @@ const tradeSystem = {
     )
       return;
 
+    // Для стэков: вычесть quantity из inventory локально
+    if (this.isStackable(item.type)) {
+      item.quantity -= quantity;
+      if (item.quantity <= 0) {
+        inventory[slotIndex] = null;
+      }
+    } else {
+      inventory[slotIndex] = null; // Для не-стэков: полный перенос
+    }
+
     this.myOffer[freeSlot] = {
       ...item,
       originalSlot: slotIndex,
@@ -397,6 +411,23 @@ const tradeSystem = {
   removeFromOffer(slotIndex) {
     if (!this.myOffer[slotIndex] || this.myConfirmed || this.partnerConfirmed)
       return;
+
+    const offerItem = this.myOffer[slotIndex];
+    const origSlot = offerItem.originalSlot;
+
+    // Вернуть quantity обратно в inventory
+    if (inventory[origSlot]) {
+      // Если слот занят (тот же тип), мерж
+      if (this.isStackable(offerItem.type)) {
+        inventory[origSlot].quantity += offerItem.quantity;
+      }
+    } else {
+      // Если слот пуст, создать новый
+      inventory[origSlot] = {
+        ...offerItem,
+        itemId: `${offerItem.type}_${Date.now()}`,
+      };
+    }
 
     this.myOffer[slotIndex] = null;
 
@@ -726,14 +757,20 @@ const tradeSystem = {
       case "tradeCancelled":
         this.myOffer.forEach((item, index) => {
           if (item) {
-            const freeSlot = inventory.findIndex((slot) => slot === null);
-            if (freeSlot !== -1) {
-              inventory[freeSlot] = {
+            const origSlot = item.originalSlot;
+            if (inventory[origSlot]) {
+              // Мерж к существующему
+              if (this.isStackable(item.type)) {
+                inventory[origSlot].quantity += item.quantity;
+              }
+            } else {
+              // Создать в оригинальном слоте
+              inventory[origSlot] = {
                 ...item,
                 itemId: `${item.type}_${Date.now()}`,
               };
-              this.myOffer[index] = null;
             }
+            this.myOffer[index] = null;
           }
         });
         this.closeTradeWindow();
