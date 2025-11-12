@@ -1123,6 +1123,176 @@ function setupWebSocket(
             );
           }
         });
+      } else if (data.type === "tradeConfirmed") {
+        const fromId = clients.get(ws);
+        if (!fromId || !players.has(fromId) || !players.has(data.toId)) return;
+
+        wss.clients.forEach((client) => {
+          if (
+            client.readyState === WebSocket.OPEN &&
+            clients.get(client) === data.toId
+          ) {
+            client.send(
+              JSON.stringify({
+                type: "tradeConfirmed",
+                fromId: fromId,
+                toId: data.toId,
+              })
+            );
+          }
+        });
+      } else if (data.type === "tradeCompleted") {
+        const fromId = clients.get(ws);
+        if (!fromId || !players.has(fromId) || !players.has(data.toId)) return;
+
+        const fromPlayer = players.get(fromId);
+        const toPlayer = players.get(data.toId);
+
+        if (!fromPlayer.inventory || !toPlayer.inventory) return;
+
+        const fromOfferValid = data.myOffer.every((item, index) => {
+          if (!item) return true;
+          const invItem = fromPlayer.inventory[item.originalSlot];
+          return (
+            invItem &&
+            invItem.type === item.type &&
+            (!item.quantity || invItem.quantity === item.quantity)
+          );
+        });
+
+        const toOfferValid = data.partnerOffer.every((item, index) => {
+          if (!item) return true;
+          const invItem = toPlayer.inventory[item.originalSlot];
+          return (
+            invItem &&
+            invItem.type === item.type &&
+            (!item.quantity || invItem.quantity === item.quantity)
+          );
+        });
+
+        if (!fromOfferValid || !toOfferValid) {
+          wss.clients.forEach((client) => {
+            if (
+              client.readyState === WebSocket.OPEN &&
+              (clients.get(client) === fromId ||
+                clients.get(client) === data.toId)
+            ) {
+              client.send(
+                JSON.stringify({
+                  type: "tradeCancelled",
+                  fromId: fromId,
+                  toId: data.toId,
+                })
+              );
+            }
+          });
+          return;
+        }
+
+        const fromFreeSlots = fromPlayer.inventory.filter(
+          (slot) => slot === null
+        ).length;
+        const toFreeSlots = toPlayer.inventory.filter(
+          (slot) => slot === null
+        ).length;
+        const fromOfferCount = data.myOffer.filter(
+          (item) => item !== null
+        ).length;
+        const toOfferCount = data.partnerOffer.filter(
+          (item) => item !== null
+        ).length;
+
+        if (fromFreeSlots < toOfferCount || toFreeSlots < fromOfferCount) {
+          wss.clients.forEach((client) => {
+            if (
+              client.readyState === WebSocket.OPEN &&
+              (clients.get(client) === fromId ||
+                clients.get(client) === data.toId)
+            ) {
+              client.send(
+                JSON.stringify({
+                  type: "tradeCancelled",
+                  fromId: fromId,
+                  toId: data.toId,
+                })
+              );
+            }
+          });
+          return;
+        }
+
+        data.myOffer.forEach((item) => {
+          if (item) {
+            fromPlayer.inventory[item.originalSlot] = null;
+          }
+        });
+
+        data.partnerOffer.forEach((item) => {
+          if (item) {
+            toPlayer.inventory[item.originalSlot] = null;
+          }
+        });
+
+        data.myOffer.forEach((item) => {
+          if (item) {
+            const freeSlot = toPlayer.inventory.findIndex(
+              (slot) => slot === null
+            );
+            if (freeSlot !== -1) {
+              toPlayer.inventory[freeSlot] = {
+                type: item.type,
+                quantity: item.quantity,
+                itemId: `${item.type}_${Date.now()}`,
+              };
+            }
+          }
+        });
+
+        data.partnerOffer.forEach((item) => {
+          if (item) {
+            const freeSlot = fromPlayer.inventory.findIndex(
+              (slot) => slot === null
+            );
+            if (freeSlot !== -1) {
+              fromPlayer.inventory[freeSlot] = {
+                type: item.type,
+                quantity: item.quantity,
+                itemId: `${item.type}_${Date.now()}`,
+              };
+            }
+          }
+        });
+
+        players.set(fromId, { ...fromPlayer });
+        players.set(data.toId, { ...toPlayer });
+        userDatabase.set(fromId, { ...fromPlayer });
+        userDatabase.set(data.toId, { ...toPlayer });
+        await saveUserDatabase(dbCollection, fromId, fromPlayer);
+        await saveUserDatabase(dbCollection, data.toId, toPlayer);
+
+        wss.clients.forEach((client) => {
+          if (client.readyState === WebSocket.OPEN) {
+            if (clients.get(client) === fromId) {
+              client.send(
+                JSON.stringify({
+                  type: "tradeCompleted",
+                  fromId: fromId,
+                  toId: data.toId,
+                  newInventory: fromPlayer.inventory,
+                })
+              );
+            } else if (clients.get(client) === data.toId) {
+              client.send(
+                JSON.stringify({
+                  type: "tradeCompleted",
+                  fromId: fromId,
+                  toId: data.toId,
+                  newInventory: toPlayer.inventory,
+                })
+              );
+            }
+          }
+        });
       } else if (data.type === "selectQuest") {
         const id = clients.get(ws);
         if (id) {
@@ -1197,46 +1367,43 @@ function setupWebSocket(
         }
       } else if (data.type === "tradeRequest") {
         const fromId = clients.get(ws);
-        if (!fromId || !players.has(fromId) || !players.has(data.toId)) return;
+        if (!fromId) return;
+        const toId = data.toId;
+        const playerA = players.get(fromId);
+        const playerB = players.get(toId);
 
-        const initiator = players.get(fromId);
-        const target = players.get(data.toId);
+        // Checks: distance, health, not already trading
+        if (!playerA || !playerB || playerA.worldId !== playerB.worldId) return;
+        const dx = playerA.x - playerB.x;
+        const dy = playerA.y - playerB.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        if (distance > 100 || playerA.health <= 0 || playerB.health <= 0) {
+          ws.send(
+            JSON.stringify({
+              type: "tradeError",
+              message: "Too far or dead",
+            })
+          );
+          return;
+        }
 
-        if (initiator.worldId !== target.worldId) return;
-
-        const dx = initiator.x - target.x;
-        const dy = initiator.y - target.y;
-        if (Math.sqrt(dx * dx + dy * dy) > 100) return;
-
-        if (initiator.health <= 0 || target.health <= 0) return;
-
-        const tradeKey =
-          fromId < data.toId
-            ? `${fromId}-${data.toId}`
-            : `${data.toId}-${fromId}`; // Симметричный ключ
-
-        if (tradeRequests.has(tradeKey)) return;
-
+        // Save request
+        const tradeKey = `${fromId}-${toId}`;
         tradeRequests.set(tradeKey, { status: "pending" });
 
+        // Send request to player B
         wss.clients.forEach((client) => {
           if (
             client.readyState === WebSocket.OPEN &&
-            clients.get(client) === data.toId
+            clients.get(client) === toId
           ) {
-            client.send(
-              JSON.stringify({ type: "tradeRequest", fromId, toId: data.toId })
-            );
+            client.send(JSON.stringify({ type: "tradeRequest", fromId, toId }));
           }
         });
       } else if (data.type === "tradeAccepted") {
-        const acceptorId = data.fromId; // Acceptor (B)
-        const initiatorId = data.toId; // Initiator (A)
-        const tradeKey =
-          acceptorId < initiatorId
-            ? `${acceptorId}-${initiatorId}`
-            : `${initiatorId}-${acceptorId}`; // Симметричный ключ
-
+        const fromId = data.fromId; // B accepts, fromId = B, toId = A (initiator)
+        const toId = data.toId;
+        const tradeKey = `${toId}-${fromId}`; // Key from initiator
         if (
           !tradeRequests.has(tradeKey) ||
           tradeRequests.get(tradeKey).status !== "pending"
@@ -1245,24 +1412,24 @@ function setupWebSocket(
 
         tradeRequests.set(tradeKey, { status: "accepted" });
         tradeOffers.set(tradeKey, {
-          myOffer: Array(4).fill(null), // 4 слота
-          partnerOffer: Array(4).fill(null), // 4 слота
+          myOffer: Array(3).fill(null),
+          partnerOffer: Array(3).fill(null),
           myConfirmed: false,
           partnerConfirmed: false,
         });
 
-        // Notify both: fromId = initiator (A), toId = acceptor (B)
+        // Notify both of trade start
         wss.clients.forEach((client) => {
           if (client.readyState === WebSocket.OPEN) {
             const clientId = clients.get(client);
-            if (clientId === initiatorId || clientId === acceptorId) {
+            if (clientId === fromId || clientId === toId) {
               client.send(
                 JSON.stringify({
                   type: "tradeAccepted",
-                  fromId: initiatorId,
-                  toId: acceptorId,
+                  fromId: toId,
+                  toId: fromId,
                 })
-              );
+              ); // fromId = initiator for both
             }
           }
         });
