@@ -1177,15 +1177,6 @@ function setupWebSocket(
         } else {
           offers.partnerOffer = data.offer;
         }
-        // ИСПРАВЛЕНИЕ: обновляем инвентарь игрока на сервере (для sync после split stackable)
-        if (data.inventory) {
-          const player = players.get(fromId);
-          if (player) {
-            player.inventory = data.inventory;
-            players.set(fromId, player); // Обновляем в players
-            userDatabase.set(fromId, player); // Обновляем в БД (если нужно сразу, иначе при save)
-          }
-        }
         tradeOffers.set(tradeKey, offers);
 
         // Send to partner (dynamic update)

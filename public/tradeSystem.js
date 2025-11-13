@@ -1,4 +1,4 @@
-// tradeSystem.js (обновлён: добавлена форма ввода количества для стекируемых предметов в addToOffer)
+// tradeSystem.js (обновлён: убраны проверки расстояния и здоровья)
 const tradeSystem = {
   isTradeWindowOpen: false,
   selectedPlayerId: null,
@@ -302,50 +302,7 @@ const tradeSystem = {
     )
       return;
 
-    // НОВАЯ ЛОГИКА: если stackable и quantity > 1, показать форму ввода
-    if (ITEM_CONFIG[item.type]?.stackable && (item.quantity || 1) > 1) {
-      this.showQuantityInput(slotIndex, freeSlot);
-    } else {
-      // Обычное добавление
-      this.myOffer[freeSlot] = { ...item, originalSlot: slotIndex };
-
-      sendWhenReady(
-        this.ws,
-        JSON.stringify({
-          type: "tradeOffer",
-          fromId: myId,
-          toId: this.tradePartnerId,
-          offer: this.myOffer,
-          inventory: inventory,
-        })
-      );
-
-      this.updateTradeWindow();
-      updateInventoryDisplay();
-    }
-  },
-
-  // НОВАЯ ФУНКЦИЯ: Подтвердить количество и добавить в предложение
-  confirmQuantity(slotIndex, freeOfferSlot, quantity) {
-    if (quantity < 1 || isNaN(quantity)) return;
-    const item = inventory[slotIndex];
-    const maxQuantity = item.quantity || 1;
-    if (quantity > maxQuantity) quantity = maxQuantity;
-
-    // Split: создать новый item для предложения
-    const offerItem = { ...item, quantity, originalSlot: slotIndex };
-
-    // Уменьшить в инвентаре
-    if (quantity === maxQuantity) {
-      inventory[slotIndex] = null;
-    } else {
-      inventory[slotIndex].quantity -= quantity;
-      if (inventory[slotIndex].quantity <= 0) {
-        inventory[slotIndex] = null;
-      }
-    }
-
-    this.myOffer[freeOfferSlot] = offerItem;
+    this.myOffer[freeSlot] = { ...item, originalSlot: slotIndex };
 
     sendWhenReady(
       this.ws,
@@ -360,106 +317,13 @@ const tradeSystem = {
 
     this.updateTradeWindow();
     updateInventoryDisplay();
-    this.showItemDescription(null); // Восстановить tradeScreen
-  },
-
-  // НОВАЯ ФУНКЦИЯ: Показать форму ввода количества в tradeScreen
-  showQuantityInput(slotIndex, freeOfferSlot) {
-    const item = inventory[slotIndex];
-    const maxQuantity = item.quantity || 1;
-    const tradeScreen = document.getElementById("tradeScreen");
-    tradeScreen.innerHTML = ""; // Очистить
-
-    const input = document.createElement("input");
-    input.type = "number";
-    input.className = "cyber-input";
-    input.min = 1;
-    input.max = maxQuantity;
-    input.value = 1;
-    input.style.margin = "10px";
-
-    const confirmBtn = document.createElement("button");
-    confirmBtn.className = "action-btn use-btn";
-    confirmBtn.textContent = "Подтвердить";
-    confirmBtn.style.marginRight = "10px";
-    confirmBtn.addEventListener("click", () => {
-      this.confirmQuantity(slotIndex, freeOfferSlot, parseInt(input.value));
-    });
-
-    const cancelBtn = document.createElement("button");
-    cancelBtn.className = "action-btn drop-btn";
-    cancelBtn.textContent = "Отмена";
-    cancelBtn.addEventListener("click", () => {
-      this.cancelQuantity();
-    });
-
-    tradeScreen.appendChild(input);
-    tradeScreen.appendChild(confirmBtn);
-    tradeScreen.appendChild(cancelBtn);
-  },
-
-  // НОВАЯ ФУНКЦИЯ: Подтвердить количество и добавить в предложение
-  confirmQuantity(slotIndex, freeOfferSlot, quantity) {
-    if (quantity < 1 || isNaN(quantity)) return;
-    const item = inventory[slotIndex];
-    const maxQuantity = item.quantity || 1;
-    if (quantity > maxQuantity) quantity = maxQuantity;
-
-    // Split: создать новый item для предложения
-    const offerItem = { ...item, quantity, originalSlot: slotIndex };
-
-    // Уменьшить в инвентаре
-    if (quantity === maxQuantity) {
-      inventory[slotIndex] = null;
-    } else {
-      inventory[slotIndex].quantity -= quantity;
-      if (inventory[slotIndex].quantity <= 0) {
-        inventory[slotIndex] = null;
-      }
-    }
-
-    this.myOffer[freeOfferSlot] = offerItem;
-
-    sendWhenReady(
-      this.ws,
-      JSON.stringify({
-        type: "tradeOffer",
-        fromId: myId,
-        toId: this.tradePartnerId,
-        offer: this.myOffer,
-        inventory: inventory,
-      })
-    );
-
-    this.updateTradeWindow();
-    updateInventoryDisplay();
-    this.showItemDescription(null); // Восстановить tradeScreen
-  },
-
-  // НОВАЯ ФУНКЦИЯ: Отмена ввода количества
-  cancelQuantity() {
-    this.showItemDescription(null); // Восстановить tradeScreen
   },
 
   removeFromOffer(slotIndex) {
     if (!this.myOffer[slotIndex] || this.myConfirmed || this.partnerConfirmed)
       return;
 
-    const item = this.myOffer[slotIndex];
     this.myOffer[slotIndex] = null;
-
-    // ИСПРАВЛЕНИЕ: если stackable, вернуть quantity в инвентарь
-    if (ITEM_CONFIG[item.type]?.stackable && item.quantity) {
-      const originalSlot = item.originalSlot;
-      if (inventory[originalSlot]) {
-        // Если слот ещё занят тем же типом, добавить quantity
-        inventory[originalSlot].quantity =
-          (inventory[originalSlot].quantity || 1) + item.quantity;
-      } else {
-        // Если слот пустой, восстановить item полностью
-        inventory[originalSlot] = { ...item };
-      }
-    }
 
     sendWhenReady(
       this.ws,
