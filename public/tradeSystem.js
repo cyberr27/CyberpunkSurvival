@@ -403,17 +403,9 @@ const tradeSystem = {
       .map((item) => item.originalSlot);
 
     for (let i = 0; i < myTradeGrid.length; i++) {
-      const slot = myTradeGrid[i];
-      // Не очищаем innerHTML, а обновляем существующие элементы
-      let img = slot.querySelector("img");
-      let quantityEl = slot.querySelector("div"); // Для quantity
-
+      myTradeGrid[i].innerHTML = "";
       if (inventory[i] && inventory[i].type) {
-        if (!img) {
-          img = document.createElement("img");
-          slot.appendChild(img);
-        }
-
+        const img = document.createElement("img");
         if (inventory[i].type === "atom") {
           img.src = ITEM_CONFIG[inventory[i].type].image.src;
           img.style.width = "100%";
@@ -429,55 +421,34 @@ const tradeSystem = {
           img.src = ITEM_CONFIG[inventory[i].type].image.src;
           img.style.width = "100%";
           img.style.height = "100%";
-          img.style.objectFit = ""; // Сбрасываем, если не атом
-          img.style.objectPosition = ""; // Сбрасываем, если не атом
-          delete img.dataset.isAtom; // Удаляем dataset, если не атом
-          delete img.dataset.slotIndex;
-          delete img.dataset.grid;
         }
         if (offeredSlots.includes(i)) {
           img.style.opacity = "0.3";
-        } else {
-          img.style.opacity = "1";
         }
+        myTradeGrid[i].appendChild(img);
 
-        // Добавление/обновление отображения quantity для stackable предметов (atom и balyary)
+        // Добавление отображения quantity для stackable предметов (atom и balyary)
         if (
           ITEM_CONFIG[inventory[i].type]?.stackable &&
           inventory[i].quantity > 1
         ) {
-          if (!quantityEl) {
-            quantityEl = document.createElement("div");
-            quantityEl.style.position = "absolute";
-            quantityEl.style.top = "0";
-            quantityEl.style.right = "0";
-            quantityEl.style.color = "#00ffff";
-            quantityEl.style.fontSize = "14px";
-            quantityEl.style.textShadow = "0 0 5px rgba(0, 255, 255, 0.7)";
-            slot.appendChild(quantityEl);
-          }
+          const quantityEl = document.createElement("div");
           quantityEl.textContent = inventory[i].quantity;
-        } else if (quantityEl) {
-          quantityEl.remove(); // Удаляем, если quantity не нужен
+          quantityEl.style.position = "absolute";
+          quantityEl.style.top = "0";
+          quantityEl.style.right = "0";
+          quantityEl.style.color = "#00ffff";
+          quantityEl.style.fontSize = "14px";
+          quantityEl.style.textShadow = "0 0 5px rgba(0, 255, 255, 0.7)";
+          myTradeGrid[i].appendChild(quantityEl);
         }
-      } else {
-        // Если слот пустой, удаляем img и quantity
-        if (img) img.remove();
-        if (quantityEl) quantityEl.remove();
       }
     }
 
     for (let i = 0; i < 4; i++) {
-      const slot = myOfferGrid[i];
-      let img = slot.querySelector("img");
-      let quantityEl = slot.querySelector("div");
-
+      myOfferGrid[i].innerHTML = "";
       if (this.myOffer[i] && this.myOffer[i].type) {
-        if (!img) {
-          img = document.createElement("img");
-          slot.appendChild(img);
-        }
-
+        const img = document.createElement("img");
         if (this.myOffer[i].type === "atom") {
           img.src = ITEM_CONFIG[this.myOffer[i].type].image.src;
           img.style.width = "100%";
@@ -493,48 +464,31 @@ const tradeSystem = {
           img.src = ITEM_CONFIG[this.myOffer[i].type].image.src;
           img.style.width = "100%";
           img.style.height = "100%";
-          img.style.objectFit = "";
-          img.style.objectPosition = "";
-          delete img.dataset.isAtom;
-          delete img.dataset.slotIndex;
-          delete img.dataset.grid;
         }
+        myOfferGrid[i].appendChild(img);
 
+        // Добавление отображения quantity для stackable предметов (atom и balyary)
         if (
           ITEM_CONFIG[this.myOffer[i].type]?.stackable &&
           this.myOffer[i].quantity > 1
         ) {
-          if (!quantityEl) {
-            quantityEl = document.createElement("div");
-            quantityEl.style.position = "absolute";
-            quantityEl.style.top = "0";
-            quantityEl.style.right = "0";
-            quantityEl.style.color = "#00ffff";
-            quantityEl.style.fontSize = "14px";
-            quantityEl.style.textShadow = "0 0 5px rgba(0, 255, 255, 0.7)";
-            slot.appendChild(quantityEl);
-          }
+          const quantityEl = document.createElement("div");
           quantityEl.textContent = this.myOffer[i].quantity;
-        } else if (quantityEl) {
-          quantityEl.remove();
+          quantityEl.style.position = "absolute";
+          quantityEl.style.top = "0";
+          quantityEl.style.right = "0";
+          quantityEl.style.color = "#00ffff";
+          quantityEl.style.fontSize = "14px";
+          quantityEl.style.textShadow = "0 0 5px rgba(0, 255, 255, 0.7)";
+          myOfferGrid[i].appendChild(quantityEl);
         }
-      } else {
-        if (img) img.remove();
-        if (quantityEl) quantityEl.remove();
       }
     }
 
     for (let i = 0; i < 4; i++) {
-      const slot = partnerOfferGrid[i];
-      let img = slot.querySelector("img");
-      let quantityEl = slot.querySelector("div");
-
+      partnerOfferGrid[i].innerHTML = "";
       if (this.partnerOffer[i] && this.partnerOffer[i].type) {
-        if (!img) {
-          img = document.createElement("img");
-          slot.appendChild(img);
-        }
-
+        const img = document.createElement("img");
         if (this.partnerOffer[i].type === "atom") {
           img.src = ITEM_CONFIG[this.partnerOffer[i].type].image.src;
           img.style.width = "100%";
@@ -550,34 +504,24 @@ const tradeSystem = {
           img.src = ITEM_CONFIG[this.partnerOffer[i].type].image.src;
           img.style.width = "100%";
           img.style.height = "100%";
-          img.style.objectFit = "";
-          img.style.objectPosition = "";
-          delete img.dataset.isAtom;
-          delete img.dataset.slotIndex;
-          delete img.dataset.grid;
         }
+        partnerOfferGrid[i].appendChild(img);
 
+        // Добавление отображения quantity для stackable предметов (atom и balyary)
         if (
           ITEM_CONFIG[this.partnerOffer[i].type]?.stackable &&
           this.partnerOffer[i].quantity > 1
         ) {
-          if (!quantityEl) {
-            quantityEl = document.createElement("div");
-            quantityEl.style.position = "absolute";
-            quantityEl.style.top = "0";
-            quantityEl.style.right = "0";
-            quantityEl.style.color = "#00ffff";
-            quantityEl.style.fontSize = "14px";
-            quantityEl.style.textShadow = "0 0 5px rgba(0, 255, 255, 0.7)";
-            slot.appendChild(quantityEl);
-          }
+          const quantityEl = document.createElement("div");
           quantityEl.textContent = this.partnerOffer[i].quantity;
-        } else if (quantityEl) {
-          quantityEl.remove();
+          quantityEl.style.position = "absolute";
+          quantityEl.style.top = "0";
+          quantityEl.style.right = "0";
+          quantityEl.style.color = "#00ffff";
+          quantityEl.style.fontSize = "14px";
+          quantityEl.style.textShadow = "0 0 5px rgba(0, 255, 255, 0.7)";
+          partnerOfferGrid[i].appendChild(quantityEl);
         }
-      } else {
-        if (img) img.remove();
-        if (quantityEl) quantityEl.remove();
       }
     }
 
