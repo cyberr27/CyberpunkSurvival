@@ -325,6 +325,44 @@ const tradeSystem = {
     }
   },
 
+  // НОВАЯ ФУНКЦИЯ: Подтвердить количество и добавить в предложение
+  confirmQuantity(slotIndex, freeOfferSlot, quantity) {
+    if (quantity < 1 || isNaN(quantity)) return;
+    const item = inventory[slotIndex];
+    const maxQuantity = item.quantity || 1;
+    if (quantity > maxQuantity) quantity = maxQuantity;
+
+    // Split: создать новый item для предложения
+    const offerItem = { ...item, quantity, originalSlot: slotIndex };
+
+    // Уменьшить в инвентаре
+    if (quantity === maxQuantity) {
+      inventory[slotIndex] = null;
+    } else {
+      inventory[slotIndex].quantity -= quantity;
+      if (inventory[slotIndex].quantity <= 0) {
+        inventory[slotIndex] = null;
+      }
+    }
+
+    this.myOffer[freeOfferSlot] = offerItem;
+
+    sendWhenReady(
+      this.ws,
+      JSON.stringify({
+        type: "tradeOffer",
+        fromId: myId,
+        toId: this.tradePartnerId,
+        offer: this.myOffer,
+        inventory: inventory,
+      })
+    );
+
+    this.updateTradeWindow();
+    updateInventoryDisplay();
+    this.showItemDescription(null); // Восстановить tradeScreen
+  },
+
   // НОВАЯ ФУНКЦИЯ: Показать форму ввода количества в tradeScreen
   showQuantityInput(slotIndex, freeOfferSlot) {
     const item = inventory[slotIndex];
@@ -407,7 +445,21 @@ const tradeSystem = {
     if (!this.myOffer[slotIndex] || this.myConfirmed || this.partnerConfirmed)
       return;
 
+    const item = this.myOffer[slotIndex];
     this.myOffer[slotIndex] = null;
+
+    // ИСПРАВЛЕНИЕ: если stackable, вернуть quantity в инвентарь
+    if (ITEM_CONFIG[item.type]?.stackable && item.quantity) {
+      const originalSlot = item.originalSlot;
+      if (inventory[originalSlot]) {
+        // Если слот ещё занят тем же типом, добавить quantity
+        inventory[originalSlot].quantity =
+          (inventory[originalSlot].quantity || 1) + item.quantity;
+      } else {
+        // Если слот пустой, восстановить item полностью
+        inventory[originalSlot] = { ...item };
+      }
+    }
 
     sendWhenReady(
       this.ws,
