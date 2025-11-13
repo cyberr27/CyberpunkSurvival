@@ -1,4 +1,4 @@
-// tradeSystem.js (обновлён: убраны проверки расстояния и здоровья)
+// tradeSystem.js (обновлён: добавлена форма ввода количества для стекируемых предметов в addToOffer)
 const tradeSystem = {
   isTradeWindowOpen: false,
   selectedPlayerId: null,
@@ -302,7 +302,85 @@ const tradeSystem = {
     )
       return;
 
-    this.myOffer[freeSlot] = { ...item, originalSlot: slotIndex };
+    // НОВАЯ ЛОГИКА: если stackable и quantity > 1, показать форму ввода
+    if (ITEM_CONFIG[item.type]?.stackable && (item.quantity || 1) > 1) {
+      this.showQuantityInput(slotIndex, freeSlot);
+    } else {
+      // Обычное добавление
+      this.myOffer[freeSlot] = { ...item, originalSlot: slotIndex };
+
+      sendWhenReady(
+        this.ws,
+        JSON.stringify({
+          type: "tradeOffer",
+          fromId: myId,
+          toId: this.tradePartnerId,
+          offer: this.myOffer,
+          inventory: inventory,
+        })
+      );
+
+      this.updateTradeWindow();
+      updateInventoryDisplay();
+    }
+  },
+
+  // НОВАЯ ФУНКЦИЯ: Показать форму ввода количества в tradeScreen
+  showQuantityInput(slotIndex, freeOfferSlot) {
+    const item = inventory[slotIndex];
+    const maxQuantity = item.quantity || 1;
+    const tradeScreen = document.getElementById("tradeScreen");
+    tradeScreen.innerHTML = ""; // Очистить
+
+    const input = document.createElement("input");
+    input.type = "number";
+    input.className = "cyber-input";
+    input.min = 1;
+    input.max = maxQuantity;
+    input.value = 1;
+    input.style.margin = "10px";
+
+    const confirmBtn = document.createElement("button");
+    confirmBtn.className = "action-btn use-btn";
+    confirmBtn.textContent = "Подтвердить";
+    confirmBtn.style.marginRight = "10px";
+    confirmBtn.addEventListener("click", () => {
+      this.confirmQuantity(slotIndex, freeOfferSlot, parseInt(input.value));
+    });
+
+    const cancelBtn = document.createElement("button");
+    cancelBtn.className = "action-btn drop-btn";
+    cancelBtn.textContent = "Отмена";
+    cancelBtn.addEventListener("click", () => {
+      this.cancelQuantity();
+    });
+
+    tradeScreen.appendChild(input);
+    tradeScreen.appendChild(confirmBtn);
+    tradeScreen.appendChild(cancelBtn);
+  },
+
+  // НОВАЯ ФУНКЦИЯ: Подтвердить количество и добавить в предложение
+  confirmQuantity(slotIndex, freeOfferSlot, quantity) {
+    if (quantity < 1 || isNaN(quantity)) return;
+    const item = inventory[slotIndex];
+    const maxQuantity = item.quantity || 1;
+    if (quantity > maxQuantity) quantity = maxQuantity;
+
+    // Split: создать новый item для предложения
+    const offerItem = { ...item, quantity, originalSlot: slotIndex };
+
+    // Уменьшить в инвентаре
+    if (quantity === maxQuantity) {
+      inventory[slotIndex] = null;
+    } else {
+      inventory[slotIndex].quantity -= quantity;
+      if (inventory[slotIndex].quantity <= 0) {
+        inventory[slotIndex] = null;
+      }
+    }
+
+    this.myOffer[freeOfferSlot] = offerItem;
 
     sendWhenReady(
       this.ws,
@@ -317,6 +395,12 @@ const tradeSystem = {
 
     this.updateTradeWindow();
     updateInventoryDisplay();
+    this.showItemDescription(null); // Восстановить tradeScreen
+  },
+
+  // НОВАЯ ФУНКЦИЯ: Отмена ввода количества
+  cancelQuantity() {
+    this.showItemDescription(null); // Восстановить tradeScreen
   },
 
   removeFromOffer(slotIndex) {
@@ -426,6 +510,22 @@ const tradeSystem = {
           img.style.opacity = "0.3";
         }
         myTradeGrid[i].appendChild(img);
+
+        // Добавление отображения quantity для stackable предметов (atom и balyary)
+        if (
+          ITEM_CONFIG[inventory[i].type]?.stackable &&
+          inventory[i].quantity > 1
+        ) {
+          const quantityEl = document.createElement("div");
+          quantityEl.textContent = inventory[i].quantity;
+          quantityEl.style.position = "absolute";
+          quantityEl.style.top = "0";
+          quantityEl.style.right = "0";
+          quantityEl.style.color = "#00ffff";
+          quantityEl.style.fontSize = "14px";
+          quantityEl.style.textShadow = "0 0 5px rgba(0, 255, 255, 0.7)";
+          myTradeGrid[i].appendChild(quantityEl);
+        }
       }
     }
 
@@ -450,6 +550,22 @@ const tradeSystem = {
           img.style.height = "100%";
         }
         myOfferGrid[i].appendChild(img);
+
+        // Добавление отображения quantity для stackable предметов (atom и balyary)
+        if (
+          ITEM_CONFIG[this.myOffer[i].type]?.stackable &&
+          this.myOffer[i].quantity > 1
+        ) {
+          const quantityEl = document.createElement("div");
+          quantityEl.textContent = this.myOffer[i].quantity;
+          quantityEl.style.position = "absolute";
+          quantityEl.style.top = "0";
+          quantityEl.style.right = "0";
+          quantityEl.style.color = "#00ffff";
+          quantityEl.style.fontSize = "14px";
+          quantityEl.style.textShadow = "0 0 5px rgba(0, 255, 255, 0.7)";
+          myOfferGrid[i].appendChild(quantityEl);
+        }
       }
     }
 
@@ -474,6 +590,22 @@ const tradeSystem = {
           img.style.height = "100%";
         }
         partnerOfferGrid[i].appendChild(img);
+
+        // Добавление отображения quantity для stackable предметов (atom и balyary)
+        if (
+          ITEM_CONFIG[this.partnerOffer[i].type]?.stackable &&
+          this.partnerOffer[i].quantity > 1
+        ) {
+          const quantityEl = document.createElement("div");
+          quantityEl.textContent = this.partnerOffer[i].quantity;
+          quantityEl.style.position = "absolute";
+          quantityEl.style.top = "0";
+          quantityEl.style.right = "0";
+          quantityEl.style.color = "#00ffff";
+          quantityEl.style.fontSize = "14px";
+          quantityEl.style.textShadow = "0 0 5px rgba(0, 255, 255, 0.7)";
+          partnerOfferGrid[i].appendChild(quantityEl);
+        }
       }
     }
 
