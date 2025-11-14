@@ -426,22 +426,6 @@ const tradeSystem = {
           img.style.opacity = "0.3";
         }
         myTradeGrid[i].appendChild(img);
-
-        // Добавление отображения quantity для stackable предметов (atom и balyary)
-        if (
-          ITEM_CONFIG[inventory[i].type]?.stackable &&
-          inventory[i].quantity > 1
-        ) {
-          const quantityEl = document.createElement("div");
-          quantityEl.textContent = inventory[i].quantity;
-          quantityEl.style.position = "absolute";
-          quantityEl.style.top = "0";
-          quantityEl.style.right = "0";
-          quantityEl.style.color = "#00ffff";
-          quantityEl.style.fontSize = "14px";
-          quantityEl.style.textShadow = "0 0 5px rgba(0, 255, 255, 0.7)";
-          myTradeGrid[i].appendChild(quantityEl);
-        }
       }
     }
 
@@ -466,22 +450,6 @@ const tradeSystem = {
           img.style.height = "100%";
         }
         myOfferGrid[i].appendChild(img);
-
-        // Добавление отображения quantity для stackable предметов (atom и balyary)
-        if (
-          ITEM_CONFIG[this.myOffer[i].type]?.stackable &&
-          this.myOffer[i].quantity > 1
-        ) {
-          const quantityEl = document.createElement("div");
-          quantityEl.textContent = this.myOffer[i].quantity;
-          quantityEl.style.position = "absolute";
-          quantityEl.style.top = "0";
-          quantityEl.style.right = "0";
-          quantityEl.style.color = "#00ffff";
-          quantityEl.style.fontSize = "14px";
-          quantityEl.style.textShadow = "0 0 5px rgba(0, 255, 255, 0.7)";
-          myOfferGrid[i].appendChild(quantityEl);
-        }
       }
     }
 
@@ -506,22 +474,6 @@ const tradeSystem = {
           img.style.height = "100%";
         }
         partnerOfferGrid[i].appendChild(img);
-
-        // Добавление отображения quantity для stackable предметов (atom и balyary)
-        if (
-          ITEM_CONFIG[this.partnerOffer[i].type]?.stackable &&
-          this.partnerOffer[i].quantity > 1
-        ) {
-          const quantityEl = document.createElement("div");
-          quantityEl.textContent = this.partnerOffer[i].quantity;
-          quantityEl.style.position = "absolute";
-          quantityEl.style.top = "0";
-          quantityEl.style.right = "0";
-          quantityEl.style.color = "#00ffff";
-          quantityEl.style.fontSize = "14px";
-          quantityEl.style.textShadow = "0 0 5px rgba(0, 255, 255, 0.7)";
-          partnerOfferGrid[i].appendChild(quantityEl);
-        }
       }
     }
 
