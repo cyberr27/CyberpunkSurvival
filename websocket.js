@@ -1179,6 +1179,11 @@ function setupWebSocket(
         }
         tradeOffers.set(tradeKey, offers);
 
+        // ВСТАВКА: Синхронизируем inventory на сервере (копируем, чтобы избежать ref)
+        players.get(fromId).inventory = data.inventory.map((item) =>
+          item ? { ...item } : null
+        );
+
         // Send to partner (dynamic update)
         wss.clients.forEach((client) => {
           if (
@@ -1235,21 +1240,23 @@ function setupWebSocket(
         const fromOfferValid = offers.myOffer.every((item) => {
           if (!item) return true;
           const invItem = fromPlayer.inventory[item.originalSlot];
-          return (
-            invItem &&
-            invItem.type === item.type &&
-            (!item.quantity || invItem.quantity === item.quantity)
-          );
+          // ВСТАВКА: Новая валидация для stackable/partial
+          if (ITEM_CONFIG[item.type]?.stackable) {
+            return invItem === null || (invItem && invItem.type === item.type);
+          } else {
+            return invItem === null;
+          }
         });
 
         const toOfferValid = offers.partnerOffer.every((item) => {
           if (!item) return true;
           const invItem = toPlayer.inventory[item.originalSlot];
-          return (
-            invItem &&
-            invItem.type === item.type &&
-            (!item.quantity || invItem.quantity === item.quantity)
-          );
+          // ВСТАВКА: Новая валидация для stackable/partial
+          if (ITEM_CONFIG[item.type]?.stackable) {
+            return invItem === null || (invItem && invItem.type === item.type);
+          } else {
+            return invItem === null;
+          }
         });
 
         if (!fromOfferValid || !toOfferValid) {
@@ -1307,17 +1314,8 @@ function setupWebSocket(
           return;
         }
 
-        offers.myOffer.forEach((item) => {
-          if (item) {
-            fromPlayer.inventory[item.originalSlot] = null;
-          }
-        });
-
-        offers.partnerOffer.forEach((item) => {
-          if (item) {
-            toPlayer.inventory[item.originalSlot] = null;
-          }
-        });
+        // УДАЛЕНИЕ: Убрали offers.myOffer.forEach((item) => { if (item) fromPlayer.inventory[item.originalSlot] = null; }); - уже сделано на клиенте/сервере во время offer
+        // УДАЛЕНИЕ: Аналогично для partnerOffer
 
         offers.myOffer.forEach((item) => {
           if (item) {

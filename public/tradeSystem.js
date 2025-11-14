@@ -302,7 +302,71 @@ const tradeSystem = {
     )
       return;
 
+    // ВСТАВКА НАЧАЛО: Проверка на stackable (баляр или атом) с quantity >1 - показываем форму
+    if (ITEM_CONFIG[item.type]?.stackable && (item.quantity || 1) > 1) {
+      const tradeScreen = document.getElementById("tradeScreen");
+      tradeScreen.innerHTML = ""; // Очищаем описание
+
+      const form = document.createElement("div");
+      form.className = "balyary-drop-form"; // Аналогично форме в инвентаре (добавьте CSS если нужно: position relative, etc.)
+      form.innerHTML = `
+      <input type="number" id="offerAmount" min="1" max="${item.quantity}" value="1" class="cyber-input">
+      <button id="confirmOfferBtn" class="action-btn use-btn">Подтвердить</button>
+      <button id="cancelOfferBtn" class="action-btn drop-btn">Отмена</button>
+    `;
+      tradeScreen.appendChild(form);
+
+      document
+        .getElementById("confirmOfferBtn")
+        .addEventListener("click", () => {
+          const amount = parseInt(document.getElementById("offerAmount").value);
+          if (amount >= 1 && amount <= item.quantity) {
+            // Создаем item для offer с выбранным quantity
+            this.myOffer[freeSlot] = {
+              ...item,
+              quantity: amount,
+              originalSlot: slotIndex,
+            };
+
+            // Уменьшаем в инвентаре
+            inventory[slotIndex].quantity -= amount;
+            if (inventory[slotIndex].quantity <= 0) {
+              inventory[slotIndex] = null;
+            }
+
+            // Отправляем обновление
+            sendWhenReady(
+              this.ws,
+              JSON.stringify({
+                type: "tradeOffer",
+                fromId: myId,
+                toId: this.tradePartnerId,
+                offer: this.myOffer,
+                inventory: inventory,
+              })
+            );
+
+            this.updateTradeWindow();
+            updateInventoryDisplay();
+          }
+          // Восстанавливаем tradeScreen
+          tradeScreen.innerHTML = "Наведите на предмет для просмотра свойств";
+        });
+
+      document
+        .getElementById("cancelOfferBtn")
+        .addEventListener("click", () => {
+          // Восстанавливаем tradeScreen без изменений
+          tradeScreen.innerHTML = "Наведите на предмет для просмотра свойств";
+        });
+
+      return; // Прерываем, пока форма активна
+    }
+    // ВСТАВКА КОНЕЦ
+
+    // Старая логика для не-stackable или quantity=1
     this.myOffer[freeSlot] = { ...item, originalSlot: slotIndex };
+    inventory[slotIndex] = null; // ВСТАВКА: Удаляем из инвентаря для non-stackable (lock in offer)
 
     sendWhenReady(
       this.ws,
@@ -322,6 +386,44 @@ const tradeSystem = {
   removeFromOffer(slotIndex) {
     if (!this.myOffer[slotIndex] || this.myConfirmed || this.partnerConfirmed)
       return;
+
+    const item = this.myOffer[slotIndex];
+
+    // ВСТАВКА НАЧАЛО: Для stackable - возвращаем quantity в инвентарь (ищем существующий стек или свободный слот)
+    if (ITEM_CONFIG[item.type]?.stackable) {
+      const existingSlot = inventory.findIndex(
+        (invItem) => invItem && invItem.type === item.type
+      );
+      if (existingSlot !== -1) {
+        inventory[existingSlot].quantity =
+          (inventory[existingSlot].quantity || 1) + (item.quantity || 1);
+      } else {
+        const freeSlot = inventory.findIndex((slot) => slot === null);
+        if (freeSlot !== -1) {
+          inventory[freeSlot] = {
+            ...item,
+            itemId: `${item.type}_${Date.now()}`,
+          }; // Новый itemId
+        }
+      }
+    } else {
+      // Для не-stackable - возвращаем в оригинальный слот или свободный
+      if (item.originalSlot !== undefined && !inventory[item.originalSlot]) {
+        inventory[item.originalSlot] = {
+          ...item,
+          itemId: `${item.type}_${Date.now()}`,
+        };
+      } else {
+        const freeSlot = inventory.findIndex((slot) => slot === null);
+        if (freeSlot !== -1) {
+          inventory[freeSlot] = {
+            ...item,
+            itemId: `${item.type}_${Date.now()}`,
+          };
+        }
+      }
+    }
+    // ВСТАВКА КОНЕЦ
 
     this.myOffer[slotIndex] = null;
 
@@ -422,10 +524,25 @@ const tradeSystem = {
           img.style.width = "100%";
           img.style.height = "100%";
         }
-        if (offeredSlots.includes(i)) {
-          img.style.opacity = "0.3";
-        }
+        // УДАЛЕНИЕ: Убрали if (offeredSlots.includes(i)) { img.style.opacity = "0.3"; } - теперь slot null, нет img
         myTradeGrid[i].appendChild(img);
+
+        // ВСТАВКА НАЧАЛО: Добавляем отображение количества для stackable в инвентаре (myTradeGrid), если quantity > 1
+        if (
+          ITEM_CONFIG[inventory[i].type]?.stackable &&
+          inventory[i].quantity > 1
+        ) {
+          const quantityEl = document.createElement("div");
+          quantityEl.textContent = inventory[i].quantity;
+          quantityEl.style.position = "absolute";
+          quantityEl.style.top = "0";
+          quantityEl.style.right = "0";
+          quantityEl.style.color = "#00ffff";
+          quantityEl.style.fontSize = "14px";
+          quantityEl.style.textShadow = "0 0 5px rgba(0, 255, 255, 0.7)";
+          myTradeGrid[i].appendChild(quantityEl);
+        }
+        // ВСТАВКА КОНЕЦ
       }
     }
 
@@ -450,6 +567,23 @@ const tradeSystem = {
           img.style.height = "100%";
         }
         myOfferGrid[i].appendChild(img);
+
+        // ВСТАВКА НАЧАЛО: Добавляем отображение количества для stackable в myOfferGrid, если quantity > 1
+        if (
+          ITEM_CONFIG[this.myOffer[i].type]?.stackable &&
+          this.myOffer[i].quantity > 1
+        ) {
+          const quantityEl = document.createElement("div");
+          quantityEl.textContent = this.myOffer[i].quantity;
+          quantityEl.style.position = "absolute";
+          quantityEl.style.top = "0";
+          quantityEl.style.right = "0";
+          quantityEl.style.color = "#00ffff";
+          quantityEl.style.fontSize = "14px";
+          quantityEl.style.textShadow = "0 0 5px rgba(0, 255, 255, 0.7)";
+          myOfferGrid[i].appendChild(quantityEl);
+        }
+        // ВСТАВКА КОНЕЦ
       }
     }
 
@@ -474,6 +608,23 @@ const tradeSystem = {
           img.style.height = "100%";
         }
         partnerOfferGrid[i].appendChild(img);
+
+        // ВСТАВКА НАЧАЛО: Добавляем отображение количества для stackable в partnerOfferGrid, если quantity > 1
+        if (
+          ITEM_CONFIG[this.partnerOffer[i].type]?.stackable &&
+          this.partnerOffer[i].quantity > 1
+        ) {
+          const quantityEl = document.createElement("div");
+          quantityEl.textContent = this.partnerOffer[i].quantity;
+          quantityEl.style.position = "absolute";
+          quantityEl.style.top = "0";
+          quantityEl.style.right = "0";
+          quantityEl.style.color = "#00ffff";
+          quantityEl.style.fontSize = "14px";
+          quantityEl.style.textShadow = "0 0 5px rgba(0, 255, 255, 0.7)";
+          partnerOfferGrid[i].appendChild(quantityEl);
+        }
+        // ВСТАВКА КОНЕЦ
       }
     }
 
