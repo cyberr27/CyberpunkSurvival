@@ -1431,6 +1431,53 @@ function setupWebSocket(
             });
           }
         }
+      } else if (data.type === "enemyShoot") {
+        // Просто пробрасываем всем в мире
+        broadcastToWorld(wss, clients, players, data.worldId, message);
+      } else if (
+        data.type === "spawnEnemy" ||
+        data.type === "updateEnemy" ||
+        data.type === "removeEnemy"
+      ) {
+        broadcastToWorld(wss, clients, players, data.worldId, message);
+      } else if (data.type === "attackPlayer" && data.targetId) {
+        const target = players.get(data.targetId);
+        if (target && target.health > data.damage) {
+          // Урон от моба
+          target.health = Math.max(0, target.health - data.damage);
+          players.set(data.targetId, { ...target });
+          userDatabase.set(data.targetId, { ...target });
+          await saveUserDatabase(dbCollection, data.targetId, target);
+          broadcastToWorld(
+            wss,
+            clients,
+            players,
+            data.worldId,
+            JSON.stringify({
+              type: "update",
+              player: { id: data.targetId, health: target.health },
+            })
+          );
+        } else if (target) {
+          // Убийство
+          target.health = 0;
+          players.set(data.targetId, { ...target });
+          userDatabase.set(data.targetId, { ...target });
+          await saveUserDatabase(dbCollection, data.targetId, target);
+
+          // Уведомляем enemySystem
+          wss.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+              client.send(
+                JSON.stringify({
+                  type: "enemyKilled",
+                  enemyId: data.ownerId, // в пуле ownerId = enemy.id
+                  killerId: data.targetId,
+                })
+              );
+            }
+          });
+        }
       } else if (data.type === "meetJack") {
         const id = clients.get(ws);
         if (id) {
