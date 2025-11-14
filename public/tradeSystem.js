@@ -8,7 +8,6 @@ const tradeSystem = {
   partnerOffer: Array(4).fill(null),
   myConfirmed: false,
   partnerConfirmed: false,
-  showingOfferForm: false,
 
   initialize(ws) {
     this.ws = ws;
@@ -114,7 +113,6 @@ const tradeSystem = {
     document
       .getElementById("myTradeGrid")
       .addEventListener("mouseover", (e) => {
-        if (tradeSystem.showingOfferForm) return; // ВСТАВКА: Пропуск, если форма активна
         const slot = e.target.closest(".trade-slot");
         if (slot && slot.dataset.slotIndex !== undefined) {
           const slotIndex = parseInt(slot.dataset.slotIndex);
@@ -123,7 +121,6 @@ const tradeSystem = {
         }
       });
     document.getElementById("myTradeGrid").addEventListener("mouseout", () => {
-      if (tradeSystem.showingOfferForm) return; // ВСТАВКА: Пропуск сброса, если форма активна
       tradeSystem.showItemDescription(null);
     });
 
@@ -277,9 +274,6 @@ const tradeSystem = {
     document.getElementById("tradeWindow").style.display = "none";
     document.getElementById("tradeBtn").classList.remove("active");
     this.showItemDescription(null);
-    this.showingOfferForm = false; // ВСТАВКА: Сброс флага
-    const tradeScreen = document.getElementById("tradeScreen");
-    tradeScreen.innerHTML = "Наведите на предмет для просмотра свойств";
     this.atomAnimations.myTradeGrid.forEach((anim) => {
       anim.frame = 0;
       anim.frameTime = 0;
@@ -308,20 +302,17 @@ const tradeSystem = {
     )
       return;
 
+    // ВСТАВКА НАЧАЛО: Проверка на stackable (баляр или атом) с quantity >1 - показываем форму
     if (ITEM_CONFIG[item.type]?.stackable && (item.quantity || 1) > 1) {
       const tradeScreen = document.getElementById("tradeScreen");
       tradeScreen.innerHTML = ""; // Очищаем описание
-      this.showingOfferForm = true; // ВСТАВКА: Активируем флаг формы
 
       const form = document.createElement("div");
-      form.className = "balyary-drop-form";
-      form.style.display = "flex"; // ВСТАВКА: Горизонтальный flex
-      form.style.alignItems = "center";
-      form.style.gap = "8px"; // ВСТАВКА: Компактный gap
+      form.className = "balyary-drop-form"; // Аналогично форме в инвентаре (добавьте CSS если нужно: position relative, etc.)
       form.innerHTML = `
-      <input type="number" id="offerAmount" min="1" max="${item.quantity}" value="1" class="cyber-input" style="width: 60px; padding: 4px; font-size: 14px;">
-      <button id="confirmOfferBtn" class="action-btn use-btn" style="padding: 4px 12px; font-size: 12px; min-height: 24px;">Подтвердить</button>
-      <button id="cancelOfferBtn" class="action-btn drop-btn" style="padding: 4px 12px; font-size: 12px; min-height: 24px;">Отмена</button>
+      <input type="number" id="offerAmount" min="1" max="${item.quantity}" value="1" class="cyber-input">
+      <button id="confirmOfferBtn" class="action-btn use-btn">Подтвердить</button>
+      <button id="cancelOfferBtn" class="action-btn drop-btn">Отмена</button>
     `;
       tradeScreen.appendChild(form);
 
@@ -330,15 +321,20 @@ const tradeSystem = {
         .addEventListener("click", () => {
           const amount = parseInt(document.getElementById("offerAmount").value);
           if (amount >= 1 && amount <= item.quantity) {
+            // Создаем item для offer с выбранным quantity
             this.myOffer[freeSlot] = {
               ...item,
               quantity: amount,
               originalSlot: slotIndex,
             };
+
+            // Уменьшаем в инвентаре
             inventory[slotIndex].quantity -= amount;
             if (inventory[slotIndex].quantity <= 0) {
               inventory[slotIndex] = null;
             }
+
+            // Отправляем обновление
             sendWhenReady(
               this.ws,
               JSON.stringify({
@@ -349,26 +345,28 @@ const tradeSystem = {
                 inventory: inventory,
               })
             );
+
             this.updateTradeWindow();
             updateInventoryDisplay();
           }
-          tradeScreen.innerHTML = "Наведите на предмет для просмотра свойств"; // ВСТАВКА: Сброс экрана
-          this.showingOfferForm = false; // ВСТАВКА: Деактивируем флаг
+          // Восстанавливаем tradeScreen
+          tradeScreen.innerHTML = "Наведите на предмет для просмотра свойств";
         });
 
       document
         .getElementById("cancelOfferBtn")
         .addEventListener("click", () => {
-          tradeScreen.innerHTML = "Наведите на предмет для просмотра свойств"; // ВСТАВКА: Сброс экрана
-          this.showingOfferForm = false; // ВСТАВКА: Деактивируем флаг
+          // Восстанавливаем tradeScreen без изменений
+          tradeScreen.innerHTML = "Наведите на предмет для просмотра свойств";
         });
 
-      return;
+      return; // Прерываем, пока форма активна
     }
+    // ВСТАВКА КОНЕЦ
 
-    // Логика для non-stackable или quantity=1
+    // Старая логика для не-stackable или quantity=1
     this.myOffer[freeSlot] = { ...item, originalSlot: slotIndex };
-    inventory[slotIndex] = null; // ВСТАВКА: Lock non-stackable в offer (удаляем из inv)
+    inventory[slotIndex] = null; // ВСТАВКА: Удаляем из инвентаря для non-stackable (lock in offer)
 
     sendWhenReady(
       this.ws,
@@ -391,14 +389,30 @@ const tradeSystem = {
 
     const item = this.myOffer[slotIndex];
 
-    // Возврат в inventory с merge для stackable
+    // ВСТАВКА НАЧАЛО: Для stackable - возвращаем quantity в инвентарь (ищем существующий стек или свободный слот)
     if (ITEM_CONFIG[item.type]?.stackable) {
-      // Ищем существующий стек
       const existingSlot = inventory.findIndex(
         (invItem) => invItem && invItem.type === item.type
       );
       if (existingSlot !== -1) {
-        inventory[existingSlot].quantity += item.quantity || 1;
+        inventory[existingSlot].quantity =
+          (inventory[existingSlot].quantity || 1) + (item.quantity || 1);
+      } else {
+        const freeSlot = inventory.findIndex((slot) => slot === null);
+        if (freeSlot !== -1) {
+          inventory[freeSlot] = {
+            ...item,
+            itemId: `${item.type}_${Date.now()}`,
+          }; // Новый itemId
+        }
+      }
+    } else {
+      // Для не-stackable - возвращаем в оригинальный слот или свободный
+      if (item.originalSlot !== undefined && !inventory[item.originalSlot]) {
+        inventory[item.originalSlot] = {
+          ...item,
+          itemId: `${item.type}_${Date.now()}`,
+        };
       } else {
         const freeSlot = inventory.findIndex((slot) => slot === null);
         if (freeSlot !== -1) {
@@ -408,19 +422,8 @@ const tradeSystem = {
           };
         }
       }
-    } else {
-      // Non-stackable: в original или free
-      const targetSlot =
-        item.originalSlot !== undefined
-          ? item.originalSlot
-          : inventory.findIndex((slot) => slot === null);
-      if (targetSlot !== -1) {
-        inventory[targetSlot] = {
-          ...item,
-          itemId: `${item.type}_${Date.now()}`,
-        };
-      }
     }
+    // ВСТАВКА КОНЕЦ
 
     this.myOffer[slotIndex] = null;
 
@@ -487,7 +490,6 @@ const tradeSystem = {
     this.partnerOffer = Array(4).fill(null);
     this.myConfirmed = false;
     this.partnerConfirmed = false;
-    this.showingOfferForm = false;
     const tradeBtn = document.getElementById("tradeBtn");
     if (tradeBtn) tradeBtn.disabled = true;
   },
@@ -630,7 +632,6 @@ const tradeSystem = {
   },
 
   showItemDescription(item) {
-    if (this.showingOfferForm) return; // ВСТАВКА: Не показываем описание, если форма активна
     const tradeScreen = document.getElementById("tradeScreen");
     if (item && item.type && ITEM_CONFIG && ITEM_CONFIG[item.type]) {
       const config = ITEM_CONFIG[item.type];
@@ -736,32 +737,14 @@ const tradeSystem = {
       case "tradeCancelled":
         this.myOffer.forEach((item, index) => {
           if (item) {
-            // Merge для stackable или free slot
-            if (ITEM_CONFIG[item.type]?.stackable) {
-              const existingSlot = inventory.findIndex(
-                (invItem) => invItem && invItem.type === item.type
-              );
-              if (existingSlot !== -1) {
-                inventory[existingSlot].quantity += item.quantity || 1;
-              } else {
-                const freeSlot = inventory.findIndex((slot) => slot === null);
-                if (freeSlot !== -1) {
-                  inventory[freeSlot] = {
-                    ...item,
-                    itemId: `${item.type}_${Date.now()}`,
-                  };
-                }
-              }
-            } else {
-              const freeSlot = inventory.findIndex((slot) => slot === null);
-              if (freeSlot !== -1) {
-                inventory[freeSlot] = {
-                  ...item,
-                  itemId: `${item.type}_${Date.now()}`,
-                };
-              }
+            const freeSlot = inventory.findIndex((slot) => slot === null);
+            if (freeSlot !== -1) {
+              inventory[freeSlot] = {
+                ...item,
+                itemId: `${item.type}_${Date.now()}`,
+              };
+              this.myOffer[index] = null;
             }
-            this.myOffer[index] = null;
           }
         });
         this.closeTradeWindow();
