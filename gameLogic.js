@@ -1,4 +1,9 @@
 const { saveUserDatabase } = require("./database");
+// === КОНСТАНТЫ ВРАГОВ (переносим с клиента на сервер!) ===
+const ENEMY_SPEED = 2;
+const AGGRO_RANGE = 300;
+const ATTACK_RANGE = 50;
+const ENEMY_ATTACK_COOLDOWN = 1000;
 
 function checkCollisionServer(x, y) {
   return false;
