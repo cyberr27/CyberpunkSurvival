@@ -366,7 +366,6 @@ const tradeSystem = {
 
     // Старая логика для не-stackable или quantity=1
     this.myOffer[freeSlot] = { ...item, originalSlot: slotIndex };
-    inventory[slotIndex] = null; // ВСТАВКА: Удаляем из инвентаря для non-stackable (lock in offer)
 
     sendWhenReady(
       this.ws,
@@ -524,7 +523,9 @@ const tradeSystem = {
           img.style.width = "100%";
           img.style.height = "100%";
         }
-        // УДАЛЕНИЕ: Убрали if (offeredSlots.includes(i)) { img.style.opacity = "0.3"; } - теперь slot null, нет img
+        if (offeredSlots.includes(i)) {
+          img.style.opacity = "0.3";
+        }
         myTradeGrid[i].appendChild(img);
 
         // ВСТАВКА НАЧАЛО: Добавляем отображение количества для stackable в инвентаре (myTradeGrid), если quantity > 1
