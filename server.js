@@ -15,6 +15,7 @@ const players = new Map();
 const userDatabase = new Map();
 const items = new Map();
 const lights = new Map();
+const enemies = new Map();
 const lastSaved = new Map();
 
 const INACTIVITY_TIMEOUT = 45 * 60 * 1000;
@@ -162,8 +163,9 @@ async function initializeServer() {
     worlds,
     ITEM_CONFIG,
     INACTIVITY_TIMEOUT,
-    enemies
+    enemies // ← Теперь enemies существует!
   );
+
   runGameLoop(
     wss,
     collection,
@@ -172,7 +174,8 @@ async function initializeServer() {
     items,
     worlds,
     ITEM_CONFIG,
-    userDatabase
+    userDatabase,
+    enemies // ← ДОБАВЬ enemies и сюда!
   );
 
   return collection;

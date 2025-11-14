@@ -7,7 +7,6 @@ function checkCollisionServer(x, y) {
 // КЭШИРОВАНИЕ: чтобы не пересчитывать одни и те же данные
 const worldPlayerCache = new Map(); // worldId → Set(playerId)
 const worldItemCache = new Map(); // worldId → Map(itemId, item)
-const enemies = new Map(); // Глобальный Map врагов
 const worldEnemyCache = new Map(); // worldId → Map(enemyId, enemy)
 
 function runGameLoop(
@@ -18,7 +17,8 @@ function runGameLoop(
   items,
   worlds,
   ITEM_CONFIG,
-  userDatabase
+  userDatabase,
+  enemies // ← НОВЫЙ ПАРАМЕТР
 ) {
   setInterval(() => {
     const currentTime = Date.now();
