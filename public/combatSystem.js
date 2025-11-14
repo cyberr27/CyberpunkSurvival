@@ -1,3 +1,4 @@
+// combatSystem.js
 const BULLET_SPEED = 10; // Скорость пули (пикселей за кадр)
 const BULLET_SIZE = 5; // Размер пули
 const ATTACK_COOLDOWN = 500; // Перезарядка атаки в миллисекундах
@@ -320,4 +321,5 @@ window.combatSystem = {
   update: updateBullets,
   draw: drawBullets,
   syncBullets,
+  performAttack: performAttack, // Добавлено для вызова из клавиатуры
 };

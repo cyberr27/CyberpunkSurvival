@@ -38,6 +38,9 @@
   const sendInterval = 100; // Можно настроить, например, 200 для ещё меньшей нагрузки
   let lastSendTime = 0;
 
+  // Переменные для клавиатурного управления
+  const keys = { w: false, a: false, s: false, d: false };
+
   // Инициализация системы движения
   function initializeMovement() {
     const canvas = document.getElementById("gameCanvas");
@@ -122,6 +125,25 @@
       stopMovement();
     });
 
+    // Обработчики клавиатуры
+    document.addEventListener("keydown", (e) => {
+      const key = e.key.toLowerCase();
+      if (["w", "a", "s", "d"].includes(key)) {
+        keys[key] = true;
+      } else if (key === " ") {
+        // Пробел для атаки
+        e.preventDefault();
+        window.combatSystem.performAttack();
+      }
+    });
+
+    document.addEventListener("keyup", (e) => {
+      const key = e.key.toLowerCase();
+      if (["w", "a", "s", "d"].includes(key)) {
+        keys[key] = false;
+      }
+    });
+
     // Экспортируем halfWidth и halfHeight, если нужно, но не трогаем другие модули
     // (они используются только в updateCamera, так что ок)
   }
@@ -166,13 +188,36 @@
       return;
     }
 
-    if (isMoving) {
-      // Вычисляем вектор направления
-      const dx = targetX - me.x;
-      const dy = targetY - me.y;
+    let dx = 0;
+    let dy = 0;
+    let movingFromKeys = false;
+
+    // Обработка клавиатурного управления (если не двигаемся от мыши)
+    if (!isMoving && Object.values(keys).some((pressed) => pressed)) {
+      movingFromKeys = true;
+      dx = (keys.d ? 1 : 0) - (keys.a ? 1 : 0);
+      dy = (keys.s ? 1 : 0) - (keys.w ? 1 : 0);
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      if (distance > 0) {
+        const normalizedDx = dx / distance;
+        const normalizedDy = dy / distance;
+        const moveSpeed = baseSpeed * (deltaTime / 1000);
+        dx = normalizedDx * moveSpeed;
+        dy = normalizedDy * moveSpeed;
+      } else {
+        movingFromKeys = false;
+      }
+    }
+
+    if (isMoving || movingFromKeys) {
+      if (isMoving) {
+        // Вычисляем вектор направления для мыши
+        dx = targetX - me.x;
+        dy = targetY - me.y;
+      }
       const distance = Math.sqrt(dx * dx + dy * dy);
 
-      if (distance > 5) {
+      if (distance > 5 || movingFromKeys) {
         const moveSpeed = baseSpeed * (deltaTime / 1000);
         const normalizedDx = dx / distance;
         const normalizedDy = dy / distance;
@@ -236,7 +281,7 @@
           lastSendTime = currentTime;
         }
       } else {
-        // Достигли цели
+        // Достигли цели (только для мыши)
         me.state = "idle";
         me.frame = 0;
         me.frameTime = 0;
@@ -256,6 +301,9 @@
         sendMovementUpdate(me);
         lastSendTime = currentTime;
       }
+    } else {
+      // Если нет движения от клавиш или мыши, остановить
+      stopMovement();
     }
 
     // Обновляем камеру всегда в конце
