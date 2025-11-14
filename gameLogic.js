@@ -1,14 +1,14 @@
 const { saveUserDatabase } = require("./database");
 
 function checkCollisionServer(x, y) {
-  return false; // Пока оставляем как есть
+  return false;
 }
 
-// КЭШИРОВАНИЕ: чтобы не пересчитывать одни и те же данные
-const worldPlayerCache = new Map(); // worldId → Set(playerId)
-const worldItemCache = new Map(); // worldId → Map(itemId, item)
-const worldEnemyCache = new Map(); // worldId → Map(enemyId, enemy)
+const worldPlayerCache = new Map();
+const worldItemCache = new Map();
+const worldEnemyCache = new Map();
 
+// === ОСНОВНАЯ ИГРОВАЯ ПЕТЛЯ (30 сек) ===
 function runGameLoop(
   wss,
   dbCollection,
@@ -18,17 +18,113 @@ function runGameLoop(
   worlds,
   ITEM_CONFIG,
   userDatabase,
-  enemies // ← НОВЫЙ ПАРАМЕТР
+  enemies
 ) {
-  setInterval(() => {
+  // === AI МУТАНТОВ (каждые 100 мс) ===
+  const mutantAIInterval = setInterval(() => {
+    const now = Date.now();
+
+    for (const [worldId, worldEnemiesMap] of worldEnemyCache) {
+      if (worldId === 0) continue;
+
+      const playerIds = worldPlayerCache.get(worldId) || new Set();
+      if (playerIds.size === 0) continue;
+
+      worldEnemiesMap.forEach((enemy) => {
+        if (enemy.health <= 0) return;
+
+        let closestPlayer = null;
+        let minDist = Infinity;
+
+        for (const playerId of playerIds) {
+          const player = players.get(playerId); // ← Теперь players доступен!
+          if (!player || player.health <= 0) continue;
+
+          const dx = player.x - enemy.x;
+          const dy = player.y - enemy.y;
+          const dist = dx * dx + dy * dy;
+          if (dist < minDist) {
+            minDist = dist;
+            closestPlayer = player;
+          }
+        }
+
+        if (closestPlayer && minDist <= AGGRO_RANGE * AGGRO_RANGE) {
+          enemy.targetId = closestPlayer.id;
+
+          const dx = closestPlayer.x - enemy.x;
+          const dy = closestPlayer.y - enemy.y;
+          const angle = Math.atan2(dy, dx);
+          enemy.x += Math.cos(angle) * ENEMY_SPEED;
+          enemy.y += Math.sin(angle) * ENEMY_SPEED;
+          enemy.state = "walking";
+
+          if (Math.abs(dx) > Math.abs(dy)) {
+            enemy.direction = dx > 0 ? "right" : "left";
+          } else {
+            enemy.direction = dy > 0 ? "down" : "up";
+          }
+
+          if (
+            minDist <= ATTACK_RANGE * ATTACK_RANGE &&
+            now - enemy.lastAttackTime >= ENEMY_ATTACK_COOLDOWN
+          ) {
+            const damage = Math.floor(Math.random() * 5) + 1;
+            closestPlayer.health = Math.max(0, closestPlayer.health - damage);
+            enemy.lastAttackTime = now;
+
+            broadcastToWorld(
+              wss,
+              clients,
+              players,
+              worldId,
+              JSON.stringify({
+                type: "enemyAttack",
+                enemyId: enemy.id,
+                targetId: closestPlayer.id,
+                damage,
+              })
+            );
+
+            broadcastToWorld(
+              wss,
+              clients,
+              players,
+              worldId,
+              JSON.stringify({
+                type: "update",
+                player: { id: closestPlayer.id, ...closestPlayer },
+              })
+            );
+          }
+        } else {
+          enemy.targetId = null;
+          enemy.state = "idle";
+        }
+
+        broadcastToWorld(
+          wss,
+          clients,
+          players,
+          worldId,
+          JSON.stringify({
+            type: "enemyUpdate",
+            enemy: { id: enemy.id, ...enemy },
+          })
+        );
+      });
+    }
+  }, 100);
+
+  // === ОСНОВНОЙ ЦИКЛ (30 сек) ===
+  const mainLoop = setInterval(() => {
     const currentTime = Date.now();
     const now = currentTime;
 
-    // === 1. ОДНОКРАТНОЕ СОБИРАНИЕ ДАННЫХ ПО МИРАМ ===
     worldPlayerCache.clear();
     worldItemCache.clear();
+    worldEnemyCache.clear();
 
-    // Группируем игроков, предметы, волков по мирам
     for (const player of players.values()) {
       if (!worldPlayerCache.has(player.worldId)) {
         worldPlayerCache.set(player.worldId, new Set());
@@ -52,7 +148,6 @@ function runGameLoop(
 
     const totalPlayers = players.size;
 
-    // === 2. ОТПРАВКА totalOnline — ОДИН РАЗ ===
     const totalOnlineMsg = JSON.stringify({
       type: "totalOnline",
       count: totalPlayers,
@@ -63,7 +158,6 @@ function runGameLoop(
       }
     });
 
-    // === 3. УДАЛЕНИЕ СТАРЫХ ПРЕДМЕТОВ ===
     const expiredItems = [];
     for (const [itemId, item] of items) {
       if (now - item.spawnTime > 10 * 60 * 1000) {
@@ -72,21 +166,18 @@ function runGameLoop(
       }
     }
 
-    // Отправляем удаление предметов — группируем по миру
     const removeItemByWorld = new Map();
     for (const { itemId, worldId } of expiredItems) {
       if (!removeItemByWorld.has(worldId)) removeItemByWorld.set(worldId, []);
       removeItemByWorld.get(worldId).push(itemId);
     }
 
-    // === 4. ОБРАБОТКА КАЖДОГО МИРА ===
     for (const world of worlds) {
       const worldId = world.id;
       const playerIds = worldPlayerCache.get(worldId) || new Set();
       const playerCount = playerIds.size;
       const worldItemsMap = worldItemCache.get(worldId) || new Map();
 
-      // --- Удаление старых предметов ---
       const removedItemIds = removeItemByWorld.get(worldId) || [];
       if (removedItemIds.length > 0) {
         const msg = JSON.stringify({
@@ -96,7 +187,6 @@ function runGameLoop(
         broadcastToWorld(wss, clients, players, worldId, msg);
       }
 
-      // --- Подсчёт типов предметов ---
       const itemCounts = {};
       for (const [type] of Object.entries(ITEM_CONFIG)) {
         itemCounts[type] = 0;
@@ -107,7 +197,6 @@ function runGameLoop(
         }
       }
 
-      // --- Категории редкости (кэшируем) ---
       const rareItems = Object.keys(ITEM_CONFIG).filter(
         (t) => ITEM_CONFIG[t].rarity === 1
       );
@@ -121,7 +210,6 @@ function runGameLoop(
       const desiredTotalItems = playerCount * 10;
       const currentTotalItems = worldItemsMap.size;
 
-      // --- Спаун предметов ---
       if (currentTotalItems < desiredTotalItems) {
         const itemsToSpawn = desiredTotalItems - currentTotalItems;
         let rareCount = playerCount * 2;
@@ -175,20 +263,17 @@ function runGameLoop(
             const itemId = `${type}_${now}_${i}`;
             const newItem = { x, y, type, spawnTime: now, worldId };
             items.set(itemId, newItem);
-            worldItemsMap.set(itemId, newItem); // Обновляем кэш
+            worldItemsMap.set(itemId, newItem);
             newItems.push({ itemId, x, y, type, spawnTime: now, worldId });
 
             if (type === "atom") {
               atomSpawns.push(
-                `Создан атом (${itemId}) в мире ${worldId} на x:${x}, y:${y} в ${new Date(
-                  now
-                ).toLocaleString("ru-RU")}`
+                `Создан атом (${itemId}) в мире ${worldId} на x:${x}, y:${y}`
               );
             }
           }
         }
 
-        // Отправляем новые предметы и атомы
         if (newItems.length > 0) {
           const msg = JSON.stringify({ type: "newItem", items: newItems });
           broadcastToWorld(wss, clients, players, worldId, msg);
@@ -239,7 +324,6 @@ function runGameLoop(
               newEnemies.push({ ...newEnemy });
             }
           }
-          // Отправляем новых мутантов
           if (newEnemies.length > 0) {
             const msg = JSON.stringify({
               type: "newEnemies",
@@ -250,7 +334,6 @@ function runGameLoop(
         }
       }
 
-      // === 5. Синхронизация всех предметов (только если нужно) ===
       const allItems = Array.from(worldItemsMap.entries()).map(
         ([itemId, item]) => ({
           itemId,
@@ -271,10 +354,12 @@ function runGameLoop(
         broadcastToWorld(wss, clients, players, worldId, syncMsg);
       }
     }
-  }, 30_000); // 30 секунд
+  }, 30_000);
+
+  // Возвращаем интервалы, чтобы можно было остановить при выключении
+  return { mainLoop, mutantAIInterval };
 }
 
-// === УТИЛИТА: отправка сообщения всем в мире ===
 function broadcastToWorld(wss, clients, players, worldId, message) {
   wss.clients.forEach((client) => {
     if (client.readyState === WebSocket.OPEN) {
@@ -285,103 +370,5 @@ function broadcastToWorld(wss, clients, players, worldId, message) {
     }
   });
 }
-
-module.exports = { runGameLoop };
-
-setInterval(() => {
-  const now = Date.now();
-  for (const [worldId, worldEnemiesMap] of worldEnemyCache) {
-    if (worldId === 0) continue; // Пропуск неонового города
-
-    const playerIds = worldPlayerCache.get(worldId) || new Set();
-    if (playerIds.size === 0) continue;
-
-    worldEnemiesMap.forEach((enemy) => {
-      if (enemy.health <= 0) return;
-
-      // Найти ближайшего игрока в аггро-радиусе
-      let closestPlayer = null;
-      let minDist = Infinity;
-      for (const playerId of playerIds) {
-        const player = players.get(playerId);
-        if (player.health > 0) {
-          const dx = player.x - enemy.x;
-          const dy = player.y - enemy.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < minDist) {
-            minDist = dist;
-            closestPlayer = player;
-          }
-        }
-      }
-
-      if (closestPlayer && minDist <= AGGRO_RANGE) {
-        enemy.targetId = closestPlayer.id;
-        // Движение к игроку
-        const dx = closestPlayer.x - enemy.x;
-        const dy = closestPlayer.y - enemy.y;
-        const angle = Math.atan2(dy, dx);
-        enemy.x += Math.cos(angle) * ENEMY_SPEED;
-        enemy.y += Math.sin(angle) * ENEMY_SPEED;
-        enemy.state = "walking";
-        // Направление
-        if (Math.abs(dx) > Math.abs(dy)) {
-          enemy.direction = dx > 0 ? "right" : "left";
-        } else {
-          enemy.direction = dy > 0 ? "down" : "up";
-        }
-
-        // Атака если в range и cooldown
-        if (
-          minDist <= ATTACK_RANGE &&
-          now - enemy.lastAttackTime >= ATTACK_COOLDOWN
-        ) {
-          const damage = Math.floor(Math.random() * 5) + 1; // 1-5
-          closestPlayer.health = Math.max(0, closestPlayer.health - damage);
-          enemy.lastAttackTime = now;
-          // Send attack
-          broadcastToWorld(
-            wss,
-            clients,
-            players,
-            worldId,
-            JSON.stringify({
-              type: "enemyAttack",
-              enemyId: enemy.id,
-              targetId: closestPlayer.id,
-              damage,
-            })
-          );
-          // Update player
-          broadcastToWorld(
-            wss,
-            clients,
-            players,
-            worldId,
-            JSON.stringify({
-              type: "update",
-              player: { id: closestPlayer.id, ...closestPlayer },
-            })
-          );
-        }
-      } else {
-        enemy.targetId = null;
-        enemy.state = "idle";
-      }
-
-      // Send update
-      broadcastToWorld(
-        wss,
-        clients,
-        players,
-        worldId,
-        JSON.stringify({
-          type: "enemyUpdate",
-          enemy: { id: enemy.id, ...enemy },
-        })
-      );
-    });
-  }
-}, 100); // 100ms для AI
 
 module.exports = { runGameLoop };
