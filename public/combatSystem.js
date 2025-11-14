@@ -13,6 +13,15 @@ function initializeCombatSystem() {
     e.preventDefault();
     performAttack(); // Запускаем атаку при клике
   });
+
+  // Добавлено: обработчик пробела для атаки (глобально)
+  window.addEventListener("keydown", (e) => {
+    if (e.key === " " && !window.isInventoryOpen) {
+      // Игнорируем, если инвентарь открыт, чтобы не мешать кнопкам
+      e.preventDefault(); // Предотвращаем скролл страницы
+      performAttack();
+    }
+  });
 }
 
 // Запуск анимации мигания кнопки при атаке на игрока

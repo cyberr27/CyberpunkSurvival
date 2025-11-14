@@ -38,6 +38,9 @@
   const sendInterval = 100; // Можно настроить, например, 200 для ещё меньшей нагрузки
   let lastSendTime = 0;
 
+  // Добавлено: объект для отслеживания нажатых клавиш
+  let keys = {};
+
   // Инициализация системы движения
   function initializeMovement() {
     const canvas = document.getElementById("gameCanvas");
@@ -46,7 +49,7 @@
     const halfWidth = canvas.width / 2;
     const halfHeight = canvas.height / 2;
 
-    // Обработчики мыши
+    // Обработчики мыши (оригинал, без изменений)
     canvas.addEventListener("mousedown", (e) => {
       if (e.button === 0) {
         const me = players.get(myId);
@@ -85,7 +88,7 @@
       }
     });
 
-    // Обработчики тач-событий
+    // Обработчики тач-событий (оригинал, без изменений)
     canvas.addEventListener("touchstart", (e) => {
       e.preventDefault();
       const me = players.get(myId);
@@ -120,6 +123,15 @@
     canvas.addEventListener("touchend", (e) => {
       e.preventDefault();
       stopMovement();
+    });
+
+    // Добавлено: обработчики клавиатуры (глобально, чтобы не конфликтовать с инвентарем)
+    window.addEventListener("keydown", (e) => {
+      keys[e.key.toLowerCase()] = true;
+    });
+
+    window.addEventListener("keyup", (e) => {
+      keys[e.key.toLowerCase()] = false;
     });
 
     // Экспортируем halfWidth и halfHeight, если нужно, но не трогаем другие модули
@@ -166,8 +178,19 @@
       return;
     }
 
+    // Добавлено: проверка на открытый инвентарь — игнорируем клавиатуру, чтобы избежать глюков
+    if (window.isInventoryOpen) {
+      if (isMoving) {
+        stopMovement(); // Если инвентарь открыт, останавливаем движение по мыши
+      }
+      updateCamera(me);
+      return;
+    }
+
+    let moved = false;
+
     if (isMoving) {
-      // Вычисляем вектор направления
+      // Вычисляем вектор направления (оригинал, без изменений)
       const dx = targetX - me.x;
       const dy = targetY - me.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
@@ -235,6 +258,8 @@
           sendMovementUpdate(me);
           lastSendTime = currentTime;
         }
+
+        moved = true;
       } else {
         // Достигли цели
         me.state = "idle";
@@ -244,7 +269,91 @@
         sendMovementUpdate(me); // Отправляем сразу при остановке
         lastSendTime = currentTime;
       }
-    } else if (me.state === "dying") {
+    } else {
+      // Добавлено: обработка клавиатуры WASD, если не двигаемся по мыши
+      let dx = 0;
+      let dy = 0;
+
+      if (keys["w"]) dy -= 1; // Вверх
+      if (keys["s"]) dy += 1; // Вниз
+      if (keys["a"]) dx -= 1; // Влево
+      if (keys["d"]) dx += 1; // Вправо
+
+      if (dx !== 0 || dy !== 0) {
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        const normalizedDx = dx / distance;
+        const normalizedDy = dy / distance;
+
+        const moveSpeed = baseSpeed * (deltaTime / 1000);
+        const moveX = normalizedDx * moveSpeed;
+        const moveY = normalizedDy * moveSpeed;
+
+        const prevX = me.x;
+        const prevY = me.y;
+
+        me.x += moveX;
+        me.y += moveY;
+
+        // Ограничиваем позицию в пределах мира
+        me.x = Math.max(0, Math.min(worldWidth - 40, me.x));
+        me.y = Math.max(0, Math.min(worldHeight - 40, me.y));
+
+        // Проверка коллизий
+        if (checkCollision(me.x, me.y)) {
+          me.x = prevX;
+          me.y = prevY;
+          me.state = "idle";
+          me.frame = 0;
+          me.frameTime = 0;
+          sendMovementUpdate(me);
+          lastSendTime = currentTime;
+          updateCamera(me);
+          return;
+        }
+
+        // Определяем направление
+        me.state = "walking";
+        me.direction = getDirection(normalizedDx, normalizedDy);
+
+        // Обновляем анимацию
+        me.frameTime += deltaTime;
+        if (me.frameTime >= frameDuration) {
+          me.frameTime = me.frameTime % frameDuration;
+          me.frame = (me.frame + 1) % 7;
+        }
+
+        // Обновляем дистанцию
+        const traveled = Math.sqrt((me.x - prevX) ** 2 + (me.y - prevY) ** 2);
+        me.distanceTraveled = (me.distanceTraveled || 0) + traveled;
+
+        // Проверяем взаимодействие с NPC, квестами и торговым автоматом
+        window.npcSystem.checkNPCProximity();
+        window.jackSystem.checkJackProximity();
+        window.npcSystem.checkQuestCompletion();
+        window.vendingMachine.checkProximity();
+
+        // Обновляем ресурсы и коллизии
+        updateResources();
+        checkCollisions();
+
+        // Отправляем данные на сервер только по интервалу
+        if (currentTime - lastSendTime >= sendInterval) {
+          sendMovementUpdate(me);
+          lastSendTime = currentTime;
+        }
+
+        moved = true;
+      } else if (me.state !== "idle") {
+        // Если клавиши отпущены, останавливаем
+        me.state = "idle";
+        me.frame = 0;
+        me.frameTime = 0;
+        sendMovementUpdate(me);
+        lastSendTime = currentTime;
+      }
+    }
+
+    if (me.state === "dying") {
       // Обработка анимации смерти
       me.frameTime += deltaTime;
       if (me.frameTime >= frameDuration) {
