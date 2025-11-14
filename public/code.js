@@ -629,9 +629,6 @@ function handleAuthMessage(event) {
         updateStatsDisplay();
       }
       break;
-    case "enemyKilled":
-      window.enemySystem.handleEnemyDeath(data.enemyId, data.killerId);
-      break;
     case "newItem":
       const newItem = {
         x: data.x,
@@ -1770,7 +1767,6 @@ function update(deltaTime) {
   if (!me || me.health <= 0) return;
 
   window.combatSystem.update(deltaTime);
-  window.enemySystem.update(deltaTime);
 
   // Проверяем зоны перехода
   window.worldSystem.checkTransitionZones(me.x, me.y);
@@ -1901,7 +1897,6 @@ function draw(deltaTime) {
   window.jackSystem.drawJack(deltaTime);
   window.vendingMachine.draw();
   window.combatSystem.draw();
-  window.enemySystem.draw();
 
   players.forEach((player) => {
     if (player.worldId !== currentWorldId) return;
