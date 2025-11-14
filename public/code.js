@@ -64,6 +64,7 @@ const imageSources = {
   knifeImage: "knife.png",
   batImage: "bat.png",
   atomImage: "atom.png",
+  mutantSprite: "mutantSprite.png",
 };
 
 const images = {};
@@ -77,6 +78,7 @@ Object.entries(imageSources).forEach(([key, src]) => {
     imagesLoaded++;
     if (imagesLoaded === totalImages) {
       window.addEventListener("resize", resizeCanvas);
+      window.enemySystem.initialize();
     }
   };
   images[key].onerror = () => {
@@ -1724,6 +1726,30 @@ function handleGameMessage(event) {
         updateStatsDisplay();
         updateInventoryDisplay();
         break;
+      case "syncBullets":
+        window.combatSystem.syncBullets(data.bullets);
+        break;
+      // ВСТАВЬ ЗДЕСЬ
+      case "syncEnemies":
+        window.enemySystem.syncEnemies(data.enemies);
+        break;
+      case "enemyUpdate":
+        if (data.enemy && data.enemy.id) {
+          enemies.set(data.enemy.id, {
+            ...enemies.get(data.enemy.id),
+            ...data.enemy,
+          });
+        }
+        break;
+      case "enemyDied":
+        enemies.delete(data.enemyId);
+        break;
+      case "enemyAttack":
+        // Визуал атаки на игрока (например, triggerAttackAnimation если targetId === myId)
+        if (data.targetId === myId) {
+          triggerAttackAnimation();
+        }
+        break;
     }
   } catch (error) {
     console.error("Ошибка в handleGameMessage:", error);
@@ -1767,6 +1793,7 @@ function update(deltaTime) {
   if (!me || me.health <= 0) return;
 
   window.combatSystem.update(deltaTime);
+  window.enemySystem.update(deltaTime);
 
   // Проверяем зоны перехода
   window.worldSystem.checkTransitionZones(me.x, me.y);
@@ -1897,6 +1924,7 @@ function draw(deltaTime) {
   window.jackSystem.drawJack(deltaTime);
   window.vendingMachine.draw();
   window.combatSystem.draw();
+  window.enemySystem.draw();
 
   players.forEach((player) => {
     if (player.worldId !== currentWorldId) return;

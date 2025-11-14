@@ -189,6 +189,18 @@ function setupWebSocket(
               spawnTime: item.spawnTime,
               worldId: item.worldId,
             }));
+          const worldEnemies = Array.from(enemies.entries())
+            .filter(([_, enemy]) => enemy.worldId === targetWorldId)
+            .map(([enemyId, enemy]) => ({
+              enemyId,
+              x: enemy.x,
+              y: enemy.y,
+              health: enemy.health,
+              direction: enemy.direction,
+              state: enemy.state,
+              frame: enemy.frame,
+              worldId: enemy.worldId,
+            }));
 
           ws.send(
             JSON.stringify({
@@ -199,6 +211,7 @@ function setupWebSocket(
               lights: lights.get(targetWorldId).map(({ id, ...rest }) => rest),
               players: worldPlayers,
               items: worldItems,
+              enemies: worldEnemies,
             })
           );
         }
@@ -300,6 +313,20 @@ function setupWebSocket(
                   type: item.type,
                   spawnTime: item.spawnTime,
                   worldId: item.worldId,
+                  enemies: Array.from(enemies.entries())
+                    .filter(
+                      ([_, enemy]) => enemy.worldId === playerData.worldId
+                    )
+                    .map(([enemyId, enemy]) => ({
+                      enemyId,
+                      x: enemy.x,
+                      y: enemy.y,
+                      health: enemy.health,
+                      direction: enemy.direction,
+                      state: enemy.state,
+                      frame: enemy.frame,
+                      worldId: enemy.worldId,
+                    })),
                 })),
               healthUpgrade: playerData.healthUpgrade,
               energyUpgrade: playerData.energyUpgrade,
@@ -1429,6 +1456,83 @@ function setupWebSocket(
                 }
               }
             });
+          }
+        }
+      } else if (data.type === "attackEnemy") {
+        const attackerId = clients.get(ws);
+        if (
+          attackerId &&
+          players.has(attackerId) &&
+          enemies.has(data.targetId)
+        ) {
+          const attacker = players.get(attackerId);
+          const enemy = enemies.get(data.targetId);
+          if (
+            attacker.worldId === data.worldId &&
+            enemy.worldId === data.worldId &&
+            enemy.health > 0
+          ) {
+            enemy.health = Math.max(0, enemy.health - data.damage);
+            enemies.set(data.targetId, { ...enemy });
+
+            // Broadcast update
+            wss.clients.forEach((client) => {
+              if (client.readyState === WebSocket.OPEN) {
+                const clientPlayer = players.get(clients.get(client));
+                if (clientPlayer && clientPlayer.worldId === enemy.worldId) {
+                  client.send(
+                    JSON.stringify({
+                      type: "enemyUpdate",
+                      enemy: { id: data.targetId, ...enemy },
+                    })
+                  );
+                }
+              }
+            });
+
+            // Если умер
+            if (enemy.health <= 0) {
+              enemies.delete(data.targetId);
+              // Drop item (шанс 50% meat_chunk)
+              if (Math.random() < 0.5) {
+                const itemId = `meat_chunk_${Date.now()}`;
+                const dropItem = {
+                  x: enemy.x,
+                  y: enemy.y,
+                  type: "meat_chunk",
+                  spawnTime: Date.now(),
+                  worldId: data.worldId,
+                };
+                items.set(itemId, dropItem);
+                wss.clients.forEach((client) => {
+                  if (client.readyState === WebSocket.OPEN) {
+                    const clientPlayer = players.get(clients.get(client));
+                    if (clientPlayer && clientPlayer.worldId === data.worldId) {
+                      client.send(
+                        JSON.stringify({
+                          type: "newItem",
+                          items: [{ itemId, ...dropItem }],
+                        })
+                      );
+                    }
+                  }
+                });
+              }
+              // Broadcast death
+              wss.clients.forEach((client) => {
+                if (client.readyState === WebSocket.OPEN) {
+                  const clientPlayer = players.get(clients.get(client));
+                  if (clientPlayer && clientPlayer.worldId === data.worldId) {
+                    client.send(
+                      JSON.stringify({
+                        type: "enemyDied",
+                        enemyId: data.targetId,
+                      })
+                    );
+                  }
+                }
+              });
+            }
           }
         }
       } else if (data.type === "meetJack") {

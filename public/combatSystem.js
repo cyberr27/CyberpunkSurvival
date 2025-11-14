@@ -270,6 +270,26 @@ function updateBullets(deltaTime) {
       }
     });
 
+    enemies.forEach((enemy, id) => {
+      if (enemy.health > 0 && enemy.worldId === currentWorldId) {
+        const dx = bullet.x - (enemy.x + 35); // Центр
+        const dy = bullet.y - (enemy.y + 35);
+        if (Math.sqrt(dx * dx + dy * dy) < 35) {
+          // Радиус мутанта ~35
+          bullets.delete(bulletId);
+          sendWhenReady(
+            ws,
+            JSON.stringify({
+              type: "attackEnemy",
+              targetId: id,
+              damage: bullet.damage,
+              worldId: currentWorldId,
+            })
+          );
+        }
+      }
+    });
+
     // Удаление пули по истечении времени жизни или превышения дальности
     const timeElapsed = currentTime - bullet.spawnTime;
     const distanceTraveled = Math.sqrt(
