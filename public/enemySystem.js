@@ -3,7 +3,7 @@
 const ENEMY_SPEED = 2; // Скорость движения мутантов (px/кадр)
 const AGGRO_RANGE = 300; // Радиус аггро (px)
 const ATTACK_RANGE = 50; // Радиус атаки (px)
-const ATTACK_COOLDOWN = 1000; // Перезарядка атаки (ms)
+const ENEMY_ATTACK_COOLDOWN = 1000; // Перезарядка атаки (ms) — переименовано, чтобы избежать конфликта с combatSystem.js
 const MUTANT_SIZE = 70; // Размер спрайта (как у игроков)
 const MUTANT_FRAMES = 40; // Кадры анимации
 const MUTANT_FRAME_DURATION = 100; // ms на кадр

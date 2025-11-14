@@ -161,7 +161,8 @@ async function initializeServer() {
     lights,
     worlds,
     ITEM_CONFIG,
-    INACTIVITY_TIMEOUT
+    INACTIVITY_TIMEOUT,
+    enemies
   );
   runGameLoop(
     wss,
