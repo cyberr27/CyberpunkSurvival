@@ -1,5 +1,10 @@
 const { saveUserDatabase } = require("./database");
 
+const ENEMY_SPEED = 2; // Скорость движения мутантов (px/кадр)
+const AGGRO_RANGE = 300; // Радиус аггро (px)
+const ATTACK_RANGE = 50; // Радиус атаки (px)
+const ENEMY_ATTACK_COOLDOWN = 1000; // Перезарядка атаки (ms)
+
 const tradeRequests = new Map(); // Requests: key = `${fromId}-${toId}`, value = { status: 'pending' }
 const tradeOffers = new Map(); // Offers: key = `${fromId}-${toId}`, value = { myOffer: [], partnerOffer: [], myConfirmed: false, partnerConfirmed: false }
 
