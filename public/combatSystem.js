@@ -1,7 +1,7 @@
 const BULLET_SPEED = 10; // Скорость пули (пикселей за кадр)
 const BULLET_SIZE = 5; // Размер пули
 const ATTACK_COOLDOWN = 500; // Перезарядка атаки в миллисекундах
-const BULLET_LIFETIME = 2000; // Время жизни пули в миллисекундах
+const BULLET_LIFETIME = 7000; // Время жизни пули в миллисекундах
 
 let bullets = new Map(); // Хранилище пуль
 let lastAttackTime = 0; // Время последней атаки
@@ -343,10 +343,16 @@ function syncBullets(serverBullets) {
   });
 }
 
+function triggerMutantAttackAnimation() {
+  // Можно добавить экранный шейк или мигание для мутантов
+  console.log("Mutant attacked!"); // Пока placeholder
+}
+
 // Экспорт функций
 window.combatSystem = {
   initialize: initializeCombatSystem,
   update: updateBullets,
   draw: drawBullets,
   syncBullets,
+  triggerMutantAttackAnimation,
 };

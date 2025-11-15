@@ -1762,9 +1762,9 @@ function handleGameMessage(event) {
         enemies.delete(data.enemyId);
         break;
       case "enemyAttack":
-        // Визуал атаки на игрока (например, triggerAttackAnimation если targetId === myId)
         if (data.targetId === myId) {
-          triggerAttackAnimation();
+          window.combatSystem.triggerMutantAttackAnimation();
+          triggerAttackAnimation(); // Существующая анимация кнопки
         }
         break;
     }

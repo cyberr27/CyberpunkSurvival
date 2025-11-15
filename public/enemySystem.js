@@ -3,10 +3,11 @@
 const ENEMY_SPEED = 2; // Скорость движения мутантов (px/кадр)
 const AGGRO_RANGE = 300; // Радиус аггро (px)
 const ATTACK_RANGE = 50; // Радиус атаки (px)
-const ENEMY_ATTACK_COOLDOWN = 1000; // Перезарядка атаки (ms) — переименовано, чтобы избежать конфликта с combatSystem.js
+const ENEMY_ATTACK_COOLDOWN = 1000; // Перезарядка атаки (ms)
 const MUTANT_SIZE = 70; // Размер спрайта (как у игроков)
 const MUTANT_FRAMES = 40; // Кадры анимации
 const MUTANT_FRAME_DURATION = 100; // ms на кадр
+const DEATH_ANIMATION_DURATION = 1000; // Длительность анимации смерти (ms)
 
 let enemies = new Map(); // Хранилище врагов: key = enemyId, value = {id, x, y, health, direction, state, frame, worldId, lastAttackTime, deathTime}
 let mutantSprite; // Изображение спрайта
@@ -32,7 +33,7 @@ function syncEnemies(serverEnemies) {
       frame: 0,
       frameTime: 0,
       lastAttackTime: 0,
-      deathTime: null, // Добавлено: Для анимации смерти
+      deathTime: null,
     });
   });
 }
@@ -46,13 +47,13 @@ function updateEnemies(deltaTime) {
   enemies.forEach((enemy, enemyId) => {
     if (enemy.worldId !== currentWorldId) return;
 
-    // Добавлено: Если здоровье <=0, установить state dying и таймер удаления (для плавной смерти)
+    // ✅ ДИНАМИЧНОЕ ОБНОВЛЕНИЕ: Если здоровье <=0, запускаем анимацию смерти
     if (enemy.health <= 0 && !enemy.deathTime) {
       enemy.state = "dying";
-      enemy.deathTime = Date.now(); // Запустить таймер анимации смерти
+      enemy.deathTime = Date.now();
     }
 
-    // Анимация (если walking или dying)
+    // Анимация (walking или dying)
     if (enemy.state === "walking" || enemy.state === "dying") {
       enemy.frameTime += deltaTime;
       if (enemy.frameTime >= MUTANT_FRAME_DURATION) {
@@ -64,8 +65,14 @@ function updateEnemies(deltaTime) {
       enemy.frameTime = 0;
     }
 
-    // Локальная проверка атаки (но атака приходит с сервера)
-    // Здесь можно добавить визуальные эффекты, но основная логика на сервере
+    // ✅ ПРАВИЛЬНАЯ ОЧИСТКА: Удаляем локально через 1 сек после смерти
+    if (
+      enemy.deathTime &&
+      Date.now() - enemy.deathTime > DEATH_ANIMATION_DURATION
+    ) {
+      enemies.delete(enemyId);
+      return;
+    }
   });
 }
 
@@ -77,9 +84,12 @@ function drawEnemies() {
   enemies.forEach((enemy) => {
     if (enemy.worldId !== currentWorldId) return;
 
-    // Добавлено: Пропустить отрисовку, если анимация смерти закончилась (>1 сек)
-    if (enemy.deathTime && Date.now() - enemy.deathTime > 1000) {
-      return; // Не рисовать после анимации (сервер уже удалил)
+    // ✅ ПРОВЕРКА: Не рисовать, если анимация смерти закончилась
+    if (
+      enemy.deathTime &&
+      Date.now() - enemy.deathTime > DEATH_ANIMATION_DURATION
+    ) {
+      return;
     }
 
     const screenX = enemy.x - camera.x;
@@ -110,7 +120,8 @@ function drawEnemies() {
           spriteY = 140;
           break;
       }
-      if (enemy.state === "dying") spriteY = 70; // Пример для dying (можно добавить отдельный ряд в спрайте, если есть)
+      // ✅ ПРИ СМЕРТИ - фиксированный кадр смерти
+      if (enemy.state === "dying") spriteY = 70;
 
       ctx.drawImage(
         mutantSprite,
@@ -129,21 +140,45 @@ function drawEnemies() {
       ctx.fillRect(screenX, screenY, 70, 70);
     }
 
-    // Health bar (не рисовать, если dying и таймер >500ms для fade-out, но опционально)
-    if (
-      enemy.state !== "dying" ||
-      (enemy.deathTime && Date.now() - enemy.deathTime < 500)
-    ) {
-      ctx.fillStyle = "red";
-      ctx.fillRect(screenX, screenY - 15, 70, 5);
-      ctx.fillStyle = "green";
-      ctx.fillRect(screenX, screenY - 15, (enemy.health / 50) * 70, 5);
+    // ✅ ДИНАМИЧНЫЙ HEALTH BAR: Всегда виден, плавный, с fade-out при смерти
+    const healthPercent = Math.max(0, enemy.health / 200); // ✅ 200 HP!
+    const barWidth = 70;
+    const barHeight = 8;
+    const barX = screenX;
+    const barY = screenY - 20;
+
+    // Фон бара (красный)
+    ctx.fillStyle = "rgba(100, 0, 0, 0.8)";
+    ctx.fillRect(barX, barY, barWidth, barHeight);
+
+    // Зелёный прогресс (плавный)
+    ctx.fillStyle = "rgba(0, 200, 0, 0.9)";
+    ctx.fillRect(barX, barY, barWidth * healthPercent, barHeight);
+
+    // Рамка (белая, тонкая)
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.6)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(barX, barY, barWidth, barHeight);
+
+    // ✅ FADE-OUT ЭФФЕКТ при смерти (после 500ms)
+    if (enemy.deathTime) {
+      const deathProgress = (Date.now() - enemy.deathTime) / 500;
+      if (deathProgress > 1) {
+        ctx.globalAlpha = 0; // Полностью скрыть
+      } else {
+        ctx.globalAlpha = 1 - deathProgress; // Плавное исчезновение
+      }
+      ctx.fillRect(barX, barY, barWidth, barHeight); // Перерисовать с альфой
+      ctx.globalAlpha = 1; // Восстановить
     }
 
-    // ID для дебага
-    ctx.fillStyle = "white";
-    ctx.font = "12px Arial";
-    ctx.fillText(enemy.id, screenX + 35, screenY - 20);
+    // ID для дебага (только если жив)
+    if (enemy.health > 0) {
+      ctx.fillStyle = "white";
+      ctx.font = "12px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText(enemy.id, screenX + 35, screenY - 30);
+    }
   });
 }
 
