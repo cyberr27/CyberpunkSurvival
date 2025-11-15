@@ -201,6 +201,13 @@ function setLevelData(level, xp, maxStatsData, upgradePointsData) {
     upgradePoints = upgradePointsData || 0;
     xpToNextLevel = calculateXPToNextLevel(currentLevel);
 
+    // ВСТАВКА: Защита от NaN
+    currentLevel = Number(currentLevel);
+    if (isNaN(currentLevel)) currentLevel = 0;
+    currentXP = Number(currentXP);
+    if (isNaN(currentXP)) currentXP = 0;
+    xpToNextLevel = calculateXPToNextLevel(currentLevel); // Пересчитать после фикса
+
     const me = players.get(myId);
     if (!me) {
       console.warn("Игрок не найден при setLevelData");
@@ -239,6 +246,8 @@ function setLevelData(level, xp, maxStatsData, upgradePointsData) {
 
 function calculateXPToNextLevel(level) {
   try {
+    level = Number(level); // Принудительно число
+    if (isNaN(level) || level < 0) level = 0; // Защита от NaN или отрицательного
     if (level >= 100) return 0;
     return 100 * Math.pow(2, level);
   } catch (error) {
@@ -342,6 +351,10 @@ function handleEnemyKill(xpGained) {
       return;
     }
 
+    // ВСТАВКА: Защита
+    currentXP = Number(currentXP) || 0;
+    if (isNaN(currentXP)) currentXP = 0;
+
     currentXP += xpGained;
     checkLevelUp();
 
@@ -355,6 +368,7 @@ function handleEnemyKill(xpGained) {
           upgradePoints,
         })
       );
+    } else {
     }
 
     showXPEffect(xpGained);
@@ -363,6 +377,13 @@ function handleEnemyKill(xpGained) {
 
 function checkLevelUp() {
   try {
+    // ВСТАВКА: Защита от NaN
+    currentXP = Number(currentXP);
+    if (isNaN(currentXP)) currentXP = 0;
+    currentLevel = Number(currentLevel);
+    if (isNaN(currentLevel)) currentLevel = 0;
+    xpToNextLevel = calculateXPToNextLevel(currentLevel);
+
     while (currentXP >= xpToNextLevel && currentLevel < 100) {
       currentLevel++;
       currentXP -= xpToNextLevel;

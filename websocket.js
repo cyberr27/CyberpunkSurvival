@@ -4,6 +4,8 @@ const tradeRequests = new Map(); // Requests: key = `${fromId}-${toId}`, value =
 const tradeOffers = new Map(); // Offers: key = `${fromId}-${toId}`, value = { myOffer: [], partnerOffer: [], myConfirmed: false, partnerConfirmed: false }
 
 function calculateXPToNextLevel(level) {
+  level = Number(level);
+  if (isNaN(level) || level < 0) return 100; // Дефолт если NaN
   if (level >= 100) return 0;
   return 100 * Math.pow(2, level);
 }
@@ -1557,6 +1559,12 @@ function setupWebSocket(
 
             // Если умер
             if (enemy.health <= 0) {
+              // ВСТАВКА: Защита от NaN
+              attacker.xp = Number(attacker.xp) || 0;
+              if (isNaN(attacker.xp)) attacker.xp = 0;
+              attacker.level = Number(attacker.level) || 0;
+              if (isNaN(attacker.level)) attacker.level = 0;
+
               // +7 XP атакующему
               attacker.xp += 7;
 
