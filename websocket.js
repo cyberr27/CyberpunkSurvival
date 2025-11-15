@@ -1557,23 +1557,27 @@ function setupWebSocket(
 
             // Если умер
             if (enemy.health <= 0) {
-              // +7 XP атакующему
-              attacker.xp += 7;
+              const xpGained = 7;
 
-              // Check level up (while loop для нескольких levels)
-              let xpToNext = calculateXPToNextLevel(attacker.level);
+              // === КРИТИЧНО: Полный пересчёт XP и левел-апа ===
+              attacker.xp = (attacker.xp || 0) + xpGained;
+
+              let oldLevel = attacker.level || 0;
+              let xpToNext = calculateXPToNextLevel(oldLevel);
+
               while (attacker.xp >= xpToNext && attacker.level < 100) {
                 attacker.level++;
                 attacker.xp -= xpToNext;
                 xpToNext = calculateXPToNextLevel(attacker.level);
-                attacker.upgradePoints += 10;
+                attacker.upgradePoints = (attacker.upgradePoints || 0) + 10;
               }
 
-              // Save & send updateLevel to attacker client
+              // Сохраняем
               players.set(attackerId, { ...attacker });
               userDatabase.set(attackerId, { ...attacker });
               await saveUserDatabase(dbCollection, attackerId, attacker);
 
+              // === ОТПРАВЛЯЕМ ПОЛНУЮ СИНХРОНИЗАЦИЮ КЛИЕНТУ ===
               wss.clients.forEach((client) => {
                 if (
                   client.readyState === WebSocket.OPEN &&
@@ -1581,24 +1585,21 @@ function setupWebSocket(
                 ) {
                   client.send(
                     JSON.stringify({
-                      type: "updateLevel",
+                      type: "levelSyncAfterKill",
                       level: attacker.level,
                       xp: attacker.xp,
+                      xpToNextLevel: xpToNext,
                       upgradePoints: attacker.upgradePoints,
-                    })
-                  );
-                  // Новый тип: Для показа эффекта +XP на клиенте
-                  client.send(
-                    JSON.stringify({
-                      type: "enemyKilled",
-                      xpGained: 7,
+                      xpGained: xpGained,
                     })
                   );
                 }
               });
 
+              // Удаляем врага
               enemies.delete(data.targetId);
-              // Drop item (шанс 50% meat_chunk + 20% atom для крутости)
+
+              // Дроп (как было)
               if (Math.random() < 0.5) {
                 const itemId = `meat_chunk_${Date.now()}`;
                 const dropItem = {
@@ -1624,7 +1625,6 @@ function setupWebSocket(
                 });
               }
               if (Math.random() < 0.2) {
-                // +20% шанс atom
                 const itemId = `atom_${Date.now()}`;
                 const dropItem = {
                   x: enemy.x,
@@ -1648,7 +1648,8 @@ function setupWebSocket(
                   }
                 });
               }
-              // Broadcast death
+
+              // Смерть
               wss.clients.forEach((client) => {
                 if (client.readyState === WebSocket.OPEN) {
                   const clientPlayer = players.get(clients.get(client));
@@ -1663,7 +1664,7 @@ function setupWebSocket(
                 }
               });
 
-              // Респаун через 5-10 сек (рандом для крутости)
+              // Респаун
               const respawnDelay = 5000 + Math.random() * 5000;
               setTimeout(() => spawnNewEnemy(data.worldId), respawnDelay);
             }

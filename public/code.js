@@ -1737,7 +1737,15 @@ function handleGameMessage(event) {
           lastAttackTime: 0,
         });
       case "enemyKilled":
-        window.levelSystem.handleEnemyKill(data.xpGained);
+        break;
+      case "levelSyncAfterKill":
+        window.levelSystem.handleEnemyKill({
+          level: data.level,
+          xp: data.xp,
+          xpToNextLevel: data.xpToNextLevel,
+          upgradePoints: data.upgradePoints,
+          xpGained: data.xpGained,
+        });
         break;
       case "syncEnemies":
         window.enemySystem.syncEnemies(data.enemies);

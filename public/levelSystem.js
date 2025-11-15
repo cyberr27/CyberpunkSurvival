@@ -335,30 +335,28 @@ function handleQuestCompletion(rarity) {
   } catch (error) {}
 }
 
-function handleEnemyKill(xpGained) {
+function handleEnemyKill(data) {
   try {
+    // Полная синхронизация с сервера
+    currentLevel = data.level;
+    currentXP = data.xp;
+    xpToNextLevel = data.xpToNextLevel;
+    upgradePoints = data.upgradePoints;
+
     const me = players.get(myId);
-    if (!me) {
-      return;
+    if (me) {
+      me.level = currentLevel;
+      me.xp = currentXP;
+      me.upgradePoints = upgradePoints;
     }
 
-    currentXP += xpGained;
-    checkLevelUp();
-
-    if (ws.readyState === WebSocket.OPEN) {
-      sendWhenReady(
-        ws,
-        JSON.stringify({
-          type: "updateLevel",
-          level: currentLevel,
-          xp: currentXP,
-          upgradePoints,
-        })
-      );
-    }
-
-    showXPEffect(xpGained);
-  } catch (error) {}
+    showXPEffect(data.xpGained);
+    updateLevelDisplay();
+    updateStatsDisplay();
+    updateUpgradeButtons();
+  } catch (error) {
+    console.error("Ошибка в handleEnemyKill:", error);
+  }
 }
 
 function checkLevelUp() {
