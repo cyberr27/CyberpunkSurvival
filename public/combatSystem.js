@@ -111,102 +111,90 @@ function performAttack() {
         })
       );
     } else {
-      // Ближний бой: БАЗОВЫЙ 5-10 + бонус оружия
-      let weaponMin = 0,
-        weaponMax = 0;
-      if (weaponConfig.effect.damage?.min) {
-        weaponMin = weaponConfig.effect.damage.min;
-        weaponMax = weaponConfig.effect.damage.max;
+      // Ближний бой
+      let damage;
+      if (
+        weaponConfig.effect.damage &&
+        weaponConfig.effect.damage.min &&
+        weaponConfig.effect.damage.max
+      ) {
+        // Для оружия с диапазоном урона (кастет, нож, бита)
+        damage = Math.floor(
+          Math.random() *
+            (weaponConfig.effect.damage.max -
+              weaponConfig.effect.damage.min +
+              1) +
+            weaponConfig.effect.damage.min
+        );
+      } else {
+        // Для других случаев (если вдруг есть оружие без диапазона)
+        damage = (Math.random() * 10 + (weaponConfig.effect.damage || 0)) | 0;
       }
-
-      const baseMin = 5,
-        baseMax = 10;
-      const totalMin = baseMin + weaponMin;
-      const totalMax = baseMax + weaponMax;
-
-      const damage = Math.floor(
-        Math.random() * (totalMax - totalMin + 1) + totalMin
-      );
-
       performMeleeAttack(damage, currentWorldId);
     }
   } else {
-    // БЕЗ оружия: чисто базовый 5-10
-    const damage = Math.floor(Math.random() * 6 + 5); // 5-10
+    // Атака без оружия (кулаками)
+    const damage = (Math.random() * 10) | 0;
     performMeleeAttack(damage, currentWorldId);
   }
 }
 
-// Выполнение атаки ближнего боя (теперь ищет и мутантов, и игроков)
+// Выполнение атаки ближнего боя
 function performMeleeAttack(damage, worldId) {
   const me = players.get(myId);
-  if (!me || me.health <= 0) return;
+  const attackRange = 50; // Дальность атаки
+  let hit = false; // Флаг успешного попадания
 
-  // Ищем ближайшую цель: сначала мутант, потом игрок в радиусе 50px
-  let closestTargetId = null;
-  let closestTargetType = null; // 'enemy' или 'player'
-  let minDistSq = 50 * 50; // 2500px²
-
-  // Сначала проверяем мутантов (приоритет PvE)
-  enemies.forEach((enemy, enemyId) => {
-    if (enemy.health <= 0 || enemy.worldId !== worldId) return;
-
-    // Расстояние от центра игрока (35px) к центру мутанта (35px)
-    const dx = me.x + 35 - (enemy.x + 35);
-    const dy = me.y + 35 - (enemy.y + 35);
-    const distSq = dx * dx + dy * dy;
-
-    if (distSq < minDistSq) {
-      minDistSq = distSq;
-      closestTargetId = enemyId;
-      closestTargetType = "enemy";
+  // Проверка игроков
+  players.forEach((player, id) => {
+    if (id !== myId && player.health > 0 && player.worldId === worldId) {
+      const dx = player.x - me.x;
+      const dy = player.y - me.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      if (distance <= attackRange) {
+        hit = true;
+        sendWhenReady(
+          ws,
+          JSON.stringify({
+            type: "attackPlayer",
+            targetId: id,
+            damage,
+            worldId,
+          })
+        );
+      }
     }
   });
 
-  // Если мутант не найден, проверяем игроков (PvP)
-  if (!closestTargetId) {
-    players.forEach((player, playerId) => {
-      if (playerId === myId || player.health <= 0 || player.worldId !== worldId)
-        return;
-
-      const dx = me.x + 35 - (player.x + 35);
-      const dy = me.y + 35 - (player.y + 35);
-      const distSq = dx * dx + dy * dy;
-
-      if (distSq < minDistSq) {
-        minDistSq = distSq;
-        closestTargetId = playerId;
-        closestTargetType = "player";
-      }
-    });
+  // Обновляем данные игрока на сервере, если была затрачена энергия
+  if (hit) {
+    sendWhenReady(
+      ws,
+      JSON.stringify({
+        type: "update",
+        player: {
+          id: myId,
+          x: me.x,
+          y: me.y,
+          health: me.health,
+          energy: me.energy,
+          food: me.food,
+          water: me.water,
+          armor: me.armor,
+          distanceTraveled: me.distanceTraveled,
+          direction: me.direction,
+          state: me.state,
+          frame: me.frame,
+          worldId,
+        },
+      })
+    );
   }
 
-  // Если цель найдена - отправляем на сервер
-  if (closestTargetId && ws.readyState === WebSocket.OPEN) {
-    if (closestTargetType === "enemy") {
-      sendWhenReady(
-        ws,
-        JSON.stringify({
-          type: "attackEnemy",
-          targetId: closestTargetId,
-          damage: damage,
-          worldId: worldId,
-        })
-      );
-    } else if (closestTargetType === "player") {
-      sendWhenReady(
-        ws,
-        JSON.stringify({
-          type: "attackPlayer",
-          targetId: closestTargetId,
-          damage: damage,
-          worldId: worldId,
-        })
-      );
-    }
-  }
+  return hit; // Возвращаем, была ли атака успешной
 }
 
+// Получение угла поворота игрока
 function getPlayerAngle(direction) {
   switch (direction) {
     case "up":
@@ -254,7 +242,7 @@ function updateBullets(deltaTime) {
       }
     });
 
-    // Проверка столкновений с игроками (PvP дальнее)
+    // Проверка столкновений с игроками
     players.forEach((player, id) => {
       if (
         id !== bullet.ownerId &&
@@ -282,7 +270,6 @@ function updateBullets(deltaTime) {
       }
     });
 
-    // Проверка столкновений с мутантами
     enemies.forEach((enemy, id) => {
       if (enemy.health > 0 && enemy.worldId === currentWorldId) {
         const dx = bullet.x - (enemy.x + 35); // Центр
