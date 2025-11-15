@@ -1729,7 +1729,16 @@ function handleGameMessage(event) {
       case "syncBullets":
         window.combatSystem.syncBullets(data.bullets);
         break;
-      // ВСТАВЬ ЗДЕСЬ
+      case "newEnemy":
+        enemies.set(data.enemy.id, {
+          ...data.enemy,
+          frame: 0,
+          frameTime: 0,
+          lastAttackTime: 0,
+        });
+      case "enemyKilled":
+        window.levelSystem.handleEnemyKill(data.xpGained);
+        break;
       case "syncEnemies":
         window.enemySystem.syncEnemies(data.enemies);
         break;

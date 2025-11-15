@@ -335,6 +335,32 @@ function handleQuestCompletion(rarity) {
   } catch (error) {}
 }
 
+function handleEnemyKill(xpGained) {
+  try {
+    const me = players.get(myId);
+    if (!me) {
+      return;
+    }
+
+    currentXP += xpGained;
+    checkLevelUp();
+
+    if (ws.readyState === WebSocket.OPEN) {
+      sendWhenReady(
+        ws,
+        JSON.stringify({
+          type: "updateLevel",
+          level: currentLevel,
+          xp: currentXP,
+          upgradePoints,
+        })
+      );
+    }
+
+    showXPEffect(xpGained);
+  } catch (error) {}
+}
+
 function checkLevelUp() {
   try {
     while (currentXP >= xpToNextLevel && currentLevel < 100) {
@@ -414,4 +440,5 @@ window.levelSystem = {
   handleQuestCompletion,
   maxStats,
   updateUpgradeButtons,
+  handleEnemyKill,
 };

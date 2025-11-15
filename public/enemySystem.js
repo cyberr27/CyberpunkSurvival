@@ -8,7 +8,7 @@ const MUTANT_SIZE = 70; // Размер спрайта (как у игроков
 const MUTANT_FRAMES = 40; // Кадры анимации
 const MUTANT_FRAME_DURATION = 100; // ms на кадр
 
-let enemies = new Map(); // Хранилище врагов: key = enemyId, value = {id, x, y, health, direction, state, frame, worldId, lastAttackTime}
+let enemies = new Map(); // Хранилище врагов: key = enemyId, value = {id, x, y, health, direction, state, frame, worldId, lastAttackTime, deathTime}
 let mutantSprite; // Изображение спрайта
 
 // Инициализация системы врагов
@@ -32,6 +32,7 @@ function syncEnemies(serverEnemies) {
       frame: 0,
       frameTime: 0,
       lastAttackTime: 0,
+      deathTime: null, // Добавлено: Для анимации смерти
     });
   });
 }
@@ -45,8 +46,14 @@ function updateEnemies(deltaTime) {
   enemies.forEach((enemy, enemyId) => {
     if (enemy.worldId !== currentWorldId) return;
 
-    // Анимация (если walking)
-    if (enemy.state === "walking") {
+    // Добавлено: Если здоровье <=0, установить state dying и таймер удаления (для плавной смерти)
+    if (enemy.health <= 0 && !enemy.deathTime) {
+      enemy.state = "dying";
+      enemy.deathTime = Date.now(); // Запустить таймер анимации смерти
+    }
+
+    // Анимация (если walking или dying)
+    if (enemy.state === "walking" || enemy.state === "dying") {
       enemy.frameTime += deltaTime;
       if (enemy.frameTime >= MUTANT_FRAME_DURATION) {
         enemy.frameTime -= MUTANT_FRAME_DURATION;
@@ -69,6 +76,11 @@ function drawEnemies() {
 
   enemies.forEach((enemy) => {
     if (enemy.worldId !== currentWorldId) return;
+
+    // Добавлено: Пропустить отрисовку, если анимация смерти закончилась (>1 сек)
+    if (enemy.deathTime && Date.now() - enemy.deathTime > 1000) {
+      return; // Не рисовать после анимации (сервер уже удалил)
+    }
 
     const screenX = enemy.x - camera.x;
     const screenY = enemy.y - camera.y;
@@ -98,7 +110,7 @@ function drawEnemies() {
           spriteY = 140;
           break;
       }
-      if (enemy.state === "dying") spriteY = 70; // Пример для dying
+      if (enemy.state === "dying") spriteY = 70; // Пример для dying (можно добавить отдельный ряд в спрайте, если есть)
 
       ctx.drawImage(
         mutantSprite,
@@ -117,11 +129,16 @@ function drawEnemies() {
       ctx.fillRect(screenX, screenY, 70, 70);
     }
 
-    // Health bar
-    ctx.fillStyle = "red";
-    ctx.fillRect(screenX, screenY - 15, 70, 5);
-    ctx.fillStyle = "green";
-    ctx.fillRect(screenX, screenY - 15, (enemy.health / 50) * 70, 5);
+    // Health bar (не рисовать, если dying и таймер >500ms для fade-out, но опционально)
+    if (
+      enemy.state !== "dying" ||
+      (enemy.deathTime && Date.now() - enemy.deathTime < 500)
+    ) {
+      ctx.fillStyle = "red";
+      ctx.fillRect(screenX, screenY - 15, 70, 5);
+      ctx.fillStyle = "green";
+      ctx.fillRect(screenX, screenY - 15, (enemy.health / 50) * 70, 5);
+    }
 
     // ID для дебага
     ctx.fillStyle = "white";

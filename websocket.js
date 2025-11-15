@@ -3,6 +3,11 @@ const { saveUserDatabase } = require("./database");
 const tradeRequests = new Map(); // Requests: key = `${fromId}-${toId}`, value = { status: 'pending' }
 const tradeOffers = new Map(); // Offers: key = `${fromId}-${toId}`, value = { myOffer: [], partnerOffer: [], myConfirmed: false, partnerConfirmed: false }
 
+function calculateXPToNextLevel(level) {
+  if (level >= 100) return 0;
+  return 100 * Math.pow(2, level);
+}
+
 function setupWebSocket(
   wss,
   dbCollection,
@@ -65,6 +70,65 @@ function setupWebSocket(
     player.food = Math.min(player.food, player.maxStats.food);
     player.water = Math.min(player.water, player.maxStats.water);
     player.armor = Math.min(player.armor, player.maxStats.armor);
+  }
+
+  function spawnNewEnemy(worldId) {
+    const world = worlds.find((w) => w.id === worldId);
+    if (!world) return;
+
+    let x, y;
+    let attempts = 0;
+    const minDistanceToPlayer = 200; // Не спаунить ближе 200px к игрокам для "крутости"
+
+    do {
+      x = Math.random() * world.w;
+      y = Math.random() * world.h;
+      attempts++;
+
+      // Проверка расстояния до всех игроков в мире
+      let tooClose = false;
+      players.forEach((player) => {
+        if (player.worldId === worldId) {
+          const dx = player.x - x;
+          const dy = player.y - y;
+          if (Math.sqrt(dx * dx + dy * dy) < minDistanceToPlayer) {
+            tooClose = true;
+          }
+        }
+      });
+
+      if (!tooClose) break;
+    } while (attempts < 50); // Макс 50 попыток, чтобы не зациклиться
+
+    const enemyId = `enemy_${Date.now()}_${Math.random()}`;
+    const newEnemy = {
+      id: enemyId,
+      x,
+      y,
+      health: 50,
+      direction: "down",
+      state: "idle",
+      frame: 0,
+      worldId,
+      lastAttackTime: 0,
+    };
+
+    enemies.set(enemyId, newEnemy);
+
+    // Broadcast нового врага всем в мире
+    wss.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        const clientPlayer = players.get(clients.get(client));
+        if (clientPlayer && clientPlayer.worldId === worldId) {
+          client.send(
+            JSON.stringify({
+              type: "newEnemy",
+              enemy: { ...newEnemy },
+            })
+          );
+        }
+      }
+    });
   }
 
   wss.on("connection", (ws) => {
@@ -1493,14 +1557,79 @@ function setupWebSocket(
 
             // Если умер
             if (enemy.health <= 0) {
+              // +7 XP атакующему
+              attacker.xp += 7;
+
+              // Check level up (while loop для нескольких levels)
+              let xpToNext = calculateXPToNextLevel(attacker.level);
+              while (attacker.xp >= xpToNext && attacker.level < 100) {
+                attacker.level++;
+                attacker.xp -= xpToNext;
+                xpToNext = calculateXPToNextLevel(attacker.level);
+                attacker.upgradePoints += 10;
+              }
+
+              // Save & send updateLevel to attacker client
+              players.set(attackerId, { ...attacker });
+              userDatabase.set(attackerId, { ...attacker });
+              await saveUserDatabase(dbCollection, attackerId, attacker);
+
+              wss.clients.forEach((client) => {
+                if (
+                  client.readyState === WebSocket.OPEN &&
+                  clients.get(client) === attackerId
+                ) {
+                  client.send(
+                    JSON.stringify({
+                      type: "updateLevel",
+                      level: attacker.level,
+                      xp: attacker.xp,
+                      upgradePoints: attacker.upgradePoints,
+                    })
+                  );
+                  // Новый тип: Для показа эффекта +XP на клиенте
+                  client.send(
+                    JSON.stringify({
+                      type: "enemyKilled",
+                      xpGained: 7,
+                    })
+                  );
+                }
+              });
+
               enemies.delete(data.targetId);
-              // Drop item (шанс 50% meat_chunk)
+              // Drop item (шанс 50% meat_chunk + 20% atom для крутости)
               if (Math.random() < 0.5) {
                 const itemId = `meat_chunk_${Date.now()}`;
                 const dropItem = {
                   x: enemy.x,
                   y: enemy.y,
                   type: "meat_chunk",
+                  spawnTime: Date.now(),
+                  worldId: data.worldId,
+                };
+                items.set(itemId, dropItem);
+                wss.clients.forEach((client) => {
+                  if (client.readyState === WebSocket.OPEN) {
+                    const clientPlayer = players.get(clients.get(client));
+                    if (clientPlayer && clientPlayer.worldId === data.worldId) {
+                      client.send(
+                        JSON.stringify({
+                          type: "newItem",
+                          items: [{ itemId, ...dropItem }],
+                        })
+                      );
+                    }
+                  }
+                });
+              }
+              if (Math.random() < 0.2) {
+                // +20% шанс atom
+                const itemId = `atom_${Date.now()}`;
+                const dropItem = {
+                  x: enemy.x,
+                  y: enemy.y,
+                  type: "atom",
                   spawnTime: Date.now(),
                   worldId: data.worldId,
                 };
@@ -1533,6 +1662,10 @@ function setupWebSocket(
                   }
                 }
               });
+
+              // Респаун через 5-10 сек (рандом для крутости)
+              const respawnDelay = 5000 + Math.random() * 5000;
+              setTimeout(() => spawnNewEnemy(data.worldId), respawnDelay);
             }
           }
         }
