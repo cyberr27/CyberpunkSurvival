@@ -71,7 +71,7 @@ const equipmentSystem = {
     },
     plasma_rifle: {
       type: "weapon",
-      effect: { damage: 15, range: 500 },
+      effect: { damage: 100, range: 500 },
       description: "Плазменная винтовка: +15 урона, дальнобойная",
       rarity: 4,
       image: new Image(),
