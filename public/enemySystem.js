@@ -52,8 +52,12 @@ function updateEnemies(deltaTime) {
       enemy.deathTime = Date.now(); // Запустить таймер анимации смерти
     }
 
-    // Анимация (если walking или dying)
-    if (enemy.state === "walking" || enemy.state === "dying") {
+    // Анимация (если walking, attacking или dying)
+    if (
+      enemy.state === "walking" ||
+      enemy.state === "attacking" ||
+      enemy.state === "dying"
+    ) {
       enemy.frameTime += deltaTime;
       if (enemy.frameTime >= MUTANT_FRAME_DURATION) {
         enemy.frameTime -= MUTANT_FRAME_DURATION;
@@ -111,6 +115,7 @@ function drawEnemies() {
           break;
       }
       if (enemy.state === "dying") spriteY = 70; // Пример для dying (можно добавить отдельный ряд в спрайте, если есть)
+      if (enemy.state === "attacking") spriteY = 140; // Пример для attacking (можно кастомизировать спрайт)
 
       ctx.drawImage(
         mutantSprite,
@@ -137,7 +142,7 @@ function drawEnemies() {
       ctx.fillStyle = "red";
       ctx.fillRect(screenX, screenY - 15, 70, 5);
       ctx.fillStyle = "green";
-      ctx.fillRect(screenX, screenY - 15, (enemy.health / 50) * 70, 5);
+      ctx.fillRect(screenX, screenY - 15, (enemy.health / 200) * 70, 5); // Динамический health bar (max 200)
     }
 
     // ID для дебага

@@ -91,7 +91,7 @@ function setupWebSocket(
       id: enemyId,
       x,
       y,
-      health: 50,
+      health: 200, // Новый уровень здоровья
       direction: "down",
       state: "idle",
       frame: 0,
@@ -117,8 +117,102 @@ function setupWebSocket(
     });
   }
 
+  function updateEnemiesServer() {
+    enemies.forEach((enemy, enemyId) => {
+      if (enemy.health <= 0) return;
+
+      let closestPlayer = null;
+      let minDist = Infinity;
+
+      players.forEach((player) => {
+        if (player.worldId === enemy.worldId && player.health > 0) {
+          const dx = player.x + 35 - (enemy.x + 35);
+          const dy = player.y + 35 - (enemy.y + 35);
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < minDist) {
+            minDist = dist;
+            closestPlayer = player;
+          }
+        }
+      });
+
+      if (closestPlayer && minDist <= AGGRO_RANGE) {
+        // Движение к игроку
+        const dx = closestPlayer.x + 35 - (enemy.x + 35);
+        const dy = closestPlayer.y + 35 - (enemy.y + 35);
+        const angle = Math.atan2(dy, dx);
+        enemy.x += Math.cos(angle) * ENEMY_SPEED;
+        enemy.y += Math.sin(angle) * ENEMY_SPEED;
+
+        // Направление
+        if (Math.abs(dx) > Math.abs(dy)) {
+          enemy.direction = dx > 0 ? "right" : "left";
+        } else {
+          enemy.direction = dy > 0 ? "down" : "up";
+        }
+        enemy.state = "walking";
+
+        // Атака, если в радиусе
+        if (
+          minDist <= ATTACK_RANGE &&
+          Date.now() - enemy.lastAttackTime >= ENEMY_ATTACK_COOLDOWN
+        ) {
+          enemy.state = "attacking";
+          const damage = Math.floor(Math.random() * 6) + 10; // 10-15
+          closestPlayer.health = Math.max(0, closestPlayer.health - damage);
+          enemy.lastAttackTime = Date.now();
+
+          // Сохраняем и broadcast атаку
+          players.set(closestPlayer.id, { ...closestPlayer });
+          userDatabase.set(closestPlayer.id, { ...closestPlayer });
+          saveUserDatabase(dbCollection, closestPlayer.id, closestPlayer); // Async, но без await для скорости
+
+          wss.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+              const clientPlayer = players.get(clients.get(client));
+              if (clientPlayer && clientPlayer.worldId === enemy.worldId) {
+                client.send(
+                  JSON.stringify({
+                    type: "enemyAttack",
+                    targetId: closestPlayer.id,
+                    damage: damage,
+                  })
+                );
+                client.send(
+                  JSON.stringify({
+                    type: "update",
+                    player: { id: closestPlayer.id, ...closestPlayer },
+                  })
+                );
+              }
+            }
+          });
+        }
+      } else {
+        enemy.state = "idle";
+      }
+
+      // Broadcast обновление мутанта
+      wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          const clientPlayer = players.get(clients.get(client));
+          if (clientPlayer && clientPlayer.worldId === enemy.worldId) {
+            client.send(
+              JSON.stringify({
+                type: "enemyUpdate",
+                enemy: { id: enemyId, ...enemy },
+              })
+            );
+          }
+        }
+      });
+    });
+  }
+
   wss.on("connection", (ws) => {
     console.log("Client connected");
+
+    setInterval(updateEnemiesServer, 100);
 
     let inactivityTimer = setTimeout(() => {
       console.log("Client disconnected due to inactivity");
@@ -1526,7 +1620,7 @@ function setupWebSocket(
             enemy.health = Math.max(0, enemy.health - data.damage);
             enemies.set(data.targetId, { ...enemy });
 
-            // Broadcast update
+            // Broadcast update (динамическое здоровье)
             wss.clients.forEach((client) => {
               if (client.readyState === WebSocket.OPEN) {
                 const clientPlayer = players.get(clients.get(client));
@@ -1585,7 +1679,7 @@ function setupWebSocket(
               // Удаляем врага
               enemies.delete(data.targetId);
 
-              // Дроп (как было)
+              // Дроп (meat_chunk 50%)
               if (Math.random() < 0.5) {
                 const itemId = `meat_chunk_${Date.now()}`;
                 const dropItem = {
@@ -1610,12 +1704,15 @@ function setupWebSocket(
                   }
                 });
               }
+              // Дроп balyary 20% вместо atom (1-5 штук)
               if (Math.random() < 0.2) {
-                const itemId = `atom_${Date.now()}`;
+                const itemId = `balyary_${Date.now()}`;
+                const quantity = Math.floor(Math.random() * 5) + 1; // 1-5
                 const dropItem = {
                   x: enemy.x,
                   y: enemy.y,
-                  type: "atom",
+                  type: "balyary",
+                  quantity: quantity,
                   spawnTime: Date.now(),
                   worldId: data.worldId,
                 };
