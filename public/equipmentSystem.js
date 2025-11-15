@@ -323,6 +323,54 @@ const equipmentSystem = {
         slot.onmouseout = null;
       }
     }
+    // НОВОЕ: Отображение урона игрока
+    const me = players.get(myId);
+    if (me) {
+      const damageInfo = this.getCurrentDamageInfo(me);
+      const damageText = document.getElementById("damageInfo");
+      if (!damageText) {
+        const damageEl = document.createElement("div");
+        damageEl.id = "damageInfo";
+        damageEl.style.cssText = `
+        position: absolute;
+        bottom: 10px;
+        left: 10px;
+        color: #00ff00;
+        font-size: 12px;
+        font-family: monospace;
+        background: rgba(0,0,0,0.7);
+        padding: 5px 10px;
+        border-radius: 5px;
+      `;
+        document.getElementById("equipmentContainer").appendChild(damageEl);
+      }
+      document.getElementById(
+        "damageInfo"
+      ).textContent = `Атака: ${damageInfo}`;
+    }
+  },
+
+  // НОВЫЙ МЕТОД: вычисление текущего урона
+  getCurrentDamageInfo: function (player) {
+    let minDamage = 5; // БАЗОВЫЙ
+    let maxDamage = 10;
+
+    // Проверяем оружие
+    const weaponSlot = this.equipmentSlots.weapon;
+    if (weaponSlot && this.EQUIPMENT_CONFIG[weaponSlot.type]) {
+      const weaponEffect = this.EQUIPMENT_CONFIG[weaponSlot.type].effect;
+      if (weaponEffect.range) {
+        // Дальний бой: только урон оружия
+        return `${weaponEffect.damage} (дальний)`;
+      } else if (weaponEffect.damage && weaponEffect.damage.min !== undefined) {
+        // Ближний бой: базовый + оружие
+        minDamage += weaponEffect.damage.min;
+        maxDamage += weaponEffect.damage.max;
+        return `${minDamage}-${maxDamage} (ближний)`;
+      }
+    }
+
+    return `${minDamage}-${maxDamage} (руки)`;
   },
 
   equipItem: function (slotIndex) {
@@ -410,17 +458,6 @@ const equipmentSystem = {
         if (effect.energy) player.maxStats.energy += effect.energy;
         if (effect.food) player.maxStats.food += effect.food;
         if (effect.water) player.maxStats.water += effect.water;
-        if (effect.damage) {
-          if (
-            typeof effect.damage === "object" &&
-            effect.damage.min &&
-            effect.damage.max
-          ) {
-            player.damage = effect.damage;
-          } else {
-            player.damage = (player.damage || 0) + effect.damage;
-          }
-        }
       }
     });
   },

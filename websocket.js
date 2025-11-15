@@ -35,9 +35,6 @@ function setupWebSocket(
       armor: 0, // Armor только от экипировки, без upgrade
     };
 
-    // Сбрасываем damage (предполагаем только одно оружие)
-    player.damage = 0; // Или { min: 0, max: 0 } для melee
-
     // Добавляем эффекты от всей текущей экипировки
     Object.values(player.equipment || {}).forEach((item) => {
       if (item && ITEM_CONFIG[item.type] && ITEM_CONFIG[item.type].effect) {
@@ -47,17 +44,6 @@ function setupWebSocket(
         if (effect.energy) baseStats.energy += effect.energy;
         if (effect.food) baseStats.food += effect.food;
         if (effect.water) baseStats.water += effect.water;
-        if (effect.damage) {
-          if (
-            typeof effect.damage === "object" &&
-            effect.damage.min &&
-            effect.damage.max
-          ) {
-            player.damage = { ...effect.damage }; // Для melee (min-max)
-          } else {
-            player.damage += effect.damage; // Для ranged
-          }
-        }
       }
     });
 

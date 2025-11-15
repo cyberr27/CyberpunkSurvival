@@ -111,30 +111,28 @@ function performAttack() {
         })
       );
     } else {
-      // Ближний бой
-      let damage;
-      if (
-        weaponConfig.effect.damage &&
-        weaponConfig.effect.damage.min &&
-        weaponConfig.effect.damage.max
-      ) {
-        // Для оружия с диапазоном урона (кастет, нож, бита)
-        damage = Math.floor(
-          Math.random() *
-            (weaponConfig.effect.damage.max -
-              weaponConfig.effect.damage.min +
-              1) +
-            weaponConfig.effect.damage.min
-        );
-      } else {
-        // Для других случаев (если вдруг есть оружие без диапазона)
-        damage = (Math.random() * 10 + (weaponConfig.effect.damage || 0)) | 0;
+      // Ближний бой: БАЗОВЫЙ 5-10 + бонус оружия
+      let weaponMin = 0,
+        weaponMax = 0;
+      if (weaponConfig.effect.damage?.min) {
+        weaponMin = weaponConfig.effect.damage.min;
+        weaponMax = weaponConfig.effect.damage.max;
       }
+
+      const baseMin = 5,
+        baseMax = 10;
+      const totalMin = baseMin + weaponMin;
+      const totalMax = baseMax + weaponMax;
+
+      const damage = Math.floor(
+        Math.random() * (totalMax - totalMin + 1) + totalMin
+      );
+
       performMeleeAttack(damage, currentWorldId);
     }
   } else {
-    // Атака без оружия (кулаками)
-    const damage = (Math.random() * 10) | 0;
+    // БЕЗ оружия: чисто базовый 5-10
+    const damage = Math.floor(Math.random() * 6 + 5); // 5-10
     performMeleeAttack(damage, currentWorldId);
   }
 }
