@@ -479,6 +479,13 @@ const equipmentSystem = {
         }
       }
     });
+
+    // НОВОЕ: Заполняем текущие статы до новых максимумов (чтобы бар был полным после экипировки)
+    player.health = player.maxStats.health;
+    player.energy = player.maxStats.energy;
+    player.food = player.maxStats.food;
+    player.water = player.maxStats.water;
+    player.armor = player.maxStats.armor; // Для брони
   },
 
   syncEquipment: function (equipment) {

@@ -76,6 +76,13 @@ function setupWebSocket(
     player.food = Math.min(player.food, player.maxStats.food);
     player.water = Math.min(player.water, player.maxStats.water);
     player.armor = Math.min(player.armor, player.maxStats.armor);
+
+    // НОВОЕ: Заполняем текущие статы до новых максимумов (чтобы бар был полным после улучшения)
+    player.health = player.maxStats.health;
+    player.energy = player.maxStats.energy;
+    player.food = player.maxStats.food;
+    player.water = player.maxStats.water;
+    player.armor = player.maxStats.armor; // Для брони, если она не истощается (статический бонус)
   }
 
   function spawnNewEnemy(worldId) {
