@@ -1285,15 +1285,17 @@ function updateResources() {
 function updateStatsDisplay() {
   const me = players.get(myId);
   if (!me) return;
-
   statsEl.innerHTML = `
-    Здоровье: ${Math.floor(me.health)} / ${me.maxStats.health || 100}<br>
-    Энергия: ${Math.floor(me.energy)} / ${me.maxStats.energy || 100}<br>
-    Еда: ${Math.floor(me.food)} / ${me.maxStats.food || 100}<br>
-    Вода: ${Math.floor(me.water)} / ${me.maxStats.water || 100}<br>
-    Броня: ${Math.floor(me.armor)} / ${me.maxStats.armor || 0}<br>
-    Пройдено: ${Math.floor(me.distanceTraveled)} м
+    <span class="health">Здоровье: ${me.health}/${me.maxStats.health}</span><br>
+    <span class="energy">Энергия: ${me.energy}/${me.maxStats.energy}</span><br>
+    <span class="food">Еда: ${me.food}/${me.maxStats.food}</span><br>
+    <span class="water">Вода: ${me.water}/${me.maxStats.water}</span><br>
+    <span class="armor">Броня: ${me.armor}/${me.maxStats.armor || 0}</span>
   `;
+  document.getElementById("coords").innerHTML = `X: ${Math.floor(
+    me.x
+  )}<br>Y: ${Math.floor(me.y)}`;
+  levelSystem.updateUpgradeButtons();
 }
 
 function startAtomAnimation(atomAnimations) {
@@ -2016,18 +2018,6 @@ function draw(deltaTime) {
       (displayHealth / player.maxStats.health) * 70,
       5
     );
-
-    // ВСТАВЛЕННЫЙ БЛОК ЗДЕСЬ
-    ctx.fillStyle = "white";
-    ctx.font = "12px Arial";
-    ctx.textAlign = "center";
-    ctx.fillText(
-      `HP: ${Math.floor(displayHealth)} / ${player.maxStats.health}`,
-      screenX + 35,
-      screenY - 25
-    );
-
-    // ... (закрытие цикла)
   });
 
   if (currentWorld.veg.complete) {

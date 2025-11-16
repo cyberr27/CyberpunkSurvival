@@ -36,7 +36,7 @@ function setupWebSocket(
     };
 
     // Сбрасываем damage (предполагаем только одно оружие)
-    player.damage = { min: 5, max: 10 }; // Базовый урон по умолчанию
+    player.damage = 0; // Или { min: 0, max: 0 } для melee
 
     // Добавляем эффекты от всей текущей экипировки
     Object.values(player.equipment || {}).forEach((item) => {
@@ -53,12 +53,9 @@ function setupWebSocket(
             effect.damage.min &&
             effect.damage.max
           ) {
-            player.damage = {
-              min: player.damage.min + effect.damage.min,
-              max: player.damage.max + effect.damage.max,
-            };
+            player.damage = { ...effect.damage }; // Для melee (min-max)
           } else {
-            player.damage = effect.damage; // Для ranged: перезаписываем как число
+            player.damage += effect.damage; // Для ranged
           }
         }
       }
@@ -108,7 +105,7 @@ function setupWebSocket(
       id: enemyId,
       x,
       y,
-      health: 200, // ИЗМЕНЕНО: 200 вместо 50
+      health: 50,
       direction: "down",
       state: "idle",
       frame: 0,
