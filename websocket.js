@@ -105,7 +105,7 @@ function setupWebSocket(
       id: enemyId,
       x,
       y,
-      health: 50,
+      health: 200, // ИЗМЕНЕНО: 200 вместо 50
       direction: "down",
       state: "idle",
       frame: 0,

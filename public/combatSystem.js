@@ -1,7 +1,7 @@
 const BULLET_SPEED = 10; // Скорость пули (пикселей за кадр)
 const BULLET_SIZE = 5; // Размер пули
 const ATTACK_COOLDOWN = 500; // Перезарядка атаки в миллисекундах
-const BULLET_LIFETIME = 2000; // Время жизни пули в миллисекундах
+const BULLET_LIFETIME = 7000; // Время жизни пули в миллисекундах
 
 let bullets = new Map(); // Хранилище пуль
 let lastAttackTime = 0; // Время последней атаки
@@ -50,7 +50,7 @@ function performAttack() {
     const isRanged = weaponConfig.effect.range; // Проверяем, дальнобойное ли оружие
 
     if (isRanged) {
-      // Стрельба из дальнобойного оружия
+      // Стрельба из дальнобойного оружия (без изменений)
       const range = weaponConfig.effect.range || 500;
       const damage = weaponConfig.effect.damage || 10;
 
@@ -111,30 +111,36 @@ function performAttack() {
         })
       );
     } else {
-      // Ближний бой
+      // Ближний бой (ИЗМЕНЕНО: добавлен базовый урон 5-10 + урон оружия)
       let damage;
+      const baseMin = 5;
+      const baseMax = 10;
+      const baseDamage =
+        Math.floor(Math.random() * (baseMax - baseMin + 1)) + baseMin; // Базовый урон 5-10
+
       if (
         weaponConfig.effect.damage &&
         weaponConfig.effect.damage.min &&
         weaponConfig.effect.damage.max
       ) {
         // Для оружия с диапазоном урона (кастет, нож, бита)
-        damage = Math.floor(
-          Math.random() *
-            (weaponConfig.effect.damage.max -
-              weaponConfig.effect.damage.min +
-              1) +
-            weaponConfig.effect.damage.min
-        );
+        const weaponMin = weaponConfig.effect.damage.min;
+        const weaponMax = weaponConfig.effect.damage.max;
+        const weaponDamage =
+          Math.floor(Math.random() * (weaponMax - weaponMin + 1)) + weaponMin;
+        damage = baseDamage + weaponDamage; // Базовый + оружие (например, 5-10 + 4-6 = 9-16)
       } else {
-        // Для других случаев (если вдруг есть оружие без диапазона)
-        damage = (Math.random() * 10 + (weaponConfig.effect.damage || 0)) | 0;
+        // Для других случаев (если вдруг есть оружие без диапазона) — используем только базовый
+        damage = baseDamage;
       }
       performMeleeAttack(damage, currentWorldId);
     }
   } else {
-    // Атака без оружия (кулаками)
-    const damage = (Math.random() * 10) | 0;
+    // Атака без оружия (кулаками) (ИЗМЕНЕНО: 5-10 вместо (Math.random() * 10) | 0)
+    const baseMin = 5;
+    const baseMax = 10;
+    const damage =
+      Math.floor(Math.random() * (baseMax - baseMin + 1)) + baseMin; // 5-10
     performMeleeAttack(damage, currentWorldId);
   }
 }

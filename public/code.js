@@ -1295,6 +1295,33 @@ function updateStatsDisplay() {
   document.getElementById("coords").innerHTML = `X: ${Math.floor(
     me.x
   )}<br>Y: ${Math.floor(me.y)}`;
+  let damageStr = "Урон: 5-10 (Ближний бой)"; // По умолчанию без оружия
+  const equippedWeapon = me.equipment && me.equipment.weapon;
+  if (equippedWeapon && ITEM_CONFIG[equippedWeapon.type]) {
+    const weaponConfig = ITEM_CONFIG[equippedWeapon.type];
+    if (weaponConfig.effect.range) {
+      // Дальний бой
+      const rangedDamage = weaponConfig.effect.damage || 0;
+      damageStr = `Урон: ${rangedDamage} (Дальний бой)`;
+    } else if (
+      weaponConfig.effect.damage &&
+      weaponConfig.effect.damage.min &&
+      weaponConfig.effect.damage.max
+    ) {
+      // Ближний бой
+      const baseMin = 5;
+      const baseMax = 10;
+      const weaponMin = weaponConfig.effect.damage.min;
+      const weaponMax = weaponConfig.effect.damage.max;
+      const totalMin = baseMin + weaponMin;
+      const totalMax = baseMax + weaponMax;
+      damageStr = `Урон: ${totalMin}-${totalMax} (Ближний бой)`;
+    }
+  }
+
+  // Добавляем строку в statsEl (маленькая, яркая — стиль inline)
+  statsEl.innerHTML += `<div style="font-size: 12px; color: yellow; font-weight: bold;">${damageStr}</div>`;
+
   levelSystem.updateUpgradeButtons();
 }
 

@@ -137,12 +137,12 @@ function drawEnemies() {
       ctx.fillStyle = "red";
       ctx.fillRect(screenX, screenY - 15, 70, 5);
       ctx.fillStyle = "green";
-      ctx.fillRect(screenX, screenY - 15, (enemy.health / 50) * 70, 5);
+      ctx.fillRect(screenX, screenY - 15, (enemy.health / 200) * 70, 5); // ИЗМЕНЕНО: /200 вместо /50 для динамической полосы
       ctx.fillStyle = "white";
       ctx.font = "12px Arial";
       ctx.textAlign = "center";
       ctx.fillText(
-        `HP: ${Math.floor(enemy.health)} / 50`,
+        `HP: ${Math.floor(enemy.health)} / 200`, // ИЗМЕНЕНО: /200 вместо /50
         screenX + 35,
         screenY - 45 // Чуть выше бара и ID (-20 для ID, -15 для бара)
       );
