@@ -1,8 +1,9 @@
+// equipmentSystem.js - ИЗМЕНЁННЫЙ ПОЛНОСТЬЮ
 // equipmentSystem.js
 
 const equipmentSystem = {
   isEquipmentOpen: false,
-  isInitialized: false, // ИСПРАВЛЕНИЕ: Добавь этот флаг
+  isInitialized: false,
   lastApplied: false,
   equipmentSlots: {
     head: null,
@@ -25,7 +26,55 @@ const equipmentSystem = {
     gloves: "gloves",
   },
 
-  // Конфигурация предметов экипировки
+  // БАЗОВЫЙ УРОН БЛИЖНЕГО БОЯ (СИНХРОНИЗИРОВАНО С COMBATSYSTEM)
+  BASE_MELEE_MIN: 5,
+  BASE_MELEE_MAX: 10,
+
+  // НОВЫЕ ФУНКЦИИ ДЛЯ РАСЧЁТА УРОНА
+  getCurrentMeleeDamage: function () {
+    const baseMin = this.BASE_MELEE_MIN;
+    const baseMax = this.BASE_MELEE_MAX;
+    const weaponSlot = this.equipmentSlots.weapon;
+
+    if (!weaponSlot || !this.EQUIPMENT_CONFIG[weaponSlot.type]) {
+      return { min: baseMin, max: baseMax };
+    }
+
+    const config = this.EQUIPMENT_CONFIG[weaponSlot.type];
+    if (config.effect.range) {
+      // Дальнобойное: melee урон базовый
+      return { min: baseMin, max: baseMax };
+    }
+
+    const dmgEffect = config.effect.damage;
+    if (
+      dmgEffect &&
+      typeof dmgEffect === "object" &&
+      dmgEffect.min !== undefined &&
+      dmgEffect.max !== undefined
+    ) {
+      return {
+        min: baseMin + dmgEffect.min,
+        max: baseMax + dmgEffect.max,
+      };
+    }
+
+    return { min: baseMin, max: baseMax };
+  },
+
+  updateDamageDisplay: function () {
+    const dmg = this.getCurrentMeleeDamage();
+    const baseStr = `${this.BASE_MELEE_MIN}-${this.BASE_MELEE_MAX}`;
+    const currentStr = `${dmg.min}-${dmg.max}`;
+    const displayEl = document.getElementById("damageDisplay");
+    if (displayEl) {
+      displayEl.textContent = `Урон: ${currentStr}`;
+      displayEl.style.color =
+        dmg.min > this.BASE_MELEE_MIN ? "lime" : "#ffaa00"; // Ярко-зелёный если улучшено
+    }
+  },
+
+  // Конфигурация предметов экипировки (БЕЗ ИЗМЕНЕНИЙ)
   EQUIPMENT_CONFIG: {
     cyber_helmet: {
       type: "headgear",
@@ -100,7 +149,7 @@ const equipmentSystem = {
   },
 
   initialize: function () {
-    // Загружаем изображения
+    // Загружаем изображения (БЕЗ ИЗМЕНЕНИЙ)
     this.EQUIPMENT_CONFIG.cyber_helmet.image.src = "cyber_helmet.png";
     this.EQUIPMENT_CONFIG.nano_armor.image.src = "nano_armor.png";
     this.EQUIPMENT_CONFIG.tactical_belt.image.src = "tactical_belt.png";
@@ -112,7 +161,7 @@ const equipmentSystem = {
     this.EQUIPMENT_CONFIG.knife.image.src = "knife.png";
     this.EQUIPMENT_CONFIG.bat.image.src = "bat.png";
 
-    // Создаем изображение для кнопки экипировки
+    // Создаем изображение для кнопки экипировки (БЕЗ ИЗМЕНЕНИЙ)
     const equipmentBtn = document.createElement("img");
     equipmentBtn.id = "equipmentBtn";
     equipmentBtn.className = "cyber-btn-img";
@@ -122,17 +171,18 @@ const equipmentSystem = {
     equipmentBtn.style.right = "10px";
     document.getElementById("gameContainer").appendChild(equipmentBtn);
 
-    // Создаем контейнер экипировки
+    // ИЗМЕНЁННЫЙ HTML: ДОБАВЛЕН #damageDisplay
     const equipmentContainer = document.createElement("div");
     equipmentContainer.id = "equipmentContainer";
     equipmentContainer.style.display = "none";
     equipmentContainer.innerHTML = `
-    <div id="equipmentGrid"></div>
-    <div id="equipmentScreen"></div>
-  `;
+      <div id="equipmentGrid"></div>
+      <div id="equipmentScreen"></div>
+      <div id="damageDisplay" style="color: lime; font-weight: bold; font-size: 14px; margin-top: 10px; padding: 5px; background: rgba(0,0,0,0.7); border-radius: 5px; text-align: center;">Урон: 5-10</div>
+    `;
     document.getElementById("gameContainer").appendChild(equipmentContainer);
 
-    // Создаем ячейки экипировки
+    // Создаем ячейки экипировки (БЕЗ ИЗМЕНЕНИЙ)
     this.setupEquipmentGrid();
 
     // Обработчик кнопки
@@ -145,6 +195,9 @@ const equipmentSystem = {
     const me = players.get(myId);
 
     this.isInitialized = true; // Устанавливаем флаг инициализации
+
+    // ИНИЦИАЛИЗАЦИЯ ОТОБРАЖЕНИЯ УРОНА
+    this.updateDamageDisplay();
   },
 
   setupEquipmentGrid: function () {
@@ -231,7 +284,7 @@ const equipmentSystem = {
       }, 100);
     }
 
-    // Обновляем отображение экипировки
+    // Обновляем отображение экипировки И УРОНА
     this.updateEquipmentDisplay();
 
     // Обновляем статы
@@ -273,7 +326,7 @@ const equipmentSystem = {
     equipmentBtn.classList.toggle("active", this.isEquipmentOpen);
 
     if (this.isEquipmentOpen) {
-      this.updateEquipmentDisplay();
+      this.updateEquipmentDisplay(); // Обновляет и урон
     } else {
       document.getElementById("equipmentScreen").innerHTML = "";
     }
@@ -289,6 +342,7 @@ const equipmentSystem = {
     }
   },
 
+  // ИЗМЕНЁННО: В КОНЦЕ ОБНОВЛЯЕТ УРОН
   updateEquipmentDisplay: function () {
     const equipmentGrid = document.getElementById("equipmentGrid");
     const screen = document.getElementById("equipmentScreen");
@@ -323,6 +377,9 @@ const equipmentSystem = {
         slot.onmouseout = null;
       }
     }
+
+    // ДОБАВЛЕНО: ДИНАМИЧЕСКОЕ ОБНОВЛЕНИЕ УРОНА
+    this.updateDamageDisplay();
   },
 
   equipItem: function (slotIndex) {
@@ -357,7 +414,7 @@ const equipmentSystem = {
     // Локально экипируем предмет
     this.equipmentSlots[slotName] = { type: item.type, itemId: item.itemId };
     inventory[slotIndex] = null; // Удаляем предмет из инвентаря
-    this.updateEquipmentDisplay();
+    this.updateEquipmentDisplay(); // Обновит и урон
 
     // Применяем эффекты экипировки
     this.applyEquipmentEffects(me);
@@ -390,7 +447,6 @@ const equipmentSystem = {
     document.getElementById("inventoryScreen").textContent = "";
     updateStatsDisplay();
     updateInventoryDisplay();
-    this.updateEquipmentDisplay();
   },
 
   applyEquipmentEffects: function (player) {
@@ -401,7 +457,7 @@ const equipmentSystem = {
     player.maxStats = { ...baseMaxStats };
     player.damage = 0;
 
-    // Применяем эффекты экипировки
+    // Применяем эффекты экипировки (БЕЗ ИЗМЕНЕНИЙ ДЛЯ ЭФФЕКТОВ, Т.К. УРОН МЕЛЕЕ РАСЧЁТ В GETCURRENTMELEEDAMAGE)
     Object.values(this.equipmentSlots).forEach((item) => {
       if (item && this.EQUIPMENT_CONFIG[item.type]) {
         const effect = this.EQUIPMENT_CONFIG[item.type].effect;
@@ -431,7 +487,7 @@ const equipmentSystem = {
     if (me) {
       this.applyEquipmentEffects(me);
     }
-    this.updateEquipmentDisplay();
+    this.updateEquipmentDisplay(); // Обновит и урон
 
     // Проверяем, инициализирован ли интерфейс
     if (document.getElementById("equipmentGrid")) {

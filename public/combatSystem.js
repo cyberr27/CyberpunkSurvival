@@ -1,7 +1,11 @@
+// combatSystem.js - ИЗМЕНЁННЫЙ ПОЛНОСТЬЮ
 const BULLET_SPEED = 10; // Скорость пули (пикселей за кадр)
 const BULLET_SIZE = 5; // Размер пули
 const ATTACK_COOLDOWN = 500; // Перезарядка атаки в миллисекундах
 const BULLET_LIFETIME = 2000; // Время жизни пули в миллисекундах
+const BASE_MELEE_MIN_DAMAGE = 5; // Базовый мин. урон ближнего боя
+const BASE_MELEE_MAX_DAMAGE = 10; // Базовый макс. урон ближнего боя
+const MELEE_ATTACK_RANGE = 50; // Дальность атаки ближнего боя
 
 let bullets = new Map(); // Хранилище пуль
 let lastAttackTime = 0; // Время последней атаки
@@ -45,12 +49,16 @@ function performAttack() {
   const equippedWeapon = me.equipment && me.equipment.weapon;
   const currentWorldId = window.worldSystem.currentWorldId;
 
-  if (equippedWeapon && ITEM_CONFIG[equippedWeapon.type].type === "weapon") {
+  if (
+    equippedWeapon &&
+    ITEM_CONFIG[equippedWeapon.type] &&
+    ITEM_CONFIG[equippedWeapon.type].type === "weapon"
+  ) {
     const weaponConfig = ITEM_CONFIG[equippedWeapon.type];
-    const isRanged = weaponConfig.effect.range; // Проверяем, дальнобойное ли оружие
+    const isRanged = !!weaponConfig.effect.range; // Проверяем, дальнобойное ли оружие (presence of range)
 
     if (isRanged) {
-      // Стрельба из дальнобойного оружия
+      // Стрельба из дальнобойного оружия (ОСТАВЛЯЕМ КАК ЕСТЬ)
       const range = weaponConfig.effect.range || 500;
       const damage = weaponConfig.effect.damage || 10;
 
@@ -111,38 +119,40 @@ function performAttack() {
         })
       );
     } else {
-      // Ближний бой
+      // Ближний бой: НОВЫЙ РАСЧЁТ УРОНА (базовый 5-10 + оружие)
       let damage;
+      const weaponDamage = weaponConfig.effect.damage;
+      let minDamage = BASE_MELEE_MIN_DAMAGE;
+      let maxDamage = BASE_MELEE_MAX_DAMAGE;
+
       if (
-        weaponConfig.effect.damage &&
-        weaponConfig.effect.damage.min &&
-        weaponConfig.effect.damage.max
+        weaponDamage &&
+        typeof weaponDamage === "object" &&
+        weaponDamage.min !== undefined &&
+        weaponDamage.max !== undefined
       ) {
-        // Для оружия с диапазоном урона (кастет, нож, бита)
-        damage = Math.floor(
-          Math.random() *
-            (weaponConfig.effect.damage.max -
-              weaponConfig.effect.damage.min +
-              1) +
-            weaponConfig.effect.damage.min
-        );
-      } else {
-        // Для других случаев (если вдруг есть оружие без диапазона)
-        damage = (Math.random() * 10 + (weaponConfig.effect.damage || 0)) | 0;
-      }
+        minDamage += weaponDamage.min;
+        maxDamage += weaponDamage.max;
+      } // Иначе базовый (если оружие без damage или не object)
+
+      damage = Math.floor(
+        Math.random() * (maxDamage - minDamage + 1) + minDamage
+      );
       performMeleeAttack(damage, currentWorldId);
     }
   } else {
-    // Атака без оружия (кулаками)
-    const damage = (Math.random() * 10) | 0;
+    // Атака без оружия (кулаками): фиксированный базовый 5-10
+    const damage = Math.floor(
+      Math.random() * (BASE_MELEE_MAX_DAMAGE - BASE_MELEE_MIN_DAMAGE + 1) +
+        BASE_MELEE_MIN_DAMAGE
+    );
     performMeleeAttack(damage, currentWorldId);
   }
 }
 
-// Выполнение атаки ближнего боя
+// Выполнение атаки ближнего боя (ДОБАВЛЕНА ПРОВЕРКА ВРАГОВ)
 function performMeleeAttack(damage, worldId) {
   const me = players.get(myId);
-  const attackRange = 50; // Дальность атаки
   let hit = false; // Флаг успешного попадания
 
   // Проверка игроков
@@ -151,7 +161,7 @@ function performMeleeAttack(damage, worldId) {
       const dx = player.x - me.x;
       const dy = player.y - me.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
-      if (distance <= attackRange) {
+      if (distance <= MELEE_ATTACK_RANGE) {
         hit = true;
         sendWhenReady(
           ws,
@@ -166,7 +176,28 @@ function performMeleeAttack(damage, worldId) {
     }
   });
 
-  // Обновляем данные игрока на сервере, если была затрачена энергия
+  // ДОБАВЛЕНО: Проверка врагов
+  enemies.forEach((enemy, enemyId) => {
+    if (enemy.health > 0 && enemy.worldId === worldId) {
+      const dx = enemy.x - me.x;
+      const dy = enemy.y - me.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      if (distance <= MELEE_ATTACK_RANGE) {
+        hit = true;
+        sendWhenReady(
+          ws,
+          JSON.stringify({
+            type: "attackEnemy",
+            targetId: enemyId,
+            damage,
+            worldId,
+          })
+        );
+      }
+    }
+  });
+
+  // Обновляем данные игрока на сервере, если была затрачена энергия (ОСТАВЛЯЕМ КАК ЕСТЬ)
   if (hit) {
     sendWhenReady(
       ws,
@@ -194,7 +225,7 @@ function performMeleeAttack(damage, worldId) {
   return hit; // Возвращаем, была ли атака успешной
 }
 
-// Получение угла поворота игрока
+// Получение угла поворота игрока (БЕЗ ИЗМЕНЕНИЙ)
 function getPlayerAngle(direction) {
   switch (direction) {
     case "up":
@@ -210,7 +241,7 @@ function getPlayerAngle(direction) {
   }
 }
 
-// Обновление пуль
+// Обновление пуль (БЕЗ ИЗМЕНЕНИЙ, РАНГЕД ОСТАЁТСЯ КАК ЕСТЬ)
 function updateBullets(deltaTime) {
   const currentTime = Date.now();
   const currentWorldId = window.worldSystem.currentWorldId;
@@ -310,7 +341,7 @@ function updateBullets(deltaTime) {
   });
 }
 
-// Отрисовка пуль
+// Отрисовка пуль (БЕЗ ИЗМЕНЕНИЙ)
 function drawBullets() {
   const currentWorldId = window.worldSystem.currentWorldId;
   bullets.forEach((bullet) => {
@@ -324,7 +355,7 @@ function drawBullets() {
   });
 }
 
-// Синхронизация пуль с сервером
+// Синхронизация пуль с сервером (БЕЗ ИЗМЕНЕНИЙ)
 function syncBullets(serverBullets) {
   bullets.clear();
   serverBullets.forEach((bullet) => {
