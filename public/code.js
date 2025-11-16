@@ -2018,6 +2018,18 @@ function draw(deltaTime) {
       (displayHealth / player.maxStats.health) * 70,
       5
     );
+
+    // ВСТАВЛЕННЫЙ БЛОК ЗДЕСЬ
+    ctx.fillStyle = "white";
+    ctx.font = "12px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText(
+      `HP: ${Math.floor(displayHealth)} / ${player.maxStats.health}`,
+      screenX + 35,
+      screenY - 25
+    );
+
+    // ... (закрытие цикла)
   });
 
   if (currentWorld.veg.complete) {

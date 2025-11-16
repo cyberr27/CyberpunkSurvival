@@ -138,6 +138,14 @@ function drawEnemies() {
       ctx.fillRect(screenX, screenY - 15, 70, 5);
       ctx.fillStyle = "green";
       ctx.fillRect(screenX, screenY - 15, (enemy.health / 50) * 70, 5);
+      ctx.fillStyle = "white";
+      ctx.font = "12px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText(
+        `HP: ${Math.floor(enemy.health)} / 50`,
+        screenX + 35,
+        screenY - 45 // Чуть выше бара и ID (-20 для ID, -15 для бара)
+      );
     }
 
     // ID для дебага
