@@ -1285,44 +1285,15 @@ function updateResources() {
 function updateStatsDisplay() {
   const me = players.get(myId);
   if (!me) return;
+
   statsEl.innerHTML = `
-    <span class="health">Здоровье: ${me.health}/${me.maxStats.health}</span><br>
-    <span class="energy">Энергия: ${me.energy}/${me.maxStats.energy}</span><br>
-    <span class="food">Еда: ${me.food}/${me.maxStats.food}</span><br>
-    <span class="water">Вода: ${me.water}/${me.maxStats.water}</span><br>
-    <span class="armor">Броня: ${me.armor}/${me.maxStats.armor || 0}</span>
+    Здоровье: ${Math.floor(me.health)} / ${me.maxStats.health || 100}<br>
+    Энергия: ${Math.floor(me.energy)} / ${me.maxStats.energy || 100}<br>
+    Еда: ${Math.floor(me.food)} / ${me.maxStats.food || 100}<br>
+    Вода: ${Math.floor(me.water)} / ${me.maxStats.water || 100}<br>
+    Броня: ${Math.floor(me.armor)} / ${me.maxStats.armor || 0}<br>
+    Пройдено: ${Math.floor(me.distanceTraveled)} м
   `;
-  document.getElementById("coords").innerHTML = `X: ${Math.floor(
-    me.x
-  )}<br>Y: ${Math.floor(me.y)}`;
-  let damageStr = "Урон: 5-10 (Ближний бой)"; // По умолчанию без оружия
-  const equippedWeapon = me.equipment && me.equipment.weapon;
-  if (equippedWeapon && ITEM_CONFIG[equippedWeapon.type]) {
-    const weaponConfig = ITEM_CONFIG[equippedWeapon.type];
-    if (weaponConfig.effect.range) {
-      // Дальний бой
-      const rangedDamage = weaponConfig.effect.damage || 0;
-      damageStr = `Урон: ${rangedDamage} (Дальний бой)`;
-    } else if (
-      weaponConfig.effect.damage &&
-      weaponConfig.effect.damage.min &&
-      weaponConfig.effect.damage.max
-    ) {
-      // Ближний бой
-      const baseMin = 5;
-      const baseMax = 10;
-      const weaponMin = weaponConfig.effect.damage.min;
-      const weaponMax = weaponConfig.effect.damage.max;
-      const totalMin = baseMin + weaponMin;
-      const totalMax = baseMax + weaponMax;
-      damageStr = `Урон: ${totalMin}-${totalMax} (Ближний бой)`;
-    }
-  }
-
-  // Добавляем строку в statsEl (маленькая, яркая — стиль inline)
-  statsEl.innerHTML += `<div style="font-size: 12px; color: yellow; font-weight: bold;">${damageStr}</div>`;
-
-  levelSystem.updateUpgradeButtons();
 }
 
 function startAtomAnimation(atomAnimations) {

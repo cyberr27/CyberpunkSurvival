@@ -130,6 +130,13 @@ const equipmentSystem = {
     <div id="equipmentGrid"></div>
     <div id="equipmentScreen"></div>
   `;
+
+    equipmentContainer.innerHTML = `
+  <div id="equipmentGrid"></div>
+  <div id="equipmentScreen"></div>
+  <div id="damageDisplay" style="color: red; font-size: 14px; padding: 5px;"></div>  // Новый div для урона
+`;
+
     document.getElementById("gameContainer").appendChild(equipmentContainer);
 
     // Создаем ячейки экипировки
@@ -323,6 +330,21 @@ const equipmentSystem = {
         slot.onmouseout = null;
       }
     }
+    const damageDisplay = document.getElementById("damageDisplay");
+    if (damageDisplay) {
+      const me = players.get(myId);
+      if (me && me.damage) {
+        let damageText;
+        if (typeof me.damage === "object" && me.damage.min && me.damage.max) {
+          damageText = `${me.damage.min} - ${me.damage.max}`;
+        } else {
+          damageText = `${me.damage}`;
+        }
+        damageDisplay.textContent = `Урон: ${damageText}`;
+      } else {
+        damageDisplay.textContent = `Урон: 5 - 10`; // Fallback
+      }
+    }
   },
 
   equipItem: function (slotIndex) {
@@ -399,7 +421,7 @@ const equipmentSystem = {
 
     // Сбрасываем maxStats и урон
     player.maxStats = { ...baseMaxStats };
-    player.damage = 0;
+    player.damage = { min: 5, max: 10 }; // Базовый урон по умолчанию (melee-style)
 
     // Применяем эффекты экипировки
     Object.values(this.equipmentSlots).forEach((item) => {
@@ -416,9 +438,12 @@ const equipmentSystem = {
             effect.damage.min &&
             effect.damage.max
           ) {
-            player.damage = effect.damage;
+            player.damage = {
+              min: player.damage.min + effect.damage.min,
+              max: player.damage.max + effect.damage.max,
+            };
           } else {
-            player.damage = (player.damage || 0) + effect.damage;
+            player.damage = effect.damage; // Для ranged: перезаписываем как число (сила выстрела)
           }
         }
       }
