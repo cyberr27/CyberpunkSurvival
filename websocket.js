@@ -3,6 +3,12 @@ const { saveUserDatabase } = require("./database");
 const tradeRequests = new Map(); // Requests: key = `${fromId}-${toId}`, value = { status: 'pending' }
 const tradeOffers = new Map(); // Offers: key = `${fromId}-${toId}`, value = { myOffer: [], partnerOffer: [], myConfirmed: false, partnerConfirmed: false }
 
+const ENEMY_SPEED = 2;
+const AGGRO_RANGE = 300;
+const ATTACK_RANGE = 50;
+const ENEMY_ATTACK_COOLDOWN = 1000;
+const ENEMY_ATTACK_DAMAGE = 5;
+
 function calculateXPToNextLevel(level) {
   if (level >= 100) return 0;
   return 100 * Math.pow(2, level);
@@ -1681,6 +1687,108 @@ function setupWebSocket(
         }
       }
     });
+
+    const enemyUpdateInterval = setInterval(() => {
+      enemies.forEach((enemy, enemyId) => {
+        if (enemy.health <= 0) return; // Пропускаем мёртвых
+
+        // Найти ближайшего игрока в аггро
+        let closestPlayer = null;
+        let minDist = AGGRO_RANGE;
+        players.forEach((player) => {
+          if (player.worldId === enemy.worldId && player.health > 0) {
+            const dx = player.x - enemy.x;
+            const dy = player.y - enemy.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < minDist) {
+              minDist = dist;
+              closestPlayer = player;
+            }
+          }
+        });
+
+        if (closestPlayer) {
+          // Движение к игроку
+          const dx = closestPlayer.x - enemy.x;
+          const dy = closestPlayer.y - enemy.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist > ATTACK_RANGE) {
+            // Walking
+            const moveDist = ENEMY_SPEED;
+            if (dist > 0) {
+              enemy.x += (dx / dist) * moveDist;
+              enemy.y += (dy / dist) * moveDist;
+            }
+            enemy.state = "walking";
+            // Direction
+            if (Math.abs(dx) > Math.abs(dy)) {
+              enemy.direction = dx > 0 ? "right" : "left";
+            } else {
+              enemy.direction = dy > 0 ? "down" : "up";
+            }
+          } else {
+            // Атака, если кулдаун прошёл
+            const currentTime = Date.now();
+            if (currentTime - enemy.lastAttackTime >= ENEMY_ATTACK_COOLDOWN) {
+              enemy.lastAttackTime = currentTime;
+              enemy.state = "attacking"; // Можно добавить анимацию, но минимально
+              // Нанести урон игроку
+              closestPlayer.health = Math.max(
+                0,
+                closestPlayer.health - ENEMY_ATTACK_DAMAGE
+              );
+              players.set(closestPlayer.id, { ...closestPlayer });
+              userDatabase.set(closestPlayer.id, { ...closestPlayer });
+              saveUserDatabase(dbCollection, closestPlayer.id, closestPlayer); // Async, но без await для скорости
+
+              // Broadcast атаки и обновления игрока
+              wss.clients.forEach((client) => {
+                if (client.readyState === WebSocket.OPEN) {
+                  const clientPlayer = players.get(clients.get(client));
+                  if (clientPlayer && clientPlayer.worldId === enemy.worldId) {
+                    client.send(
+                      JSON.stringify({
+                        type: "enemyAttack",
+                        targetId: closestPlayer.id,
+                        damage: ENEMY_ATTACK_DAMAGE,
+                      })
+                    );
+                    client.send(
+                      JSON.stringify({
+                        type: "update",
+                        player: { id: closestPlayer.id, ...closestPlayer },
+                      })
+                    );
+                  }
+                }
+              });
+            } else {
+              enemy.state = "idle";
+            }
+          }
+        } else {
+          enemy.state = "idle";
+        }
+
+        // Broadcast обновления (только если изменилось)
+        wss.clients.forEach((client) => {
+          if (client.readyState === WebSocket.OPEN) {
+            const clientPlayer = players.get(clients.get(client));
+            if (clientPlayer && clientPlayer.worldId === enemy.worldId) {
+              client.send(
+                JSON.stringify({
+                  type: "enemyUpdate",
+                  enemy: { id: enemyId, ...enemy },
+                })
+              );
+            }
+          }
+        });
+      });
+    }, 100); // 100ms = ~10 FPS, минимально без нагрузки
+
+    // Очистка интервала при disconnect (в ws.on("close"))
+    clearInterval(enemyUpdateInterval);
 
     ws.on("close", async (code, reason) => {
       const id = clients.get(ws);

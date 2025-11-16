@@ -1761,6 +1761,17 @@ function handleGameMessage(event) {
       case "enemyDied":
         enemies.delete(data.enemyId);
         break;
+      case "enemyUpdate":
+        if (data.enemy && data.enemy.id && enemies.has(data.enemy.id)) {
+          const existing = enemies.get(data.enemy.id);
+          enemies.set(data.enemy.id, {
+            ...existing,
+            ...data.enemy,
+            targetX: data.enemy.x, // Для интерполяции
+            targetY: data.enemy.y,
+          });
+        }
+        break;
       case "enemyAttack":
         // Визуал атаки на игрока (например, triggerAttackAnimation если targetId === myId)
         if (data.targetId === myId) {

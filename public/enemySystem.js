@@ -23,21 +23,25 @@ function initializeEnemySystem() {
   };
 }
 
-// Синхронизация врагов с сервером
+// Синхронизация врагов с сервером (добавлено: удаляем мёртвых сразу)
 function syncEnemies(serverEnemies) {
   enemies.clear();
   serverEnemies.forEach((enemy) => {
-    enemies.set(enemy.id, {
-      ...enemy,
-      frame: 0,
-      frameTime: 0,
-      lastAttackTime: 0,
-      deathTime: null, // Добавлено: Для анимации смерти
-    });
+    if (enemy.health > 0) {
+      // Пропускаем мёртвых на sync
+      enemies.set(enemy.id, {
+        ...enemy,
+        frame: 0,
+        frameTime: 0,
+        lastAttackTime: 0,
+        deathTime: null, // Добавлено: Для анимации смерти
+      });
+    }
   });
 }
 
 // Обновление врагов (локально, на основе серверных обновлений)
+// Добавлено: Лёгкая интерполяция движения для плавности (если state walking, двигаем к targetX/Y плавно)
 function updateEnemies(deltaTime) {
   const currentWorldId = window.worldSystem.currentWorldId;
   const me = players.get(myId);
@@ -50,6 +54,31 @@ function updateEnemies(deltaTime) {
     if (enemy.health <= 0 && !enemy.deathTime) {
       enemy.state = "dying";
       enemy.deathTime = Date.now(); // Запустить таймер анимации смерти
+    }
+
+    // Интерполяция движения (минимально: если walking, двигаем плавно)
+    if (
+      enemy.state === "walking" &&
+      enemy.targetX !== undefined &&
+      enemy.targetY !== undefined
+    ) {
+      const dx = enemy.targetX - enemy.x;
+      const dy = enemy.targetY - enemy.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > ENEMY_SPEED) {
+        const speedFactor = (ENEMY_SPEED / dist) * (deltaTime / 16.67); // Нормализация по 60 FPS
+        enemy.x += dx * speedFactor;
+        enemy.y += dy * speedFactor;
+      } else {
+        enemy.x = enemy.targetX;
+        enemy.y = enemy.targetY;
+      }
+      // Обновляем direction по движению (минимально)
+      if (Math.abs(dx) > Math.abs(dy)) {
+        enemy.direction = dx > 0 ? "right" : "left";
+      } else {
+        enemy.direction = dy > 0 ? "down" : "up";
+      }
     }
 
     // Анимация (если walking или dying)
@@ -69,7 +98,7 @@ function updateEnemies(deltaTime) {
   });
 }
 
-// Отрисовка врагов
+// Отрисовка врагов (добавлено: динамичный health bar, пропуск после смерти)
 function drawEnemies() {
   const currentWorldId = window.worldSystem.currentWorldId;
   const camera = window.movementSystem.getCamera();
@@ -77,8 +106,12 @@ function drawEnemies() {
   enemies.forEach((enemy) => {
     if (enemy.worldId !== currentWorldId) return;
 
-    // Добавлено: Пропустить отрисовку, если анимация смерти закончилась (>1 сек)
-    if (enemy.deathTime && Date.now() - enemy.deathTime > 1000) {
+    // Добавлено: Пропустить отрисовку, если анимация смерти закончилась (>1 сек) или health <=0 без deathTime
+    if (
+      (enemy.deathTime && Date.now() - enemy.deathTime > 1000) ||
+      enemy.health <= 0
+    ) {
+      enemies.delete(enemy.id); // Удаляем с клиента сразу
       return; // Не рисовать после анимации (сервер уже удалил)
     }
 
@@ -129,7 +162,7 @@ function drawEnemies() {
       ctx.fillRect(screenX, screenY, 70, 70);
     }
 
-    // Health bar (не рисовать, если dying и таймер >500ms для fade-out, но опционально)
+    // Health bar (динамично: всегда рисуем, если не dying >500ms)
     if (
       enemy.state !== "dying" ||
       (enemy.deathTime && Date.now() - enemy.deathTime < 500)
@@ -137,7 +170,7 @@ function drawEnemies() {
       ctx.fillStyle = "red";
       ctx.fillRect(screenX, screenY - 15, 70, 5);
       ctx.fillStyle = "green";
-      ctx.fillRect(screenX, screenY - 15, (enemy.health / 50) * 70, 5);
+      ctx.fillRect(screenX, screenY - 15, (enemy.health / 50) * 70, 5); // Динамично по текущему health
     }
 
     // ID для дебага

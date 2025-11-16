@@ -176,7 +176,7 @@ function performMeleeAttack(damage, worldId) {
     }
   });
 
-  // ДОБАВЛЕНО: Проверка врагов
+  // ДОБАВЛЕНО: Проверка врагов (динамично: шлём на сервер, здоровье обновится через "enemyUpdate")
   enemies.forEach((enemy, enemyId) => {
     if (enemy.health > 0 && enemy.worldId === worldId) {
       const dx = enemy.x - me.x;
@@ -241,7 +241,7 @@ function getPlayerAngle(direction) {
   }
 }
 
-// Обновление пуль (БЕЗ ИЗМЕНЕНИЙ, РАНГЕД ОСТАЁТСЯ КАК ЕСТЬ)
+// Обновление пуль (БЕЗ ИЗМЕНЕНИЙ, но добавлена динамичная проверка врагов)
 function updateBullets(deltaTime) {
   const currentTime = Date.now();
   const currentWorldId = window.worldSystem.currentWorldId;
