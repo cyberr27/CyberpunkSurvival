@@ -25,7 +25,7 @@ function runGameLoop(
   userDatabase,
   enemies
 ) {
-  // === AI МУТАНТОВ (каждые 100 мс) ===
+  // === AI МУТАНТОВ (каждые 200 мс для оптимизации) ===
   const mutantAIInterval = setInterval(() => {
     const now = Date.now();
 
@@ -42,7 +42,7 @@ function runGameLoop(
         let minDist = Infinity;
 
         for (const playerId of playerIds) {
-          const player = players.get(playerId); // ← Теперь players доступен!
+          const player = players.get(playerId);
           if (!player || player.health <= 0) continue;
 
           const dx = player.x - enemy.x;
@@ -74,7 +74,7 @@ function runGameLoop(
             minDist <= ATTACK_RANGE * ATTACK_RANGE &&
             now - enemy.lastAttackTime >= ENEMY_ATTACK_COOLDOWN
           ) {
-            const damage = Math.floor(Math.random() * 5) + 1;
+            const damage = Math.floor(Math.random() * 6) + 10; // 10-15
             closestPlayer.health = Math.max(0, closestPlayer.health - damage);
             enemy.lastAttackTime = now;
 
@@ -105,6 +105,13 @@ function runGameLoop(
         } else {
           enemy.targetId = null;
           enemy.state = "idle";
+          // Anti-зависание: random wander если idle (как в лучших играх)
+          if (Math.random() < 0.1) {
+            // 10% шанс на движение
+            const wanderAngle = Math.random() * Math.PI * 2;
+            enemy.x += Math.cos(wanderAngle) * ENEMY_SPEED * 0.5; // Медленнее
+            enemy.y += Math.sin(wanderAngle) * ENEMY_SPEED * 0.5;
+          }
         }
 
         broadcastToWorld(
@@ -119,7 +126,7 @@ function runGameLoop(
         );
       });
     }
-  }, 100);
+  }, 200); // 200ms для оптимизации (5 FPS update, клиент интерполирует)
 
   // === ОСНОВНОЙ ЦИКЛ (30 сек) ===
   const mainLoop = setInterval(() => {
@@ -179,47 +186,38 @@ function runGameLoop(
 
     for (const world of worlds) {
       const worldId = world.id;
-      const playerIds = worldPlayerCache.get(worldId) || new Set();
-      const playerCount = playerIds.size;
+      const playerCount = (worldPlayerCache.get(worldId) || new Set()).size;
       const worldItemsMap = worldItemCache.get(worldId) || new Map();
-
-      const removedItemIds = removeItemByWorld.get(worldId) || [];
-      if (removedItemIds.length > 0) {
-        const msg = JSON.stringify({
-          type: "itemPicked",
-          itemId: removedItemIds,
-        });
-        broadcastToWorld(wss, clients, players, worldId, msg);
-      }
-
       const itemCounts = {};
-      for (const [type] of Object.entries(ITEM_CONFIG)) {
-        itemCounts[type] = 0;
+      worldItemsMap.forEach((item) => {
+        itemCounts[item.type] = (itemCounts[item.type] || 0) + 1;
+      });
+
+      // Удаляем expired items per world
+      const itemsToRemove = removeItemByWorld.get(worldId) || [];
+      if (itemsToRemove.length > 0) {
+        const removeMsg = JSON.stringify({
+          type: "removeItems",
+          itemIds: itemsToRemove,
+        });
+        broadcastToWorld(wss, clients, players, worldId, removeMsg);
       }
-      for (const item of worldItemsMap.values()) {
-        if (itemCounts[item.type] !== undefined) {
-          itemCounts[item.type]++;
-        }
-      }
 
-      const rareItems = Object.keys(ITEM_CONFIG).filter(
-        (t) => ITEM_CONFIG[t].rarity === 1
-      );
-      const mediumItems = Object.keys(ITEM_CONFIG).filter(
-        (t) => ITEM_CONFIG[t].rarity === 2
-      );
-      const commonItems = Object.keys(ITEM_CONFIG).filter(
-        (t) => ITEM_CONFIG[t].rarity === 3
-      );
-
-      const desiredTotalItems = playerCount * 10;
-      const currentTotalItems = worldItemsMap.size;
-
-      if (currentTotalItems < desiredTotalItems) {
-        const itemsToSpawn = desiredTotalItems - currentTotalItems;
-        let rareCount = playerCount * 2;
+      if (playerCount > 0) {
+        const itemsToSpawn = Math.max(1, playerCount * 2);
+        let rareCount = playerCount;
         let mediumCount = playerCount * 3;
         let commonCount = playerCount * 5;
+
+        const rareItems = Object.keys(ITEM_CONFIG).filter(
+          (t) => ITEM_CONFIG[t].rarity === 1
+        );
+        const mediumItems = Object.keys(ITEM_CONFIG).filter(
+          (t) => ITEM_CONFIG[t].rarity === 2
+        );
+        const commonItems = Object.keys(ITEM_CONFIG).filter(
+          (t) => ITEM_CONFIG[t].rarity === 3
+        );
 
         const newItems = [];
         const atomSpawns = [];
@@ -316,7 +314,7 @@ function runGameLoop(
                 id: enemyId,
                 x,
                 y,
-                health: 50,
+                health: 200,
                 direction: "down",
                 state: "idle",
                 frame: 0,

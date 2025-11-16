@@ -7,7 +7,7 @@ const ENEMY_SPEED = 2;
 const AGGRO_RANGE = 300;
 const ATTACK_RANGE = 50;
 const ENEMY_ATTACK_COOLDOWN = 1000;
-const ENEMY_ATTACK_DAMAGE = 5;
+const ENEMY_ATTACK_DAMAGE = null;
 
 function calculateXPToNextLevel(level) {
   if (level >= 100) return 0;
@@ -84,14 +84,13 @@ function setupWebSocket(
 
     let x, y;
     let attempts = 0;
-    const minDistanceToPlayer = 200; // Не спаунить ближе 200px к игрокам для "крутости"
+    const minDistanceToPlayer = 200;
 
     do {
-      x = Math.random() * world.w;
-      y = Math.random() * world.h;
+      x = Math.random() * world.width;
+      y = Math.random() * world.height;
       attempts++;
 
-      // Проверка расстояния до всех игроков в мире
       let tooClose = false;
       players.forEach((player) => {
         if (player.worldId === worldId) {
@@ -104,24 +103,23 @@ function setupWebSocket(
       });
 
       if (!tooClose) break;
-    } while (attempts < 50); // Макс 50 попыток, чтобы не зациклиться
+    } while (attempts < 50);
 
-    const enemyId = `enemy_${Date.now()}_${Math.random()}`;
+    const enemyId = `mutant_${Date.now()}_${Math.random()}`;
     const newEnemy = {
       id: enemyId,
       x,
       y,
-      health: 50,
+      health: 200, // Изменено на 200
       direction: "down",
       state: "idle",
       frame: 0,
       worldId,
+      targetId: null,
       lastAttackTime: 0,
     };
-
     enemies.set(enemyId, newEnemy);
 
-    // Broadcast нового врага всем в мире
     wss.clients.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
         const clientPlayer = players.get(clients.get(client));
@@ -1690,9 +1688,8 @@ function setupWebSocket(
 
     const enemyUpdateInterval = setInterval(() => {
       enemies.forEach((enemy, enemyId) => {
-        if (enemy.health <= 0) return; // Пропускаем мёртвых
+        if (enemy.health <= 0) return;
 
-        // Найти ближайшего игрока в аггро
         let closestPlayer = null;
         let minDist = AGGRO_RANGE;
         players.forEach((player) => {
@@ -1708,40 +1705,32 @@ function setupWebSocket(
         });
 
         if (closestPlayer) {
-          // Движение к игроку
           const dx = closestPlayer.x - enemy.x;
           const dy = closestPlayer.y - enemy.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
           if (dist > ATTACK_RANGE) {
-            // Walking
             const moveDist = ENEMY_SPEED;
             if (dist > 0) {
               enemy.x += (dx / dist) * moveDist;
               enemy.y += (dy / dist) * moveDist;
             }
             enemy.state = "walking";
-            // Direction
             if (Math.abs(dx) > Math.abs(dy)) {
               enemy.direction = dx > 0 ? "right" : "left";
             } else {
               enemy.direction = dy > 0 ? "down" : "up";
             }
           } else {
-            // Атака, если кулдаун прошёл
             const currentTime = Date.now();
             if (currentTime - enemy.lastAttackTime >= ENEMY_ATTACK_COOLDOWN) {
               enemy.lastAttackTime = currentTime;
-              enemy.state = "attacking"; // Можно добавить анимацию, но минимально
-              // Нанести урон игроку
-              closestPlayer.health = Math.max(
-                0,
-                closestPlayer.health - ENEMY_ATTACK_DAMAGE
-              );
+              enemy.state = "attacking";
+              const damage = Math.floor(Math.random() * 6) + 10; // 10-15
+              closestPlayer.health = Math.max(0, closestPlayer.health - damage);
               players.set(closestPlayer.id, { ...closestPlayer });
               userDatabase.set(closestPlayer.id, { ...closestPlayer });
-              saveUserDatabase(dbCollection, closestPlayer.id, closestPlayer); // Async, но без await для скорости
+              saveUserDatabase(dbCollection, closestPlayer.id, closestPlayer);
 
-              // Broadcast атаки и обновления игрока
               wss.clients.forEach((client) => {
                 if (client.readyState === WebSocket.OPEN) {
                   const clientPlayer = players.get(clients.get(client));
@@ -1750,7 +1739,7 @@ function setupWebSocket(
                       JSON.stringify({
                         type: "enemyAttack",
                         targetId: closestPlayer.id,
-                        damage: ENEMY_ATTACK_DAMAGE,
+                        damage: damage,
                       })
                     );
                     client.send(
@@ -1768,9 +1757,14 @@ function setupWebSocket(
           }
         } else {
           enemy.state = "idle";
+          // Anti-зависание: random wander
+          if (Math.random() < 0.1) {
+            const wanderAngle = Math.random() * Math.PI * 2;
+            enemy.x += Math.cos(wanderAngle) * ENEMY_SPEED * 0.5;
+            enemy.y += Math.sin(wanderAngle) * ENEMY_SPEED * 0.5;
+          }
         }
 
-        // Broadcast обновления (только если изменилось)
         wss.clients.forEach((client) => {
           if (client.readyState === WebSocket.OPEN) {
             const clientPlayer = players.get(clients.get(client));
@@ -1785,7 +1779,7 @@ function setupWebSocket(
           }
         });
       });
-    }, 100); // 100ms = ~10 FPS, минимально без нагрузки
+    }, 200); // 200ms оптимизация
 
     // Очистка интервала при disconnect (в ws.on("close"))
     clearInterval(enemyUpdateInterval);
