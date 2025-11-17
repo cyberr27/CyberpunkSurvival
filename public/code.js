@@ -1612,27 +1612,33 @@ function handleGameMessage(event) {
         pendingPickups.delete(data.itemId);
         const me = players.get(myId);
         if (me && data.playerId === myId && data.item) {
-          if (data.item.type === "balyary") {
-            const balyarySlot = inventory.findIndex(
-              (slot) => slot && slot.type === "balyary"
+          if (ITEM_CONFIG[data.item.type]?.stackable) {
+            // Обработка для всех stackable предметов (balyary, atom и т.д.)
+            const quantityToAdd = data.item.quantity || 1;
+            const stackSlot = inventory.findIndex(
+              (slot) => slot && slot.type === data.item.type
             );
-            if (balyarySlot !== -1) {
-              inventory[balyarySlot].quantity =
-                (inventory[balyarySlot].quantity || 1) + 1;
+            if (stackSlot !== -1) {
+              inventory[stackSlot].quantity =
+                (inventory[stackSlot].quantity || 1) + quantityToAdd;
             } else {
               const freeSlot = inventory.findIndex((slot) => slot === null);
               if (freeSlot !== -1) {
                 inventory[freeSlot] = {
-                  type: "balyary",
-                  quantity: 1,
+                  type: data.item.type,
+                  quantity: quantityToAdd,
                   itemId: data.itemId,
                 };
               }
             }
           } else {
+            // Для non-stackable: добавляем чистый объект без лишних полей
             const freeSlot = inventory.findIndex((slot) => slot === null);
             if (freeSlot !== -1) {
-              inventory[freeSlot] = data.item;
+              inventory[freeSlot] = {
+                type: data.item.type,
+                itemId: data.itemId,
+              };
             }
           }
           updateInventoryDisplay();
