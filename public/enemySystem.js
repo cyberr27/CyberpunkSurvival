@@ -168,18 +168,18 @@ function drawEnemies() {
       ctx.fillRect(screenX, screenY, 70, 70);
     }
 
-    // Health bar (max 200, рисуем если не dying >500ms)
+    // Новый текст здоровья вместо полоски (над ID, красным, если не dying или dying <500ms)
     if (
       enemy.state !== "dying" ||
       (enemy.deathTime && Date.now() - enemy.deathTime < 500)
     ) {
       ctx.fillStyle = "red";
-      ctx.fillRect(screenX, screenY - 15, 70, 5);
-      ctx.fillStyle = "green";
-      ctx.fillRect(screenX, screenY - 15, (enemy.health / 200) * 70, 5); // Max 200
+      ctx.font = "12px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText(`${enemy.health} / 200`, screenX + 35, screenY - 30); // -30 для отступа над ID (-20 - 10)
     }
 
-    // ID для дебага
+    // ID для дебага (остается как есть)
     ctx.fillStyle = "white";
     ctx.font = "12px Arial";
     ctx.fillText(enemy.id, screenX + 35, screenY - 20);

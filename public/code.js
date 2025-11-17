@@ -2020,15 +2020,13 @@ function draw(deltaTime) {
     ctx.textAlign = "center";
     ctx.fillText(player.id, screenX + 35, screenY - 20);
     ctx.fillStyle = "red";
-    ctx.fillRect(screenX, screenY - 15, 70, 5);
-    ctx.fillStyle = "green";
-    const displayHealth = Math.min(player.health, player.maxStats.health);
-    ctx.fillRect(
-      screenX,
-      screenY - 15,
-      (displayHealth / player.maxStats.health) * 70,
-      5
-    );
+    ctx.font = "12px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText(
+      `${player.health} / ${player.maxStats.health}`,
+      screenX + 35,
+      screenY - 30
+    ); // -30 для отступа над ID (-20 - 10)
   });
 
   if (currentWorld.veg.complete) {
