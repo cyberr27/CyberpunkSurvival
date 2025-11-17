@@ -1,7 +1,7 @@
 // combatSystem.js - ИЗМЕНЁННЫЙ ПОЛНОСТЬЮ
 const BULLET_SPEED = 10; // Скорость пули (пикселей за кадр)
 const BULLET_SIZE = 5; // Размер пули
-const ATTACK_COOLDOWN = 500; // Перезарядка атаки в миллисекундах
+const ATTACK_COOLDOWN = 1000; // Перезарядка атаки в миллисекундах
 const BULLET_LIFETIME = 2000; // Время жизни пули в миллисекундах
 const BASE_MELEE_MIN_DAMAGE = 5; // Базовый мин. урон ближнего боя
 const BASE_MELEE_MAX_DAMAGE = 10; // Базовый макс. урон ближнего боя
@@ -38,6 +38,7 @@ function triggerAttackAnimation() {
 }
 
 // Выполнение атаки
+// Выполнение атаки
 function performAttack() {
   const me = players.get(myId);
   if (!me || me.health <= 0) return;
@@ -47,105 +48,105 @@ function performAttack() {
 
   lastAttackTime = currentTime;
   const equippedWeapon = me.equipment && me.equipment.weapon;
-  const currentWorldId = window.worldSystem.currentWorldId;
-
-  if (
+  const weaponConfig =
     equippedWeapon &&
     ITEM_CONFIG[equippedWeapon.type] &&
     ITEM_CONFIG[equippedWeapon.type].type === "weapon"
-  ) {
-    const weaponConfig = ITEM_CONFIG[equippedWeapon.type];
-    const isRanged = !!weaponConfig.effect.range; // Проверяем, дальнобойное ли оружие (presence of range)
+      ? ITEM_CONFIG[equippedWeapon.type]
+      : null;
 
+  const isRanged = weaponConfig && !!weaponConfig.effect?.range;
+
+  // === НОВАЯ ЛОГИКА УРОНА: сначала берём player.damage, если его нет — старый расчёт ===
+  let damage = me.damage; // ← основной урон игрока (будет задаваться при экипировке)
+
+  if (damage === undefined) {
+    // Если player.damage не задан — считаем по-старому (ничего не ломаем)
     if (isRanged) {
-      // Стрельба из дальнобойного оружия (ОСТАВЛЯЕМ КАК ЕСТЬ)
-      const range = weaponConfig.effect.range || 500;
-      const damage = weaponConfig.effect.damage || 10;
-
-      const bulletId = `bullet_${Date.now()}_${Math.random()}`;
-      const angle = getPlayerAngle(me.direction);
-
-      const bullet = {
-        id: bulletId,
-        x: me.x + 20,
-        y: me.y + 20,
-        vx: Math.cos(angle) * BULLET_SPEED,
-        vy: Math.sin(angle) * BULLET_SPEED,
-        damage: damage,
-        range: Math.min(range, BULLET_LIFETIME * BULLET_SPEED),
-        ownerId: myId,
-        spawnTime: Date.now(),
-        worldId: currentWorldId,
-      };
-
-      bullets.set(bulletId, bullet);
-
-      sendWhenReady(
-        ws,
-        JSON.stringify({
-          type: "shoot",
-          bulletId,
-          x: bullet.x,
-          y: bullet.y,
-          vx: bullet.vx,
-          vy: bullet.vy,
-          damage: bullet.damage,
-          range: bullet.range,
-          ownerId: myId,
-          worldId: currentWorldId,
-        })
-      );
-
-      // Обновляем данные игрока на сервере
-      sendWhenReady(
-        ws,
-        JSON.stringify({
-          type: "update",
-          player: {
-            id: myId,
-            x: me.x,
-            y: me.y,
-            health: me.health,
-            energy: me.energy,
-            food: me.food,
-            water: me.water,
-            armor: me.armor,
-            distanceTraveled: me.distanceTraveled,
-            direction: me.direction,
-            state: me.state,
-            frame: me.frame,
-            worldId: currentWorldId,
-          },
-        })
-      );
+      damage = weaponConfig.effect.damage || 10;
     } else {
-      // Ближний бой: НОВЫЙ РАСЧЁТ УРОНА (базовый 5-10 + оружие)
-      let damage;
-      const weaponDamage = weaponConfig.effect.damage;
+      // Ближний бой или кулаки
       let minDamage = BASE_MELEE_MIN_DAMAGE;
       let maxDamage = BASE_MELEE_MAX_DAMAGE;
 
       if (
-        weaponDamage &&
-        typeof weaponDamage === "object" &&
-        weaponDamage.min !== undefined &&
-        weaponDamage.max !== undefined
+        weaponConfig?.effect?.damage &&
+        typeof weaponConfig.effect.damage === "object" &&
+        weaponConfig.effect.damage.min !== undefined
       ) {
-        minDamage += weaponDamage.min;
-        maxDamage += weaponDamage.max;
-      } // Иначе базовый (если оружие без damage или не object)
-
+        minDamage += weaponConfig.effect.damage.min;
+        maxDamage += weaponConfig.effect.damage.max;
+      }
       damage = Math.floor(
         Math.random() * (maxDamage - minDamage + 1) + minDamage
       );
-      performMeleeAttack(damage, currentWorldId);
     }
-  } else {
-    // Атака без оружия (кулаками): фиксированный базовый 5-10
-    const damage = Math.floor(
-      Math.random() * (BASE_MELEE_MAX_DAMAGE - BASE_MELEE_MIN_DAMAGE + 1) +
-        BASE_MELEE_MIN_DAMAGE
+  }
+
+  const currentWorldId = window.worldSystem.currentWorldId;
+
+  if (isRanged) {
+    // === ДАЛЬНОБОЙНАЯ АТАКА (оставляем как было, только damage новый) ===
+    const range = weaponConfig.effect.range || 500;
+
+    const bulletId = `bullet_${Date.now()}_${Math.random()}`;
+    const angle = getPlayerAngle(me.direction);
+
+    const bullet = {
+      id: bulletId,
+      x: me.x + 20,
+      y: me.y + 20,
+      vx: Math.cos(angle) * BULLET_SPEED,
+      vy: Math.sin(angle) * BULLET_SPEED,
+      damage: damage, // ← теперь player.damage
+      range: Math.min(range, BULLET_LIFETIME * BULLET_SPEED),
+      ownerId: myId,
+      spawnTime: Date.now(),
+      worldId: currentWorldId,
+    };
+
+    bullets.set(bulletId, bullet);
+
+    sendWhenReady(
+      ws,
+      JSON.stringify({
+        type: "shoot",
+        bulletId,
+        x: bullet.x,
+        y: bullet.y,
+        vx: bullet.vx,
+        vy: bullet.vy,
+        damage: damage, // ← теперь player.damage
+        range: bullet.range,
+        ownerId: myId,
+        worldId: currentWorldId,
+      })
     );
+
+    // Обновляем данные игрока на сервере (оставляем как было)
+    sendWhenReady(
+      ws,
+      JSON.stringify({
+        type: "update",
+        player: {
+          id: myId,
+          x: me.x,
+          y: me.y,
+          health: me.health,
+          energy: me.energy,
+          food: me.food,
+          water: me.water,
+          armor: me.armor,
+          distanceTraveled: me.distanceTraveled,
+          direction: me.direction,
+          state: me.state,
+          frame: me.frame,
+          worldId: currentWorldId,
+        },
+      })
+    );
+  } else {
+    // === БЛИЖНИЙ БОЙ (или кулаки) — используем тот же damage ===
     performMeleeAttack(damage, currentWorldId);
   }
 }
