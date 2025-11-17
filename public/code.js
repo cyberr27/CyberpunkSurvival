@@ -1736,10 +1736,8 @@ function handleGameMessage(event) {
           frameTime: 0,
           lastAttackTime: 0,
         });
-        if (data.enemy.power)
-          enemies.get(data.enemy.id).power = data.enemy.power;
-        break;
       case "enemyKilled":
+        break;
       case "levelSyncAfterKill":
         window.levelSystem.handleEnemyKill({
           level: data.level,
@@ -1758,8 +1756,6 @@ function handleGameMessage(event) {
             ...enemies.get(data.enemy.id),
             ...data.enemy,
           });
-          if (data.enemy.power)
-            enemies.get(data.enemy.id).power = data.enemy.power;
         }
         break;
       case "enemyDied":

@@ -74,7 +74,7 @@ function runGameLoop(
             minDist <= ATTACK_RANGE * ATTACK_RANGE &&
             now - enemy.lastAttackTime >= ENEMY_ATTACK_COOLDOWN
           ) {
-            const damage = enemy.power;
+            const damage = Math.floor(Math.random() * 6) + 10; // 10-15
             closestPlayer.health = Math.max(0, closestPlayer.health - damage);
             enemy.lastAttackTime = now;
 
@@ -144,42 +144,105 @@ function runGameLoop(
       worldPlayerCache.get(player.worldId).add(player.id);
     }
 
-    for (const item of items.values()) {
-      if (!worldItemCache.has(item.worldId)) {
-        worldItemCache.set(item.worldId, new Map());
-      }
-      worldItemCache.get(item.worldId).set(item.id, item);
-    }
-
-    for (const enemy of enemies.values()) {
+    for (const [enemyId, enemy] of enemies) {
       if (!worldEnemyCache.has(enemy.worldId)) {
         worldEnemyCache.set(enemy.worldId, new Map());
       }
-      worldEnemyCache.get(enemy.worldId).set(enemy.id, enemy);
+      worldEnemyCache.get(enemy.worldId).set(enemyId, enemy);
+    }
+
+    for (const [itemId, item] of items) {
+      if (!worldItemCache.has(item.worldId)) {
+        worldItemCache.set(item.worldId, new Map());
+      }
+      worldItemCache.get(item.worldId).set(itemId, item);
+    }
+
+    const totalPlayers = players.size;
+
+    const totalOnlineMsg = JSON.stringify({
+      type: "totalOnline",
+      count: totalPlayers,
+    });
+    wss.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(totalOnlineMsg);
+      }
+    });
+
+    const expiredItems = [];
+    for (const [itemId, item] of items) {
+      if (now - item.spawnTime > 10 * 60 * 1000) {
+        expiredItems.push({ itemId, worldId: item.worldId });
+        items.delete(itemId);
+      }
+    }
+
+    const removeItemByWorld = new Map();
+    for (const { itemId, worldId } of expiredItems) {
+      if (!removeItemByWorld.has(worldId)) removeItemByWorld.set(worldId, []);
+      removeItemByWorld.get(worldId).push(itemId);
     }
 
     for (const world of worlds) {
       const worldId = world.id;
-      const playerIds = worldPlayerCache.get(worldId) || new Set();
-      const playerCount = playerIds.size;
-
+      const playerCount = (worldPlayerCache.get(worldId) || new Set()).size;
       const worldItemsMap = worldItemCache.get(worldId) || new Map();
-      let atomSpawns = [];
-      let newItems = [];
+      const itemCounts = {};
+      worldItemsMap.forEach((item) => {
+        itemCounts[item.type] = (itemCounts[item.type] || 0) + 1;
+      });
 
-      // Спавн предметов в мирах с игроками (оптимизировано: спавн только если игроков >0)
+      // Удаляем expired items per world
+      const itemsToRemove = removeItemByWorld.get(worldId) || [];
+      if (itemsToRemove.length > 0) {
+        const removeMsg = JSON.stringify({
+          type: "removeItems",
+          itemIds: itemsToRemove,
+        });
+        broadcastToWorld(wss, clients, players, worldId, removeMsg);
+      }
+
       if (playerCount > 0) {
-        const atomChance = Math.random() < 0.0001 ? 1 : 0; // Редкий шанс спавна атома
-        let commonCount = 3 + Math.floor(Math.random() * 3); // 3-5 common
+        const itemsToSpawn = Math.max(1, playerCount * 2);
+        let rareCount = playerCount;
+        let mediumCount = playerCount * 3;
+        let commonCount = playerCount * 5;
 
-        for (let i = 0; i < atomChance + commonCount; i++) {
+        const rareItems = Object.keys(ITEM_CONFIG).filter(
+          (t) => ITEM_CONFIG[t].rarity === 1
+        );
+        const mediumItems = Object.keys(ITEM_CONFIG).filter(
+          (t) => ITEM_CONFIG[t].rarity === 2
+        );
+        const commonItems = Object.keys(ITEM_CONFIG).filter(
+          (t) => ITEM_CONFIG[t].rarity === 3
+        );
+
+        const newItems = [];
+        const atomSpawns = [];
+
+        for (let i = 0; i < itemsToSpawn; i++) {
           let type;
-          if (i < atomChance) {
-            type = "atom";
-          } else if (commonCount > 0) {
-            const commonItems = Object.keys(ITEM_CONFIG).filter(
-              (t) => ITEM_CONFIG[t].rarity === 3
-            );
+          if (
+            rareCount > 0 &&
+            rareItems.length > 0 &&
+            itemCounts[rareItems[0]] < rareCount
+          ) {
+            type = rareItems[Math.floor(Math.random() * rareItems.length)];
+            rareCount--;
+          } else if (
+            mediumCount > 0 &&
+            mediumItems.length > 0 &&
+            itemCounts[mediumItems[0]] < mediumCount
+          ) {
+            type = mediumItems[Math.floor(Math.random() * mediumItems.length)];
+            mediumCount--;
+          } else if (
+            commonCount > 0 &&
+            commonItems.length > 0 &&
+            itemCounts[commonItems[0]] < commonCount
+          ) {
             type = commonItems[Math.floor(Math.random() * commonItems.length)];
             commonCount--;
           } else {
@@ -226,6 +289,7 @@ function runGameLoop(
           broadcastToWorld(wss, clients, players, worldId, atomMsg);
         }
       }
+
       if (worldId !== 0 && playerCount > 0) {
         const worldEnemiesMap = worldEnemyCache.get(worldId) || new Map();
         const desiredEnemies = 10;
@@ -234,31 +298,15 @@ function runGameLoop(
           const enemiesToSpawn = desiredEnemies - currentEnemies;
           const newEnemies = [];
           for (let i = 0; i < enemiesToSpawn; i++) {
-            let x, y;
-            let attempts = 0;
-            const minDistanceToPlayer = 200;
-            const maxAttempts = 50;
+            let x,
+              y,
+              attempts = 0;
+            const maxAttempts = 10;
             do {
               x = Math.random() * world.width;
               y = Math.random() * world.height;
               attempts++;
-
-              let tooClose = false;
-              for (const playerId of playerIds) {
-                // playerIds из worldPlayerCache
-                const player = players.get(playerId);
-                if (player) {
-                  const dx = player.x - x;
-                  const dy = player.y - y;
-                  if (Math.sqrt(dx * dx + dy * dy) < minDistanceToPlayer) {
-                    tooClose = true;
-                    break;
-                  }
-                }
-              }
-
-              if (!tooClose) break;
-            } while (attempts < maxAttempts);
+            } while (checkCollisionServer(x, y) && attempts < maxAttempts);
 
             if (attempts < maxAttempts) {
               const enemyId = `mutant_${Date.now()}_${i}`;
@@ -276,7 +324,6 @@ function runGameLoop(
               };
               enemies.set(enemyId, newEnemy);
               worldEnemiesMap.set(enemyId, newEnemy);
-              newEnemy.power = Math.floor(Math.random() * 4) + 5; // 5-8
               newEnemies.push({ ...newEnemy });
             }
           }
