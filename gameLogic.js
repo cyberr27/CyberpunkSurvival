@@ -36,21 +36,7 @@ function runGameLoop(
       if (playerIds.size === 0) continue;
 
       worldEnemiesMap.forEach((enemy) => {
-        if (enemy.health <= 0) {
-          // Немедленное удаление на сервере
-          enemies.delete(enemy.id);
-          broadcastToWorld(
-            wss,
-            clients,
-            players,
-            worldId,
-            JSON.stringify({
-              type: "enemyDied",
-              enemyId: enemy.id,
-            })
-          );
-          return;
-        }
+        if (enemy.health <= 0) return;
 
         let closestPlayer = null;
         let minDist = Infinity;
@@ -322,29 +308,6 @@ function runGameLoop(
           worldId,
         });
         broadcastToWorld(wss, clients, players, worldId, syncMsg);
-      }
-
-      // Добавлено: syncEnemies для обновления онлайн (после спавна/изменений)
-      const allEnemies = Array.from(
-        worldEnemyCache.get(worldId) || new Map()
-      ).map(([enemyId, enemy]) => ({
-        enemyId,
-        x: enemy.x,
-        y: enemy.y,
-        health: enemy.health,
-        direction: enemy.direction,
-        state: enemy.state,
-        frame: enemy.frame,
-        worldId,
-      }));
-      if (allEnemies.length > 0 && playerCount > 0) {
-        // Только если игроки в мире
-        const syncEnemiesMsg = JSON.stringify({
-          type: "syncEnemies",
-          enemies: allEnemies,
-          worldId,
-        });
-        broadcastToWorld(wss, clients, players, worldId, syncEnemiesMsg);
       }
     }
   }, 30_000);

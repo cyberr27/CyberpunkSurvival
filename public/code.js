@@ -1754,20 +1754,12 @@ function handleGameMessage(event) {
         break;
       case "enemyUpdate":
         if (data.enemy && data.enemy.id) {
-          const existing = enemies.get(data.enemy.id) || {};
           enemies.set(data.enemy.id, {
-            ...existing,
+            ...enemies.get(data.enemy.id),
             ...data.enemy,
-            targetX: data.enemy.x, // Для интерполяции
-            targetY: data.enemy.y,
           });
-          if (data.enemy.power) {
+          if (data.enemy.power)
             enemies.get(data.enemy.id).power = data.enemy.power;
-          }
-          // Проверка на смерть после обновления
-          if (enemies.get(data.enemy.id).health <= 0) {
-            enemies.delete(data.enemy.id);
-          }
         }
         break;
       case "enemyDied":
@@ -1788,13 +1780,6 @@ function handleGameMessage(event) {
         // Визуал атаки на игрока (например, triggerAttackAnimation если targetId === myId)
         if (data.targetId === myId) {
           triggerAttackAnimation();
-        }
-        // Опционально: обновить health игрока локально, если data.damage и targetId === myId
-        if (data.targetId === myId && data.damage) {
-          const me = players.get(myId);
-          if (me) {
-            me.health = Math.max(0, me.health - data.damage);
-          }
         }
         break;
     }
@@ -2034,20 +2019,20 @@ function draw(deltaTime) {
       ctx.fillRect(screenX, screenY, 70, 70);
     }
 
-    // Текст здоровья вместо bar (мелкий шрифт, над именем)
-    ctx.fillStyle = "white";
-    ctx.font = "10px Arial"; // Мелкий текст
-    ctx.textAlign = "center";
-    ctx.fillText(
-      `${Math.floor(player.health)} / ${player.maxStats.health}`,
-      screenX + 35,
-      screenY - 32
-    ); // Над именем
-
-    // Имя
     ctx.fillStyle = "white";
     ctx.font = "12px Arial";
+    ctx.textAlign = "center";
     ctx.fillText(player.id, screenX + 35, screenY - 20);
+    ctx.fillStyle = "red";
+    ctx.fillRect(screenX, screenY - 15, 70, 5);
+    ctx.fillStyle = "green";
+    const displayHealth = Math.min(player.health, player.maxStats.health);
+    ctx.fillRect(
+      screenX,
+      screenY - 15,
+      (displayHealth / player.maxStats.health) * 70,
+      5
+    );
   });
 
   if (currentWorld.veg.complete) {

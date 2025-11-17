@@ -1689,23 +1689,7 @@ function setupWebSocket(
 
     const enemyUpdateInterval = setInterval(() => {
       enemies.forEach((enemy, enemyId) => {
-        if (enemy.health <= 0) {
-          enemies.delete(enemyId);
-          wss.clients.forEach((client) => {
-            if (client.readyState === WebSocket.OPEN) {
-              const clientPlayer = players.get(clients.get(client));
-              if (clientPlayer && clientPlayer.worldId === enemy.worldId) {
-                client.send(
-                  JSON.stringify({
-                    type: "enemyDied",
-                    enemyId,
-                  })
-                );
-              }
-            }
-          });
-          return;
-        }
+        if (enemy.health <= 0) return;
 
         let closestPlayer = null;
         let minDist = AGGRO_RANGE;

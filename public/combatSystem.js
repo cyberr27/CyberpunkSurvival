@@ -193,11 +193,6 @@ function performMeleeAttack(damage, worldId) {
             worldId,
           })
         );
-        // Локальное обновление для динамики: уменьшаем health сразу (до sync)
-        enemy.health = Math.max(0, enemy.health - damage);
-        if (enemy.health <= 0) {
-          enemies.delete(enemyId); // Немедленное удаление визуально
-        }
       }
     }
   });
@@ -322,11 +317,6 @@ function updateBullets(deltaTime) {
               worldId: currentWorldId,
             })
           );
-          // Локальное обновление для динамики: уменьшаем health сразу
-          enemy.health = Math.max(0, enemy.health - bullet.damage);
-          if (enemy.health <= 0) {
-            enemies.delete(id); // Немедленное удаление визуально
-          }
         }
       }
     });
