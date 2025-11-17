@@ -119,6 +119,7 @@ function setupWebSocket(
       lastAttackTime: 0,
     };
     enemies.set(enemyId, newEnemy);
+    newEnemy.power = Math.floor(Math.random() * 4) + 5; // 5-8
 
     wss.clients.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
@@ -1629,11 +1630,11 @@ function setupWebSocket(
                 });
               }
               if (Math.random() < 0.2) {
-                const itemId = `atom_${Date.now()}`;
+                const itemId = `balyary_${Date.now()}`;
                 const dropItem = {
                   x: enemy.x,
                   y: enemy.y,
-                  type: "atom",
+                  type: "balyary",
                   spawnTime: Date.now(),
                   worldId: data.worldId,
                 };
@@ -1725,7 +1726,7 @@ function setupWebSocket(
             if (currentTime - enemy.lastAttackTime >= ENEMY_ATTACK_COOLDOWN) {
               enemy.lastAttackTime = currentTime;
               enemy.state = "attacking";
-              const damage = Math.floor(Math.random() * 6) + 10; // 10-15
+              const damage = enemy.power;
               closestPlayer.health = Math.max(0, closestPlayer.health - damage);
               players.set(closestPlayer.id, { ...closestPlayer });
               userDatabase.set(closestPlayer.id, { ...closestPlayer });

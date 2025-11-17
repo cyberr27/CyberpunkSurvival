@@ -74,7 +74,7 @@ function runGameLoop(
             minDist <= ATTACK_RANGE * ATTACK_RANGE &&
             now - enemy.lastAttackTime >= ENEMY_ATTACK_COOLDOWN
           ) {
-            const damage = Math.floor(Math.random() * 6) + 10; // 10-15
+            const damage = enemy.power;
             closestPlayer.health = Math.max(0, closestPlayer.health - damage);
             enemy.lastAttackTime = now;
 
@@ -298,15 +298,30 @@ function runGameLoop(
           const enemiesToSpawn = desiredEnemies - currentEnemies;
           const newEnemies = [];
           for (let i = 0; i < enemiesToSpawn; i++) {
-            let x,
-              y,
-              attempts = 0;
-            const maxAttempts = 10;
+            let x, y;
+            let attempts = 0;
+            const minDistanceToPlayer = 200;
             do {
               x = Math.random() * world.width;
               y = Math.random() * world.height;
               attempts++;
-            } while (checkCollisionServer(x, y) && attempts < maxAttempts);
+
+              let tooClose = false;
+              for (const playerId of playerIds) {
+                // playerIds из worldPlayerCache
+                const player = players.get(playerId);
+                if (player) {
+                  const dx = player.x - x;
+                  const dy = player.y - y;
+                  if (Math.sqrt(dx * dx + dy * dy) < minDistanceToPlayer) {
+                    tooClose = true;
+                    break;
+                  }
+                }
+              }
+
+              if (!tooClose) break;
+            } while (attempts < 50);
 
             if (attempts < maxAttempts) {
               const enemyId = `mutant_${Date.now()}_${i}`;
@@ -324,6 +339,7 @@ function runGameLoop(
               };
               enemies.set(enemyId, newEnemy);
               worldEnemiesMap.set(enemyId, newEnemy);
+              newEnemy.power = Math.floor(Math.random() * 4) + 5; // 5-8
               newEnemies.push({ ...newEnemy });
             }
           }

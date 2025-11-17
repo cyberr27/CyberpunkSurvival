@@ -96,7 +96,7 @@ function updateEnemies(deltaTime) {
   });
 }
 
-// Отрисовка врагов (оптимизировано: ранняя видимость, fade-out в dying, health bar на max 200)
+// Отрисовка врагов (улучшено: динамический health bar с max=200, плавный fade-out при смерти, удаление после анимации)
 function drawEnemies() {
   const currentWorldId = window.worldSystem.currentWorldId;
   const camera = window.movementSystem.getCamera();
@@ -141,7 +141,7 @@ function drawEnemies() {
           spriteY = 140;
           break;
       }
-      if (enemy.state === "dying") spriteY = 70; // Пример для dying
+      if (enemy.state === "dying") spriteY = 70; // Пример для dying (обнови спрайт, если есть отдельный row для dying)
 
       // Fade-out в dying (оптимизация: только если dying и time < 1000ms)
       if (enemy.state === "dying" && enemy.deathTime) {
@@ -168,7 +168,7 @@ function drawEnemies() {
       ctx.fillRect(screenX, screenY, 70, 70);
     }
 
-    // Health bar (max 200, рисуем если не dying >500ms)
+    // Динамический health bar (max 200, рисуем если не dying >500ms)
     if (
       enemy.state !== "dying" ||
       (enemy.deathTime && Date.now() - enemy.deathTime < 500)
