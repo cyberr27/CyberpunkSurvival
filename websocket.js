@@ -12,14 +12,13 @@ function broadcastToWorld(wss, clients, players, worldId, message) {
   });
 }
 
-const tradeRequests = new Map(); // Requests: key = `${fromId}-${toId}`, value = { status: 'pending' }
-const tradeOffers = new Map(); // Offers: key = `${fromId}-${toId}`, value = { myOffer: [], partnerOffer: [], myConfirmed: false, partnerConfirmed: false }
+const tradeRequests = new Map();
+const tradeOffers = new Map();
 
 const ENEMY_SPEED = 2;
 const AGGRO_RANGE = 300;
 const ATTACK_RANGE = 50;
 const ENEMY_ATTACK_COOLDOWN = 1000;
-const ENEMY_ATTACK_DAMAGE = null;
 
 function calculateXPToNextLevel(level) {
   if (level >= 100) return 0;
@@ -37,28 +36,25 @@ function setupWebSocket(
   worlds,
   ITEM_CONFIG,
   INACTIVITY_TIMEOUT,
-  enemies // ← НОВЫЙ ПАРАМЕТР
+  enemies
 ) {
   function checkCollisionServer(x, y) {
-    return false; // Keeping as is
+    return false;
   }
 
   function calculateMaxStats(player, ITEM_CONFIG) {
-    // Базовые значения: 100 + upgrades (armor без upgrade, базово 0)
     const baseStats = {
       health: 100 + (player.healthUpgrade || 0),
       energy: 100 + (player.energyUpgrade || 0),
       food: 100 + (player.foodUpgrade || 0),
       water: 100 + (player.waterUpgrade || 0),
-      armor: 0, // Armor только от экипировки, без upgrade
+      armor: 0,
     };
 
-    // Сбрасываем damage (предполагаем только одно оружие)
-    player.damage = 0; // Или { min: 0, max: 0 } для melee
+    player.damage = 0;
 
-    // Добавляем эффекты от всей текущей экипировки
     Object.values(player.equipment || {}).forEach((item) => {
-      if (item && ITEM_CONFIG[item.type] && ITEM_CONFIG[item.type].effect) {
+      if (item && ITEM_CONFIG[item.type]?.effect) {
         const effect = ITEM_CONFIG[item.type].effect;
         if (effect.armor) baseStats.armor += effect.armor;
         if (effect.health) baseStats.health += effect.health;
@@ -71,18 +67,15 @@ function setupWebSocket(
             effect.damage.min &&
             effect.damage.max
           ) {
-            player.damage = { ...effect.damage }; // Для melee (min-max)
+            player.damage = { ...effect.damage };
           } else {
-            player.damage += effect.damage; // Для ranged
+            player.damage += effect.damage;
           }
         }
       }
     });
 
-    // Устанавливаем новые maxStats
     player.maxStats = { ...baseStats };
-
-    // Обрезаем текущие статы по новым максимумам (не трогаем, если <= max)
     player.health = Math.min(player.health, player.maxStats.health);
     player.energy = Math.min(player.energy, player.maxStats.energy);
     player.food = Math.min(player.food, player.maxStats.food);
@@ -90,13 +83,15 @@ function setupWebSocket(
     player.armor = Math.min(player.armor, player.maxStats.armor);
   }
 
+  // === НОВАЯ ФУНКЦИЯ: спавн врага с отправкой newEnemy ===
   function spawnNewEnemy(worldId) {
     const world = worlds.find((w) => w.id === worldId);
     if (!world) return;
 
-    let x, y;
-    let attempts = 0;
-    const minDistanceToPlayer = 200;
+    let x,
+      y,
+      attempts = 0;
+    const minDistanceToPlayer = 300;
 
     do {
       x = Math.random() * world.width;
@@ -104,47 +99,48 @@ function setupWebSocket(
       attempts++;
 
       let tooClose = false;
-      players.forEach((player) => {
-        if (player.worldId === worldId) {
+      for (const player of players.values()) {
+        if (player.worldId === worldId && player.health > 0) {
           const dx = player.x - x;
           const dy = player.y - y;
           if (Math.sqrt(dx * dx + dy * dy) < minDistanceToPlayer) {
             tooClose = true;
+            break;
           }
         }
-      });
-
+      }
       if (!tooClose) break;
     } while (attempts < 50);
 
-    const enemyId = `mutant_${Date.now()}_${Math.random()}`;
+    const enemyId = `mutant_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
     const newEnemy = {
       id: enemyId,
       x,
       y,
-      health: 200, // Изменено на 200
+      health: 200,
+      maxHealth: 200,
       direction: "down",
       state: "idle",
       frame: 0,
+      type: "mutant",
       worldId,
       targetId: null,
       lastAttackTime: 0,
     };
+
     enemies.set(enemyId, newEnemy);
 
-    wss.clients.forEach((client) => {
-      if (client.readyState === WebSocket.OPEN) {
-        const clientPlayer = players.get(clients.get(client));
-        if (clientPlayer && clientPlayer.worldId === worldId) {
-          client.send(
-            JSON.stringify({
-              type: "newEnemy",
-              enemy: { ...newEnemy },
-            })
-          );
-        }
-      }
-    });
+    // Отправляем ВСЕМ в этом мире
+    broadcastToWorld(
+      wss,
+      clients,
+      players,
+      worldId,
+      JSON.stringify({
+        type: "newEnemy",
+        enemy: newEnemy,
+      })
+    );
   }
 
   wss.on("connection", (ws) => {
