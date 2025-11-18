@@ -6,8 +6,8 @@ let enemies = new Map(); // Map<enemyId, enemyObject>
 const ENEMY_TYPES = {
   mutant: {
     size: 70,
-    frames: 40,
-    frameDuration: 100,
+    frames: 13,
+    frameDuration: 110,
     maxHealth: 200,
     spriteKey: "mutantSprite",
   },
