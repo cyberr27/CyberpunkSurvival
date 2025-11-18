@@ -118,47 +118,42 @@ function drawEnemies() {
   const camera = window.movementSystem.getCamera();
   if (!camera || !currentWorldId) return;
 
-  for (const enemy of enemies.values()) {
+  for (const [id, enemy] of enemies) {
     if (enemy.worldId !== currentWorldId || enemy.health <= 0) continue;
 
     const config = ENEMY_TYPES[enemy.type] || ENEMY_TYPES.mutant;
     const sprite = images[config.spriteKey];
 
     const screenX = enemy.x - camera.x;
-    const screenY = enemy.y - camera.y;
+    const screenY = enemy.y - camera.y - 20; // чуть приподнимаем, чтобы не в земле стоял
 
     // Куллинг
     if (
-      screenX < -config.size - 50 ||
-      screenX > canvas.width + config.size + 50 ||
-      screenY < -config.size - 50 ||
-      screenY > canvas.height + config.size + 50
+      screenX < -config.size - 100 ||
+      screenX > canvas.width + config.size + 100 ||
+      screenY < -config.size - 100 ||
+      screenY > canvas.height + config.size + 100
     ) {
       continue;
     }
 
-    // Спрайт
-    if (sprite?.complete) {
-      let spriteY = 70; // down
-      switch (enemy.direction) {
-        case "up":
-          spriteY = 0;
-          break;
-        case "down":
-          spriteY = 70;
-          break;
-        case "left":
-          spriteY = 210;
-          break;
-        case "right":
-          spriteY = 140;
-          break;
+    // === Рисуем мутанта (одна строка, 13 кадров) ===
+    if (sprite?.complete && sprite.width >= 910) {
+      let sourceX = 0;
+
+      if (enemy.state === "walking") {
+        sourceX = enemy.frame * 70;
+      } else if (enemy.state === "attacking") {
+        // Можно сделать отдельные кадры атаки позже, пока просто последний кадр как рычание
+        sourceX = 12 * 70; // 12-й кадр — рычит или бьёт
+      } else {
+        sourceX = 0; // idle — первый кадр
       }
 
       ctx.drawImage(
         sprite,
-        enemy.frame * 70,
-        spriteY,
+        sourceX,
+        0, // теперь берём с Y=0, одна строка
         70,
         70,
         screenX,
@@ -167,35 +162,36 @@ function drawEnemies() {
         70
       );
     } else {
+      // Заглушка, если спрайт не загрузился
       ctx.fillStyle = "purple";
       ctx.fillRect(screenX, screenY, 70, 70);
+      ctx.fillStyle = "red";
+      ctx.font = "30px Arial";
+      ctx.fillText("M", screenX + 20, screenY + 50);
     }
 
-    // Здоровье
+    // === Здоровье ===
     const hpPercent = enemy.health / enemy.maxHealth;
-    const displayHealth = Math.floor(enemy.health);
 
-    // Фон полоски
-    ctx.fillStyle = "rgba(0,0,0,0.6)";
-    ctx.fillRect(screenX + 5, screenY - 15, 60, 8);
+    ctx.fillStyle = "rgba(0,0,0,0.7)";
+    ctx.fillRect(screenX + 5, screenY - 15, 60, 10);
 
-    // Полоска здоровья
-    ctx.fillStyle = displayHealth > 50 ? "#ff0000" : "#8B0000";
-    ctx.fillRect(screenX + 5, screenY - 15, 60 * hpPercent, 8);
+    ctx.fillStyle = hpPercent > 0.3 ? "#ff0000" : "#8B0000";
+    ctx.fillRect(screenX + 5, screenY - 15, 60 * hpPercent, 10);
 
-    // Текст здоровья
     ctx.fillStyle = "white";
     ctx.font = "bold 12px Arial";
     ctx.textAlign = "center";
     ctx.strokeStyle = "black";
     ctx.lineWidth = 3;
-    ctx.strokeText(`${displayHealth}`, screenX + 35, screenY - 20);
-    ctx.fillText(`${displayHealth}`, screenX + 35, screenY - 20);
+    ctx.strokeText(`${Math.floor(enemy.health)}`, screenX + 35, screenY - 7);
+    ctx.fillText(`${Math.floor(enemy.health)}`, screenX + 35, screenY - 7);
 
-    // Дебаг ID (можно убрать в релизе)
+    // Дебаг ID (можно потом убрать)
     ctx.font = "10px Arial";
     ctx.fillStyle = "#ffff00";
-    ctx.fillText(enemy.id.split("_")[0], screenX + 35, screenY - 5);
+    ctx.textAlign = "center";
+    ctx.fillText("mutant", screenX + 35, screenY + 80);
   }
 }
 
