@@ -1541,166 +1541,138 @@ function setupWebSocket(
         }
       } else if (data.type === "attackEnemy") {
         const attackerId = clients.get(ws);
+        if (!attackerId) return;
+
+        const attacker = players.get(attackerId);
+        const enemy = enemies.get(data.targetId);
+
         if (
-          attackerId &&
-          players.has(attackerId) &&
-          enemies.has(data.targetId)
-        ) {
-          const attacker = players.get(attackerId);
-          const enemy = enemies.get(data.targetId);
-          if (
-            attacker.worldId === data.worldId &&
-            enemy.worldId === data.worldId &&
-            enemy.health > 0
-          ) {
-            enemy.health = Math.max(0, enemy.health - data.damage);
+          !attacker ||
+          !enemy ||
+          enemy.worldId !== data.worldId ||
+          enemy.health <= 0
+        )
+          return;
+
+        // Наносим урон
+        enemy.health = Math.max(0, enemy.health - data.damage);
+
+        // Если умер
+        if (enemy.health <= 0) {
+          enemies.delete(data.targetId);
+
+          // Уведомляем всех
+          broadcastToWorld(
+            wss,
+            clients,
+            players,
+            data.worldId,
+            JSON.stringify({
+              type: "enemyDied",
+              enemyId: data.targetId,
+            })
+          );
+
+          // Дроп
+          if (Math.random() < 0.5) {
+            const dropType = Math.random() < 0.7 ? "meat_chunk" : "blood_pack";
+            const itemId = `${dropType}_${Date.now()}`;
+            const dropItem = {
+              x: enemy.x,
+              y: enemy.y,
+              type: dropType,
+              spawnTime: Date.now(),
+              worldId: data.worldId,
+            };
+            items.set(itemId, dropItem);
+
             broadcastToWorld(
               wss,
               clients,
               players,
               data.worldId,
               JSON.stringify({
-                type: "enemyUpdate",
-                enemy: {
-                  id: data.targetId,
-                  health: enemy.health,
-                  x: enemy.x,
-                  y: enemy.y,
-                  state: enemy.health > 0 ? enemy.state : "dying",
-                },
+                type: "newItem",
+                items: [{ itemId, ...dropItem }],
               })
             );
-            enemies.set(data.targetId, { ...enemy });
-
-            // Broadcast update
-            wss.clients.forEach((client) => {
-              if (client.readyState === WebSocket.OPEN) {
-                const clientPlayer = players.get(clients.get(client));
-                if (clientPlayer && clientPlayer.worldId === enemy.worldId) {
-                  client.send(
-                    JSON.stringify({
-                      type: "enemyUpdate",
-                      enemy: { id: data.targetId, ...enemy },
-                    })
-                  );
-                }
-              }
-            });
-
-            // Если умер
-            if (enemy.health <= 0) {
-              const xpGained = 7;
-
-              // === КРИТИЧНО: Полный пересчёт XP и левел-апа ===
-              attacker.xp = (attacker.xp || 0) + xpGained;
-
-              let oldLevel = attacker.level || 0;
-              let xpToNext = calculateXPToNextLevel(oldLevel);
-
-              while (attacker.xp >= xpToNext && attacker.level < 100) {
-                attacker.level++;
-                attacker.xp -= xpToNext;
-                xpToNext = calculateXPToNextLevel(attacker.level);
-                attacker.upgradePoints = (attacker.upgradePoints || 0) + 10;
-              }
-
-              // Сохраняем
-              players.set(attackerId, { ...attacker });
-              userDatabase.set(attackerId, { ...attacker });
-              await saveUserDatabase(dbCollection, attackerId, attacker);
-
-              // === ОТПРАВЛЯЕМ ПОЛНУЮ СИНХРОНИЗАЦИЮ КЛИЕНТУ ===
-              wss.clients.forEach((client) => {
-                if (
-                  client.readyState === WebSocket.OPEN &&
-                  clients.get(client) === attackerId
-                ) {
-                  client.send(
-                    JSON.stringify({
-                      type: "levelSyncAfterKill",
-                      level: attacker.level,
-                      xp: attacker.xp,
-                      xpToNextLevel: xpToNext,
-                      upgradePoints: attacker.upgradePoints,
-                      xpGained: xpGained,
-                    })
-                  );
-                }
-              });
-
-              // Удаляем врага
-              enemies.delete(data.targetId);
-
-              // Дроп (как было)
-              if (Math.random() < 0.5) {
-                const itemId = `meat_chunk_${Date.now()}`;
-                const dropItem = {
-                  x: enemy.x,
-                  y: enemy.y,
-                  type: "meat_chunk",
-                  spawnTime: Date.now(),
-                  worldId: data.worldId,
-                };
-                items.set(itemId, dropItem);
-                wss.clients.forEach((client) => {
-                  if (client.readyState === WebSocket.OPEN) {
-                    const clientPlayer = players.get(clients.get(client));
-                    if (clientPlayer && clientPlayer.worldId === data.worldId) {
-                      client.send(
-                        JSON.stringify({
-                          type: "newItem",
-                          items: [{ itemId, ...dropItem }],
-                        })
-                      );
-                    }
-                  }
-                });
-              }
-              if (Math.random() < 0.2) {
-                const itemId = `atom_${Date.now()}`;
-                const dropItem = {
-                  x: enemy.x,
-                  y: enemy.y,
-                  type: "atom",
-                  spawnTime: Date.now(),
-                  worldId: data.worldId,
-                };
-                items.set(itemId, dropItem);
-                wss.clients.forEach((client) => {
-                  if (client.readyState === WebSocket.OPEN) {
-                    const clientPlayer = players.get(clients.get(client));
-                    if (clientPlayer && clientPlayer.worldId === data.worldId) {
-                      client.send(
-                        JSON.stringify({
-                          type: "newItem",
-                          items: [{ itemId, ...dropItem }],
-                        })
-                      );
-                    }
-                  }
-                });
-              }
-
-              // Смерть
-              wss.clients.forEach((client) => {
-                if (client.readyState === WebSocket.OPEN) {
-                  const clientPlayer = players.get(clients.get(client));
-                  if (clientPlayer && clientPlayer.worldId === data.worldId) {
-                    client.send(
-                      JSON.stringify({
-                        type: "enemyDied",
-                        enemyId: data.targetId,
-                      })
-                    );
-                  }
-                }
-              });
-
-              // Респаун
-              const respawnDelay = 5000 + Math.random() * 5000;
-              setTimeout(() => spawnNewEnemy(data.worldId), respawnDelay);
-            }
           }
+
+          if (Math.random() < 0.15) {
+            const itemId = `atom_${Date.now()}`;
+            const dropItem = {
+              x: enemy.x,
+              y: enemy.y,
+              type: "atom",
+              spawnTime: Date.now(),
+              worldId: data.worldId,
+            };
+            items.set(itemId, dropItem);
+
+            broadcastToWorld(
+              wss,
+              clients,
+              players,
+              data.worldId,
+              JSON.stringify({
+                type: "newItem",
+                items: [{ itemId, ...dropItem }],
+              })
+            );
+          }
+
+          // Опыт и поинты
+          const xpGained = 50;
+          attacker.xp = (attacker.xp || 0) + xpGained;
+          attacker.upgradePoints = (attacker.upgradePoints || 0) + 1;
+
+          // Левел ап
+          const xpToNext = calculateXPToNextLevel(attacker.level);
+          if (attacker.xp >= xpToNext) {
+            attacker.level += 1;
+            attacker.xp -= xpToNext;
+            attacker.upgradePoints += 5;
+          }
+
+          players.set(attackerId, attacker);
+          userDatabase.set(attackerId, attacker);
+          await saveUserDatabase(dbCollection, attackerId, attacker);
+
+          // Уведомление атакующего
+          ws.send(
+            JSON.stringify({
+              type: "levelUpdate",
+              level: attacker.level,
+              xp: attacker.xp,
+              upgradePoints: attacker.upgradePoints,
+              xpGained,
+            })
+          );
+
+          // Респавн через 8-15 сек
+          setTimeout(
+            () => spawnNewEnemy(data.worldId),
+            8000 + Math.random() * 7000
+          );
+        } else {
+          // Если жив — просто обновляем здоровье
+          enemies.set(data.targetId, enemy);
+
+          broadcastToWorld(
+            wss,
+            clients,
+            players,
+            data.worldId,
+            JSON.stringify({
+              type: "enemyUpdate",
+              enemy: {
+                id: data.targetId,
+                health: enemy.health,
+                x: enemy.x,
+                y: enemy.y,
+              },
+            })
+          );
         }
       } else if (data.type === "meetJack") {
         const id = clients.get(ws);
