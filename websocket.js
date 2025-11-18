@@ -1,5 +1,17 @@
 const { saveUserDatabase } = require("./database");
 
+function broadcastToWorld(wss, clients, players, worldId, message) {
+  wss.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      const playerId = clients.get(client);
+      const player = players.get(playerId);
+      if (player && player.worldId === worldId) {
+        client.send(message);
+      }
+    }
+  });
+}
+
 const tradeRequests = new Map(); // Requests: key = `${fromId}-${toId}`, value = { status: 'pending' }
 const tradeOffers = new Map(); // Offers: key = `${fromId}-${toId}`, value = { myOffer: [], partnerOffer: [], myConfirmed: false, partnerConfirmed: false }
 
