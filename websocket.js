@@ -1542,6 +1542,22 @@ function setupWebSocket(
             enemy.health > 0
           ) {
             enemy.health = Math.max(0, enemy.health - data.damage);
+            broadcastToWorld(
+              wss,
+              clients,
+              players,
+              data.worldId,
+              JSON.stringify({
+                type: "enemyUpdate",
+                enemy: {
+                  id: data.targetId,
+                  health: enemy.health,
+                  x: enemy.x,
+                  y: enemy.y,
+                  state: enemy.health > 0 ? enemy.state : "dying",
+                },
+              })
+            );
             enemies.set(data.targetId, { ...enemy });
 
             // Broadcast update

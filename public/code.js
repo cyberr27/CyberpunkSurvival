@@ -2022,11 +2022,23 @@ function draw(deltaTime) {
     ctx.fillStyle = "red";
     ctx.font = "12px Arial";
     ctx.textAlign = "center";
-    ctx.fillText(
-      `${player.health} / ${player.maxStats.health}`,
+    const currentHealth = player.health ?? 0;
+    const maxHealth = player.maxStats?.health ?? 100;
+    ctx.fillStyle = "red";
+    ctx.font = "bold 14px Arial";
+    ctx.textAlign = "center";
+    ctx.strokeStyle = "black";
+    ctx.lineWidth = 3;
+    ctx.strokeText(
+      `${Math.floor(currentHealth)} / ${maxHealth}`,
       screenX + 35,
       screenY - 30
-    ); // -30 для отступа над ID (-20 - 10)
+    );
+    ctx.fillText(
+      `${Math.floor(currentHealth)} / ${maxHealth}`,
+      screenX + 35,
+      screenY - 30
+    );
   });
 
   if (currentWorld.veg.complete) {

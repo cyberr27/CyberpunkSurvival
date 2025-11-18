@@ -3,7 +3,7 @@
 const ENEMY_SPEED = 2; // Скорость движения мутантов (px/кадр)
 const AGGRO_RANGE = 300; // Радиус аггро (px)
 const ATTACK_RANGE = 50; // Радиус атаки (px)
-const ENEMY_ATTACK_COOLDOWN = 2000; // Перезарядка атаки (ms) — переименовано, чтобы избежать конфликта с combatSystem.js
+const ENEMY_ATTACK_COOLDOWN = 1000; // Перезарядка атаки (ms) — переименовано, чтобы избежать конфликта с combatSystem.js
 const MUTANT_SIZE = 70; // Размер спрайта (как у игроков)
 const MUTANT_FRAMES = 40; // Кадры анимации
 const MUTANT_FRAME_DURATION = 100; // ms на кадр
@@ -176,7 +176,16 @@ function drawEnemies() {
       ctx.fillStyle = "red";
       ctx.font = "12px Arial";
       ctx.textAlign = "center";
-      ctx.fillText(`${enemy.health} / 200`, screenX + 35, screenY - 30); // -30 для отступа над ID (-20 - 10)
+      if (enemy.health !== undefined && enemy.health !== null) {
+        const displayHealth = Math.max(0, Math.floor(enemy.health));
+        ctx.fillStyle = displayHealth > 50 ? "red" : "darkred";
+        ctx.font = "bold 14px Arial";
+        ctx.textAlign = "center";
+        ctx.strokeStyle = "black";
+        ctx.lineWidth = 3;
+        ctx.strokeText(`${displayHealth} / 200`, screenX + 35, screenY - 30);
+        ctx.fillText(`${displayHealth} / 200`, screenX + 35, screenY - 30);
+      }
     }
 
     // ID для дебага (остается как есть)
