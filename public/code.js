@@ -1760,6 +1760,9 @@ function handleGameMessage(event) {
         break;
       case "enemyDied":
         enemies.delete(data.enemyId);
+        if (window.enemySystem && window.enemySystem.handleEnemyDeath) {
+          window.enemySystem.handleEnemyDeath(data.enemyId);
+        }
         break;
       case "enemyUpdate":
         if (data.enemy && data.enemy.id && enemies.has(data.enemy.id)) {

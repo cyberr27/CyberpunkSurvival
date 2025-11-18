@@ -1,102 +1,121 @@
-// enemySystem.js - Клиентская логика для врагов (мутантов)
+// enemySystem.js - Полностью исправленная и масштабируемая версия (2025)
 
-const ENEMY_SPEED = 2; // Скорость движения мутантов (px/кадр)
-const AGGRO_RANGE = 300; // Радиус аггро (px)
-const ATTACK_RANGE = 50; // Радиус атаки (px)
-const ENEMY_ATTACK_COOLDOWN = 1000; // Перезарядка атаки (ms) — переименовано, чтобы избежать конфликта с combatSystem.js
-const MUTANT_SIZE = 70; // Размер спрайта (как у игроков)
-const MUTANT_FRAMES = 40; // Кадры анимации
-const MUTANT_FRAME_DURATION = 100; // ms на кадр
+let enemies = new Map(); // Map<enemyId, enemyObject>
+let mutantSprite = new Image();
 
-let enemies = new Map(); // Хранилище врагов: key = enemyId, value = {id, x, y, health, direction, state, frame, worldId, lastAttackTime, deathTime}
-let mutantSprite; // Изображение спрайта
+// Константы мутанта (потом вынесем в конфиг при добавлении новых врагов)
+const ENEMY_TYPES = {
+  mutant: {
+    size: 70,
+    frames: 40,
+    frameDuration: 100,
+    maxHealth: 200,
+    deathAnimationTime: 1000, // ms
+    spriteSrc: "mutantSprite.png",
+  },
+};
 
-// Инициализация системы врагов
+// Инициализация
 function initializeEnemySystem() {
-  mutantSprite = new Image();
-  mutantSprite.src = "mutantSprite.png";
-  mutantSprite.onload = () => {}; // Убрал console.log для оптимизации
-  mutantSprite.onerror = () => {}; // Убрал console.error
+  mutantSprite.src = ENEMY_TYPES.mutant.spriteSrc;
 }
 
-// Синхронизация врагов с сервером (оптимизировано: пропускаем мёртвых, добавляем max health 200 для проверки)
+// === Синхронизация с сервера (новые враги, обновления) ===
 function syncEnemies(serverEnemies) {
-  enemies.clear();
-  serverEnemies.forEach((enemy) => {
-    if (enemy.health > 0) {
-      // Пропускаем мёртвых
-      enemies.set(enemy.id, {
-        ...enemy,
+  const existingIds = new Set(enemies.keys());
+
+  serverEnemies.forEach((serverEnemy) => {
+    const existing = enemies.get(serverEnemy.id);
+
+    if (!existing) {
+      // Новый враг
+      enemies.set(serverEnemy.id, {
+        ...serverEnemy,
+        type: "mutant", // пока только один тип
         frame: 0,
         frameTime: 0,
-        lastAttackTime: 0,
-        deathTime: null,
+        deathStartTime: null, // null = живой
+        maxHealth: ENEMY_TYPES.mutant.maxHealth,
       });
-      // Оптимизация: нормализуем health (max 200, на случай серверных багов)
-      enemies.get(enemy.id).health = Math.min(enemy.health, 200);
+    } else {
+      // Обновляем позицию, здоровье и т.д.
+      if (existing.health > 0 && serverEnemy.health <= 0) {
+        // Только что умер — запускаем анимацию смерти
+        existing.health = 0;
+        existing.state = "dying";
+        existing.deathStartTime = Date.now();
+      } else if (serverEnemy.health > 0) {
+        existing.health = serverEnemy.health;
+        existing.state = serverEnemy.state || "idle";
+        existing.deathStartTime = null; // на всякий случай
+      }
+
+      // Обновляем координаты и направление (интерполяция будет в update)
+      existing.x = serverEnemy.x;
+      existing.y = serverEnemy.y;
+      existing.direction = serverEnemy.direction || "down";
     }
+
+    existingIds.delete(serverEnemy.id);
   });
+
+  // Удаляем тех, кого сервер больше не присылает (уже удалены на сервере)
+  existingIds.forEach((id) => enemies.delete(id));
 }
 
-// Обновление врагов (оптимизировано: улучшенная интерполяция, проверка на зависание, меньше вычислений)
+// === Обработка смерти от сервера (enemyDied) ===
+function handleEnemyDeath(enemyId) {
+  const enemy = enemies.get(enemyId);
+  if (enemy) {
+    enemy.health = 0;
+    enemy.state = "dying";
+    enemy.deathStartTime = Date.now();
+  }
+}
+
+// === Обновление анимации и состояния ===
 function updateEnemies(deltaTime) {
   const currentWorldId = window.worldSystem.currentWorldId;
-  const me = players.get(myId);
-  if (!me) return;
 
-  enemies.forEach((enemy, enemyId) => {
+  enemies.forEach((enemy, id) => {
     if (enemy.worldId !== currentWorldId) return;
 
-    // Если здоровье <=0, установить state dying и таймер удаления
-    if (enemy.health <= 0 && !enemy.deathTime) {
-      enemy.state = "dying";
-      enemy.deathTime = Date.now(); // Запустить таймер анимации смерти
-    }
+    const config = ENEMY_TYPES[enemy.type];
 
-    // Интерполяция движения (улучшено: плавнее с deltaTime, проверка на малое dist для anti-зависания)
-    if (
-      enemy.state === "walking" &&
-      enemy.targetX !== undefined &&
-      enemy.targetY !== undefined
-    ) {
-      const dx = enemy.targetX - enemy.x;
-      const dy = enemy.targetY - enemy.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist > 0.1) {
-        // Anti-зависание: если dist < 0.1, считаем reached
-        const speedFactor = (ENEMY_SPEED / dist) * deltaTime; // Полная deltaTime нормализация (без /16.67, т.к. deltaTime уже в ms)
-        enemy.x += dx * speedFactor;
-        enemy.y += dy * speedFactor;
-      } else {
-        enemy.x = enemy.targetX;
-        enemy.y = enemy.targetY;
-        enemy.state = "idle"; // Anti-зависание: если reached, idle
-      }
-      // Обновляем direction по движению (минимально)
-      if (Math.abs(dx) > Math.abs(dy)) {
-        enemy.direction = dx > 0 ? "right" : "left";
-      } else {
-        enemy.direction = dy > 0 ? "down" : "up";
-      }
-    }
-
-    // Анимация (если walking или dying, оптимизировано: без лишних if)
-    if (enemy.state === "walking" || enemy.state === "dying") {
+    // Анимация ходьбы
+    if (enemy.state === "walking" && enemy.health > 0) {
       enemy.frameTime += deltaTime;
-      if (enemy.frameTime >= MUTANT_FRAME_DURATION) {
-        enemy.frameTime -= MUTANT_FRAME_DURATION;
-        enemy.frame = (enemy.frame + 1) % MUTANT_FRAMES;
+      if (enemy.frameTime >= config.frameDuration) {
+        enemy.frameTime -= config.frameDuration;
+        enemy.frame = (enemy.frame + 1) % config.frames;
       }
-    } else {
-      enemy.frame = 0;
-      enemy.frameTime = 0;
     }
 
-    // Локальная проверка атаки (визуальные эффекты, логика на сервере)
+    // Анимация смерти
+    if (enemy.state === "dying") {
+      enemy.frameTime += deltaTime;
+      if (enemy.frameTime >= config.frameDuration) {
+        enemy.frameTime -= config.frameDuration;
+        enemy.frame = (enemy.frame + 1) % config.frames;
+      }
+
+      // Автоудаление после анимации
+      if (
+        enemy.deathStartTime &&
+        Date.now() - enemy.deathStartTime > config.deathAnimationTime
+      ) {
+        enemies.delete(id);
+      }
+    }
+
+    // Если живой и не dying — сбрасываем кадр на 0 если idle
+    if (enemy.health > 0 && enemy.state !== "walking") {
+      enemy.frame = 0;
+    }
   });
 }
 
-// Отрисовка врагов (оптимизировано: ранняя видимость, fade-out в dying, health bar на max 200)
+// === Отрисовка ===
 function drawEnemies() {
   const currentWorldId = window.worldSystem.currentWorldId;
   const camera = window.movementSystem.getCamera();
@@ -104,29 +123,29 @@ function drawEnemies() {
   enemies.forEach((enemy) => {
     if (enemy.worldId !== currentWorldId) return;
 
-    // Пропустить, если анимация смерти закончилась (>1000ms) или health <=0 без deathTime
-    if (
-      (enemy.deathTime && Date.now() - enemy.deathTime > 1000) ||
-      enemy.health <= 0
-    ) {
-      enemies.delete(enemy.id); // Удаляем с клиента
-      return; // Не рисовать после анимации (сервер удалил)
-    }
-
+    const config = ENEMY_TYPES[enemy.type];
     const screenX = enemy.x - camera.x;
     const screenY = enemy.y - camera.y;
 
-    // Оптимизация: проверка видимости (буфер +50px)
+    // Куллинг (не рисовать за экраном)
     if (
-      screenX < -MUTANT_SIZE - 50 ||
-      screenX > canvas.width + MUTANT_SIZE + 50 ||
-      screenY < -MUTANT_SIZE - 50 ||
-      screenY > canvas.height + MUTANT_SIZE + 50
+      screenX < -config.size - 50 ||
+      screenX > canvas.width + config.size + 50 ||
+      screenY < -config.size - 50 ||
+      screenY > canvas.height + config.size + 50
     )
       return;
 
+    // Fade-out при смерти
+    if (enemy.state === "dying" && enemy.deathStartTime) {
+      const progress =
+        (Date.now() - enemy.deathStartTime) / config.deathAnimationTime;
+      ctx.globalAlpha = Math.max(0, 1 - progress);
+    }
+
+    // Спрайт
     if (mutantSprite.complete) {
-      let spriteY = 0; // По умолчанию down
+      let spriteY = 70; // down по умолчанию
       switch (enemy.direction) {
         case "up":
           spriteY = 0;
@@ -141,13 +160,6 @@ function drawEnemies() {
           spriteY = 140;
           break;
       }
-      if (enemy.state === "dying") spriteY = 70; // Пример для dying
-
-      // Fade-out в dying (оптимизация: только если dying и time < 1000ms)
-      if (enemy.state === "dying" && enemy.deathTime) {
-        const fade = 1 - (Date.now() - enemy.deathTime) / 1000; // 1..0
-        ctx.globalAlpha = Math.max(0, fade);
-      }
 
       ctx.drawImage(
         mutantSprite,
@@ -160,45 +172,49 @@ function drawEnemies() {
         70,
         70
       );
-
-      ctx.globalAlpha = 1; // Reset alpha
     } else {
-      // Заглушка
       ctx.fillStyle = "purple";
       ctx.fillRect(screenX, screenY, 70, 70);
     }
 
-    // Новый текст здоровья вместо полоски (над ID, красным, если не dying или dying <500ms)
+    // Здоровье (только если живой или в начале смерти)
     if (
-      enemy.state !== "dying" ||
-      (enemy.deathTime && Date.now() - enemy.deathTime < 500)
+      enemy.health > 0 ||
+      (enemy.deathStartTime && Date.now() - enemy.deathStartTime < 500)
     ) {
-      ctx.fillStyle = "red";
-      ctx.font = "12px Arial";
+      const displayHealth = Math.max(0, Math.floor(enemy.health));
+      ctx.fillStyle = displayHealth > 50 ? "red" : "darkred";
+      ctx.font = "bold 14px Arial";
       ctx.textAlign = "center";
-      if (enemy.health !== undefined && enemy.health !== null) {
-        const displayHealth = Math.max(0, Math.floor(enemy.health));
-        ctx.fillStyle = displayHealth > 50 ? "red" : "darkred";
-        ctx.font = "bold 14px Arial";
-        ctx.textAlign = "center";
-        ctx.strokeStyle = "black";
-        ctx.lineWidth = 3;
-        ctx.strokeText(`${displayHealth} / 200`, screenX + 35, screenY - 30);
-        ctx.fillText(`${displayHealth} / 200`, screenX + 35, screenY - 30);
-      }
+      ctx.strokeStyle = "black";
+      ctx.lineWidth = 3;
+      ctx.strokeText(
+        `${displayHealth} / ${config.maxHealth}`,
+        screenX + 35,
+        screenY - 30
+      );
+      ctx.fillText(
+        `${displayHealth} / ${config.maxHealth}`,
+        screenX + 35,
+        screenY - 30
+      );
     }
 
-    // ID для дебага (остается как есть)
+    // ID (для дебага)
     ctx.fillStyle = "white";
     ctx.font = "12px Arial";
-    ctx.fillText(enemy.id, screenX + 35, screenY - 20);
+    ctx.fillText(enemy.id.split("_")[0], screenX + 35, screenY - 20);
+
+    // Сброс альфы
+    ctx.globalAlpha = 1;
   });
 }
 
 // Экспорт
 window.enemySystem = {
   initialize: initializeEnemySystem,
+  syncEnemies, // вызывается при получении enemyUpdate / newEnemies
+  handleEnemyDeath, // вызывается при type: "enemyDied"
   update: updateEnemies,
   draw: drawEnemies,
-  syncEnemies,
 };
