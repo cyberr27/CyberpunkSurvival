@@ -100,15 +100,31 @@ function updateEnemies(deltaTime) {
 
     const config = ENEMY_TYPES[enemy.type] || ENEMY_TYPES.mutant;
 
-    if (enemy.state === "walking") {
+    // КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ:
+    // Сервер теперь не всегда шлёт актуальный frame (0-12)
+    // Но если вдруг не прислал — сами анимируем по движению
+    const prevX = enemy.prevX || enemy.x;
+    const prevY = enemy.prevY || enemy.y;
+
+    const isMoving =
+      Math.abs(enemy.x - prevX) > 0.5 || Math.abs(enemy.y - prevY) > 0.5;
+
+    if (isMoving) {
+      // Двигается — крутим анимацию ходьбы
       enemy.frameTime += deltaTime;
       if (enemy.frameTime >= config.frameDuration) {
         enemy.frameTime -= config.frameDuration;
-        enemy.frame = (enemy.frame + 1) % config.frames;
+        enemy.frame = (enemy.frame + 1) % config.frames; // 0..12
       }
     } else {
-      enemy.frame = 0; // idle / attacking
+      // Стоит — первый кадр (idle)
+      enemy.frame = 0;
+      enemy.frameTime = 0;
     }
+
+    // Запоминаем позицию для следующего кадра
+    enemy.prevX = enemy.x;
+    enemy.prevY = enemy.y;
   }
 }
 
