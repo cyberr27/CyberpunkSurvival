@@ -1739,15 +1739,12 @@ function handleGameMessage(event) {
       case "enemyKilled":
         break;
       case "levelSyncAfterKill":
-        // Если сервер уже начислил XP (рекомендуемый путь) — просто синхронизируем
         window.levelSystem.handleEnemyKill({
           level: data.level,
           xp: data.xp,
-          xpToNextLevel:
-            data.xpToNextLevel ||
-            window.levelSystem.calculateXPToNextLevel(data.level),
+          xpToNextLevel: data.xpToNextLevel,
           upgradePoints: data.upgradePoints,
-          xpGained: 13, // принудительно показываем +13 XP
+          xpGained: data.xpGained,
         });
         break;
       case "syncEnemies":
