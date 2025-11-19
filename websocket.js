@@ -1617,39 +1617,51 @@ function setupWebSocket(
             );
           }
 
-          // Опыт и поинты
-          const xpGained = 50;
+          const xpGained = 13;
           attacker.xp = (attacker.xp || 0) + xpGained;
-          attacker.upgradePoints = (attacker.upgradePoints || 0) + 1;
 
-          // Левел ап
-          const xpToNext = calculateXPToNextLevel(attacker.level);
-          if (attacker.xp >= xpToNext) {
+          // Левел-ап проверяем по стандартной формуле (оставляем как было)
+          let leveledUp = false;
+          while (
+            attacker.xp >= calculateXPToNextLevel(attacker.level) &&
+            attacker.level < 100
+          ) {
             attacker.level += 1;
-            attacker.xp -= xpToNext;
-            attacker.upgradePoints += 5;
+            attacker.xp -= calculateXPToNextLevel(attacker.level - 1);
+            attacker.upgradePoints = (attacker.upgradePoints || 0) + 10;
+            leveledUp = true;
           }
 
           players.set(attackerId, attacker);
           userDatabase.set(attackerId, attacker);
           await saveUserDatabase(dbCollection, attackerId, attacker);
 
-          // Уведомление атакующего
+          // Отправляем клиенту актуальные данные уровня и сколько опыта дали
           ws.send(
             JSON.stringify({
               type: "levelUpdate",
               level: attacker.level,
               xp: attacker.xp,
+              xpToNextLevel: calculateXPToNextLevel(attacker.level),
               upgradePoints: attacker.upgradePoints,
-              xpGained,
+              xpGained: xpGained, // ← клиент покажет "+13 XP"
             })
           );
 
-          // Респавн через 8-15 сек
-          setTimeout(
-            () => spawnNewEnemy(data.worldId),
-            8000 + Math.random() * 7000
-          );
+          // Если был левел-ап — дополнительно шлём, чтобы клиент показал эффект
+          if (leveledUp) {
+            broadcastToWorld(
+              wss,
+              clients,
+              players,
+              data.worldId,
+              JSON.stringify({
+                type: "playerLevelUp",
+                playerId: attackerId,
+                newLevel: attacker.level,
+              })
+            );
+          }
         } else {
           // Если жив — просто обновляем здоровье
           enemies.set(data.targetId, enemy);

@@ -350,7 +350,7 @@ function handleEnemyKill(data) {
       me.upgradePoints = upgradePoints;
     }
 
-    showXPEffect(data.xpGained);
+    showXPEffect(data.xpGained || 13);
     updateLevelDisplay();
     updateStatsDisplay();
     updateUpgradeButtons();
