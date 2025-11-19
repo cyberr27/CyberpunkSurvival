@@ -1617,19 +1617,17 @@ function setupWebSocket(
             );
           }
 
-          const xpGained = 13;
-
-          // === КРИТИЧНО: Полный пересчёт XP и левел-апа ===
+          // Опыт и поинты
+          const xpGained = 50;
           attacker.xp = (attacker.xp || 0) + xpGained;
+          attacker.upgradePoints = (attacker.upgradePoints || 0) + 1;
 
-          let oldLevel = attacker.level || 0;
-          let xpToNext = calculateXPToNextLevel(oldLevel);
-
-          while (attacker.xp >= xpToNext && attacker.level < 100) {
-            attacker.level++;
+          // Левел ап
+          const xpToNext = calculateXPToNextLevel(attacker.level);
+          if (attacker.xp >= xpToNext) {
+            attacker.level += 1;
             attacker.xp -= xpToNext;
-            xpToNext = calculateXPToNextLevel(attacker.level);
-            attacker.upgradePoints = (attacker.upgradePoints || 0) + 10;
+            attacker.upgradePoints += 5;
           }
 
           players.set(attackerId, attacker);
