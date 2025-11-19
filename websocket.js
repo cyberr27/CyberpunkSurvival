@@ -1536,7 +1536,7 @@ function setupWebSocket(
           }
         }
       } else if (data.type === "attackEnemy") {
-        const attackerId = clients.get(ws);
+        const attackerId = data.ownerId || clients.get(ws); // ownerId из сообщения shoot (combatSystem)
         if (!attackerId) return;
 
         const attacker = players.get(attackerId);
@@ -1546,18 +1546,44 @@ function setupWebSocket(
           !attacker ||
           !enemy ||
           enemy.worldId !== data.worldId ||
-          enemy.health <= 0
-        )
+          attacker.worldId !== data.worldId ||
+          enemy.health <= 0 ||
+          attacker.health <= 0
+        ) {
           return;
+        }
 
-        // Наносим урон
+        // Наносим урон мутанту
         enemy.health = Math.max(0, enemy.health - data.damage);
 
-        // Если умер
         if (enemy.health <= 0) {
+          // === УБИЙСТВО: даём +13 XP только добившему ===
+          const xpGained = 13;
+
+          attacker.xp = (attacker.xp || 0) + xpGained;
+          attacker.level = attacker.level || 0;
+          attacker.upgradePoints = attacker.upgradePoints || 0;
+
+          let leveledUp = false;
+          while (
+            attacker.xp >= calculateXPToNextLevel(attacker.level) &&
+            attacker.level < 100
+          ) {
+            attacker.level += 1;
+            attacker.xp -= calculateXPToNextLevel(attacker.level - 1);
+            attacker.upgradePoints += 10;
+            leveledUp = true;
+          }
+
+          // Сохраняем игрока
+          players.set(attackerId, attacker);
+          userDatabase.set(attackerId, attacker);
+          await saveUserDatabase(dbCollection, attackerId, attacker);
+
+          // Удаляем мутанта
           enemies.delete(data.targetId);
 
-          // Уведомляем всех
+          // Уведомляем всех о смерти мутанта
           broadcastToWorld(
             wss,
             clients,
@@ -1566,13 +1592,14 @@ function setupWebSocket(
             JSON.stringify({
               type: "enemyDied",
               enemyId: data.targetId,
+              killerId: attackerId,
             })
           );
 
-          // Дроп
+          // === ДРОП ПРЕДМЕТОВ (оставляем как у тебя) ===
           if (Math.random() < 0.5) {
             const dropType = Math.random() < 0.7 ? "meat_chunk" : "blood_pack";
-            const itemId = `${dropType}_${Date.now()}`;
+            const itemId = `${dropType}_${Date.now()}_${Math.random()}`;
             const dropItem = {
               x: enemy.x,
               y: enemy.y,
@@ -1594,8 +1621,9 @@ function setupWebSocket(
             );
           }
 
+          // Атом с шансом 15%
           if (Math.random() < 0.15) {
-            const itemId = `atom_${Date.now()}`;
+            const itemId = `atom_${Date.now()}_${Math.random()}`;
             const dropItem = {
               x: enemy.x,
               y: enemy.y,
@@ -1617,38 +1645,24 @@ function setupWebSocket(
             );
           }
 
-          const xpGained = 13;
-          attacker.xp = (attacker.xp || 0) + xpGained;
-
-          // Левел-ап проверяем по стандартной формуле (оставляем как было)
-          let leveledUp = false;
-          while (
-            attacker.xp >= calculateXPToNextLevel(attacker.level) &&
-            attacker.level < 100
-          ) {
-            attacker.level += 1;
-            attacker.xp -= calculateXPToNextLevel(attacker.level - 1);
-            attacker.upgradePoints = (attacker.upgradePoints || 0) + 10;
-            leveledUp = true;
+          // === Отправляем убийце +13 XP и обновлённый уровень ===
+          const clientWs = [...clients.entries()].find(
+            ([client]) => clients.get(client) === attackerId
+          )?.[0];
+          if (clientWs && clientWs.readyState === WebSocket.OPEN) {
+            clientWs.send(
+              JSON.stringify({
+                type: "handleEnemyKill",
+                level: attacker.level,
+                xp: attacker.xp,
+                xpToNextLevel: calculateXPToNextLevel(attacker.level),
+                upgradePoints: attacker.upgradePoints,
+                xpGained: xpGained,
+              })
+            );
           }
 
-          players.set(attackerId, attacker);
-          userDatabase.set(attackerId, attacker);
-          await saveUserDatabase(dbCollection, attackerId, attacker);
-
-          // Отправляем клиенту актуальные данные уровня и сколько опыта дали
-          ws.send(
-            JSON.stringify({
-              type: "levelUpdate",
-              level: attacker.level,
-              xp: attacker.xp,
-              xpToNextLevel: calculateXPToNextLevel(attacker.level),
-              upgradePoints: attacker.upgradePoints,
-              xpGained: xpGained, // ← клиент покажет "+13 XP"
-            })
-          );
-
-          // Если был левел-ап — дополнительно шлём, чтобы клиент показал эффект
+          // Левел-ап эффект для всех (по желанию)
           if (leveledUp) {
             broadcastToWorld(
               wss,
@@ -1662,8 +1676,11 @@ function setupWebSocket(
               })
             );
           }
+
+          // Респавн мутанта через 5 секунд
+          setTimeout(() => spawnNewEnemy(data.worldId), 5000);
         } else {
-          // Если жив — просто обновляем здоровье
+          // Мутант жив — обновляем здоровье
           enemies.set(data.targetId, enemy);
 
           broadcastToWorld(
