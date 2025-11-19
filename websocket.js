@@ -1617,23 +1617,31 @@ function setupWebSocket(
             );
           }
 
-          // Только XP за убийство мутанта
-          const xpGained = 13;
+          // Опыт и поинты
+          const xpGained = 50;
           attacker.xp = (attacker.xp || 0) + xpGained;
+          attacker.upgradePoints = (attacker.upgradePoints || 0) + 1;
+
+          // Левел ап
+          const xpToNext = calculateXPToNextLevel(attacker.level);
+          if (attacker.xp >= xpToNext) {
+            attacker.level += 1;
+            attacker.xp -= xpToNext;
+            attacker.upgradePoints += 5;
+          }
 
           players.set(attackerId, attacker);
           userDatabase.set(attackerId, attacker);
           await saveUserDatabase(dbCollection, attackerId, attacker);
 
-          // Уведомление атакующего (без апгрейд-поинтов и левел-апа)
+          // Уведомление атакующего
           ws.send(
             JSON.stringify({
               type: "levelUpdate",
               level: attacker.level,
               xp: attacker.xp,
+              upgradePoints: attacker.upgradePoints,
               xpGained,
-              xpToNextLevel: calculateXPToNextLevel(attacker.level),
-              upgradePoints: attacker.upgradePoints || 0,
             })
           );
 

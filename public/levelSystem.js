@@ -337,20 +337,23 @@ function handleQuestCompletion(rarity) {
 
 function handleEnemyKill(data) {
   try {
-    // Только XP и Level, без апгрейд-поинтов и левел-апа
+    // Полная синхронизация с сервера
     currentLevel = data.level;
     currentXP = data.xp;
-    xpToNextLevel = data.xpToNextLevel || calculateXPToNextLevel(currentLevel);
+    xpToNextLevel = data.xpToNextLevel;
+    upgradePoints = data.upgradePoints;
 
     const me = players.get(myId);
     if (me) {
       me.level = currentLevel;
       me.xp = currentXP;
+      me.upgradePoints = upgradePoints;
     }
 
     showXPEffect(data.xpGained);
-    updateLevelDisplay(); // Динамически обновляем Level: X | xp : Y / Z
+    updateLevelDisplay();
     updateStatsDisplay();
+    updateUpgradeButtons();
   } catch (error) {
     console.error("Ошибка в handleEnemyKill:", error);
   }
