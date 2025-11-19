@@ -1617,10 +1617,8 @@ function setupWebSocket(
             );
           }
 
-          // Опыт и поинты
-          const xpGained = 50;
+          const xpGained = 13;
           attacker.xp = (attacker.xp || 0) + xpGained;
-          attacker.upgradePoints = (attacker.upgradePoints || 0) + 1;
 
           // Левел ап
           const xpToNext = calculateXPToNextLevel(attacker.level);
@@ -1641,7 +1639,7 @@ function setupWebSocket(
               level: attacker.level,
               xp: attacker.xp,
               upgradePoints: attacker.upgradePoints,
-              xpGained,
+              xpGained: 13,
             })
           );
 

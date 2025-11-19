@@ -36,13 +36,11 @@ function createLevelDisplayElement() {
 function updateStatsDisplay() {
   try {
     const statsEl = document.getElementById("stats");
-    if (!statsEl) {
-      return;
-    }
+    if (!statsEl) return;
+
     const me = players.get(myId);
-    if (!me) {
-      return;
-    }
+    if (!me) return;
+
     statsEl.innerHTML = `
   <span class="health">Здоровье: ${Math.min(me.health, me.maxStats.health)}/${
       me.maxStats.health
@@ -249,13 +247,7 @@ function calculateXPToNextLevel(level) {
 function handleItemPickup(itemType, isDroppedByPlayer) {
   try {
     const me = players.get(myId);
-    if (!me) {
-      return;
-    }
-
-    if (isDroppedByPlayer) {
-      return;
-    }
+    if (!me || isDroppedByPlayer) return;
 
     const rarity = ITEM_CONFIG[itemType]?.rarity || 3;
     let xpGained;
@@ -273,22 +265,7 @@ function handleItemPickup(itemType, isDroppedByPlayer) {
         xpGained = 1;
     }
 
-    currentXP += xpGained;
-    checkLevelUp();
-
-    if (ws.readyState === WebSocket.OPEN) {
-      sendWhenReady(
-        ws,
-        JSON.stringify({
-          type: "updateLevel",
-          level: currentLevel,
-          xp: currentXP,
-          upgradePoints,
-        })
-      );
-    } else {
-    }
-
+    addXP(xpGained); // ← теперь через общую функцию
     showXPEffect(xpGained);
   } catch (error) {}
 }
@@ -335,23 +312,50 @@ function handleQuestCompletion(rarity) {
   } catch (error) {}
 }
 
+function addXP(amount) {
+  if (!amount || amount <= 0) return;
+
+  currentXP += amount;
+  checkLevelUp();
+
+  // Обновляем отображение сразу (важно!)
+  updateLevelDisplay();
+  updateStatsDisplay();
+
+  // Отправляем на сервер только текущие значения (без upgradePoints)
+  if (ws.readyState === WebSocket.OPEN) {
+    sendWhenReady(
+      ws,
+      JSON.stringify({
+        type: "updateLevel",
+        level: currentLevel,
+        xp: currentXP,
+        upgradePoints, // оставляем, чтобы не сломать старую логику
+      })
+    );
+  }
+}
+
+// === НОВАЯ ФУНКЦИЯ — ОБРАБОТКА УБИЙСТВА МУТАНТА (13 XP) ===
 function handleEnemyKill(data) {
   try {
-    // Полная синхронизация с сервера
-    currentLevel = data.level;
-    currentXP = data.xp;
-    xpToNextLevel = data.xpToNextLevel;
-    upgradePoints = data.upgradePoints;
+    // Сервер теперь просто присылает { xpGained: 13 } — мы сами всё делаем на клиенте
+    const xpGained = data.xpGained || 13;
 
-    const me = players.get(myId);
-    if (me) {
-      me.level = currentLevel;
-      me.xp = currentXP;
-      me.upgradePoints = upgradePoints;
+    // Полностью доверяем серверу только в случае, если он присылает полные данные
+    if (data.level !== undefined && data.xp !== undefined) {
+      currentLevel = data.level;
+      currentXP = data.xp;
+      xpToNextLevel =
+        data.xpToNextLevel || calculateXPToNextLevel(currentLevel);
+      upgradePoints = data.upgradePoints || upgradePoints;
+    } else {
+      // Если сервер прислал только xpGained — добавляем локально
+      addXP(xpGained);
     }
 
-    showXPEffect(data.xpGained);
-    updateLevelDisplay();
+    showXPEffect(xpGained);
+    updateLevelDisplay(); // ← Обязательно обновляем строку уровня
     updateStatsDisplay();
     updateUpgradeButtons();
   } catch (error) {
@@ -380,11 +384,9 @@ function checkLevelUp() {
             upgradePoints,
           })
         );
-      } else {
       }
     }
-    updateLevelDisplay();
-    updateStatsDisplay();
+    updateLevelDisplay(); // ← Важно: обновляем даже если левел не вырос
   } catch (error) {}
 }
 
@@ -436,7 +438,8 @@ window.levelSystem = {
   setLevelData,
   handleItemPickup,
   handleQuestCompletion,
+  handleEnemyKill, // ← теперь обрабатывает +13 XP
   maxStats,
   updateUpgradeButtons,
-  handleEnemyKill,
+  addXP, // ← можно использовать из других систем при желании
 };
