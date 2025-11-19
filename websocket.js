@@ -1553,11 +1553,11 @@ function setupWebSocket(
         // Наносим урон
         enemy.health = Math.max(0, enemy.health - data.damage);
 
-        // Если умер
+        // Если враг умер
         if (enemy.health <= 0) {
           enemies.delete(data.targetId);
 
-          // Уведомляем всех
+          // Уведомляем всех об смерти врага
           broadcastToWorld(
             wss,
             clients,
@@ -1569,7 +1569,7 @@ function setupWebSocket(
             })
           );
 
-          // Дроп
+          // === ДРОП ПРЕДМЕТОВ ===
           if (Math.random() < 0.5) {
             const dropType = Math.random() < 0.7 ? "meat_chunk" : "blood_pack";
             const itemId = `${dropType}_${Date.now()}`;
@@ -1617,41 +1617,48 @@ function setupWebSocket(
             );
           }
 
-          // Опыт и поинты
-          const xpGained = 50;
+          // === НАГРАДА: 13 XP + 1 очко улучшения ===
+          const xpGained = 13;
           attacker.xp = (attacker.xp || 0) + xpGained;
           attacker.upgradePoints = (attacker.upgradePoints || 0) + 1;
 
-          // Левел ап
-          const xpToNext = calculateXPToNextLevel(attacker.level);
-          if (attacker.xp >= xpToNext) {
-            attacker.level += 1;
-            attacker.xp -= xpToNext;
-            attacker.upgradePoints += 5;
+          // Проверка левел-апа
+          let currentLevel = attacker.level || 0;
+          let xpToNextLevel = calculateXPToNextLevel(currentLevel);
+
+          while (attacker.xp >= xpToNextLevel && currentLevel < 100) {
+            currentLevel++;
+            attacker.xp -= xpToNextLevel;
+            attacker.upgradePoints += 5; // +5 очков при левел-апе
+            xpToNextLevel = calculateXPToNextLevel(currentLevel);
           }
 
+          attacker.level = currentLevel;
+
+          // Сохраняем изменения
           players.set(attackerId, attacker);
           userDatabase.set(attackerId, attacker);
           await saveUserDatabase(dbCollection, attackerId, attacker);
 
-          // Уведомление атакующего
+          // === ОТПРАВЛЯЕМ СПЕЦИАЛЬНОЕ СООБЩЕНИЕ ДЛЯ СИНХРОНИЗАЦИИ УРОВНЯ ===
           ws.send(
             JSON.stringify({
-              type: "levelUpdate",
+              type: "levelSyncAfterKill",
               level: attacker.level,
               xp: attacker.xp,
+              xpToNextLevel: xpToNextLevel,
               upgradePoints: attacker.upgradePoints,
-              xpGained,
+              xpGained: xpGained, // 13
             })
           );
 
-          // Респавн через 8-15 сек
+          // Респавн врага через 8–15 секунд
           setTimeout(
             () => spawnNewEnemy(data.worldId),
             8000 + Math.random() * 7000
           );
         } else {
-          // Если жив — просто обновляем здоровье
+          // Враг жив — обновляем здоровье
           enemies.set(data.targetId, enemy);
 
           broadcastToWorld(
