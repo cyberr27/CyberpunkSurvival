@@ -349,7 +349,7 @@ function handleEnemyKill(data) {
     }
 
     showXPEffect(data.xpGained);
-    updateLevelDisplay();
+    updateLevelDisplay(); // Динамически обновляем Level: X | xp : Y / Z
     updateStatsDisplay();
   } catch (error) {
     console.error("Ошибка в handleEnemyKill:", error);
