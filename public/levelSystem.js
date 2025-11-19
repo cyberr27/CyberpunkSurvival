@@ -79,7 +79,7 @@ function createUpgradeButtons() {
       return;
     }
 
-    const statTypes = ["health", "energy", "food", "water"]; // Броня исключена
+    const statTypes = ["health", "energy", "food", "water"];
     const statElements = statsEl.querySelectorAll("span");
 
     statElements.forEach((span, index) => {
@@ -102,12 +102,10 @@ function createUpgradeButtons() {
 
         upgradePoints--;
 
-        // Увеличиваем upgrade-поле в window.levelSystem
         const upgradeField = `${statType}Upgrade`;
         window.levelSystem[upgradeField] =
           (window.levelSystem[upgradeField] || 0) + 1;
 
-        // БАЗОВОЕ ЗНАЧЕНИЕ — 100, БРОНИ — 0
         const baseValue = statType === "armor" ? 0 : 100;
         maxStats[statType] = baseValue + window.levelSystem[upgradeField];
         window.levelSystem.maxStats[statType] = maxStats[statType];
@@ -119,10 +117,9 @@ function createUpgradeButtons() {
             me[statType] || baseValue,
             maxStats[statType]
           );
-          me[upgradeField] = window.levelSystem[upgradeField]; // сохраняем в игроке
+          me[upgradeField] = window.levelSystem[upgradeField];
         }
 
-        // НОВОЕ: Переприменяем эффекты экипировки к новому base + upgrades
         window.equipmentSystem.applyEquipmentEffects(me);
 
         updateStatsDisplay();
@@ -155,14 +152,11 @@ function updateUpgradeButtons() {
       return;
     }
 
-    // Удаляем старые кнопки
     const buttons = statsEl.querySelectorAll(".upgrade-btn");
     buttons.forEach((btn) => btn.remove());
 
-    // Создаём новые кнопки, если есть очки
     if (upgradePoints > 0) {
       createUpgradeButtons();
-    } else {
     }
   } catch (error) {}
 }
@@ -207,19 +201,17 @@ function setLevelData(level, xp, maxStatsData, upgradePointsData) {
       return;
     }
 
-    // ВОССТАНАВЛИВАЕМ UPGRADE ПОЛЯ ИЗ me
     window.levelSystem.healthUpgrade = me.healthUpgrade || 0;
     window.levelSystem.energyUpgrade = me.energyUpgrade || 0;
     window.levelSystem.foodUpgrade = me.foodUpgrade || 0;
     window.levelSystem.waterUpgrade = me.waterUpgrade || 0;
 
-    // ВЫЧИСЛЯЕМ maxStats ИЗ UPGRADE (base 100 + upgrades, armor 0; equip добавится позже в applyEquipmentEffects)
     maxStats = {
       health: 100 + window.levelSystem.healthUpgrade,
       energy: 100 + window.levelSystem.energyUpgrade,
       food: 100 + window.levelSystem.foodUpgrade,
       water: 100 + window.levelSystem.waterUpgrade,
-      armor: 0, // Броня только от equip
+      armor: 0,
     };
 
     window.levelSystem.maxStats = { ...maxStats };
@@ -249,13 +241,9 @@ function calculateXPToNextLevel(level) {
 function handleItemPickup(itemType, isDroppedByPlayer) {
   try {
     const me = players.get(myId);
-    if (!me) {
-      return;
-    }
+    if (!me) return;
 
-    if (isDroppedByPlayer) {
-      return;
-    }
+    if (isDroppedByPlayer) return;
 
     const rarity = ITEM_CONFIG[itemType]?.rarity || 3;
     let xpGained;
@@ -286,19 +274,17 @@ function handleItemPickup(itemType, isDroppedByPlayer) {
           upgradePoints,
         })
       );
-    } else {
     }
 
     showXPEffect(xpGained);
+    updateLevelDisplay(); // ← Важно: сразу обновляем строку XP
   } catch (error) {}
 }
 
 function handleQuestCompletion(rarity) {
   try {
     const me = players.get(myId);
-    if (!me) {
-      return;
-    }
+    if (!me) return;
 
     let xpGained;
     switch (rarity) {
@@ -328,19 +314,19 @@ function handleQuestCompletion(rarity) {
           upgradePoints,
         })
       );
-    } else {
     }
 
     showXPEffect(xpGained);
+    updateLevelDisplay();
   } catch (error) {}
 }
 
+// ← ГЛАВНОЕ ИСПРАВЛЕНИЕ ЗДЕСЬ
 function handleEnemyKill(data) {
   try {
-    // Полная синхронизация с сервера
     currentLevel = data.level;
     currentXP = data.xp;
-    xpToNextLevel = data.xpToNextLevel;
+    xpToNextLevel = data.xpToNextLevel || calculateXPToNextLevel(currentLevel);
     upgradePoints = data.upgradePoints;
 
     const me = players.get(myId);
@@ -350,8 +336,9 @@ function handleEnemyKill(data) {
       me.upgradePoints = upgradePoints;
     }
 
+    // Показываем +13 XP и мгновенно обновляем строку уровня
     showXPEffect(data.xpGained || 13);
-    updateLevelDisplay();
+    updateLevelDisplay(); // ← Это главное!
     updateStatsDisplay();
     updateUpgradeButtons();
   } catch (error) {
@@ -380,7 +367,6 @@ function checkLevelUp() {
             upgradePoints,
           })
         );
-      } else {
       }
     }
     updateLevelDisplay();
