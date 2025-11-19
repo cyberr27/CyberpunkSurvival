@@ -324,21 +324,26 @@ function handleQuestCompletion(rarity) {
 // ← ГЛАВНОЕ ИСПРАВЛЕНИЕ ЗДЕСЬ
 function handleEnemyKill(data) {
   try {
+    // Принимаем ВСЁ от сервера — это и есть источник правды
     currentLevel = data.level;
     currentXP = data.xp;
     xpToNextLevel = data.xpToNextLevel || calculateXPToNextLevel(currentLevel);
-    upgradePoints = data.upgradePoints;
+    upgradePoints = data.upgradePoints || 0;
 
+    // Обновляем локального игрока
     const me = players.get(myId);
     if (me) {
       me.level = currentLevel;
       me.xp = currentXP;
       me.upgradePoints = upgradePoints;
+      me.xpToNextLevel = xpToNextLevel;
     }
 
-    // Показываем +13 XP и мгновенно обновляем строку уровня
+    // Эффект +13 XP (или сколько пришло)
     showXPEffect(data.xpGained || 13);
-    updateLevelDisplay(); // ← Это главное!
+
+    // КРИТИЧЕСКИ ВАЖНО: обновляем ВСЁ сразу
+    updateLevelDisplay();
     updateStatsDisplay();
     updateUpgradeButtons();
   } catch (error) {
