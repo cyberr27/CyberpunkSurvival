@@ -1557,25 +1557,25 @@ function setupWebSocket(
         enemy.health = Math.max(0, enemy.health - data.damage);
 
         if (enemy.health <= 0) {
-          // === УБИЙСТВО: даём +13 XP только добившему ===
           const xpGained = 13;
 
+          // === ДАЁМ ОПЫТ ТОЛЬКО УБИЙЦЕ (последний удар) ===
           attacker.xp = (attacker.xp || 0) + xpGained;
           attacker.level = attacker.level || 0;
           attacker.upgradePoints = attacker.upgradePoints || 0;
 
+          // Проверка левел-апа
           let leveledUp = false;
-          while (
-            attacker.xp >= calculateXPToNextLevel(attacker.level) &&
-            attacker.level < 100
-          ) {
+          let xpToNextLevel = calculateXPToNextLevel(attacker.level);
+          while (attacker.xp >= xpToNextLevel && attacker.level < 100) {
             attacker.level += 1;
-            attacker.xp -= calculateXPToNextLevel(attacker.level - 1);
+            attacker.xp -= xpToNextLevel;
             attacker.upgradePoints += 10;
             leveledUp = true;
+            xpToNextLevel = calculateXPToNextLevel(attacker.level);
           }
 
-          // Сохраняем игрока
+          // Сохраняем прогресс убийцы
           players.set(attackerId, attacker);
           userDatabase.set(attackerId, attacker);
           await saveUserDatabase(dbCollection, attackerId, attacker);
@@ -1583,7 +1583,7 @@ function setupWebSocket(
           // Удаляем мутанта
           enemies.delete(data.targetId);
 
-          // Уведомляем всех о смерти мутанта
+          // Уведомляем всех в мире о смерти
           broadcastToWorld(
             wss,
             clients,
@@ -1596,7 +1596,40 @@ function setupWebSocket(
             })
           );
 
-          // === ДРОП ПРЕДМЕТОВ (оставляем как у тебя) ===
+          // === ОТПРАВЛЯЕМ ТОЛЬКО УБИЙЦЕ СООБЩЕНИЕ С +13 XP ===
+          const killerWs = [...clients.entries()].find(
+            ([client]) => clients.get(client) === attackerId
+          )?.[0];
+
+          if (killerWs && killerWs.readyState === WebSocket.OPEN) {
+            killerWs.send(
+              JSON.stringify({
+                type: "handleEnemyKill",
+                level: attacker.level,
+                xp: attacker.xp,
+                xpToNextLevel: calculateXPToNextLevel(attacker.level),
+                upgradePoints: attacker.upgradePoints,
+                xpGained: xpGained,
+              })
+            );
+          }
+
+          // Левел-ап эффект (опционально, для всех в мире)
+          if (leveledUp) {
+            broadcastToWorld(
+              wss,
+              clients,
+              players,
+              data.worldId,
+              JSON.stringify({
+                type: "playerLevelUp",
+                playerId: attackerId,
+                newLevel: attacker.level,
+              })
+            );
+          }
+
+          // === ДРОП ПРЕДМЕТОВ (остаётся без изменений) ===
           if (Math.random() < 0.5) {
             const dropType = Math.random() < 0.7 ? "meat_chunk" : "blood_pack";
             const itemId = `${dropType}_${Date.now()}_${Math.random()}`;
@@ -1641,38 +1674,6 @@ function setupWebSocket(
               JSON.stringify({
                 type: "newItem",
                 items: [{ itemId, ...dropItem }],
-              })
-            );
-          }
-
-          // === Отправляем убийце +13 XP и обновлённый уровень ===
-          const clientWs = [...clients.entries()].find(
-            ([client]) => clients.get(client) === attackerId
-          )?.[0];
-          if (clientWs && clientWs.readyState === WebSocket.OPEN) {
-            clientWs.send(
-              JSON.stringify({
-                type: "handleEnemyKill",
-                level: attacker.level,
-                xp: attacker.xp,
-                xpToNextLevel: calculateXPToNextLevel(attacker.level),
-                upgradePoints: attacker.upgradePoints,
-                xpGained: xpGained,
-              })
-            );
-          }
-
-          // Левел-ап эффект для всех (по желанию)
-          if (leveledUp) {
-            broadcastToWorld(
-              wss,
-              clients,
-              players,
-              data.worldId,
-              JSON.stringify({
-                type: "playerLevelUp",
-                playerId: attackerId,
-                newLevel: attacker.level,
               })
             );
           }
