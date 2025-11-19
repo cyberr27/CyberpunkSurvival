@@ -36,30 +36,29 @@ function createLevelDisplayElement() {
 function updateStatsDisplay() {
   try {
     const statsEl = document.getElementById("stats");
-    if (!statsEl) {
-      return;
-    }
+    if (!statsEl) return;
     const me = players.get(myId);
-    if (!me) {
-      return;
-    }
+    if (!me) return;
+
     statsEl.innerHTML = `
-  <span class="health">Здоровье: ${Math.min(me.health, me.maxStats.health)}/${
-      me.maxStats.health
-    }</span><br>
-  <span class="energy">Энергия: ${Math.min(me.energy, me.maxStats.energy)}/${
-      me.maxStats.energy
-    }</span><br>
-  <span class="food">Еда: ${Math.min(me.food, me.maxStats.food)}/${
+      <span class="health">Здоровье: ${Math.min(
+        me.health,
+        me.maxStats.health
+      )}/${me.maxStats.health}</span><br>
+      <span class="energy">Энергия: ${Math.min(
+        me.energy,
+        me.maxStats.energy
+      )}/${me.maxStats.energy}</span><br>
+      <span class="food">Еда: ${Math.min(me.food, me.maxStats.food)}/${
       me.maxStats.food
     }</span><br>
-  <span class="water">Вода: ${Math.min(me.water, me.maxStats.water)}/${
+      <span class="water">Вода: ${Math.min(me.water, me.maxStats.water)}/${
       me.maxStats.water
     }</span><br>
-  <span class="armor">Броня: ${Math.min(me.armor, me.maxStats.armor)}/${
+      <span class="armor">Броня: ${Math.min(me.armor, me.maxStats.armor)}/${
       me.maxStats.armor
     }</span>
-`;
+    `;
     updateUpgradeButtons();
   } catch (error) {}
 }
@@ -169,9 +168,7 @@ function updateUpgradeButtons() {
 
 function initializeLevelSystem() {
   try {
-    if (isInitialized) {
-      return;
-    }
+    if (isInitialized) return;
     createLevelDisplayElement();
     isInitialized = true;
     updateLevelDisplay();
@@ -243,6 +240,37 @@ function calculateXPToNextLevel(level) {
     return 100 * Math.pow(2, level);
   } catch (error) {
     return 100;
+  }
+}
+
+function handleMutantKill(xpGained = 13) {
+  try {
+    const me = players.get(myId);
+    if (!me) return;
+
+    currentXP += xpGained;
+    checkLevelUp(); // проверяем левел-ап (может быть +10 поинтов, если ап)
+
+    // Обновляем отображение сразу
+    updateLevelDisplay();
+
+    // Отправляем на сервер актуальные данные
+    if (ws.readyState === WebSocket.OPEN) {
+      sendWhenReady(
+        ws,
+        JSON.stringify({
+          type: "updateLevel",
+          level: currentLevel,
+          xp: currentXP,
+          upgradePoints,
+        })
+      );
+    }
+
+    // Визуальный эффект +13 XP
+    showXPEffect(xpGained);
+  } catch (error) {
+    console.error("Ошибка в handleMutantKill:", error);
   }
 }
 
@@ -337,11 +365,11 @@ function handleQuestCompletion(rarity) {
 
 function handleEnemyKill(data) {
   try {
-    // Полная синхронизация с сервера
+    // Сервер уже всё посчитал: уровень, xp, upgradePoints
     currentLevel = data.level;
     currentXP = data.xp;
-    xpToNextLevel = data.xpToNextLevel;
-    upgradePoints = data.upgradePoints;
+    xpToNextLevel = data.xpToNextLevel || calculateXPToNextLevel(currentLevel);
+    upgradePoints = data.upgradePoints || 0;
 
     const me = players.get(myId);
     if (me) {
@@ -350,7 +378,12 @@ function handleEnemyKill(data) {
       me.upgradePoints = upgradePoints;
     }
 
-    showXPEffect(data.xpGained);
+    // Визуальный эффект (если передали xpGained)
+    if (data.xpGained) {
+      showXPEffect(data.xpGained);
+    }
+
+    // ОБЯЗАТЕЛЬНО обновляем строку уровня
     updateLevelDisplay();
     updateStatsDisplay();
     updateUpgradeButtons();
@@ -380,10 +413,9 @@ function checkLevelUp() {
             upgradePoints,
           })
         );
-      } else {
       }
     }
-    updateLevelDisplay();
+    updateLevelDisplay(); // ← обновляем и здесь, чтобы всегда было актуально
     updateStatsDisplay();
   } catch (error) {}
 }
@@ -436,7 +468,8 @@ window.levelSystem = {
   setLevelData,
   handleItemPickup,
   handleQuestCompletion,
+  handleMutantKill, // ← НОВАЯ: вызывать при убийстве мутанта
+  handleEnemyKill, // ← оставляем для синхронизации с сервера
   maxStats,
   updateUpgradeButtons,
-  handleEnemyKill,
 };
