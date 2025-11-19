@@ -176,16 +176,36 @@ function initializeLevelSystem() {
 
 function updateLevelDisplay() {
   try {
-    let levelDisplay = document.getElementById("levelDisplay");
+    const levelDisplay = document.getElementById("levelDisplay");
     if (!levelDisplay) {
-      levelDisplay = createLevelDisplayElement();
-    }
-    if (levelDisplay) {
-      levelDisplay.innerHTML = `Level: ${currentLevel} | xp : ${currentXP} / ${xpToNextLevel}`;
-    } else {
+      createLevelDisplayElement();
       setTimeout(updateLevelDisplay, 100);
+      return;
     }
-  } catch (error) {}
+
+    // ВАЖНО: используем актуальные данные с сервера (или текущие)
+    const me = players.get(myId);
+    const level = (me?.level ?? currentLevel) || 0;
+    const xp = (me?.xp ?? currentXP) || 0;
+    const xpNext =
+      (me?.xpToNextLevel ?? xpToNextLevel) || calculateXPToNextLevel(level);
+
+    levelDisplay.textContent = `Level: ${level} | xp: ${xp} / ${xpNext}`;
+    levelDisplay.style.position = "absolute";
+    levelDisplay.style.top = "10px";
+    levelDisplay.style.left = "50%";
+    levelDisplay.style.transform = "translateX(-50%)";
+    levelDisplay.style.color = "#00ffff";
+    levelDisplay.style.fontSize = "18px";
+    levelDisplay.style.fontWeight = "bold";
+    levelDisplay.style.textShadow = "0 0 10px #00ffff";
+    levelDisplay.style.zIndex = "1000";
+    levelDisplay.style.background = "rgba(0,0,0,0.5)";
+    levelDisplay.style.padding = "5px 15px";
+    levelDisplay.style.borderRadius = "10px";
+  } catch (error) {
+    console.error("Ошибка в updateLevelDisplay:", error);
+  }
 }
 
 function setLevelData(level, xp, maxStatsData, upgradePointsData) {
@@ -324,13 +344,11 @@ function handleQuestCompletion(rarity) {
 // ← ГЛАВНОЕ ИСПРАВЛЕНИЕ ЗДЕСЬ
 function handleEnemyKill(data) {
   try {
-    // Принимаем ВСЁ от сервера — это и есть источник правды
     currentLevel = data.level;
     currentXP = data.xp;
     xpToNextLevel = data.xpToNextLevel || calculateXPToNextLevel(currentLevel);
     upgradePoints = data.upgradePoints || 0;
 
-    // Обновляем локального игрока
     const me = players.get(myId);
     if (me) {
       me.level = currentLevel;
@@ -339,11 +357,13 @@ function handleEnemyKill(data) {
       me.xpToNextLevel = xpToNextLevel;
     }
 
-    // Эффект +13 XP (или сколько пришло)
     showXPEffect(data.xpGained || 13);
 
-    // КРИТИЧЕСКИ ВАЖНО: обновляем ВСЁ сразу
+    // ← ГЛАВНОЕ: трижды вызываем, чтобы 100% обновилось
     updateLevelDisplay();
+    setTimeout(updateLevelDisplay, 50);
+    setTimeout(updateLevelDisplay, 100);
+
     updateStatsDisplay();
     updateUpgradeButtons();
   } catch (error) {
