@@ -1619,8 +1619,6 @@ function setupWebSocket(
 
           // === НАГРАДА: 13 XP + 1 очко улучшения ===
           const xpGained = 13;
-          attacker.xp = (attacker.xp || 0) + xpGained;
-          attacker.upgradePoints = (attacker.upgradePoints || 0) + 1;
 
           // Проверка левел-апа
           let currentLevel = attacker.level || 0;
@@ -1629,7 +1627,7 @@ function setupWebSocket(
           while (attacker.xp >= xpToNextLevel && currentLevel < 100) {
             currentLevel++;
             attacker.xp -= xpToNextLevel;
-            attacker.upgradePoints += 5; // +5 очков при левел-апе
+            attacker.upgradePoints += 10; // +10 очков при левел-апе
             xpToNextLevel = calculateXPToNextLevel(currentLevel);
           }
 
