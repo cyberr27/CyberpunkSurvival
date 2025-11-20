@@ -1738,15 +1738,36 @@ function handleGameMessage(event) {
         });
       case "enemyKilled":
         break;
-      case "levelSyncAfterKill":
-        window.levelSystem.handleEnemyKill({
-          level: data.level,
-          xp: data.xp,
-          xpToNextLevel: data.xpToNextLevel,
-          upgradePoints: data.upgradePoints,
-          xpGained: data.xpGained,
-        });
+      case "levelSyncAfterKill": {
+        // Мгновенно обновляем уровень, XP, xpToNextLevel, upgradePoints
+        if (window.levelSystem) {
+          window.levelSystem.currentLevel = data.level;
+          window.levelSystem.currentXP = data.xp;
+          window.levelSystem.xpToNextLevel = data.xpToNextLevel;
+          window.levelSystem.upgradePoints = data.upgradePoints;
+          if (typeof window.levelSystem.setLevelData === "function") {
+            window.levelSystem.setLevelData(
+              data.level,
+              data.xp,
+              null,
+              data.upgradePoints
+            );
+          }
+          if (typeof window.levelSystem.showXPEffect === "function") {
+            window.levelSystem.showXPEffect(data.xpGained);
+          }
+          if (typeof window.levelSystem.updateLevelDisplay === "function") {
+            window.levelSystem.updateLevelDisplay();
+          }
+          if (typeof window.levelSystem.updateStatsDisplay === "function") {
+            window.levelSystem.updateStatsDisplay();
+          }
+          if (typeof window.levelSystem.updateUpgradeButtons === "function") {
+            window.levelSystem.updateUpgradeButtons();
+          }
+        }
         break;
+      }
       case "syncEnemies":
         window.enemySystem.syncEnemies(data.enemies);
         break;

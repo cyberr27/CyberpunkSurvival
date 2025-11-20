@@ -1617,29 +1617,30 @@ function setupWebSocket(
             );
           }
 
-          // Опыт и поинты
-          const xpGained = 50;
+          // XP и level up
+          const xpGained = 13;
           attacker.xp = (attacker.xp || 0) + xpGained;
-          attacker.upgradePoints = (attacker.upgradePoints || 0) + 1;
-
-          // Левел ап
-          const xpToNext = calculateXPToNextLevel(attacker.level);
-          if (attacker.xp >= xpToNext) {
+          let levelUp = false;
+          let xpToNext = calculateXPToNextLevel(attacker.level);
+          while (attacker.xp >= xpToNext && attacker.level < 100) {
             attacker.level += 1;
             attacker.xp -= xpToNext;
-            attacker.upgradePoints += 5;
+            attacker.upgradePoints = (attacker.upgradePoints || 0) + 10;
+            levelUp = true;
+            xpToNext = calculateXPToNextLevel(attacker.level);
           }
 
           players.set(attackerId, attacker);
           userDatabase.set(attackerId, attacker);
           await saveUserDatabase(dbCollection, attackerId, attacker);
 
-          // Уведомление атакующего
+          // Уведомление атакующего (levelSyncAfterKill)
           ws.send(
             JSON.stringify({
-              type: "levelUpdate",
+              type: "levelSyncAfterKill",
               level: attacker.level,
               xp: attacker.xp,
+              xpToNextLevel: xpToNext,
               upgradePoints: attacker.upgradePoints,
               xpGained,
             })
