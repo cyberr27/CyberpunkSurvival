@@ -15,7 +15,7 @@ const ENEMY_TYPES = {
     size: 70,
     frames: 13,
     frameDuration: 110,
-    maxHealth: 250,
+    maxHealth: 120,
     spriteKey: "scorpionSprite",
     speed: 4,
     aggroRange: 300,
@@ -25,66 +25,6 @@ const ENEMY_TYPES = {
     minEnergy: 2,
     maxEnergy: 3,
   },
-};
-
-// === Урон и смерть скорпиона (отдельно, аналогично мутанту) ===
-function damageScorpion(scorpionId, damage, attackerId) {
-  const enemy = enemies.get(scorpionId);
-  if (!enemy || enemy.type !== "scorpion" || enemy.health <= 0) return;
-  enemy.health = Math.max(0, enemy.health - damage);
-  if (enemy.health === 0) {
-    handleScorpionDeath(scorpionId, attackerId);
-  }
-}
-
-function handleScorpionDeath(scorpionId, killerId) {
-  const enemy = enemies.get(scorpionId);
-  if (!enemy) return;
-  enemies.delete(scorpionId);
-  // Найти игрока-убийцу и выдать 20 XP
-  if (killerId && players && players.has(killerId)) {
-    const player = players.get(killerId);
-    if (player) {
-      player.xp = (player.xp || 0) + 20;
-      // Можно добавить визуальный эффект или всплывающий текст
-      if (typeof window.levelSystem?.handleEnemyKill === "function") {
-        window.levelSystem.handleEnemyKill({
-          type: "scorpion",
-          xp: 20,
-          playerId: killerId,
-        });
-      }
-    }
-  }
-}
-
-// === Обработка урона по врагам (вызывается из боевой системы) ===
-// Для интеграции: вызывайте window.enemySystem.damageEnemy(enemyId, damage, attackerId)
-function damageEnemy(enemyId, damage, attackerId) {
-  const enemy = enemies.get(enemyId);
-  if (!enemy || enemy.health <= 0) return;
-  if (enemy.type === "scorpion") {
-    damageScorpion(enemyId, damage, attackerId);
-  } else {
-    // Старая логика для мутантов (или других типов)
-    enemy.health = Math.max(0, enemy.health - damage);
-    if (enemy.health === 0) {
-      // Можно вызвать handleEnemyDeath(enemyId) или аналогичную функцию
-      handleEnemyDeath(enemyId);
-      // XP и т.д. — по старой логике
-    }
-  }
-}
-
-// Экспорт
-window.enemySystem = {
-  initialize: initializeEnemySystem,
-  syncEnemies,
-  handleEnemyDeath,
-  handleNewEnemy, // ← НОВОЕ: сервер шлёт при спавне
-  update: updateEnemies,
-  draw: drawEnemies,
-  damageEnemy: damageEnemy,
 };
 
 // Инициализация (загрузка спрайтов уже в code.js)
