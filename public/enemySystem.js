@@ -15,49 +15,21 @@ const ENEMY_TYPES = {
     size: 70,
     frames: 13,
     frameDuration: 110,
-    maxHealth: 120,
+    maxHealth: 250,
     spriteKey: "scorpionSprite",
     speed: 4,
     aggroRange: 300,
     attackCooldown: 1000,
     minDamage: 5,
     maxDamage: 10,
-    minEnergy: 2,
-    maxEnergy: 3,
+    minEnergy: 1,
+    maxEnergy: 2,
   },
 };
 
 // Инициализация (загрузка спрайтов уже в code.js)
 function initializeEnemySystem() {
-  // Спавним 10 скорпионов в каждом мире, кроме Неонового Города (id: 0)
-  if (!window.worldSystem || !window.worldSystem.worlds) return;
-  window.worldSystem.worlds.forEach((world) => {
-    if (world.id === 0) return;
-    let count = 0;
-    while (count < 10) {
-      const x = Math.floor(Math.random() * (world.w - 70));
-      const y = Math.floor(Math.random() * (world.h - 70));
-      const id = `scorpion_${world.id}_${count}_${Date.now()}_${Math.floor(
-        Math.random() * 10000
-      )}`;
-      enemies.set(id, {
-        id,
-        type: "scorpion",
-        x,
-        y,
-        health: ENEMY_TYPES.scorpion.maxHealth,
-        maxHealth: ENEMY_TYPES.scorpion.maxHealth,
-        direction: "down",
-        state: "idle",
-        frame: 0,
-        frameTime: 0,
-        worldId: world.id,
-        targetId: null,
-        lastAttackTime: 0,
-      });
-      count++;
-    }
-  });
+  // Теперь спавн скорпионов только с сервера, здесь ничего не делаем
 }
 
 // === Синхронизация с сервера (основной источник правды) ===

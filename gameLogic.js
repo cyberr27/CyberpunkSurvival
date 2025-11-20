@@ -31,20 +31,15 @@ function runGameLoop(
 
     for (const [worldId, worldEnemiesMap] of worldEnemyCache) {
       if (worldId === 0) continue;
-
       const playerIds = worldPlayerCache.get(worldId) || new Set();
       if (playerIds.size === 0) continue;
-
       worldEnemiesMap.forEach((enemy) => {
         if (enemy.health <= 0) return;
-
         let closestPlayer = null;
         let minDist = Infinity;
-
         for (const playerId of playerIds) {
           const player = players.get(playerId);
           if (!player || player.health <= 0) continue;
-
           const dx = player.x - enemy.x;
           const dy = player.y - enemy.y;
           const dist = dx * dx + dy * dy;
@@ -53,31 +48,51 @@ function runGameLoop(
             closestPlayer = player;
           }
         }
-
         if (closestPlayer && minDist <= AGGRO_RANGE * AGGRO_RANGE) {
           enemy.targetId = closestPlayer.id;
-
           const dx = closestPlayer.x - enemy.x;
           const dy = closestPlayer.y - enemy.y;
+          let speed = ENEMY_SPEED;
+          let attackCooldown = ENEMY_ATTACK_COOLDOWN;
+          let minDmg = 10,
+            maxDmg = 15,
+            minEnergy = 0,
+            maxEnergy = 0;
+          if (enemy.type === "scorpion") {
+            speed = 4;
+            attackCooldown = 1000;
+            minDmg = 5;
+            maxDmg = 10;
+            minEnergy = 1;
+            maxEnergy = 2;
+          }
           const angle = Math.atan2(dy, dx);
-          enemy.x += Math.cos(angle) * ENEMY_SPEED;
-          enemy.y += Math.sin(angle) * ENEMY_SPEED;
+          enemy.x += Math.cos(angle) * speed;
+          enemy.y += Math.sin(angle) * speed;
           enemy.state = "walking";
-
           if (Math.abs(dx) > Math.abs(dy)) {
             enemy.direction = dx > 0 ? "right" : "left";
           } else {
             enemy.direction = dy > 0 ? "down" : "up";
           }
-
           if (
             minDist <= ATTACK_RANGE * ATTACK_RANGE &&
-            now - enemy.lastAttackTime >= ENEMY_ATTACK_COOLDOWN
+            now - enemy.lastAttackTime >= attackCooldown
           ) {
-            const damage = Math.floor(Math.random() * 6) + 10; // 10-15
+            const damage =
+              Math.floor(Math.random() * (maxDmg - minDmg + 1)) + minDmg;
+            let energyDmg = 0;
+            if (enemy.type === "scorpion") {
+              energyDmg =
+                Math.floor(Math.random() * (maxEnergy - minEnergy + 1)) +
+                minEnergy;
+              closestPlayer.energy = Math.max(
+                0,
+                closestPlayer.energy - energyDmg
+              );
+            }
             closestPlayer.health = Math.max(0, closestPlayer.health - damage);
             enemy.lastAttackTime = now;
-
             broadcastToWorld(
               wss,
               clients,
@@ -88,9 +103,9 @@ function runGameLoop(
                 enemyId: enemy.id,
                 targetId: closestPlayer.id,
                 damage,
+                energyDmg,
               })
             );
-
             broadcastToWorld(
               wss,
               clients,
@@ -105,15 +120,12 @@ function runGameLoop(
         } else {
           enemy.targetId = null;
           enemy.state = "idle";
-          // Anti-зависание: random wander если idle (как в лучших играх)
           if (Math.random() < 0.1) {
-            // 10% шанс на движение
             const wanderAngle = Math.random() * Math.PI * 2;
-            enemy.x += Math.cos(wanderAngle) * ENEMY_SPEED * 0.5; // Медленнее
+            enemy.x += Math.cos(wanderAngle) * ENEMY_SPEED * 0.5;
             enemy.y += Math.sin(wanderAngle) * ENEMY_SPEED * 0.5;
           }
         }
-
         broadcastToWorld(
           wss,
           clients,
@@ -290,14 +302,17 @@ function runGameLoop(
         }
       }
 
+      // Мутанты: 10 на мир, кроме мира 0, если есть игроки
       if (worldId !== 0 && playerCount > 0) {
         const worldEnemiesMap = worldEnemyCache.get(worldId) || new Map();
-        const desiredEnemies = 10;
-        const currentEnemies = worldEnemiesMap.size;
-        if (currentEnemies < desiredEnemies) {
-          const enemiesToSpawn = desiredEnemies - currentEnemies;
-          const newEnemies = [];
-          for (let i = 0; i < enemiesToSpawn; i++) {
+        const desiredMutants = 10;
+        const currentMutants = Array.from(worldEnemiesMap.values()).filter(
+          (e) => !e.type || e.type === "mutant"
+        ).length;
+        if (currentMutants < desiredMutants) {
+          const toSpawn = desiredMutants - currentMutants;
+          const newMutants = [];
+          for (let i = 0; i < toSpawn; i++) {
             let x,
               y,
               attempts = 0;
@@ -307,7 +322,6 @@ function runGameLoop(
               y = Math.random() * world.height;
               attempts++;
             } while (checkCollisionServer(x, y) && attempts < maxAttempts);
-
             if (attempts < maxAttempts) {
               const enemyId = `mutant_${Date.now()}_${i}`;
               const newEnemy = {
@@ -321,16 +335,66 @@ function runGameLoop(
                 worldId,
                 targetId: null,
                 lastAttackTime: 0,
+                type: "mutant",
               };
               enemies.set(enemyId, newEnemy);
               worldEnemiesMap.set(enemyId, newEnemy);
-              newEnemies.push({ ...newEnemy });
+              newMutants.push({ ...newEnemy });
             }
           }
-          if (newEnemies.length > 0) {
+          if (newMutants.length > 0) {
             const msg = JSON.stringify({
               type: "newEnemies",
-              enemies: newEnemies,
+              enemies: newMutants,
+            });
+            broadcastToWorld(wss, clients, players, worldId, msg);
+          }
+        }
+      }
+      // Скорпионы: 10 на мир, кроме мира 0 и неонового города (worldId == 3), если есть игроки
+      if (worldId !== 0 && worldId !== 3 && playerCount > 0) {
+        const worldEnemiesMap = worldEnemyCache.get(worldId) || new Map();
+        const desiredScorpions = 10;
+        const currentScorpions = Array.from(worldEnemiesMap.values()).filter(
+          (e) => e.type === "scorpion"
+        ).length;
+        if (currentScorpions < desiredScorpions) {
+          const toSpawn = desiredScorpions - currentScorpions;
+          const newScorpions = [];
+          for (let i = 0; i < toSpawn; i++) {
+            let x,
+              y,
+              attempts = 0;
+            const maxAttempts = 10;
+            do {
+              x = Math.random() * world.width;
+              y = Math.random() * world.height;
+              attempts++;
+            } while (checkCollisionServer(x, y) && attempts < maxAttempts);
+            if (attempts < maxAttempts) {
+              const enemyId = `scorpion_${Date.now()}_${i}`;
+              const newEnemy = {
+                id: enemyId,
+                x,
+                y,
+                health: 250,
+                direction: "down",
+                state: "idle",
+                frame: 0,
+                worldId,
+                targetId: null,
+                lastAttackTime: 0,
+                type: "scorpion",
+              };
+              enemies.set(enemyId, newEnemy);
+              worldEnemiesMap.set(enemyId, newEnemy);
+              newScorpions.push({ ...newEnemy });
+            }
+          }
+          if (newScorpions.length > 0) {
+            const msg = JSON.stringify({
+              type: "newEnemies",
+              enemies: newScorpions,
             });
             broadcastToWorld(wss, clients, players, worldId, msg);
           }
