@@ -76,7 +76,17 @@ function damageEnemy(enemyId, damage, attackerId) {
   }
 }
 
-window.enemySystem.damageEnemy = damageEnemy;
+
+// Экспорт
+window.enemySystem = {
+  initialize: initializeEnemySystem,
+  syncEnemies,
+  handleEnemyDeath,
+  handleNewEnemy, // ← НОВОЕ: сервер шлёт при спавне
+  update: updateEnemies,
+  draw: drawEnemies,
+  damageEnemy: damageEnemy,
+};
 
 // Инициализация (загрузка спрайтов уже в code.js)
 function initializeEnemySystem() {
