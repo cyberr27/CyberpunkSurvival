@@ -18,7 +18,7 @@ const ENEMY_TYPES = {
     frameDuration: 110,
     maxHealth: 250,
     spriteKey: "scorpionSprite",
-    speed: 4, // в 2 раза быстрее мутанта
+    speed: 6, // в 2 раза быстрее мутанта
     aggroRange: 300,
     attackCooldown: 1000,
     minDamage: 5,
