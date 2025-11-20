@@ -11,11 +11,53 @@ const ENEMY_TYPES = {
     maxHealth: 200,
     spriteKey: "mutantSprite",
   },
+  scorpion: {
+    size: 70,
+    frames: 13,
+    frameDuration: 110,
+    maxHealth: 120,
+    spriteKey: "scorpionSprite",
+    speed: 4,
+    aggroRange: 300,
+    attackCooldown: 1000,
+    minDamage: 5,
+    maxDamage: 10,
+    minEnergy: 2,
+    maxEnergy: 3,
+  },
 };
 
 // Инициализация (загрузка спрайтов уже в code.js)
 function initializeEnemySystem() {
-  // Ничего не делаем — всё готово
+  // Спавним 10 скорпионов в каждом мире, кроме Неонового Города (id: 0)
+  if (!window.worldSystem || !window.worldSystem.worlds) return;
+  window.worldSystem.worlds.forEach((world) => {
+    if (world.id === 0) return;
+    let count = 0;
+    while (count < 10) {
+      const x = Math.floor(Math.random() * (world.w - 70));
+      const y = Math.floor(Math.random() * (world.h - 70));
+      const id = `scorpion_${world.id}_${count}_${Date.now()}_${Math.floor(
+        Math.random() * 10000
+      )}`;
+      enemies.set(id, {
+        id,
+        type: "scorpion",
+        x,
+        y,
+        health: ENEMY_TYPES.scorpion.maxHealth,
+        maxHealth: ENEMY_TYPES.scorpion.maxHealth,
+        direction: "down",
+        state: "idle",
+        frame: 0,
+        frameTime: 0,
+        worldId: world.id,
+        targetId: null,
+        lastAttackTime: 0,
+      });
+      count++;
+    }
+  });
 }
 
 // === Синхронизация с сервера (основной источник правды) ===
@@ -89,7 +131,7 @@ function handleNewEnemy(enemyData) {
 // === Локальное обновление анимации (только визуал) ===
 function updateEnemies(deltaTime) {
   const currentWorldId = window.worldSystem.currentWorldId;
-  if (!currentWorldId) return;
+  if (!currentWorldId && currentWorldId !== 0) return;
 
   for (const [id, enemy] of enemies) {
     if (enemy.worldId !== currentWorldId) continue;
@@ -100,29 +142,102 @@ function updateEnemies(deltaTime) {
 
     const config = ENEMY_TYPES[enemy.type] || ENEMY_TYPES.mutant;
 
-    // КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ:
-    // Сервер теперь не всегда шлёт актуальный frame (0-12)
-    // Но если вдруг не прислал — сами анимируем по движению
-    const prevX = enemy.prevX || enemy.x;
-    const prevY = enemy.prevY || enemy.y;
-
-    const isMoving =
-      Math.abs(enemy.x - prevX) > 0.5 || Math.abs(enemy.y - prevY) > 0.5;
-
-    if (isMoving) {
-      // Двигается — крутим анимацию ходьбы
+    if (enemy.type === "scorpion") {
+      // AI: агр на ближайшего игрока в радиусе aggroRange
+      let target = null;
+      let minDist = config.aggroRange + 1;
+      for (const [pid, player] of players) {
+        if (player.worldId !== currentWorldId || player.health <= 0) continue;
+        const dx = player.x - enemy.x;
+        const dy = player.y - enemy.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < minDist && dist <= config.aggroRange) {
+          minDist = dist;
+          target = player;
+        }
+      }
+      if (target) {
+        // Движение к игроку
+        const dx = target.x - enemy.x;
+        const dy = target.y - enemy.y;
+        const len = Math.sqrt(dx * dx + dy * dy) || 1;
+        const moveDist = config.speed;
+        enemy.x += (dx / len) * moveDist;
+        enemy.y += (dy / len) * moveDist;
+        enemy.direction =
+          Math.abs(dx) > Math.abs(dy)
+            ? dx > 0
+              ? "right"
+              : "left"
+            : dy > 0
+            ? "down"
+            : "up";
+        // Атака, если в радиусе 50px и кулдаун
+        if (minDist <= 50) {
+          const now = Date.now();
+          if (
+            !enemy.lastAttackTime ||
+            now - enemy.lastAttackTime > config.attackCooldown
+          ) {
+            enemy.lastAttackTime = now;
+            // Урон по здоровью и энергии
+            const dmg =
+              Math.floor(
+                Math.random() * (config.maxDamage - config.minDamage + 1)
+              ) + config.minDamage;
+            const energyDmg =
+              Math.floor(
+                Math.random() * (config.maxEnergy - config.minEnergy + 1)
+              ) + config.minEnergy;
+            target.health = Math.max(0, target.health - dmg);
+            target.energy = Math.max(0, (target.energy || 0) - energyDmg);
+            // Визуальный эффект атаки (можно добавить анимацию)
+            if (
+              typeof window.combatSystem?.triggerAttackAnimation ===
+                "function" &&
+              target.id === myId
+            ) {
+              window.combatSystem.triggerAttackAnimation();
+            }
+            enemy.state = "attacking";
+          } else {
+            enemy.state = "walking";
+          }
+        } else {
+          enemy.state = "walking";
+        }
+      } else {
+        enemy.state = "idle";
+      }
+      // Анимация кадров
       enemy.frameTime += deltaTime;
       if (enemy.frameTime >= config.frameDuration) {
         enemy.frameTime -= config.frameDuration;
-        enemy.frame = (enemy.frame + 1) % config.frames; // 0..12
+        enemy.frame = (enemy.frame + 1) % config.frames;
       }
-    } else {
-      // Стоит — первый кадр (idle)
-      enemy.frame = 0;
-      enemy.frameTime = 0;
+      // Запоминаем позицию для следующего кадра
+      enemy.prevX = enemy.x;
+      enemy.prevY = enemy.y;
+      continue; // Не трогаем мутантов!
     }
 
-    // Запоминаем позицию для следующего кадра
+    // === Мутанты (старая логика, не трогать) ===
+    const prevX = enemy.prevX || enemy.x;
+    const prevY = enemy.prevY || enemy.y;
+    const isMoving =
+      Math.abs(enemy.x - prevX) > 0.5 || Math.abs(enemy.y - prevY) > 0.5;
+    if (isMoving) {
+      enemy.frameTime += deltaTime;
+      if (enemy.frameTime >= config.frameDuration) {
+        enemy.frameTime -= config.frameDuration;
+        enemy.frame = (enemy.frame + 1) % config.frames;
+      }
+      enemy.state = "walking";
+    } else {
+      enemy.frame = 0;
+      enemy.frameTime = 0;
+      enemy.state = "idle";
+    }
     enemy.prevX = enemy.x;
     enemy.prevY = enemy.y;
   }
@@ -132,17 +247,14 @@ function updateEnemies(deltaTime) {
 function drawEnemies() {
   const currentWorldId = window.worldSystem.currentWorldId;
   const camera = window.movementSystem.getCamera();
-  if (!camera || !currentWorldId) return;
+  if (!camera && currentWorldId !== 0) return;
 
   for (const [id, enemy] of enemies) {
     if (enemy.worldId !== currentWorldId || enemy.health <= 0) continue;
-
     const config = ENEMY_TYPES[enemy.type] || ENEMY_TYPES.mutant;
     const sprite = images[config.spriteKey];
-
     const screenX = enemy.x - camera.x;
-    const screenY = enemy.y - camera.y - 20; // чуть приподнимаем, чтобы не в земле стоял
-
+    const screenY = enemy.y - camera.y - 20;
     // Куллинг
     if (
       screenX < -config.size - 100 ||
@@ -152,49 +264,41 @@ function drawEnemies() {
     ) {
       continue;
     }
-
-    // === Рисуем мутанта (одна строка, 13 кадров) ===
+    // === Рисуем ===
     if (sprite?.complete && sprite.width >= 910) {
       let sourceX = 0;
-
       if (enemy.state === "walking") {
         sourceX = enemy.frame * 70;
       } else if (enemy.state === "attacking") {
-        // Можно сделать отдельные кадры атаки позже, пока просто последний кадр как рычание
-        sourceX = 12 * 70; // 12-й кадр — рычит или бьёт
+        sourceX = 12 * 70;
       } else {
-        sourceX = 0; // idle — первый кадр
+        sourceX = 0;
       }
-
-      ctx.drawImage(
-        sprite,
-        sourceX,
-        0, // теперь берём с Y=0, одна строка
-        70,
-        70,
-        screenX,
-        screenY,
-        70,
-        70
-      );
+      ctx.drawImage(sprite, sourceX, 0, 70, 70, screenX, screenY, 70, 70);
     } else {
-      // Заглушка, если спрайт не загрузился
-      ctx.fillStyle = "purple";
+      ctx.fillStyle = enemy.type === "scorpion" ? "#00eaff" : "purple";
       ctx.fillRect(screenX, screenY, 70, 70);
-      ctx.fillStyle = "red";
+      ctx.fillStyle = enemy.type === "scorpion" ? "#003344" : "red";
       ctx.font = "30px Arial";
-      ctx.fillText("M", screenX + 20, screenY + 50);
+      ctx.fillText(
+        enemy.type === "scorpion" ? "S" : "M",
+        screenX + 20,
+        screenY + 50
+      );
     }
-
     // === Здоровье ===
     const hpPercent = enemy.health / enemy.maxHealth;
-
     ctx.fillStyle = "rgba(0,0,0,0.7)";
     ctx.fillRect(screenX + 5, screenY - 15, 60, 10);
-
-    ctx.fillStyle = hpPercent > 0.3 ? "#ff0000" : "#8B0000";
+    ctx.fillStyle =
+      enemy.type === "scorpion"
+        ? hpPercent > 0.3
+          ? "#00eaff"
+          : "#005577"
+        : hpPercent > 0.3
+        ? "#ff0000"
+        : "#8B0000";
     ctx.fillRect(screenX + 5, screenY - 15, 60 * hpPercent, 10);
-
     ctx.fillStyle = "white";
     ctx.font = "bold 12px Arial";
     ctx.textAlign = "center";
@@ -202,12 +306,11 @@ function drawEnemies() {
     ctx.lineWidth = 3;
     ctx.strokeText(`${Math.floor(enemy.health)}`, screenX + 35, screenY - 7);
     ctx.fillText(`${Math.floor(enemy.health)}`, screenX + 35, screenY - 7);
-
-    // Дебаг ID (можно потом убрать)
+    // Дебаг ID
     ctx.font = "10px Arial";
-    ctx.fillStyle = "#ffff00";
+    ctx.fillStyle = enemy.type === "scorpion" ? "#00eaff" : "#ffff00";
     ctx.textAlign = "center";
-    ctx.fillText("mutant", screenX + 35, screenY + 80);
+    ctx.fillText(enemy.type, screenX + 35, screenY + 80);
   }
 }
 
