@@ -65,6 +65,7 @@ const imageSources = {
   batImage: "bat.png",
   atomImage: "atom.png",
   mutantSprite: "mutantSprite.png",
+  scorpionSprite: "scorpionSprite.png",
 };
 
 const images = {};
@@ -2146,5 +2147,5 @@ function gameLoop(timestamp) {
 // Инициализация изображений (без изменений)
 function onImageLoad() {
   imagesLoaded++;
-  if (imagesLoaded === 27) window.addEventListener("resize", resizeCanvas);
+  if (imagesLoaded === 28) window.addEventListener("resize", resizeCanvas);
 }
