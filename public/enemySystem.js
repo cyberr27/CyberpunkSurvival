@@ -182,10 +182,10 @@ function updateEnemies(deltaTime) {
         enemy.state = "idle";
       }
       // Анимация кадров
-      enemy.frameTime += deltaTime;
-      if (enemy.frameTime >= config.frameDuration) {
-        enemy.frameTime -= config.frameDuration;
-        enemy.frame = (enemy.frame + 1) % config.frames;
+      enemy.frameTime = (enemy.frameTime || 0) + deltaTime;
+      if (enemy.frameTime > config.frameDuration) {
+        enemy.frame = ((enemy.frame || 0) + 1) % config.frames;
+        enemy.frameTime = 0;
       }
       // Запоминаем позицию для следующего кадра
       enemy.prevX = enemy.x;
