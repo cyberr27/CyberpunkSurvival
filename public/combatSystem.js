@@ -58,9 +58,13 @@ function performAttack() {
     const isRanged = !!weaponConfig.effect.range; // Проверяем, дальнобойное ли оружие (presence of range)
 
     if (isRanged) {
-      // Стрельба из дальнобойного оружия (ОСТАВЛЯЕМ КАК ЕСТЬ)
-      const range = weaponConfig.effect.range || 500;
-      const damage = weaponConfig.effect.damage || 10;
+      // Спецлогика для plasma_rifle
+      let range = weaponConfig.effect.range || 500;
+      let damage = weaponConfig.effect.damage || 10;
+      if (equippedWeapon.type === "plasma_rifle") {
+        range = 200;
+        damage = 50;
+      }
 
       const bulletId = `bullet_${Date.now()}_${Math.random()}`;
       const angle = getPlayerAngle(me.direction);
