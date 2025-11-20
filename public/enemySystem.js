@@ -76,7 +76,6 @@ function damageEnemy(enemyId, damage, attackerId) {
   }
 }
 
-
 // Экспорт
 window.enemySystem = {
   initialize: initializeEnemySystem,
