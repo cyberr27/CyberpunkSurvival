@@ -10,6 +10,7 @@ const ENEMY_TYPES = {
     frameDuration: 110,
     maxHealth: 200,
     spriteKey: "mutantSprite",
+    speed: 2, // базовая скорость мутанта
   },
   scorpion: {
     size: 70,
@@ -17,7 +18,7 @@ const ENEMY_TYPES = {
     frameDuration: 110,
     maxHealth: 250,
     spriteKey: "scorpionSprite",
-    speed: 4,
+    speed: 6, // в 2 раза быстрее мутанта
     aggroRange: 300,
     attackCooldown: 1000,
     minDamage: 5,
@@ -104,114 +105,20 @@ function handleNewEnemy(enemyData) {
 function updateEnemies(deltaTime) {
   const currentWorldId = window.worldSystem.currentWorldId;
   if (!currentWorldId && currentWorldId !== 0) return;
-
   for (const [id, enemy] of enemies) {
     if (enemy.worldId !== currentWorldId) continue;
     if (enemy.health <= 0) {
       enemies.delete(id);
       continue;
     }
-
     const config = ENEMY_TYPES[enemy.type] || ENEMY_TYPES.mutant;
-
-    if (enemy.type === "scorpion") {
-      // AI: агр на ближайшего игрока в радиусе aggroRange
-      let target = null;
-      let minDist = config.aggroRange + 1;
-      for (const [pid, player] of players) {
-        if (player.worldId !== currentWorldId || player.health <= 0) continue;
-        const dx = player.x - enemy.x;
-        const dy = player.y - enemy.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < minDist && dist <= config.aggroRange) {
-          minDist = dist;
-          target = player;
-        }
-      }
-      if (target) {
-        // Движение к игроку
-        const dx = target.x - enemy.x;
-        const dy = target.y - enemy.y;
-        const len = Math.sqrt(dx * dx + dy * dy) || 1;
-        const moveDist = config.speed;
-        enemy.x += (dx / len) * moveDist;
-        enemy.y += (dy / len) * moveDist;
-        enemy.direction =
-          Math.abs(dx) > Math.abs(dy)
-            ? dx > 0
-              ? "right"
-              : "left"
-            : dy > 0
-            ? "down"
-            : "up";
-        // Атака, если в радиусе 50px и кулдаун
-        if (minDist <= 50) {
-          const now = Date.now();
-          if (
-            !enemy.lastAttackTime ||
-            now - enemy.lastAttackTime > config.attackCooldown
-          ) {
-            enemy.lastAttackTime = now;
-            // Урон по здоровью и энергии
-            const dmg =
-              Math.floor(
-                Math.random() * (config.maxDamage - config.minDamage + 1)
-              ) + config.minDamage;
-            const energyDmg =
-              Math.floor(
-                Math.random() * (config.maxEnergy - config.minEnergy + 1)
-              ) + config.minEnergy;
-            target.health = Math.max(0, target.health - dmg);
-            target.energy = Math.max(0, (target.energy || 0) - energyDmg);
-            // Визуальный эффект атаки (можно добавить анимацию)
-            if (
-              typeof window.combatSystem?.triggerAttackAnimation ===
-                "function" &&
-              target.id === myId
-            ) {
-              window.combatSystem.triggerAttackAnimation();
-            }
-            enemy.state = "attacking";
-          } else {
-            enemy.state = "walking";
-          }
-        } else {
-          enemy.state = "walking";
-        }
-      } else {
-        enemy.state = "idle";
-      }
-      // Анимация кадров
-      enemy.frameTime += deltaTime;
-      if (enemy.frameTime >= config.frameDuration) {
-        enemy.frameTime -= config.frameDuration;
-        enemy.frame = (enemy.frame + 1) % config.frames;
-      }
-      // Запоминаем позицию для следующего кадра
-      enemy.prevX = enemy.x;
-      enemy.prevY = enemy.y;
-      continue; // Не трогаем мутантов!
-    }
-
-    // === Мутанты (старая логика, не трогать) ===
-    const prevX = enemy.prevX || enemy.x;
-    const prevY = enemy.prevY || enemy.y;
-    const isMoving =
-      Math.abs(enemy.x - prevX) > 0.5 || Math.abs(enemy.y - prevY) > 0.5;
-    if (isMoving) {
-      enemy.frameTime += deltaTime;
-      if (enemy.frameTime >= config.frameDuration) {
-        enemy.frameTime -= config.frameDuration;
-        enemy.frame = (enemy.frame + 1) % config.frames;
-      }
-      enemy.state = "walking";
-    } else {
-      enemy.frame = 0;
+    // Плавная анимация: всегда меняем кадры равномерно по времени
+    enemy.frameTime = (enemy.frameTime || 0) + deltaTime;
+    if (enemy.frameTime >= config.frameDuration) {
+      enemy.frame = ((enemy.frame || 0) + 1) % config.frames;
       enemy.frameTime = 0;
-      enemy.state = "idle";
     }
-    enemy.prevX = enemy.x;
-    enemy.prevY = enemy.y;
+    // ...остальная логика движения и AI врагов остаётся на сервере...
   }
 }
 

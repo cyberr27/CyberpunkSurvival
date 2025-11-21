@@ -32,7 +32,7 @@ const ITEM_CONFIG = {
   tech_gloves: { type: "gloves", effect: { armor: 5, energy: 5 }, rarity: 3 }, // Было 4
   plasma_rifle: {
     type: "weapon",
-    effect: { damage: 15, range: 500 },
+    effect: { damage: 50, range: 200 },
     rarity: 4, // Было 4
   },
   knuckles: {

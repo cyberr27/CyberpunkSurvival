@@ -250,9 +250,9 @@ const ITEM_CONFIG = {
   },
   plasma_rifle: {
     type: "weapon",
-    effect: { damage: 15, range: 500 },
+    effect: { damage: 50, range: 200 },
     image: images.plasmaRifleImage,
-    description: "Плазменная винтовка: +15 урона, дальнобойная",
+    description: "Плазменная винтовка: 50 урона, 200 пикселей дальность",
     rarity: 4,
   },
   knuckles: {
