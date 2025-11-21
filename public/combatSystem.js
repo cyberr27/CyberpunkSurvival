@@ -2,8 +2,7 @@
 const BULLET_SPEED = 10; // Скорость пули (пикселей за кадр)
 const BULLET_SIZE = 5; // Размер пули
 const ATTACK_COOLDOWN = 500; // Перезарядка атаки в миллисекундах
-// BULLET_LIFETIME больше не используется напрямую, теперь срок жизни — по расстоянию
-const BULLET_LIFETIME = 10000; // Для совместимости, но не используется для удаления
+const BULLET_LIFETIME = 2000; // Время жизни пули в миллисекундах
 const BASE_MELEE_MIN_DAMAGE = 5; // Базовый мин. урон ближнего боя
 const BASE_MELEE_MAX_DAMAGE = 10; // Базовый макс. урон ближнего боя
 const MELEE_ATTACK_RANGE = 50; // Дальность атаки ближнего боя
@@ -59,33 +58,28 @@ function performAttack() {
     const isRanged = !!weaponConfig.effect.range; // Проверяем, дальнобойное ли оружие (presence of range)
 
     if (isRanged) {
-      let range = weaponConfig.effect.range || 500;
-      let damage = weaponConfig.effect.damage || 10;
-      if (equippedWeapon.type === "plasma_rifle") {
-        range = 700;
-        damage = 50;
-      }
+      // Стрельба из дальнобойного оружия (ОСТАВЛЯЕМ КАК ЕСТЬ)
+      const range = weaponConfig.effect.range || 500;
+      const damage = weaponConfig.effect.damage || 10;
+
       const bulletId = `bullet_${Date.now()}_${Math.random()}`;
       const angle = getPlayerAngle(me.direction);
-      const startX = me.x + 20;
-      const startY = me.y + 20;
+
       const bullet = {
         id: bulletId,
-        x: startX,
-        y: startY,
+        x: me.x + 20,
+        y: me.y + 20,
         vx: Math.cos(angle) * BULLET_SPEED,
         vy: Math.sin(angle) * BULLET_SPEED,
         damage: damage,
-        range: range,
+        range: Math.min(range, BULLET_LIFETIME * BULLET_SPEED),
         ownerId: myId,
         spawnTime: Date.now(),
         worldId: currentWorldId,
-        startX,
-        startY,
-        hitPlayers: new Set(),
-        hitEnemies: new Set(),
       };
+
       bullets.set(bulletId, bullet);
+
       sendWhenReady(
         ws,
         JSON.stringify({
@@ -101,6 +95,8 @@ function performAttack() {
           worldId: currentWorldId,
         })
       );
+
+      // Обновляем данные игрока на сервере
       sendWhenReady(
         ws,
         JSON.stringify({
@@ -264,14 +260,34 @@ function updateBullets(deltaTime) {
 
   bullets.forEach((bullet, bulletId) => {
     if (bullet.worldId !== currentWorldId) return;
-    bullet.x += bullet.vx * (deltaTime / 16.67);
+
+    bullet.x += bullet.vx * (deltaTime / 16.67); // Нормализация по 60 FPS
     bullet.y += bullet.vy * (deltaTime / 16.67);
 
+    // Проверка столкновений с другими пулями
+    bullets.forEach((otherBullet, otherBulletId) => {
+      if (
+        bulletId !== otherBulletId &&
+        otherBullet.worldId === currentWorldId &&
+        Math.abs(bullet.x - otherBullet.x) < BULLET_SIZE &&
+        Math.abs(bullet.y - otherBullet.y) < BULLET_SIZE
+      ) {
+        bullets.delete(bulletId);
+        bullets.delete(otherBulletId);
+        sendWhenReady(
+          ws,
+          JSON.stringify({
+            type: "bulletCollision",
+            bulletIds: [bulletId, otherBulletId],
+            worldId: currentWorldId,
+          })
+        );
+      }
+    });
+
     // Проверка столкновений с игроками
-    let hit = false;
     players.forEach((player, id) => {
       if (
-        !hit &&
         id !== bullet.ownerId &&
         player.health > 0 &&
         player.worldId === currentWorldId
@@ -279,6 +295,7 @@ function updateBullets(deltaTime) {
         const dx = bullet.x - (player.x + 20);
         const dy = bullet.y - (player.y + 20);
         if (Math.sqrt(dx * dx + dy * dy) < 20) {
+          bullets.delete(bulletId);
           sendWhenReady(
             ws,
             JSON.stringify({
@@ -288,17 +305,21 @@ function updateBullets(deltaTime) {
               worldId: currentWorldId,
             })
           );
-          if (id === myId) triggerAttackAnimation();
-          hit = true;
+          // Если атакован текущий игрок, запускаем анимацию
+          if (id === myId) {
+            triggerAttackAnimation();
+          }
         }
       }
     });
-    // Проверка столкновений с врагами
+
     enemies.forEach((enemy, id) => {
-      if (!hit && enemy.health > 0 && enemy.worldId === currentWorldId) {
-        const dx = bullet.x - (enemy.x + 35);
+      if (enemy.health > 0 && enemy.worldId === currentWorldId) {
+        const dx = bullet.x - (enemy.x + 35); // Центр
         const dy = bullet.y - (enemy.y + 35);
         if (Math.sqrt(dx * dx + dy * dy) < 35) {
+          // Радиус мутанта ~35
+          bullets.delete(bulletId);
           sendWhenReady(
             ws,
             JSON.stringify({
@@ -308,30 +329,17 @@ function updateBullets(deltaTime) {
               worldId: currentWorldId,
             })
           );
-          hit = true;
         }
       }
     });
-    // Удаляем пулю при первом попадании
-    if (hit) {
-      bullets.delete(bulletId);
-      sendWhenReady(
-        ws,
-        JSON.stringify({
-          type: "removeBullet",
-          bulletId,
-          worldId: currentWorldId,
-        })
-      );
-      return;
-    }
-    // Удаление пули только по расстоянию (жизнь = range)
-    if (bullet.startX === undefined) bullet.startX = bullet.x;
-    if (bullet.startY === undefined) bullet.startY = bullet.y;
-    const dx = bullet.x - bullet.startX;
-    const dy = bullet.y - bullet.startY;
-    const distanceTraveled = Math.sqrt(dx * dx + dy * dy);
-    if (distanceTraveled > bullet.range) {
+
+    // Удаление пули по истечении времени жизни или превышения дальности
+    const timeElapsed = currentTime - bullet.spawnTime;
+    const distanceTraveled = Math.sqrt(
+      (bullet.x - (bullet.x - bullet.vx * timeElapsed)) ** 2 +
+        (bullet.y - (bullet.y - bullet.vy * timeElapsed)) ** 2
+    );
+    if (timeElapsed > BULLET_LIFETIME || distanceTraveled > bullet.range) {
       bullets.delete(bulletId);
       sendWhenReady(
         ws,
@@ -352,47 +360,10 @@ function drawBullets() {
     if (bullet.worldId !== currentWorldId) return;
     const screenX = bullet.x - window.movementSystem.getCamera().x;
     const screenY = bullet.y - window.movementSystem.getCamera().y;
-    // Красивая анимация: ядро + свечение + хвост
-    // Хвост (трейл)
-    ctx.save();
-    ctx.globalAlpha = 0.25;
-    ctx.strokeStyle = bullet.damage >= 50 ? "#00eaff" : "#ff4444";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(screenX, screenY);
-    ctx.lineTo(screenX - bullet.vx * 3, screenY - bullet.vy * 3);
-    ctx.stroke();
-    ctx.restore();
-    // Градиентное ядро
-    const grad = ctx.createRadialGradient(
-      screenX,
-      screenY,
-      0.5,
-      screenX,
-      screenY,
-      BULLET_SIZE * 1.5
-    );
-    grad.addColorStop(0, bullet.damage >= 50 ? "#00eaff" : "#fffbe0");
-    grad.addColorStop(0.5, bullet.damage >= 50 ? "#00eaffcc" : "#ff4444cc");
-    grad.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.save();
-    ctx.globalAlpha = 0.85;
-    ctx.beginPath();
-    ctx.arc(screenX, screenY, BULLET_SIZE * 1.5, 0, Math.PI * 2);
-    ctx.fillStyle = grad;
-    ctx.shadowColor = bullet.damage >= 50 ? "#00eaff" : "#ff4444";
-    ctx.shadowBlur = bullet.damage >= 50 ? 18 : 10;
-    ctx.fill();
-    ctx.restore();
-    // Ядро
-    ctx.save();
+    ctx.fillStyle = "red";
     ctx.beginPath();
     ctx.arc(screenX, screenY, BULLET_SIZE / 2, 0, Math.PI * 2);
-    ctx.fillStyle = bullet.damage >= 50 ? "#00eaff" : "#fffbe0";
-    ctx.shadowColor = bullet.damage >= 50 ? "#00eaff" : "#fffbe0";
-    ctx.shadowBlur = bullet.damage >= 50 ? 8 : 4;
     ctx.fill();
-    ctx.restore();
   });
 }
 

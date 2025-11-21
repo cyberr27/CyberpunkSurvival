@@ -1618,10 +1618,7 @@ function setupWebSocket(
           }
 
           // XP и level up
-          let xpGained = 13;
-          if (enemy.type === "scorpion") {
-            xpGained = 20;
-          }
+          const xpGained = 13;
           attacker.xp = (attacker.xp || 0) + xpGained;
           let levelUp = false;
           let xpToNext = calculateXPToNextLevel(attacker.level);
