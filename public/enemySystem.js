@@ -1,6 +1,7 @@
 // enemySystem.js - ОПТИМИЗИРОВАННАЯ, СИНХРОНИЗИРОВАННАЯ, БЕЗ ЛАГОВ ВЕРСИЯ (2025)
 
 let enemies = new Map(); // Map<enemyId, enemyObject>
+const enemyPool = [];
 
 // Конфиг типов врагов (расширяемо)
 const ENEMY_TYPES = {
@@ -43,7 +44,12 @@ function syncEnemies(serverEnemies) {
 
     // Сервер никогда не шлёт мёртвых — но на всякий случай
     if (srv.health <= 0) {
-      enemies.delete(id);
+      if (enemies.has(id)) {
+        // Вместо удаления — помещаем объект в pool
+        const e = enemies.get(id);
+        enemyPool.push(e);
+        enemies.delete(id);
+      }
       return;
     }
 
@@ -60,22 +66,40 @@ function syncEnemies(serverEnemies) {
       e.state = srv.state || "idle";
       e.frame = srv.frame ?? 0;
       e.worldId = srv.worldId;
-      e.maxHealth = config.maxHealth; // в случае смены типа
+      e.maxHealth = config.maxHealth;
+      e.type = type;
     } else {
-      // Новый враг
-      enemies.set(id, {
-        id,
-        x: srv.x,
-        y: srv.y,
-        health: srv.health,
-        maxHealth: config.maxHealth,
-        direction: srv.direction || "down",
-        state: srv.state || "idle",
-        frame: srv.frame ?? 0,
-        frameTime: 0,
-        type,
-        worldId: srv.worldId,
-      });
+      // Новый враг — используем pool если есть
+      let enemyObj;
+      if (enemyPool.length > 0) {
+        enemyObj = enemyPool.pop();
+        enemyObj.id = id;
+        enemyObj.x = srv.x;
+        enemyObj.y = srv.y;
+        enemyObj.health = srv.health;
+        enemyObj.maxHealth = config.maxHealth;
+        enemyObj.direction = srv.direction || "down";
+        enemyObj.state = srv.state || "idle";
+        enemyObj.frame = srv.frame ?? 0;
+        enemyObj.frameTime = 0;
+        enemyObj.type = type;
+        enemyObj.worldId = srv.worldId;
+      } else {
+        enemyObj = {
+          id,
+          x: srv.x,
+          y: srv.y,
+          health: srv.health,
+          maxHealth: config.maxHealth,
+          direction: srv.direction || "down",
+          state: srv.state || "idle",
+          frame: srv.frame ?? 0,
+          frameTime: 0,
+          type,
+          worldId: srv.worldId,
+        };
+      }
+      enemies.set(id, enemyObj);
     }
   });
 
@@ -85,20 +109,32 @@ function syncEnemies(serverEnemies) {
 
 // === Отдельные события от сервера ===
 function handleEnemyDeath(enemyId) {
-  enemies.delete(enemyId);
+  if (enemies.has(enemyId)) {
+    enemyPool.push(enemies.get(enemyId));
+    enemies.delete(enemyId);
+  }
 }
 
 function handleNewEnemy(enemyData) {
-  if (enemyData.health <= 0) return; // на всякий пожарный
-
+  if (enemyData.health <= 0) return;
   const type = enemyData.type || "mutant";
   const config = ENEMY_TYPES[type] || ENEMY_TYPES.mutant;
-
-  enemies.set(enemyData.id, {
-    ...enemyData,
-    frameTime: 0,
-    maxHealth: config.maxHealth,
-  });
+  let enemyObj;
+  if (enemyPool.length > 0) {
+    enemyObj = enemyPool.pop();
+    Object.assign(enemyObj, enemyData);
+    enemyObj.frameTime = 0;
+    enemyObj.maxHealth = config.maxHealth;
+    enemyObj.type = type;
+  } else {
+    enemyObj = {
+      ...enemyData,
+      frameTime: 0,
+      maxHealth: config.maxHealth,
+      type,
+    };
+  }
+  enemies.set(enemyData.id, enemyObj);
 }
 
 // === Локальное обновление анимации (только визуал) ===
@@ -155,7 +191,7 @@ function drawEnemies() {
       }
       ctx.drawImage(sprite, sourceX, 0, 70, 70, screenX, screenY, 70, 70);
     } else {
-      ctx.fillStyle = enemy.type === "scorpion" ? "#00eaff" : "purple";
+      ctx.fillStyle = enemy.type === "scorpion" ? "#004045ff" : "purple";
       ctx.fillRect(screenX, screenY, 70, 70);
       ctx.fillStyle = enemy.type === "scorpion" ? "#003344" : "red";
       ctx.font = "30px Arial";
@@ -172,7 +208,7 @@ function drawEnemies() {
     ctx.fillStyle =
       enemy.type === "scorpion"
         ? hpPercent > 0.3
-          ? "#00eaff"
+          ? "#005057ff"
           : "#005577"
         : hpPercent > 0.3
         ? "#ff0000"
@@ -187,7 +223,7 @@ function drawEnemies() {
     ctx.fillText(`${Math.floor(enemy.health)}`, screenX + 35, screenY - 7);
     // Дебаг ID
     ctx.font = "10px Arial";
-    ctx.fillStyle = enemy.type === "scorpion" ? "#00eaff" : "#ffff00";
+    ctx.fillStyle = enemy.type === "scorpion" ? "#005259ff" : "#ff0000ff";
     ctx.textAlign = "center";
     ctx.fillText(enemy.type, screenX + 35, screenY + 80);
   }
