@@ -505,6 +505,45 @@ function setupWebSocket(
           userDatabase.set(id, { ...player });
           await saveUserDatabase(dbCollection, id, player);
         }
+      } else if (data.type === "acceptNeonQuest") {
+        const id = clients.get(ws);
+        if (id && players.has(id)) {
+          const player = players.get(id);
+          player.alexNeonQuest = player.alexNeonQuest || {
+            progress: 0,
+            questId: 0,
+            completed: [],
+          };
+          player.alexNeonQuest.questId = data.questId;
+          player.alexNeonQuest.progress = 0;
+          players.set(id, player);
+          userDatabase.set(id, player);
+          saveUserDatabase(dbCollection, id, player);
+        }
+      } else if (data.type === "updateNeonQuestProgress") {
+        const id = clients.get(ws);
+        if (id && players.has(id)) {
+          const player = players.get(id);
+          if (!player.alexNeonQuest)
+            player.alexNeonQuest = { progress: 0, questId: 0, completed: [] };
+          player.alexNeonQuest.progress = data.progress;
+          players.set(id, player);
+          userDatabase.set(id, player);
+          saveUserDatabase(dbCollection, id, player);
+        }
+      } else if (data.type === "neonQuestComplete") {
+        const id = clients.get(ws);
+        if (id && players.has(id)) {
+          const player = players.get(id);
+          if (!player.alexNeonQuest)
+            player.alexNeonQuest = { progress: 0, questId: 0, completed: [] };
+          if (!player.alexNeonQuest.completed.includes(data.questId)) {
+            player.alexNeonQuest.completed.push(data.questId);
+          }
+          players.set(id, player);
+          userDatabase.set(id, player);
+          saveUserDatabase(dbCollection, id, player);
+        }
       } else if (data.type === "move") {
         const id = clients.get(ws);
         if (id) {
