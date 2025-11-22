@@ -507,6 +507,7 @@ function handleAuthMessage(event) {
         },
         npcMet: data.npcMet || false,
         jackMet: data.jackMet || false,
+        alexNeonMet: data.alexNeonMet || false,
         selectedQuestId: data.selectedQuestId || null,
         level: data.level || 0,
         xp: data.xp || 99,

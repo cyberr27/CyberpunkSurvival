@@ -152,9 +152,16 @@ function initializeNeonNpcStyles() {
         overflow: hidden;
         display: flex;
         flex-direction: column;
+      }
+      .neon-npc-dialog.greeting, .neon-npc-dialog.talk {
         max-width: 450px;
         width: 90%;
         height: 500px;
+      }
+      .neon-npc-dialog.quest {
+        width: 70vw;
+        height: 74vh;
+        overflow: auto;
       }
       .neon-npc-dialog-header {display:flex;align-items:center;justify-content:center;margin-bottom:15px;}
       .neon-npc-photo {width:80px;height:80px;border:2px solid #ff00ff;border-radius:50%;margin-right:15px;box-shadow:0 0 15px rgba(255,0,255,0.5);object-fit:cover;}
@@ -177,6 +184,27 @@ function initializeNeonNpcStyles() {
         overflow-x: hidden;
         word-wrap: break-word;
         scrollbar-width: thin;
+      }
+      .neon-npc-dialog-content {
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding-right: 10px;
+        margin-top: 10px;
+        scrollbar-width: thin;
+        scrollbar-color: #ff00ff rgba(0, 0, 0, 0.5);
+      }
+      .neon-npc-dialog-content::-webkit-scrollbar {
+        width: 8px;
+      }
+      .neon-npc-dialog-content::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.7);
+        border-radius: 4px;
+      }
+      .neon-npc-dialog-content::-webkit-scrollbar-thumb {
+        background: linear-gradient(180deg, #00ffff, #ff00ff);
+        border-radius: 4px;
+        box-shadow: 0 0 10px rgba(255, 0, 255, 0.7);
       }
       .neon-talk-topics {
         max-height: 300px;
