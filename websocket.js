@@ -196,6 +196,7 @@ function setupWebSocket(
             },
             npcMet: false,
             jackMet: false,
+            alexNeonMet: false,
             level: 0,
             xp: 99,
             upgradePoints: 0,
@@ -329,6 +330,7 @@ function setupWebSocket(
             },
             npcMet: player.npcMet || false,
             jackMet: player.jackMet || false,
+            alexNeonMet: player.alexNeonMet || false,
             selectedQuestId: player.selectedQuestId || null,
             level: player.level || 0,
             xp: player.xp || 0,
@@ -494,6 +496,15 @@ function setupWebSocket(
           userDatabase.set(id, { ...player });
           await saveUserDatabase(dbCollection, id, player);
         }
+      } else if (data.type === "meetNeonAlex") {
+        const id = clients.get(ws);
+        if (id) {
+          const player = players.get(id);
+          player.alexNeonMet = data.alexNeonMet;
+          players.set(id, { ...player });
+          userDatabase.set(id, { ...player });
+          await saveUserDatabase(dbCollection, id, player);
+        }
       } else if (data.type === "move") {
         const id = clients.get(ws);
         if (id) {
@@ -517,6 +528,7 @@ function setupWebSocket(
                 ? data.worldId
                 : existingPlayer.worldId || 0,
             worldPositions: existingPlayer.worldPositions || {},
+            alexNeonMet: existingPlayer.alexNeonMet || false,
           };
           if (data.worldId !== undefined) {
             updatedPlayer.worldPositions[data.worldId] = {

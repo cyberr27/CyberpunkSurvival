@@ -66,6 +66,7 @@ const imageSources = {
   atomImage: "atom.png",
   mutantSprite: "mutantSprite.png",
   scorpionSprite: "scorpionSprite.png",
+  alexNeonSprite: "alexNeonSprite.png",
 };
 
 const images = {};
@@ -1848,6 +1849,11 @@ function update(deltaTime) {
   window.combatSystem.update(deltaTime);
   window.enemySystem.update(deltaTime);
 
+  // === Новый NPC: Neon Alex ===
+  if (window.neonNpcSystem) {
+    window.neonNpcSystem.update(deltaTime);
+  }
+
   // Проверяем зоны перехода
   window.worldSystem.checkTransitionZones(me.x, me.y);
 
@@ -1971,6 +1977,11 @@ function draw(deltaTime) {
       canvas.width,
       canvas.height
     );
+  }
+
+  // === Новый NPC: Neon Alex ===
+  if (window.neonNpcSystem) {
+    window.neonNpcSystem.draw();
   }
 
   window.npcSystem.drawNPC(deltaTime);
@@ -2147,5 +2158,5 @@ function gameLoop(timestamp) {
 // Инициализация изображений (без изменений)
 function onImageLoad() {
   imagesLoaded++;
-  if (imagesLoaded === 28) window.addEventListener("resize", resizeCanvas);
+  if (imagesLoaded === 29) window.addEventListener("resize", resizeCanvas);
 }
