@@ -120,6 +120,15 @@ let neonNpcFrameTime = 0;
 const NEON_NPC_FRAME_DURATION = 100;
 const NEON_NPC_TOTAL_FRAMES = 40;
 
+// Для анимации как у Джона
+function updateNeonNpcAnimation(deltaTime) {
+  neonNpcFrameTime += deltaTime;
+  while (neonNpcFrameTime >= NEON_NPC_FRAME_DURATION) {
+    neonNpcFrameTime -= NEON_NPC_FRAME_DURATION;
+    neonNpcFrame = (neonNpcFrame + 1) % NEON_NPC_TOTAL_FRAMES;
+  }
+}
+
 function initializeNeonNpcStyles() {
   if (!document.getElementById("neonNpcStyles")) {
     const style = document.createElement("style");
@@ -435,6 +444,9 @@ function updateNeonNpc(deltaTime) {
   const me = typeof players !== "undefined" ? players.get(myId) : null;
   if (!me) return;
 
+  // Анимация спрайта Neon Alex
+  updateNeonNpcAnimation(deltaTime);
+
   // Движение между точками (двигается, если игрок не рядом)
   let dx = me.x - NEON_NPC.x;
   let dy = me.y - NEON_NPC.y;
@@ -454,7 +466,7 @@ function updateNeonNpc(deltaTime) {
       const tdx = target.x - NEON_NPC.x;
       const tdy = target.y - NEON_NPC.y;
       const tdist = Math.sqrt(tdx * tdx + tdy * tdy);
-      const speed = 0.05; // Было 0.1, теперь в 2 раза медленнее
+      const speed = 0.05;
       if (tdist > 2) {
         NEON_NPC.x += (tdx / tdist) * speed * deltaTime;
         NEON_NPC.y += (tdy / tdist) * speed * deltaTime;
@@ -487,6 +499,19 @@ function updateNeonNpc(deltaTime) {
         "Ты уже достаточно опытен! Я могу дать тебе задание.",
         true
       );
+    }
+    // Логика знакомства: если не знакомы, отправляем на сервер и сохраняем
+    if (!NEON_NPC.isMet) {
+      NEON_NPC.isMet = true;
+      NEON_NPC.showQuestButton = true;
+      if (typeof ws !== "undefined") {
+        ws.send(
+          JSON.stringify({
+            type: "meetNeonAlex",
+            alexNeonMet: true,
+          })
+        );
+      }
     }
   }
 
@@ -598,11 +623,36 @@ function drawNeonNpc() {
   ) {
     return;
   }
+  // Определяем направление движения NPC
+  let direction = "down";
+  if (NEON_NPC.movingToB) {
+    const tdx = NEON_NPC.targetB.x - NEON_NPC.x;
+    const tdy = NEON_NPC.targetB.y - NEON_NPC.y;
+    if (Math.abs(tdx) > Math.abs(tdy)) {
+      direction = tdx > 0 ? "right" : "left";
+    } else {
+      direction = tdy > 0 ? "down" : "up";
+    }
+  } else {
+    const tdx = NEON_NPC.targetA.x - NEON_NPC.x;
+    const tdy = NEON_NPC.targetA.y - NEON_NPC.y;
+    if (Math.abs(tdx) > Math.abs(tdy)) {
+      direction = tdx > 0 ? "right" : "left";
+    } else {
+      direction = tdy > 0 ? "down" : "up";
+    }
+  }
+  // Выбор строки спрайта по направлению
+  let spriteY = 0;
+  if (direction === "up") spriteY = 0;
+  else if (direction === "down") spriteY = 70;
+  else if (direction === "right") spriteY = 140;
+  else if (direction === "left") spriteY = 210;
   if (sprite && sprite.complete && sprite.width >= 70) {
     ctx.drawImage(
       sprite,
       neonNpcFrame * 70,
-      0,
+      spriteY,
       70,
       70,
       screenX,
