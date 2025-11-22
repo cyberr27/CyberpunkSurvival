@@ -2159,5 +2159,5 @@ function gameLoop(timestamp) {
 // Инициализация изображений (без изменений)
 function onImageLoad() {
   imagesLoaded++;
-  if (imagesLoaded === 29) window.addEventListener("resize", resizeCanvas);
+  if (imagesLoaded === 30) window.addEventListener("resize", resizeCanvas);
 }
