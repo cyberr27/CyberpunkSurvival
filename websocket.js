@@ -500,10 +500,41 @@ function setupWebSocket(
         const id = clients.get(ws);
         if (id) {
           const player = players.get(id);
-          player.alexNeonMet = data.alexNeonMet;
-          players.set(id, { ...player });
-          userDatabase.set(id, { ...player });
-          await saveUserDatabase(dbCollection, id, player);
+          player.alexNeonMet = true;
+          players.set(id, player);
+          userDatabase.set(id, player);
+          saveUserDatabase(dbCollection, id, player);
+        }
+      } else if (data.type === "neonQuestUpdate") {
+        const id = clients.get(ws);
+        if (id && players.has(id)) {
+          const player = players.get(id);
+          if (!player.neonQuestProgress) player.neonQuestProgress = 0;
+
+          if (data.questId === 0) {
+            player.neonQuestProgress = data.progress;
+            if (data.completed) {
+              player.neonQuestCompleted = true;
+
+              // Начисление баляров на сервере
+              let slot = player.inventory.findIndex(
+                (i) => i?.type === "balyary"
+              );
+              if (slot === -1)
+                slot = player.inventory.findIndex((i) => i === null);
+              if (slot !== -1) {
+                if (player.inventory[slot]) {
+                  player.inventory[slot].quantity =
+                    (player.inventory[slot].quantity || 0) + 10;
+                } else {
+                  player.inventory[slot] = { type: "balyary", quantity: 10 };
+                }
+              }
+            }
+            players.set(id, player);
+            userDatabase.set(id, player);
+            saveUserDatabase(dbCollection, id, player);
+          }
         }
       } else if (data.type === "move") {
         const id = clients.get(ws);
