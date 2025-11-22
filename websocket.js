@@ -505,44 +505,68 @@ function setupWebSocket(
           userDatabase.set(id, { ...player });
           await saveUserDatabase(dbCollection, id, player);
         }
-      } else if (data.type === "acceptNeonQuest") {
+      } else if (data.type === "requestNeonQuestSync") {
         const id = clients.get(ws);
-        if (id && players.has(id)) {
-          const player = players.get(id);
-          player.alexNeonQuest = player.alexNeonQuest || {
-            progress: 0,
-            questId: 0,
-            completed: [],
-          };
-          player.alexNeonQuest.questId = data.questId;
-          player.alexNeonQuest.progress = 0;
-          players.set(id, player);
-          userDatabase.set(id, player);
-          saveUserDatabase(dbCollection, id, player);
-        }
-      } else if (data.type === "updateNeonQuestProgress") {
+        const player = players.get(id);
+        ws.send(
+          JSON.stringify({
+            type: "neonQuestSync",
+            progress: player.neonQuest || {
+              currentQuestId: null,
+              progress: 0,
+              completed: [],
+            },
+            isMet: player.alexNeonMet || false,
+          })
+        );
+      } else if (data.type === "neonQuestAccept") {
         const id = clients.get(ws);
-        if (id && players.has(id)) {
-          const player = players.get(id);
-          if (!player.alexNeonQuest)
-            player.alexNeonQuest = { progress: 0, questId: 0, completed: [] };
-          player.alexNeonQuest.progress = data.progress;
-          players.set(id, player);
-          userDatabase.set(id, player);
-          saveUserDatabase(dbCollection, id, player);
-        }
+        const player = players.get(id);
+        player.neonQuest = {
+          currentQuestId: data.questId,
+          progress: 0,
+          completed: player.neonQuest?.completed || [],
+        };
+        player.alexNeonMet = true;
+        players.set(id, player);
+        userDatabase.set(id, player);
+        await saveUserDatabase(dbCollection, id, player);
+      } else if (data.type === "neonQuestProgress") {
+        const id = clients.get(ws);
+        const player = players.get(id);
+        if (player.neonQuest) player.neonQuest.progress = data.progress;
+        players.set(id, player);
+        userDatabase.set(id, player);
+        await saveUserDatabase(dbCollection, id, player);
       } else if (data.type === "neonQuestComplete") {
         const id = clients.get(ws);
-        if (id && players.has(id)) {
-          const player = players.get(id);
-          if (!player.alexNeonQuest)
-            player.alexNeonQuest = { progress: 0, questId: 0, completed: [] };
-          if (!player.alexNeonQuest.completed.includes(data.questId)) {
-            player.alexNeonQuest.completed.push(data.questId);
+        const player = players.get(id);
+        const quest = NEON_QUESTS.find((q) => q.id === data.questId);
+        if (quest && player.neonQuest?.currentQuestId === data.questId) {
+          // Начисление награды
+          let balyarySlot = player.inventory.findIndex(
+            (i) => i?.type === "balyary"
+          );
+          if (balyarySlot === -1) {
+            balyarySlot = player.inventory.findIndex((i) => i === null);
+            if (balyarySlot !== -1)
+              player.inventory[balyarySlot] = { type: "balyary", quantity: 0 };
           }
+          if (balyarySlot !== -1) {
+            player.inventory[balyarySlot].quantity += quest.reward.quantity;
+          }
+          player.neonQuest.currentQuestId = null;
+          player.neonQuest.progress = 0;
           players.set(id, player);
           userDatabase.set(id, player);
-          saveUserDatabase(dbCollection, id, player);
+          await saveUserDatabase(dbCollection, id, player);
+
+          ws.send(
+            JSON.stringify({
+              type: "inventoryUpdate",
+              inventory: player.inventory,
+            })
+          );
         }
       } else if (data.type === "move") {
         const id = clients.get(ws);
