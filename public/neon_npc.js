@@ -87,6 +87,51 @@ function initializeNeonNpcStyles() {
   }
 }
 
+let neonNpcButtonsContainer = null;
+let neonNpcButtonsVisible = false;
+
+function createNeonNpcButtons(screenX, screenY) {
+  if (neonNpcButtonsContainer) return; // Уже есть, не пересоздаём
+  neonNpcButtonsContainer = document.createElement("div");
+  neonNpcButtonsContainer.className = "jack-buttons-container";
+  neonNpcButtonsContainer.style.pointerEvents = "none";
+  const totalButtonsHeight = 45 * 2 + 16;
+  neonNpcButtonsContainer.style.left = screenX + NEON_NPC.width / 2 + "px";
+  neonNpcButtonsContainer.style.top = screenY - totalButtonsHeight - 25 + "px";
+  neonNpcButtonsContainer.style.transform = "translateX(-50%)";
+  const talkBtn = document.createElement("div");
+  talkBtn.className = "jack-button-talk";
+  talkBtn.textContent = "Говорить";
+  talkBtn.style.pointerEvents = "auto";
+  talkBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    showNeonNpcDialog(
+      "Я — Алекс, местный неоновый информатор. Если хочешь узнать о городе или получить задание — спрашивай!",
+      true
+    );
+  });
+  const questBtn = document.createElement("div");
+  questBtn.className = "jack-button-shop";
+  questBtn.textContent = "Задания";
+  questBtn.style.pointerEvents = "auto";
+  questBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    showNeonNpcDialog("Пока доступных заданий нет. Возвращайся позже!", false);
+  });
+  neonNpcButtonsContainer.appendChild(talkBtn);
+  neonNpcButtonsContainer.appendChild(questBtn);
+  document.body.appendChild(neonNpcButtonsContainer);
+  neonNpcButtonsVisible = true;
+}
+
+function removeNeonNpcButtons() {
+  if (neonNpcButtonsContainer) {
+    document.body.removeChild(neonNpcButtonsContainer);
+    neonNpcButtonsContainer = null;
+    neonNpcButtonsVisible = false;
+  }
+}
+
 function updateNeonNpc(deltaTime) {
   if (window.worldSystem.currentWorldId !== 0) return;
   const me = typeof players !== "undefined" ? players.get(myId) : null;
@@ -111,7 +156,7 @@ function updateNeonNpc(deltaTime) {
       const tdx = target.x - NEON_NPC.x;
       const tdy = target.y - NEON_NPC.y;
       const tdist = Math.sqrt(tdx * tdx + tdy * tdy);
-      const speed = 0.1;
+      const speed = 0.05; // Было 0.1, теперь в 2 раза медленнее
       if (tdist > 2) {
         NEON_NPC.x += (tdx / tdist) * speed * deltaTime;
         NEON_NPC.y += (tdy / tdist) * speed * deltaTime;
@@ -122,7 +167,14 @@ function updateNeonNpc(deltaTime) {
     }
   }
 
-  NEON_NPC.isPlayerNear = playerNear;
+  // Управление флагом близости
+  if (playerNear && !NEON_NPC.isPlayerNear) {
+    NEON_NPC.isPlayerNear = true;
+  } else if (!playerNear && NEON_NPC.isPlayerNear) {
+    NEON_NPC.isPlayerNear = false;
+    NEON_NPC.isDialogOpen = false;
+    removeNeonNpcButtons();
+  }
 
   // Остановка при взаимодействии
   if (playerNear && !NEON_NPC.isDialogOpen) {
@@ -143,71 +195,56 @@ function updateNeonNpc(deltaTime) {
 
 function showNeonNpcDialog(text, showQuest) {
   initializeNeonNpcStyles();
+  NEON_NPC.isDialogOpen = false;
+  if (document.getElementById("neonNpcDialog")) return;
   const dialog = document.createElement("div");
-  dialog.className = "npc-dialog neon-npc-dialog";
-  dialog.innerHTML = `<div class="neon-npc-title">${NEON_NPC.name}</div><div class="neon-npc-text">${text}</div><button id="neonNpcDialogBtn" class="neon-npc-btn">Понятно</button>`;
+  dialog.id = "neonNpcDialog";
+  dialog.className = "neon-npc-dialog";
+  dialog.innerHTML = `
+    <div class="neon-npc-title">${NEON_NPC.name}</div>
+    <div class="neon-npc-text">${text}</div>
+    <button class="neon-npc-btn" id="neonNpcDialogBtn">${
+      showQuest ? "Задания" : "Поздороваться"
+    }</button>
+  `;
   document.body.appendChild(dialog);
-  document.getElementById("neonNpcDialogBtn").onclick = () => {
-    dialog.remove();
-    NEON_NPC.isDialogOpen = false;
-    if (showQuest) {
-      NEON_NPC.isMet = true;
-      NEON_NPC.showQuestButton = true;
-      if (typeof sendWhenReady === "function" && typeof ws !== "undefined") {
-        sendWhenReady(
-          ws,
-          JSON.stringify({ type: "meetNeonAlex", alexNeonMet: true })
-        );
+  NEON_NPC.isDialogOpen = true;
+  // Кнопка диалога
+  const dialogBtn = document.getElementById("neonNpcDialogBtn");
+  dialogBtn.addEventListener("click", () => {
+    const me = typeof players !== "undefined" ? players.get(myId) : null;
+    if (!NEON_NPC.isMet && window.levelSystem) {
+      if (me && me.level >= 1) {
+        NEON_NPC.isMet = true;
+        NEON_NPC.showQuestButton = true;
+        if (typeof ws !== "undefined") {
+          ws.send(JSON.stringify({ type: "meetNeonAlex" }));
+        }
+        // Автоматически закрываем окно после знакомства
+        NEON_NPC.isDialogOpen = false;
+        if (document.body.contains(dialog)) document.body.removeChild(dialog);
+      } else {
+        // Если уровень < 1, просто закрываем окно и NPC продолжает движение
+        NEON_NPC.isDialogOpen = false;
+        if (document.body.contains(dialog)) document.body.removeChild(dialog);
       }
     } else {
-      NEON_NPC.showQuestButton = false;
+      // Уже знакомы — просто закрываем окно
+      NEON_NPC.isDialogOpen = false;
+      if (document.body.contains(dialog)) document.body.removeChild(dialog);
     }
-  };
+  });
 }
 
 // Кнопки над NPC
-let neonNpcButtonsContainer = null;
-function createNeonNpcButtons(screenX, screenY) {
-  if (neonNpcButtonsContainer)
-    document.body.removeChild(neonNpcButtonsContainer);
-  neonNpcButtonsContainer = document.createElement("div");
-  neonNpcButtonsContainer.className = "jack-buttons-container";
-  const totalButtonsHeight = 45 * 2 + 16;
-  neonNpcButtonsContainer.style.left = screenX + NEON_NPC.width / 2 + "px";
-  neonNpcButtonsContainer.style.top = screenY - totalButtonsHeight - 25 + "px";
-  neonNpcButtonsContainer.style.transform = "translateX(-50%)";
-  const talkBtn = document.createElement("div");
-  talkBtn.className = "jack-button-talk";
-  talkBtn.textContent = "Говорить";
-  talkBtn.addEventListener("click", () => {
-    showNeonNpcDialog(
-      "Я — Алекс, местный неоновый информатор. Если хочешь узнать о городе или получить задание — спрашивай!",
-      true
-    );
-  });
-  const questBtn = document.createElement("div");
-  questBtn.className = "jack-button-shop";
-  questBtn.textContent = "Задания";
-  questBtn.addEventListener("click", () => {
-    showNeonNpcDialog("Пока доступных заданий нет. Возвращайся позже!", false);
-  });
-  neonNpcButtonsContainer.appendChild(talkBtn);
-  neonNpcButtonsContainer.appendChild(questBtn);
-  document.body.appendChild(neonNpcButtonsContainer);
-}
-function removeNeonNpcButtons() {
-  if (neonNpcButtonsContainer) {
-    document.body.removeChild(neonNpcButtonsContainer);
-    neonNpcButtonsContainer = null;
-  }
-}
-
 function drawNeonNpc() {
   if (window.worldSystem.currentWorldId !== 0) return;
   const camera = window.movementSystem.getCamera();
   const screenX = NEON_NPC.x - camera.x;
   const screenY = NEON_NPC.y - camera.y - 20;
-  const sprite = window.images?.[NEON_NPC.spriteKey];
+  let sprite = window.images?.[NEON_NPC.spriteKey];
+  // Попробуем явно получить через document, если window.images не сработал
+  if (!sprite) sprite = document.getElementById("alexNeonSprite");
   // Куллинг
   if (
     screenX < -NEON_NPC.width - 100 ||
@@ -217,7 +254,7 @@ function drawNeonNpc() {
   ) {
     return;
   }
-  if (sprite?.complete && sprite.width >= 2800) {
+  if (sprite && sprite.complete && sprite.width >= 70) {
     ctx.drawImage(
       sprite,
       neonNpcFrame * 70,
@@ -237,12 +274,14 @@ function drawNeonNpc() {
     ctx.fillText("A", screenX + 20, screenY + 50);
   }
   // Имя и кнопки
-  if (NEON_NPC.isMet) {
+  if (NEON_NPC.isMet && NEON_NPC.isPlayerNear) {
     ctx.font = "bold 16px Orbitron, Arial";
     ctx.fillStyle = "#00eaff";
     ctx.textAlign = "center";
     ctx.fillText(NEON_NPC.name, screenX + 35, screenY - 25);
-    createNeonNpcButtons(screenX, screenY);
+    if (!neonNpcButtonsVisible) {
+      createNeonNpcButtons(screenX, screenY);
+    }
   } else {
     removeNeonNpcButtons();
   }

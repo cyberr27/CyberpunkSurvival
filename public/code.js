@@ -67,6 +67,7 @@ const imageSources = {
   mutantSprite: "mutantSprite.png",
   scorpionSprite: "scorpionSprite.png",
   alexNeonSprite: "alexNeonSprite.png",
+  alexNeonFoto: "alexNeonFoto.png", // Фото для диалога Neon Alex (аналогично John)
 };
 
 const images = {};
