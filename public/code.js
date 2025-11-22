@@ -507,7 +507,6 @@ function handleAuthMessage(event) {
         },
         npcMet: data.npcMet || false,
         jackMet: data.jackMet || false,
-        alexNeonMet: data.alexNeonMet || false,
         selectedQuestId: data.selectedQuestId || null,
         level: data.level || 0,
         xp: data.xp || 99,
@@ -2160,5 +2159,5 @@ function gameLoop(timestamp) {
 // Инициализация изображений (без изменений)
 function onImageLoad() {
   imagesLoaded++;
-  if (imagesLoaded === 30) window.addEventListener("resize", resizeCanvas);
+  if (imagesLoaded === 29) window.addEventListener("resize", resizeCanvas);
 }
