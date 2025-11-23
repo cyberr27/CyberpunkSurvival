@@ -1758,6 +1758,30 @@ function setupWebSocket(
           userDatabase.set(id, { ...player });
           await saveUserDatabase(dbCollection, id, player);
         }
+      } else if (data.type === "meetNeonAlex") {
+        const id = clients.get(ws);
+        if (id) {
+          const player = players.get(id);
+          player.alexNeonMet = true;
+          players.set(id, { ...player });
+          userDatabase.set(id, { ...player });
+          await saveUserDatabase(dbCollection, id, player);
+
+          // Рассылаем всем в мире обновление (чтобы у других игроков тоже обновился флаг)
+          broadcastToWorld(
+            wss,
+            clients,
+            players,
+            player.worldId,
+            JSON.stringify({
+              type: "update",
+              player: {
+                id: player.id,
+                alexNeonMet: true,
+              },
+            })
+          );
+        }
       }
     });
 

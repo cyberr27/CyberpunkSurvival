@@ -56,6 +56,7 @@ const NEON_QUESTS = [
 let neonQuestProgress = { currentQuestId: null, progress: 0, completed: [] };
 let neonButtonsContainer = null;
 let rejectionDialog = null; // ссылка на открытый диалог отказа
+let firstMeetingDialog = null;
 
 function initializeNeonNpc() {
   if (typeof ws !== "undefined" && ws.readyState === WebSocket.OPEN) {
@@ -171,14 +172,14 @@ function closeRejectionDialog() {
 
 // === Диалог знакомства (1+ уровень) ===
 function openFirstMeetingDialog() {
-  if (document.getElementById("johnDialog")) return;
+  if (firstMeetingDialog || document.getElementById("johnDialog")) return;
   initializeJohnStyles();
 
-  const dialog = document.createElement("div");
-  dialog.id = "johnDialog";
-  dialog.className = "john-dialog";
+  firstMeetingDialog = document.createElement("div");
+  firstMeetingDialog.id = "johnDialog";
+  firstMeetingDialog.className = "john-dialog";
 
-  dialog.innerHTML = `
+  firstMeetingDialog.innerHTML = `
     <img src="${images[NEON_NPC.photoKey].src}" class="npc-photo">
     <div class="npc-name">${NEON_NPC.name}</div>
     <div class="npc-text">
@@ -190,17 +191,26 @@ function openFirstMeetingDialog() {
     </div>
   `;
 
-  document.body.appendChild(dialog);
+  document.body.appendChild(firstMeetingDialog);
   NEON_NPC.isDialogOpen = true;
 
-  dialog.querySelector(".john-btn").onclick = () => {
-    dialog.remove();
-    NEON_NPC.isDialogOpen = false;
+  const btn = firstMeetingDialog.querySelector(".john-btn");
+  btn.onclick = () => {
+    closeFirstMeetingDialog(); // используем новую функцию закрытия
     NEON_NPC.isMet = true;
     if (ws?.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ type: "meetNeonAlex" }));
     }
   };
+}
+
+// === НОВАЯ ФУНКЦИЯ ЗАКРЫТИЯ ДИАЛОГА ЗНАКОМСТВА ===
+function closeFirstMeetingDialog() {
+  if (firstMeetingDialog) {
+    firstMeetingDialog.remove();
+    firstMeetingDialog = null;
+    NEON_NPC.isDialogOpen = false;
+  }
 }
 
 // === Кнопки "Говорить" и "Задания" ===
@@ -393,8 +403,9 @@ function drawNeonNpc() {
     }
     removeNeonButtons();
   } else {
-    // Игрок вышел из зоны — закрываем отказ
+    // Игрок вышел из зоны — закрываем ВСЁ
     closeRejectionDialog();
+    closeFirstMeetingDialog(); // ← ЭТО САМОЕ ВАЖНОЕ ДОБАВЛЕНИЕ
     removeNeonButtons();
   }
 }

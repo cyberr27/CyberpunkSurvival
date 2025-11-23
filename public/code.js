@@ -507,6 +507,7 @@ function handleAuthMessage(event) {
         },
         npcMet: data.npcMet || false,
         jackMet: data.jackMet || false,
+        alexNeonMet: data.alexNeonMet || false, // ДОБАВЛЕНО
         selectedQuestId: data.selectedQuestId || null,
         level: data.level || 0,
         xp: data.xp || 99,
@@ -514,30 +515,31 @@ function handleAuthMessage(event) {
         worldId: data.worldId || 0,
         worldPositions: data.worldPositions || { 0: { x: 222, y: 3205 } },
 
-        // ДОБАВЬ ЭТИ ПОЛЯ (из data)
+        // Апгрейды
         healthUpgrade: data.healthUpgrade || 0,
         energyUpgrade: data.energyUpgrade || 0,
         foodUpgrade: data.foodUpgrade || 0,
         waterUpgrade: data.waterUpgrade || 0,
       };
+
       players.set(myId, me);
       window.worldSystem.currentWorldId = me.worldId;
 
-      // Инициализация систем, если не сделано
+      // Инициализация систем
       if (window.equipmentSystem && !window.equipmentSystem.isInitialized) {
         window.equipmentSystem.initialize();
       }
 
-      // Применяем эффекты экипировки
       if (window.equipmentSystem && me.equipment) {
         window.equipmentSystem.syncEquipment(me.equipment);
       }
 
-      // Устанавливаем инвентарь и обновляем UI
+      // Инвентарь и UI
       inventory = me.inventory.map((item) => (item ? { ...item } : null));
       updateInventoryDisplay();
       updateStatsDisplay();
 
+      // Другие игроки
       if (data.players) {
         data.players.forEach((p) => {
           if (p.id !== myId) {
@@ -547,6 +549,8 @@ function handleAuthMessage(event) {
       }
 
       lastDistance = me.distanceTraveled;
+
+      // Предметы
       if (data.items) {
         items.clear();
         data.items.forEach((item) =>
@@ -559,6 +563,8 @@ function handleAuthMessage(event) {
           })
         );
       }
+
+      // Свет
       if (data.lights) {
         lights.length = 0;
         data.lights.forEach((light) =>
@@ -569,26 +575,38 @@ function handleAuthMessage(event) {
           })
         );
       }
+
       window.lightsSystem.reset(me.worldId);
+
+      // === СИНХРОНИЗАЦИЯ NPC ===
       window.npcSystem.setNPCMet(data.npcMet || false);
       window.jackSystem.setJackMet(data.jackMet || false);
+
+      // НЕОН АЛЕКС — САМОЕ ГЛАВНОЕ
+      if (window.neonNpcSystem && data.alexNeonMet !== undefined) {
+        NEON_NPC.isMet = !!data.alexNeonMet;
+      }
+
+      // Квесты Джона
       window.npcSystem.setSelectedQuest(data.selectedQuestId || null);
       window.npcSystem.checkQuestCompletion();
       window.npcSystem.setAvailableQuests(data.availableQuests || []);
+
+      // Уровень и статы
       window.levelSystem.setLevelData(
-        data.level,
-        data.xp,
+        data.level || 0,
+        data.xp || 0,
         data.maxStats,
-        data.upgradePoints
-        // Теперь не нужно передавать upgrade-поля — они уже в me
+        data.upgradePoints || 0
       );
+
       window.equipmentSystem.syncEquipment(data.equipment);
+
       resizeCanvas();
       ws.onmessage = handleGameMessage;
       startGame();
       updateOnlineCount(0);
       break;
-
     case "registerSuccess":
       registerError.textContent = "Регистрация успешна! Войдите.";
       registerForm.style.display = "none";
