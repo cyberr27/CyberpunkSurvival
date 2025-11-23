@@ -500,7 +500,7 @@ function setupWebSocket(
         const id = clients.get(ws);
         if (id) {
           const player = players.get(id);
-          player.alexNeonMet = data.alexNeonMet;
+          player.alexNeonMet = true;
           players.set(id, { ...player });
           userDatabase.set(id, { ...player });
           await saveUserDatabase(dbCollection, id, player);
@@ -567,15 +567,6 @@ function setupWebSocket(
               inventory: player.inventory,
             })
           );
-        }
-      } else if (data.type === "meetNeonAlex") {
-        const id = clients.get(ws);
-        if (id) {
-          const player = players.get(id);
-          player.alexNeonMet = true;
-          players.set(id, { ...player });
-          userDatabase.set(id, { ...player });
-          await saveUserDatabase(dbCollection, id, player);
         }
       } else if (data.type === "move") {
         const id = clients.get(ws);
