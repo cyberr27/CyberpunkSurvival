@@ -1,4 +1,4 @@
-// neon_npc.js — исправленная версия: отказ до 1 уровня + стиль как у Джона
+// neon_npc.js — финальная версия: отказ каждый раз + закрытие при выходе из зоны + стиль как у Джона
 
 const NEON_NPC = {
   name: "Neon Alex",
@@ -23,7 +23,6 @@ const NEON_NPC = {
   isPlayerNear: false,
   isDialogOpen: false,
   isMet: false,
-  hasBeenRejected: false, // новый флаг: был ли уже отказ
 };
 
 const NEON_TALK_TOPICS = [
@@ -56,12 +55,19 @@ const NEON_QUESTS = [
 
 let neonQuestProgress = { currentQuestId: null, progress: 0, completed: [] };
 let neonButtonsContainer = null;
+let rejectionDialog = null; // ссылка на открытый диалог отказа
 
-// === Стили как у Джона ===
-function initializeJohnLikeStyles() {
-  if (document.getElementById("johnLikeNeonStyles")) return;
+function initializeNeonNpc() {
+  if (typeof ws !== "undefined" && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: "requestNeonQuestSync" }));
+  }
+}
+
+// === Стили как у Джона (точно как в npc.js) ===
+function initializeJohnStyles() {
+  if (document.getElementById("johnNeonStyles")) return;
   const style = document.createElement("style");
-  style.id = "johnLikeNeonStyles";
+  style.id = "johnNeonStyles";
   style.innerHTML = `
     .john-dialog {
       position: fixed;
@@ -73,17 +79,17 @@ function initializeJohnLikeStyles() {
       border: 2px solid #00ff00;
       border-radius: 12px;
       padding: 20px;
-      color: #fff;
+      color: #ccffcc;
       font-family: 'Courier New', monospace;
       z-index: 10000;
-      box-shadow: 0 0 20px rgba(0,255,0,0.6);
+      box-shadow: 0 0 25px rgba(0,255,0,0.7);
     }
     .john-dialog .npc-photo {
       width: 120px;
       height: 120px;
       border: 3px solid #00ff00;
       border-radius: 50%;
-      box-shadow: 0 0 15px #00ff00;
+      box-shadow: 0 0 20px #00ff00;
       margin: 0 auto 15px;
       display: block;
     }
@@ -95,33 +101,35 @@ function initializeJohnLikeStyles() {
       text-shadow: 0 0 10px #00ff00;
     }
     .john-dialog .npc-text {
-      background: rgba(0,30,0,0.7);
-      padding: 15px;
+      background: rgba(0,40,0,0.8);
+      padding: 18px;
       border-radius: 10px;
       margin: 15px 0;
-      line-height: 1.5;
+      line-height: 1.6;
       border: 1px solid #00ff00;
       color: #ccffcc;
-    }
-    .john-dialog .neon-btn {
-      background: linear-gradient(45deg, #00ff00, #008800);
-      color: black;
-      border: none;
-      padding: 12px 28px;
-      margin: 10px;
-      border-radius: 8px;
-      font-weight: bold;
-      cursor: pointer;
-      box-shadow: 0 0 15px #00ff00;
-      transition: all .3s;
-    }
-    .john-dialog .neon-btn:hover {
-      transform: scale(1.1);
-      box-shadow: 0 0 25px #00ff00;
+      font-size: 16px;
     }
     .john-dialog .btn-container {
       text-align: center;
       margin-top: 20px;
+    }
+    .john-dialog .john-btn {
+      background: linear-gradient(45deg, #00ff00, #008800);
+      color: black;
+      border: none;
+      padding: 14px 32px;
+      margin: 0 10px;
+      border-radius: 8px;
+      font-weight: bold;
+      font-size: 16px;
+      cursor: pointer;
+      box-shadow: 0 0 20px #00ff00;
+      transition: all 0.3s;
+    }
+    .john-dialog .john-btn:hover {
+      transform: scale(1.1);
+      box-shadow: 0 0 30px #00ff00;
     }
   `;
   document.head.appendChild(style);
@@ -129,14 +137,12 @@ function initializeJohnLikeStyles() {
 
 // === Диалог отказа (до 1 уровня) ===
 function openRejectionDialog() {
-  if (document.getElementById("johnDialog")) return;
-  initializeJohnLikeStyles();
+  if (rejectionDialog) return; // уже открыт
+  initializeJohnStyles();
 
-  const dialog = document.createElement("div");
-  dialog.id = "johnDialog";
-  dialog.className = "john-dialog";
-
-  dialog.innerHTML = `
+  rejectionDialog = document.createElement("div");
+  rejectionDialog.className = "john-dialog";
+  rejectionDialog.innerHTML = `
     <img src="${images[NEON_NPC.photoKey].src}" class="npc-photo">
     <div class="npc-name">${NEON_NPC.name}</div>
     <div class="npc-text">
@@ -144,24 +150,29 @@ function openRejectionDialog() {
       Я не вижу в тебе того, кто может мне помочь.
     </div>
     <div class="btn-container">
-      <button class="neon-btn">Понятно</button>
+      <button class="john-btn">Понятно</button>
     </div>
   `;
 
-  document.body.appendChild(dialog);
+  document.body.appendChild(rejectionDialog);
   NEON_NPC.isDialogOpen = true;
 
-  dialog.querySelector(".neon-btn").onclick = () => {
-    dialog.remove();
-    NEON_NPC.isDialogOpen = false;
-    NEON_NPC.hasBeenRejected = true; // блокируем дальнейшее взаимодействие
-  };
+  const btn = rejectionDialog.querySelector(".john-btn");
+  btn.onclick = closeRejectionDialog;
 }
 
-// === Диалог знакомства (1+ уровень, первый раз) ===
+function closeRejectionDialog() {
+  if (rejectionDialog) {
+    rejectionDialog.remove();
+    rejectionDialog = null;
+    NEON_NPC.isDialogOpen = false;
+  }
+}
+
+// === Диалог знакомства (1+ уровень) ===
 function openFirstMeetingDialog() {
   if (document.getElementById("johnDialog")) return;
-  initializeJohnLikeStyles();
+  initializeJohnStyles();
 
   const dialog = document.createElement("div");
   dialog.id = "johnDialog";
@@ -175,14 +186,14 @@ function openFirstMeetingDialog() {
       Меня зовут Neon Alex. Может, ты поможешь мне с одной проблемой?
     </div>
     <div class="btn-container">
-      <button class="neon-btn">Конечно помогу</button>
+      <button class="john-btn">Конечно помогу</button>
     </div>
   `;
 
   document.body.appendChild(dialog);
   NEON_NPC.isDialogOpen = true;
 
-  dialog.querySelector(".neon-btn").onclick = () => {
+  dialog.querySelector(".john-btn").onclick = () => {
     dialog.remove();
     NEON_NPC.isDialogOpen = false;
     NEON_NPC.isMet = true;
@@ -192,7 +203,7 @@ function openFirstMeetingDialog() {
   };
 }
 
-// === Кнопки над головой ===
+// === Кнопки "Говорить" и "Задания" ===
 function createNeonButtons(screenX, screenY) {
   if (neonButtonsContainer || !NEON_NPC.isMet) return;
   neonButtonsContainer = document.createElement("div");
@@ -204,10 +215,11 @@ function createNeonButtons(screenX, screenY) {
     pointer-events:none;
     z-index:999;
   `;
+
   const talkBtn = document.createElement("div");
   talkBtn.textContent = "Говорить";
-  talkBtn.className = "jack-button-talk";
-  talkBtn.style.pointerEvents = "auto";
+  talkBtn.style.cssText =
+    "pointer-events:auto;cursor:pointer;background:rgba(0,255,0,0.4);padding:10px 20px;border-radius:8px;margin:5px;font-weight:bold;";
   talkBtn.onclick = (e) => {
     e.stopPropagation();
     openNeonTalkDialog();
@@ -215,8 +227,8 @@ function createNeonButtons(screenX, screenY) {
 
   const questBtn = document.createElement("div");
   questBtn.textContent = "Задания";
-  questBtn.className = "jack-button-shop";
-  questBtn.style.pointerEvents = "auto";
+  questBtn.style.cssText =
+    "pointer-events:auto;cursor:pointer;background:rgba(0,255,0,0.4);padding:10px 20px;border-radius:8px;margin:5px;font-weight:bold;";
   questBtn.onclick = (e) => {
     e.stopPropagation();
     openNeonQuestDialog();
@@ -233,15 +245,30 @@ function removeNeonButtons() {
   }
 }
 
-// === Остальные диалоги (говорить / задания) — оставляем как было ===
+// === Заглушки диалогов (пока) ===
 function openNeonTalkDialog() {
-  /* ... твой старый код ... */
-}
-function openNeonQuestDialog() {
-  /* ... твой старый код ... */
+  if (document.getElementById("johnDialog")) return;
+  initializeJohnStyles();
+  const d = document.createElement("div");
+  d.id = "johnDialog";
+  d.className = "john-dialog";
+  d.innerHTML = `<div class="npc-name">${NEON_NPC.name}</div><div class="npc-text">Поговорим позже...</div><div class="btn-container"><button class="john-btn">Закрыть</button></div>`;
+  document.body.appendChild(d);
+  d.querySelector(".john-btn").onclick = () => d.remove();
 }
 
-// === Обновление и отрисовка ===
+function openNeonQuestDialog() {
+  if (document.getElementById("johnDialog")) return;
+  initializeJohnStyles();
+  const d = document.createElement("div");
+  d.id = "johnDialog";
+  d.className = "john-dialog";
+  d.innerHTML = `<div class="npc-name">${NEON_NPC.name}</div><div class="npc-text">Задания в разработке!</div><div class="btn-container"><button class="john-btn">Закрыть</button></div>`;
+  document.body.appendChild(d);
+  d.querySelector(".john-btn").onclick = () => d.remove();
+}
+
+// === Основной апдейт ===
 function updateNeonNpc(deltaTime) {
   if (window.worldSystem.currentWorldId !== 0) return;
   const me = players.get(myId);
@@ -251,14 +278,45 @@ function updateNeonNpc(deltaTime) {
   const dy = me.y - NEON_NPC.y;
   const dist = Math.hypot(dx, dy);
   const near = dist < NEON_NPC.interactionRadius;
+  NEON_NPC.isPlayerNear = near;
 
   // Движение NPC
   if (!near && !NEON_NPC.isDialogOpen) {
-    // ... твой старый код движения ...
+    // ... твой старый код движения (оставляем без изменений)
+    if (NEON_NPC.isWaiting) {
+      NEON_NPC.waitTimer += deltaTime;
+      if (NEON_NPC.waitTimer >= NEON_NPC.waitDuration) {
+        NEON_NPC.isWaiting = false;
+        NEON_NPC.waitTimer = 0;
+        NEON_NPC.movingToB = !NEON_NPC.movingToB;
+      }
+    } else {
+      const target = NEON_NPC.movingToB ? NEON_NPC.targetB : NEON_NPC.targetA;
+      const tdx = target.x - NEON_NPC.x;
+      const tdy = target.y - NEON_NPC.y;
+      const tdist = Math.hypot(tdx, tdy);
+      if (tdist > 5) {
+        NEON_NPC.x += (tdx / tdist) * NEON_NPC.speed * deltaTime;
+        NEON_NPC.y += (tdy / tdist) * NEON_NPC.speed * deltaTime;
+        NEON_NPC.state = "walking";
+        NEON_NPC.direction =
+          Math.abs(tdx) > Math.abs(tdy)
+            ? tdx > 0
+              ? "right"
+              : "left"
+            : tdy > 0
+            ? "down"
+            : "up";
+      } else {
+        NEON_NPC.isWaiting = true;
+        NEON_NPC.state = "idle";
+      }
+    }
   } else {
     NEON_NPC.state = "idle";
   }
 
+  // Анимация
   if (NEON_NPC.state === "walking") {
     NEON_NPC.frameTime += deltaTime;
     if (NEON_NPC.frameTime >= 100) {
@@ -268,8 +326,6 @@ function updateNeonNpc(deltaTime) {
   } else {
     NEON_NPC.frame = 0;
   }
-
-  NEON_NPC.isPlayerNear = near;
 }
 
 function drawNeonNpc() {
@@ -323,24 +379,27 @@ function drawNeonNpc() {
     ctx.fillText(NEON_NPC.name, screenX + 35, screenY - 30);
   }
 
-  // Логика взаимодействия
+  // === Логика взаимодействия ===
   if (NEON_NPC.isPlayerNear && level >= 1) {
     if (!NEON_NPC.isMet && !NEON_NPC.isDialogOpen) {
       openFirstMeetingDialog();
     } else if (NEON_NPC.isMet) {
       createNeonButtons(screenX, screenY);
     }
+    closeRejectionDialog(); // на всякий случай
   } else if (NEON_NPC.isPlayerNear && level < 1) {
-    if (!NEON_NPC.isDialogOpen && !NEON_NPC.hasBeenRejected) {
+    if (!rejectionDialog && !NEON_NPC.isDialogOpen) {
       openRejectionDialog();
     }
     removeNeonButtons();
   } else {
+    // Игрок вышел из зоны — закрываем отказ
+    closeRejectionDialog();
     removeNeonButtons();
   }
 }
 
-// === Остальное (квесты, синхронизация и т.д.) — без изменений ===
+// === Квесты и синхронизация (без изменений) ===
 if (window.levelSystem?.handleEnemyKill) {
   const old = window.levelSystem.handleEnemyKill;
   window.levelSystem.handleEnemyKill = function (data) {
