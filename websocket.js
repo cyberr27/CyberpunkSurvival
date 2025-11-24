@@ -20,18 +20,6 @@ const AGGRO_RANGE = 300;
 const ATTACK_RANGE = 50;
 const ENEMY_ATTACK_COOLDOWN = 1000;
 
-const NEON_QUESTS = [
-  {
-    id: "neon_quest_1",
-    title: "Очистка пустошей",
-    description: "Убей 3 мутанта в секторе 7. Они мешают моим датчикам.",
-    goal: { killMutants: 3 },
-    reward: { xp: 80, balyary: 10 },
-    nextQuestId: "neon_quest_2", // пока заглушка, потом добавишь
-  },
-  // Дальше будешь добавлять 2-10 по мере готовности
-];
-
 function calculateXPToNextLevel(level) {
   if (level >= 100) return 0;
   return 100 * Math.pow(2, level);
@@ -535,20 +523,26 @@ function setupWebSocket(
         const id = clients.get(ws);
         if (!id) return;
         const player = players.get(id);
-        if (player.neonQuest?.currentQuestId) return; // Уже есть активный
 
-        player.neonQuest = player.neonQuest || { completed: [], progress: {} };
-        player.neonQuest.currentQuestId = "neon_quest_1";
-        player.neonQuest.progress = { killMutants: 0 };
+        // Нельзя взять новый квест, если уже есть активный
+        if (player.neonQuest?.currentQuestId) return;
+
+        // Инициализируем структуру квестов, если её ещё нет
+        player.neonQuest = {
+          currentQuestId: "neon_quest_1",
+          progress: { killMutants: 0 },
+          completed: player.neonQuest?.completed || [],
+        };
 
         players.set(id, player);
         userDatabase.set(id, player);
         await saveUserDatabase(dbCollection, id, player);
 
+        // Серверу не нужен текст квеста — просто подтверждаем, что квест взят
         ws.send(
           JSON.stringify({
             type: "neonQuestStarted",
-            quest: NEON_QUESTS.find((q) => q.id === "neon_quest_1"),
+            questId: "neon_quest_1",
           })
         );
       } else if (data.type === "neonQuestProgress") {
@@ -654,34 +648,31 @@ function setupWebSocket(
         if (!id) return;
         const player = players.get(id);
 
+        // Проверка: активный квест должен быть именно этот
         if (player.neonQuest?.currentQuestId !== "neon_quest_1") return;
 
-        const quest = NEON_QUESTS.find((q) => q.id === "neon_quest_1");
-        if (
-          !quest ||
-          (player.neonQuest.progress?.killMutants || 0) < quest.goal.killMutants
-        ) {
-          return; // Не выполнен
-        }
+        // Проверка прогресса — нужно убить минимум 3 мутанта
+        if ((player.neonQuest.progress?.killMutants || 0) < 3) return;
 
         // === НАГРАДА ===
-        player.xp = (player.xp || 0) + quest.reward.xp;
+        player.xp = (player.xp || 0) + 80;
 
-        // Баляры
+        // Добавляем 10 баляров
         let balyarSlot = player.inventory.findIndex(
           (i) => i?.type === "balyary"
         );
         if (balyarSlot === -1) {
           balyarSlot = player.inventory.findIndex((i) => i === null);
-          if (balyarSlot !== -1)
+          if (balyarSlot !== -1) {
             player.inventory[balyarSlot] = { type: "balyary", quantity: 0 };
+          }
         }
         if (balyarSlot !== -1) {
           player.inventory[balyarSlot].quantity =
-            (player.inventory[balyarSlot].quantity || 0) + quest.reward.balyary;
+            (player.inventory[balyarSlot].quantity || 0) + 10;
         }
 
-        // Level up
+        // Левел-ап система
         let xpToNext = calculateXPToNextLevel(player.level);
         while (player.xp >= xpToNext && player.level < 100) {
           player.level += 1;
@@ -700,10 +691,11 @@ function setupWebSocket(
         userDatabase.set(id, player);
         await saveUserDatabase(dbCollection, id, player);
 
+        // Отправляем клиенту всё нужное для обновления интерфейса
         ws.send(
           JSON.stringify({
             type: "neonQuestCompleted",
-            reward: quest.reward,
+            reward: { xp: 80, balyary: 10 },
             level: player.level,
             xp: player.xp,
             xpToNextLevel: xpToNext,
