@@ -20,6 +20,18 @@ const AGGRO_RANGE = 300;
 const ATTACK_RANGE = 50;
 const ENEMY_ATTACK_COOLDOWN = 1000;
 
+const NEON_QUESTS = [
+  {
+    id: "neon_quest_1",
+    title: "Очистка пустошей",
+    description: "Убей 3 мутанта в секторе 7. Они мешают моим датчикам.",
+    goal: { killMutants: 3 },
+    reward: { xp: 80, balyary: 10 },
+    nextQuestId: "neon_quest_2", // пока заглушка, потом добавишь
+  },
+  // Дальше будешь добавлять 2-10 по мере готовности
+];
+
 function calculateXPToNextLevel(level) {
   if (level >= 100) return 0;
   return 100 * Math.pow(2, level);
@@ -522,22 +534,128 @@ function setupWebSocket(
       } else if (data.type === "neonQuestAccept") {
         const id = clients.get(ws);
         const player = players.get(id);
-        player.neonQuest = {
-          currentQuestId: data.questId,
-          progress: 0,
-          completed: player.neonQuest?.completed || [],
-        };
-        player.alexNeonMet = true;
-        players.set(id, player);
-        userDatabase.set(id, player);
-        await saveUserDatabase(dbCollection, id, player);
+        const quest = NEON_QUESTS.find((q) => q.id === data.questId);
+        if (quest && (!player.neonQuest || !player.neonQuest.currentQuestId)) {
+          player.neonQuest = {
+            currentQuestId: quest.id,
+            progress: { killMutants: 0 },
+            completed: player.neonQuest?.completed || [],
+          };
+          player.alexNeonMet = true;
+          players.set(id, player);
+          userDatabase.set(id, player);
+          await saveUserDatabase(dbCollection, id, player);
+
+          ws.send(
+            JSON.stringify({
+              type: "neonQuestStarted",
+              quest: {
+                id: quest.id,
+                title: quest.title,
+                description: quest.description,
+                goal: quest.goal,
+              },
+            })
+          );
+        }
       } else if (data.type === "neonQuestProgress") {
         const id = clients.get(ws);
         const player = players.get(id);
-        if (player.neonQuest) player.neonQuest.progress = data.progress;
-        players.set(id, player);
-        userDatabase.set(id, player);
-        await saveUserDatabase(dbCollection, id, player);
+        if (player.neonQuest && player.neonQuest.currentQuestId) {
+          player.neonQuest.progress = {
+            ...player.neonQuest.progress,
+            ...data.progress,
+          };
+          players.set(id, player);
+          userDatabase.set(id, player);
+          await saveUserDatabase(dbCollection, id, player);
+        }
+      } else if (data.type === "enemyDied" && data.enemyType === "mutant") {
+        // Автоматически считаем убийства мутантов для активного квеста
+        players.forEach(async (player, playerId) => {
+          if (
+            player.worldId === data.worldId &&
+            player.neonQuest?.currentQuestId === "neon_quest_1"
+          ) {
+            const quest = NEON_QUESTS.find((q) => q.id === "neon_quest_1");
+            if (!quest) return;
+
+            player.neonQuest.progress.killMutants =
+              (player.neonQuest.progress.killMutants || 0) + 1;
+
+            if (
+              player.neonQuest.progress.killMutants >= quest.goal.killMutants
+            ) {
+              // Квест выполнен!
+              const balyarySlot = player.inventory.findIndex(
+                (i) => i?.type === "balyary"
+              );
+              if (balyarySlot === -1) {
+                const empty = player.inventory.findIndex((i) => i === null);
+                if (empty !== -1)
+                  player.inventory[empty] = { type: "balyary", quantity: 0 };
+              }
+              if (
+                balyarySlot !== -1 ||
+                player.inventory.some((i) => i?.type === "balyary")
+              ) {
+                const slot =
+                  player.inventory.findIndex((i) => i?.type === "balyary") !==
+                  -1
+                    ? player.inventory.findIndex((i) => i?.type === "balyary")
+                    : player.inventory.findIndex((i) => i === null);
+                if (slot !== -1) {
+                  player.inventory[slot] = player.inventory[slot] || {
+                    type: "balyary",
+                    quantity: 0,
+                  };
+                  player.inventory[slot].quantity += quest.reward.balyary;
+                }
+              }
+
+              // XP
+              player.xp = (player.xp || 0) + quest.reward.xp;
+              let levelUp = false;
+              let xpToNext = calculateXPToNextLevel(player.level);
+              while (player.xp >= xpToNext && player.level < 100) {
+                player.level += 1;
+                player.xp -= xpToNext;
+                player.upgradePoints = (player.upgradePoints || 0) + 10;
+                levelUp = true;
+                xpToNext = calculateXPToNextLevel(player.level);
+              }
+
+              // Завершаем квест
+              player.neonQuest.completed.push(player.neonQuest.currentQuestId);
+              player.neonQuest.currentQuestId = null;
+              player.neonQuest.progress = {};
+
+              players.set(playerId, player);
+              userDatabase.set(playerId, player);
+              await saveUserDatabase(dbCollection, playerId, player);
+
+              // Отправляем клиенту
+              wss.clients.forEach((client) => {
+                if (
+                  clients.get(client) === playerId &&
+                  client.readyState === WebSocket.OPEN
+                ) {
+                  client.send(
+                    JSON.stringify({
+                      type: "neonQuestCompleted",
+                      reward: quest.reward,
+                      level: player.level,
+                      xp: player.xp,
+                      xpToNextLevel: xpToNext,
+                      upgradePoints: player.upgradePoints,
+                      inventory: player.inventory,
+                    })
+                  );
+                }
+              });
+            }
+          }
+        });
       } else if (data.type === "neonQuestComplete") {
         const id = clients.get(ws);
         const player = players.get(id);

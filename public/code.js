@@ -1823,6 +1823,25 @@ function handleGameMessage(event) {
           triggerAttackAnimation();
         }
         break;
+      case "neonQuestStarted":
+        showNotification("Заказ принят: " + data.quest.title, "#00ff00");
+        break;
+      case "neonQuestCompleted":
+        showNotification(
+          `Заказ выполнен! +${data.reward.xp} XP и +${data.reward.balyary} баляров!`,
+          "#00ffff"
+        );
+        if (window.levelSystem) {
+          window.levelSystem.setLevelData(
+            data.level,
+            data.xp,
+            null,
+            data.upgradePoints
+          );
+          window.levelSystem.showXPEffect(data.reward.xp);
+        }
+        updateInventoryDisplay();
+        break;
     }
   } catch (error) {
     console.error("Ошибка в handleGameMessage:", error);
