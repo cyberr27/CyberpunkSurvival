@@ -1,4 +1,4 @@
-// neon_npc.js — КИБЕР-ВЕРСИЯ + 9 тем + НЕОНОВАЯ ПРОКРУТКА + КВЕСТЫ
+// neon_npc.js — КИБЕР-ВЕРСИЯ + 9 тем + НЕОНОВАЯ ПРОКРУТКА + КВЕСТЫ + ИСПРАВЛЕНО
 
 const NEON_NPC = {
   name: "Neon Alex",
@@ -25,7 +25,7 @@ const NEON_NPC = {
   isMet: false,
 };
 
-// === ДАННЫЕ КВЕСТОВ (теперь локально, чтобы не было ReferenceError) ===
+// === ДАННЫЕ КВЕСТОВ ===
 const NEON_QUESTS = [
   {
     id: "neon_quest_1",
@@ -84,51 +84,28 @@ function initializeCyberStyles() {
   const style = document.createElement("style");
   style.id = "cyberNeonStyles";
   style.innerHTML = `
+    @keyframes neonPulse{0%{box-shadow:0 0 20px #00ffff}100%{box-shadow:0 0 40px #00ffff}}
     .cyber-dialog{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
       width:480px;max-width:94vw;background:linear-gradient(135deg,rgba(10,10,20,0.97),rgba(20,20,40,0.93));
       border:2px solid #00ffff;border-radius:12px;padding:20px;color:#ccffff;font-family:'Courier New',monospace;
-      z-index:10000;box-shadow:0 0 30px rgba(0,255,255,0.7),inset 0 0 20px rgba(0,255,255,0.1);
-      animation:neonPulse 3s infinite alternate;}
-
+      z-index:10000;box-shadow:0 0 30px rgba(0,255,255,0.7);animation:neonPulse 3s infinite alternate;}
     .cyber-dialog .npc-photo{width:120px;height:120px;border:3px solid #00ffff;border-radius:50%;
-      box-shadow:0 0 25px #00ffff;margin:0 auto 15px;display:block;object-fit:cover;}
+      box-shadow:0 0 25px #00ffff;margin:0 auto 15px;object-fit:cover;}
     .cyber-dialog .npc-name{text-align:center;font-size:28px;margin:10px 0;color:#00ffff;
       text-shadow:0 0 15px #00ffff;letter-spacing:2px;}
     .cyber-dialog .npc-text{background:rgba(0,30,60,0.7);padding:18px;border-radius:10px;margin:15px 0;
       line-height:1.7;border:1px solid #00ffff;color:#ccffff;font-size:17px;
       text-shadow:0 0 8px rgba(0,255,255,0.6);min-height:80px;}
-
-    .cyber-dialog .topic-container{
-      max-height:320px;overflow-y:auto;margin:15px 0;padding-right:10px;
-      border:1px solid rgba(0,255,255,0.3);border-radius:8px;background:rgba(0,20,40,0.4);
-    }
-    .cyber-dialog .topic-btn{display:block;width:100%;margin:8px 12px;padding:14px;
-      background:rgba(0,255,255,0.08);border:1px solid #00ffff;color:#00ffff;
-      border-radius:8px;cursor:pointer;transition:all .3s;text-align:left;font-size:16px;
-      box-shadow:0 0 10px rgba(0,255,255,0.2);}
-    .cyber-dialog .topic-btn:hover{
-      background:rgba(0,255,255,0.25);transform:translateX(8px);
-      box-shadow:0 0 20px #00ffff, inset 0 0 15px rgba(0,255,255,0.3);
-    }
-    .topic-container::-webkit-scrollbar{width:12px;}
-    .topic-container::-webkit-scrollbar-track{
-      background:rgba(0,20,40,0.6);border-radius:10px;
-      box-shadow:inset 0 0 10px rgba(0,255,255,0.2);
-    }
-    .topic-container::-webkit-scrollbar-thumb{
-      background:linear-gradient(0deg,#00ffff,#ff00ff);
-      border-radius:10px;border:2px solid rgba(0,0,0,0.5);
-      box-shadow:0 0 15px #00ffff;
-    }
-    .cyber-close-btn{
-      background:rgba(0,255,255,0.15);border:1px solid #00ffff;color:#00ffff;
-      padding:12px 24px;border-radius:8px;cursor:pointer;font-size:16px;
-      box-shadow:0 0 15px rgba(0,255,255,0.4);transition:all .3s;
-    }
-    .cyber-close-btn:hover{
-      background:rgba(0,255,255,0.4);box-shadow:0 0 25px #00ffff;
-    }
+    .cyber-close-btn{background:rgba(0,255,255,0.15);border:1px solid #00ffff;color:#00ffff;
+      padding:12px 24px;border-radius:8px;cursor:pointer;font-size:16px;margin:5px;
+      box-shadow:0 0 15px rgba(0,255,255,0.4);transition:all .3s;}
+    .cyber-close-btn:hover{background:rgba(0,255,255,0.4);box-shadow:0 0 25px #00ffff;}
     .btn-container{text-align:center;margin-top:20px;}
+    .cyber-btn{background:rgba(0,255,255,0.15);border:1px solid #00ffff;color:#00ffff;
+      padding:10px 20px;border-radius:8px;cursor:pointer;margin:0 6px;
+      box-shadow:0 0 15px rgba(0,255,255,0.3);transition:all .3s;}
+    .cyber-btn:hover{background:rgba(0,255,255,0.4);transform:scale(1.05);}
+    .cyber-quest-btn{background:rgba(255,0,255,0.15);border-color:#ff00ff;color:#ff00ff;}
   `;
   document.head.appendChild(style);
 }
@@ -139,6 +116,98 @@ function closeActiveDialog() {
     activeDialog = null;
   }
   NEON_NPC.isDialogOpen = false;
+}
+
+// === ПЕРВАЯ ВСТРЕЧА ===
+function openFirstMeetingDialog() {
+  closeActiveDialog();
+  initializeCyberStyles();
+
+  activeDialog = document.createElement("div");
+  activeDialog.className = "cyber-dialog";
+  activeDialog.innerHTML = `
+    <img src="${images[NEON_NPC.photoKey].src}" class="npc-photo">
+    <div class="npc-name">${NEON_NPC.name}</div>
+    <div class="npc-text">
+      Новое лицо в секторе 7? Редкость...<br><br>
+      Меня зовут Neon Alex. Если выживешь — поговорим.
+    </div>
+    <div class="btn-container">
+      <button class="cyber-close-btn" onclick="closeActiveDialog()">Понял</button>
+    </div>
+  `;
+  document.body.appendChild(activeDialog);
+  NEON_NPC.isDialogOpen = true;
+  NEON_NPC.isMet = true;
+
+  if (ws?.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: "neonMet" }));
+  }
+}
+
+// === ОТКАЗ (уровень < 1) ===
+function openRejectionDialog() {
+  closeActiveDialog();
+  initializeCyberStyles();
+
+  activeDialog = document.createElement("div");
+  activeDialog.className = "cyber-dialog";
+  activeDialog.innerHTML = `
+    <img src="${images[NEON_NPC.photoKey].src}" class="npc-photo">
+    <div class="npc-name">${NEON_NPC.name}</div>
+    <div class="npc-text">
+      Слабак... Возвращайся, когда прокачаешься.
+    </div>
+    <div class="btn-container">
+      <button class="cyber-close-btn" onclick="closeActiveDialog()">Уйти</button>
+    </div>
+  `;
+  document.body.appendChild(activeDialog);
+  NEON_NPC.isDialogOpen = true;
+}
+
+// === ДИАЛОГ С ТЕМАМИ ===
+function openNeonTalkDialog() {
+  closeActiveDialog();
+  initializeCyberStyles();
+
+  let topicsHTML = '<div class="topic-container">';
+  NEON_TOPICS.forEach((topic) => {
+    topicsHTML += `<button class="topic-btn cyber-close-btn" style="display:block;width:100%;margin:8px 0;text-align:left;">${topic.title}</button>`;
+  });
+  topicsHTML += "</div>";
+
+  activeDialog = document.createElement("div");
+  activeDialog.className = "cyber-dialog";
+  activeDialog.innerHTML = `
+    <img src="${images[NEON_NPC.photoKey].src}" class="npc-photo">
+    <div class="npc-name">${NEON_NPC.name}</div>
+    ${topicsHTML}
+    <div class="btn-container">
+      <button class="cyber-close-btn" onclick="closeActiveDialog()">Закрыть</button>
+    </div>
+  `;
+  document.body.appendChild(activeDialog);
+  NEON_NPC.isDialogOpen = true;
+
+  activeDialog.querySelectorAll(".topic-btn").forEach((btn, i) => {
+    btn.onclick = () => {
+      closeActiveDialog();
+      setTimeout(() => {
+        activeDialog = document.createElement("div");
+        activeDialog.className = "cyber-dialog";
+        activeDialog.innerHTML = `
+          <img src="${images[NEON_NPC.photoKey].src}" class="npc-photo">
+          <div class="npc-name">${NEON_NPC.name}</div>
+          <div class="npc-text">${NEON_TOPICS[i].text}</div>
+          <div class="btn-container">
+            <button class="cyber-close-btn" onclick="closeActiveDialog()">Назад</button>
+          </div>
+        `;
+        document.body.appendChild(activeDialog);
+      }, 150);
+    };
+  });
 }
 
 // === ОКНО ЗАДАНИЙ ===
@@ -169,12 +238,11 @@ function openNeonQuestDialog() {
 
   if (currentQuestId === "neon_quest_1") {
     const killed = progress.killMutants || 0;
-    const needed = quest.goal.killMutants;
     title = "Текущий заказ";
     description = `<b>${quest.title}</b><br>${quest.description}`;
-    progressText = `<br><br><b>Прогресс: ${killed}/${needed} мутантов уничтожено</b>`;
+    progressText = `<br><br><b>Прогресс: ${killed}/${quest.goal.killMutants} мутантов уничтожено</b>`;
 
-    if (killed >= needed) {
+    if (killed >= quest.goal.killMutants) {
       mainButtonText = "Сдать заказ";
       mainButtonAction = () => {
         if (ws?.readyState === WebSocket.OPEN) {
@@ -193,8 +261,7 @@ function openNeonQuestDialog() {
     }
   } else if (completed.includes("neon_quest_1")) {
     title = "Заказ выполнен";
-    description =
-      "Отличная работа. Скоро будет новый заказ.<br>(вторая миссия — в разработке)";
+    description = "Отличная работа. Скоро будет новый заказ.";
     mainButtonText = "Закрыть";
     mainButtonAction = closeActiveDialog;
   }
@@ -212,7 +279,7 @@ function openNeonQuestDialog() {
       <button class="cyber-close-btn" id="questMainBtn">${mainButtonText}</button>
       ${
         mainButtonText !== "Закрыть"
-          ? '<button class="cyber-close-btn" style="margin-top:10px;background:rgba(255,0,100,0.3);border-color:#ff0080;" onclick="(function(){if(activeDialog)activeDialog.remove();NEON_NPC.isDialogOpen=false;})()">Отмена</button>'
+          ? '<button class="cyber-close-btn" style="margin-top:10px;background:rgba(255,0,100,0.3);border-color:#ff0080;" onclick="closeActiveDialog()">Отмена</button>'
           : ""
       }
     </div>
@@ -220,11 +287,11 @@ function openNeonQuestDialog() {
 
   document.body.appendChild(activeDialog);
   NEON_NPC.isDialogOpen = true;
-
   document.getElementById("questMainBtn").onclick = mainButtonAction;
 }
 
-// Остальные функции без изменений (openNeonTalkDialog, createNeonButtons и т.д.)
+// === КНОПКИ
+
 function createNeonButtons(screenX, screenY) {
   if (neonButtonsContainer) return;
 
@@ -263,6 +330,7 @@ function removeNeonButtons() {
   }
 }
 
+// === ОБНОВЛЕНИЕ И ОТРИСОВКА ===
 function updateNeonNpc(deltaTime) {
   if (window.worldSystem.currentWorldId !== 0) return;
   const me = players.get(myId);
@@ -271,10 +339,9 @@ function updateNeonNpc(deltaTime) {
   const dx = me.x - NEON_NPC.x;
   const dy = me.y - NEON_NPC.y;
   const dist = Math.hypot(dx, dy);
-  const near = dist < NEON_NPC.interactionRadius;
-  NEON_NPC.isPlayerNear = near;
+  NEON_NPC.isPlayerNear = dist < NEON_NPC.interactionRadius;
 
-  if (!near && !NEON_NPC.isDialogOpen) {
+  if (!NEON_NPC.isPlayerNear && !NEON_NPC.isDialogOpen) {
     if (NEON_NPC.isWaiting) {
       NEON_NPC.waitTimer += deltaTime;
       if (NEON_NPC.waitTimer >= NEON_NPC.waitDuration) {
@@ -372,13 +439,13 @@ function drawNeonNpc() {
   if (NEON_NPC.isPlayerNear) {
     if (level < 1) {
       if (!rejectionShownThisApproach && !NEON_NPC.isDialogOpen) {
-        openRejectionDialog?.();
+        openRejectionDialog();
         rejectionShownThisApproach = true;
       }
       removeNeonButtons();
     } else {
       if (!NEON_NPC.isMet && !NEON_NPC.isDialogOpen) {
-        openFirstMeetingDialog?.();
+        openFirstMeetingDialog();
       } else if (NEON_NPC.isMet && !NEON_NPC.isDialogOpen) {
         createNeonButtons(screenX, screenY);
       }
@@ -390,6 +457,7 @@ function drawNeonNpc() {
   }
 }
 
+// === СИНХРОНИЗАЦИЯ С СЕРВЕРОМ ===
 if (typeof ws !== "undefined") {
   ws.addEventListener("message", (e) => {
     try {
@@ -400,7 +468,9 @@ if (typeof ws !== "undefined") {
       ) {
         NEON_NPC.isMet = !!data.player?.alexNeonMet || data.isMet || false;
       }
-    } catch {}
+    } catch (err) {
+      console.error(err);
+    }
   });
 }
 
