@@ -1824,18 +1824,18 @@ function handleGameMessage(event) {
         }
         break;
       case "neonQuestStarted":
-        showNotification("Заказ принят: " + data.quest.title, "#00ff00");
+        showNotification("Заказ принят: Очистка пустошей", "#00ff44");
         break;
       case "neonQuestCompleted":
         showNotification(
-          `Заказ выполнен! +${data.reward.xp} XP и +${data.reward.balyary} баляров!`,
+          `Заказ сдан! +${data.reward.xp} XP | +${data.reward.balyary} баляров!`,
           "#00ffff"
         );
         if (window.levelSystem) {
           window.levelSystem.setLevelData(
             data.level,
             data.xp,
-            null,
+            data.xpToNextLevel,
             data.upgradePoints
           );
           window.levelSystem.showXPEffect(data.reward.xp);

@@ -246,65 +246,60 @@ function openNeonQuestDialog() {
   initializeCyberStyles();
 
   const player = players.get(myId);
-  const questProgress = player?.neonQuest || {};
-  const currentQuest = questProgress.currentQuestId
-    ? NEON_QUESTS?.find((q) => q.id === questProgress.currentQuestId)
-    : null;
+  const neonQuest = player?.neonQuest || {};
+  const currentQuestId = neonQuest.currentQuestId;
+  const completed = neonQuest.completed || [];
+  const progress = neonQuest.progress || {};
 
-  let content = "";
+  // Находим данные квеста
+  const questData = NEON_QUESTS.find((q) => q.id === "neon_quest_1");
+  if (!questData) return;
 
-  if (currentQuest) {
-    const progress = questProgress.progress?.killMutants || 0;
-    const goal = currentQuest.goal.killMutants;
-    content = `
-      <div class="npc-text" style="font-size:18px;">
-        Текущий заказ:<br><br>
-        <b>${currentQuest.title}</b><br>
-        ${currentQuest.description}<br><br>
-        Прогресс: ${progress}/${goal} мутантов уничтожено
-      </div>
-      <div class="btn-container">
-        <button class="cyber-close-btn">Хорошо</button>
-      </div>
-    `;
-  } else if (questProgress.completed?.includes("neon_quest_1")) {
-    content = `
-      <div class="npc-text" style="font-size:18px;">
-        Отлично поработал. Скоро будет новый заказ.<br>
-        (вторая миссия — в разработке)
-      </div>
-      <div class="btn-container">
-        <button class="cyber-close-btn">Понял</button>
-      </div>
-    `;
+  let title = "Нет доступных заказов";
+  let description = "Поговори с Neon Alex позже...";
+  let buttonText = null;
+  let buttonAction = null;
+  let progressText = "";
+
+  if (currentQuestId === "neon_quest_1") {
+    // Квест взят, но ещё не выполнен
+    const killed = progress.killMutants || 0;
+    const needed = questData.goal.killMutants;
+
+    title = questData.title;
+    description = questData.description;
+    progressText = `<br><br><b>Прогресс: ${killed}/${needed} мутантов уничтожено</b>`;
+
+    if (killed >= needed) {
+      buttonText = "Сдать заказ";
+      buttonAction = () => {
+        if (ws?.readyState === WebSocket.OPEN) {
+          ws.send(
+            JSON.stringify({
+              type: "neonQuestComplete",
+              questId: "neon_quest_1",
+            })
+          );
+        }
+        closeActiveDialog();
+      };
+    } else {
+      buttonText = "Хорошо";
+      buttonAction = closeActiveDialog;
+    }
+  } else if (completed.includes("neon_quest_1")) {
+    // Квест уже выполнен
+    title = "Заказ выполнен";
+    description =
+      "Отличная работа. Скоро будет новый заказ.<br>(вторая миссия — в разработке)";
+    buttonText = "Закрыть";
+    buttonAction = closeActiveDialog;
   } else {
-    content = `
-      <div class="npc-text" style="font-size:18px;">
-        У меня есть для тебя работа.<br><br>
-        <b>Очистка пустошей</b><br>
-        Убей 3 мутанта в секторе 7. Они мешают моим датчикам.<br><br>
-        Награда: 80 XP + 10 баляров
-      </div>
-      <div class="btn-container">
-        <button class="cyber-close-btn" id="acceptQuest">Принять заказ</button>
-        <button class="cyber-close-btn" style="margin-top:10px;background:rgba(255,0,100,0.3);border-color:#ff0080;" onclick="closeActiveDialog()">Отказаться</button>
-      </div>
-    `;
-  }
-
-  activeDialog = document.createElement("div");
-  activeDialog.className = "cyber-dialog";
-  activeDialog.innerHTML = `
-    <img src="${images[NEON_NPC.photoKey].src}" class="npc-photo">
-    <div class="npc-name">${NEON_NPC.name}</div>
-    ${content}
-  `;
-
-  document.body.appendChild(activeDialog);
-  NEON_NPC.isDialogOpen = true;
-
-  if (!currentQuest && !questProgress.completed?.includes("neon_quest_1")) {
-    activeDialog.querySelector("#acceptQuest").onclick = () => {
+    // Квест ещё не взят
+    title = "Новый заказ доступен";
+    description = `<b>${questData.title}</b><br>${questData.description}<br><br>Награда: 80 XP + 10 баляров`;
+    buttonText = "Взять заказ";
+    buttonAction = () => {
       if (ws?.readyState === WebSocket.OPEN) {
         ws.send(
           JSON.stringify({ type: "neonQuestAccept", questId: "neon_quest_1" })
@@ -312,8 +307,34 @@ function openNeonQuestDialog() {
       }
       closeActiveDialog();
     };
-  } else {
-    activeDialog.querySelector(".cyber-close-btn").onclick = closeActiveDialog;
+  }
+
+  activeDialog = document.createElement("div");
+  activeDialog.className = "cyber-dialog";
+  activeDialog.innerHTML = `
+    <img src="${images[NEON_NPC.photoKey].src}" class="npc-photo">
+    <div class="npc-name">${NEON_NPC.name} — Заказы</div>
+    <div class="npc-text" style="font-size:18px; line-height:1.8;">
+      <b>${title}</b><br><br>
+      ${description}${progressText}
+    </div>
+    <div class="btn-container">
+      <button class="cyber-close-btn" id="questActionBtn">${buttonText}</button>
+      ${
+        buttonText !== "Закрыть"
+          ? '<button class="cyber-close-btn" style="margin-top:10px; background:rgba(255,0,100,0.3); border-color:#ff0080;" onclick="closeActiveDialog()">Отмена</button>'
+          : ""
+      }
+    </div>
+  `;
+
+  document.body.appendChild(activeDialog);
+  NEON_NPC.isDialogOpen = true;
+
+  // Назначаем действие кнопке
+  const actionBtn = activeDialog.querySelector("#questActionBtn");
+  if (actionBtn) {
+    actionBtn.onclick = buttonAction;
   }
 }
 
