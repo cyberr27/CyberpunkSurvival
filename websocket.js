@@ -497,15 +497,6 @@ function setupWebSocket(
           userDatabase.set(id, { ...player });
           await saveUserDatabase(dbCollection, id, player);
         }
-      } else if (data.type === "meetNeonAlex") {
-        const id = clients.get(ws);
-        if (id) {
-          const player = players.get(id);
-          player.alexNeonMet = true;
-          players.set(id, { ...player });
-          userDatabase.set(id, { ...player });
-          await saveUserDatabase(dbCollection, id, player);
-        }
       } else if (data.type === "requestNeonQuestSync") {
         const id = clients.get(ws);
         const player = players.get(id);
@@ -520,24 +511,6 @@ function setupWebSocket(
             isMet: player.alexNeonMet || false,
           })
         );
-      } else if (data.type === "neonQuestAccept") {
-        const id = clients.get(ws);
-        if (!id) return;
-        const player = players.get(id);
-
-        if (player.neonQuest?.currentQuestId) return; // уже есть активный
-
-        player.neonQuest = {
-          currentQuestId: "neon_quest_1",
-          progress: { killMutants: 0 },
-          completed: player.neonQuest?.completed || [],
-        };
-
-        players.set(id, player);
-        userDatabase.set(id, player);
-        await saveUserDatabase(dbCollection, id, player);
-
-        ws.send(JSON.stringify({ type: "neonQuestStarted" }));
       } else if (data.type === "neonQuestProgress") {
         const id = clients.get(ws);
         const player = players.get(id);
@@ -1897,6 +1870,14 @@ function setupWebSocket(
             })
           );
         }
+        attacker = players.get(attackerId);
+        if (attacker?.neonQuest?.currentQuestId === "neon_quest_1") {
+          attacker.neonQuest.progress.killMutants =
+            (attacker.neonQuest.progress.killMutants || 0) + 1;
+          players.set(attackerId, attacker);
+          userDatabase.set(attackerId, attacker);
+          await saveUserDatabase(dbCollection, attackerId, attacker);
+        }
       } else if (data.type === "meetJack") {
         const id = clients.get(ws);
         if (id) {
@@ -1929,6 +1910,20 @@ function setupWebSocket(
               },
             })
           );
+        }
+      } else if (data.type === "neonQuestAccept") {
+        const id = clients.get(ws);
+        if (id && players.has(id)) {
+          const player = players.get(id);
+          player.neonQuest = {
+            currentQuestId: "neon_quest_1",
+            progress: { killMutants: 0 },
+          };
+          players.set(id, player);
+          userDatabase.set(id, player);
+          await saveUserDatabase(dbCollection, id, player);
+
+          ws.send(JSON.stringify({ type: "neonQuestStarted" }));
         }
       }
     });
