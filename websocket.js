@@ -1870,7 +1870,6 @@ function setupWebSocket(
             })
           );
         }
-        attacker = players.get(attackerId);
         if (attacker?.neonQuest?.currentQuestId === "neon_quest_1") {
           attacker.neonQuest.progress.killMutants =
             (attacker.neonQuest.progress.killMutants || 0) + 1;
