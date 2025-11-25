@@ -28,7 +28,7 @@ const NEON_NPC = {
   // Состояние
   isPlayerNear: false,
   isDialogOpen: false,
-  isMet: false,
+  isMet: false, // ← будет синхронизироваться с сервера
 };
 
 let neonButtonsContainer = null;
@@ -86,7 +86,6 @@ function closeActiveDialog() {
   NEON_NPC.isDialogOpen = false;
 }
 
-// Первая встреча
 function openFirstMeetingDialog() {
   closeActiveDialog();
 
@@ -109,21 +108,19 @@ function openFirstMeetingDialog() {
 
   document.body.appendChild(activeDialog);
   NEON_NPC.isDialogOpen = true;
-  // НЕ ставим isMet = true сразу! Ставим только после нажатия кнопки
 }
 
-// Новая функция — закрывает первый диалог и разблокирует кнопки
 window.closeFirstMeetingAndEnableButtons = () => {
   closeActiveDialog();
   NEON_NPC.isMet = true;
-  firstMeetingDialogClosed = true; // теперь можно показывать кнопки
+  firstMeetingDialogClosed = true;
 
+  // Отправляем на сервер — это уже есть в websocket.js
   if (ws?.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({ type: "meetNeonAlex" }));
   }
 };
 
-// Отказ (если уровень < 5 — можно поменять)
 function openRejectionDialog() {
   closeActiveDialog();
 
@@ -147,7 +144,6 @@ function openRejectionDialog() {
   NEON_NPC.isDialogOpen = true;
 }
 
-// Диалог «Поговорить»
 function openNeonTalkDialog() {
   closeActiveDialog();
 
@@ -178,7 +174,6 @@ function openNeonTalkDialog() {
   NEON_NPC.isDialogOpen = true;
 }
 
-// Показ текста выбранной темы
 window.showTopicText = (title, text) => {
   document.getElementById("neonTopicsList").classList.add("hidden");
   const textEl = document.getElementById("neonTopicText");
@@ -235,7 +230,7 @@ function updateNeonNpc(deltaTime) {
   const dist = Math.hypot(dx, dy);
   NEON_NPC.isPlayerNear = dist < NEON_NPC.interactionRadius;
 
-  // Движение по маршруту, когда игрок далеко
+  // Движение по маршруту
   if (!NEON_NPC.isPlayerNear && !NEON_NPC.isDialogOpen) {
     if (NEON_NPC.isWaiting) {
       NEON_NPC.waitTimer += deltaTime;
@@ -270,7 +265,7 @@ function updateNeonNpc(deltaTime) {
     NEON_NPC.state = "idle";
   }
 
-  // Анимация ходьбы
+  // Анимация
   if (NEON_NPC.state === "walking") {
     NEON_NPC.frameTime += deltaTime;
     if (NEON_NPC.frameTime >= 120) {
@@ -321,8 +316,8 @@ function drawNeonNpc() {
     ctx.fillText("NA", screenX + 10, screenY + 50);
   }
 
-  // Имя или «?» до знакомства
-  ctx.fillStyle = NEON_NPC.isMet ? "#066f00ff" : "#ffffff";
+  // Имя
+  ctx.fillStyle = NEON_NPC.isMet ? "#00ffff" : "#ffffff";
   ctx.font = "12px Arial";
   ctx.textAlign = "center";
   ctx.fillText(
@@ -331,32 +326,24 @@ function drawNeonNpc() {
     screenY - 35
   );
 
-  // Логика кнопок и диалогов
+  // === ЛОГИКА ДИАЛОГОВ И КНОПОК ===
   const player = players.get(myId);
   const level = player?.level || 0;
 
   if (NEON_NPC.isPlayerNear) {
-    if (level < 1) {
+    if (level < 5) {
       if (!rejectionShownThisApproach && !NEON_NPC.isDialogOpen) {
         openRejectionDialog();
         rejectionShownThisApproach = true;
       }
       removeNeonButtons();
     } else {
-      // Если ещё не было первой встречи вообще
       if (!NEON_NPC.isMet && !NEON_NPC.isDialogOpen) {
         openFirstMeetingDialog();
-        removeNeonButtons(); // на всякий случай, чтобы не было глюков
-      }
-      // Если уже встречались И игрок закрыл первое приветствие → показываем кнопки
-      else if (
-        NEON_NPC.isMet &&
-        firstMeetingDialogClosed &&
-        !NEON_NPC.isDialogOpen
-      ) {
+        removeNeonButtons();
+      } else if (NEON_NPC.isMet && !NEON_NPC.isDialogOpen) {
         createNeonButtons(screenX, screenY);
       }
-      // Если диалог открыт (любой) → убираем кнопки
       if (NEON_NPC.isDialogOpen) {
         removeNeonButtons();
       }
@@ -365,19 +352,31 @@ function drawNeonNpc() {
     closeActiveDialog();
     removeNeonButtons();
     rejectionShownThisApproach = false;
-    // firstMeetingDialogClosed не сбрасываем — встреча уже произошла навсегда
   }
 }
 
-// Синхронизация с сервером
+// КРИТИЧЕСКИ ВАЖНО: синхронизация с сервером при логине и обновлениях
 if (typeof ws !== "undefined") {
   ws.addEventListener("message", (e) => {
     try {
       const data = JSON.parse(e.data);
-      if (data.type === "update" && data.player?.alexNeonMet !== undefined) {
-        NEON_NPC.isMet = !!data.player.alexNeonMet;
+
+      // При логине — получаем актуальное состояние
+      if (data.type === "loginSuccess") {
+        NEON_NPC.isMet = !!data.alexNeonMet;
+        firstMeetingDialogClosed = !!data.alexNeonMet; // чтобы сразу показывались кнопки
       }
-    } catch {}
+
+      // При обновлении игрока (например, кто-то другой встретил — не нужно)
+      if (data.type === "update" && data.player?.id === myId) {
+        if (data.player.alexNeonMet !== undefined) {
+          NEON_NPC.isMet = !!data.player.alexNeonMet;
+          firstMeetingDialogClosed = !!data.player.alexNeonMet;
+        }
+      }
+    } catch (err) {
+      console.error("Ошибка обработки сообщения для Neon Alex:", err);
+    }
   });
 }
 
