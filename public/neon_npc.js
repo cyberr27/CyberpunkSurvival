@@ -1,7 +1,7 @@
-// neon_npc.js — Neon Alex (2025) — использует только npc-styles.css
+// neon_npc.js — Neon Alex (2025) — использует только npc-styles.css + квесты
 
 const NEON_NPC = {
-  name: "Neon Alex",
+  name: "Neon",
   spriteKey: "alexNeonSprite",
   photoKey: "alexNeonFoto",
   x: 502,
@@ -28,7 +28,7 @@ const NEON_NPC = {
   // Состояние
   isPlayerNear: false,
   isDialogOpen: false,
-  isMet: false, // ← будет синхронизироваться с сервера
+  isMet: false,
 };
 
 let neonButtonsContainer = null;
@@ -36,47 +36,22 @@ let activeDialog = null;
 let rejectionShownThisApproach = false;
 let firstMeetingDialogClosed = false;
 
-// 9 тем разговора
-const NEON_TOPICS = [
+// Квесты Neon Alex
+const NEON_QUESTS = [
   {
-    title: "О городе",
-    text: "Этот город никогда не спит. Здесь либо ты ешь, либо тебя едят.",
+    id: "neon_quest_1",
+    title: "Очистка пустошей",
+    description:
+      "Сектор кишит мутантами. Убей 3 штуки — докажи, что не бесполезен.",
+    goal: { killMutants: 3 },
+    reward: { xp: 150, balyary: 50 },
   },
-  {
-    title: "Кто ты такой?",
-    text: "Я — Neon Alex. Был когда-то хакером высшего звена, теперь просто пытаюсь выжить.",
-  },
-  {
-    title: "Где мы?",
-    text: "Заброшенный сектор 7. Корпорации бросили его лет 15 назад. Теперь здесь только мы и мутанты.",
-  },
-  {
-    title: "Что с корпорациями?",
-    text: "Они всё ещё наверху, в небоскрёбах. Сюда спускаются только за редкими ресурсами… или за нами.",
-  },
-  {
-    title: "Как выживать?",
-    text: "Не доверяй никому. Держи нож за спиной, а глаза открытыми. И никогда не пей воду из открытых источников.",
-  },
-  {
-    title: "Есть ли выход?",
-    text: "Говорят, в старом метро есть туннель на поверхность. Но туда никто не возвращался.",
-  },
-  {
-    title: "Твоя история",
-    text: "Я украл у них данные, которые стоили миллиарды. Теперь я в розыске. А ты… ты тоже беглец?",
-  },
-  {
-    title: "О мутантах",
-    text: "Радиация, эксперименты, химия… всё вместе. Некоторые ещё помнят, что были людьми.",
-  },
-  {
-    title: "Зачем ты здесь?",
-    text: "Жду человека, который сможет вытащить меня отсюда. Может, это ты?",
-  },
+  // Дальше будут другие квесты...
 ];
 
-// ==================== ДИАЛОГИ ====================
+const CURRENT_QUEST = NEON_QUESTS[0]; // пока только первый
+
+// ==================== ДИАЛОГИ И КВЕСТЫ ====================
 
 function closeActiveDialog() {
   if (activeDialog) {
@@ -115,7 +90,6 @@ window.closeFirstMeetingAndEnableButtons = () => {
   NEON_NPC.isMet = true;
   firstMeetingDialogClosed = true;
 
-  // Отправляем на сервер — это уже есть в websocket.js
   if (ws?.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({ type: "meetNeonAlex" }));
   }
@@ -151,11 +125,47 @@ function openNeonTalkDialog() {
   activeDialog.className = "npc-dialog";
 
   let topicsHTML = "";
-  NEON_TOPICS.forEach((topic) => {
-    topicsHTML += `
-      <div class="talk-topic" onclick="showTopicText('${topic.title}', \`${topic.text}\`)">
-        ${topic.title}
-      </div>`;
+  const topics = [
+    {
+      title: "О городе",
+      text: "Этот город никогда не спит. Здесь либо ты ешь, либо тебя едят.",
+    },
+    {
+      title: "Кто ты такой?",
+      text: "Я — Neon Alex. Был когда-то хакером высшего звена, теперь просто пытаюсь выжить.",
+    },
+    {
+      title: "Где мы?",
+      text: "Заброшенный сектор 7. Корпорации бросили его лет 15 назад. Теперь здесь только мы и мутанты.",
+    },
+    {
+      title: "Что с корпорациями?",
+      text: "Они всё ещё наверху, в небоскрёбах. Сюда спускаются только за редкими ресурсами… или за нами.",
+    },
+    {
+      title: "Как выживать?",
+      text: "Не доверяй никому. Держи нож за спиной, а глаза открытыми. И никогда не пей воду из открытых источников.",
+    },
+    {
+      title: "Есть ли выход?",
+      text: "Говорят, в старом метро есть туннель на поверхность. Но туда никто не возвращался.",
+    },
+    {
+      title: "Твоя история",
+      text: "Я украл у них данные, которые стоили миллиарды. Теперь я в розыске. А ты… ты тоже беглец?",
+    },
+    {
+      title: "О мутантах",
+      text: "Радиация, эксперименты, химия… всё вместе. Некоторые ещё помнят, что были людьми.",
+    },
+    {
+      title: "Зачем ты здесь?",
+      text: "Жду человека, который сможет вытащить меня отсюда. Может, это ты?",
+    },
+  ];
+
+  topics.forEach((topic) => {
+    topicsHTML += `<div class="talk-topic" onclick="showTopicText('${topic.title}', \`${topic.text}\`)">${topic.title}</div>`;
   });
 
   activeDialog.innerHTML = `
@@ -181,6 +191,80 @@ window.showTopicText = (title, text) => {
   textEl.innerHTML = `<b>${title}</b><br><br>${text}`;
 };
 
+// === ОКНО КВЕСТОВ ===
+function openNeonQuestDialog() {
+  closeActiveDialog();
+
+  const me = players.get(myId);
+  const questProgress = me?.neonQuest?.progress || { killMutants: 0 };
+  const currentKills = questProgress.killMutants || 0;
+  const isQuestActive = me?.neonQuest?.currentQuestId === CURRENT_QUEST.id;
+  const isQuestCompleted = currentKills >= CURRENT_QUEST.goal.killMutants;
+
+  activeDialog = document.createElement("div");
+  activeDialog.className = "npc-dialog";
+
+  let buttonsHTML = "";
+
+  if (!isQuestActive) {
+    buttonsHTML = `
+      <button class="neon-btn" onclick="acceptNeonQuest()">Взять задание</button>
+      <button class="neon-btn secondary" onclick="closeActiveDialog()">Отмена</button>
+    `;
+  } else if (isQuestCompleted) {
+    buttonsHTML = `
+      <button class="neon-btn" onclick="completeNeonQuest()">Сдать задание</button>
+      <button class="neon-btn secondary" onclick="closeActiveDialog()">Отмена</button>
+    `;
+  } else {
+    buttonsHTML = `
+      <button class="neon-btn secondary" onclick="closeActiveDialog()">Отмена</button>
+    `;
+  }
+
+  activeDialog.innerHTML = `
+    <div class="npc-dialog-header">
+      <img src="${images[NEON_NPC.photoKey].src}" class="npc-photo">
+      <h2 class="npc-title">${NEON_NPC.name} — Задания</h2>
+    </div>
+    <div class="npc-dialog-content">
+      <div class="npc-text quest">
+        <b>${CURRENT_QUEST.title}</b><br><br>
+        ${CURRENT_QUEST.description}<br><br>
+        Прогресс: <b>${currentKills}/${
+    CURRENT_QUEST.goal.killMutants
+  }</b> мутантов убито
+        ${
+          isQuestCompleted
+            ? "<br><span style='color:#00ff00'>Задание выполнено!</span>"
+            : ""
+        }
+      </div>
+    </div>
+    <div class="quest-buttons">
+      ${buttonsHTML}
+    </div>
+  `;
+
+  document.body.appendChild(activeDialog);
+  NEON_NPC.isDialogOpen = true;
+}
+
+// Глобальные функции для кнопок
+window.acceptNeonQuest = () => {
+  if (ws?.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: "neonQuestAccept" }));
+  }
+  closeActiveDialog();
+};
+
+window.completeNeonQuest = () => {
+  if (ws?.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: "neonQuestComplete" }));
+  }
+  closeActiveDialog();
+};
+
 // ==================== КНОПКИ НАД ГОЛОВОЙ ====================
 
 function createNeonButtons(screenX, screenY) {
@@ -204,7 +288,7 @@ function createNeonButtons(screenX, screenY) {
   questBtn.textContent = "Задания";
   questBtn.onclick = (e) => {
     e.stopPropagation();
-    alert("Квесты Neon Alex пока в разработке");
+    openNeonQuestDialog(); // ← Вот оно!
   };
 
   neonButtonsContainer.append(talkBtn, questBtn);
@@ -284,7 +368,6 @@ function drawNeonNpc() {
   const screenX = NEON_NPC.x - camera.x;
   const screenY = NEON_NPC.y - camera.y - 30;
 
-  // Куллинг
   if (
     screenX < -100 ||
     screenX > canvas.width + 100 ||
@@ -316,7 +399,6 @@ function drawNeonNpc() {
     ctx.fillText("NA", screenX + 10, screenY + 50);
   }
 
-  // Имя
   ctx.fillStyle = NEON_NPC.isMet ? "#00ffff" : "#ffffff";
   ctx.font = "12px Arial";
   ctx.textAlign = "center";
@@ -326,7 +408,6 @@ function drawNeonNpc() {
     screenY - 35
   );
 
-  // === ЛОГИКА ДИАЛОГОВ И КНОПОК ===
   const player = players.get(myId);
   const level = player?.level || 0;
 
@@ -344,9 +425,7 @@ function drawNeonNpc() {
       } else if (NEON_NPC.isMet && !NEON_NPC.isDialogOpen) {
         createNeonButtons(screenX, screenY);
       }
-      if (NEON_NPC.isDialogOpen) {
-        removeNeonButtons();
-      }
+      if (NEON_NPC.isDialogOpen) removeNeonButtons();
     }
   } else {
     closeActiveDialog();
@@ -355,33 +434,34 @@ function drawNeonNpc() {
   }
 }
 
-// КРИТИЧЕСКИ ВАЖНО: синхронизация с сервером при логине и обновлениях
+// Синхронизация
 if (typeof ws !== "undefined") {
   ws.addEventListener("message", (e) => {
     try {
       const data = JSON.parse(e.data);
-
-      // При логине — получаем актуальное состояние
       if (data.type === "loginSuccess") {
         NEON_NPC.isMet = !!data.alexNeonMet;
-        firstMeetingDialogClosed = !!data.alexNeonMet; // чтобы сразу показывались кнопки
+        firstMeetingDialogClosed = !!data.alexNeonMet;
       }
-
-      // При обновлении игрока (например, кто-то другой встретил — не нужно)
       if (data.type === "update" && data.player?.id === myId) {
         if (data.player.alexNeonMet !== undefined) {
           NEON_NPC.isMet = !!data.player.alexNeonMet;
           firstMeetingDialogClosed = !!data.player.alexNeonMet;
         }
       }
+      if (data.type === "neonQuestStarted") {
+        showNotification("Задание взято: Очистка пустошей", "#00ff44");
+      }
+      if (data.type === "neonQuestCompleted") {
+        showNotification(
+          `Задание выполнено! +${data.reward.xp} XP | +${data.reward.balyary} баляров`,
+          "#00ffff"
+        );
+      }
     } catch (err) {
-      console.error("Ошибка обработки сообщения для Neon Alex:", err);
+      console.error("Neon Alex error:", err);
     }
   });
 }
 
-// Экспорт
-window.neonNpcSystem = {
-  update: updateNeonNpc,
-  draw: drawNeonNpc,
-};
+window.neonNpcSystem = { update: updateNeonNpc, draw: drawNeonNpc };
