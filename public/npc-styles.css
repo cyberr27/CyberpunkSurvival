@@ -1,0 +1,337 @@
+/* ============================================= */
+/*    УНИВЕРСАЛЬНЫЕ СТИЛИ ДЛЯ ВСЕХ NPC (2025)    */
+/*    Эталон: John + Jack + будущие NPC          */
+/*    Подключается один раз в index.html         */
+/* ============================================= */
+
+.npc-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(
+    135deg,
+    rgba(10, 10, 10, 0.95),
+    rgba(20, 20, 20, 0.9)
+  );
+  border: 2px solid #00ffff;
+  border-radius: 10px;
+  padding: 20px;
+  color: #00ffff;
+  font-family: "Courier New", monospace;
+  text-align: center;
+  z-index: 1001;
+  max-width: 480px;
+  width: 90%;
+  height: 520px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.5), 0 0 30px rgba(255, 0, 255, 0.3);
+  animation: neonPulse 2s infinite alternate;
+  overflow: hidden;
+}
+
+.npc-dialog-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 12px;
+  margin-top: 10px;
+  scrollbar-width: thin;
+  scrollbar-color: #ff00ff rgba(0, 0, 0, 0.5);
+}
+
+.npc-dialog-content::-webkit-scrollbar {
+  width: 8px;
+}
+.npc-dialog-content::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 4px;
+}
+.npc-dialog-content::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #00ffff, #ff00ff);
+  border-radius: 4px;
+  box-shadow: 0 0 10px rgba(255, 0, 255, 0.7);
+}
+
+/* Кнопки над NPC (Говорить / Задания) */
+.npc-buttons-container {
+  position: fixed;
+  z-index: 1000;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transform-origin: center top;
+}
+
+.npc-button {
+  pointer-events: all;
+  padding: 11px 22px;
+  font-size: 15px;
+  font-family: "Courier New", monospace;
+  font-weight: bold;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  text-shadow: 0 0 8px rgba(0, 255, 255, 0.9);
+  transition: all 0.3s ease;
+  box-shadow: 0 0 12px rgba(0, 255, 255, 0.5);
+  min-width: 120px;
+  text-align: center;
+  user-select: none;
+  backdrop-filter: blur(4px);
+}
+
+.npc-talk-btn {
+  background: linear-gradient(
+    135deg,
+    rgba(0, 255, 255, 0.25),
+    rgba(0, 150, 150, 0.35)
+  );
+  color: #00ffff;
+  border-color: #00ffff;
+}
+
+.npc-quests-btn {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 0, 255, 0.25),
+    rgba(150, 0, 150, 0.35)
+  );
+  color: #ff00ff;
+  border-color: #ff00ff;
+}
+
+.npc-talk-btn:hover {
+  background: rgba(0, 255, 255, 0.45);
+  box-shadow: 0 0 25px rgba(0, 255, 1);
+  transform: scale(1.07);
+}
+.npc-quests-btn:hover {
+  background: rgba(255, 0, 255, 0.45);
+  box-shadow: 0 0 25px rgba(255, 0, 255, 1);
+  transform: scale(1.07);
+}
+
+/* Заголовок диалога */
+.npc-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 15px;
+  flex-shrink: 0;
+  gap: 15px;
+}
+
+.npc-photo {
+  width: 80px;
+  height: 80px;
+  border: 2px solid #ff00ff;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 0 15px rgba(255, 0, 255, 0.6);
+}
+
+.npc-title {
+  color: #00ffff;
+  font-size: 26px;
+  text-shadow: 0 0 8px #00ffff, 0 0 15px #ff00ff;
+  animation: flicker 1.8s infinite alternate;
+  margin: 0;
+  white-space: nowrap;
+}
+
+/* Текст в диалоге */
+.npc-text {
+  margin: 15px 0;
+  font-size: 17px;
+  text-shadow: 0 0 6px rgba(0, 255, 255, 0.8);
+  line-height: 1.7;
+  transition: all 0.4s ease;
+}
+
+.npc-text.fullscreen {
+  margin: 0;
+  padding: 25px;
+  background: rgba(0, 0, 0, 0.85);
+  border: 1px solid rgba(255, 0, 255, 0.5);
+  border-radius: 8px;
+  font-size: 18px;
+  min-height: 220px;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+/* Темы разговора */
+.talk-topics {
+  max-height: 320px;
+  overflow-y: auto;
+  background: rgba(10, 10, 10, 0.92);
+  border: 1px solid #00ffff;
+  border-radius: 6px;
+  padding: 12px;
+  box-shadow: inset 0 0 12px rgba(0, 255, 255, 0.3);
+}
+
+.talk-topics.hidden {
+  display: none;
+}
+
+.talk-topic {
+  background: rgba(0, 0, 0, 0.88);
+  padding: 14px;
+  margin: 10px 0;
+  cursor: pointer;
+  border: 1px solid #00ffff;
+  border-radius: 6px;
+  color: #00ffff;
+  font-size: 15px;
+  text-shadow: center;
+  transition: all 0.3s ease;
+}
+
+.talk-topic:hover {
+  background: rgba(0, 255, 255, 0.2);
+  border-color: #ff00ff;
+  box-shadow: 0 0 18px rgba(255, 0, 255, 0.6);
+  transform: translateX(6px);
+}
+
+/* Список квестов */
+.quest-list {
+  max-height: 280px;
+  overflow-y: auto;
+  background: rgba(10, 10, 10, 0.92);
+  border: 1px solid #ff00ff;
+  border-radius: 6px;
+  padding: 12px;
+  box-shadow: inset 0 0 12px rgba(255, 0, 255, 0.3);
+}
+
+.quest-item {
+  background: rgba(0, 0, 0, 0.88);
+  padding: 14px;
+  margin: 10px 0;
+  cursor: pointer;
+  border: 1px solid #00ffff;
+  border-radius: 6px;
+  color: #00ffff;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  transition: all 0.3s ease;
+}
+
+.quest-item:hover {
+  background: rgba(0, 255, 255, 0.2);
+  border-color: #ff00ff;
+  box-shadow: 0 0 18px rgba(255, 0, 255, 0.7);
+  transform: translateX(6px);
+}
+
+.quest-marker {
+  color: #ff00ff;
+  font-weight: bold;
+  margin-right: 12px;
+  font-size: 18px;
+}
+.quest-reward {
+  color: #ff00ff;
+  font-size: 13px;
+  margin-left: auto;
+}
+
+/* Кнопка закрытия / действия */
+.neon-btn {
+  padding: 14px 28px;
+  font-size: 17px;
+  font-family: "Courier New", monospace;
+  background: linear-gradient(135deg, #00ffff, #ff00ff);
+  border: none;
+  color: #000;
+  border-radius: 6px;
+  cursor: pointer;
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.8), 0 0 25px rgba(255, 0, 255, 0.6);
+  transition: all 0.3s;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  flex-shrink: 0;
+  margin-top: 10px;
+}
+
+.neon-btn:hover {
+  box-shadow: 0 0 25px rgba(0, 255, 255, 1), 0 0 40px rgba(255, 0, 255, 0.8);
+  transform: scale(1.06);
+}
+
+/* Анимации */
+@keyframes neonPulse {
+  0% {
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.5), 0 0 20px rgba(255, 0, 255, 0.3);
+  }
+  100% {
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.9), 0 0 35px rgba(255, 0, 255, 0.6);
+  }
+}
+
+@keyframes flicker {
+  0%,
+  19%,
+  21%,
+  23%,
+  25%,
+  54%,
+  56%,
+  100% {
+    opacity: 1;
+    text-shadow: 0 0 8px #00ffff, 0 0 15px #ff00ff;
+  }
+  20%,
+  24%,
+  55% {
+    opacity: 0.6;
+    text-shadow: 0 0 3px #00ffff;
+  }
+}
+
+/* Адаптив */
+@media (max-width: 768px) {
+  .npc-dialog {
+    padding: 15px;
+    height: 480px;
+    max-width: 92%;
+  }
+  .npc-photo {
+    width: 65px;
+    height: 65px;
+  }
+  .npc-title {
+    font-size: 22px;
+  }
+  .npc-button {
+    padding: 12px 20px;
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 500px) {
+  .npc-dialog {
+    height: 460px;
+  }
+  .npc-title {
+    font-size: 20px;
+  }
+  .npc-text {
+    font-size: 15px;
+  }
+  .neon-btn {
+    padding: 12px 24px;
+    font-size: 15px;
+  }
+}

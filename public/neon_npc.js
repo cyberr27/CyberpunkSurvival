@@ -1,4 +1,4 @@
-// neon_npc.js — КИБЕР-ВЕРСИЯ + 9 тем + НЕОНОВАЯ ПРОКРУТКА + КВЕСТЫ + ИСПРАВЛЕНО
+// neon_npc.js — Neon Alex (2025) — использует только npc-styles.css
 
 const NEON_NPC = {
   name: "Neon Alex",
@@ -9,6 +9,8 @@ const NEON_NPC = {
   width: 70,
   height: 70,
   interactionRadius: 80,
+
+  // Патруль
   speed: 0.02,
   targetA: { x: 502, y: 2771 },
   targetB: { x: 1368, y: 1657 },
@@ -16,30 +18,25 @@ const NEON_NPC = {
   isWaiting: true,
   waitDuration: 20000,
   waitTimer: 0,
+
+  // Анимация
   frame: 0,
   frameTime: 0,
   direction: "down",
   state: "idle",
+
+  // Состояние
   isPlayerNear: false,
   isDialogOpen: false,
   isMet: false,
 };
 
-// === ДАННЫЕ КВЕСТОВ ===
-const NEON_QUESTS = [
-  {
-    id: "neon_quest_1",
-    title: "Очистка пустошей",
-    description: "Убей 3 мутанта в секторе 7. Они мешают моим датчикам.",
-    goal: { killMutants: 3 },
-    reward: { xp: 80, balyary: 10 },
-  },
-];
-
 let neonButtonsContainer = null;
 let activeDialog = null;
 let rejectionShownThisApproach = false;
+let firstMeetingDialogClosed = false;
 
+// 9 тем разговора
 const NEON_TOPICS = [
   {
     title: "О городе",
@@ -79,36 +76,7 @@ const NEON_TOPICS = [
   },
 ];
 
-function initializeCyberStyles() {
-  if (document.getElementById("cyberNeonStyles")) return;
-  const style = document.createElement("style");
-  style.id = "cyberNeonStyles";
-  style.innerHTML = `
-    @keyframes neonPulse{0%{box-shadow:0 0 20px #00ffff}100%{box-shadow:0 0 40px #00ffff}}
-    .cyber-dialog{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
-      width:480px;max-width:94vw;background:linear-gradient(135deg,rgba(10,10,20,0.97),rgba(20,20,40,0.93));
-      border:2px solid #00ffff;border-radius:12px;padding:20px;color:#ccffff;font-family:'Courier New',monospace;
-      z-index:10000;box-shadow:0 0 30px rgba(0,255,255,0.7);animation:neonPulse 3s infinite alternate;}
-    .cyber-dialog .npc-photo{width:120px;height:120px;border:3px solid #00ffff;border-radius:50%;
-      box-shadow:0 0 25px #00ffff;margin:0 auto 15px;object-fit:cover;}
-    .cyber-dialog .npc-name{text-align:center;font-size:28px;margin:10px 0;color:#00ffff;
-      text-shadow:0 0 15px #00ffff;letter-spacing:2px;}
-    .cyber-dialog .npc-text{background:rgba(0,30,60,0.7);padding:18px;border-radius:10px;margin:15px 0;
-      line-height:1.7;border:1px solid #00ffff;color:#ccffff;font-size:17px;
-      text-shadow:0 0 8px rgba(0,255,255,0.6);min-height:80px;}
-    .cyber-close-btn{background:rgba(0,255,255,0.15);border:1px solid #00ffff;color:#00ffff;
-      padding:12px 24px;border-radius:8px;cursor:pointer;font-size:16px;margin:5px;
-      box-shadow:0 0 15px rgba(0,255,255,0.4);transition:all .3s;}
-    .cyber-close-btn:hover{background:rgba(0,255,255,0.4);box-shadow:0 0 25px #00ffff;}
-    .btn-container{text-align:center;margin-top:20px;}
-    .cyber-btn{background:rgba(0,255,255,0.15);border:1px solid #00ffff;color:#00ffff;
-      padding:10px 20px;border-radius:8px;cursor:pointer;margin:0 6px;
-      box-shadow:0 0 15px rgba(0,255,255,0.3);transition:all .3s;}
-    .cyber-btn:hover{background:rgba(0,255,255,0.4);transform:scale(1.05);}
-    .cyber-quest-btn{background:rgba(255,0,255,0.15);border-color:#ff00ff;color:#ff00ff;}
-  `;
-  document.head.appendChild(style);
-}
+// ==================== ДИАЛОГИ ====================
 
 function closeActiveDialog() {
   if (activeDialog) {
@@ -118,205 +86,130 @@ function closeActiveDialog() {
   NEON_NPC.isDialogOpen = false;
 }
 
-// === ПЕРВАЯ ВСТРЕЧА ===
+// Первая встреча
 function openFirstMeetingDialog() {
   closeActiveDialog();
-  initializeCyberStyles();
 
   activeDialog = document.createElement("div");
-  activeDialog.className = "cyber-dialog";
+  activeDialog.className = "npc-dialog";
+
   activeDialog.innerHTML = `
-    <img src="${images[NEON_NPC.photoKey].src}" class="npc-photo">
-    <div class="npc-name">${NEON_NPC.name}</div>
-    <div class="npc-text">
-      Новое лицо в секторе 7? Редкость...<br><br>
-      Меня зовут Neon Alex. Если выживешь — поговорим.
+    <div class="npc-dialog-header">
+      <img src="${images[NEON_NPC.photoKey].src}" class="npc-photo">
+      <h2 class="npc-title">${NEON_NPC.name}</h2>
     </div>
-    <div class="btn-container">
-      <button class="cyber-close-btn" onclick="closeActiveDialog()">Понял</button>
+    <div class="npc-dialog-content">
+      <div class="npc-text">
+        Новое лицо в секторе 7? Редкость...<br><br>
+        Меня зовут Neon Alex. Если выживешь — поговорим.
+      </div>
     </div>
+    <button class="neon-btn" onclick="closeFirstMeetingAndEnableButtons()">Понял</button>
   `;
+
   document.body.appendChild(activeDialog);
   NEON_NPC.isDialogOpen = true;
+  // НЕ ставим isMet = true сразу! Ставим только после нажатия кнопки
+}
+
+// Новая функция — закрывает первый диалог и разблокирует кнопки
+window.closeFirstMeetingAndEnableButtons = () => {
+  closeActiveDialog();
   NEON_NPC.isMet = true;
+  firstMeetingDialogClosed = true; // теперь можно показывать кнопки
 
   if (ws?.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ type: "neonMet" }));
+    ws.send(JSON.stringify({ type: "meetNeonAlex" }));
   }
-}
+};
 
-// === ОТКАЗ (уровень < 1) ===
+// Отказ (если уровень < 5 — можно поменять)
 function openRejectionDialog() {
   closeActiveDialog();
-  initializeCyberStyles();
 
   activeDialog = document.createElement("div");
-  activeDialog.className = "cyber-dialog";
+  activeDialog.className = "npc-dialog";
+
   activeDialog.innerHTML = `
-    <img src="${images[NEON_NPC.photoKey].src}" class="npc-photo">
-    <div class="npc-name">${NEON_NPC.name}</div>
-    <div class="npc-text">
-      Слабак... Возвращайся, когда прокачаешься.
+    <div class="npc-dialog-header">
+      <img src="${images[NEON_NPC.photoKey].src}" class="npc-photo">
+      <h2 class="npc-title">${NEON_NPC.name}</h2>
     </div>
-    <div class="btn-container">
-      <button class="cyber-close-btn" onclick="closeActiveDialog()">Уйти</button>
+    <div class="npc-dialog-content">
+      <div class="npc-text">
+        Слабак... Возвращайся, когда прокачаешься хотя бы до 5 уровня.
+      </div>
     </div>
+    <button class="neon-btn" onclick="closeActiveDialog()">Уйти</button>
   `;
+
   document.body.appendChild(activeDialog);
   NEON_NPC.isDialogOpen = true;
 }
 
-// === ДИАЛОГ С ТЕМАМИ ===
+// Диалог «Поговорить»
 function openNeonTalkDialog() {
   closeActiveDialog();
-  initializeCyberStyles();
 
-  let topicsHTML = '<div class="topic-container">';
+  activeDialog = document.createElement("div");
+  activeDialog.className = "npc-dialog";
+
+  let topicsHTML = "";
   NEON_TOPICS.forEach((topic) => {
-    topicsHTML += `<button class="topic-btn cyber-close-btn" style="display:block;width:100%;margin:8px 0;text-align:left;">${topic.title}</button>`;
+    topicsHTML += `
+      <div class="talk-topic" onclick="showTopicText('${topic.title}', \`${topic.text}\`)">
+        ${topic.title}
+      </div>`;
   });
-  topicsHTML += "</div>";
 
-  activeDialog = document.createElement("div");
-  activeDialog.className = "cyber-dialog";
   activeDialog.innerHTML = `
-    <img src="${images[NEON_NPC.photoKey].src}" class="npc-photo">
-    <div class="npc-name">${NEON_NPC.name}</div>
-    ${topicsHTML}
-    <div class="btn-container">
-      <button class="cyber-close-btn" onclick="closeActiveDialog()">Закрыть</button>
+    <div class="npc-dialog-header">
+      <img src="${images[NEON_NPC.photoKey].src}" class="npc-photo">
+      <h2 class="npc-title">${NEON_NPC.name}</h2>
     </div>
-  `;
-  document.body.appendChild(activeDialog);
-  NEON_NPC.isDialogOpen = true;
-
-  activeDialog.querySelectorAll(".topic-btn").forEach((btn, i) => {
-    btn.onclick = () => {
-      closeActiveDialog();
-      setTimeout(() => {
-        activeDialog = document.createElement("div");
-        activeDialog.className = "cyber-dialog";
-        activeDialog.innerHTML = `
-          <img src="${images[NEON_NPC.photoKey].src}" class="npc-photo">
-          <div class="npc-name">${NEON_NPC.name}</div>
-          <div class="npc-text">${NEON_TOPICS[i].text}</div>
-          <div class="btn-container">
-            <button class="cyber-close-btn" onclick="closeActiveDialog()">Назад</button>
-          </div>
-        `;
-        document.body.appendChild(activeDialog);
-      }, 150);
-    };
-  });
-}
-
-// === ОКНО ЗАДАНИЙ ===
-function openNeonQuestDialog() {
-  closeActiveDialog();
-  initializeCyberStyles();
-
-  const player = players.get(myId);
-  const neonQuest = player?.neonQuest || {};
-  const currentQuestId = neonQuest.currentQuestId;
-  const completed = neonQuest.completed || [];
-  const progress = neonQuest.progress || {};
-
-  const quest = NEON_QUESTS.find((q) => q.id === "neon_quest_1");
-
-  let title = "Новый заказ";
-  let description = `<b>${quest.title}</b><br>${quest.description}<br><br>Награда: 80 XP + 10 баляров`;
-  let progressText = "";
-  let mainButtonText = "Взять заказ";
-  let mainButtonAction = () => {
-    if (ws?.readyState === WebSocket.OPEN) {
-      ws.send(
-        JSON.stringify({ type: "neonQuestAccept", questId: "neon_quest_1" })
-      );
-    }
-    closeActiveDialog();
-  };
-
-  if (currentQuestId === "neon_quest_1") {
-    const killed = progress.killMutants || 0;
-    title = "Текущий заказ";
-    description = `<b>${quest.title}</b><br>${quest.description}`;
-    progressText = `<br><br><b>Прогресс: ${killed}/${quest.goal.killMutants} мутантов уничтожено</b>`;
-
-    if (killed >= quest.goal.killMutants) {
-      mainButtonText = "Сдать заказ";
-      mainButtonAction = () => {
-        if (ws?.readyState === WebSocket.OPEN) {
-          ws.send(
-            JSON.stringify({
-              type: "neonQuestComplete",
-              questId: "neon_quest_1",
-            })
-          );
-        }
-        closeActiveDialog();
-      };
-    } else {
-      mainButtonText = "Понял";
-      mainButtonAction = closeActiveDialog;
-    }
-  } else if (completed.includes("neon_quest_1")) {
-    title = "Заказ выполнен";
-    description = "Отличная работа. Скоро будет новый заказ.";
-    mainButtonText = "Закрыть";
-    mainButtonAction = closeActiveDialog;
-  }
-
-  activeDialog = document.createElement("div");
-  activeDialog.className = "cyber-dialog";
-  activeDialog.innerHTML = `
-    <img src="${images[NEON_NPC.photoKey].src}" class="npc-photo">
-    <div class="npc-name">${NEON_NPC.name} — Заказы</div>
-    <div class="npc-text" style="font-size:18px;line-height:1.8;">
-      <b>${title}</b><br><br>
-      ${description}${progressText}
+    <div class="npc-dialog-content">
+      <div class="talk-topics" id="neonTopicsList">${topicsHTML}</div>
+      <div class="npc-text fullscreen" id="neonTopicText" style="display:none;"></div>
     </div>
-    <div class="btn-container">
-      <button class="cyber-close-btn" id="questMainBtn">${mainButtonText}</button>
-      ${
-        mainButtonText !== "Закрыть"
-          ? '<button class="cyber-close-btn" style="margin-top:10px;background:rgba(255,0,100,0.3);border-color:#ff0080;" onclick="closeActiveDialog()">Отмена</button>'
-          : ""
-      }
-    </div>
+    <button class="neon-btn" onclick="closeActiveDialog()">Закрыть</button>
   `;
 
   document.body.appendChild(activeDialog);
   NEON_NPC.isDialogOpen = true;
-  document.getElementById("questMainBtn").onclick = mainButtonAction;
 }
 
-// === КНОПКИ
+// Показ текста выбранной темы
+window.showTopicText = (title, text) => {
+  document.getElementById("neonTopicsList").classList.add("hidden");
+  const textEl = document.getElementById("neonTopicText");
+  textEl.style.display = "flex";
+  textEl.innerHTML = `<b>${title}</b><br><br>${text}`;
+};
+
+// ==================== КНОПКИ НАД ГОЛОВОЙ ====================
 
 function createNeonButtons(screenX, screenY) {
   if (neonButtonsContainer) return;
 
   neonButtonsContainer = document.createElement("div");
-  neonButtonsContainer.style.position = "absolute";
-  neonButtonsContainer.style.left = screenX + 10 + "px";
-  neonButtonsContainer.style.top = screenY - 70 + "px";
-  neonButtonsContainer.style.display = "flex";
-  neonButtonsContainer.style.gap = "12px";
-  neonButtonsContainer.style.zIndex = "9999";
+  neonButtonsContainer.className = "npc-buttons-container";
+  neonButtonsContainer.style.left = `${screenX + 35}px`;
+  neonButtonsContainer.style.top = `${screenY - 90}px`;
 
   const talkBtn = document.createElement("div");
+  talkBtn.className = "npc-button npc-talk-btn";
   talkBtn.textContent = "Поговорить";
-  talkBtn.className = "cyber-btn";
   talkBtn.onclick = (e) => {
     e.stopPropagation();
     openNeonTalkDialog();
   };
 
   const questBtn = document.createElement("div");
+  questBtn.className = "npc-button npc-quests-btn";
   questBtn.textContent = "Задания";
-  questBtn.className = "cyber-btn cyber-quest-btn";
   questBtn.onclick = (e) => {
     e.stopPropagation();
-    openNeonQuestDialog();
+    alert("Квесты Neon Alex пока в разработке");
   };
 
   neonButtonsContainer.append(talkBtn, questBtn);
@@ -330,7 +223,8 @@ function removeNeonButtons() {
   }
 }
 
-// === ОБНОВЛЕНИЕ И ОТРИСОВКА ===
+// ==================== ОБНОВЛЕНИЕ И ОТРИСОВКА ====================
+
 function updateNeonNpc(deltaTime) {
   if (window.worldSystem.currentWorldId !== 0) return;
   const me = players.get(myId);
@@ -341,6 +235,7 @@ function updateNeonNpc(deltaTime) {
   const dist = Math.hypot(dx, dy);
   NEON_NPC.isPlayerNear = dist < NEON_NPC.interactionRadius;
 
+  // Движение по маршруту, когда игрок далеко
   if (!NEON_NPC.isPlayerNear && !NEON_NPC.isDialogOpen) {
     if (NEON_NPC.isWaiting) {
       NEON_NPC.waitTimer += deltaTime;
@@ -375,6 +270,7 @@ function updateNeonNpc(deltaTime) {
     NEON_NPC.state = "idle";
   }
 
+  // Анимация ходьбы
   if (NEON_NPC.state === "walking") {
     NEON_NPC.frameTime += deltaTime;
     if (NEON_NPC.frameTime >= 120) {
@@ -393,6 +289,7 @@ function drawNeonNpc() {
   const screenX = NEON_NPC.x - camera.x;
   const screenY = NEON_NPC.y - camera.y - 30;
 
+  // Куллинг
   if (
     screenX < -100 ||
     screenX > canvas.width + 100 ||
@@ -424,8 +321,9 @@ function drawNeonNpc() {
     ctx.fillText("NA", screenX + 10, screenY + 50);
   }
 
-  ctx.fillStyle = "#00ffff";
-  ctx.font = "bold 18px 'Orbitron', Courier New";
+  // Имя или «?» до знакомства
+  ctx.fillStyle = NEON_NPC.isMet ? "#066f00ff" : "#ffffff";
+  ctx.font = "12px Arial";
   ctx.textAlign = "center";
   ctx.fillText(
     NEON_NPC.isMet ? NEON_NPC.name : "?",
@@ -433,6 +331,7 @@ function drawNeonNpc() {
     screenY - 35
   );
 
+  // Логика кнопок и диалогов
   const player = players.get(myId);
   const level = player?.level || 0;
 
@@ -444,36 +343,45 @@ function drawNeonNpc() {
       }
       removeNeonButtons();
     } else {
+      // Если ещё не было первой встречи вообще
       if (!NEON_NPC.isMet && !NEON_NPC.isDialogOpen) {
         openFirstMeetingDialog();
-      } else if (NEON_NPC.isMet && !NEON_NPC.isDialogOpen) {
+        removeNeonButtons(); // на всякий случай, чтобы не было глюков
+      }
+      // Если уже встречались И игрок закрыл первое приветствие → показываем кнопки
+      else if (
+        NEON_NPC.isMet &&
+        firstMeetingDialogClosed &&
+        !NEON_NPC.isDialogOpen
+      ) {
         createNeonButtons(screenX, screenY);
+      }
+      // Если диалог открыт (любой) → убираем кнопки
+      if (NEON_NPC.isDialogOpen) {
+        removeNeonButtons();
       }
     }
   } else {
     closeActiveDialog();
     removeNeonButtons();
     rejectionShownThisApproach = false;
+    // firstMeetingDialogClosed не сбрасываем — встреча уже произошла навсегда
   }
 }
 
-// === СИНХРОНИЗАЦИЯ С СЕРВЕРОМ ===
+// Синхронизация с сервером
 if (typeof ws !== "undefined") {
   ws.addEventListener("message", (e) => {
     try {
       const data = JSON.parse(e.data);
-      if (
-        data.type === "neonQuestSync" ||
-        (data.type === "update" && data.player?.alexNeonMet !== undefined)
-      ) {
-        NEON_NPC.isMet = !!data.player?.alexNeonMet || data.isMet || false;
+      if (data.type === "update" && data.player?.alexNeonMet !== undefined) {
+        NEON_NPC.isMet = !!data.player.alexNeonMet;
       }
-    } catch (err) {
-      console.error(err);
-    }
+    } catch {}
   });
 }
 
+// Экспорт
 window.neonNpcSystem = {
   update: updateNeonNpc,
   draw: drawNeonNpc,
