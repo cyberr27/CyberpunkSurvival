@@ -67,7 +67,9 @@ const imageSources = {
   mutantSprite: "mutantSprite.png",
   scorpionSprite: "scorpionSprite.png",
   alexNeonSprite: "alexNeonSprite.png",
-  alexNeonFoto: "alexNeonFoto.png", // Фото для диалога Neon Alex (аналогично John)
+  alexNeonFoto: "alexNeonFoto.png",
+  vacuumRobotSprite: "vacuum_robot.png",
+  vacuumPhotoImage: "vacuum_photo.png",
 };
 
 const images = {};
@@ -700,6 +702,7 @@ function startGame() {
   window.movementSystem.initialize(); // Инициализируем систему движения
   window.npcSystem.initialize(images.johnSprite); // Передаём изображение NPC
   window.jackSystem.initialize(images.jackSprite);
+  window.vacuumRobotSystem.initialize(images.vacuumRobotSprite);
 
   window.combatSystem.initialize();
 
@@ -1892,6 +1895,10 @@ function update(deltaTime) {
     window.neonNpcSystem.update(deltaTime);
   }
 
+  if (window.vacuumRobotSystem) {
+    window.vacuumRobotSystem.update(deltaTime);
+  }
+
   // Проверяем зоны перехода
   window.worldSystem.checkTransitionZones(me.x, me.y);
 
@@ -2020,6 +2027,10 @@ function draw(deltaTime) {
   // === Новый NPC: Neon Alex ===
   if (window.neonNpcSystem) {
     window.neonNpcSystem.draw();
+  }
+
+  if (window.vacuumRobotSystem) {
+    window.vacuumRobotSystem.draw();
   }
 
   window.npcSystem.drawNPC(deltaTime);
