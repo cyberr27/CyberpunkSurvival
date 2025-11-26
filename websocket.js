@@ -612,15 +612,36 @@ function setupWebSocket(
       } else if (data.type === "neonQuestComplete") {
         const id = clients.get(ws);
         if (!id) return;
+
         const player = players.get(id);
+        if (
+          !player.neonQuest ||
+          player.neonQuest.currentQuestId !== "neon_quest_1"
+        ) {
+          return;
+        }
 
-        if (player.neonQuest?.currentQuestId !== "neon_quest_1") return;
+        // ← ГАРАНТИРУЕМ наличие массива completed
+        if (!player.neonQuest.completed) {
+          player.neonQuest.completed = [];
+        }
 
-        const progress = player.neonQuest.progress.killMutants || 0;
-        if (progress < 3) return; // не выполнено
+        const progress = player.neonQuest.progress?.killMutants || 0;
+        if (progress < 3) {
+          ws.send(
+            JSON.stringify({
+              type: "notification",
+              text: "Ты ещё не убил 3 мутантов!",
+              color: "#ff4444",
+            })
+          );
+          return;
+        }
 
         // Награда
         player.xp = (player.xp || 0) + 150;
+
+        // Баляры
         let balyarySlot = player.inventory.findIndex(
           (i) => i?.type === "balyary"
         );
@@ -634,7 +655,7 @@ function setupWebSocket(
             (player.inventory[balyarySlot].quantity || 0) + 50;
         }
 
-        // Левел ап (если нужно)
+        // Левел ап
         let xpToNext = calculateXPToNextLevel(player.level);
         while (player.xp >= xpToNext && player.level < 100) {
           player.level += 1;
@@ -1914,10 +1935,14 @@ function setupWebSocket(
         const id = clients.get(ws);
         if (id && players.has(id)) {
           const player = players.get(id);
+
+          // ГАРАНТИРУЕМ правильную структуру
           player.neonQuest = {
             currentQuestId: "neon_quest_1",
             progress: { killMutants: 0 },
+            completed: player.neonQuest?.completed || [], // сохраняем старые завершённые квесты
           };
+
           players.set(id, player);
           userDatabase.set(id, player);
           await saveUserDatabase(dbCollection, id, player);
