@@ -1892,10 +1892,6 @@ function update(deltaTime) {
     window.neonNpcSystem.update(deltaTime);
   }
 
-  if (window.vacuumRobotSystem) {
-    window.vacuumRobotSystem.update(deltaTime);
-  }
-
   // Проверяем зоны перехода
   window.worldSystem.checkTransitionZones(me.x, me.y);
 
@@ -2024,10 +2020,6 @@ function draw(deltaTime) {
   // === Новый NPC: Neon Alex ===
   if (window.neonNpcSystem) {
     window.neonNpcSystem.draw();
-  }
-
-  if (window.vacuumRobotSystem) {
-    window.vacuumRobotSystem.draw();
   }
 
   window.npcSystem.drawNPC(deltaTime);

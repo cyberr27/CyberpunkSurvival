@@ -1,13 +1,13 @@
 // vacuumRobot.js
-// Робот-пылесос в Неоновом городе (worldId === 1)
-// Спрайт: 13 кадров по 70x70, движется по маршруту, диалог при приближении
+// УБОРОЧНЫЙ ДРОН XR-9000 — общий для всех игроков в Неоновом городе (worldId === 1)
+// Движется по фиксированному маршруту, стоит 10 сек на точках, показывает диалог при приближении
 
 window.vacuumRobotSystem = (function () {
-  const VACUUM_WORLD_ID = 1; // Только в Неоновом городе
+  const VACUUM_WORLD_ID = 1;
   const ROBOT_SIZE = 70;
-  const INTERACTION_RANGE = 50; // Пикселей
+  const INTERACTION_RANGE = 50;
 
-  // Точки маршрута (A → B → C → D → A)
+  // Фиксированный маршрут (A → B → C → D → A)
   const waypoints = [
     { x: 3069, y: 1602 }, // A
     { x: 1420, y: 2556 }, // B
@@ -15,24 +15,21 @@ window.vacuumRobotSystem = (function () {
     { x: 1114, y: 490 }, // D
   ];
 
+  // Состояние робота (общее для всех клиентов — синхронизировано по времени!)
   let currentWaypointIndex = 0;
-  let x = waypoints[0].x;
-  let y = waypoints[0].y;
+  let startTime = Date.now(); // Время старта цикла
+  let isPaused = false; // На точке ожидания
+  let pauseEndTime = 0;
+
   let frame = 0;
   let frameTime = 0;
-  const FRAME_DURATION = 120; // ms на кадр (≈8.3 FPS)
-  let isMoving = false;
-  let waitTimer = 0;
-  const WAIT_TIME = 10000; // 10 секунд на точке
-  let direction = "down"; // По умолчанию
+  const FRAME_DURATION = 120; // 8.3 FPS
+  let direction = "down";
   let isDialogOpen = false;
-  let lastPlayerDistance = Infinity;
 
-  // Загрузка спрайта
-  const robotImage = new Image();
-  robotImage.src = "vacuum_robot.png"; // ← Назови спрайт именно так: vacuum_robot.png (13 кадров по горизонтали, 70x70)
+  const robotImage = images.vacuumRobotImage;
 
-  // Создаём диалог
+  // Создание диалога (один раз)
   function createDialog() {
     if (document.getElementById("vacuum-dialog")) return;
 
@@ -66,14 +63,72 @@ window.vacuumRobotSystem = (function () {
     }
   }
 
-  function updateDirection(targetX, targetY) {
-    const dx = targetX - x;
-    const dy = targetY - y;
-    if (Math.abs(dx) > Math.abs(dy)) {
-      direction = dx > 0 ? "right" : "left";
-    } else {
-      direction = dy > 0 ? "down" : "up";
+  // Получаем текущее положение робота по времени (детерминировано!)
+  function getRobotPosition() {
+    const now = Date.now();
+    const cycleTime = now - startTime;
+
+    // Длина одного полного цикла (примерно)
+    const totalDistance = waypoints.reduce((sum, wp, i) => {
+      const next = waypoints[(i + 1) % waypoints.length];
+      const dx = next.x - wp.x;
+      const dy = next.y - wp.y;
+      return sum + Math.hypot(dx, dy);
+    }, 0);
+
+    const speed = 0.1; // пикселей в мс
+    const totalTimePerCycle = totalDistance / speed + waypoints.length * 10000; // +10 сек на точку
+    const timeInCycle = cycleTime % totalTimePerCycle;
+
+    let traveled = 0;
+    let currentSegmentTime = 0;
+
+    for (let i = 0; i < waypoints.length; i++) {
+      const start = waypoints[i];
+      const end = waypoints[(i + 1) % waypoints.length];
+      const dx = end.x - start.x;
+      const dy = end.y - start.y;
+      const segmentLength = Math.hypot(dx, dy);
+      const segmentTime = segmentLength / speed;
+      const segmentEnd = traveled + segmentTime + 10000; // +10 сек пауза
+
+      if (timeInCycle < segmentEnd) {
+        if (timeInCycle < traveled + segmentTime) {
+          // Едем по сегменту
+          const progress = (timeInCycle - traveled) / segmentTime;
+          return {
+            x: start.x + dx * progress,
+            y: start.y + dy * progress,
+            isMoving: true,
+            direction:
+              Math.abs(dx) > Math.abs(dy)
+                ? dx > 0
+                  ? "right"
+                  : "left"
+                : dy > 0
+                ? "down"
+                : "up",
+          };
+        } else {
+          // Стоим на точке
+          return {
+            x: end.x,
+            y: end.y,
+            isMoving: false,
+            direction: direction, // сохраняем последнее направление
+          };
+        }
+      }
+      traveled += segmentTime + 10000;
     }
+
+    // Если что-то пошло не так — возвращаем первую точку
+    return {
+      x: waypoints[0].x,
+      y: waypoints[0].y,
+      isMoving: false,
+      direction: "down",
+    };
   }
 
   function update(deltaTime) {
@@ -83,7 +138,12 @@ window.vacuumRobotSystem = (function () {
       return;
     }
 
-    // Проверка дистанции до игрока
+    const pos = getRobotPosition();
+    const x = pos.x;
+    const y = pos.y;
+    direction = pos.direction;
+
+    // Проверка на диалог
     const dx = me.x + 35 - (x + 35);
     const dy = me.y + 35 - (y + 35);
     const distance = Math.hypot(dx, dy);
@@ -101,55 +161,23 @@ window.vacuumRobotSystem = (function () {
     frameTime += deltaTime;
     if (frameTime >= FRAME_DURATION) {
       frameTime -= FRAME_DURATION;
-      frame = (frame + 1) % 13; // 13 кадров в спрайте
+      frame = (frame + 1) % 13;
     }
-
-    // Логика движения
-    if (waitTimer > 0) {
-      waitTimer -= deltaTime;
-      isMoving = false;
-      if (waitTimer <= 0) {
-        currentWaypointIndex = (currentWaypointIndex + 1) % waypoints.length;
-        isMoving = true;
-      }
-      return;
-    }
-
-    const target = waypoints[currentWaypointIndex];
-    const tx = target.x;
-    const ty = target.y;
-    const distToTarget = Math.hypot(tx - x, ty - y);
-
-    if (distToTarget < 5) {
-      // Достигли точки — ждём 10 сек
-      x = tx;
-      y = ty;
-      waitTimer = WAIT_TIME;
-      isMoving = false;
-      return;
-    }
-
-    // Движение к точке
-    isMoving = true;
-    updateDirection(tx, ty);
-
-    const speed = 0.1; // Как ты и просил — очень медленно
-    const moveX = ((tx - x) / distToTarget) * speed * deltaTime;
-    const moveY = ((ty - y) / distToTarget) * speed * deltaTime;
-
-    x += moveX;
-    y += moveY;
   }
 
   function draw() {
     const me = players.get(myId);
-    if (!me || me.worldId !== VACUUM_WORLD_ID || !robotImage.complete) return;
+    if (!me || me.worldId !== VACUUM_WORLD_ID || !robotImage?.complete) return;
+
+    const pos = getRobotPosition();
+    const x = pos.x;
+    const y = pos.y;
 
     const camera = window.movementSystem.getCamera();
     const screenX = x - camera.x;
     const screenY = y - camera.y;
 
-    // Оптимизация: не рисовать, если далеко
+    // Не рисуем, если далеко за экраном
     if (
       screenX < -100 ||
       screenX > canvas.width + 100 ||
@@ -188,9 +216,13 @@ window.vacuumRobotSystem = (function () {
     }
   }
 
+  // Публичный интерфейс
   return {
     update,
     draw,
     isActive: () => players.get(myId)?.worldId === VACUUM_WORLD_ID,
+    reset: () => {
+      startTime = Date.now();
+    }, // На случай ресинхронизации
   };
 })();
