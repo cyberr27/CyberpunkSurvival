@@ -7,7 +7,7 @@ window.vacuumRobotSystem = (function () {
     worldId: 0,
     width: 70,
     height: 70,
-    speed: 0.08, // px/ms
+    speed: 0.09, // px/ms
     frame: 0,
     frameTime: 0,
     frameDuration: 83, // ~12 FPS (было 30 мс → теперь плавнее и легче)
@@ -22,7 +22,7 @@ window.vacuumRobotSystem = (function () {
     currentTargetIndex: 1,
     state: "moving", // moving | waiting
     waitTimer: 0,
-    waitDuration: 1000, // ← 2 секунды на точке
+    waitDuration: 100, // ← 2 секунды на точке
     dialogShown: false,
     dialogElement: null,
   };
