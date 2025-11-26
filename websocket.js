@@ -1950,25 +1950,29 @@ function setupWebSocket(
           ws.send(JSON.stringify({ type: "neonQuestStarted" }));
         }
       } else if (data.type === "vacuumBalyaryReward") {
-        const player = players.get(myId);
+        const playerId = clients.get(ws);
+        if (!playerId) return;
+
+        const player = players.get(playerId);
         if (!player || !player.inventory) return;
+        if (data.slot < 0 || data.slot >= 20) return;
 
         if (data.isNewStack) {
           player.inventory[data.slot] = {
             type: "balyary",
-            quantity: data.quantity,
+            quantity: data.quantity || 1,
           };
         } else {
-          if (!player.inventory[data.slot])
+          if (!player.inventory[data.slot]) {
             player.inventory[data.slot] = { type: "balyary", quantity: 0 };
-          player.inventory[data.slot].quantity = data.quantity;
+          }
+          player.inventory[data.slot].quantity = data.quantity || 1;
         }
 
-        players.set(myId, player);
-        userDatabase.set(myId, player);
-        await saveUserDatabase(dbCollection, myId, player);
+        players.set(playerId, player);
+        userDatabase.set(playerId, player);
+        await saveUserDatabase(dbCollection, playerId, player);
 
-        // Рассылаем обновлённый инвентарь только игроку
         ws.send(
           JSON.stringify({
             type: "useItemSuccess",
