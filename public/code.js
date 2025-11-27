@@ -70,6 +70,7 @@ const imageSources = {
   alexNeonFoto: "alexNeonFoto.png",
   vacuumRobotSprite: "vacuum_robot.png",
   vacuumPhotoImage: "vacuum_photo.png",
+  cockroachSprite: "cockroachSprite.png",
 };
 
 const images = {};
@@ -84,6 +85,7 @@ Object.entries(imageSources).forEach(([key, src]) => {
     if (imagesLoaded === totalImages) {
       window.addEventListener("resize", resizeCanvas);
       window.enemySystem.initialize();
+      window.cockroachSystem.initialize(images.cockroachSprite);
     }
   };
   images[key].onerror = () => {
@@ -703,6 +705,7 @@ function startGame() {
   window.npcSystem.initialize(images.johnSprite); // Передаём изображение NPC
   window.jackSystem.initialize(images.jackSprite);
   window.vacuumRobotSystem.initialize(images.vacuumRobotSprite);
+  window.cockroachSystem.initialize(images.cockroachSprite);
 
   window.combatSystem.initialize();
 
@@ -1899,6 +1902,8 @@ function update(deltaTime) {
     window.vacuumRobotSystem.update(deltaTime);
   }
 
+  window.cockroachSystem.update(deltaTime);
+
   // Проверяем зоны перехода
   window.worldSystem.checkTransitionZones(me.x, me.y);
 
@@ -2031,6 +2036,10 @@ function draw(deltaTime) {
 
   if (window.vacuumRobotSystem) {
     window.vacuumRobotSystem.draw();
+  }
+
+  if (window.cockroachSystem) {
+    window.cockroachSystem.draw();
   }
 
   window.npcSystem.drawNPC(deltaTime);
@@ -2207,5 +2216,5 @@ function gameLoop(timestamp) {
 // Инициализация изображений (без изменений)
 function onImageLoad() {
   imagesLoaded++;
-  if (imagesLoaded === 29) window.addEventListener("resize", resizeCanvas);
+  if (imagesLoaded === 30) window.addEventListener("resize", resizeCanvas);
 }
