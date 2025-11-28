@@ -497,6 +497,26 @@ function setupWebSocket(
           userDatabase.set(id, { ...player });
           await saveUserDatabase(dbCollection, id, player);
         }
+      } else if (data.type === "meetNicolo") {
+        const id = clients.get(ws);
+        if (id) {
+          const player = players.get(id);
+          player.nicoloMet = true;
+          players.set(id, { ...player });
+          userDatabase.set(id, { ...player });
+          await saveUserDatabase(dbCollection, id, player);
+
+          broadcastToWorld(
+            wss,
+            clients,
+            players,
+            player.worldId,
+            JSON.stringify({
+              type: "update",
+              player: { id: player.id, nicoloMet: true },
+            })
+          );
+        }
       } else if (data.type === "requestNeonQuestSync") {
         const id = clients.get(ws);
         const player = players.get(id);
