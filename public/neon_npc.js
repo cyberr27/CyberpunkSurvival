@@ -1,4 +1,4 @@
-// neon_npc.js — Neon Alex (2025) — использует только npc-styles.css + квесты + чат-прогресс
+// neon_npc.js — Neon Alex (2025) — исправлено двойное начисление убийств
 
 const NEON_NPC = {
   name: "Neon",
@@ -8,24 +8,21 @@ const NEON_NPC = {
   y: 2771,
   width: 70,
   height: 70,
-  interactionRadius: 50, // ← ИЗМЕНЕНО: было 80, теперь 50 пикселей
+  interactionRadius: 50,
 
-  // Патруль
   speed: 0.02,
   targetA: { x: 502, y: 2771 },
   targetB: { x: 1368, y: 1657 },
   movingToB: true,
   isWaiting: true,
-  waitDuration: 10000, // ← ИЗМЕНЕНО: было 20000, теперь 10 секунд
+  waitDuration: 10000,
   waitTimer: 0,
 
-  // Анимация
   frame: 0,
   frameTime: 0,
   direction: "down",
   state: "idle",
 
-  // Состояние
   isPlayerNear: false,
   isDialogOpen: false,
   isMet: false,
@@ -35,11 +32,8 @@ let neonButtonsContainer = null;
 let activeDialog = null;
 let rejectionShownThisApproach = false;
 let firstMeetingDialogClosed = false;
-
-// Элемент прогресса в чате
 let questProgressElement = null;
 
-// Квесты Neon Alex
 const NEON_QUESTS = [
   {
     id: "neon_quest_1",
@@ -53,7 +47,7 @@ const NEON_QUESTS = [
 
 const CURRENT_QUEST = NEON_QUESTS[0];
 
-// ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ ЧАТ-ПРОГРЕССА ====================
+// ==================== ПРОГРЕСС В ЧАТЕ ====================
 
 function createQuestProgressInChat() {
   if (questProgressElement) return;
@@ -91,6 +85,9 @@ function updateQuestProgressDisplay() {
 
   if (isActive && kills < needed) {
     questProgressElement.textContent = `${CURRENT_QUEST.title}: ${kills}/${needed} мутантов убито`;
+    questProgressElement.style.background =
+      "linear-gradient(90deg, #00ffff, #0088ff)";
+    questProgressElement.style.boxShadow = "0 0 10px #00ffff";
     questProgressElement.style.display = "block";
   } else if (isActive && kills >= needed) {
     questProgressElement.textContent = `${CURRENT_QUEST.title}: ГОТОВО! Вернись к Neon Alex`;
@@ -113,7 +110,7 @@ function removeQuestProgressFromChat() {
   }
 }
 
-// ==================== ДИАЛОГИ И КВЕСТЫ ====================
+// ==================== ДИАЛОГИ ====================
 
 function closeActiveDialog() {
   if (activeDialog) {
@@ -178,7 +175,6 @@ function openNeonTalkDialog() {
   activeDialog = document.createElement("div");
   activeDialog.className = "npc-dialog";
 
-  let topicsHTML = "";
   const topics = [
     {
       title: "О городе",
@@ -190,7 +186,7 @@ function openNeonTalkDialog() {
     },
     {
       title: "Где мы?",
-      text: "Заброшенный сектор 7. Корпорации бросили его лет 15 назад. Теперь здесь только мы и мутанты.",
+      text: "Заброшенный сектор 7. Корпорации бросили его лет 15 назад.",
     },
     {
       title: "Что с корпорациями?",
@@ -198,7 +194,7 @@ function openNeonTalkDialog() {
     },
     {
       title: "Как выживать?",
-      text: "Не доверяй никому. Держи нож за спиной, а глаза открытыми. И никогда не пей воду из открытых источников.",
+      text: "Не доверяй никому. Держи нож за спиной, а глаза открытыми.",
     },
     {
       title: "Есть ли выход?",
@@ -206,21 +202,21 @@ function openNeonTalkDialog() {
     },
     {
       title: "Твоя история",
-      text: "Я украл у них данные, которые стоили миллиарды. Теперь я в розыске. А ты… ты тоже беглец?",
+      text: "Я украл у них данные, которые стоили миллиарды. Теперь я в розыске.",
     },
-    {
-      title: "О мутантах",
-      text: "Радиация, эксперименты, химия… всё вместе. Некоторые ещё помнят, что были людьми.",
-    },
+    { title: "О мутантах", text: "Радиация, эксперименты, химия… всё вместе." },
     {
       title: "Зачем ты здесь?",
       text: "Жду человека, который сможет вытащить меня отсюда. Может, это ты?",
     },
   ];
 
-  topics.forEach((topic) => {
-    topicsHTML += `<div class="talk-topic" onclick="showTopicText('${topic.title}', \`${topic.text}\`)">${topic.title}</div>`;
-  });
+  let topicsHTML = topics
+    .map(
+      (t) =>
+        `<div class="talk-topic" onclick="showTopicText('${t.title}', \`${t.text}\`)">${t.title}</div>`
+    )
+    .join("");
 
   activeDialog.innerHTML = `
     <div class="npc-dialog-header">
@@ -244,7 +240,6 @@ window.showTopicText = (title, text) => {
   textEl.innerHTML = `<b>${title}</b><br><br>${text}`;
 };
 
-// === ОКНО КВЕСТОВ ===
 function openNeonQuestDialog() {
   closeActiveDialog();
 
@@ -362,7 +357,6 @@ function updateNeonNpc(deltaTime) {
   const dist = Math.hypot(dx, dy);
   NEON_NPC.isPlayerNear = dist < NEON_NPC.interactionRadius;
 
-  // Движение по маршруту
   if (!NEON_NPC.isPlayerNear && !NEON_NPC.isDialogOpen) {
     if (NEON_NPC.isWaiting) {
       NEON_NPC.waitTimer += deltaTime;
@@ -397,7 +391,6 @@ function updateNeonNpc(deltaTime) {
     NEON_NPC.state = "idle";
   }
 
-  // Анимация
   if (NEON_NPC.state === "walking") {
     NEON_NPC.frameTime += deltaTime;
     if (NEON_NPC.frameTime >= 120) {
@@ -497,7 +490,6 @@ if (typeof ws !== "undefined") {
         NEON_NPC.isMet = !!player.alexNeonMet;
         firstMeetingDialogClosed = !!player.alexNeonMet;
 
-        // Инициализируем neonQuest правильно
         if (!player.neonQuest) {
           player.neonQuest = {
             currentQuestId: null,
@@ -508,16 +500,18 @@ if (typeof ws !== "undefined") {
 
         if (player.neonQuest.currentQuestId === CURRENT_QUEST.id) {
           createQuestProgressInChat();
+          updateQuestProgressDisplay();
         } else if (questProgressElement) {
           removeQuestProgressFromChat();
         }
-        updateQuestProgressDisplay();
       }
 
-      // Обновление прогресса при убийстве
-      if (data.type === "levelSyncAfterKill" && data.xpGained === 13) {
+      // Прогресс квеста обновляется только с сервера!
+      if (data.type === "neonQuestProgress") {
         const me = players.get(myId);
-        if (me?.neonQuest?.currentQuestId === CURRENT_QUEST.id) {
+        if (me) {
+          me.neonQuest = me.neonQuest || {};
+          me.neonQuest.progress = data.progress;
           updateQuestProgressDisplay();
         }
       }
@@ -525,6 +519,7 @@ if (typeof ws !== "undefined") {
       if (data.type === "neonQuestStarted") {
         showNotification("Задание взято: Очистка пустошей", "#00ff44");
         createQuestProgressInChat();
+        updateQuestProgressDisplay();
       }
 
       if (data.type === "neonQuestCompleted") {
@@ -533,6 +528,16 @@ if (typeof ws !== "undefined") {
           "#00ffff"
         );
         removeQuestProgressFromChat();
+        if (window.levelSystem) {
+          window.levelSystem.setLevelData(
+            data.level,
+            data.xp,
+            data.xpToNextLevel,
+            data.upgradePoints
+          );
+          window.levelSystem.showXPEffect(data.reward.xp);
+        }
+        updateInventoryDisplay();
       }
     } catch (err) {
       console.error("Neon Alex error:", err);
