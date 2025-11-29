@@ -1529,17 +1529,18 @@ function handleGameMessage(event) {
           players.clear();
           if (myPlayer) {
             players.set(myId, { ...myPlayer, frameTime: 0 });
+          } else {
           }
           data.players.forEach((p) => {
             if (p && p.id && p.id !== myId && typeof p === "object") {
               players.set(p.id, { ...p, frameTime: 0 });
+            } else {
             }
           });
         }
         break;
-
       case "unequipItemSuccess":
-        const me = players.get(myId);
+        me = players.get(myId);
         if (me) {
           me.inventory = data.inventory;
           me.equipment = data.equipment;
@@ -1551,7 +1552,6 @@ function handleGameMessage(event) {
           updateStatsDisplay();
         }
         break;
-
       case "worldTransitionSuccess":
         {
           const me = players.get(myId);
@@ -1576,6 +1576,7 @@ function handleGameMessage(event) {
             }
           }
         }
+        // Добавляем задержку для стабилизации соединения после перехода
         setTimeout(() => {
           if (ws.readyState === WebSocket.OPEN) {
             sendWhenReady(
@@ -1586,46 +1587,191 @@ function handleGameMessage(event) {
               })
             );
           }
-        }, 1000);
+        }, 1000); // Задержка 1 секунда
         break;
-
       case "newPlayer":
-        if (!data.player || typeof data.player !== "object" || !data.player.id)
+        if (!data.player || typeof data.player !== "object") {
+          console.warn(
+            "newPlayer: Получены некорректные данные игрока:",
+            data.player
+          );
           break;
-        if (data.player.worldId !== currentWorldId) break;
-        players.set(data.player.id, { ...data.player, frameTime: 0 });
+        }
+        if (!data.player.id) {
+          console.warn("newPlayer: Отсутствует ID игрока:", data.player);
+          break;
+        }
+        if (data.player.worldId !== currentWorldId) {
+          break;
+        }
+        if (players.has(data.player.id)) {
+          players.set(data.player.id, { ...data.player, frameTime: 0 });
+        } else {
+          players.set(data.player.id, { ...data.player, frameTime: 0 });
+        }
         break;
-
       case "playerLeft":
-        players.delete(data.id);
+        if (players.has(data.id)) {
+          players.delete(data.id);
+        }
         break;
-
+      case "syncItems":
+        items.clear();
+        data.items.forEach((item) => {
+          if (item.worldId === currentWorldId) {
+            items.set(item.itemId, {
+              x: item.x,
+              y: item.y,
+              type: item.type,
+              spawnTime: item.spawnTime,
+              worldId: item.worldId,
+            });
+          }
+        });
+        data.items.forEach((item) => {
+          if (pendingPickups.has(item.itemId)) {
+            pendingPickups.delete(item.itemId);
+          }
+        });
+        break;
+      case "itemPicked":
+        items.delete(data.itemId);
+        pendingPickups.delete(data.itemId);
+        const me = players.get(myId);
+        if (me && data.playerId === myId && data.item) {
+          if (data.item.type === "balyary") {
+            const balyarySlot = inventory.findIndex(
+              (slot) => slot && slot.type === "balyary"
+            );
+            if (balyarySlot !== -1) {
+              inventory[balyarySlot].quantity =
+                (inventory[balyarySlot].quantity || 1) + 1;
+            } else {
+              const freeSlot = inventory.findIndex((slot) => slot === null);
+              if (freeSlot !== -1) {
+                inventory[freeSlot] = {
+                  type: "balyary",
+                  quantity: 1,
+                  itemId: data.itemId,
+                };
+              }
+            }
+          } else {
+            const freeSlot = inventory.findIndex((slot) => slot === null);
+            if (freeSlot !== -1) {
+              inventory[freeSlot] = data.item;
+            }
+          }
+          updateInventoryDisplay();
+          levelSystem.handleItemPickup(
+            data.item.type,
+            data.item.isDroppedByPlayer || false
+          );
+        }
+        updateStatsDisplay();
+        break;
+      case "itemNotFound":
+        items.delete(data.itemId);
+        pendingPickups.delete(data.itemId);
+        break;
+      case "inventoryFull":
+        pendingPickups.delete(data.itemId);
+        break;
       case "update":
+        // Синхронизируем игрока, инвентарь и экипировку
         if (data.player && data.player.id === myId) {
+          // Обновляем игрока
           players.set(myId, { ...players.get(myId), ...data.player });
+          // Обновляем инвентарь
           if (data.player.inventory) {
             inventory = data.player.inventory;
             updateInventoryDisplay();
           }
+
+          // Обновляем экипировку
           if (data.player.equipment) {
             window.equipmentSystem.syncEquipment(data.player.equipment);
           }
           updateStatsDisplay();
         } else if (data.player && data.player.id) {
+          // обновление других игроков
           players.set(data.player.id, {
             ...players.get(data.player.id),
             ...data.player,
           });
         }
         break;
-
+      case "itemDropped":
+        if (data.worldId === currentWorldId) {
+          items.set(data.itemId, {
+            x: data.x,
+            y: data.y,
+            type: data.type,
+            spawnTime: data.spawnTime,
+            worldId: data.worldId,
+          });
+          if (data.quantity && ITEM_CONFIG[data.type]?.stackable) {
+            items.get(data.itemId).quantity = data.quantity;
+          }
+          updateInventoryDisplay();
+        }
+        break;
+      case "chat":
+        window.chatSystem.handleChatMessage(data);
+        break;
+      case "buyWaterResult":
+        if (data.success) {
+          const me = players.get(myId);
+          me.water = data.water;
+          inventory = data.inventory;
+          updateStatsDisplay();
+          updateInventoryDisplay();
+          window.vendingMachine.hideVendingMenu();
+        } else {
+          const errorEl = document.getElementById("vendingError");
+          errorEl.textContent = data.error || "Ошибка покупки";
+        }
+        break;
+      case "totalOnline":
+        updateOnlineCount(data.count);
+        break;
+      case "tradeRequest":
+      case "tradeAccepted":
+      case "tradeCancelled":
+      case "tradeOffer":
+      case "tradeConfirmed":
+      case "tradeCompleted":
+        window.tradeSystem.handleTradeMessage(data);
+        break;
+      case "useItemSuccess":
+        me = players.get(myId);
+        me.health = data.stats.health;
+        me.energy = data.stats.energy;
+        me.food = data.stats.food;
+        me.water = data.stats.water;
+        inventory = data.inventory;
+        updateStatsDisplay();
+        updateInventoryDisplay();
+        break;
+      case "syncBullets":
+        window.combatSystem.syncBullets(data.bullets);
+        break;
+      case "newEnemy":
+        enemies.set(data.enemy.id, {
+          ...data.enemy,
+          frame: 0,
+          frameTime: 0,
+          lastAttackTime: 0,
+        });
+      case "enemyKilled":
+        break;
       case "levelSyncAfterKill": {
+        // Мгновенно обновляем уровень, XP, xpToNextLevel, upgradePoints
         if (window.levelSystem) {
           window.levelSystem.currentLevel = data.level;
           window.levelSystem.currentXP = data.xp;
           window.levelSystem.xpToNextLevel = data.xpToNextLevel;
           window.levelSystem.upgradePoints = data.upgradePoints;
-
           if (typeof window.levelSystem.setLevelData === "function") {
             window.levelSystem.setLevelData(
               data.level,
@@ -1649,25 +1795,48 @@ function handleGameMessage(event) {
         }
         break;
       }
-      case "neonQuestProgress":
-        me = players.get(myId);
-        if (me && me.neonQuest) {
-          me.neonQuest.progress = data.progress;
-          if (typeof updateQuestProgressDisplay === "function") {
-            updateQuestProgressDisplay();
-          }
+      case "syncEnemies":
+        window.enemySystem.syncEnemies(data.enemies);
+        break;
+      case "enemyUpdate":
+        if (data.enemy && data.enemy.id) {
+          enemies.set(data.enemy.id, {
+            ...enemies.get(data.enemy.id),
+            ...data.enemy,
+          });
+        }
+        break;
+      case "enemyDied":
+        enemies.delete(data.enemyId);
+        if (window.enemySystem && window.enemySystem.handleEnemyDeath) {
+          window.enemySystem.handleEnemyDeath(data.enemyId);
+        }
+        break;
+      case "enemyUpdate":
+        if (data.enemy && data.enemy.id && enemies.has(data.enemy.id)) {
+          const existing = enemies.get(data.enemy.id);
+          enemies.set(data.enemy.id, {
+            ...existing,
+            ...data.enemy,
+            targetX: data.enemy.x, // Для интерполяции
+            targetY: data.enemy.y,
+          });
+        }
+        break;
+      case "enemyAttack":
+        // Визуал атаки на игрока (например, triggerAttackAnimation если targetId === myId)
+        if (data.targetId === myId) {
+          triggerAttackAnimation();
         }
         break;
       case "neonQuestStarted":
-        showNotification("Задание взято: Очистка пустошей", "#00ff44");
-        createQuestProgressInChat();
+        showNotification("Заказ принят: Очистка пустошей", "#00ff44");
         break;
       case "neonQuestCompleted":
         showNotification(
-          `Задание выполнено! +${data.reward.xp} XP | +${data.reward.balyary} баляров`,
+          `Заказ сдан! +${data.reward.xp} XP | +${data.reward.balyary} баляров!`,
           "#00ffff"
         );
-        removeQuestProgressFromChat();
         if (window.levelSystem) {
           window.levelSystem.setLevelData(
             data.level,
@@ -1678,146 +1847,6 @@ function handleGameMessage(event) {
           window.levelSystem.showXPEffect(data.reward.xp);
         }
         updateInventoryDisplay();
-        break;
-
-      // Остальные кейсы без изменений
-      case "syncItems":
-        items.clear();
-        data.items.forEach((item) => {
-          if (item.worldId === currentWorldId) {
-            items.set(item.itemId, {
-              x: item.x,
-              y: item.y,
-              type: item.type,
-              spawnTime: item.spawnTime,
-              worldId: item.worldId,
-            });
-          }
-        });
-        data.items.forEach((item) => pendingPickups.delete(item.itemId));
-        break;
-
-      case "itemPicked":
-        items.delete(data.itemId);
-        pendingPickups.delete(data.itemId);
-        const playerAfterPickup = players.get(myId);
-        if (playerAfterPickup && data.playerId === myId && data.item) {
-          if (data.item.type === "balyary") {
-            const slot = inventory.findIndex((i) => i && i.type === "balyary");
-            if (slot !== -1) {
-              inventory[slot].quantity = (inventory[slot].quantity || 1) + 1;
-            } else {
-              const free = inventory.findIndex((i) => i === null);
-              if (free !== -1) {
-                inventory[free] = {
-                  type: "balyary",
-                  quantity: 1,
-                  itemId: data.itemId,
-                };
-              }
-            }
-          } else {
-            const free = inventory.findIndex((i) => i === null);
-            if (free !== -1) inventory[free] = data.item;
-          }
-          updateInventoryDisplay();
-          levelSystem.handleItemPickup(
-            data.item.type,
-            data.item.isDroppedByPlayer || false
-          );
-        }
-        updateStatsDisplay();
-        break;
-
-      case "itemDropped":
-        if (data.worldId === currentWorldId) {
-          items.set(data.itemId, {
-            x: data.x,
-            y: data.y,
-            type: data.type,
-            spawnTime: data.spawnTime,
-            worldId: data.worldId,
-          });
-          if (data.quantity && ITEM_CONFIG[data.type]?.stackable) {
-            items.get(data.itemId).quantity = data.quantity;
-          }
-          updateInventoryDisplay();
-        }
-        break;
-
-      case "chat":
-        window.chatSystem.handleChatMessage(data);
-        break;
-
-      case "buyWaterResult":
-        if (data.success) {
-          const me = players.get(myId);
-          me.water = data.water;
-          inventory = data.inventory;
-          updateStatsDisplay();
-          updateInventoryDisplay();
-          window.vendingMachine.hideVendingMenu();
-        } else {
-          const errorEl = document.getElementById("vendingError");
-          if (errorEl) errorEl.textContent = data.error || "Ошибка покупки";
-        }
-        break;
-
-      case "totalOnline":
-        updateOnlineCount(data.count);
-        break;
-
-      case "tradeRequest":
-      case "tradeAccepted":
-      case "tradeCancelled":
-      case "tradeOffer":
-      case "tradeConfirmed":
-      case "tradeCompleted":
-        window.tradeSystem.handleTradeMessage(data);
-        break;
-
-      case "useItemSuccess":
-        const player = players.get(myId);
-        player.health = data.stats.health;
-        player.energy = data.stats.energy;
-        player.food = data.stats.food;
-        player.water = data.stats.water;
-        inventory = data.inventory;
-        updateStatsDisplay();
-        updateInventoryDisplay();
-        break;
-
-      case "syncBullets":
-        window.combatSystem.syncBullets(data.bullets);
-        break;
-
-      case "newEnemy":
-        enemies.set(data.enemy.id, {
-          ...data.enemy,
-          frame: 0,
-          frameTime: 0,
-          lastAttackTime: 0,
-        });
-        break;
-
-      case "enemyUpdate":
-        if (data.enemy && data.enemy.id) {
-          enemies.set(data.enemy.id, {
-            ...enemies.get(data.enemy.id),
-            ...data.enemy,
-          });
-        }
-        break;
-
-      case "enemyAttack":
-        if (data.targetId === myId) {
-          triggerAttackAnimation();
-        }
-        break;
-
-      // остальные кейсы (syncEnemies, bullet-ы и т.д.) оставляем как есть
-      default:
-        // ничего не делаем для неизвестных типов
         break;
     }
   } catch (error) {
