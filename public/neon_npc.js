@@ -9,7 +9,6 @@ const NEON_NPC = {
   width: 70,
   height: 70,
   interactionRadius: 50,
-
   speed: 0.02,
   targetA: { x: 502, y: 2771 },
   targetB: { x: 1368, y: 1657 },
@@ -17,12 +16,10 @@ const NEON_NPC = {
   isWaiting: true,
   waitDuration: 10000,
   waitTimer: 0,
-
   frame: 0,
   frameTime: 0,
   direction: "down",
   state: "idle",
-
   isPlayerNear: false,
   isDialogOpen: false,
   isMet: false,
@@ -51,7 +48,6 @@ const CURRENT_QUEST = NEON_QUESTS[0];
 
 function createQuestProgressInChat() {
   if (questProgressElement) return;
-
   const chatMessages = document.getElementById("chatMessages");
   if (!chatMessages) return;
 
@@ -482,13 +478,13 @@ if (typeof ws !== "undefined") {
     try {
       const data = JSON.parse(e.data);
 
+      // Логин / обновление игрока
       if (
         data.type === "loginSuccess" ||
         (data.type === "update" && data.player?.id === myId)
       ) {
         const player = data.type === "loginSuccess" ? data : data.player;
         NEON_NPC.isMet = !!player.alexNeonMet;
-        firstMeetingDialogClosed = !!player.alexNeonMet;
 
         if (!player.neonQuest) {
           player.neonQuest = {
@@ -506,11 +502,10 @@ if (typeof ws !== "undefined") {
         }
       }
 
-      // Прогресс квеста обновляется только с сервера!
+      // Сервер присылает актуальный прогресс после каждого убийства
       if (data.type === "neonQuestProgress") {
         const me = players.get(myId);
-        if (me) {
-          me.neonQuest = me.neonQuest || {};
+        if (me && me.neonQuest) {
           me.neonQuest.progress = data.progress;
           updateQuestProgressDisplay();
         }
@@ -519,7 +514,6 @@ if (typeof ws !== "undefined") {
       if (data.type === "neonQuestStarted") {
         showNotification("Задание взято: Очистка пустошей", "#00ff44");
         createQuestProgressInChat();
-        updateQuestProgressDisplay();
       }
 
       if (data.type === "neonQuestCompleted") {

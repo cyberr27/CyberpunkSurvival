@@ -1619,46 +1619,6 @@ function handleGameMessage(event) {
         }
         break;
 
-      // ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ←
-      //  КЛЮЧЕВАЯ ИСПРАВЛЕННАЯ ЧАСТЬ — ОТСЛЕЖИВАНИЕ УБИЙСТВ МУТАНТОВ
-      // ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ←
-
-      case "enemyDied":
-        // Удаляем врага из локального списка (визуал)
-        enemies.delete(data.enemyId);
-
-        // Если это мутант — обновляем прогресс квеста Neon Alex
-        if (data.enemyType === "mutant") {
-          const me = players.get(myId);
-
-          // Проверяем, активен ли у игрока квест neon_quest_1
-          if (
-            me &&
-            me.neonQuest &&
-            me.neonQuest.currentQuestId === "neon_quest_1"
-          ) {
-            // Увеличиваем счётчик ровно на 1
-            me.neonQuest.progress.killMutants =
-              (me.neonQuest.progress.killMutants || 0) + 1;
-
-            // Обновляем отображение прогресса в чате (если оно есть)
-            if (
-              window.neonNpcSystem &&
-              typeof updateQuestProgressDisplay === "function"
-            ) {
-              updateQuestProgressDisplay();
-            }
-          }
-        }
-
-        // Вызываем обработчик смерти врага (эффекты, дроп и т.д.)
-        if (window.enemySystem && window.enemySystem.handleEnemyDeath) {
-          window.enemySystem.handleEnemyDeath(data.enemyId);
-        }
-        break;
-
-      // ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ←
-
       case "levelSyncAfterKill": {
         if (window.levelSystem) {
           window.levelSystem.currentLevel = data.level;
@@ -1689,19 +1649,25 @@ function handleGameMessage(event) {
         }
         break;
       }
-
-      case "neonQuestStarted":
-        showNotification("Заказ принят: Очистка пустошей", "#00ff44");
-        if (typeof createQuestProgressInChat === "function") {
-          createQuestProgressInChat();
+      case "neonQuestProgress":
+        me = players.get(myId);
+        if (me && me.neonQuest) {
+          me.neonQuest.progress = data.progress;
+          if (typeof updateQuestProgressDisplay === "function") {
+            updateQuestProgressDisplay();
+          }
         }
         break;
-
+      case "neonQuestStarted":
+        showNotification("Задание взято: Очистка пустошей", "#00ff44");
+        createQuestProgressInChat();
+        break;
       case "neonQuestCompleted":
         showNotification(
-          `Заказ сдан! +${data.reward.xp} XP | +${data.reward.balyary} баляров!`,
+          `Задание выполнено! +${data.reward.xp} XP | +${data.reward.balyary} баляров`,
           "#00ffff"
         );
+        removeQuestProgressFromChat();
         if (window.levelSystem) {
           window.levelSystem.setLevelData(
             data.level,
@@ -1712,9 +1678,6 @@ function handleGameMessage(event) {
           window.levelSystem.showXPEffect(data.reward.xp);
         }
         updateInventoryDisplay();
-        if (typeof removeQuestProgressFromChat === "function") {
-          removeQuestProgressFromChat();
-        }
         break;
 
       // Остальные кейсы без изменений
