@@ -71,8 +71,6 @@ const imageSources = {
   vacuumRobotSprite: "vacuum_robot.png",
   vacuumPhotoImage: "vacuum_photo.png",
   cockroachSprite: "cockroachSprite.png",
-  nicoloSprite: "nicoloSprite.png", // <-- Новый спрайт (70x280, как у всех)
-  nicoloPhoto: "nicoloPhoto.png",
 };
 
 const images = {};
@@ -88,7 +86,6 @@ Object.entries(imageSources).forEach(([key, src]) => {
       window.addEventListener("resize", resizeCanvas);
       window.enemySystem.initialize();
       window.cockroachSystem.initialize(images.cockroachSprite);
-      window.nicoloSystem.init();
     }
   };
   images[key].onerror = () => {
@@ -1906,7 +1903,6 @@ function update(deltaTime) {
   }
 
   window.cockroachSystem.update(deltaTime);
-  window.nicoloSystem.update(deltaTime);
 
   // Проверяем зоны перехода
   window.worldSystem.checkTransitionZones(me.x, me.y);
@@ -2045,7 +2041,6 @@ function draw(deltaTime) {
   if (window.cockroachSystem) {
     window.cockroachSystem.draw();
   }
-  window.nicoloSystem.draw();
 
   window.npcSystem.drawNPC(deltaTime);
   window.jackSystem.drawJack(deltaTime);

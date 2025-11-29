@@ -489,15 +489,15 @@ if (typeof ws !== "undefined") {
     try {
       const data = JSON.parse(e.data);
 
-      // Логин и обновление игрока
       if (
         data.type === "loginSuccess" ||
         (data.type === "update" && data.player?.id === myId)
       ) {
         const player = data.type === "loginSuccess" ? data : data.player;
         NEON_NPC.isMet = !!player.alexNeonMet;
+        firstMeetingDialogClosed = !!player.alexNeonMet;
 
-        // Инициализируем neonQuest
+        // Инициализируем neonQuest правильно
         if (!player.neonQuest) {
           player.neonQuest = {
             currentQuestId: null,
@@ -506,7 +506,6 @@ if (typeof ws !== "undefined") {
           };
         }
 
-        // Показываем прогресс только если квест активен
         if (player.neonQuest.currentQuestId === CURRENT_QUEST.id) {
           createQuestProgressInChat();
         } else if (questProgressElement) {
@@ -515,11 +514,10 @@ if (typeof ws !== "undefined") {
         updateQuestProgressDisplay();
       }
 
-      // Правильное обновление прогресса квеста
-      if (data.type === "neonQuestProgress") {
+      // Обновление прогресса при убийстве
+      if (data.type === "levelSyncAfterKill" && data.xpGained === 13) {
         const me = players.get(myId);
-        if (me && me.neonQuest?.currentQuestId === CURRENT_QUEST.id) {
-          me.neonQuest.progress = data.progress;
+        if (me?.neonQuest?.currentQuestId === CURRENT_QUEST.id) {
           updateQuestProgressDisplay();
         }
       }
@@ -527,7 +525,6 @@ if (typeof ws !== "undefined") {
       if (data.type === "neonQuestStarted") {
         showNotification("Задание взято: Очистка пустошей", "#00ff44");
         createQuestProgressInChat();
-        updateQuestProgressDisplay();
       }
 
       if (data.type === "neonQuestCompleted") {
