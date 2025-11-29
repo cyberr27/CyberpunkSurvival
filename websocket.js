@@ -1898,6 +1898,14 @@ function setupWebSocket(
           userDatabase.set(attackerId, attacker);
           await saveUserDatabase(dbCollection, attackerId, attacker);
         }
+        if (clients.has(ws) && clients.get(ws) === attackerId) {
+          ws.send(
+            JSON.stringify({
+              type: "neonQuestProgressUpdate",
+              progress: attacker.neonQuest.progress,
+            })
+          );
+        }
       } else if (data.type === "meetJack") {
         const id = clients.get(ws);
         if (id) {
