@@ -524,6 +524,7 @@ function handleAuthMessage(event) {
         energyUpgrade: data.energyUpgrade || 0,
         foodUpgrade: data.foodUpgrade || 0,
         waterUpgrade: data.waterUpgrade || 0,
+        balyary: data.balyary || 0,
       };
 
       players.set(myId, me);
