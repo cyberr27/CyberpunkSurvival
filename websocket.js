@@ -1891,12 +1891,26 @@ function setupWebSocket(
             })
           );
         }
-        if (attacker?.neonQuest?.currentQuestId === "neon_quest_1") {
+        if (
+          attacker?.neonQuest?.currentQuestId === "neon_quest_1" &&
+          enemy.type === "mutant" // ← ВАЖНО: только мутанты!
+        ) {
           attacker.neonQuest.progress.killMutants =
             (attacker.neonQuest.progress.killMutants || 0) + 1;
+
           players.set(attackerId, attacker);
           userDatabase.set(attackerId, attacker);
           await saveUserDatabase(dbCollection, attackerId, attacker);
+
+          // Отправляем обновлённый прогресс ТОЛЬКО этому игроку
+          if (clients.get(ws) === attackerId) {
+            ws.send(
+              JSON.stringify({
+                type: "neonQuestProgressUpdate",
+                progress: attacker.neonQuest.progress,
+              })
+            );
+          }
         }
         if (clients.has(ws) && clients.get(ws) === attackerId) {
           ws.send(
