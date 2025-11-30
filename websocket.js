@@ -1757,23 +1757,23 @@ function setupWebSocket(
 
           if (enemy.type === "mutant") {
             if (
-              player.neonQuest &&
-              player.neonQuest.currentQuestId === "neon_quest_1"
+              attacker.neonQuest &&
+              attacker.neonQuest.currentQuestId === "neon_quest_1"
             ) {
-              player.neonQuest.progress = player.neonQuest.progress || {};
-              player.neonQuest.progress.killMutants =
-                (player.neonQuest.progress.killMutants || 0) + 1;
+              attacker.neonQuest.progress = attacker.neonQuest.progress || {};
+              attacker.neonQuest.progress.killMutants =
+                (attacker.neonQuest.progress.killMutants || 0) + 1;
 
               // Сохраняем в БД
-              players.set(attackerId, player);
-              userDatabase.set(attackerId, player);
-              await saveUserDatabase(dbCollection, attackerId, player);
+              players.set(attackerId, attacker);
+              userDatabase.set(attackerId, attacker);
+              await saveUserDatabase(dbCollection, attackerId, attacker);
 
               // Отправляем игроку обновлённый прогресс
               ws.send(
                 JSON.stringify({
                   type: "neonQuestProgressUpdate",
-                  progress: player.neonQuest.progress,
+                  progress: attacker.neonQuest.progress,
                 })
               );
             }
