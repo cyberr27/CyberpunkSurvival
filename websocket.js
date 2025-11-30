@@ -523,92 +523,6 @@ function setupWebSocket(
           userDatabase.set(id, player);
           await saveUserDatabase(dbCollection, id, player);
         }
-      } else if (data.type === "enemyDied" && data.enemyType === "mutant") {
-        // Автоматически считаем убийства мутантов для активного квеста
-        players.forEach(async (player, playerId) => {
-          if (
-            player.worldId === data.worldId &&
-            player.neonQuest?.currentQuestId === "neon_quest_1"
-          ) {
-            const quest = NEON_QUESTS.find((q) => q.id === "neon_quest_1");
-            if (!quest) return;
-
-            player.neonQuest.progress.killMutants =
-              (player.neonQuest.progress.killMutants || 0) + 1;
-
-            if (
-              player.neonQuest.progress.killMutants >= quest.goal.killMutants
-            ) {
-              // Квест выполнен!
-              const balyarySlot = player.inventory.findIndex(
-                (i) => i?.type === "balyary"
-              );
-              if (balyarySlot === -1) {
-                const empty = player.inventory.findIndex((i) => i === null);
-                if (empty !== -1)
-                  player.inventory[empty] = { type: "balyary", quantity: 0 };
-              }
-              if (
-                balyarySlot !== -1 ||
-                player.inventory.some((i) => i?.type === "balyary")
-              ) {
-                const slot =
-                  player.inventory.findIndex((i) => i?.type === "balyary") !==
-                  -1
-                    ? player.inventory.findIndex((i) => i?.type === "balyary")
-                    : player.inventory.findIndex((i) => i === null);
-                if (slot !== -1) {
-                  player.inventory[slot] = player.inventory[slot] || {
-                    type: "balyary",
-                    quantity: 0,
-                  };
-                  player.inventory[slot].quantity += quest.reward.balyary;
-                }
-              }
-
-              // XP
-              player.xp = (player.xp || 0) + quest.reward.xp;
-              let levelUp = false;
-              let xpToNext = calculateXPToNextLevel(player.level);
-              while (player.xp >= xpToNext && player.level < 100) {
-                player.level += 1;
-                player.xp -= xpToNext;
-                player.upgradePoints = (player.upgradePoints || 0) + 10;
-                levelUp = true;
-                xpToNext = calculateXPToNextLevel(player.level);
-              }
-
-              // Завершаем квест
-              player.neonQuest.completed.push(player.neonQuest.currentQuestId);
-              player.neonQuest.currentQuestId = null;
-              player.neonQuest.progress = {};
-
-              players.set(playerId, player);
-              userDatabase.set(playerId, player);
-              await saveUserDatabase(dbCollection, playerId, player);
-
-              // Отправляем клиенту
-              wss.clients.forEach((client) => {
-                if (
-                  clients.get(client) === playerId &&
-                  client.readyState === WebSocket.OPEN
-                ) {
-                  client.send(
-                    JSON.stringify({
-                      type: "neonQuestCompleted",
-                      reward: quest.reward,
-                      level: player.level,
-                      xp: player.xp,
-                      xpToNextLevel: xpToNext,
-                      upgradePoints: player.upgradePoints,
-                      inventory: player.inventory,
-                    })
-                  );
-                }
-              });
-            }
-          }
-        });
       } else if (data.type === "neonQuestComplete") {
         const id = clients.get(ws);
         if (!id) return;
@@ -684,32 +598,6 @@ function setupWebSocket(
             inventory: player.inventory,
           })
         );
-      } else if (data.type === "enemyDied" && data.enemyType === "mutant") {
-        players.forEach(async (player, playerId) => {
-          if (
-            player.worldId === data.worldId &&
-            player.neonQuest?.currentQuestId === "neon_quest_1"
-          ) {
-            player.neonQuest.progress.killMutants =
-              (player.neonQuest.progress.killMutants || 0) + 1;
-
-            players.set(playerId, player);
-            userDatabase.set(playerId, player);
-            await saveUserDatabase(dbCollection, playerId, player);
-
-            // Уведомляем только владельца квеста
-            wss.clients.forEach((client) => {
-              if (clients.get(client) === playerId) {
-                client.send(
-                  JSON.stringify({
-                    type: "neonQuestProgress",
-                    progress: player.neonQuest.progress,
-                  })
-                );
-              }
-            });
-          }
-        });
       } else if (data.type === "move") {
         const id = clients.get(ws);
         if (id) {
@@ -1890,13 +1778,6 @@ function setupWebSocket(
               },
             })
           );
-        }
-        if (attacker?.neonQuest?.currentQuestId === "neon_quest_1") {
-          attacker.neonQuest.progress.killMutants =
-            (attacker.neonQuest.progress.killMutants || 0) + 1;
-          players.set(attackerId, attacker);
-          userDatabase.set(attackerId, attacker);
-          await saveUserDatabase(dbCollection, attackerId, attacker);
         }
       } else if (data.type === "meetJack") {
         const id = clients.get(ws);
