@@ -209,6 +209,11 @@ function setupWebSocket(
             energyUpgrade: 0,
             foodUpgrade: 0,
             waterUpgrade: 0,
+            neonQuest: {
+              currentQuestId: null,
+              progress: {},
+              completed: [],
+            },
           };
 
           userDatabase.set(data.username, newPlayer);
@@ -346,6 +351,11 @@ function setupWebSocket(
             energyUpgrade: player.energyUpgrade || 0,
             foodUpgrade: player.foodUpgrade || 0,
             waterUpgrade: player.waterUpgrade || 0,
+            neonQuest: player.neonQuest || {
+              currentQuestId: null,
+              progress: {},
+              completed: [],
+            },
           };
 
           players.set(data.username, playerData);
@@ -380,6 +390,7 @@ function setupWebSocket(
               energyUpgrade: playerData.energyUpgrade || 0,
               foodUpgrade: playerData.foodUpgrade || 0,
               waterUpgrade: playerData.waterUpgrade || 0,
+              neonQuest: playerData.neonQuest,
               players: Array.from(players.values()).filter(
                 (p) =>
                   p.id !== data.username && p.worldId === playerData.worldId

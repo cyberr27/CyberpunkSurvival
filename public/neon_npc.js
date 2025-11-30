@@ -529,11 +529,23 @@ if (typeof ws !== "undefined") {
       }
 
       if (data.type === "neonQuestCompleted") {
-        showNotification(
-          `Задание выполнено! +${data.reward.xp} XP | +${data.reward.balyary} баляров`,
-          "#00ffff"
-        );
+        showNotification(`Задание выполнено! +150 XP | +50 баляров`, "#00ffff");
         removeQuestProgressFromChat();
+
+        // Обновляем уровень и инвентарь
+        if (window.levelSystem) {
+          window.levelSystem.setLevelData(
+            data.level,
+            data.xp,
+            data.xpToNextLevel,
+            data.upgradePoints
+          );
+          window.levelSystem.showXPEffect(150);
+        }
+        if (data.inventory) {
+          inventory = data.inventory;
+          updateInventoryDisplay();
+        }
       }
     } catch (err) {
       console.error("Neon Alex error:", err);
