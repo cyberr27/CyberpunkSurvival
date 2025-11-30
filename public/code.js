@@ -1832,6 +1832,21 @@ function handleGameMessage(event) {
       case "neonQuestStarted":
         showNotification("Заказ принят: Очистка пустошей", "#00ff44");
         break;
+      case "neonQuestProgressUpdate":
+        // Это основное обновление прогресса от сервера
+        if (window.neonNpcSystem) {
+          const me = players.get(myId);
+          if (me && me.neonQuest) {
+            me.neonQuest.progress = {
+              ...me.neonQuest.progress,
+              ...data.progress,
+            };
+            if (me.neonQuest.currentQuestId === "neon_quest_1") {
+              updateQuestProgressDisplay(); // вызываем из neon_npc.js
+            }
+          }
+        }
+        break;
       case "neonQuestCompleted":
         showNotification(
           `Заказ сдан! +${data.reward.xp} XP | +${data.reward.balyary} баляров!`,

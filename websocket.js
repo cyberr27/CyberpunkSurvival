@@ -1755,6 +1755,30 @@ function setupWebSocket(
             })
           );
 
+          if (enemy.type === "mutant") {
+            if (
+              player.neonQuest &&
+              player.neonQuest.currentQuestId === "neon_quest_1"
+            ) {
+              player.neonQuest.progress = player.neonQuest.progress || {};
+              player.neonQuest.progress.killMutants =
+                (player.neonQuest.progress.killMutants || 0) + 1;
+
+              // Сохраняем в БД
+              players.set(attackerId, player);
+              userDatabase.set(attackerId, player);
+              await saveUserDatabase(dbCollection, attackerId, player);
+
+              // Отправляем игроку обновлённый прогресс
+              ws.send(
+                JSON.stringify({
+                  type: "neonQuestProgressUpdate",
+                  progress: player.neonQuest.progress,
+                })
+              );
+            }
+          }
+
           // Респавн через 8-15 сек
           setTimeout(
             () => spawnNewEnemy(data.worldId),

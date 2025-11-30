@@ -477,7 +477,7 @@ function drawNeonNpc() {
   const level = player?.level || 0;
 
   if (NEON_NPC.isPlayerNear) {
-    if (level < 5) {
+    if (level < 2) {
       if (!rejectionShownThisApproach && !NEON_NPC.isDialogOpen) {
         openRejectionDialog();
         rejectionShownThisApproach = true;
@@ -533,11 +533,26 @@ if (typeof ws !== "undefined") {
         }
       }
 
-      // ←←← ВАЖНО: ТОЛЬКО ПО СМЕРТИ МУТАНТА! ←←←
+      if (data.type === "neonQuestProgressUpdate") {
+        const me = players.get(myId);
+        if (
+          me &&
+          me.neonQuest &&
+          me.neonQuest.currentQuestId === CURRENT_QUEST.id
+        ) {
+          me.neonQuest.progress = {
+            ...me.neonQuest.progress,
+            ...data.progress,
+          };
+          updateQuestProgressDisplay();
+        }
+      }
+
+      // Fallback: если сервер по какой-то причине не прислал neonQuestProgressUpdate
       if (data.type === "enemyDied" && data.enemyType === "mutant") {
         const me = players.get(myId);
         if (me?.neonQuest?.currentQuestId === CURRENT_QUEST.id) {
-          // Сервер уже увеличил счётчик — просто обновляем отображение
+          // Попробуем обновить локально, но лучше полагаться на сервер
           updateQuestProgressDisplay();
         }
       }
