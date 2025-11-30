@@ -536,7 +536,7 @@ function setupWebSocket(
         }
       } else if (data.type === "neonQuestComplete") {
         const id = clients.get(ws);
-        if (!id) return;
+        if (!id || !players.has(id)) return;
 
         const player = players.get(id);
         if (
@@ -546,41 +546,13 @@ function setupWebSocket(
           return;
         }
 
-        // ← ГАРАНТИРУЕМ наличие массива completed
-        if (!player.neonQuest.completed) {
-          player.neonQuest.completed = [];
+        const kills = player.neonQuest.progress?.killMutants || 0;
+        if (kills < 3) {
+          return; // Нельзя сдать
         }
 
-        const progress = player.neonQuest.progress?.killMutants || 0;
-        if (progress < 3) {
-          ws.send(
-            JSON.stringify({
-              type: "notification",
-              text: "Ты ещё не убил 3 мутантов!",
-              color: "#ff4444",
-            })
-          );
-          return;
-        }
-
-        // Награда
+        // Даём награду
         player.xp = (player.xp || 0) + 150;
-
-        // Баляры
-        let balyarySlot = player.inventory.findIndex(
-          (i) => i?.type === "balyary"
-        );
-        if (balyarySlot === -1) {
-          balyarySlot = player.inventory.findIndex((i) => i === null);
-          if (balyarySlot !== -1) {
-            player.inventory[balyarySlot] = { type: "balyary", quantity: 50 };
-          }
-        } else {
-          player.inventory[balyarySlot].quantity =
-            (player.inventory[balyarySlot].quantity || 0) + 50;
-        }
-
-        // Левел ап
         let xpToNext = calculateXPToNextLevel(player.level);
         while (player.xp >= xpToNext && player.level < 100) {
           player.level += 1;
@@ -589,15 +561,33 @@ function setupWebSocket(
           xpToNext = calculateXPToNextLevel(player.level);
         }
 
+        // Даём 50 баляров
+        let added = false;
+        for (let i = 0; i < player.inventory.length; i++) {
+          if (player.inventory[i]?.type === "balyary") {
+            player.inventory[i].quantity += 50;
+            added = true;
+            break;
+          }
+          if (!player.inventory[i]) {
+            player.inventory[i] = { type: "balyary", quantity: 50 };
+            added = true;
+            break;
+          }
+        }
+
         // Завершаем квест
-        player.neonQuest.completed.push("neon_quest_1");
         player.neonQuest.currentQuestId = null;
+        if (!player.neonQuest.completed) player.neonQuest.completed = [];
+        player.neonQuest.completed.push("neon_quest_1");
         player.neonQuest.progress = {};
 
+        // Сохраняем
         players.set(id, player);
         userDatabase.set(id, player);
         await saveUserDatabase(dbCollection, id, player);
 
+        // Отправляем клиенту
         ws.send(
           JSON.stringify({
             type: "neonQuestCompleted",

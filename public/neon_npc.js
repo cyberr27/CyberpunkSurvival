@@ -244,29 +244,40 @@ window.showTopicText = (title, text) => {
 // === ОКНО КВЕСТОВ ===
 function openNeonQuestDialog() {
   closeActiveDialog();
-
-  const me = players.get(myId);
-  const questData = me?.neonQuest || {};
-  const isActive = questData.currentQuestId === CURRENT_QUEST.id;
-  const currentKills = questData.progress?.killMutants || 0;
-  const isCompleted = currentKills >= CURRENT_QUEST.goal.killMutants;
-
   activeDialog = document.createElement("div");
   activeDialog.className = "npc-dialog";
 
-  let buttonsHTML = "";
-  if (!isActive) {
-    buttonsHTML = `
-      <button class="neon-btn" onclick="acceptNeonQuest()">Взять задание</button>
-      <button class="neon-btn secondary" onclick="closeActiveDialog()">Отмена</button>
-    `;
-  } else if (isCompleted) {
-    buttonsHTML = `
-      <button class="neon-btn" onclick="completeNeonQuest()">Сдать задание</button>
-      <button class="neon-btn secondary" onclick="closeActiveDialog()">Отмена</button>
-    `;
+  const me = players.get(myId);
+  const questData = me?.neonQuest || {
+    currentQuestId: null,
+    progress: {},
+    completed: [],
+  };
+  const isActive = questData.currentQuestId === CURRENT_QUEST.id;
+  const isCompleted = questData.completed?.includes(CURRENT_QUEST.id);
+  const kills = questData.progress?.killMutants || 0;
+  const needed = CURRENT_QUEST.goal.killMutants;
+
+  let questStatusText = "";
+  let buttonHTML = "";
+
+  if (isCompleted) {
+    questStatusText = `<span style="color:#00ff00;font-weight:bold;">Задание уже выполнено</span>`;
+    buttonHTML = `<button class="neon-btn" onclick="closeActiveDialog()" style="opacity:0.6;cursor:not-allowed;" disabled>Сдать</button>`;
+  } else if (isActive) {
+    if (kills >= needed) {
+      questStatusText = `<span style="color:#00ff00;font-weight:bold;">Прогресс: ${kills}/${needed} мутантов убито — ГОТОВО!</span>`;
+      buttonHTML = `<button class="neon-btn" onclick="completeNeonQuest()">Сдать задание</button>`;
+    } else {
+      questStatusText = `<span style="color:#ffff00;">Прогресс: ${kills}/${needed} мутантов убито</span>`;
+      buttonHTML = `<button class="neon-btn" onclick="closeActiveDialog()" style="opacity:0.6;cursor:not-allowed;" disabled>Сдать</button>`;
+    }
   } else {
-    buttonsHTML = `<button class="neon-btn secondary" onclick="closeActiveDialog()">Отмена</button>`;
+    questStatusText = `<span style="color:#ffffff;">Прогресс: 0/${needed} мутантов убито</span>`;
+    buttonHTML = `
+      <button class="neon-btn" onclick="acceptNeonQuest()">Взять задание</button>
+      <button class="neon-btn" onclick="closeActiveDialog()" style="margin-left:10px;background:#444;">Отмена</button>
+    `;
   }
 
   activeDialog.innerHTML = `
@@ -275,25 +286,34 @@ function openNeonQuestDialog() {
       <h2 class="npc-title">${NEON_NPC.name} — Задания</h2>
     </div>
     <div class="npc-dialog-content">
-      <div class="npc-text quest">
-        <b>${CURRENT_QUEST.title}</b><br><br>
+      <div class="npc-text" style="line-height:1.6;">
+        <strong>${CURRENT_QUEST.title}</strong><br><br>
         ${CURRENT_QUEST.description}<br><br>
-        Прогресс: <b>${currentKills}/${
-    CURRENT_QUEST.goal.killMutants
-  }</b> мутантов убито
-        ${
-          isCompleted
-            ? "<br><span style='color:#00ff00'>Задание выполнено!</span>"
-            : ""
-        }
+        <strong>${questStatusText}</strong>
       </div>
     </div>
-    <div class="quest-buttons">${buttonsHTML}</div>
+    <div style="text-align:center;padding:10px;">
+      ${buttonHTML}
+    </div>
   `;
 
   document.body.appendChild(activeDialog);
   NEON_NPC.isDialogOpen = true;
 }
+
+window.acceptNeonQuest = () => {
+  if (ws?.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: "neonQuestAccept" }));
+  }
+  closeActiveDialog();
+};
+
+window.completeNeonQuest = () => {
+  if (ws?.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: "neonQuestComplete" }));
+  }
+  closeActiveDialog();
+};
 
 window.acceptNeonQuest = () => {
   if (ws?.readyState === WebSocket.OPEN) {
