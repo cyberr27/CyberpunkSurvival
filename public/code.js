@@ -71,6 +71,7 @@ const imageSources = {
   vacuumRobotSprite: "vacuum_robot.png",
   vacuumPhotoImage: "vacuum_photo.png",
   cockroachSprite: "cockroachSprite.png",
+  droneSprite: "dronSprite.png",
 };
 
 const images = {};
@@ -86,6 +87,7 @@ Object.entries(imageSources).forEach(([key, src]) => {
       window.addEventListener("resize", resizeCanvas);
       window.enemySystem.initialize();
       window.cockroachSystem.initialize(images.cockroachSprite);
+      window.droneSystem.initialize(images.droneSprite);
     }
   };
   images[key].onerror = () => {
@@ -706,6 +708,7 @@ function startGame() {
   window.jackSystem.initialize(images.jackSprite);
   window.vacuumRobotSystem.initialize(images.vacuumRobotSprite);
   window.cockroachSystem.initialize(images.cockroachSprite);
+  window.droneSystem.initialize(images.droneSprite);
 
   window.combatSystem.initialize();
 
@@ -1919,6 +1922,8 @@ function update(deltaTime) {
 
   window.cockroachSystem.update(deltaTime);
 
+  window.droneSystem.update(deltaTime);
+
   // Проверяем зоны перехода
   window.worldSystem.checkTransitionZones(me.x, me.y);
 
@@ -2163,6 +2168,8 @@ function draw(deltaTime) {
       canvas.height
     );
   }
+
+  window.droneSystem.draw();
 
   if (currentWorld.clouds.complete) {
     ctx.drawImage(
