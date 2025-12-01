@@ -73,6 +73,7 @@ const imageSources = {
   cockroachSprite: "cockroachSprite.png",
   droneSprite: "dronSprite.png",
   bonfireImage: "bonfire.png",
+  oclocSprite: "oclocSprite.png",
 };
 
 const images = {};
@@ -90,6 +91,7 @@ Object.entries(imageSources).forEach(([key, src]) => {
       window.cockroachSystem.initialize(images.cockroachSprite);
       window.droneSystem.initialize(images.droneSprite);
       window.bonfireSystem.initialize(images.bonfireImage);
+      window.clockSystem.initialize(images.oclocSprite);
     }
   };
   images[key].onerror = () => {
@@ -712,6 +714,7 @@ function startGame() {
   window.cockroachSystem.initialize(images.cockroachSprite);
   window.droneSystem.initialize(images.droneSprite);
   window.bonfireSystem.initialize(images.bonfireImage);
+  window.clockSystem.initialize(images.oclocSprite);
 
   window.combatSystem.initialize();
 
@@ -1913,22 +1916,17 @@ function update(deltaTime) {
 
   window.combatSystem.update(deltaTime);
   window.enemySystem.update(deltaTime);
-
   // === Новый NPC: Neon Alex ===
   if (window.neonNpcSystem) {
     window.neonNpcSystem.update(deltaTime);
   }
-
   if (window.vacuumRobotSystem) {
     window.vacuumRobotSystem.update(deltaTime);
   }
-
   window.cockroachSystem.update(deltaTime);
-
   window.droneSystem.update(deltaTime);
-
   window.bonfireSystem.update(deltaTime);
-
+  clockSystem.update(deltaTime);
   // Проверяем зоны перехода
   window.worldSystem.checkTransitionZones(me.x, me.y);
 
@@ -2069,6 +2067,7 @@ function draw(deltaTime) {
 
   window.npcSystem.drawNPC(deltaTime);
   window.bonfireSystem.draw();
+  clockSystem.draw();
   window.jackSystem.drawJack(deltaTime);
   window.vendingMachine.draw();
   window.combatSystem.draw();
