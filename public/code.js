@@ -72,6 +72,7 @@ const imageSources = {
   vacuumPhotoImage: "vacuum_photo.png",
   cockroachSprite: "cockroachSprite.png",
   droneSprite: "dronSprite.png",
+  bonfireImage: "bonfire.png",
 };
 
 const images = {};
@@ -88,6 +89,7 @@ Object.entries(imageSources).forEach(([key, src]) => {
       window.enemySystem.initialize();
       window.cockroachSystem.initialize(images.cockroachSprite);
       window.droneSystem.initialize(images.droneSprite);
+      window.bonfireSystem.initialize(images.bonfireImage);
     }
   };
   images[key].onerror = () => {
@@ -709,6 +711,7 @@ function startGame() {
   window.vacuumRobotSystem.initialize(images.vacuumRobotSprite);
   window.cockroachSystem.initialize(images.cockroachSprite);
   window.droneSystem.initialize(images.droneSprite);
+  window.bonfireSystem.initialize(images.bonfireImage);
 
   window.combatSystem.initialize();
 
@@ -1924,6 +1927,8 @@ function update(deltaTime) {
 
   window.droneSystem.update(deltaTime);
 
+  window.bonfireSystem.update(deltaTime);
+
   // Проверяем зоны перехода
   window.worldSystem.checkTransitionZones(me.x, me.y);
 
@@ -2063,6 +2068,7 @@ function draw(deltaTime) {
   }
 
   window.npcSystem.drawNPC(deltaTime);
+  window.bonfireSystem.draw();
   window.jackSystem.drawJack(deltaTime);
   window.vendingMachine.draw();
   window.combatSystem.draw();

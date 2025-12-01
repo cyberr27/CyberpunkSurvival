@@ -1,14 +1,15 @@
+// lights.js — обновлённая версия с поддержкой динамических огней (бочка и т.д.)
+
 let lights = []; // Глобальный массив источников света
 
-// Инициализация источников света
+// Инициализация статичных огней Неонового Города
 function initializeLights() {
-  lights.length = 0; // Очищаем массив перед инициализацией
+  lights.length = 0;
 
   if (window.worldSystem.currentWorldId !== 0) {
-    return; // Инициализируем только в "Неоновом Городе"
+    return; // Только в мире 0 (Неоновый Город)
   }
 
-  // Список источников света для "Неонового Города"
   const neonCityLights = [
     {
       x: 2445,
@@ -109,7 +110,7 @@ function initializeLights() {
     {
       x: 133,
       y: 373,
-      color: "rgba(240, 109, 240, 0.4)",
+      color: "rgba(240, 109, 240,0.4)",
       radius: 850,
       baseRadius: 850,
       pulseSpeed: 0.001,
@@ -119,24 +120,33 @@ function initializeLights() {
   lights.push(...neonCityLights);
 }
 
-// Отрисовка источников света с анимацией пульсации
+// Отрисовка всех огней
 function drawLights(deltaTime) {
-  if (window.worldSystem.currentWorldId !== 0) {
-    return; // Отрисовываем только в "Неоновом Городе"
-  }
+  // Рисуем ВСЕ огни, даже если не в мире 0 — потому что бочка может быть везде может
+  // (но если хочешь — оставь проверку, просто убери её, чтобы бочка светила)
 
   lights.forEach((light) => {
-    // Анимация пульсации радиуса
-    light.radius =
-      light.baseRadius + Math.sin(Date.now() * light.pulseSpeed) * 50;
+    // Пульсация
+    const pulse =
+      Math.sin(Date.now() * (light.pulseSpeed || 0.001)) *
+      (light.pulseAmplitude || 50);
+    const currentRadius = (light.baseRadius || light.radius) + pulse;
+
+    // Мерцание (flicker)
+    let alpha = parseFloat(light.color.split(",")[3] || 0.4);
+    if (light.flicker) {
+      alpha += (Math.random() - 0.5) * 0.15;
+      alpha = Math.max(0.2, Math.min(0.1, alpha));
+    }
 
     const screenX = light.x - window.movementSystem.getCamera().x;
     const screenY = light.y - window.movementSystem.getCamera().y;
+
     if (
-      screenX + light.radius > 0 &&
-      screenX - light.radius < canvas.width &&
-      screenY + light.radius > 0 &&
-      screenY - light.radius < canvas.height
+      screenX + currentRadius > -100 &&
+      screenX - currentRadius < canvas.width + 100 &&
+      screenY + currentRadius > -100 &&
+      screenY - currentRadius < canvas.height + 100
     ) {
       const gradient = ctx.createRadialGradient(
         screenX,
@@ -144,29 +154,65 @@ function drawLights(deltaTime) {
         0,
         screenX,
         screenY,
-        light.radius
+        currentRadius
       );
-      gradient.addColorStop(0, light.color);
-      gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
+      const colorWithAlpha = light.color.replace(/[\d\.]+\)$/, `${alpha})`);
+      gradient.addColorStop(0, colorWithAlpha);
+      gradient.addColorStop(1, "rgba(0,0,0,0)");
       ctx.fillStyle = gradient;
       ctx.beginPath();
-      ctx.arc(screenX, screenY, light.radius, 0, Math.PI * 2);
+      ctx.arc(screenX, screenY, currentRadius, 0, Math.PI * 2);
       ctx.fill();
     }
   });
 }
 
-// Сброс и реинициализация света при смене мира
-function resetLights(worldId) {
-  lights.length = 0; // Очищаем массив света
-  if (worldId === 0) {
-    initializeLights(); // Инициализируем только для "Неонового Города"
+// === НОВЫЕ МЕТОДЫ ДЛЯ ДИНАМИЧЕСКИХ ОГНЕЙ (бочка, факелы и т.д.) ===
+
+function addLight(lightData) {
+  // Удаляем старый, если уже был с таким id
+  lights = lights.filter((l) => l.id !== lightData.id);
+  lights.push({
+    ...lightData,
+    baseRadius: lightData.radius,
+    pulseAmplitude: lightData.pulseAmplitude || 0,
+    pulseSpeed: lightData.pulseSpeed || 0.001,
+    flicker: lightData.flicker || false,
+  });
+}
+
+function hasLight(id) {
+  return lights.some((light) => light.id === id);
+}
+
+function updateLightPosition(id, x, y) {
+  const light = lights.find((l) => l.id === id);
+  if (light) {
+    light.x = x;
+    light.y = y;
   }
 }
 
-// Экспортируем функции
+function removeLight(id) {
+  lights = lights.filter((l) => l.id !== id);
+}
+
+// Сброс при смене мира
+function resetLights(worldId) {
+  // Удаляем только динамические огни (у которых есть id)
+  lights = lights.filter((l) => !l.id);
+  if (worldId === 0) {
+    initializeLights();
+  }
+}
+
+// Экспорт
 window.lightsSystem = {
   initialize: initializeLights,
   draw: drawLights,
   reset: resetLights,
+  addLight,
+  hasLight,
+  updateLightPosition,
+  removeLight,
 };
