@@ -1544,38 +1544,18 @@ function handleGameMessage(event) {
 
     switch (data.type) {
       case "itemDropped":
-        if (data.worldId !== window.worldSystem.currentWorldId) break;
-
-        // Защита от дубликатов (на всякий случай, если придёт дважды)
-        if (items.has(data.itemId)) {
-          const existing = items.get(data.itemId);
-          if (
-            existing.x === data.x &&
-            existing.y === data.y &&
-            existing.type === data.type
-          ) {
-            break; // уже есть — не добавляем
+        if (data.worldId === currentWorldId) {
+          items.set(data.itemId, {
+            x: data.x,
+            y: data.y,
+            type: data.type,
+            spawnTime: data.spawnTime,
+            worldId: data.worldId,
+          });
+          if (data.quantity && ITEM_CONFIG[data.type]?.stackable) {
+            items.get(data.itemId).quantity = data.quantity;
           }
-        }
-
-        items.set(data.itemId, {
-          x: data.x,
-          y: data.y,
-          type: data.type,
-          spawnTime: data.spawnTime || Date.now(),
-          worldId: data.worldId,
-          isDroppedByPlayer: true,
-          quantity: data.quantity,
-        });
-
-        // Опционально: если это наш дроп — сразу обновить инвентарь
-        if (data.playerId === myId) {
-          if (data.inventory) {
-            inventory = data.inventory.map((item) =>
-              item ? { ...item } : null
-            );
-            updateInventoryDisplay();
-          }
+          updateInventoryDisplay();
         }
         break;
       case "syncPlayers":
