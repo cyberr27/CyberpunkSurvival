@@ -74,6 +74,7 @@ const imageSources = {
   droneSprite: "dronSprite.png",
   bonfireImage: "bonfire.png",
   oclocSprite: "oclocSprite.png",
+  corporateRobotSprite: "corporate_robot.png",
 };
 
 const images = {};
@@ -92,6 +93,7 @@ Object.entries(imageSources).forEach(([key, src]) => {
       window.droneSystem.initialize(images.droneSprite);
       window.bonfireSystem.initialize(images.bonfireImage);
       window.clockSystem.initialize(images.oclocSprite);
+      window.corporateRobotSystem.initialize(images.corporateRobotSprite);
     }
   };
   images[key].onerror = () => {
@@ -715,6 +717,7 @@ function startGame() {
   window.droneSystem.initialize(images.droneSprite);
   window.bonfireSystem.initialize(images.bonfireImage);
   window.clockSystem.initialize(images.oclocSprite);
+  window.corporateRobotSystem.initialize(images.corporateRobotSprite);
 
   window.combatSystem.initialize();
 
@@ -1927,6 +1930,9 @@ function update(deltaTime) {
   window.droneSystem.update(deltaTime);
   window.bonfireSystem.update(deltaTime);
   clockSystem.update(deltaTime);
+  if (window.corporateRobotSystem) {
+    window.corporateRobotSystem.update(deltaTime);
+  }
   // Проверяем зоны перехода
   window.worldSystem.checkTransitionZones(me.x, me.y);
 
@@ -2068,6 +2074,7 @@ function draw(deltaTime) {
   window.npcSystem.drawNPC(deltaTime);
   window.bonfireSystem.draw();
   clockSystem.draw();
+  window.corporateRobotSystem.draw();
   window.jackSystem.drawJack(deltaTime);
   window.vendingMachine.draw();
   window.combatSystem.draw();
@@ -2134,30 +2141,63 @@ function draw(deltaTime) {
       ctx.fillRect(screenX, screenY, 70, 70);
     }
 
-    ctx.fillStyle = "white";
-    ctx.font = "12px Arial";
-    ctx.textAlign = "center";
-    ctx.fillText(player.id, screenX + 35, screenY - 20);
-    ctx.fillStyle = "red";
-    ctx.font = "12px Arial";
-    ctx.textAlign = "center";
-    const currentHealth = player.health ?? 0;
-    const maxHealth = player.maxStats?.health ?? 100;
-    ctx.fillStyle = "red";
-    ctx.font = "bold 14px Arial";
+    const nameY = screenY - 45; // имя выше
+    const healthY = screenY - 25; // здоровье ниже имени, идеальный отступ
+
+    // Имя игрока — неоновый стиль
+    ctx.font = "20px 'Courier New', monospace";
     ctx.textAlign = "center";
     ctx.strokeStyle = "black";
-    ctx.lineWidth = 3;
-    ctx.strokeText(
-      `${Math.floor(currentHealth)} / ${maxHealth}`,
-      screenX + 35,
-      screenY - 30
-    );
-    ctx.fillText(
-      `${Math.floor(currentHealth)} / ${maxHealth}`,
-      screenX + 35,
-      screenY - 30
-    );
+    ctx.lineWidth = 4;
+
+    // Мерцание + основной цвет
+    ctx.fillStyle = "#3700ffff";
+    ctx.strokeText(player.id, screenX + 35, nameY);
+    ctx.fillText(player.id, screenX + 35, nameY);
+
+    // Дополнительный розовый glow
+    ctx.fillStyle = "#ff00ff";
+    ctx.globalAlpha = 0.6;
+    ctx.fillText(player.id, screenX + 35, nameY);
+    ctx.globalAlpha = 1.0;
+
+    // Тень/свечение имени
+    ctx.shadowColor = "#00bbffff";
+    ctx.shadowBlur = 12;
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "#00ffff";
+    ctx.strokeText(player.id, screenX + 35, nameY);
+    ctx.shadowBlur = 0;
+
+    // Здоровье — жирный неон с чёрной обводкой
+    const currentHealth = Math.floor(player.health ?? 0);
+    const maxHealth = player.maxStats?.health ?? 100;
+    const healthText = `${currentHealth} / ${maxHealth}`;
+
+    ctx.font = "bold 15px 'Courier New', monospace";
+    ctx.textAlign = "center";
+
+    // Чёрная обводка
+    ctx.strokeStyle = "black";
+    ctx.lineWidth = 5;
+    ctx.strokeText(healthText, screenX + 35, healthY);
+
+    // Основной цвет — яркий циан
+    ctx.fillStyle = "#ff0000ff";
+    ctx.fillText(healthText, screenX + 35, healthY);
+
+    // Розовое свечение
+    ctx.fillStyle = "#ff0000ff";
+    ctx.globalAlpha = 0.5;
+    ctx.fillText(healthText, screenX + 35, healthY);
+    ctx.globalAlpha = 1.0;
+
+    // Финальное неоновое свечение
+    ctx.shadowColor = "#ff0000ff";
+    ctx.shadowBlur = 15;
+    ctx.fillStyle = "#ff0000ff";
+    ctx.fillText(healthText, screenX + 35, healthY);
+    ctx.shadowBlur = 0;
   });
 
   if (currentWorld.veg.complete) {
