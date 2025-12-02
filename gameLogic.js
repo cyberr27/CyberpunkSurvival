@@ -329,7 +329,6 @@ function runGameLoop(
           type: item.type,
           spawnTime: item.spawnTime,
           worldId,
-          isDroppedByPlayer: true,
         })
       );
 
@@ -343,7 +342,7 @@ function runGameLoop(
             type: "syncItems",
             items: allItems,
             worldId,
-            isDroppedByPlayer: true,
+            
           })
         );
       }
@@ -358,7 +357,7 @@ function runGameLoop(
       // ... (весь твой код про мутантов и скорпионов — оставляем как есть)
       // (я его не трогаю, он работает идеально)
     }
-  }, 30_000);
+  }, 3000);
 
   return { mainLoop, mutantAIInterval };
 }
