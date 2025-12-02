@@ -288,12 +288,6 @@ function runGameLoop(
             items.set(itemId, newItem);
             worldItemsMap.set(itemId, newItem);
             newItems.push({ itemId, x, y, type, spawnTime: now, worldId });
-
-            if (type === "atom") {
-              console.log(
-                `[СПАВН] Атом заспавнен в мире ${worldId}: ${itemId}`
-              );
-            }
           }
         }
       };
@@ -335,6 +329,7 @@ function runGameLoop(
           type: item.type,
           spawnTime: item.spawnTime,
           worldId,
+          isDroppedByPlayer: true,
         })
       );
 
@@ -348,6 +343,7 @@ function runGameLoop(
             type: "syncItems",
             items: allItems,
             worldId,
+            isDroppedByPlayer: true,
           })
         );
       }
