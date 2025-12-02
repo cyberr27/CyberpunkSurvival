@@ -2,8 +2,8 @@
 
 const clockSystem = {
   clocks: [
-    { x: 758, y: 2633, worldId: 0 },
-    { x: 897, y: 447, worldId: 0 },
+    { x: 594, y: 2793, worldId: 0 },
+    { x: 1200, y: 3100, worldId: 0 },
   ],
 
   sprite: null,
@@ -147,8 +147,8 @@ const clockSystem = {
         70,
         screenX,
         screenY,
-        100,
-        100
+        70,
+        70
       );
     });
   },

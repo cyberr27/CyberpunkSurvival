@@ -1,7 +1,5 @@
-// gameLogic.js — обновлённая версия с твоей логикой спавна
-
 const { saveUserDatabase } = require("./database");
-
+// === КОНСТАНТЫ ВРАГОВ (переносим с клиента на сервер!) ===
 const ENEMY_SPEED = 2;
 const AGGRO_RANGE = 300;
 const ATTACK_RANGE = 50;
@@ -15,6 +13,7 @@ const worldPlayerCache = new Map();
 const worldItemCache = new Map();
 const worldEnemyCache = new Map();
 
+// === ОСНОВНАЯ ИГРОВАЯ ПЕТЛЯ (30 сек) ===
 function runGameLoop(
   wss,
   dbCollection,
@@ -26,7 +25,7 @@ function runGameLoop(
   userDatabase,
   enemies
 ) {
-  // === AI МУТАНТОВ (каждые 200 мс) ===
+  // === AI МУТАНТОВ (каждые 200 мс для оптимизации) ===
   const mutantAIInterval = setInterval(() => {
     const now = Date.now();
 
@@ -34,10 +33,8 @@ function runGameLoop(
       if (worldId === 0) continue;
       const playerIds = worldPlayerCache.get(worldId) || new Set();
       if (playerIds.size === 0) continue;
-
       worldEnemiesMap.forEach((enemy) => {
         if (enemy.health <= 0) return;
-
         let closestPlayer = null;
         let minDist = Infinity;
         for (const playerId of playerIds) {
@@ -51,40 +48,33 @@ function runGameLoop(
             closestPlayer = player;
           }
         }
-
         if (closestPlayer && minDist <= AGGRO_RANGE * AGGRO_RANGE) {
           enemy.targetId = closestPlayer.id;
           const dx = closestPlayer.x - enemy.x;
           const dy = closestPlayer.y - enemy.y;
-
           let speed = ENEMY_SPEED;
           let attackCooldown = ENEMY_ATTACK_COOLDOWN;
           let minDmg = 10,
-            maxDmg = 15;
-          let minEnergy = 0,
+            maxDmg = 15,
+            minEnergy = 0,
             maxEnergy = 0;
-
           if (enemy.type === "scorpion") {
             speed = 4;
+            attackCooldown = 1000;
             minDmg = 5;
             maxDmg = 10;
             minEnergy = 1;
             maxEnergy = 2;
           }
-
           const angle = Math.atan2(dy, dx);
           enemy.x += Math.cos(angle) * speed;
           enemy.y += Math.sin(angle) * speed;
           enemy.state = "walking";
-          enemy.direction =
-            Math.abs(dx) > Math.abs(dy)
-              ? dx > 0
-                ? "right"
-                : "left"
-              : dy > 0
-              ? "down"
-              : "up";
-
+          if (Math.abs(dx) > Math.abs(dy)) {
+            enemy.direction = dx > 0 ? "right" : "left";
+          } else {
+            enemy.direction = dy > 0 ? "down" : "up";
+          }
           if (
             minDist <= ATTACK_RANGE * ATTACK_RANGE &&
             now - enemy.lastAttackTime >= attackCooldown
@@ -103,7 +93,6 @@ function runGameLoop(
             }
             closestPlayer.health = Math.max(0, closestPlayer.health - damage);
             enemy.lastAttackTime = now;
-
             broadcastToWorld(
               wss,
               clients,
@@ -117,7 +106,6 @@ function runGameLoop(
                 energyDmg,
               })
             );
-
             broadcastToWorld(
               wss,
               clients,
@@ -138,7 +126,6 @@ function runGameLoop(
             enemy.y += Math.sin(wanderAngle) * ENEMY_SPEED * 0.5;
           }
         }
-
         broadcastToWorld(
           wss,
           clients,
@@ -151,13 +138,13 @@ function runGameLoop(
         );
       });
     }
-  }, 200);
+  }, 200); // 200ms для оптимизации (5 FPS update, клиент интерполирует)
 
-  // === ОСНОВНОЙ ЦИКЛ КАЖДЫЕ 30 СЕКУНД ===
+  // === ОСНОВНОЙ ЦИКЛ (30 сек) ===
   const mainLoop = setInterval(() => {
-    const now = Date.now();
+    const currentTime = Date.now();
+    const now = currentTime;
 
-    // Обновляем кэши миров
     worldPlayerCache.clear();
     worldItemCache.clear();
     worldEnemyCache.clear();
@@ -183,16 +170,18 @@ function runGameLoop(
       worldItemCache.get(item.worldId).set(itemId, item);
     }
 
-    // Онлайн
+    const totalPlayers = players.size;
+
     const totalOnlineMsg = JSON.stringify({
       type: "totalOnline",
-      count: players.size,
+      count: totalPlayers,
     });
     wss.clients.forEach((client) => {
-      if (client.readyState === WebSocket.OPEN) client.send(totalOnlineMsg);
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(totalOnlineMsg);
+      }
     });
 
-    // Удаляем старые предметы (>10 минут)
     const expiredItems = [];
     for (const [itemId, item] of items) {
       if (now - item.spawnTime > 10 * 60 * 1000) {
@@ -207,68 +196,78 @@ function runGameLoop(
       removeItemByWorld.get(worldId).push(itemId);
     }
 
-    // === ОСНОВНАЯ ЛОГИКА СПАВНА ПРЕДМЕТОВ ===
     for (const world of worlds) {
       const worldId = world.id;
       const playerCount = (worldPlayerCache.get(worldId) || new Set()).size;
-      if (playerCount === 0) continue;
-
       const worldItemsMap = worldItemCache.get(worldId) || new Map();
-      const currentItemCount = worldItemsMap.size;
-
-      // Максимум 100 предметов в мире
-      const maxItemsInWorld = 100;
-      if (currentItemCount >= maxItemsInWorld) continue;
-
-      // Целевые количества по редкости на 1 игрока
-      const targetCommon = playerCount * 5; // rarity 3
-      const targetMedium = playerCount * 3; // rarity 2
-      const targetRare = playerCount * 2; // rarity 1
-
-      // Текущее количество
-      let countCommon = 0,
-        countMedium = 0,
-        countRare = 0;
+      const itemCounts = {};
       worldItemsMap.forEach((item) => {
-        const rarity = ITEM_CONFIG[item.type]?.rarity;
-        if (rarity === 3) countCommon++;
-        else if (rarity === 2) countMedium++;
-        else if (rarity === 1) countRare++;
+        itemCounts[item.type] = (itemCounts[item.type] || 0) + 1;
       });
 
-      // Сколько нужно заспавнить
-      const needCommon = Math.max(0, targetCommon - countCommon);
-      const needMedium = Math.max(0, targetMedium - countMedium);
-      const needRare = Math.max(0, targetRare - countRare);
+      // Удаляем expired items per world
+      const itemsToRemove = removeItemByWorld.get(worldId) || [];
+      if (itemsToRemove.length > 0) {
+        const removeMsg = JSON.stringify({
+          type: "removeItems",
+          itemIds: itemsToRemove,
+        });
+        broadcastToWorld(wss, clients, players, worldId, removeMsg);
+      }
 
-      const totalNeeded = needCommon + needMedium + needRare;
-      const availableSlots = maxItemsInWorld - currentItemCount;
-      const willSpawn = Math.min(totalNeeded, availableSlots);
+      if (playerCount > 0) {
+        const itemsToSpawn = Math.max(1, playerCount * 2);
+        let rareCount = playerCount;
+        let mediumCount = playerCount * 3;
+        let commonCount = playerCount * 5;
 
-      if (willSpawn <= 0) continue;
+        const rareItems = Object.keys(ITEM_CONFIG).filter(
+          (t) => ITEM_CONFIG[t].rarity === 1
+        );
+        const mediumItems = Object.keys(ITEM_CONFIG).filter(
+          (t) => ITEM_CONFIG[t].rarity === 2
+        );
+        const commonItems = Object.keys(ITEM_CONFIG).filter(
+          (t) => ITEM_CONFIG[t].rarity === 3
+        );
 
-      // Списки по редкости
-      const commonItems = Object.keys(ITEM_CONFIG).filter(
-        (t) => ITEM_CONFIG[t].rarity === 3
-      );
-      const mediumItems = Object.keys(ITEM_CONFIG).filter(
-        (t) => ITEM_CONFIG[t].rarity === 2
-      );
-      const rareItems = Object.keys(ITEM_CONFIG).filter(
-        (t) => ITEM_CONFIG[t].rarity === 1
-      );
+        const newItems = [];
+        const atomSpawns = [];
 
-      const newItems = [];
-
-      const spawnFromPool = (pool, count) => {
-        for (let i = 0; i < count && newItems.length < willSpawn; i++) {
-          if (pool.length === 0) continue;
-          const type = pool[Math.floor(Math.random() * pool.length)];
+        for (let i = 0; i < itemsToSpawn; i++) {
+          let type;
+          if (
+            rareCount > 0 &&
+            rareItems.length > 0 &&
+            itemCounts[rareItems[0]] < rareCount
+          ) {
+            type = rareItems[Math.floor(Math.random() * rareItems.length)];
+            rareCount--;
+          } else if (
+            mediumCount > 0 &&
+            mediumItems.length > 0 &&
+            itemCounts[mediumItems[0]] < mediumCount
+          ) {
+            type = mediumItems[Math.floor(Math.random() * mediumItems.length)];
+            mediumCount--;
+          } else if (
+            commonCount > 0 &&
+            commonItems.length > 0 &&
+            itemCounts[commonItems[0]] < commonCount
+          ) {
+            type = commonItems[Math.floor(Math.random() * commonItems.length)];
+            commonCount--;
+          } else {
+            const allTypes = Object.keys(ITEM_CONFIG).filter(
+              (t) => ITEM_CONFIG[t].rarity !== 4
+            );
+            type = allTypes[Math.floor(Math.random() * allTypes.length)];
+          }
 
           let x,
             y,
             attempts = 0;
-          const maxAttempts = 15;
+          const maxAttempts = 10;
           do {
             x = Math.random() * world.width;
             y = Math.random() * world.height;
@@ -276,59 +275,132 @@ function runGameLoop(
           } while (checkCollisionServer(x, y) && attempts < maxAttempts);
 
           if (attempts < maxAttempts) {
-            const itemId = `${type}_${now}_${Date.now()}_${i}`;
-            const newItem = {
-              x,
-              y,
-              type,
-              spawnTime: now,
-              worldId,
-              isDroppedByPlayer: true,
-            };
+            const itemId = `${type}_${now}_${i}`;
+            const newItem = { x, y, type, spawnTime: now, worldId };
             items.set(itemId, newItem);
             worldItemsMap.set(itemId, newItem);
-            newItems.push({
-              itemId,
-              x,
-              y,
-              type,
-              spawnTime: now,
-              worldId,
-              isDroppedByPlayer: true,
-            });
+            newItems.push({ itemId, x, y, type, spawnTime: now, worldId });
+
+            if (type === "atom") {
+              atomSpawns.push(
+                `Создан атом (${itemId}) в мире ${worldId} на x:${x}, y:${y}`
+              );
+            }
           }
         }
-      };
 
-      // Сначала редкие, потом средние, потом обычные — чтобы редкие точно попали
-      spawnFromPool(rareItems, needRare);
-      spawnFromPool(mediumItems, needMedium);
-      spawnFromPool(commonItems, needCommon);
-
-      // Отправляем только если что-то заспавнили
-      if (newItems.length > 0) {
-        const msg = JSON.stringify({
-          type: "newItem",
-          items: newItems,
-        });
-        broadcastToWorld(wss, clients, players, worldId, msg);
-      }
-      // Удаляем старые предметы
-      const itemsToRemove = removeItemByWorld.get(worldId) || [];
-      if (itemsToRemove.length > 0) {
-        broadcastToWorld(
-          wss,
-          clients,
-          players,
-          worldId,
-          JSON.stringify({
-            type: "removeItems",
-            itemIds: itemsToRemove,
-          })
-        );
+        if (newItems.length > 0) {
+          const msg = JSON.stringify({ type: "newItem", items: newItems });
+          broadcastToWorld(wss, clients, players, worldId, msg);
+        }
+        if (atomSpawns.length > 0) {
+          const atomMsg = JSON.stringify({
+            type: "atomSpawned",
+            messages: atomSpawns,
+          });
+          broadcastToWorld(wss, clients, players, worldId, atomMsg);
+        }
       }
 
-      // Синхронизация всех предметов (на всякий случай)
+      // Мутанты: 10 на мир, кроме мира 0, если есть игроки
+      if (worldId !== 0 && playerCount > 0) {
+        const worldEnemiesMap = worldEnemyCache.get(worldId) || new Map();
+        const desiredMutants = 10;
+        const currentMutants = Array.from(worldEnemiesMap.values()).filter(
+          (e) => !e.type || e.type === "mutant"
+        ).length;
+        if (currentMutants < desiredMutants) {
+          const toSpawn = desiredMutants - currentMutants;
+          const newMutants = [];
+          for (let i = 0; i < toSpawn; i++) {
+            let x,
+              y,
+              attempts = 0;
+            const maxAttempts = 10;
+            do {
+              x = Math.random() * world.width;
+              y = Math.random() * world.height;
+              attempts++;
+            } while (checkCollisionServer(x, y) && attempts < maxAttempts);
+            if (attempts < maxAttempts) {
+              const enemyId = `mutant_${Date.now()}_${i}`;
+              const newEnemy = {
+                id: enemyId,
+                x,
+                y,
+                health: 200,
+                direction: "down",
+                state: "idle",
+                frame: 0,
+                worldId,
+                targetId: null,
+                lastAttackTime: 0,
+                type: "mutant",
+              };
+              enemies.set(enemyId, newEnemy);
+              worldEnemiesMap.set(enemyId, newEnemy);
+              newMutants.push({ ...newEnemy });
+            }
+          }
+          if (newMutants.length > 0) {
+            const msg = JSON.stringify({
+              type: "newEnemies",
+              enemies: newMutants,
+            });
+            broadcastToWorld(wss, clients, players, worldId, msg);
+          }
+        }
+      }
+      // Скорпионы: 10 на мир, кроме мира 0 и неонового города (worldId == 3), если есть игроки
+      if (worldId !== 0 && worldId !== 3 && playerCount > 0) {
+        const worldEnemiesMap = worldEnemyCache.get(worldId) || new Map();
+        const desiredScorpions = 10;
+        const currentScorpions = Array.from(worldEnemiesMap.values()).filter(
+          (e) => e.type === "scorpion"
+        ).length;
+        if (currentScorpions < desiredScorpions) {
+          const toSpawn = desiredScorpions - currentScorpions;
+          const newScorpions = [];
+          for (let i = 0; i < toSpawn; i++) {
+            let x,
+              y,
+              attempts = 0;
+            const maxAttempts = 10;
+            do {
+              x = Math.random() * world.width;
+              y = Math.random() * world.height;
+              attempts++;
+            } while (checkCollisionServer(x, y) && attempts < maxAttempts);
+            if (attempts < maxAttempts) {
+              const enemyId = `scorpion_${Date.now()}_${i}`;
+              const newEnemy = {
+                id: enemyId,
+                x,
+                y,
+                health: 250,
+                direction: "down",
+                state: "idle",
+                frame: 0,
+                worldId,
+                targetId: null,
+                lastAttackTime: 0,
+                type: "scorpion",
+              };
+              enemies.set(enemyId, newEnemy);
+              worldEnemiesMap.set(enemyId, newEnemy);
+              newScorpions.push({ ...newEnemy });
+            }
+          }
+          if (newScorpions.length > 0) {
+            const msg = JSON.stringify({
+              type: "newEnemies",
+              enemies: newScorpions,
+            });
+            broadcastToWorld(wss, clients, players, worldId, msg);
+          }
+        }
+      }
+
       const allItems = Array.from(worldItemsMap.entries()).map(
         ([itemId, item]) => ({
           itemId,
@@ -341,39 +413,24 @@ function runGameLoop(
       );
 
       if (allItems.length > 0) {
-        broadcastToWorld(
-          wss,
-          clients,
-          players,
+        const syncMsg = JSON.stringify({
+          type: "syncItems",
+          items: allItems,
           worldId,
-          JSON.stringify({
-            type: "syncItems",
-            items: allItems,
-            worldId,
-          })
-        );
+        });
+        broadcastToWorld(wss, clients, players, worldId, syncMsg);
       }
-    }
-
-    // Спавн мутантов и скорпионов остаётся без изменений (ниже твой старый код)
-    for (const world of worlds) {
-      const worldId = world.id;
-      const playerCount = (worldPlayerCache.get(worldId) || new Set()).size;
-      if (playerCount === 0) continue;
-
-      // ... (весь твой код про мутантов и скорпионов — оставляем как есть)
-      // (я его не трогаю, он работает идеально)
     }
   }, 30_000);
 
+  // Возвращаем интервалы, чтобы можно было остановить при выключении
   return { mainLoop, mutantAIInterval };
 }
 
 function broadcastToWorld(wss, clients, players, worldId, message) {
   wss.clients.forEach((client) => {
     if (client.readyState === WebSocket.OPEN) {
-      const playerId = clients.get(client);
-      const player = players.get(playerId);
+      const player = players.get(clients.get(client));
       if (player && player.worldId === worldId) {
         client.send(message);
       }
