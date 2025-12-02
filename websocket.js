@@ -1148,98 +1148,83 @@ function setupWebSocket(
         }
       } else if (data.type === "dropItem") {
         const id = clients.get(ws);
-        if (id) {
-          const player = players.get(id);
-          const slotIndex = data.slotIndex;
-          const item = player.inventory[slotIndex];
-          if (item) {
-            let quantityToDrop = data.quantity || 1;
-            if (ITEM_CONFIG[item.type]?.stackable) {
-              const currentQuantity = item.quantity || 1;
-              if (quantityToDrop > currentQuantity) {
-                return;
-              }
-            }
+        if (!id) return;
 
-            let dropX,
-              dropY,
-              attempts = 0;
-            const maxAttempts = 10;
-            do {
-              const angle = Math.random() * Math.PI * 2;
-              const radius = Math.random() * 100;
-              dropX = player.x + Math.cos(angle) * radius;
-              dropY = player.y + Math.sin(angle) * radius;
-              attempts++;
-            } while (
-              checkCollisionServer(dropX, dropY) &&
-              attempts < maxAttempts
-            );
+        const player = players.get(id);
+        if (!player || !player.inventory) return;
 
-            if (attempts < maxAttempts) {
-              const itemId = `${item.type}_${Date.now()}`;
-              if (ITEM_CONFIG[item.type]?.stackable) {
-                if (quantityToDrop === item.quantity) {
-                  player.inventory[slotIndex] = null;
-                } else {
-                  player.inventory[slotIndex].quantity -= quantityToDrop;
-                }
-                items.set(itemId, {
-                  x: dropX,
-                  y: dropY,
-                  type: item.type,
-                  spawnTime: Date.now(),
-                  quantity: quantityToDrop,
-                  isDroppedByPlayer: true,
-                  worldId: player.worldId,
-                });
-              } else {
-                player.inventory[slotIndex] = null;
-                items.set(itemId, {
-                  x: dropX,
-                  y: dropY,
-                  type: item.type,
-                  spawnTime: Date.now(),
-                  isDroppedByPlayer: true,
-                  worldId: player.worldId,
-                });
-              }
-              players.set(id, { ...player });
-              userDatabase.set(id, { ...player });
-              await saveUserDatabase(dbCollection, id, player);
-              wss.clients.forEach((client) => {
-                if (client.readyState === WebSocket.OPEN) {
-                  const clientPlayer = players.get(clients.get(client));
-                  if (clientPlayer && clientPlayer.worldId === player.worldId) {
-                    client.send(
-                      JSON.stringify({
-                        type: "itemDropped",
-                        itemId,
-                        x: dropX,
-                        y: dropY,
-                        type: item.type,
-                        spawnTime: Date.now(),
-                        quantity: ITEM_CONFIG[item.type]?.stackable
-                          ? quantityToDrop
-                          : undefined,
-                        isDroppedByPlayer: true,
-                        worldId: player.worldId,
-                      })
-                    );
-                    if (clients.get(client) === id) {
-                      client.send(
-                        JSON.stringify({
-                          type: "update",
-                          player: { id, ...player },
-                        })
-                      );
-                    }
-                  }
-                }
-              });
-            }
-          }
+        const slotIndex = data.slotIndex;
+        const item = player.inventory[slotIndex];
+        if (!item) return;
+
+        let quantityToDrop = data.quantity || 1;
+        if (ITEM_CONFIG[item.type]?.stackable) {
+          const currentQuantity = item.quantity || 1;
+          if (quantityToDrop > currentQuantity) return;
         }
+
+        // Моментальное появление рядом с игроком
+        const angle = Math.random() * Math.PI * 2;
+        const radius = 40 + Math.random() * 60; // 40–100 пикселей от игрока
+        const dropX = player.x + Math.cos(angle) * radius;
+        const dropY = player.y + Math.sin(angle) * radius;
+
+        const itemId = `${item.type}_${Date.now()}_${Math.floor(
+          Math.random() * 10000
+        )}`;
+
+        // Удаляем из инвентаря
+        if (
+          ITEM_CONFIG[item.type]?.stackable &&
+          quantityToDrop < (item.quantity || 1)
+        ) {
+          player.inventory[slotIndex].quantity -= quantityToDrop;
+        } else {
+          player.inventory[slotIndex] = null;
+        }
+
+        // Создаём предмет в мире — МГНОВЕННО и с явной пометкой
+        const droppedItem = {
+          x: dropX,
+          y: dropY,
+          type: item.type,
+          spawnTime: Date.now(),
+          worldId: player.worldId,
+          isDroppedByPlayer: true, // ← важно для клиента
+          quantity: ITEM_CONFIG[item.type]?.stackable
+            ? quantityToDrop
+            : undefined,
+        };
+
+        items.set(itemId, droppedItem);
+
+        // Сохраняем игрока
+        players.set(id, { ...player });
+        userDatabase.set(id, { ...player });
+        await saveUserDatabase(dbCollection, id, player);
+
+        // Рассылаем ВСЕМ в мире — сразу, без задержек
+        const dropMessage = JSON.stringify({
+          type: "itemDropped",
+          itemId,
+          x: dropX,
+          y: dropY,
+          type: item.type,
+          quantity: droppedItem.quantity,
+          isDroppedByPlayer: true,
+          worldId: player.worldId,
+        });
+
+        // Оптимизация: отправляем только игрокам в этом мире
+        broadcastToWorld(wss, clients, players, player.worldId, dropMessage);
+
+        // Дополнительно — обновляем инвентарь дропнувшему игроку
+        ws.send(
+          JSON.stringify({
+            type: "update",
+            player: { id, inventory: player.inventory },
+          })
+        );
       } else if (data.type === "selectQuest") {
         const id = clients.get(ws);
         if (id) {
