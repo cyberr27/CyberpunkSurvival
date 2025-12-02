@@ -677,12 +677,14 @@ function handleAuthMessage(event) {
         });
       } else if (data.itemId) {
         // Старый формат (один предмет)
-        items.set(data.itemId, {
-          x: data.x || data.item.x,
-          y: data.y || data.item.y,
-          type: data.type || data.item.type,
-          spawnTime: data.spawnTime || Date.now(),
-          worldId: data.worldId || currentWorldId,
+        items.set(item.itemId, {
+          x: item.x,
+          y: item.y,
+          type: item.type,
+          spawnTime: item.spawnTime,
+          worldId: item.worldId,
+          quantity: item.quantity || 1,
+          isDroppedByPlayer: item.isDroppedByPlayer,
         });
       }
       break;
@@ -1543,21 +1545,6 @@ function handleGameMessage(event) {
     const currentWorldId = window.worldSystem.currentWorldId;
 
     switch (data.type) {
-      case "itemDropped":
-        if (data.worldId === currentWorldId) {
-          items.set(data.itemId, {
-            x: data.x,
-            y: data.y,
-            type: data.type,
-            spawnTime: data.spawnTime,
-            worldId: data.worldId,
-          });
-          if (data.quantity && ITEM_CONFIG[data.type]?.stackable) {
-            items.get(data.itemId).quantity = data.quantity;
-          }
-          updateInventoryDisplay();
-        }
-        break;
       case "syncPlayers":
         if (
           data.players &&

@@ -1211,21 +1211,35 @@ function setupWebSocket(
                 if (client.readyState === WebSocket.OPEN) {
                   const clientPlayer = players.get(clients.get(client));
                   if (clientPlayer && clientPlayer.worldId === player.worldId) {
-                    client.send(
-                      JSON.stringify({
-                        type: "itemDropped",
-                        itemId,
-                        x: dropX,
-                        y: dropY,
-                        type: item.type,
-                        spawnTime: Date.now(),
-                        quantity: ITEM_CONFIG[item.type]?.stackable
-                          ? quantityToDrop
-                          : undefined,
-                        isDroppedByPlayer: true,
-                        worldId: player.worldId,
-                      })
-                    );
+                    const newItemMsg = JSON.stringify({
+                      type: "newItem",
+                      items: [
+                        {
+                          itemId,
+                          x: dropX,
+                          y: dropY,
+                          type: item.type,
+                          spawnTime: Date.now(),
+                          quantity: ITEM_CONFIG[item.type]?.stackable
+                            ? quantityToDrop
+                            : undefined,
+                          worldId: player.worldId,
+                          isDroppedByPlayer: true,
+                        },
+                      ],
+                    });
+
+                    wss.clients.forEach((client) => {
+                      if (client.readyState === WebSocket.OPEN) {
+                        const clientPlayer = players.get(clients.get(client));
+                        if (
+                          clientPlayer &&
+                          clientPlayer.worldId === player.worldId
+                        ) {
+                          client.send(newItemMsg);
+                        }
+                      }
+                    });
                     if (clients.get(client) === id) {
                       client.send(
                         JSON.stringify({
