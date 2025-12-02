@@ -1543,6 +1543,41 @@ function handleGameMessage(event) {
     const currentWorldId = window.worldSystem.currentWorldId;
 
     switch (data.type) {
+      case "itemDropped":
+        if (data.worldId !== window.worldSystem.currentWorldId) break;
+
+        // Защита от дубликатов (на всякий случай, если придёт дважды)
+        if (items.has(data.itemId)) {
+          const existing = items.get(data.itemId);
+          if (
+            existing.x === data.x &&
+            existing.y === data.y &&
+            existing.type === data.type
+          ) {
+            break; // уже есть — не добавляем
+          }
+        }
+
+        items.set(data.itemId, {
+          x: data.x,
+          y: data.y,
+          type: data.type,
+          spawnTime: data.spawnTime || Date.now(),
+          worldId: data.worldId,
+          isDroppedByPlayer: true,
+          quantity: data.quantity,
+        });
+
+        // Опционально: если это наш дроп — сразу обновить инвентарь
+        if (data.playerId === myId) {
+          if (data.inventory) {
+            inventory = data.inventory.map((item) =>
+              item ? { ...item } : null
+            );
+            updateInventoryDisplay();
+          }
+        }
+        break;
       case "syncPlayers":
         if (
           data.players &&
@@ -1722,29 +1757,6 @@ function handleGameMessage(event) {
             ...players.get(data.player.id),
             ...data.player,
           });
-        }
-        break;
-      case "itemDropped":
-        // ГЛАВНОЕ ИСПРАВЛЕНИЕ — теперь предмет появляется у ВСЕХ мгновенно
-        if (data.worldId === window.worldSystem.currentWorldId) {
-          const droppedItem = {
-            x: data.x,
-            y: data.y,
-            type: data.type,
-            spawnTime: data.spawnTime || Date.now(),
-            worldId: data.worldId,
-            isDroppedByPlayer: true,
-          };
-
-          // Если стакуется — добавляем количество
-          if (
-            data.quantity !== undefined &&
-            ITEM_CONFIG[data.type]?.stackable
-          ) {
-            droppedItem.quantity = data.quantity;
-          }
-
-          items.set(data.itemId, droppedItem);
         }
         break;
       case "chat":

@@ -277,7 +277,14 @@ function runGameLoop(
 
           if (attempts < maxAttempts) {
             const itemId = `${type}_${now}_${Date.now()}_${i}`;
-            const newItem = { x, y, type, spawnTime: now, worldId };
+            const newItem = {
+              x,
+              y,
+              type,
+              spawnTime: now,
+              worldId,
+              isDroppedByPlayer: true,
+            };
             items.set(itemId, newItem);
             worldItemsMap.set(itemId, newItem);
             newItems.push({ itemId, x, y, type, spawnTime: now, worldId });
