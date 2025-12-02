@@ -1147,65 +1147,108 @@ function setupWebSocket(
           }
         }
       } else if (data.type === "dropItem") {
-        const playerId = clients.get(ws);
-        if (!playerId || !players.has(playerId)) return;
+        const id = clients.get(ws);
+        if (!id) return;
 
-        const player = players.get(playerId);
-        const slot = data.slot;
-        if (slot < 0 || slot >= 20 || !player.inventory[slot]) return;
+        const player = players.get(id);
+        if (!player) return;
 
-        const item = player.inventory[slot];
-        const worldId = player.worldId;
+        const slotIndex = data.slotIndex;
+        const item = player.inventory[slotIndex];
+        if (!item) return;
 
-        // Создаём предмет на земле
-        const itemId = `${item.type}_${Date.now()}_${Math.random()
+        let quantityToDrop = data.quantity || 1;
+
+        // Проверка на стак
+        if (ITEM_CONFIG[item.type]?.stackable) {
+          const currentQuantity = item.quantity || 1;
+          if (quantityToDrop > currentQuantity) return;
+        }
+
+        // Определяем координаты дропа
+        let dropX,
+          dropY,
+          attempts = 0;
+        const maxAttempts = 15;
+        do {
+          const angle = Math.random() * Math.PI * 2;
+          const distance = 40 + Math.random() * 60; // 40–100px от игрока
+          dropX = player.x + Math.cos(angle) * distance;
+          dropY = player.y + Math.sin(angle) * distance;
+          attempts++;
+        } while (checkCollisionServer(dropX, dropY) && attempts < maxAttempts);
+
+        if (attempts >= maxAttempts) {
+          dropX = player.x + 50;
+          dropY = player.y + 50; // на крайняк — рядом
+        }
+
+        // Генерируем ID
+        const itemId = `${item.type}_drop_${Date.now()}_${Math.random()
           .toString(36)
           .substr(2, 9)}`;
-        const dropItem = {
-          x: player.x + (Math.random() - 0.5) * 40, // небольшое расхождение
-          y: player.y + (Math.random() - 0.5) * 40,
+
+        // Создаём предмет в мире
+        const droppedItem = {
+          x: dropX,
+          y: dropY,
           type: item.type,
-          quantity: item.quantity || 1,
           spawnTime: Date.now(),
-          worldId: worldId,
-          spawnedBy: playerId, // опционально, для очистки при выходе
+          worldId: player.worldId,
+          ...(ITEM_CONFIG[item.type]?.stackable
+            ? { quantity: quantityToDrop }
+            : {}),
         };
 
-        items.set(itemId, dropItem);
+        items.set(itemId, droppedItem);
 
-        // Очищаем слот у игрока
-        player.inventory[slot] = null;
-        players.set(playerId, player);
-        userDatabase.set(playerId, player);
-        await saveUserDatabase(dbCollection, playerId, player);
+        // Обновляем инвентарь игрока
+        if (ITEM_CONFIG[item.type]?.stackable) {
+          if (quantityToDrop === (item.quantity || 1)) {
+            player.inventory[slotIndex] = null;
+          } else {
+            player.inventory[slotIndex].quantity -= quantityToDrop;
+          }
+        } else {
+          player.inventory[slotIndex] = null;
+        }
 
-        // ГЛАВНОЕ: СРАЗУ РАССЫЛАЕМ ВСЕМ В МИРЕ
+        // Сохраняем игрока
+        players.set(id, player);
+        userDatabase.set(id, player);
+        await saveUserDatabase(dbCollection, id, player);
+
+        // ВАЖНО: ОТПРАВЛЯЕМ ВСЕМ В МИРЕ СООБЩЕНИЕ ТИПА "newItem" — клиент его знает!
+        const dropMessage = {
+          type: "newItem",
+          items: [
+            {
+              itemId,
+              x: dropX,
+              y: dropY,
+              type: item.type,
+              spawnTime: Date.now(),
+              worldId: player.worldId,
+              ...(ITEM_CONFIG[item.type]?.stackable
+                ? { quantity: quantityToDrop }
+                : {}),
+            },
+          ],
+        };
+
         broadcastToWorld(
           wss,
           clients,
           players,
-          worldId,
-          JSON.stringify({
-            type: "newItem",
-            items: [
-              {
-                itemId,
-                x: dropItem.x,
-                y: dropItem.y,
-                type: dropItem.type,
-                quantity: dropItem.quantity || 1,
-                spawnTime: dropItem.spawnTime,
-                worldId: dropItem.worldId,
-              },
-            ],
-          })
+          player.worldId,
+          JSON.stringify(dropMessage)
         );
 
-        // Также обновляем инвентарь игрока
+        // Обновляем инвентарь только у дропнувшего
         ws.send(
           JSON.stringify({
-            type: "inventoryUpdate",
-            inventory: player.inventory,
+            type: "update",
+            player: { id, inventory: player.inventory },
           })
         );
       } else if (data.type === "selectQuest") {
