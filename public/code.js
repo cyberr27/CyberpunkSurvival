@@ -663,14 +663,28 @@ function handleAuthMessage(event) {
       }
       break;
     case "newItem":
-      const newItem = {
-        x: data.x,
-        y: data.y,
-        type: data.type,
-        spawnTime: data.spawnTime,
-        worldId: data.worldId,
-      };
-      items.set(data.itemId, newItem);
+      // Это может быть массив (дроп с мутанта) или один предмет
+      if (Array.isArray(data.items)) {
+        data.items.forEach((it) => {
+          items.set(it.itemId, {
+            x: it.x,
+            y: it.y,
+            type: it.type,
+            spawnTime: it.spawnTime,
+            worldId: it.worldId,
+            quantity: it.quantity,
+          });
+        });
+      } else if (data.itemId) {
+        // Старый формат (один предмет)
+        items.set(data.itemId, {
+          x: data.x || data.item.x,
+          y: data.y || data.item.y,
+          type: data.type || data.item.type,
+          spawnTime: data.spawnTime || Date.now(),
+          worldId: data.worldId || currentWorldId,
+        });
+      }
       break;
   }
 }
@@ -1711,18 +1725,26 @@ function handleGameMessage(event) {
         }
         break;
       case "itemDropped":
-        if (data.worldId === currentWorldId) {
-          items.set(data.itemId, {
+        // ГЛАВНОЕ ИСПРАВЛЕНИЕ — теперь предмет появляется у ВСЕХ мгновенно
+        if (data.worldId === window.worldSystem.currentWorldId) {
+          const droppedItem = {
             x: data.x,
             y: data.y,
             type: data.type,
-            spawnTime: data.spawnTime,
+            spawnTime: data.spawnTime || Date.now(),
             worldId: data.worldId,
-          });
-          if (data.quantity && ITEM_CONFIG[data.type]?.stackable) {
-            items.get(data.itemId).quantity = data.quantity;
+            isDroppedByPlayer: true,
+          };
+
+          // Если стакуется — добавляем количество
+          if (
+            data.quantity !== undefined &&
+            ITEM_CONFIG[data.type]?.stackable
+          ) {
+            droppedItem.quantity = data.quantity;
           }
-          updateInventoryDisplay();
+
+          items.set(data.itemId, droppedItem);
         }
         break;
       case "chat":
