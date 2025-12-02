@@ -663,14 +663,16 @@ function handleAuthMessage(event) {
       }
       break;
     case "newItem":
-      const newItem = {
-        x: data.x,
-        y: data.y,
-        type: data.type,
-        spawnTime: data.spawnTime,
-        worldId: data.worldId,
-      };
-      items.set(data.itemId, newItem);
+      data.items.forEach((item) => {
+        items.set(item.itemId, {
+          x: item.x,
+          y: item.y,
+          type: item.type,
+          worldId: item.worldId,
+          spawnTime: item.spawnTime,
+          quantity: item.quantity || 1,
+        });
+      });
       break;
   }
 }

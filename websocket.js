@@ -1147,99 +1147,67 @@ function setupWebSocket(
           }
         }
       } else if (data.type === "dropItem") {
-        const id = clients.get(ws);
-        if (id) {
-          const player = players.get(id);
-          const slotIndex = data.slotIndex;
-          const item = player.inventory[slotIndex];
-          if (item) {
-            let quantityToDrop = data.quantity || 1;
-            if (ITEM_CONFIG[item.type]?.stackable) {
-              const currentQuantity = item.quantity || 1;
-              if (quantityToDrop > currentQuantity) {
-                return;
-              }
-            }
+        const playerId = clients.get(ws);
+        if (!playerId || !players.has(playerId)) return;
 
-            let dropX,
-              dropY,
-              attempts = 0;
-            const maxAttempts = 10;
-            do {
-              const angle = Math.random() * Math.PI * 2;
-              const radius = Math.random() * 100;
-              dropX = player.x + Math.cos(angle) * radius;
-              dropY = player.y + Math.sin(angle) * radius;
-              attempts++;
-            } while (
-              checkCollisionServer(dropX, dropY) &&
-              attempts < maxAttempts
-            );
+        const player = players.get(playerId);
+        const slot = data.slot;
+        if (slot < 0 || slot >= 20 || !player.inventory[slot]) return;
 
-            if (attempts < maxAttempts) {
-              const itemId = `${item.type}_${Date.now()}`;
-              if (ITEM_CONFIG[item.type]?.stackable) {
-                if (quantityToDrop === item.quantity) {
-                  player.inventory[slotIndex] = null;
-                } else {
-                  player.inventory[slotIndex].quantity -= quantityToDrop;
-                }
-                items.set(itemId, {
-                  x: dropX,
-                  y: dropY,
-                  type: item.type,
-                  spawnTime: Date.now(),
-                  quantity: quantityToDrop,
-                  isDroppedByPlayer: true,
-                  worldId: player.worldId,
-                });
-              } else {
-                player.inventory[slotIndex] = null;
-                items.set(itemId, {
-                  x: dropX,
-                  y: dropY,
-                  type: item.type,
-                  spawnTime: Date.now(),
-                  isDroppedByPlayer: true,
-                  worldId: player.worldId,
-                });
-              }
-              players.set(id, { ...player });
-              userDatabase.set(id, { ...player });
-              await saveUserDatabase(dbCollection, id, player);
-              wss.clients.forEach((client) => {
-                if (client.readyState === WebSocket.OPEN) {
-                  const clientPlayer = players.get(clients.get(client));
-                  if (clientPlayer && clientPlayer.worldId === player.worldId) {
-                    client.send(
-                      JSON.stringify({
-                        type: "itemDropped",
-                        itemId,
-                        x: dropX,
-                        y: dropY,
-                        type: item.type,
-                        spawnTime: Date.now(),
-                        quantity: ITEM_CONFIG[item.type]?.stackable
-                          ? quantityToDrop
-                          : undefined,
-                        isDroppedByPlayer: true,
-                        worldId: player.worldId,
-                      })
-                    );
-                    if (clients.get(client) === id) {
-                      client.send(
-                        JSON.stringify({
-                          type: "update",
-                          player: { id, ...player },
-                        })
-                      );
-                    }
-                  }
-                }
-              });
-            }
-          }
-        }
+        const item = player.inventory[slot];
+        const worldId = player.worldId;
+
+        // Создаём предмет на земле
+        const itemId = `${item.type}_${Date.now()}_${Math.random()
+          .toString(36)
+          .substr(2, 9)}`;
+        const dropItem = {
+          x: player.x + (Math.random() - 0.5) * 40, // небольшое расхождение
+          y: player.y + (Math.random() - 0.5) * 40,
+          type: item.type,
+          quantity: item.quantity || 1,
+          spawnTime: Date.now(),
+          worldId: worldId,
+          spawnedBy: playerId, // опционально, для очистки при выходе
+        };
+
+        items.set(itemId, dropItem);
+
+        // Очищаем слот у игрока
+        player.inventory[slot] = null;
+        players.set(playerId, player);
+        userDatabase.set(playerId, player);
+        await saveUserDatabase(dbCollection, playerId, player);
+
+        // ГЛАВНОЕ: СРАЗУ РАССЫЛАЕМ ВСЕМ В МИРЕ
+        broadcastToWorld(
+          wss,
+          clients,
+          players,
+          worldId,
+          JSON.stringify({
+            type: "newItem",
+            items: [
+              {
+                itemId,
+                x: dropItem.x,
+                y: dropItem.y,
+                type: dropItem.type,
+                quantity: dropItem.quantity || 1,
+                spawnTime: dropItem.spawnTime,
+                worldId: dropItem.worldId,
+              },
+            ],
+          })
+        );
+
+        // Также обновляем инвентарь игрока
+        ws.send(
+          JSON.stringify({
+            type: "inventoryUpdate",
+            inventory: player.inventory,
+          })
+        );
       } else if (data.type === "selectQuest") {
         const id = clients.get(ws);
         if (id) {
