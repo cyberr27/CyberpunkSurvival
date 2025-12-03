@@ -1,16 +1,27 @@
 // corporateRobot.js
-// Робот «Воспитатель Корпорации» — координаты 2120×1800, мир 0
-// Оптимизированная версия — минимум аллокаций, минимум проверок, максимум производительности
+// Робот «Воспитатель Корпорации» — патрулирует, но замирает при приближении игрока
+// Версия 2025 — кнопки над головой, как у всех NPC
 
 window.corporateRobotSystem = (function () {
-  const ROBOT_X = 2120;
-  const ROBOT_Y = 1800;
-  const INTERACTION_RADIUS_SQ = 2500; // 50² — избегаем Math.hypot
+  const INTERACTION_RADIUS_SQ = 2500; // 50²
+
+  // Точки патрулирования
+  const WAYPOINTS = [
+    { x: 2630, y: 2222 },
+    { x: 457, y: 2953 },
+  ];
+
+  const MOVE_SPEED = 3.0; // Увеличена в 2 раза (было 0.5)
 
   let sprite = null;
   let initialized = false;
 
-  // Данные робота (не меняются — вынесли в константы)
+  // Текущее положение робота
+  let robotX = WAYPOINTS[0].x;
+  let robotY = WAYPOINTS[0].y;
+  let currentWaypointIndex = 0;
+
+  // Реплики робота
   const DIALOGUES = [
     "Добро пожаловать, дитя корпорации.",
     "Ты — будущее. Мы следим за тобой.",
@@ -32,84 +43,100 @@ window.corporateRobotSystem = (function () {
   let playerInRange = false;
   let isInteracting = false;
 
-  // Кэшируем DOM-элементы один раз
-  let dialogContainer = null;
-  let textEl = null;
+  // UI
   let buttonsContainer = null;
+  let dialogWindow = null;
+  let dialogText = null;
   let acceptBtn = null;
 
-  // UI создание — один раз
-  function createUI() {
-    if (dialogContainer) return;
+  // Создаём кнопки и окно диалога (без изменений)
+  function createFloatingButtons() {
+    if (buttonsContainer) return;
 
-    dialogContainer = document.createElement("div");
-    dialogContainer.className = "npc-dialog";
-    dialogContainer.style.display = "none";
-    document.body.appendChild(dialogContainer);
-
-    // Имя
-    const nameEl = document.createElement("div");
-    nameEl.className = "npc-name";
-    nameEl.textContent = "Воспитатель Корпорации";
-    dialogContainer.appendChild(nameEl);
-
-    // Фото
-    const photoEl = document.createElement("img");
-    photoEl.className = "npc-photo";
-    photoEl.src = "fotoQuestNPC.png";
-    dialogContainer.appendChild(photoEl);
-
-    // Текст
-    textEl = document.createElement("div");
-    textEl.className = "npc-text";
-    dialogContainer.appendChild(textEl);
-
-    // Кнопки
     buttonsContainer = document.createElement("div");
-    buttonsContainer.className = "npc-buttons";
-    dialogContainer.appendChild(buttonsContainer);
+    buttonsContainer.className = "npc-buttons-container";
+    buttonsContainer.style.display = "none";
+    document.body.appendChild(buttonsContainer);
 
-    // Кнопка "Говорить"
-    const talkBtn = document.createElement("button");
-    talkBtn.className = "cyber-btn";
+    const talkBtn = document.createElement("div");
+    talkBtn.className = "npc-button npc-talk-btn";
     talkBtn.textContent = "Говорить";
-    talkBtn.onclick = () => {
-      textEl.textContent = DIALOGUES[dialogueIndex];
-      dialogueIndex = (dialogueIndex + 1) % DIALOGUES.length;
-    };
+    talkBtn.onclick = openTalkDialog;
     buttonsContainer.appendChild(talkBtn);
 
-    // Кнопка "Задания"
-    const questBtn = document.createElement("button");
-    questBtn.className = "cyber-btn";
+    const questBtn = document.createElement("div");
+    questBtn.className = "npc-button npc-quests-btn";
     questBtn.textContent = "Задания";
-    questBtn.onclick = showQuest;
+    questBtn.onclick = openQuestDialog;
     buttonsContainer.appendChild(questBtn);
-
-    // Кнопка закрытия
-    const closeBtn = document.createElement("button");
-    closeBtn.className = "cyber-btn close";
-    closeBtn.textContent = "×";
-    closeBtn.onclick = hideDialog;
-    dialogContainer.appendChild(closeBtn);
   }
 
-  function showQuest() {
-    textEl.innerHTML = `
+  function createDialogWindow() {
+    if (dialogWindow) return;
+
+    dialogWindow = document.createElement("div");
+    dialogWindow.className = "npc-dialog";
+    dialogWindow.style.display = "none";
+    document.body.appendChild(dialogWindow);
+
+    const header = document.createElement("div");
+    header.className = "npc-dialog-header";
+
+    const photo = document.createElement("img");
+    photo.className = "npc-photo";
+    photo.src = "fotoQuestNPC.png";
+
+    const title = document.createElement("h2");
+    title.className = "npc-title";
+    title.textContent = "Воспитатель Корпорации";
+
+    header.appendChild(photo);
+    header.appendChild(title);
+    dialogWindow.appendChild(header);
+
+    dialogText = document.createElement("div");
+    dialogText.className = "npc-text";
+    dialogWindow.appendChild(dialogText);
+
+    const closeBtn = document.createElement("div");
+    closeBtn.className = "neon-btn";
+    closeBtn.textContent = "Закрыть";
+    closeBtn.style.marginTop = "auto";
+    closeBtn.onclick = () => {
+      dialogWindow.style.display = "none";
+    };
+    dialogWindow.appendChild(closeBtn);
+  }
+
+  function openTalkDialog() {
+    if (!dialogWindow) return;
+    dialogText.textContent = DIALOGUES[dialogueIndex];
+    dialogueIndex = (dialogueIndex + 1) % DIALOGUES.length;
+    dialogWindow.style.display = "flex";
+  }
+
+  function openQuestDialog() {
+    if (!dialogWindow) return;
+
+    dialogText.innerHTML = `
       <strong>Доступное задание:</strong><br><br>
-      ${QUEST.title}<br>
-      ${QUEST.description}<br><br>
-      Награда: ${QUEST.reward.xp} XP + ${QUEST.reward.balyary} баляров
+      <div style="text-align:left; margin:15px 0;">
+        • ${QUEST.title}<br>
+        • ${QUEST.description}<br><br>
+        <strong style="color:#ff00ff">Награда:</strong> ${QUEST.reward.xp} XP + ${QUEST.reward.balyary} баляров
+      </div>
     `;
 
-    // Добавляем кнопку "Взять" только один раз
     if (!acceptBtn) {
-      acceptBtn = document.createElement("button");
-      acceptBtn.className = "cyber-btn accept";
+      acceptBtn = document.createElement("div");
+      acceptBtn.className = "neon-btn";
       acceptBtn.textContent = "Взять задание";
       acceptBtn.onclick = acceptQuest;
-      buttonsContainer.appendChild(acceptBtn);
+      acceptBtn.style.marginTop = "15px";
+      dialogWindow.insertBefore(acceptBtn, dialogWindow.lastElementChild);
     }
+
+    dialogWindow.style.display = "flex";
   }
 
   function acceptQuest() {
@@ -123,61 +150,84 @@ window.corporateRobotSystem = (function () {
       );
     }
     showNotification("Задание принято: Принеси 5 баляров", "#00ffff");
-    hideDialog();
+    dialogWindow.style.display = "none";
   }
 
-  function showDialog() {
-    if (!dialogContainer) return;
-    dialogContainer.style.display = "block";
-    dialogueIndex = 0;
-    textEl.textContent = DIALOGUES[0];
-  }
+  // Движение (только если игрок НЕ в радиусе)
+  function moveToWaypoint() {
+    if (playerInRange) return; // Главное: замираем при приближении игрока
 
-  function hideDialog() {
-    if (dialogContainer) dialogContainer.style.display = "none";
-    if (acceptBtn && buttonsContainer.children.length > 3) {
-      buttonsContainer.removeChild(acceptBtn);
-      acceptBtn = null;
+    const target = WAYPOINTS[currentWaypointIndex];
+    const dx = target.x - robotX;
+    const dy = target.y - robotY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (dist < MOVE_SPEED) {
+      robotX = target.x;
+      robotY = target.y;
+      currentWaypointIndex = (currentWaypointIndex + 1) % WAYPOINTS.length;
+    } else {
+      robotX += (dx / dist) * MOVE_SPEED;
+      robotY += (dy / dist) * MOVE_SPEED;
     }
   }
 
-  // Быстрая проверка дистанции без Math.hypot
+  // Проверка дистанции до игрока
   function checkProximity() {
     const me = players.get(myId);
     if (!me || window.worldSystem.currentWorldId !== 0) {
       if (playerInRange) {
         playerInRange = false;
-        hideDialog();
+        if (buttonsContainer) buttonsContainer.style.display = "none";
       }
       return;
     }
 
-    const dx = me.x + 35 - ROBOT_X;
-    const dy = me.y + 35 - ROBOT_Y;
+    const dx = me.x + 35 - robotX;
+    const dy = me.y + 35 - robotY;
     const inRange = dx * dx + dy * dy <= INTERACTION_RADIUS_SQ;
 
     if (inRange && !playerInRange) {
       playerInRange = true;
-      showDialog();
+      if (buttonsContainer) buttonsContainer.style.display = "flex";
     } else if (!inRange && playerInRange) {
       playerInRange = false;
-      hideDialog();
+      if (buttonsContainer) buttonsContainer.style.display = "none";
+      if (dialogWindow) dialogWindow.style.display = "none";
     }
+  }
+
+  function updateButtonsPosition() {
+    if (!buttonsContainer || !playerInRange) return;
+
+    const cam = window.movementSystem.getCamera();
+    const screenX = robotX - cam.x;
+    const screenY = robotY - cam.y - 80;
+
+    buttonsContainer.style.left = `${screenX}px`;
+    buttonsContainer.style.top = `${screenY}px`;
+    buttonsContainer.style.transform = "translateX(-50%)";
   }
 
   return {
     initialize: function (robotSprite) {
       if (initialized) return;
       sprite = robotSprite;
-      createUI();
+      robotX = WAYPOINTS[0].x;
+      robotY = WAYPOINTS[0].y;
+      createFloatingButtons();
+      createDialogWindow();
       initialized = true;
-      this.isPlayerInteracting = false;
     },
 
     update: function () {
-      checkProximity();
-      isInteracting =
-        playerInRange && dialogContainer?.style.display === "block";
+      if (window.worldSystem.currentWorldId !== 0) return;
+
+      checkProximity(); // сначала проверяем дистанцию
+      moveToWaypoint(); // двигаемся только если игрок далеко
+      updateButtonsPosition();
+
+      isInteracting = playerInRange && dialogWindow?.style.display === "flex";
       this.isPlayerInteracting = isInteracting;
     },
 
@@ -185,17 +235,21 @@ window.corporateRobotSystem = (function () {
       if (window.worldSystem.currentWorldId !== 0 || !sprite?.complete) return;
 
       const cam = window.movementSystem.getCamera();
-      const sx = ROBOT_X - cam.x - 35;
-      const sy = ROBOT_Y - cam.y - 35;
+      const sx = robotX - cam.x - 35;
+      const sy = robotY - cam.y - 35;
 
-      // Анимация: если игрок рядом и диалог открыт — замираем на кадре 0
+      // Анимация ходьбы только если НЕ в радиусе и НЕ в диалоге
+      const shouldAnimate = !playerInRange && !isInteracting;
+
       const frame = isInteracting
         ? 0
-        : Math.floor(performance.now() / 120) % 13;
+        : shouldAnimate
+        ? Math.floor(performance.now() / 120) % 13
+        : 0;
 
       ctx.drawImage(sprite, frame * 70, 0, 70, 70, sx, sy, 70, 70);
 
-      // Подпись — без лишних вычислений
+      // Подпись
       ctx.font = "12px 'Courier New'";
       ctx.fillStyle = "#fbff00ff";
       ctx.textAlign = "center";

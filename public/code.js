@@ -2058,11 +2058,6 @@ function draw(deltaTime) {
     );
   }
 
-  // === Новый NPC: Neon Alex ===
-  if (window.neonNpcSystem) {
-    window.neonNpcSystem.draw();
-  }
-
   if (window.vacuumRobotSystem) {
     window.vacuumRobotSystem.draw();
   }
@@ -2074,11 +2069,11 @@ function draw(deltaTime) {
   window.npcSystem.drawNPC(deltaTime);
   window.bonfireSystem.draw();
   clockSystem.draw();
-  window.corporateRobotSystem.draw();
   window.jackSystem.drawJack(deltaTime);
   window.vendingMachine.draw();
   window.combatSystem.draw();
   window.enemySystem.draw();
+  window.corporateRobotSystem.draw();
 
   players.forEach((player) => {
     if (player.worldId !== currentWorldId) return;
@@ -2212,6 +2207,10 @@ function draw(deltaTime) {
       canvas.width,
       canvas.height
     );
+  }
+
+  if (window.neonNpcSystem) {
+    window.neonNpcSystem.draw();
   }
 
   window.droneSystem.draw();
