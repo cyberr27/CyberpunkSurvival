@@ -14,7 +14,7 @@ const ITEM_CONFIG = {
   bread: { effect: { food: 13, water: -2 }, rarity: 2 },
   sausage: { effect: { food: 16, energy: 3 }, rarity: 2 },
   energy_drink: { effect: { energy: 20, water: 5 }, rarity: 2 },
-  balyary: { effect: {}, rarity: 2, stackable: true, balyary: true },
+  balyary: { effect: {}, rarity: 1, stackable: true, balyary: true },
   water_bottle: { effect: { water: 30 }, rarity: 3 },
   nut: { effect: { food: 7 }, rarity: 3 },
   apple: { effect: { food: 8, water: 5 }, rarity: 3 },
@@ -25,11 +25,11 @@ const ITEM_CONFIG = {
     effect: { armor: 10, energy: 5 },
     rarity: 4, // Было 4, стало 3
   },
-  nano_armor: { type: "armor", effect: { armor: 20, health: 10 }, rarity: 3 }, // Было 4
-  tactical_belt: { type: "belt", effect: { armor: 5, food: 5 }, rarity: 3 }, // Было 4
-  cyber_pants: { type: "pants", effect: { armor: 10, water: 5 }, rarity: 3 }, // Было 4
-  speed_boots: { type: "boots", effect: { armor: 5, energy: 10 }, rarity: 3 }, // Было 4
-  tech_gloves: { type: "gloves", effect: { armor: 5, energy: 5 }, rarity: 3 }, // Было 4
+  nano_armor: { type: "armor", effect: { armor: 20, health: 10 }, rarity: 4 }, // Было 4
+  tactical_belt: { type: "belt", effect: { armor: 5, food: 5 }, rarity: 4 }, // Было 4
+  cyber_pants: { type: "pants", effect: { armor: 10, water: 5 }, rarity: 4 }, // Было 4
+  speed_boots: { type: "boots", effect: { armor: 5, energy: 10 }, rarity: 4 }, // Было 4
+  tech_gloves: { type: "gloves", effect: { armor: 5, energy: 5 }, rarity: 4 }, // Было 4
   plasma_rifle: {
     type: "weapon",
     effect: { damage: 50, range: 200 },
