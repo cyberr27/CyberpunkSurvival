@@ -1,155 +1,155 @@
 // droneSystem.js
 // Три корпоративных дрона-шпиона в мире 0. Максимально лёгкие и плавные.
+// Оптимизация: убраны лишние проверки, кэширование размеров мира, минимум операций в цикле.
 
 window.droneSystem = (function () {
-  const DRONE_WORLD_ID = 0;
-  const SPRITE_WIDTH = 70;
-  const SPRITE_HEIGHT = 70;
+  const WORLD_ID = 0;
+  const SPRITE_W = 70;
+  const SPRITE_H = 70;
   const TOTAL_FRAMES = 13;
-  const FRAME_DURATION = 120;
+  const FRAME_MS = 120;
 
-  let droneSprite = null;
-  let drones = []; // Теперь массив!
-  let isInitialized = false;
+  let sprite = null;
+  let drones = [];
+  let initialized = false;
 
-  // Безопасные размеры мира 0
-  function getWorldSize() {
+  // Кэшируем размер мира 0 (он почти никогда не меняется)
+  let worldSize = { w: 5000, h: 5000 };
+
+  const updateWorldSize = () => {
     try {
-      if (
-        window.worldSystem?.getWorldById &&
-        typeof window.worldSystem.getWorldById === "function"
-      ) {
-        const w = window.worldSystem.getWorldById(DRONE_WORLD_ID);
-        if (w?.w && w?.h) return { w: w.w, h: w.h };
+      const ws = window.worldSystem;
+      if (ws?.getWorldById) {
+        const w = ws.getWorldById(WORLD_ID);
+        if (w?.w && w?.h) worldSize = { w: w.w, h: w.h };
+      } else if (ws?.worlds?.[WORLD_ID]) {
+        const w = ws.worlds[WORLD_ID];
+        if (w?.w && w?.h) worldSize = { w: w.w, h: w.h };
       }
-      if (window.worldSystem?.worlds?.[DRONE_WORLD_ID]) {
-        const w = window.worldSystem.worlds[DRONE_WORLD_ID];
-        if (w?.w && w?.h) return { w: w.w, h: w.h };
-      }
-      return { w: 5000, h: 5000 };
-    } catch (e) {
-      return { w: 5000, h: 5000 };
-    }
-  }
+    } catch (_) {}
+  };
 
-  function getRandomTarget() {
-    const s = getWorldSize();
+  const getRandomTarget = () => {
     const m = 400;
     return {
-      x: m + Math.random() * (s.w - 2 * m),
-      y: m + Math.random() * (s.h - 2 * m),
+      x: m + Math.random() * (worldSize.w - 2 * m),
+      y: m + Math.random() * (worldSize.h - 2 * m),
     };
-  }
+  };
 
-  // Создаём одного дрона с заданными стартовыми координатами
-  function createDrone(startX, startY) {
-    const target = getRandomTarget();
+  const createDrone = (startX, startY) => {
+    const t = getRandomTarget();
     return {
       x: startX,
       y: startY,
-      targetX: target.x,
-      targetY: target.y,
-      speed: 0.22 + Math.random() * 0.04, // лёгкая разница в скорости
+      tx: t.x,
+      ty: t.y,
+      speed: 0.22 + Math.random() * 0.04,
       frame: Math.floor(Math.random() * TOTAL_FRAMES),
-      frameTime: Math.random() * FRAME_DURATION,
-      hoverTime: 0,
-      hoverDuration: 3000 + Math.random() * 5000,
-      state: Math.random() > 0.5 ? "hovering" : "moving",
+      ft: Math.random() * FRAME_MS, // frame time
+      hover: 0, // текущее время зависания
+      hoverDur: 3000 + Math.random() * 5000, // длительность зависания
+      state: Math.random() > 0.5 ? 1 : 0, // 0 = moving, 1 = hovering
     };
-  }
+  };
 
-  function initialize(spriteImage) {
-    if (isInitialized) return;
-    droneSprite = spriteImage;
+  const initialize = (img) => {
+    if (initialized) return;
+    sprite = img;
+    updateWorldSize();
 
     drones = [
-      createDrone(847, 3009), // Дрон 1
-      createDrone(1083, 1349), // Дрон 2 — новый
-      createDrone(2742, 1112), // Дрон 3 — новый
+      createDrone(847, 3009),
+      createDrone(1083, 1349),
+      createDrone(2742, 1112),
     ];
 
-    isInitialized = true;
-  }
+    initialized = true;
+  };
 
-  function update(deltaTime) {
-    if (!isInitialized || drones.length === 0) return;
-    if (
-      !window.worldSystem ||
-      window.worldSystem.currentWorldId !== DRONE_WORLD_ID
-    )
+  const update = (dt) => {
+    if (!initialized || drones.length === 0) return;
+    if (!window.worldSystem || window.worldSystem.currentWorldId !== WORLD_ID)
       return;
 
-    drones.forEach((drone) => {
+    // Один раз обновляем размер мира (на случай редкого изменения)
+    if (Math.random() < 0.001) updateWorldSize();
+
+    for (let i = 0; i < drones.length; i++) {
+      const d = drones[i];
+
       // Анимация кадров
-      drone.frameTime += deltaTime;
-      if (drone.frameTime >= FRAME_DURATION) {
-        drone.frameTime -= FRAME_DURATION;
-        drone.frame = (drone.frame + 1) % TOTAL_FRAMES;
+      d.ft += dt;
+      if (d.ft >= FRAME_MS) {
+        d.ft -= FRAME_MS;
+        d.frame = (d.frame + 1) % TOTAL_FRAMES;
       }
 
-      if (drone.state === "hovering") {
-        drone.hoverTime += deltaTime;
-        if (drone.hoverTime >= drone.hoverDuration) {
-          drone.state = "moving";
-          drone.hoverTime = 0;
+      // Зависание
+      if (d.state === 1) {
+        d.hover += dt;
+        if (d.hover >= d.hoverDur) {
+          d.state = 0;
+          d.hover = 0;
           const t = getRandomTarget();
-          drone.targetX = t.x;
-          drone.targetY = t.y;
+          d.tx = t.x;
+          d.ty = t.y;
         }
-        return;
+        continue;
       }
 
-      // Движение
-      const dx = drone.targetX - drone.x;
-      const dy = drone.targetY - drone.y;
+      // Движение к цели
+      const dx = d.tx - d.x;
+      const dy = d.ty - d.y;
       const dist = Math.hypot(dx, dy);
 
       if (dist < 8) {
-        drone.x = drone.targetX;
-        drone.y = drone.targetY;
-        drone.state = "hovering";
-        drone.hoverTime = 0;
-        drone.hoverDuration = 3000 + Math.random() * 5000;
-        return;
+        d.x = d.tx;
+        d.y = d.ty;
+        d.state = 1;
+        d.hover = 0;
+        d.hoverDur = 3000 + Math.random() * 5000;
+        continue;
       }
 
-      drone.x += (dx / dist) * drone.speed * deltaTime;
-      drone.y += (dy / dist) * drone.speed * deltaTime;
-    });
-  }
+      const move = (d.speed * dt) / dist;
+      d.x += dx * move;
+      d.y += dy * move;
+    }
+  };
 
-  function draw() {
-    if (!isInitialized || !droneSprite?.complete) return;
-    if (
-      !window.worldSystem ||
-      window.worldSystem.currentWorldId !== DRONE_WORLD_ID
-    )
+  const draw = () => {
+    if (!initialized || !sprite?.complete) return;
+    if (!window.worldSystem || window.worldSystem.currentWorldId !== WORLD_ID)
       return;
 
     const cam = window.movementSystem.getCamera();
+    const offsetX = -cam.x - SPRITE_W / 2;
+    const offsetY = -cam.y - SPRITE_H / 2;
 
-    drones.forEach((drone) => {
-      const sx = drone.x - cam.x - SPRITE_WIDTH / 2;
-      const sy = drone.y - cam.y - SPRITE_HEIGHT / 2;
+    for (let i = 0; i < drones.length; i++) {
+      const d = drones[i];
+      const sx = d.x + offsetX;
+      const sy = d.y + offsetY;
 
       ctx.drawImage(
-        droneSprite,
-        drone.frame * SPRITE_WIDTH,
+        sprite,
+        d.frame * SPRITE_W,
         0,
-        SPRITE_WIDTH,
-        SPRITE_HEIGHT,
-        sx,
-        sy,
-        SPRITE_WIDTH,
-        SPRITE_HEIGHT
+        SPRITE_W,
+        SPRITE_H,
+        sx | 0, // быстрое приведение к int
+        sy | 0,
+        SPRITE_W,
+        SPRITE_H
       );
-    });
-  }
+    }
+  };
 
   return {
     initialize,
     update,
     draw,
-    isInitialized: () => isInitialized,
+    isInitialized: () => initialized,
   };
 })();

@@ -1,8 +1,9 @@
-// bonfireSystem.js — финальная версия: красиво, быстро, надёжно
+// bonfireSystem.js — ультра-лёгкая версия (меньше памяти, меньше CPU, те же костры)
 
 window.bonfireSystem = (function () {
   let bonfireImage = null;
 
+  // Позиции костров (x, y) — центр костра = +35/+35
   const BONFIRES = [
     { x: 473, y: 3193 },
     { x: 862, y: 108 },
@@ -11,26 +12,33 @@ window.bonfireSystem = (function () {
     { x: 30, y: 1628 },
   ];
 
-  const FRAME = { w: 70, h: 70 };
+  const FRAME_W = 70;
+  const FRAME_H = 70;
   const TOTAL_FRAMES = 13;
-  const FRAME_DURATION = 110; // чуть быстрее — огонь живее
+  const FRAME_DURATION = 110; // ms на кадр
 
-  // Один таймер на все бочки + смещение фазы
+  // Один глобальный таймер + смещение фазы через простую формулу
   let globalTime = 0;
+
+  // Кэшируем ссылки, чтобы не создавать объекты каждый кадр
+  let lightsSystem = null;
+  let cam = null;
 
   function initialize(sprite) {
     bonfireImage = sprite;
+    lightsSystem = window.lightsSystem;
 
+    // Добавляем свет только один раз
     BONFIRES.forEach((b, i) => {
-      const lightId = `bonfire_light_${i}`;
-      if (!window.lightsSystem.hasLight(lightId)) {
-        window.lightsSystem.addLight({
-          id: lightId,
+      const id = `bonfire_light_${i}`;
+      if (!lightsSystem.hasLight(id)) {
+        lightsSystem.addLight({
+          id,
           x: b.x + 35,
           y: b.y + 35,
-          color: "rgba(255, 180, 0, 0.28)",
+          color: "rgba(255,180,0,0.28)",
           radius: 135,
-          pulseSpeed: 0.0017 + i * 0.0003, // разные скорости
+          pulseSpeed: 0.0017 + i * 0.0003, // разные скорости пульсации
           pulseAmplitude: 28,
           flicker: true,
         });
@@ -46,37 +54,48 @@ window.bonfireSystem = (function () {
   function draw() {
     if (!bonfireImage?.complete) return;
 
-    const cam = window.movementSystem.getCamera();
-    const { w, h } = FRAME;
+    // Кэшируем часто используемые значения один раз за кадр
+    cam ??= window.movementSystem.getCamera();
+    const camX = cam.x;
+    const camY = cam.y;
+    const canvasW = canvas.width;
+    const canvasH = canvas.height;
+
+    // Предвычисляем границы видимости (с небольшим буфером)
+    const left = camX - 100;
+    const right = camX + canvasW + 100;
+    const top = camY - 100;
+    const bottom = camY + canvasH + 100;
+
+    let time = globalTime;
 
     BONFIRES.forEach((b, i) => {
-      const screenX = b.x - cam.x;
-      const screenY = b.y - cam.y;
+      const screenX = b.x - camX;
+      const screenY = b.y - camY;
 
-      // Жёсткий, но быстрый куллинг
+      // Очень быстрый отсев невидимых костров
       if (
         screenX < -100 ||
-        screenX > canvas.width + 100 ||
+        screenX > canvasW + 100 ||
         screenY < -100 ||
-        screenY > canvas.height + 100
+        screenY > canvasH + 100
       )
         return;
 
-      // Фаза анимации с индивидуальным смещением (экономим память — не храним 3 таймера)
-      const phaseOffset = i * 1234; // магическое число для разной фазы
+      // Смещение фазы без создания лишних объектов
       const frameIndex =
-        Math.floor((globalTime + phaseOffset) / FRAME_DURATION) % TOTAL_FRAMES;
+        Math.floor((time + i * 1234.567) / FRAME_DURATION) % TOTAL_FRAMES;
 
       ctx.drawImage(
         bonfireImage,
-        frameIndex * w, // sx
+        frameIndex * FRAME_W, // sx
         0, // sy
-        w, // sWidth
-        h, // sHeight
-        Math.round(screenX), // чуть быстрее, чем без round
-        Math.round(screenY),
-        w,
-        h
+        FRAME_W,
+        FRAME_H, // sWidth, sHeight
+        screenX | 0, // округление через побитовое И — быстрее Math.round
+        screenY | 0,
+        FRAME_W,
+        FRAME_H
       );
     });
   }

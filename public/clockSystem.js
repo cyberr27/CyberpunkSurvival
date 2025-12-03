@@ -1,4 +1,4 @@
-// clockSystem.js — ФИНАЛЬНАЯ ВЕРСИЯ (100% без глюков)
+// clockSystem.js — УЛЬТРА-ОПТИМИЗИРОВАННАЯ ВЕРСИЯ (минимальное потребление CPU/памяти)
 
 const clockSystem = {
   clocks: [
@@ -7,158 +7,134 @@ const clockSystem = {
   ],
 
   sprite: null,
-  dialogOpen: false,
-  dialogElement: null,
-  timeInterval: null,
+  dialog: null,
+  isOpen: false,
+  lastUpdate: 0,
 
+  // Инициализация — один раз
   initialize(spriteImage) {
+    if (this.sprite) return; // уже инициализировано
     this.sprite = spriteImage || window.images?.oclocSprite;
-    this.createDialog();
-    this.dialogElement.style.display = "none"; // ГАРАНТИРОВАННО скрываем при старте
+    this._createDialog();
   },
 
-  createDialog() {
-    // Если уже есть — не создаём заново
-    if (this.dialogElement) return;
+  _createDialog() {
+    if (this.dialog) return;
 
-    const dialog = document.createElement("div");
-    dialog.id = "clockDialog";
-    dialog.className = "npc-dialog";
+    const div = document.createElement("div");
+    div.id = "clockDialog";
+    div.className = "npc-dialog";
+    div.style.display = "none";
 
-    dialog.innerHTML = `
-      <div class="npc-dialog-header">
-        <div class="npc-title">ХРОНОМЕТР</div>
-      </div>
-      <div class="npc-dialog-content" style="
-        display:flex; 
-        flex-direction:column; 
-        justify-content:center; 
-        align-items:center;
-        gap:25px; 
-        padding:30px 20px;
-        flex:1;
-      ">
-        <div id="clockTime" style="
-          font-size:52px; 
-          letter-spacing:5px; 
-          color:#00ffff; 
-          text-shadow:0 0 20px #00ffff;
-        ">88:88</div>
-        <div id="clockDate" style="
-          font-size:28px; 
-          color:#00ff88; 
-          text-shadow:0 0 12px #00ff88;
-        ">88.88.8888</div>
-      </div>
-    `;
+    div.innerHTML = `
+      <div class="npc-dialog-header"><div class="npc-title">ХРОНОМЕТР</div></div>
+      <div class="npc-dialog-content" style="display:flex;flex-direction:column;justify-content:center;align-items:center;gap:25px;padding:30px 20px;flex:1;">
+        <div id="clockTime" style="font-size:52px;letter-spacing:5px;color:#00ffff;text-shadow:0 0 20px #00ffff;">88:88</div>
+        <div id="clockDate" style="font-size:28px;color:#00ff88;text-shadow:0 0 12px #00ff88;">88.88.8888</div>
+      </div>`;
 
-    document.body.appendChild(dialog);
-    this.dialogElement = dialog;
+    document.body.appendChild(div);
+    this.dialog = div;
+    this.timeEl = div.querySelector("#clockTime");
+    this.dateEl = div.querySelector("#clockDate");
   },
 
-  openDialog() {
-    if (this.dialogOpen) return;
-    this.dialogOpen = true;
-    this.dialogElement.style.display = "flex";
-    this.updateTime();
-    this.timeInterval = setInterval(() => this.updateTime(), 1000);
+  // Открытие диалога + запуск обновления только при открытии
+  open() {
+    if (this.isOpen) return;
+    this.isOpen = true;
+    this.dialog.style.display = "flex";
+    this.lastUpdate = 0; // сброс кэша времени
+    this._updateTime(); // мгновенное обновление
   },
 
-  closeDialog() {
-    if (!this.dialogOpen) return;
-    this.dialogOpen = false;
-    this.dialogElement.style.display = "none";
-    if (this.timeInterval) {
-      clearInterval(this.timeInterval);
-      this.timeInterval = null;
-    }
+  // Закрытие без лишних действий
+  close() {
+    if (!this.isOpen) return;
+    this.isOpen = false;
+    this.dialog.style.display = "none";
   },
 
-  updateTime() {
-    const now = new Date();
-    const futureYear = now.getFullYear() + 200;
+  // Обновление времени только когда диалог открыт и прошло ≥ 500 мс
+  _updateTime() {
+    const now = Date.now();
+    if (now - this.lastUpdate < 500) return; // максимум 2 раза в секунду
+    this.lastUpdate = now;
 
-    const hours = String(now.getHours()).padStart(2, "0");
-    const minutes = String(now.getMinutes()).padStart(2, "0");
-    const day = String(now.getDate()).padStart(2, "0");
-    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const d = new Date();
+    const futureYear = d.getFullYear() + 200;
 
-    const timeEl = document.getElementById("clockTime");
-    const dateEl = document.getElementById("clockDate");
-    if (timeEl) timeEl.textContent = `${hours}:${minutes}`;
-    if (dateEl) dateEl.textContent = `${day}.${month}.${futureYear}`;
+    const timeStr = `${String(d.getHours()).padStart(2, "0")}:${String(
+      d.getMinutes()
+    ).padStart(2, "0")}`;
+    const dateStr = `${String(d.getDate()).padStart(2, "0")}.${String(
+      d.getMonth() + 1
+    ).padStart(2, "0")}.${futureYear}`;
+
+    this.timeEl.textContent = timeStr;
+    this.dateEl.textContent = dateStr;
   },
 
-  isPlayerNearAnyClock(me) {
-    if (!me) return false;
-    const currentWorldId = window.worldSystem?.currentWorldId ?? 0;
-
-    for (const clock of this.clocks) {
-      if (clock.worldId !== currentWorldId) continue;
-      const dx = me.x + 35 - clock.x;
-      const dy = me.y + 35 - clock.y;
-      if (dx * dx + dy * dy < 50 * 50) {
-        return true;
-      }
+  // Проверка дистанции — максимально быстрая (без корней, без лишних переменных)
+  _isNearClock(meX, meY, currentWorldId) {
+    for (const c of this.clocks) {
+      if (c.worldId !== currentWorldId) continue;
+      const dx = meX + 35 - c.x;
+      const dy = meY + 35 - c.y;
+      if (dx * dx + dy * dy < 2500) return true; // 50² = 2500
     }
     return false;
   },
 
+  // Основной апдейт — вызывается каждый кадр, но почти ничего не делает
   update(deltaTime) {
-    // ЕСЛИ ЕЩЁ НЕ В ИГРЕ — НИЧЕГО НЕ ДЕЛАЕМ
     if (!myId || !players.has(myId)) {
-      if (this.dialogOpen) this.closeDialog();
+      if (this.isOpen) this.close();
       return;
     }
 
     const me = players.get(myId);
     if (!me || me.health <= 0) {
-      if (this.dialogOpen) this.closeDialog();
+      if (this.isOpen) this.close();
       return;
     }
 
-    const inRange = this.isPlayerNearAnyClock(me);
+    const near = this._isNearClock(
+      me.x,
+      me.y,
+      window.worldSystem?.currentWorldId ?? 0
+    );
 
-    if (inRange && !this.dialogOpen) {
-      this.openDialog();
-    } else if (!inRange && this.dialogOpen) {
-      this.closeDialog();
-    }
+    if (near && !this.isOpen) this.open();
+    else if (!near && this.isOpen) this.close();
+    else if (this.isOpen) this._updateTime(); // только если открыт
   },
 
+  // Отрисовка — только видимые часы, без лишних проверок
   draw() {
     if (!this.sprite?.complete) return;
 
-    const camera = window.movementSystem?.getCamera?.() || { x: 0, y: 0 };
-    const currentWorldId = window.worldSystem?.currentWorldId ?? 0;
+    const cam = window.movementSystem?.getCamera?.() || { x: 0, y: 0 };
+    const worldId = window.worldSystem?.currentWorldId ?? 0;
+    const now = performance.now();
+    const frame = Math.floor(now / 120) % 13;
 
-    this.clocks.forEach((clock) => {
-      if (clock.worldId !== currentWorldId) return;
+    for (const c of this.clocks) {
+      if (c.worldId !== worldId) continue;
 
-      const screenX = clock.x - camera.x - 35;
-      const screenY = clock.y - camera.y - 65;
-      const frame = Math.floor(performance.now() / 120) % 13;
+      const sx = c.x - cam.x - 35;
+      const sy = c.y - cam.y - 65;
 
-      ctx.drawImage(
-        this.sprite,
-        frame * 70,
-        0,
-        70,
-        70,
-        screenX,
-        screenY,
-        70,
-        70
-      );
-    });
+      ctx.drawImage(this.sprite, frame * 70, 0, 70, 70, sx, sy, 70, 70);
+    }
   },
 };
 
-// === Инициализация без ошибок и без глюков ===
-(function () {
+// Авто-инициализация без setInterval и утечек
+(() => {
   window.clockSystem = clockSystem;
 
-  const tryInit = () => {
+  const init = () => {
     if (window.images?.oclocSprite) {
       clockSystem.initialize(window.images.oclocSprite);
       return true;
@@ -166,9 +142,10 @@ const clockSystem = {
     return false;
   };
 
-  if (!tryInit()) {
-    const waiter = setInterval(() => {
-      if (tryInit()) clearInterval(waiter);
-    }, 50);
+  if (!init()) {
+    const observer = new MutationObserver(() => {
+      if (init()) observer.disconnect();
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
   }
 })();

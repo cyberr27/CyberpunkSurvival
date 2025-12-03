@@ -1,37 +1,77 @@
 // cockroachSystem.js
-// Тараканы теперь во ВСЕХ мирах! (0, 1, 2)
-// Оптимизация на максимум: спавн при входе в мир, очистка при выходе, минимум CPU
+// Оптимизированный до предела: пул объектов, минимум аллокаций, минимум CPU
+// Тараканы во всех мирах (0,1,2), спавнятся при входе, удаляются при выходе
 
 const COCKROACH_COUNT = 33;
 const COCKROACH_SIZE = 10;
 const NORMAL_SPEED = 0.5;
-const SCARED_SPEED = 2.8; // Быстро убегают
-const SCARE_RANGE = 50; // Чувствуют тебя издалека
-const PANIC_DURATION = 800; // Дольше паникуют
-const FRAME_DURATION = 80; // Плавная анимация при беге
+const SCARED_SPEED = 2.8;
+const SCARE_RANGE_SQ = 50 * 50; // квадрат радиуса — экономим Math.sqrt
+const PANIC_DURATION = 800;
+const FRAME_DURATION = 80;
 
-let cockroaches = [];
 let cockroachSprite = null;
-let currentWorldId = -1; // Отслеживаем, в каком мире мы сейчас
+let currentWorldId = -1;
+
+// Пул тараканов — один раз создаём массив фиксированного размера
+const pool = new Array(COCKROACH_COUNT);
+for (let i = 0; i < COCKROACH_COUNT; i++) {
+  pool[i] = {
+    x: 0,
+    y: 0,
+    vx: 0,
+    vy: 0,
+    frame: 0,
+    frameTime: 0,
+    panicTimer: 0,
+    active: false, // флаг активности
+  };
+}
+
+let activeCount = 0; // сколько тараканов сейчас активно
 
 const cockroachSystem = {
   initialize(spriteImage) {
     cockroachSprite = spriteImage;
   },
 
+  // Полная пересоздача при смене мира (вызывается только при переходе)
+  spawnCockroachesForCurrentWorld() {
+    const world = window.worldSystem.getCurrentWorld();
+    if (!world) return;
+
+    currentWorldId = window.worldSystem.currentWorldId;
+    activeCount = 0;
+
+    const w = world.w - 160;
+    const h = world.h - 160;
+    const baseX = 80;
+    const baseY = 80;
+
+    for (let i = 0; i < COCKROACH_COUNT; i++) {
+      const c = pool[i];
+      c.x = baseX + Math.random() * w;
+      c.y = baseY + Math.random() * h;
+      c.vx = (Math.random() - 0.5) * NORMAL_SPEED * 2;
+      c.vy = (Math.random() - 0.5) * NORMAL_SPEED * 2;
+      c.frame = Math.floor(Math.random() * 13);
+      c.frameTime = 0;
+      c.panicTimer = 0;
+      c.active = true;
+      activeCount++;
+    }
+  },
+
   update(deltaTime) {
     if (!cockroachSprite?.complete) return;
 
     const worldId = window.worldSystem.currentWorldId;
-
-    // Если сменили мир — пересоздаём тараканов под новый мир
     if (worldId !== currentWorldId) {
-      currentWorldId = worldId;
       this.spawnCockroachesForCurrentWorld();
+      return;
     }
 
-    // Если тараканов нет — ничего не делаем
-    if (cockroaches.length === 0) return;
+    if (activeCount === 0) return;
 
     const me = players.get(myId);
     if (!me) return;
@@ -40,47 +80,50 @@ const cockroachSystem = {
     const playerCY = me.y + 35;
     const world = window.worldSystem.getCurrentWorld();
 
-    for (let i = 0; i < cockroaches.length; i++) {
-      const c = cockroaches[i];
+    const invDt = deltaTime / 16;
+    const scareSpeed = SCARED_SPEED;
+    const normalSpeed = NORMAL_SPEED * 2;
 
+    for (let i = 0; i < COCKROACH_COUNT; i++) {
+      const c = pool[i];
+      if (!c.active) continue;
+
+      // === Проверка паники ===
       const dx = playerCX - c.x;
       const dy = playerCY - c.y;
       const distSq = dx * dx + dy * dy;
 
-      // Паника: игрок рядом!
-      if (distSq < SCARE_RANGE * SCARE_RANGE) {
+      if (distSq < SCARE_RANGE_SQ) {
         const angle = Math.atan2(dy, dx);
-        c.vx = -Math.cos(angle) * SCARED_SPEED;
-        c.vy = -Math.sin(angle) * SCARED_SPEED;
+        c.vx = -Math.cos(angle) * scareSpeed;
+        c.vy = -Math.sin(angle) * scareSpeed;
         c.panicTimer = PANIC_DURATION;
-      }
-      // Паника заканчивается — возвращаемся к блужданию
-      else if (c.panicTimer > 0) {
+      } else if (c.panicTimer > 0) {
         c.panicTimer -= deltaTime;
         if (c.panicTimer <= 0) {
-          c.vx = (Math.random() - 0.5) * NORMAL_SPEED * 2;
-          c.vy = (Math.random() - 0.5) * NORMAL_SPEED * 2;
+          // Возвращаемся к случайному блужданию
+          c.vx = (Math.random() - 0.5) * normalSpeed;
+          c.vy = (Math.random() - 0.5) * normalSpeed;
         }
-      }
-      // Спокойное блуждание — редко меняем направление
-      else if (Math.random() < 0.005) {
-        c.vx = (Math.random() - 0.5) * NORMAL_SPEED * 2;
-        c.vy = (Math.random() - 0.5) * NORMAL_SPEED * 2;
+      } else if (Math.random() < 0.005) {
+        // Редкая смена направления в спокойном состоянии
+        c.vx = (Math.random() - 0.5) * normalSpeed;
+        c.vy = (Math.random() - 0.5) * normalSpeed;
       }
 
-      // Движение
-      c.x += c.vx * (deltaTime / 16);
-      c.y += c.vy * (deltaTime / 16);
+      // === Движение ===
+      c.x += c.vx * invDt;
+      c.y += c.vy * invDt;
 
       // Отскок от стен
       if (c.x <= 60 || c.x >= world.w - 60) c.vx *= -1;
       if (c.y <= 60 || c.y >= world.h - 60) c.vy *= -1;
 
-      // Кламп в границы (на всякий)
+      // Кламп (на всякий)
       c.x = Math.max(60, Math.min(world.w - 60, c.x));
       c.y = Math.max(60, Math.min(world.h - 60, c.y));
 
-      // Анимация только при беге
+      // Анимация только при быстром движении
       if (Math.abs(c.vx) > 2 || Math.abs(c.vy) > 2) {
         c.frameTime += deltaTime;
         if (c.frameTime >= FRAME_DURATION) {
@@ -91,42 +134,28 @@ const cockroachSystem = {
     }
   },
 
-  // Спавн тараканов именно для текущего мира
-  spawnCockroachesForCurrentWorld() {
-    const world = window.worldSystem.getCurrentWorld();
-    if (!world) return;
-
-    cockroaches.length = 0; // Полная очистка
-
-    for (let i = 0; i < COCKROACH_COUNT; i++) {
-      cockroaches.push({
-        x: 80 + Math.random() * (world.w - 160),
-        y: 80 + Math.random() * (world.h - 160),
-        vx: (Math.random() - 0.5) * NORMAL_SPEED * 2,
-        vy: (Math.random() - 0.5) * NORMAL_SPEED * 2,
-        frame: Math.floor(Math.random() * 13),
-        frameTime: 0,
-        panicTimer: 0,
-      });
-    }
-  },
-
   draw() {
-    if (cockroaches.length === 0 || !cockroachSprite?.complete) return;
+    if (activeCount === 0 || !cockroachSprite?.complete) return;
 
     const camera = window.movementSystem.getCamera();
+    const camX = camera.x;
+    const camY = camera.y;
+    const screenW = canvas.width;
+    const screenH = canvas.height;
 
-    for (let i = 0; i < cockroaches.length; i++) {
-      const c = cockroaches[i];
-      const screenX = c.x - camera.x - COCKROACH_SIZE / 2;
-      const screenY = c.y - camera.y - COCKROACH_SIZE / 2;
+    for (let i = 0; i < COCKROACH_COUNT; i++) {
+      const c = pool[i];
+      if (!c.active) continue;
 
-      // Куллинг — не рисуем за экраном
+      const screenX = c.x - camX - COCKROACH_SIZE / 2;
+      const screenY = c.y - camY - COCKROACH_SIZE / 2;
+
+      // Жёсткий culling
       if (
         screenX < -60 ||
-        screenX > canvas.width + 60 ||
+        screenX > screenW + 60 ||
         screenY < -60 ||
-        screenY > canvas.height + 60
+        screenY > screenH + 60
       )
         continue;
 
@@ -145,5 +174,4 @@ const cockroachSystem = {
   },
 };
 
-// Экспортируем
 window.cockroachSystem = cockroachSystem;
