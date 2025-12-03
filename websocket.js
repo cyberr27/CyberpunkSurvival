@@ -214,6 +214,7 @@ function setupWebSocket(
               progress: {},
               completed: [],
             },
+            welcomeCompleted: playerData.welcomeCompleted,
           };
 
           userDatabase.set(data.username, newPlayer);
@@ -391,6 +392,7 @@ function setupWebSocket(
               foodUpgrade: playerData.foodUpgrade || 0,
               waterUpgrade: playerData.waterUpgrade || 0,
               neonQuest: playerData.neonQuest,
+              welcomeCompleted: userData.welcomeCompleted || false,
               players: Array.from(players.values()).filter(
                 (p) =>
                   p.id !== data.username && p.worldId === playerData.worldId
@@ -1885,6 +1887,13 @@ function setupWebSocket(
             inventory: player.inventory,
           })
         );
+      } else if (data.type === "welcomeCompleted") {
+        const player = players.get(clientId);
+        if (player) {
+          player.welcomeCompleted = true;
+          // Сохраняем в базу (если используешь)
+          saveUserDatabase();
+        }
       }
     });
 
