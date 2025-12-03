@@ -386,13 +386,13 @@ function setupWebSocket(
               upgradePoints: playerData.upgradePoints,
               availableQuests: playerData.availableQuests,
               worldId: playerData.worldId,
+              welcomeCompleted: playerData.welcomeCompleted || false,
               worldPositions: playerData.worldPositions,
               healthUpgrade: playerData.healthUpgrade || 0,
               energyUpgrade: playerData.energyUpgrade || 0,
               foodUpgrade: playerData.foodUpgrade || 0,
               waterUpgrade: playerData.waterUpgrade || 0,
               neonQuest: playerData.neonQuest,
-              welcomeCompleted: userData.welcomeCompleted || false,
               players: Array.from(players.values()).filter(
                 (p) =>
                   p.id !== data.username && p.worldId === playerData.worldId
@@ -1888,11 +1888,17 @@ function setupWebSocket(
           })
         );
       } else if (data.type === "welcomeCompleted") {
-        const player = players.get(clientId);
-        if (player) {
-          player.welcomeCompleted = true;
-          // Сохраняем в базу (если используешь)
-          saveUserDatabase();
+        const playerId = clients.get(ws);
+        if (playerId) {
+          const player = players.get(playerId);
+          if (player) {
+            player.welcomeCompleted = true;
+            // Если сохраняешь в MongoDB — добавь:
+            dbCollection.updateOne(
+              { username: playerId },
+              { $set: { welcomeCompleted: true } }
+            );
+          }
         }
       }
     });
