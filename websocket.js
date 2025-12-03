@@ -214,7 +214,6 @@ function setupWebSocket(
               progress: {},
               completed: [],
             },
-            welcomeCompleted: false,
           };
 
           userDatabase.set(data.username, newPlayer);
@@ -343,7 +342,6 @@ function setupWebSocket(
             upgradePoints: player.upgradePoints || 0,
             availableQuests: player.availableQuests || [],
             worldId: player.worldId || 0,
-            welcomeCompleted: player.welcomeCompleted || false,
             worldPositions: player.worldPositions || {
               0: { x: player.x, y: player.y },
             },
@@ -387,7 +385,6 @@ function setupWebSocket(
               upgradePoints: playerData.upgradePoints,
               availableQuests: playerData.availableQuests,
               worldId: playerData.worldId,
-              welcomeCompleted: playerData.welcomeCompleted || false,
               worldPositions: playerData.worldPositions,
               healthUpgrade: playerData.healthUpgrade || 0,
               energyUpgrade: playerData.energyUpgrade || 0,
@@ -1888,19 +1885,6 @@ function setupWebSocket(
             inventory: player.inventory,
           })
         );
-      } else if (data.type === "welcomeCompleted") {
-        const playerId = clients.get(ws);
-        if (playerId) {
-          const player = players.get(playerId);
-          if (player) {
-            player.welcomeCompleted = true;
-            // Если сохраняешь в MongoDB — добавь:
-            dbCollection.updateOne(
-              { username: playerId },
-              { $set: { welcomeCompleted: true } }
-            );
-          }
-        }
       }
     });
 

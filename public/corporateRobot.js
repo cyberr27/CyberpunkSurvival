@@ -1,25 +1,14 @@
 // corporateRobot.js
-// Робот «Воспитатель Корпорации» — патрулирует, но замирает при приближении игрока
+// Робот «Воспитатель Корпорации» — координаты 2120×1800, мир 0
 // Версия 2025 — кнопки над головой, как у всех NPC
 
 window.corporateRobotSystem = (function () {
+  const ROBOT_X = 2120;
+  const ROBOT_Y = 1800;
   const INTERACTION_RADIUS_SQ = 2500; // 50²
-
-  // Точки патрулирования
-  const WAYPOINTS = [
-    { x: 2630, y: 2222 },
-    { x: 457, y: 2953 },
-  ];
-
-  const MOVE_SPEED = 3.0; // Увеличена в 2 раза (было 0.5)
 
   let sprite = null;
   let initialized = false;
-
-  // Текущее положение робота
-  let robotX = WAYPOINTS[0].x;
-  let robotY = WAYPOINTS[0].y;
-  let currentWaypointIndex = 0;
 
   // Реплики робота
   const DIALOGUES = [
@@ -43,13 +32,13 @@ window.corporateRobotSystem = (function () {
   let playerInRange = false;
   let isInteracting = false;
 
-  // UI
-  let buttonsContainer = null;
-  let dialogWindow = null;
+  // Элементы UI
+  let buttonsContainer = null; // плавающие кнопки над NPC
+  let dialogWindow = null; // модальное окно диалога
   let dialogText = null;
   let acceptBtn = null;
 
-  // Создаём кнопки и окно диалога (без изменений)
+  // Создаём плавающие кнопки один раз
   function createFloatingButtons() {
     if (buttonsContainer) return;
 
@@ -58,12 +47,14 @@ window.corporateRobotSystem = (function () {
     buttonsContainer.style.display = "none";
     document.body.appendChild(buttonsContainer);
 
+    // Кнопка «Говорить»
     const talkBtn = document.createElement("div");
     talkBtn.className = "npc-button npc-talk-btn";
     talkBtn.textContent = "Говорить";
     talkBtn.onclick = openTalkDialog;
     buttonsContainer.appendChild(talkBtn);
 
+    // Кнопка «Задания»
     const questBtn = document.createElement("div");
     questBtn.className = "npc-button npc-quests-btn";
     questBtn.textContent = "Задания";
@@ -71,6 +62,7 @@ window.corporateRobotSystem = (function () {
     buttonsContainer.appendChild(questBtn);
   }
 
+  // Создаём модальное окно диалога (один раз)
   function createDialogWindow() {
     if (dialogWindow) return;
 
@@ -79,6 +71,7 @@ window.corporateRobotSystem = (function () {
     dialogWindow.style.display = "none";
     document.body.appendChild(dialogWindow);
 
+    // Заголовок
     const header = document.createElement("div");
     header.className = "npc-dialog-header";
 
@@ -94,10 +87,12 @@ window.corporateRobotSystem = (function () {
     header.appendChild(title);
     dialogWindow.appendChild(header);
 
+    // Текст
     dialogText = document.createElement("div");
     dialogText.className = "npc-text";
     dialogWindow.appendChild(dialogText);
 
+    // Кнопка закрытия
     const closeBtn = document.createElement("div");
     closeBtn.className = "neon-btn";
     closeBtn.textContent = "Закрыть";
@@ -108,6 +103,7 @@ window.corporateRobotSystem = (function () {
     dialogWindow.appendChild(closeBtn);
   }
 
+  // Открытие диалога с репликами
   function openTalkDialog() {
     if (!dialogWindow) return;
     dialogText.textContent = DIALOGUES[dialogueIndex];
@@ -115,6 +111,7 @@ window.corporateRobotSystem = (function () {
     dialogWindow.style.display = "flex";
   }
 
+  // Открытие диалога с квестом
   function openQuestDialog() {
     if (!dialogWindow) return;
 
@@ -127,6 +124,7 @@ window.corporateRobotSystem = (function () {
       </div>
     `;
 
+    // Кнопка принятия квеста (добавляем только один раз)
     if (!acceptBtn) {
       acceptBtn = document.createElement("div");
       acceptBtn.className = "neon-btn";
@@ -153,25 +151,6 @@ window.corporateRobotSystem = (function () {
     dialogWindow.style.display = "none";
   }
 
-  // Движение (только если игрок НЕ в радиусе)
-  function moveToWaypoint() {
-    if (playerInRange) return; // Главное: замираем при приближении игрока
-
-    const target = WAYPOINTS[currentWaypointIndex];
-    const dx = target.x - robotX;
-    const dy = target.y - robotY;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-
-    if (dist < MOVE_SPEED) {
-      robotX = target.x;
-      robotY = target.y;
-      currentWaypointIndex = (currentWaypointIndex + 1) % WAYPOINTS.length;
-    } else {
-      robotX += (dx / dist) * MOVE_SPEED;
-      robotY += (dy / dist) * MOVE_SPEED;
-    }
-  }
-
   // Проверка дистанции до игрока
   function checkProximity() {
     const me = players.get(myId);
@@ -183,8 +162,8 @@ window.corporateRobotSystem = (function () {
       return;
     }
 
-    const dx = me.x + 35 - robotX;
-    const dy = me.y + 35 - robotY;
+    const dx = me.x + 35 - ROBOT_X;
+    const dy = me.y + 35 - ROBOT_Y;
     const inRange = dx * dx + dy * dy <= INTERACTION_RADIUS_SQ;
 
     if (inRange && !playerInRange) {
@@ -197,12 +176,13 @@ window.corporateRobotSystem = (function () {
     }
   }
 
+  // Обновление позиции плавающих кнопок
   function updateButtonsPosition() {
     if (!buttonsContainer || !playerInRange) return;
 
     const cam = window.movementSystem.getCamera();
-    const screenX = robotX - cam.x;
-    const screenY = robotY - cam.y - 80;
+    const screenX = ROBOT_X - cam.x;
+    const screenY = ROBOT_Y - cam.y - 80; // чуть выше головы
 
     buttonsContainer.style.left = `${screenX}px`;
     buttonsContainer.style.top = `${screenY}px`;
@@ -213,18 +193,13 @@ window.corporateRobotSystem = (function () {
     initialize: function (robotSprite) {
       if (initialized) return;
       sprite = robotSprite;
-      robotX = WAYPOINTS[0].x;
-      robotY = WAYPOINTS[0].y;
       createFloatingButtons();
       createDialogWindow();
       initialized = true;
     },
 
     update: function () {
-      if (window.worldSystem.currentWorldId !== 0) return;
-
-      checkProximity(); // сначала проверяем дистанцию
-      moveToWaypoint(); // двигаемся только если игрок далеко
+      checkProximity();
       updateButtonsPosition();
 
       isInteracting = playerInRange && dialogWindow?.style.display === "flex";
@@ -235,17 +210,12 @@ window.corporateRobotSystem = (function () {
       if (window.worldSystem.currentWorldId !== 0 || !sprite?.complete) return;
 
       const cam = window.movementSystem.getCamera();
-      const sx = robotX - cam.x - 35;
-      const sy = robotY - cam.y - 35;
-
-      // Анимация ходьбы только если НЕ в радиусе и НЕ в диалоге
-      const shouldAnimate = !playerInRange && !isInteracting;
+      const sx = ROBOT_X - cam.x - 35;
+      const sy = ROBOT_Y - cam.y - 35;
 
       const frame = isInteracting
         ? 0
-        : shouldAnimate
-        ? Math.floor(performance.now() / 120) % 13
-        : 0;
+        : Math.floor(performance.now() / 120) % 13;
 
       ctx.drawImage(sprite, frame * 70, 0, 70, 70, sx, sy, 70, 70);
 
