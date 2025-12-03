@@ -343,7 +343,7 @@ function setupWebSocket(
             upgradePoints: player.upgradePoints || 0,
             availableQuests: player.availableQuests || [],
             worldId: player.worldId || 0,
-            welcomeCompleted: playerData.welcomeCompleted || false,
+            welcomeCompleted: player.welcomeCompleted || false,
             worldPositions: player.worldPositions || {
               0: { x: player.x, y: player.y },
             },
