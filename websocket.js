@@ -214,7 +214,7 @@ function setupWebSocket(
               progress: {},
               completed: [],
             },
-            welcomeCompleted: playerData.welcomeCompleted,
+            welcomeCompleted: false,
           };
 
           userDatabase.set(data.username, newPlayer);
@@ -343,6 +343,7 @@ function setupWebSocket(
             upgradePoints: player.upgradePoints || 0,
             availableQuests: player.availableQuests || [],
             worldId: player.worldId || 0,
+            welcomeCompleted: playerData.welcomeCompleted || false,
             worldPositions: player.worldPositions || {
               0: { x: player.x, y: player.y },
             },
