@@ -217,7 +217,7 @@ const ITEM_CONFIG = {
     image: images.balyaryImage,
     description: "Баляр: игровая валюта.",
     stackable: true,
-    rarity: 1,
+    rarity: 2,
     balyary: true,
   },
   cyber_helmet: {
