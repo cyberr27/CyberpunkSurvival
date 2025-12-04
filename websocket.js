@@ -202,6 +202,7 @@ function setupWebSocket(
             upgradePoints: 0,
             availableQuests: [],
             worldId: 0,
+            hasSeenWelcomeGuide: false,
             worldPositions: { 0: { x: 222, y: 3205 } },
 
             // ДОБАВЬ ЭТИ ПОЛЯ (базово 0)
@@ -342,6 +343,7 @@ function setupWebSocket(
             upgradePoints: player.upgradePoints || 0,
             availableQuests: player.availableQuests || [],
             worldId: player.worldId || 0,
+            hasSeenWelcomeGuide: false,
             worldPositions: player.worldPositions || {
               0: { x: player.x, y: player.y },
             },
@@ -385,6 +387,7 @@ function setupWebSocket(
               upgradePoints: playerData.upgradePoints,
               availableQuests: playerData.availableQuests,
               worldId: playerData.worldId,
+              hasSeenWelcomeGuide: playerData.hasSeenWelcomeGuide,  
               worldPositions: playerData.worldPositions,
               healthUpgrade: playerData.healthUpgrade || 0,
               energyUpgrade: playerData.energyUpgrade || 0,

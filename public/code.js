@@ -525,6 +525,7 @@ function handleAuthMessage(event) {
         xp: data.xp || 99,
         upgradePoints: data.upgradePoints || 0,
         worldId: data.worldId || 0,
+        hasSeenWelcomeGuide: data.hasSeenWelcomeGuide || false,
         worldPositions: data.worldPositions || { 0: { x: 222, y: 3205 } },
 
         // Апгрейды
@@ -533,6 +534,10 @@ function handleAuthMessage(event) {
         foodUpgrade: data.foodUpgrade || 0,
         waterUpgrade: data.waterUpgrade || 0,
       };
+
+      if (window.welcomeGuideSystem && window.welcomeGuideSystem.setSeen) {
+        window.welcomeGuideSystem.setSeen(data.hasSeenWelcomeGuide === true);
+      }
 
       players.set(myId, me);
       window.worldSystem.currentWorldId = me.worldId;
