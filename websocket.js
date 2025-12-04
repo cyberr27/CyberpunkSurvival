@@ -387,7 +387,7 @@ function setupWebSocket(
               upgradePoints: playerData.upgradePoints,
               availableQuests: playerData.availableQuests,
               worldId: playerData.worldId,
-              hasSeenWelcomeGuide: playerData.hasSeenWelcomeGuide,  
+              hasSeenWelcomeGuide: playerData.hasSeenWelcomeGuide || false, // ← ЭТО ГЛАВНОЕ
               worldPositions: playerData.worldPositions,
               healthUpgrade: playerData.healthUpgrade || 0,
               energyUpgrade: playerData.energyUpgrade || 0,
