@@ -1885,6 +1885,17 @@ function setupWebSocket(
             inventory: player.inventory,
           })
         );
+      } else if (data.type === "welcomeGuideSeen") {
+        const id = clients.get(ws);
+        if (id && players.has(id)) {
+          const player = players.get(id);
+          player.hasSeenWelcomeGuide = true;
+          players.set(id, player);
+          userDatabase.set(id, player);
+          saveUserDatabase(dbCollection, id, player).catch(console.error);
+
+          ws.send(JSON.stringify({ type: "welcomeGuideSeenConfirm" }));
+        }
       }
     });
 
