@@ -1,16 +1,19 @@
 // corporateRobot.js
-// Робот «Воспитатель Корпорации» — координаты 2120×1800, мир 0
-// Версия 2025 — кнопки над головой, как у всех NPC
+// Робот «Воспитатель Корпорации» — патрулирует между двумя точками, мир 0
+// Версия 2025 — новый спрайт 2×13 кадров (70×70), ходьба с паузами
 
 window.corporateRobotSystem = (function () {
-  const ROBOT_X = 2120;
-  const ROBOT_Y = 1800;
-  const INTERACTION_RADIUS_SQ = 2500; // 50²
+  const POINT_A = { x: 2654, y: 2314 };
+  const POINT_B = { x: 421, y: 2914 };
+  const PAUSE_TIME = 20000; // 30 секунд в миллисекундах
+  const MOVE_SPEED = 33; // пикселей в секунду (можно подстроить под нужную скорость)
+
+  const INTERACTION_RADIUS_SQ = 2500; // 50² — радиус для показа кнопок
 
   let sprite = null;
   let initialized = false;
 
-  // Реплики робота
+  // Реплики и квест — без изменений
   const DIALOGUES = [
     "Добро пожаловать, дитя корпорации.",
     "Ты — будущее. Мы следим за тобой.",
@@ -32,13 +35,20 @@ window.corporateRobotSystem = (function () {
   let playerInRange = false;
   let isInteracting = false;
 
-  // Элементы UI
-  let buttonsContainer = null; // плавающие кнопки над NPC
-  let dialogWindow = null; // модальное окно диалога
+  // Движение
+  let currentPos = { x: POINT_A.x, y: POINT_A.y };
+  let targetPos = POINT_B;
+  let isMoving = false;
+  let pauseUntil = 0; // timestamp, до которого стоим на точке
+  let movingTowardsB = true; // true = A→B (1-я строка), false = B→A (2-я строка)
+
+  // UI элементы
+  let buttonsContainer = null;
+  let dialogWindow = null;
   let dialogText = null;
   let acceptBtn = null;
 
-  // Создаём плавающие кнопки один раз
+  // === UI СОЗДАНИЕ (без изменений) ===
   function createFloatingButtons() {
     if (buttonsContainer) return;
 
@@ -47,14 +57,12 @@ window.corporateRobotSystem = (function () {
     buttonsContainer.style.display = "none";
     document.body.appendChild(buttonsContainer);
 
-    // Кнопка «Говорить»
     const talkBtn = document.createElement("div");
     talkBtn.className = "npc-button npc-talk-btn";
     talkBtn.textContent = "Говорить";
     talkBtn.onclick = openTalkDialog;
     buttonsContainer.appendChild(talkBtn);
 
-    // Кнопка «Задания»
     const questBtn = document.createElement("div");
     questBtn.className = "npc-button npc-quests-btn";
     questBtn.textContent = "Задания";
@@ -62,7 +70,6 @@ window.corporateRobotSystem = (function () {
     buttonsContainer.appendChild(questBtn);
   }
 
-  // Создаём модальное окно диалога (один раз)
   function createDialogWindow() {
     if (dialogWindow) return;
 
@@ -71,7 +78,6 @@ window.corporateRobotSystem = (function () {
     dialogWindow.style.display = "none";
     document.body.appendChild(dialogWindow);
 
-    // Заголовок
     const header = document.createElement("div");
     header.className = "npc-dialog-header";
 
@@ -87,12 +93,10 @@ window.corporateRobotSystem = (function () {
     header.appendChild(title);
     dialogWindow.appendChild(header);
 
-    // Текст
     dialogText = document.createElement("div");
     dialogText.className = "npc-text";
     dialogWindow.appendChild(dialogText);
 
-    // Кнопка закрытия
     const closeBtn = document.createElement("div");
     closeBtn.className = "neon-btn";
     closeBtn.textContent = "Закрыть";
@@ -103,7 +107,6 @@ window.corporateRobotSystem = (function () {
     dialogWindow.appendChild(closeBtn);
   }
 
-  // Открытие диалога с репликами
   function openTalkDialog() {
     if (!dialogWindow) return;
     dialogText.textContent = DIALOGUES[dialogueIndex];
@@ -111,10 +114,8 @@ window.corporateRobotSystem = (function () {
     dialogWindow.style.display = "flex";
   }
 
-  // Открытие диалога с квестом
   function openQuestDialog() {
     if (!dialogWindow) return;
-
     dialogText.innerHTML = `
       <strong>Доступное задание:</strong><br><br>
       <div style="text-align:left; margin:15px 0;">
@@ -124,7 +125,6 @@ window.corporateRobotSystem = (function () {
       </div>
     `;
 
-    // Кнопка принятия квеста (добавляем только один раз)
     if (!acceptBtn) {
       acceptBtn = document.createElement("div");
       acceptBtn.className = "neon-btn";
@@ -151,7 +151,52 @@ window.corporateRobotSystem = (function () {
     dialogWindow.style.display = "none";
   }
 
-  // Проверка дистанции до игрока
+  // === ЛОГИКА ДВИЖЕНИЯ ===
+  function updateMovement(deltaTime) {
+    const now = performance.now();
+
+    // Если сейчас пауза — ждём
+    if (now < pauseUntil) {
+      isMoving = false;
+      return;
+    }
+
+    // Если только что закончилась пауза — начинаем движение
+    if (!isMoving) {
+      isMoving = true;
+    }
+
+    if (isMoving) {
+      const dx = targetPos.x - currentPos.x;
+      const dy = targetPos.y - currentPos.y;
+      const dist = Math.hypot(dx, dy);
+
+      if (dist < 2) {
+        // Дошли до точки
+        currentPos.x = targetPos.x;
+        currentPos.y = targetPos.y;
+        isMoving = false;
+        pauseUntil = now + PAUSE_TIME;
+
+        // Меняем направление
+        if (movingTowardsB) {
+          targetPos = POINT_A;
+          movingTowardsB = false;
+        } else {
+          targetPos = POINT_B;
+          movingTowardsB = true;
+        }
+      } else {
+        // Движемся
+        const moveDist = MOVE_SPEED * (deltaTime / 1000);
+        const ratio = moveDist / dist;
+        currentPos.x += dx * ratio;
+        currentPos.y += dy * ratio;
+      }
+    }
+  }
+
+  // === ПРОВЕРКА БЛИЗОСТИ ИГРОКА ===
   function checkProximity() {
     const me = players.get(myId);
     if (!me || window.worldSystem.currentWorldId !== 0) {
@@ -162,8 +207,8 @@ window.corporateRobotSystem = (function () {
       return;
     }
 
-    const dx = me.x + 35 - ROBOT_X;
-    const dy = me.y + 35 - ROBOT_Y;
+    const dx = me.x + 35 - currentPos.x;
+    const dy = me.y + 35 - currentPos.y;
     const inRange = dx * dx + dy * dy <= INTERACTION_RADIUS_SQ;
 
     if (inRange && !playerInRange) {
@@ -176,29 +221,38 @@ window.corporateRobotSystem = (function () {
     }
   }
 
-  // Обновление позиции плавающих кнопок
   function updateButtonsPosition() {
     if (!buttonsContainer || !playerInRange) return;
 
     const cam = window.movementSystem.getCamera();
-    const screenX = ROBOT_X - cam.x;
-    const screenY = ROBOT_Y - cam.y - 80; // чуть выше головы
+    const screenX = currentPos.x - cam.x;
+    const screenY = currentPos.y - cam.y - 80;
 
     buttonsContainer.style.left = `${screenX}px`;
     buttonsContainer.style.top = `${screenY}px`;
     buttonsContainer.style.transform = "translateX(-50%)";
   }
 
+  let lastTime = performance.now();
+
   return {
     initialize: function (robotSprite) {
       if (initialized) return;
       sprite = robotSprite;
+      currentPos = { x: POINT_A.x, y: POINT_A.y };
+      targetPos = POINT_B;
+      movingTowardsB = true;
       createFloatingButtons();
       createDialogWindow();
       initialized = true;
     },
 
     update: function () {
+      const now = performance.now();
+      const deltaTime = now - lastTime;
+      lastTime = now;
+
+      updateMovement(deltaTime);
       checkProximity();
       updateButtonsPosition();
 
@@ -210,20 +264,31 @@ window.corporateRobotSystem = (function () {
       if (window.worldSystem.currentWorldId !== 0 || !sprite?.complete) return;
 
       const cam = window.movementSystem.getCamera();
-      const sx = ROBOT_X - cam.x - 35;
-      const sy = ROBOT_Y - cam.y - 35;
+      const sx = currentPos.x - cam.x - 35;
+      const sy = currentPos.y - cam.y - 35;
 
-      const frame = isInteracting
-        ? 0
-        : Math.floor(performance.now() / 120) % 13;
+      let frameRow = 0;
+      let frame = 0;
 
-      ctx.drawImage(sprite, frame * 70, 0, 70, 70, sx, sy, 70, 70);
+      if (isInteracting) {
+        frame = 0; // стоит и говорит — первый кадр
+      } else if (!isMoving && performance.now() < pauseUntil) {
+        frame = 0; // стоит на точке
+      } else if (isMoving) {
+        // Анимация ходьбы: 12 кадров (1–12), 0-й — стояние
+        frame = 1 + (Math.floor(performance.now() / 100) % 12);
+        frameRow = movingTowardsB ? 0 : 1; // 0 = A→B, 1 = B→A
+      }
+
+      const sourceY = frameRow * 70;
+
+      ctx.drawImage(sprite, frame * 70, sourceY, 70, 70, sx, sy, 70, 70);
 
       // Подпись
       ctx.font = "12px 'Courier New'";
       ctx.fillStyle = "#fbff00ff";
       ctx.textAlign = "center";
-      ctx.fillText("Воспитатель", sx + 35, sy - 15);
+      ctx.fillText("Robot Corporations", sx + 35, sy - 15);
     },
   };
 })();

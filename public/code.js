@@ -2083,6 +2083,7 @@ function draw(deltaTime) {
   window.vendingMachine.draw();
   window.combatSystem.draw();
   window.enemySystem.draw();
+  window.corporateRobotSystem.draw();
 
   players.forEach((player) => {
     if (player.worldId !== currentWorldId) return;
@@ -2221,7 +2222,6 @@ function draw(deltaTime) {
   if (window.neonNpcSystem) {
     window.neonNpcSystem.draw();
   }
-  window.corporateRobotSystem.draw();
 
   window.droneSystem.draw();
 
