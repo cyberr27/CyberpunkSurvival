@@ -387,7 +387,7 @@ function setupWebSocket(
               upgradePoints: playerData.upgradePoints,
               availableQuests: playerData.availableQuests,
               worldId: playerData.worldId,
-              hasSeenWelcomeGuide: playerData.hasSeenWelcomeGuide || false, // ← ЭТО ГЛАВНОЕ
+              hasSeenWelcomeGuide: player.hasSeenWelcomeGuide || false, // ← ЭТО ГЛАВНОЕ
               worldPositions: playerData.worldPositions,
               healthUpgrade: playerData.healthUpgrade || 0,
               energyUpgrade: playerData.energyUpgrade || 0,
@@ -1893,9 +1893,10 @@ function setupWebSocket(
         if (id && players.has(id)) {
           const player = players.get(id);
           player.hasSeenWelcomeGuide = true;
+
           players.set(id, player);
           userDatabase.set(id, player);
-          saveUserDatabase(dbCollection, id, player).catch(console.error);
+          await saveUserDatabase(dbCollection, id, player); // ← лучше await, а не .catch
 
           ws.send(JSON.stringify({ type: "welcomeGuideSeenConfirm" }));
         }
@@ -2005,6 +2006,7 @@ function setupWebSocket(
       if (id) {
         const player = players.get(id);
         if (player) {
+          player.hasSeenWelcomeGuide = player.hasSeenWelcomeGuide || false;
           userDatabase.set(id, { ...player });
           await saveUserDatabase(dbCollection, id, player);
 
