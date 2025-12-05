@@ -1,19 +1,20 @@
 // corporateRobot.js
-// Робот «Воспитатель Корпорации» — ведёт игрока к доктору после принятия квеста
-// Версия 2025 — новый спрайт 2×13 кадров (70×70)
+// Робот «Воспитатель Корпорации» — патрулирует между двумя точками, мир 0
+// Версия 2025 — новый спрайт 2×13 кадров (70×70), ходьба с паузами
+// Добавлено: полная остановка движения и анимации при приближении игрока (как у Neon Alex)
 
 window.corporateRobotSystem = (function () {
-  const POINT_A = { x: 2654, y: 2314 }; // Точка у доктора
+  const POINT_A = { x: 2654, y: 2314 };
   const POINT_B = { x: 421, y: 2914 };
-  const PAUSE_TIME = 30000; // 30 сек пауза на точке, если квест ещё не взят
+  const PAUSE_TIME = 30000; // 20 секунд пауза на точке
   const MOVE_SPEED = 33; // пикселей в секунду
 
-  const INTERACTION_RADIUS_SQ = 2500; //  // 50² — радиус взаимодействия
+  const INTERACTION_RADIUS_SQ = 2500; // 50² — радиус для показа кнопок и полной остановки
 
   let sprite = null;
   let initialized = false;
 
-  // Реплики (когда просто говоришь)
+  // Реплики и квест
   const DIALOGUES = [
     "Добро пожаловать, дитя корпорации.",
     "Ты — будущее. Мы следим за тобой.",
@@ -23,35 +24,32 @@ window.corporateRobotSystem = (function () {
     "Корпорация гордится тобой.",
   ];
 
-  // Квест
   const QUEST = {
-    id: "corp_follow_1",
-    title: "Сопровождение к доктору",
-    description:
-      "Проследуй за Воспитателем Корпорации к доктору для осмотра и оформления.",
-    stage: "follow", // будем использовать только одну стадию
+    id: "corp_tutorial_1",
+    title: "Первое задание воспитателя",
+    description: "Принеси 5 баляров — докажи свою преданность.",
+    reward: { xp: 50, balyary: 10 },
   };
 
   // Состояние
   let dialogueIndex = 0;
   let playerInRange = false;
   let isInteracting = false;
-  let questAccepted = false; // Принято ли задание сопровождения
 
   // Движение
   let currentPos = { x: POINT_A.x, y: POINT_A.y };
   let targetPos = POINT_B;
   let isMoving = false;
   let pauseUntil = 0;
-  let movingTowardsB = true; // true = A→B, false = B→A
+  let movingTowardsB = true; // true = A→B (строка 0), false = B→A (строка 1)
 
-  // UI
+  // UI элементы
   let buttonsContainer = null;
   let dialogWindow = null;
   let dialogText = null;
   let acceptBtn = null;
 
-  // === UI ===
+  // === UI СОЗДАНИЕ ===
   function createFloatingButtons() {
     if (buttonsContainer) return;
 
@@ -117,45 +115,27 @@ window.corporateRobotSystem = (function () {
     dialogWindow.style.display = "flex";
   }
 
-  function openQuestDialogWithAccept(text, onAccept) {
-    if (!dialogWindow) return;
-
-    dialogText.innerHTML = text;
-
-    // Удаляем старую кнопку, если есть
-    if (acceptBtn && acceptBtn.parentNode) {
-      acceptBtn.parentNode.removeChild(acceptBtn);
-      acceptBtn = null;
-    }
-
-    acceptBtn = document.createElement("div");
-    acceptBtn.className = "neon-btn";
-    acceptBtn.textContent = "Хорошо";
-    acceptBtn.style.marginTop = "20px";
-    acceptBtn.onclick = () => {
-      onAccept();
-      dialogWindow.style.display = "none";
-    };
-
-    dialogWindow.insertBefore(acceptBtn, dialogWindow.lastElementChild);
-    dialogWindow.style.display = "flex";
-  }
-
   function openQuestDialog() {
-    if (questAccepted) {
-      openDialogWithAccept(
-        "<strong>Задание активно:</strong><br>Следуй за мной к доктору для осмотра.",
-        () => {}
-      );
-      return;
+    if (!dialogWindow) return;
+    dialogText.innerHTML = `
+      <strong>Доступное задание:</strong><br><br>
+      <div style="text-align:left; margin:15px 0;">
+        • ${QUEST.title}<br>
+        • ${QUEST.description}<br><br>
+        <strong style="color:#ff00ff">Награда:</strong> ${QUEST.reward.xp} XP + ${QUEST.reward.balyary} баляров
+      </div>
+    `;
+
+    if (!acceptBtn) {
+      acceptBtn = document.createElement("div");
+      acceptBtn.className = "neon-btn";
+      acceptBtn.textContent = "Взять задание";
+      acceptBtn.onclick = acceptQuest;
+      acceptBtn.style.marginTop = "15px";
+      dialogWindow.insertBefore(acceptBtn, dialogWindow.lastElementChild);
     }
 
-    openDialogWithAccept(
-      `<strong>Новое задание:</strong><br><br>
-      • ${QUEST.title}<br><br>
-      ${QUEST.description}`,
-      acceptQuest
-    );
+    dialogWindow.style.display = "flex";
   }
 
   function acceptQuest() {
@@ -168,19 +148,13 @@ window.corporateRobotSystem = (function () {
         })
       );
     }
-    questAccepted = true;
-    showNotification("Задание принято: Сопровождение к доктору", "#00ffff");
-
-    // Принудительно ставим цель — POINT_A (к доктору)
-    targetPos = POINT_A;
-    movingTowardsB = false;
-    isMoving = true;
-    pauseUntil = 0; // сразу начинаем движение
+    showNotification("Задание принято: Принеси 5 баляров", "#00ffff");
+    dialogWindow.style.display = "none";
   }
 
-  // === ДВИЖЕНИЕ ===
+  // === ЛОГИКА ДВИЖЕНИЯ (с полной остановкой при игроке рядом) ===
   function updateMovement(deltaTime) {
-    // Полная остановка при приближении игрока
+    // Если игрок в радиусе взаимодействия — робот полностью замирает
     if (playerInRange) {
       isMoving = false;
       return;
@@ -188,64 +162,48 @@ window.corporateRobotSystem = (function () {
 
     const now = performance.now();
 
-    // Если квест принят — идём строго к доктору (POINT_A), без пауз
-    if (questAccepted) {
-      if (Math.hypot(currentPos.x - POINT_A.x, currentPos.y - POINT_A.y) < 5) {
-        isMoving = false; // пришли — стоим
-        return;
-      }
-
-      const dx = POINT_A.x - currentPos.x;
-      const dy = POINT_A.y - currentPos.y;
-      const dist = Math.hypot(dx, dy);
-
-      if (dist > 2) {
-        const moveDist = MOVE_SPEED * (deltaTime / 1000);
-        const ratio = Math.min(1, moveDist / dist);
-        currentPos.x += dx * ratio;
-        currentPos.y += dy * ratio;
-      }
-      isMoving = true;
-      return;
-    }
-
-    // === Классическое поведение: патруль с паузами ===
+    // Если сейчас пауза — ждём
     if (now < pauseUntil) {
       isMoving = false;
       return;
     }
 
+    // Если только что закончилась пауза — начинаем движение
     if (!isMoving) {
       isMoving = true;
     }
 
-    const dx = targetPos.x - currentPos.x;
-    const dy = targetPos.y - currentPos.y;
-    const dist = Math.hypot(dx, dy);
+    if (isMoving) {
+      const dx = targetPos.x - currentPos.x;
+      const dy = targetPos.y - currentPos.y;
+      const dist = Math.hypot(dx, dy);
 
-    if (dist < 2) {
-      currentPos.x = targetPos.x;
-      currentPos.y = targetPos.y;
-      isMoving = false;
-      pauseUntil = now + PAUSE_TIME;
+      if (dist < 2) {
+        // Дошли до точки
+        currentPos.x = targetPos.x;
+        currentPos.y = targetPos.y;
+        isMoving = false;
+        pauseUntil = now + PAUSE_TIME;
 
-      // Меняем направление
-      if (movingTowardsB) {
-        targetPos = POINT_A;
-        movingTowardsB = false;
+        // Меняем направление
+        if (movingTowardsB) {
+          targetPos = POINT_A;
+          movingTowardsB = false;
+        } else {
+          targetPos = POINT_B;
+          movingTowardsB = true;
+        }
       } else {
-        targetPos = POINT_B;
-        movingTowardsB = true;
+        // Движемся
+        const moveDist = MOVE_SPEED * (deltaTime / 1000);
+        const ratio = moveDist / dist;
+        currentPos.x += dx * ratio;
+        currentPos.y += dy * ratio;
       }
-    } else {
-      const moveDist = MOVE_SPEED * (deltaTime / 1000);
-      const ratio = moveDist / dist;
-      currentPos.x += dx * ratio;
-      currentPos.y += dy * ratio;
     }
   }
 
-  // === БЛИЗОСТЬ ИГРОКА ===
+  // === ПРОВЕРКА БЛИЗОСТИ ИГРОКА ===
   function checkProximity() {
     const me = players.get(myId);
     if (!me || window.worldSystem.currentWorldId !== 0) {
@@ -294,14 +252,6 @@ window.corporateRobotSystem = (function () {
       createFloatingButtons();
       createDialogWindow();
       initialized = true;
-
-      // Синхронизируем состояние квеста при старте
-      const me = players.get(myId);
-      if (me?.corporateQuest?.accepted) {
-        questAccepted = true;
-        targetPos = POINT_A;
-        movingTowardsB = false;
-      }
     },
 
     update: function () {
@@ -309,8 +259,8 @@ window.corporateRobotSystem = (function () {
       const deltaTime = now - lastTime;
       lastTime = now;
 
-      checkProximity();
-      updateMovement(deltaTime);
+      checkProximity(); // сначала проверяем дистанцию
+      updateMovement(deltaTime); // движение только если игрок далеко
       updateButtonsPosition();
 
       isInteracting = playerInRange && dialogWindow?.style.display === "flex";
@@ -324,20 +274,23 @@ window.corporateRobotSystem = (function () {
       const sx = currentPos.x - cam.x - 35;
       const sy = currentPos.y - cam.y - 35;
 
-      let frameRow = movingTowardsB ? 0 : 1;
+      let frameRow = 0;
       let frame = 0;
 
-      // Если игрок рядом — первый кадр
+      // Главное условие: если игрок рядом — стоим на первом кадре
       if (playerInRange) {
         frame = 0;
+        frameRow = movingTowardsB ? 0 : 1;
       }
-      // Если стоим на точке (пауза или ждём у доктора)
-      else if (!isMoving) {
+      // Если стоим на точке (пауза)
+      else if (!isMoving && performance.now() < pauseUntil) {
         frame = 0;
+        frameRow = movingTowardsB ? 0 : 1;
       }
       // Иначе — анимация ходьбы
       else if (isMoving) {
         frame = 1 + (Math.floor(performance.now() / 100) % 12);
+        frameRow = movingTowardsB ? 0 : 1;
       }
 
       const sourceY = frameRow * 70;
@@ -347,18 +300,7 @@ window.corporateRobotSystem = (function () {
       ctx.font = "12px 'Courier New'";
       ctx.fillStyle = "#fbff00ff";
       ctx.textAlign = "center";
-      ctx.fillText("Воспитатель Корпорации", sx + 35, sy - 15);
-    },
-
-    // Внешний доступ для синхронизации с сервера (если нужно)
-    setQuestAccepted: function (accepted) {
-      questAccepted = accepted;
-      if (accepted) {
-        targetPos = POINT_A;
-        movingTowardsB = false;
-        isMoving = true;
-        pauseUntil = 0;
-      }
+      ctx.fillText("Robot Corporations", sx + 35, sy - 15);
     },
   };
 })();
