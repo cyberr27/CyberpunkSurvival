@@ -294,13 +294,15 @@ window.corporateRobotSystem = (function () {
       createFloatingButtons();
       createDialogWindow();
 
-      // Синхронизация с сервером: проверяем, взят ли квест
+      // Полная синхронизация с сервером
       const me = players.get(myId);
-      if (me && me.corporateQuestAccepted === true) {
+      if (me?.corporateQuestAccepted === true) {
         corporateQuestAccepted = true;
         currentPos = { x: POINT_A.x, y: POINT_A.y };
         targetPos = POINT_A;
         movingTowardsB = false;
+        isMoving = false;
+        pauseUntil = 0;
       }
 
       initialized = true;

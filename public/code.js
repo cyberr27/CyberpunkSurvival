@@ -524,6 +524,7 @@ function handleAuthMessage(event) {
         jackMet: data.jackMet || false,
         alexNeonMet: data.alexNeonMet || false, // ДОБАВЛЕНО
         selectedQuestId: data.selectedQuestId || null,
+        corporateQuestAccepted: data.corporateQuestAccepted || false,
         level: data.level || 0,
         xp: data.xp || 99,
         upgradePoints: data.upgradePoints || 0,

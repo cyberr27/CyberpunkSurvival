@@ -215,6 +215,7 @@ function setupWebSocket(
               progress: {},
               completed: [],
             },
+            corporateQuestAccepted: false,
           };
 
           userDatabase.set(data.username, newPlayer);
@@ -358,6 +359,7 @@ function setupWebSocket(
               progress: {},
               completed: [],
             },
+            corporateQuestAccepted: player.corporateQuestAccepted || false,
           };
 
           players.set(data.username, playerData);
@@ -394,6 +396,7 @@ function setupWebSocket(
               foodUpgrade: playerData.foodUpgrade || 0,
               waterUpgrade: playerData.waterUpgrade || 0,
               neonQuest: playerData.neonQuest,
+              corporateQuestAccepted: playerData.corporateQuestAccepted,
               players: Array.from(players.values()).filter(
                 (p) =>
                   p.id !== data.username && p.worldId === playerData.worldId
