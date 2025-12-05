@@ -282,10 +282,10 @@ window.corporateRobotSystem = (function () {
         frame = 0;
         frameRow = movingTowardsB ? 0 : 1;
       }
-      // Если стоим на точке (пауза)
+      // Если стоим на точке (пауза) — ВСЕГДА лицом к игроку
       else if (!isMoving && performance.now() < pauseUntil) {
         frame = 0;
-        frameRow = movingTowardsB ? 0 : 1;
+        frameRow = 0; // ← ключевое изменение
       }
       // Иначе — анимация ходьбы
       else if (isMoving) {
