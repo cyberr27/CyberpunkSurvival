@@ -277,21 +277,22 @@ window.corporateRobotSystem = (function () {
       let frameRow = 0;
       let frame = 0;
 
-      // Главное условие: если игрок рядом — стоим на первом кадре
+      // 1. Если игрок рядом — полная остановка: всегда 0 кадр 0 строки
       if (playerInRange) {
         frame = 0;
-        frameRow = movingTowardsB ? 0 : 1;
+        frameRow = 0; // ← вот здесь принудительно 0 строка
       }
-      // Если стоим на точке (пауза)
+      // 2. Если стоим на точке (пауза) — тоже всегда 0 кадр 0 строки
       else if (!isMoving && performance.now() < pauseUntil) {
         frame = 0;
-        frameRow = movingTowardsB ? 0 : 1;
+        frameRow = 0; // ← и здесь тоже 0 строка
       }
-      // Иначе — анимация ходьбы
+      // 3. Только когда реально идём — используем правильное направление
       else if (isMoving) {
         frame = 1 + (Math.floor(performance.now() / 100) % 12);
-        frameRow = movingTowardsB ? 0 : 1;
+        frameRow = movingTowardsB ? 0 : 1; // ← тут оставляем как было
       }
+      // (если ничего из выше — тоже стоим на 0/0, но таких случаев нет)
 
       const sourceY = frameRow * 70;
       ctx.drawImage(sprite, frame * 70, sourceY, 70, 70, sx, sy, 70, 70);
