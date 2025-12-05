@@ -9,7 +9,7 @@ window.robotDoctorSystem = (function () {
   const SPRITE_WIDTH = 70;
   const SPRITE_HEIGHT = 70;
   const FRAME_COUNT = 13;
-  const FRAME_DURATION = 120; // ms на кадр (≈8.3 FPS)
+  const FRAME_DURATION = 140; // ms на кадр (≈8.3 FPS)
 
   let sprite = null;
   let frame = 0;

@@ -2074,25 +2074,20 @@ function draw(deltaTime) {
     );
   }
 
+  if (window.cockroachSystem) {
+    window.cockroachSystem.draw();
+  }
   if (window.vacuumRobotSystem) {
     window.vacuumRobotSystem.draw();
   }
 
-  if (window.cockroachSystem) {
-    window.cockroachSystem.draw();
-  }
-
   window.npcSystem.drawNPC(deltaTime);
   window.bonfireSystem.draw();
-  clockSystem.draw();
   window.jackSystem.drawJack(deltaTime);
   window.vendingMachine.draw();
   window.combatSystem.draw();
   window.enemySystem.draw();
   window.corporateRobotSystem.draw();
-  if (window.robotDoctorSystem) {
-    window.robotDoctorSystem.draw();
-  }
 
   players.forEach((player) => {
     if (player.worldId !== currentWorldId) return;
@@ -2231,7 +2226,10 @@ function draw(deltaTime) {
   if (window.neonNpcSystem) {
     window.neonNpcSystem.draw();
   }
-
+  if (window.robotDoctorSystem) {
+    window.robotDoctorSystem.draw();
+  }
+  clockSystem.draw();
   window.droneSystem.draw();
 
   if (currentWorld.clouds.complete) {
