@@ -1885,6 +1885,11 @@ function handleGameMessage(event) {
         }
         updateInventoryDisplay();
         break;
+      case "corporateQuestAccepted":
+        if (window.corporateRobotSystem && data.playerId === myId) {
+          window.corporateRobotSystem.setQuestAccepted(true);
+        }
+        break;
     }
   } catch (error) {
     console.error("Ошибка в handleGameMessage:", error);
