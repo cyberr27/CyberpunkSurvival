@@ -173,8 +173,8 @@ function setupWebSocket(
           const newPlayer = {
             id: data.username,
             password: data.password,
-            x: 608,
-            y: 3181,
+            x: 222,
+            y: 3205,
             health: 100,
             energy: 100,
             food: 100,
@@ -198,7 +198,7 @@ function setupWebSocket(
             jackMet: false,
             alexNeonMet: false,
             level: 0,
-            xp: 0,
+            xp: 99,
             upgradePoints: 0,
             availableQuests: [],
             worldId: 0,
@@ -215,7 +215,6 @@ function setupWebSocket(
               progress: {},
               completed: [],
             },
-            corporateQuestAccepted: false,
           };
 
           userDatabase.set(data.username, newPlayer);
@@ -359,7 +358,6 @@ function setupWebSocket(
               progress: {},
               completed: [],
             },
-            corporateQuestAccepted: player.corporateQuestAccepted || false,
           };
 
           players.set(data.username, playerData);
@@ -396,7 +394,6 @@ function setupWebSocket(
               foodUpgrade: playerData.foodUpgrade || 0,
               waterUpgrade: playerData.waterUpgrade || 0,
               neonQuest: playerData.neonQuest,
-              corporateQuestAccepted: playerData.corporateQuestAccepted,
               players: Array.from(players.values()).filter(
                 (p) =>
                   p.id !== data.username && p.worldId === playerData.worldId
@@ -1903,28 +1900,6 @@ function setupWebSocket(
 
           ws.send(JSON.stringify({ type: "welcomeGuideSeenConfirm" }));
         }
-      } else if (data.type === "acceptCorporateQuest") {
-        const playerId = clients.get(ws);
-        if (!playerId || !players.has(playerId)) return;
-
-        const player = players.get(playerId);
-        player.corporateQuestAccepted = true;
-
-        players.set(playerId, player);
-        userDatabase.set(playerId, player);
-        await saveUserDatabase(dbCollection, playerId, player);
-
-        // Рассылаем всем в мире (чтобы робот у всех ушёл)
-        broadcastToWorld(
-          wss,
-          clients,
-          players,
-          player.worldId,
-          JSON.stringify({
-            type: "corporateQuestAccepted",
-            playerId: playerId,
-          })
-        );
       }
     });
 

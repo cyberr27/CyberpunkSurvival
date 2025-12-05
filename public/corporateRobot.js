@@ -1,14 +1,15 @@
 // corporateRobot.js
-// Робот «Воспитатель Корпорации» — гид по городу, мир 0
-// Версия 2025 — с квестом, возвращением в точку A после принятия задания
+// Робот «Воспитатель Корпорации» — патрулирует между двумя точками, мир 0
+// Версия 2025 — новый спрайт 2×13 кадров (70×70), ходьба с паузами
+// Добавлено: полная остановка движения и анимации при приближении игрока (как у Neon Alex)
 
 window.corporateRobotSystem = (function () {
   const POINT_A = { x: 2654, y: 2314 };
   const POINT_B = { x: 421, y: 2914 };
-  const PAUSE_TIME = 30000; // 30 секунд пауза на точке (только если квест не взят)
+  const PAUSE_TIME = 30000; // 20 секунд пауза на точке
   const MOVE_SPEED = 33; // пикселей в секунду
 
-  const INTERACTION_RADIUS_SQ = 2500; // 50² — радиус для кнопок и остановки
+  const INTERACTION_RADIUS_SQ = 2500; // 50² — радиус для показа кнопок и полной остановки
 
   let sprite = null;
   let initialized = false;
@@ -40,10 +41,7 @@ window.corporateRobotSystem = (function () {
   let targetPos = POINT_B;
   let isMoving = false;
   let pauseUntil = 0;
-  let movingTowardsB = true; // true = A→B, false = B→A
-
-  // КЛЮЧЕВОЙ ФЛАГ: взят ли квест у робота
-  let corporateQuestAccepted = false;
+  let movingTowardsB = true; // true = A→B (строка 0), false = B→A (строка 1)
 
   // UI элементы
   let buttonsContainer = null;
@@ -119,28 +117,22 @@ window.corporateRobotSystem = (function () {
 
   function openQuestDialog() {
     if (!dialogWindow) return;
+    dialogText.innerHTML = `
+      <strong>Доступное задание:</strong><br><br>
+      <div style="text-align:left; margin:15px 0;">
+        • ${QUEST.title}<br>
+        • ${QUEST.description}<br><br>
+        <strong style="color:#ff00ff">Награда:</strong> ${QUEST.reward.xp} XP + ${QUEST.reward.balyary} баляров
+      </div>
+    `;
 
-    if (corporateQuestAccepted) {
-      dialogText.innerHTML = `<strong>Задание уже взято.</strong><br><br>Возвращаюсь на пост. Следуй за мной, дитя корпорации.`;
-      if (acceptBtn) acceptBtn.remove();
-    } else {
-      dialogText.innerHTML = `
-        <strong>Доступное задание:</strong><br><br>
-        <div style="text-align:left; margin:15px 0;">
-          • ${QUEST.title}<br>
-          • ${QUEST.description}<br><br>
-          <strong style="color:#ff00ff">Награда:</strong> ${QUEST.reward.xp} XP + ${QUEST.reward.balyary} баляров
-        </div>
-      `;
-
-      if (!acceptBtn) {
-        acceptBtn = document.createElement("div");
-        acceptBtn.className = "neon-btn";
-        acceptBtn.textContent = "Взять задание";
-        acceptBtn.onclick = acceptQuest;
-        acceptBtn.style.marginTop = "15px";
-        dialogWindow.insertBefore(acceptBtn, dialogWindow.lastElementChild);
-      }
+    if (!acceptBtn) {
+      acceptBtn = document.createElement("div");
+      acceptBtn.className = "neon-btn";
+      acceptBtn.textContent = "Взять задание";
+      acceptBtn.onclick = acceptQuest;
+      acceptBtn.style.marginTop = "15px";
+      dialogWindow.insertBefore(acceptBtn, dialogWindow.lastElementChild);
     }
 
     dialogWindow.style.display = "flex";
@@ -157,91 +149,57 @@ window.corporateRobotSystem = (function () {
       );
     }
     showNotification("Задание принято: Принеси 5 баляров", "#00ffff");
-
-    // КРИТИЧЕСКИ ВАЖНО: сразу запускаем движение обратно в точку A
-    corporateQuestAccepted = true;
-    targetPos = POINT_A;
-    movingTowardsB = false;
-    isMoving = true;
-    pauseUntil = 0;
-
     dialogWindow.style.display = "none";
   }
 
-  // === ЛОГИКА ДВИЖЕНИЯ (с поведением гида) ===
+  // === ЛОГИКА ДВИЖЕНИЯ (с полной остановкой при игроке рядом) ===
   function updateMovement(deltaTime) {
-    const now = performance.now();
-
-    // Если игрок рядом — полная остановка
+    // Если игрок в радиусе взаимодействия — робот полностью замирает
     if (playerInRange) {
       isMoving = false;
       return;
     }
 
-    // Если квест взят — робот идёт в точку A и больше не возвращается
-    if (corporateQuestAccepted) {
-      if (movingTowardsB) {
-        // Если вдруг был в пути к B — разворачиваемся
-        targetPos = POINT_A;
-        movingTowardsB = false;
-      }
+    const now = performance.now();
 
-      // Движемся только к точке A
-      const dx = targetPos.x - currentPos.x;
-      const dy = targetPos.y - currentPos.y;
-      const dist = Math.hypot(dx, dy);
-
-      if (dist < 5) {
-        // Прибыли в точку A — окончательная остановка
-        currentPos.x = POINT_A.x;
-        currentPos.y = POINT_A.y;
-        isMoving = false;
-        pauseUntil = 0; // больше никогда не двигаемся
-        return;
-      }
-
-      // Движемся к точке A
-      const moveDist = MOVE_SPEED * (deltaTime / 1000);
-      const ratio = moveDist / dist;
-      currentPos.x += dx * ratio;
-      currentPos.y += dy * ratio;
-      isMoving = true;
-      return;
-    }
-
-    // === СТАРАЯ ЛОГИКА ПАТРУЛЯ (только если квест НЕ взят) ===
+    // Если сейчас пауза — ждём
     if (now < pauseUntil) {
       isMoving = false;
       return;
     }
 
+    // Если только что закончилась пауза — начинаем движение
     if (!isMoving) {
       isMoving = true;
     }
 
-    const dx = targetPos.x - currentPos.x;
-    const dy = targetPos.y - currentPos.y;
-    const dist = Math.hypot(dx, dy);
+    if (isMoving) {
+      const dx = targetPos.x - currentPos.x;
+      const dy = targetPos.y - currentPos.y;
+      const dist = Math.hypot(dx, dy);
 
-    if (dist < 2) {
-      currentPos.x = targetPos.x;
-      currentPos.y = targetPos.y;
-      isMoving = false;
-      pauseUntil = now + PAUSE_TIME;
+      if (dist < 2) {
+        // Дошли до точки
+        currentPos.x = targetPos.x;
+        currentPos.y = targetPos.y;
+        isMoving = false;
+        pauseUntil = now + PAUSE_TIME;
 
-      // Меняем направление
-      if (movingTowardsB) {
-        targetPos = POINT_A;
-        movingTowardsB = false;
+        // Меняем направление
+        if (movingTowardsB) {
+          targetPos = POINT_A;
+          movingTowardsB = false;
+        } else {
+          targetPos = POINT_B;
+          movingTowardsB = true;
+        }
       } else {
-        targetPos = POINT_B;
-        movingTowardsB = true;
+        // Движемся
+        const moveDist = MOVE_SPEED * (deltaTime / 1000);
+        const ratio = moveDist / dist;
+        currentPos.x += dx * ratio;
+        currentPos.y += dy * ratio;
       }
-    } else {
-      const moveDist = MOVE_SPEED * (deltaTime / 1000);
-      const ratio = moveDist / dist;
-      currentPos.x += dx * ratio;
-      currentPos.y += dy * ratio;
     }
   }
 
@@ -293,28 +251,16 @@ window.corporateRobotSystem = (function () {
       movingTowardsB = true;
       createFloatingButtons();
       createDialogWindow();
-
-      // Полная синхронизация с сервером
-      const me = players.get(myId);
-      if (me?.corporateQuestAccepted === true) {
-        corporateQuestAccepted = true;
-        currentPos = { x: POINT_A.x, y: POINT_A.y };
-        targetPos = POINT_A;
-        movingTowardsB = false;
-        isMoving = false;
-        pauseUntil = 0;
-      }
-
       initialized = true;
     },
 
-    update: function (deltaTime) {
+    update: function () {
       const now = performance.now();
-      const delta = now - lastTime;
+      const deltaTime = now - lastTime;
       lastTime = now;
 
-      checkProximity();
-      updateMovement(delta);
+      checkProximity(); // сначала проверяем дистанцию
+      updateMovement(deltaTime); // движение только если игрок далеко
       updateButtonsPosition();
 
       isInteracting = playerInRange && dialogWindow?.style.display === "flex";
@@ -331,13 +277,18 @@ window.corporateRobotSystem = (function () {
       let frameRow = 0;
       let frame = 0;
 
+      // Главное условие: если игрок рядом — стоим на первом кадре
       if (playerInRange) {
         frame = 0;
         frameRow = movingTowardsB ? 0 : 1;
-      } else if (!isMoving && performance.now() < pauseUntil) {
+      }
+      // Если стоим на точке (пауза)
+      else if (!isMoving && performance.now() < pauseUntil) {
         frame = 0;
-        frameRow = 0; // всегда лицом вперёд на паузе
-      } else if (isMoving) {
+        frameRow = movingTowardsB ? 0 : 1;
+      }
+      // Иначе — анимация ходьбы
+      else if (isMoving) {
         frame = 1 + (Math.floor(performance.now() / 100) % 12);
         frameRow = movingTowardsB ? 0 : 1;
       }
@@ -345,21 +296,11 @@ window.corporateRobotSystem = (function () {
       const sourceY = frameRow * 70;
       ctx.drawImage(sprite, frame * 70, sourceY, 70, 70, sx, sy, 70, 70);
 
+      // Подпись
       ctx.font = "12px 'Courier New'";
       ctx.fillStyle = "#fbff00ff";
       ctx.textAlign = "center";
       ctx.fillText("Robot Corporations", sx + 35, sy - 15);
-    },
-
-    // Внешний доступ: сервер может сообщить, что квест принят
-    setQuestAccepted: function (accepted) {
-      corporateQuestAccepted = accepted;
-      if (accepted) {
-        targetPos = POINT_A;
-        movingTowardsB = false;
-        isMoving = true;
-        pauseUntil = 0;
-      }
     },
   };
 })();
