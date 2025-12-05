@@ -75,6 +75,7 @@ const imageSources = {
   bonfireImage: "bonfire.png",
   oclocSprite: "oclocSprite.png",
   corporateRobotSprite: "corporate_robot.png",
+  robotDoctorSprite: "robotDoctorSprite.png",
 };
 
 const images = {};
@@ -94,6 +95,7 @@ Object.entries(imageSources).forEach(([key, src]) => {
       window.bonfireSystem.initialize(images.bonfireImage);
       window.clockSystem.initialize(images.oclocSprite);
       window.corporateRobotSystem.initialize(images.corporateRobotSprite);
+      window.robotDoctorSystem.initialize(images.robotDoctorSprite);
     }
   };
   images[key].onerror = () => {
@@ -728,6 +730,7 @@ function startGame() {
   window.bonfireSystem.initialize(images.bonfireImage);
   window.clockSystem.initialize(images.oclocSprite);
   window.corporateRobotSystem.initialize(images.corporateRobotSprite);
+  window.robotDoctorSystem.initialize(images.robotDoctorSprite);
 
   window.combatSystem.initialize();
 
@@ -1885,6 +1888,18 @@ function handleGameMessage(event) {
         }
         updateInventoryDisplay();
         break;
+      case "corporateQuestAccepted":
+        if (
+          window.corporateRobotSystem &&
+          window.corporateRobotSystem.setQuestAccepted
+        ) {
+          const me = players.get(myId);
+          if (me && data.playerId === myId) {
+            me.corporateQuestAccepted = true;
+          }
+          window.corporateRobotSystem.setQuestAccepted(true);
+        }
+        break;
     }
   } catch (error) {
     console.error("Ошибка в handleGameMessage:", error);
@@ -1942,6 +1957,9 @@ function update(deltaTime) {
   clockSystem.update(deltaTime);
   if (window.corporateRobotSystem) {
     window.corporateRobotSystem.update(deltaTime);
+  }
+  if (window.robotDoctorSystem) {
+    window.robotDoctorSystem.update(deltaTime);
   }
   // Проверяем зоны перехода
   window.worldSystem.checkTransitionZones(me.x, me.y);
@@ -2084,6 +2102,9 @@ function draw(deltaTime) {
   window.combatSystem.draw();
   window.enemySystem.draw();
   window.corporateRobotSystem.draw();
+  if (window.robotDoctorSystem) {
+    window.robotDoctorSystem.draw();
+  }
 
   players.forEach((player) => {
     if (player.worldId !== currentWorldId) return;

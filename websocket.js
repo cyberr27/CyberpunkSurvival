@@ -1900,6 +1900,28 @@ function setupWebSocket(
 
           ws.send(JSON.stringify({ type: "welcomeGuideSeenConfirm" }));
         }
+      } else if (data.type === "acceptCorporateQuest") {
+        const playerId = clients.get(ws);
+        if (!playerId || !players.has(playerId)) return;
+
+        const player = players.get(playerId);
+        player.corporateQuestAccepted = true;
+
+        players.set(playerId, player);
+        userDatabase.set(playerId, player);
+        await saveUserDatabase(dbCollection, playerId, player);
+
+        // Рассылаем всем в мире (чтобы робот у всех ушёл)
+        broadcastToWorld(
+          wss,
+          clients,
+          players,
+          player.worldId,
+          JSON.stringify({
+            type: "corporateQuestAccepted",
+            playerId: playerId,
+          })
+        );
       }
     });
 
