@@ -198,7 +198,7 @@ function setupWebSocket(
             jackMet: false,
             alexNeonMet: false,
             level: 0,
-            xp: 99,
+            xp: 0,
             upgradePoints: 0,
             availableQuests: [],
             worldId: 0,
