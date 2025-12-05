@@ -75,6 +75,7 @@ const imageSources = {
   bonfireImage: "bonfire.png",
   oclocSprite: "oclocSprite.png",
   corporateRobotSprite: "corporate_robot.png",
+  robotDoctorSprite: "robotDoctorSprite.png",
 };
 
 const images = {};
@@ -94,6 +95,7 @@ Object.entries(imageSources).forEach(([key, src]) => {
       window.bonfireSystem.initialize(images.bonfireImage);
       window.clockSystem.initialize(images.oclocSprite);
       window.corporateRobotSystem.initialize(images.corporateRobotSprite);
+      window.robotDoctorSystem.initialize(images.robotDoctorSprite);
     }
   };
   images[key].onerror = () => {
@@ -728,6 +730,7 @@ function startGame() {
   window.bonfireSystem.initialize(images.bonfireImage);
   window.clockSystem.initialize(images.oclocSprite);
   window.corporateRobotSystem.initialize(images.corporateRobotSprite);
+  window.robotDoctorSystem.initialize(images.robotDoctorSprite);
 
   window.combatSystem.initialize();
 
@@ -1943,6 +1946,9 @@ function update(deltaTime) {
   if (window.corporateRobotSystem) {
     window.corporateRobotSystem.update(deltaTime);
   }
+  if (window.robotDoctorSystem) {
+    window.robotDoctorSystem.update(deltaTime);
+  }
   // Проверяем зоны перехода
   window.worldSystem.checkTransitionZones(me.x, me.y);
 
@@ -2084,6 +2090,9 @@ function draw(deltaTime) {
   window.combatSystem.draw();
   window.enemySystem.draw();
   window.corporateRobotSystem.draw();
+  if (window.robotDoctorSystem) {
+    window.robotDoctorSystem.draw();
+  }
 
   players.forEach((player) => {
     if (player.worldId !== currentWorldId) return;
