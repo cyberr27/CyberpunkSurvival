@@ -299,6 +299,14 @@ const ITEM_CONFIG = {
     stackable: true,
     rarity: 1,
   },
+  medical_certificate: {
+    effect: {},
+    rarity: 1,
+    name: "Мед. справка",
+    description:
+      "Официальный документ формы МД-07. Подтверждает, что вы не мутированы.",
+    icon: "medical_certificate.png", // если будет иконка — потом добавишь
+  },
 };
 
 // Состояние инвентаря (открыт или закрыт)
@@ -1887,6 +1895,22 @@ function handleGameMessage(event) {
           window.levelSystem.showXPEffect(data.reward.xp);
         }
         updateInventoryDisplay();
+        break;
+      case "doctorQuestCompleted":
+        showNotification(
+          "Мед. справка получена! Форма МД-07 в инвентаре.",
+          "#00ff44"
+        );
+        me = players.get(myId);
+        if (me) {
+          me.inventory = data.inventory;
+          inventory = data.inventory.map((i) => (i ? { ...i } : null));
+          updateInventoryDisplay();
+        }
+        break;
+
+      case "doctorQuestAlreadyDone":
+        showNotification("Справка уже была выдана ранее.", "#ffff00");
         break;
     }
   } catch (error) {

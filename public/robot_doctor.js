@@ -33,30 +33,77 @@ window.robotDoctorSystem = (function () {
     talkBtn.textContent = "Говорить";
     talkBtn.onclick = () => openDialog("talk");
 
-    const questsBtn = document.createElement("div");
-    questsBtn.className = "npc-button npc-quests-btn";
-    questsBtn.textContent = "Лечение";
-    questsBtn.onclick = () => openDialog("heal");
+    const healBtn = document.createElement("div");
+    healBtn.className = "npc-button npc-quests-btn";
+    healBtn.textContent = "Лечение";
+    healBtn.onclick = () => openDialog("heal");
+
+    const questBtn = document.createElement("div");
+    questBtn.className = "npc-button npc-quest-btn";
+    questBtn.textContent = "Задания";
+    questBtn.onclick = () => openDialog("quest");
 
     buttonsContainer.appendChild(talkBtn);
-    buttonsContainer.appendChild(questsBtn);
+    buttonsContainer.appendChild(healBtn);
+    buttonsContainer.appendChild(questBtn);
     document.body.appendChild(buttonsContainer);
   }
 
   function openDialog(mode) {
     const dialog = document.createElement("div");
     dialog.className = "npc-dialog";
+
+    let content = "";
+
+    if (mode === "talk") {
+      content = getTalkText();
+    } else if (mode === "heal") {
+      content = getHealOptions();
+    } else if (mode === "quest") {
+      content = getQuestContent();
+    }
+
     dialog.innerHTML = `
-      <div class="npc-dialog-header">
-        <img src="robot_doctor_photo.png" class="npc-photo" alt="Робот-Доктор">
-        <h2 class="npc-title">Робот-Доктор v3.7</h2>
-      </div>
-      <div class="npc-dialog-content">
-        ${mode === "talk" ? getTalkText() : getHealOptions()}
-      </div>
-      <button class="neon-btn" onclick="this.parentElement.remove()">Закрыть</button>
-    `;
+    <div class="npc-dialog-header">
+      <img src="robot_doctor_photo.png" class="npc-photo" alt="Робот-Доктор">
+      <h2 class="npc-title">Робот-Доктор v3.7</h2>
+    </div>
+    <div class="npc-dialog-content">
+      ${content}
+    </div>
+    <button class="neon-btn" onclick="this.parentElement.remove()">Закрыть</button>
+  `;
     document.body.appendChild(dialog);
+  }
+
+  function getQuestContent() {
+    const me = players.get(myId);
+    const hasCertificate = me.inventory.some(
+      (item) => item && item.type === "medical_certificate"
+    );
+
+    if (hasCertificate) {
+      return `
+      <div style="text-align:center; padding:20px;">
+        <h3 style="color:#00ff44; margin-bottom:15px;">Получение мед. справки</h3>
+        <p class="npc-text fullscreen">Справка формы МД-07 уже выдана. Повторная выдача не предусмотрена протоколом.</p>
+      </div>
+    `;
+    }
+
+    return `
+    <div style="text-align:center; padding:20px;">
+      <h3 style="color:#00ffff; margin-bottom:15px;">Получение мед. справки</h3>
+      После сканирования:
+      <p class="npc-text fullscreen" style="margin:20px 0;">
+        «Органические ткани в пределах нормы для постапокалиптического выжившего.<br>
+        Мутаций не обнаружено. Зомби-вирус отсутствует.<br>
+        Готов выдать официальную справку формы МД-07.»
+      </p>
+      <button class="neon-btn" style="background:#00ff44; padding:12px 24px; font-size:18px;" 
+              onclick="completeDoctorQuest()">Получить справку</button>
+    </div>
+  `;
   }
 
   function getTalkText() {
@@ -186,6 +233,18 @@ window.robotDoctorSystem = (function () {
       SPRITE_HEIGHT
     );
   }
+
+  window.completeDoctorQuest = function () {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      sendWhenReady(
+        ws,
+        JSON.stringify({
+          type: "completeDoctorQuest",
+        })
+      );
+    }
+    document.querySelector(".npc-dialog")?.remove();
+  };
 
   return {
     initialize,

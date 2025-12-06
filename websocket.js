@@ -1900,6 +1900,42 @@ function setupWebSocket(
 
           ws.send(JSON.stringify({ type: "welcomeGuideSeenConfirm" }));
         }
+      } else if (data.type === "completeDoctorQuest") {
+        const player = userDatabase.get(username);
+        if (!player) return;
+
+        // Проверяем, не получал ли уже
+        const hasCert = player.inventory.some(
+          (i) => i && i.type === "medical_certificate"
+        );
+        if (hasCert) {
+          ws.send(JSON.stringify({ type: "doctorQuestAlreadyDone" }));
+          return;
+        }
+
+        // Добавляем предмет
+        const freeSlot = player.inventory.findIndex((slot) => slot === null);
+        if (freeSlot === -1) {
+          ws.send(JSON.stringify({ type: "inventoryFull" }));
+          return;
+        }
+
+        player.inventory[freeSlot] = {
+          type: "medical_certificate",
+          quantity: 1,
+        };
+
+        // Сохраняем и шлём обновление
+        await saveUserDatabase(dbCollection, username, player);
+
+        ws.send(
+          JSON.stringify({
+            type: "doctorQuestCompleted",
+            inventory: player.inventory,
+          })
+        );
+
+        // Уведомление другим игрокам не нужно — только инвентарь
       }
     });
 

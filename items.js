@@ -55,6 +55,14 @@ const ITEM_CONFIG = {
     rarity: 1,
     stackable: true,
   },
+  medical_certificate: {
+    effect: {},
+    rarity: 1,
+    name: "Мед. справка",
+    description:
+      "Официальный документ формы МД-07. Подтверждает, что вы не мутированы.",
+    icon: "medical_certificate.png", // если будет иконка — потом добавишь
+  },
 };
 
 module.exports = { ITEM_CONFIG };
