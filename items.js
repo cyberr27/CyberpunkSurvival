@@ -57,11 +57,10 @@ const ITEM_CONFIG = {
   },
   medical_certificate: {
     effect: {},
-    rarity: 5, // Уникальный квестовый предмет
+    rarity: 5,
     name: "Мед. справка МД-07",
     description:
       "Официальная справка формы МД-07. Подтверждает отсутствие мутаций и зомби-вируса.",
-    image: images.medicalCertificateImage, // будет подгружено ниже
   },
 };
 
