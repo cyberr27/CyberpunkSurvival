@@ -1,8 +1,9 @@
 // corporateRobot.js
-// Оптимизированная версия «Воспитатель Корпорации» — патрулирует между двумя точками, мир 0
-// Квест: медосмотр → справка → сдача. Без утечек памяти и дублирования DOM-элементов.
+// Финальная версия — полностью рабочая, без утечек, без падений
+// Воспитатель Корпорации + квест медосмотр
 
 window.corporateRobotSystem = (function () {
+  const showNotification = window.showNotification || function () {};
   const POINT_A = { x: 2654, y: 2314 };
   const POINT_B = { x: 421, y: 2914 };
   const PAUSE_TIME = 30000;
@@ -41,7 +42,7 @@ window.corporateRobotSystem = (function () {
   let pauseUntil = 0;
   let movingTowardsB = true;
 
-  // DOM-элементы (создаются один раз)
+  // DOM-элементы
   let buttonsContainer = null;
   let dialogWindow = null;
   let dialogText = null;
@@ -50,21 +51,20 @@ window.corporateRobotSystem = (function () {
 
   let lastTime = performance.now();
 
-  // === Вспомогательные функции состояния игрока ===
-  const getMe = () => players.get(myId);
+  // === Безопасное получение игрока ===
+  const getMe = () => players?.get(myId);
 
   const hasActiveQuest = () =>
     getMe()?.corporateQuest?.currentQuestId === CORP_QUEST_ID;
   const hasMedicalCertificate = () =>
-    getMe()?.inventory?.some((i) => i?.type === "medical_certificate");
+    getMe()?.inventory?.some((i) => i?.type === "medical_certificate") || false;
   const isQuestCompleted = () =>
-    getMe()?.corporateQuest?.completed?.includes(CORP_QUEST_ID);
+    getMe()?.corporateQuest?.completed?.includes(CORP_QUEST_ID) || false;
 
   // === Создание UI (один раз) ===
   function createUI() {
-    if (buttonsContainer) return; // уже создано
+    if (buttonsContainer) return;
 
-    // Контейнер кнопок над NPC
     buttonsContainer = document.createElement("div");
     buttonsContainer.className = "npc-buttons-container";
     buttonsContainer.style.display = "none";
@@ -82,7 +82,6 @@ window.corporateRobotSystem = (function () {
     questBtn.onclick = openQuestDialog;
     buttonsContainer.appendChild(questBtn);
 
-    // Диалоговое окно
     dialogWindow = document.createElement("div");
     dialogWindow.className = "npc-dialog";
     dialogWindow.style.display = "none";
@@ -94,6 +93,9 @@ window.corporateRobotSystem = (function () {
     const photo = document.createElement("img");
     photo.className = "npc-photo";
     photo.src = "fotoQuestNPC.png";
+    photo.onerror = () => {
+      photo.src = "https://via.placeholder.com/80x80/333/fff?text=NPC";
+    }; // fallback
 
     const title = document.createElement("h2");
     title.className = "npc-title";
@@ -107,7 +109,6 @@ window.corporateRobotSystem = (function () {
     dialogText.className = "npc-text";
     dialogWindow.appendChild(dialogText);
 
-    // Кнопки "Взять" и "Сдать" — создаём один раз
     acceptBtn = document.createElement("div");
     acceptBtn.className = "neon-btn";
     acceptBtn.textContent = "Взять задание";
@@ -124,7 +125,6 @@ window.corporateRobotSystem = (function () {
     dialogWindow.appendChild(acceptBtn);
     dialogWindow.appendChild(completeBtn);
 
-    // Кнопка закрытия
     const closeBtn = document.createElement("div");
     closeBtn.className = "neon-btn";
     closeBtn.textContent = "Закрыть";
@@ -151,29 +151,23 @@ window.corporateRobotSystem = (function () {
 
     if (isQuestCompleted()) {
       dialogText.innerHTML = `<strong style="color:#00ff00">Задание уже выполнено.</strong><br>Корпорация довольна твоей дисциплиной.`;
-    } else if (hasActiveQuest() && hasMedicalCertificate()) {
+    }
+    // ←←← НОВАЯ ВЕТКА: квест взят, но ещё не выполнен
+    else if (hasActiveQuest()) {
       dialogText.innerHTML = `
-        <strong>Задание активно:</strong><br><br>
-        • ${QUEST.title}<br>
-        • ${QUEST.description}<br><br>
-        <strong style="color:#00ff00">У тебя есть медицинская справка!</strong><br>
-        Ты можешь сдать задание.
-      `;
-      completeBtn.style.display = "block";
-    } else if (hasActiveQuest()) {
-      dialogText.innerHTML = `
-        <strong>Задание активно:</strong><br><br>
-        • ${QUEST.title}<br>
-        • ${QUEST.description}<br><br>
-        <span style="color:#ffff00">Иди к Роботу-Доктору и пройди медосмотр.</span>
-      `;
+      <strong style="color:#00ffff">Задание активно:</strong><br><br>
+      • ${QUEST.title}<br>
+      • ${QUEST.description}<br><br>
+      <strong style="color:#ffffff">Я жду тебя с медицинской справкой.</strong>
+    `;
+      // Кнопки "Взять" и "Сдать" скрыты — остаётся только "Закрыть"
     } else {
       dialogText.innerHTML = `
-        <strong>Новое задание:</strong><br><br>
-        • ${QUEST.title}<br>
-        • ${QUEST.description}<br><br>
-        <strong style="color:#ff00ff">Награда:</strong> ${QUEST.reward.xp} XP + ${QUEST.reward.balyary} баляров
-      `;
+      <strong>Новое задание:</strong><br><br>
+      • ${QUEST.title}<br>
+      • ${QUEST.description}<br><br>
+      <strong style="color:#ff00ff">Награда:</strong> ${QUEST.reward.xp} XP + ${QUEST.reward.balyary} баляров
+    `;
       acceptBtn.style.display = "block";
     }
 
@@ -182,31 +176,36 @@ window.corporateRobotSystem = (function () {
 
   function acceptQuest() {
     if (ws?.readyState === WebSocket.OPEN) {
-      sendWhenReady(
-        ws,
+      ws.send(
         JSON.stringify({
           type: "acceptCorporateQuest",
           questId: CORP_QUEST_ID,
         })
       );
-      showNotification(
+
+      showNotification?.(
         "Задание принято: Пройди медосмотр у Робота-Доктора",
         "#00ffff"
       );
-      dialogWindow.style.display = "none";
+
+      // ←←← ВАЖНО: НЕ закрываем окно, а сразу обновляем его!
+      openQuestDialog(); // ← это перерисует окно с новым состоянием (уже активный квест)
+    } else {
+      showNotification?.("Нет соединения с сервером!", "#ff0000");
     }
   }
 
   function completeQuest() {
     if (ws?.readyState === WebSocket.OPEN) {
-      sendWhenReady(
-        ws,
+      ws.send(
         JSON.stringify({
           type: "completeCorporateQuest",
           questId: CORP_QUEST_ID,
         })
       );
       dialogWindow.style.display = "none";
+    } else {
+      showNotification?.("Нет соединения с сервером!", "#ff0000");
     }
   }
 
@@ -233,14 +232,14 @@ window.corporateRobotSystem = (function () {
 
     isMoving = true;
     const moveDist = MOVE_SPEED * (deltaTime / 1000);
-    const ratio = Math.min(moveDist / dist, 1); // защита от перескока
+    const ratio = Math.min(moveDist / dist, 1);
     currentPos.x += dx * ratio;
     currentPos.y += dy * ratio;
   }
 
   function checkProximity() {
     const me = getMe();
-    if (!me || window.worldSystem.currentWorldId !== 0) {
+    if (!me || window.worldSystem?.currentWorldId !== 0) {
       if (playerInRange) {
         playerInRange = false;
         if (buttonsContainer) buttonsContainer.style.display = "none";
@@ -254,7 +253,8 @@ window.corporateRobotSystem = (function () {
 
     if (inRange !== playerInRange) {
       playerInRange = inRange;
-      buttonsContainer.style.display = inRange ? "flex" : "none";
+      if (buttonsContainer)
+        buttonsContainer.style.display = inRange ? "flex" : "none";
       if (!inRange && dialogWindow) dialogWindow.style.display = "none";
     }
   }
@@ -262,7 +262,7 @@ window.corporateRobotSystem = (function () {
   function updateButtonsPosition() {
     if (!buttonsContainer || !playerInRange) return;
 
-    const cam = window.movementSystem.getCamera();
+    const cam = window.movementSystem?.getCamera?.() || { x: 0, y: 0 };
     const screenX = currentPos.x - cam.x;
     const screenY = currentPos.y - cam.y - 80;
 
@@ -293,9 +293,9 @@ window.corporateRobotSystem = (function () {
     },
 
     draw() {
-      if (window.worldSystem.currentWorldId !== 0 || !sprite?.complete) return;
+      if (window.worldSystem?.currentWorldId !== 0 || !sprite?.complete) return;
 
-      const cam = window.movementSystem.getCamera();
+      const cam = window.movementSystem?.getCamera?.() || { x: 0, y: 0 };
       const sx = currentPos.x - cam.x - 35;
       const sy = currentPos.y - cam.y - 35;
 

@@ -362,6 +362,10 @@ function setupWebSocket(
               progress: {},
               completed: [],
             },
+            corporateQuest: {
+              currentQuestId: null,
+              completed: [],
+            },
           };
 
           players.set(data.username, playerData);
@@ -398,6 +402,7 @@ function setupWebSocket(
               foodUpgrade: playerData.foodUpgrade || 0,
               waterUpgrade: playerData.waterUpgrade || 0,
               neonQuest: playerData.neonQuest,
+              corporateQuest: playerData.corporateQuest,
               players: Array.from(players.values()).filter(
                 (p) =>
                   p.id !== data.username && p.worldId === playerData.worldId
