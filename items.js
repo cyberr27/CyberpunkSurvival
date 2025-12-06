@@ -55,6 +55,15 @@ const ITEM_CONFIG = {
     rarity: 1,
     stackable: true,
   },
+  medical_certificate: {
+    type: "quest",
+    effect: {},
+    image: images.bloodPackImage, // потом добавишь картинку
+    description: "Медицинская справка от Робота-Доктора",
+    rarity: 5,
+    questItem: true,
+    stackable: false,
+  },
 };
 
 module.exports = { ITEM_CONFIG };

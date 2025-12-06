@@ -299,6 +299,15 @@ const ITEM_CONFIG = {
     stackable: true,
     rarity: 1,
   },
+  medical_certificate: {
+    type: "quest",
+    effect: {},
+    image: images.bloodPackImage, // потом добавишь картинку
+    description: "Медицинская справка от Робота-Доктора",
+    rarity: 5,
+    questItem: true,
+    stackable: false,
+  },
 };
 
 // Состояние инвентаря (открыт или закрыт)
@@ -1887,6 +1896,82 @@ function handleGameMessage(event) {
           window.levelSystem.showXPEffect(data.reward.xp);
         }
         updateInventoryDisplay();
+        break;
+      case "corporateQuestAccepted":
+        me = players.get(myId);
+        if (!me.corporateQuest)
+          me.corporateQuest = { currentQuestId: null, completed: [] };
+        me.corporateQuest.currentQuestId = data.questId;
+        players.set(myId, me);
+        showNotification(
+          "Задание принято: Пройди медосмотр у Робота-Доктора",
+          "#00ffff"
+        );
+        break;
+      case "corporateQuestCompleted":
+        me = players.get(myId);
+        if (!me.corporateQuest)
+          me.corporateQuest = { currentQuestId: null, completed: [] };
+
+        // Удаляем справку из инвентаря
+        if (me.inventory) {
+          const certIndex = me.inventory.findIndex(
+            (item) => item?.type === "medical_certificate"
+          );
+          if (certIndex !== -1) {
+            me.inventory[certIndex] = null;
+          }
+        }
+
+        // Обновляем квест
+        me.corporateQuest.currentQuestId = null;
+        if (!me.corporateQuest.completed.includes(data.questId)) {
+          me.corporateQuest.completed.push(data.questId);
+        }
+
+        // Даём награду
+        me.xp = (me.xp || 0) + data.reward.xp;
+
+        // Добавляем баляры (ищем стек или создаём новый)
+        let balyarySlot = me.inventory.findIndex(
+          (item) => item?.type === "balyary"
+        );
+        if (balyarySlot !== -1) {
+          me.inventory[balyarySlot].quantity += data.reward.balyary;
+        } else {
+          balyarySlot = me.inventory.findIndex((item) => item === null);
+          if (balyarySlot !== -1) {
+            me.inventory[balyarySlot] = {
+              type: "balyary",
+              quantity: data.reward.balyary,
+            };
+          }
+        }
+
+        players.set(myId, me);
+        updateStats();
+        updateInventory();
+
+        showNotification(
+          `Квест выполнен! +${data.reward.xp} XP и +${data.reward.balyary} баляров!`,
+          "#00ff00"
+        );
+        break;
+      case "medicalCertificateGiven":
+        me = players.get(myId);
+        if (!me.inventory) me.inventory = Array(20).fill(null);
+
+        // Ищем пустой слот
+        const emptySlot = me.inventory.findIndex((slot) => slot === null);
+        if (emptySlot !== -1) {
+          me.inventory[emptySlot] = {
+            type: "medical_certificate",
+            quantity: 1,
+          };
+          players.set(myId, me);
+          updateInventory();
+          showNotification("Получена медицинская справка!", "#00ffc8");
+        }
         break;
     }
   } catch (error) {

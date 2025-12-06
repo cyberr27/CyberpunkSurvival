@@ -215,6 +215,10 @@ function setupWebSocket(
               progress: {},
               completed: [],
             },
+            corporateQuest: {
+              currentQuestId: null,
+              completed: [],
+            },
           };
 
           userDatabase.set(data.username, newPlayer);
@@ -1900,6 +1904,116 @@ function setupWebSocket(
 
           ws.send(JSON.stringify({ type: "welcomeGuideSeenConfirm" }));
         }
+      } else if (data.type === "acceptCorporateQuest") {
+        const playerId = clients.get(ws);
+        if (!playerId) return;
+        const player = players.get(playerId);
+        if (!player) return;
+
+        // Инициализируем объект квестов, если его нет
+        if (!player.corporateQuest) {
+          player.corporateQuest = {
+            currentQuestId: null,
+            completed: [],
+          };
+        }
+
+        // Нельзя взять, если уже взят или выполнен
+        if (
+          player.corporateQuest.currentQuestId === data.questId ||
+          player.corporateQuest.completed.includes(data.questId)
+        ) {
+          return;
+        }
+
+        player.corporateQuest.currentQuestId = data.questId;
+        players.set(playerId, player);
+        userDatabase.set(playerId, player);
+        await saveUserDatabase(dbCollection, playerId, player);
+
+        ws.send(
+          JSON.stringify({
+            type: "corporateQuestAccepted",
+            questId: data.questId,
+          })
+        );
+      } else if (data.type === "completeCorporateQuest") {
+        const playerId = clients.get(ws);
+        if (!playerId) return;
+        const player = players.get(playerId);
+        if (!player) return;
+
+        if (
+          !player.corporateQuest ||
+          player.corporateQuest.currentQuestId !== data.questId
+        ) {
+          return; // Нет активного квеста
+        }
+
+        // Проверяем, есть ли медицинская справка
+        const hasCertificate = player.inventory?.some(
+          (item) => item && item.type === "medical_certificate"
+        );
+
+        if (!hasCertificate) {
+          ws.send(
+            JSON.stringify({
+              type: "notification",
+              text: "У тебя нет медицинской справки!",
+              color: "#ff0000",
+            })
+          );
+          return;
+        }
+
+        // Удаляем справку
+        const certIndex = player.inventory.findIndex(
+          (item) => item?.type === "medical_certificate"
+        );
+        if (certIndex !== -1) {
+          player.inventory[certIndex] = null;
+        }
+
+        // Завершаем квест
+        player.corporateQuest.currentQuestId = null;
+        if (!player.corporateQuest.completed.includes(data.questId)) {
+          player.corporateQuest.completed.push(data.questId);
+        }
+
+        // Награда
+        const reward = { xp: 100, balyary: 15 };
+        player.xp = (player.xp || 0) + reward.xp;
+
+        // Добавляем баляры
+        let balyarySlot = player.inventory.findIndex(
+          (item) => item?.type === "balyary"
+        );
+        if (balyarySlot !== -1) {
+          player.inventory[balyarySlot].quantity += reward.balyary;
+        } else {
+          const emptySlot = player.inventory.findIndex((item) => item === null);
+          if (emptySlot !== -1) {
+            player.inventory[emptySlot] = {
+              type: "balyary",
+              quantity: reward.balyary,
+            };
+          }
+        }
+
+        players.set(playerId, player);
+        userDatabase.set(playerId, player);
+        await saveUserDatabase(dbCollection, playerId, player);
+
+        // Отправляем клиенту
+        ws.send(
+          JSON.stringify({
+            type: "corporateQuestCompleted",
+            questId: data.questId,
+            reward,
+            inventory: player.inventory,
+            xp: player.xp,
+          })
+        );
       }
     });
 
