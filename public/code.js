@@ -76,6 +76,7 @@ const imageSources = {
   oclocSprite: "oclocSprite.png",
   corporateRobotSprite: "corporate_robot.png",
   robotDoctorSprite: "robotDoctorSprite.png",
+  medicalCertificateImage: "medical_certificate.png",
 };
 
 const images = {};
@@ -301,11 +302,11 @@ const ITEM_CONFIG = {
   },
   medical_certificate: {
     effect: {},
-    rarity: 1,
-    name: "Мед. справка",
+    rarity: 5, // Уникальный квестовый предмет
+    name: "Мед. справка МД-07",
     description:
-      "Официальный документ формы МД-07. Подтверждает, что вы не мутированы.",
-    icon: "medical_certificate.png", // если будет иконка — потом добавишь
+      "Официальная справка формы МД-07. Подтверждает отсутствие мутаций и зомби-вируса.",
+    image: images.medicalCertificateImage, // будет подгружено ниже
   },
 };
 

@@ -1901,7 +1901,10 @@ function setupWebSocket(
           ws.send(JSON.stringify({ type: "welcomeGuideSeenConfirm" }));
         }
       } else if (data.type === "completeDoctorQuest") {
-        const player = userDatabase.get(username);
+        const playerId = clients.get(ws);
+        if (!playerId) return;
+
+        const player = userDatabase.get(playerId);
         if (!player) return;
 
         // Проверяем, не получал ли уже
@@ -1913,20 +1916,23 @@ function setupWebSocket(
           return;
         }
 
-        // Добавляем предмет
+        // Ищем свободный слот
         const freeSlot = player.inventory.findIndex((slot) => slot === null);
         if (freeSlot === -1) {
           ws.send(JSON.stringify({ type: "inventoryFull" }));
           return;
         }
 
+        // Выдаём справку
         player.inventory[freeSlot] = {
           type: "medical_certificate",
           quantity: 1,
         };
 
-        // Сохраняем и шлём обновление
-        await saveUserDatabase(dbCollection, username, player);
+        // Сохраняем
+        players.set(playerId, player);
+        userDatabase.set(playerId, player);
+        await saveUserDatabase(dbCollection, playerId, player);
 
         ws.send(
           JSON.stringify({
@@ -1934,8 +1940,6 @@ function setupWebSocket(
             inventory: player.inventory,
           })
         );
-
-        // Уведомление другим игрокам не нужно — только инвентарь
       }
     });
 
