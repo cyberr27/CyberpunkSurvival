@@ -16,7 +16,7 @@ window.robotDoctorSystem = (function () {
   let frameTime = 0;
   let buttonsContainer = null;
   let isVisible = false;
-  let isNear = false; // флаг: игрок в зоне 50px
+  let isNear = false;
 
   function initialize(doctorSprite) {
     sprite = doctorSprite;
@@ -50,6 +50,9 @@ window.robotDoctorSystem = (function () {
   }
 
   function openDialog(mode) {
+    // Удаляем старый диалог, если есть
+    document.querySelector(".npc-dialog")?.remove();
+
     const dialog = document.createElement("div");
     dialog.className = "npc-dialog";
 
@@ -71,16 +74,20 @@ window.robotDoctorSystem = (function () {
     <div class="npc-dialog-content">
       ${content}
     </div>
-    <button class="neon-btn" onclick="this.parentElement.remove()">Закрыть</button>
+    <button class="neon-btn" onclick="this.parentElement.parentElement.remove()">Закрыть</button>
   `;
+
     document.body.appendChild(dialog);
+
+    // Фикс: правильное закрытие по кнопке "Закрыть"
+    dialog.querySelector(".neon-btn").addEventListener("click", () => {
+      dialog.remove();
+    });
   }
 
   function getQuestContent() {
     const me = players.get(myId);
-    const hasCertificate = me.inventory.some(
-      (item) => item && item.type === "medical_certificate"
-    );
+    const hasCertificate = !!me.medicalCertificate; // ГЛАВНОЕ ИЗМЕНЕНИЕ: проверяем флаг, а не инвентарь
 
     if (hasCertificate) {
       return `
@@ -101,7 +108,7 @@ window.robotDoctorSystem = (function () {
         Готов выдать официальную справку формы МД-07.»
       </p>
       <button class="neon-btn" style="background:#00ff44; padding:12px 24px; font-size:18px;" 
-              onclick="completeDoctorQuest()">Получить справку</button>
+              onclick="window.completeDoctorQuest()">Получить справку</button>
     </div>
   `;
   }
@@ -129,7 +136,7 @@ window.robotDoctorSystem = (function () {
     `;
   }
 
-  // Глобальные функции для кнопок
+  // Глобальные функции
   window.healPlayer = function (hp, cost) {
     if (ws && ws.readyState === WebSocket.OPEN) {
       sendWhenReady(
@@ -157,6 +164,19 @@ window.robotDoctorSystem = (function () {
     document.querySelector(".npc-dialog")?.remove();
   };
 
+  window.completeDoctorQuest = function () {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      sendWhenReady(
+        ws,
+        JSON.stringify({
+          type: "completeDoctorQuest",
+        })
+      );
+    }
+    // Закрываем диалог сразу после нажатия
+    document.querySelector(".npc-dialog")?.remove();
+  };
+
   function update(deltaTime) {
     if (!sprite || !sprite.complete) return;
 
@@ -172,21 +192,15 @@ window.robotDoctorSystem = (function () {
     const dy = me.y + 35 - DOCTOR_Y;
     const distance = Math.hypot(dx, dy);
 
-    // === АНИМАЦИЯ ===
-    // Всегда анимируем, НО если игрок слишком близко — замираем на первом кадре
+    // Анимация
     if (distance <= PROXIMITY_DISTANCE) {
       if (!isNear) {
         isNear = true;
-        frame = 0; // фиксируем на первом кадре
-        frameTime = 0; // сбрасываем таймер
+        frame = 0;
+        frameTime = 0;
       }
-      // Больше не обновляем frameTime — анимация остановлена
     } else {
-      if (isNear) {
-        isNear = false;
-        // Можно оставить текущий кадр или сбросить — оставляем как есть
-      }
-      // Анимация идёт всегда, когда игрок не рядом
+      if (isNear) isNear = false;
       frameTime += deltaTime;
       while (frameTime >= FRAME_DURATION) {
         frameTime -= FRAME_DURATION;
@@ -194,7 +208,7 @@ window.robotDoctorSystem = (function () {
       }
     }
 
-    // === КНОПКИ ===
+    // Кнопки
     if (distance < PROXIMITY_DISTANCE) {
       if (!isVisible) {
         isVisible = true;
@@ -233,18 +247,6 @@ window.robotDoctorSystem = (function () {
       SPRITE_HEIGHT
     );
   }
-
-  window.completeDoctorQuest = function () {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      sendWhenReady(
-        ws,
-        JSON.stringify({
-          type: "completeDoctorQuest",
-        })
-      );
-    }
-    document.querySelector(".npc-dialog")?.remove();
-  };
 
   return {
     initialize,

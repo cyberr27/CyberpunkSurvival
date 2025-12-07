@@ -542,6 +542,8 @@ function handleAuthMessage(event) {
         energyUpgrade: data.energyUpgrade || 0,
         foodUpgrade: data.foodUpgrade || 0,
         waterUpgrade: data.waterUpgrade || 0,
+
+        medicalCertificate: data.medicalCertificate || false,
       };
 
       if (window.welcomeGuideSystem && window.welcomeGuideSystem.setSeen) {
@@ -1903,13 +1905,10 @@ function handleGameMessage(event) {
         me = players.get(myId);
         if (me) {
           me.inventory = data.inventory;
+          me.medicalCertificate = data.medicalCertificate || true; // синхронизируем флаг
           inventory = data.inventory.map((i) => (i ? { ...i } : null));
           updateInventoryDisplay();
         }
-        break;
-
-      case "doctorQuestAlreadyDone":
-        showNotification("Справка уже была выдана ранее.", "#ffff00");
         break;
     }
   } catch (error) {

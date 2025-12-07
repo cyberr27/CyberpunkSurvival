@@ -215,6 +215,7 @@ function setupWebSocket(
               progress: {},
               completed: [],
             },
+            medicalCertificate: false,
           };
 
           userDatabase.set(data.username, newPlayer);
@@ -358,6 +359,7 @@ function setupWebSocket(
               progress: {},
               completed: [],
             },
+            medicalCertificate: player.medicalCertificate || false,
           };
 
           players.set(data.username, playerData);
@@ -1904,30 +1906,30 @@ function setupWebSocket(
         const playerId = clients.get(ws);
         if (!playerId) return;
 
-        const player = userDatabase.get(playerId);
+        const player = players.get(playerId);
         if (!player) return;
 
-        // Проверяем, не получал ли уже
-        const hasCert = player.inventory.some(
-          (i) => i && i.type === "medical_certificate"
-        );
-        if (hasCert) {
+        // Проверяем по флагу — не выдавали ли уже
+        if (player.medicalCertificate === true) {
           ws.send(JSON.stringify({ type: "doctorQuestAlreadyDone" }));
           return;
         }
 
-        // Ищем свободный слот
+        // Ищем свободный слот для справки
         const freeSlot = player.inventory.findIndex((slot) => slot === null);
         if (freeSlot === -1) {
           ws.send(JSON.stringify({ type: "inventoryFull" }));
           return;
         }
 
-        // Выдаём справку
+        // Выдаём предмет
         player.inventory[freeSlot] = {
           type: "medical_certificate",
           quantity: 1,
         };
+
+        // ГЛАВНОЕ: ставим флаг навсегда
+        player.medicalCertificate = true;
 
         // Сохраняем
         players.set(playerId, player);
@@ -1938,6 +1940,7 @@ function setupWebSocket(
           JSON.stringify({
             type: "doctorQuestCompleted",
             inventory: player.inventory,
+            medicalCertificate: true, // отправляем клиенту
           })
         );
       }
