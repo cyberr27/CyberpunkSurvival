@@ -1,4 +1,6 @@
-// robot_doctor.js — НОВАЯ ВЕРСИЯ 2025 (умный доктор)
+// robot_doctor.js — Оптимизированная версия 2025
+// Робот-Доктор в Неоновом городе (worldId 0) — координаты 2673, 2296
+
 window.robotDoctorSystem = (function () {
   const DOCTOR_X = 2673;
   const DOCTOR_Y = 2296;
@@ -13,14 +15,17 @@ window.robotDoctorSystem = (function () {
   let frameTime = 0;
   let isNear = false;
 
+  // Кэшируем элементы один раз
   let buttonsContainer = null;
-  let currentDialog = null;
+  let currentDialog = null; // вместо querySelector каждый раз
 
+  // === Инициализация ===
   function initialize(doctorSprite) {
     sprite = doctorSprite;
     createButtons();
   }
 
+  // === Создание кнопок (один раз) ===
   function createButtons() {
     if (buttonsContainer) return;
 
@@ -45,8 +50,9 @@ window.robotDoctorSystem = (function () {
     document.body.appendChild(buttonsContainer);
   }
 
+  // === Открытие диалога (синглтон + фикс закрытия) ===
   function openDialog(mode) {
-    closeDialog();
+    closeDialog(); // закрываем старый, если был
 
     currentDialog = document.createElement("div");
     currentDialog.className = "npc-dialog";
@@ -68,6 +74,8 @@ window.robotDoctorSystem = (function () {
     `;
 
     document.body.appendChild(currentDialog);
+
+    // Один обработчик на кнопку закрытия
     currentDialog
       .querySelector(".close-dialog")
       .addEventListener("click", closeDialog);
@@ -80,6 +88,7 @@ window.robotDoctorSystem = (function () {
     }
   }
 
+  // === Контент ===
   function getTalkText() {
     const lines = [
       "Системы в норме. Жизненные показатели: стабильны.",
@@ -88,45 +97,18 @@ window.robotDoctorSystem = (function () {
       "Ты выглядишь... приемлемо. Для человека.",
     ];
     return `<p class="npc-text fullscreen">${
-      lines[Math.floor(Math.random() * lines.length)]
+      lines[(Math.random() * lines.length) | 0]
     }</p>`;
   }
 
   function getHealOptions() {
-    const me = players.get(myId);
-    if (!me) return "<p>Ошибка: данные игрока недоступны</p>";
-
-    const isBeginner = me.level <= 5;
-    const missingHP = me.maxStats.health - me.health;
-    const fullHealCost = Math.floor(missingHP / 20);
-
     return `
-      <div style="text-align:center;padding:20px;line-height:1.8">
-        <p class="npc-text" style="margin-bottom:20px"><strong>Выберите услугу:</strong></p>
-        
-        ${
-          isBeginner
-            ? `
-          <button class="neon-btn" style="margin:10px;background:#00ff44;font-size:16px;padding:12px 20px" 
-                  onclick="window.robotDoctorHealBeginner()">
-            Осмотр для новичков (бесплатно до 5 уровня)
-          </button><br>
-        `
-            : ""
-        }
-
-        <button class="neon-btn" style="margin:10px;background:#00ffff" 
-                onclick="window.robotDoctorHeal20()">
-          Восстановить +20 HP — 1 баляр
-        </button><br>
-
-        <button class="neon-btn" style="margin:10px;background:#ff00ff" 
-                ${missingHP <= 0 ? "disabled" : ""}
-                onclick="window.robotDoctorFullHeal(${fullHealCost})">
-          Полное восстановление — ${fullHealCost} баляр(ов)
-        </button>
-      </div>
-    `;
+      <div style="text-align:center;padding:20px">
+        <p class="npc-text">Выберите услугу:</p>
+        <button class="neon-btn" style="margin:10px;background:#00ff44" onclick="healPlayer(50,100)">Лечение +50 HP — 100 баляров</button><br>
+        <button class="neon-btn" style="margin:10px;background:#00ffff" onclick="healPlayer(100,250)">Полное восстановление — 250 баляров</button><br>
+        <button class="neon-btn" style="margin:10px;background:#ff00ff" onclick="cureRadiation()">Очистка от радиации — 150 баляров</button>
+      </div>`;
   }
 
   function getQuestContent() {
@@ -154,29 +136,35 @@ window.robotDoctorSystem = (function () {
       </div>`;
   }
 
-  // === Глобальные функции для кнопок ===
-  window.robotDoctorHealBeginner = () => {
+  // === Глобальные функции (остаются, но теперь закрывают диалог автоматически) ===
+  window.healPlayer = (hp, cost) => {
     if (ws?.readyState === WebSocket.OPEN) {
-      sendWhenReady(ws, JSON.stringify({ type: "robotDoctorHealBeginner" }));
+      sendWhenReady(
+        ws,
+        JSON.stringify({ type: "robotDoctorHeal", healAmount: hp, cost })
+      );
     }
     closeDialog();
   };
 
-  window.robotDoctorHeal20 = () => {
+  window.cureRadiation = () => {
     if (ws?.readyState === WebSocket.OPEN) {
-      sendWhenReady(ws, JSON.stringify({ type: "robotDoctorHeal20" }));
+      sendWhenReady(
+        ws,
+        JSON.stringify({ type: "robotDoctorCureRadiation", cost: 150 })
+      );
     }
     closeDialog();
   };
 
-  window.robotDoctorFullHeal = (cost) => {
-    if (cost <= 0) return;
+  window.completeDoctorQuest = () => {
     if (ws?.readyState === WebSocket.OPEN) {
-      sendWhenReady(ws, JSON.stringify({ type: "robotDoctorFullHeal" }));
+      sendWhenReady(ws, JSON.stringify({ type: "completeDoctorQuest" }));
     }
     closeDialog();
   };
 
+  // === Обновление ===
   function update(deltaTime) {
     if (!sprite?.complete) return;
 
@@ -192,6 +180,7 @@ window.robotDoctorSystem = (function () {
     const dist = Math.hypot(dx, dy);
     const near = dist <= PROXIMITY;
 
+    // Анимация
     if (near) {
       if (!isNear) {
         frame = 0;
@@ -207,6 +196,7 @@ window.robotDoctorSystem = (function () {
       }
     }
 
+    // Кнопки
     if (near) {
       buttonsContainer.style.display = "flex";
       const cam = window.movementSystem.getCamera();
@@ -219,6 +209,7 @@ window.robotDoctorSystem = (function () {
     }
   }
 
+  // === Рисование ===
   function draw() {
     if (!sprite?.complete) return;
     const me = players.get(myId);
