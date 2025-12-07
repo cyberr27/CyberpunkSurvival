@@ -1943,6 +1943,145 @@ function setupWebSocket(
             medicalCertificate: true, // отправляем клиенту
           })
         );
+      } else if (data.type === "robotDoctorHealBeginner") {
+        const id = clients.get(ws);
+        if (!id) return;
+        const player = players.get(id);
+        if (!player || player.level > 5 || player.worldId !== 0) return;
+
+        if (player.health < 100) {
+          player.health = Math.min(
+            100 + (player.healthUpgrade || 0),
+            player.maxStats.health
+          );
+          players.set(id, { ...player });
+          userDatabase.set(id, { ...player });
+          await saveUserDatabase(dbCollection, id, player);
+
+          ws.send(
+            JSON.stringify({
+              type: "robotDoctorHealResult",
+              success: true,
+              health: player.health,
+              message:
+                "Осмотр пройден. Здоровье восстановлено до базовых значений.",
+            })
+          );
+        } else {
+          ws.send(
+            JSON.stringify({
+              type: "robotDoctorHealResult",
+              success: false,
+              message: "Вы и так здоровы!",
+            })
+          );
+        }
+      } else if (data.type === "robotDoctorHeal20") {
+        const id = clients.get(ws);
+        if (!id) return;
+        const player = players.get(id);
+        if (!player || player.worldId !== 0) return;
+
+        // Ищем баляры
+        const balyarySlot = player.inventory.findIndex(
+          (s) => s && s.type === "balyary"
+        );
+        if (
+          balyarySlot === -1 ||
+          (player.inventory[balyarySlot].quantity || 0) < 1
+        ) {
+          ws.send(
+            JSON.stringify({
+              type: "robotDoctorHealResult",
+              success: false,
+              message: "Недостаточно баляров!",
+            })
+          );
+          return;
+        }
+
+        // Тратим 1 баляр
+        if (player.inventory[balyarySlot].quantity === 1) {
+          player.inventory[balyarySlot] = null;
+        } else {
+          player.inventory[balyarySlot].quantity -= 1;
+        }
+
+        // +20 HP
+        player.health = Math.min(player.health + 20, player.maxStats.health);
+
+        players.set(id, { ...player });
+        userDatabase.set(id, { ...player });
+        await saveUserDatabase(dbCollection, id, player);
+
+        ws.send(
+          JSON.stringify({
+            type: "robotDoctorHealResult",
+            success: true,
+            health: player.health,
+            inventory: player.inventory,
+            message: "+20 HP за 1 баляр",
+          })
+        );
+      } else if (data.type === "robotDoctorFullHeal") {
+        const id = clients.get(ws);
+        if (!id) return;
+        const player = players.get(id);
+        if (!player || player.worldId !== 0) return;
+
+        const missingHP = player.maxStats.health - player.health;
+        if (missingHP <= 0) {
+          ws.send(
+            JSON.stringify({
+              type: "robotDoctorHealResult",
+              success: false,
+              message: "Здоровье уже полное!",
+            })
+          );
+          return;
+        }
+
+        const cost = Math.floor(missingHP / 20);
+        const balyarySlot = player.inventory.findIndex(
+          (s) => s && s.type === "balyary"
+        );
+        const balyaryCount =
+          balyarySlot !== -1 ? player.inventory[balyarySlot].quantity || 0 : 0;
+
+        if (balyaryCount < cost) {
+          ws.send(
+            JSON.stringify({
+              type: "robotDoctorHealResult",
+              success: false,
+              message: `Недостаточно баляров! Нужно: ${cost}`,
+            })
+          );
+          return;
+        }
+
+        // Тратим баляры
+        if (balyaryCount === cost) {
+          player.inventory[balyarySlot] = null;
+        } else {
+          player.inventory[balyarySlot].quantity -= cost;
+        }
+
+        // Полное восстановление
+        player.health = player.maxStats.health;
+
+        players.set(id, { ...player });
+        userDatabase.set(id, { ...player });
+        await saveUserDatabase(dbCollection, id, player);
+
+        ws.send(
+          JSON.stringify({
+            type: "robotDoctorHealResult",
+            success: true,
+            health: player.health,
+            inventory: player.inventory,
+            message: `Полное восстановление за ${cost} баляр(ов)`,
+          })
+        );
       }
     });
 

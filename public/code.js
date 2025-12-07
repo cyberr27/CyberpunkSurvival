@@ -1910,6 +1910,24 @@ function handleGameMessage(event) {
           updateInventoryDisplay();
         }
         break;
+      case "robotDoctorHealResult":
+        if (data.success) {
+          const me = players.get(myId);
+          me.health = data.health;
+          if (data.inventory) {
+            me.inventory = data.inventory;
+            inventory = data.inventory.map((i) => (i ? { ...i } : null));
+            updateInventoryDisplay();
+          }
+          updateStatsDisplay();
+          showNotification(
+            data.message || "Лечение прошло успешно!",
+            "#00ff44"
+          );
+        } else {
+          showNotification(data.message || "Лечение не удалось", "#ff0066");
+        }
+        break;
     }
   } catch (error) {
     console.error("Ошибка в handleGameMessage:", error);
