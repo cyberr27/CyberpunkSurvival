@@ -530,6 +530,7 @@ function handleAuthMessage(event) {
         npcMet: data.npcMet || false,
         jackMet: data.jackMet || false,
         alexNeonMet: data.alexNeonMet || false, // ДОБАВЛЕНО
+        captainMet: data.captainMet || false,
         selectedQuestId: data.selectedQuestId || null,
         level: data.level || 0,
         xp: data.xp || 99,
@@ -618,6 +619,9 @@ function handleAuthMessage(event) {
       // НЕОН АЛЕКС — САМОЕ ГЛАВНОЕ
       if (window.neonNpcSystem && data.alexNeonMet !== undefined) {
         NEON_NPC.isMet = !!data.alexNeonMet;
+      }
+      if (window.outpostCaptainSystem) {
+        window.outpostCaptainSystem.setCaptainMet(data.captainMet === true);
       }
 
       // Квесты Джона
@@ -733,6 +737,7 @@ function startGame() {
   window.movementSystem.initialize(); // Инициализируем систему движения
   window.npcSystem.initialize(images.johnSprite); // Передаём изображение NPC
   window.jackSystem.initialize(images.jackSprite);
+  if (window.outpostCaptainSystem) window.outpostCaptainSystem.initialize();
   window.vacuumRobotSystem.initialize(images.vacuumRobotSprite);
   window.cockroachSystem.initialize(images.cockroachSprite);
   window.droneSystem.initialize(images.droneSprite);
@@ -973,6 +978,10 @@ function startGame() {
   const me = players.get(myId);
   if (me && me.equipment) {
     window.equipmentSystem.syncEquipment(me.equipment);
+  }
+
+  if (window.outpostCaptainSystem) {
+    window.outpostCaptainSystem.initialize();
   }
 
   requestAnimationFrame(gameLoop);
@@ -1994,6 +2003,9 @@ function update(deltaTime) {
   if (window.robotDoctorSystem) {
     window.robotDoctorSystem.update(deltaTime);
   }
+  if (window.outpostCaptainSystem) {
+    window.outpostCaptainSystem.update(deltaTime);
+  }
   // Проверяем зоны перехода
   window.worldSystem.checkTransitionZones(me.x, me.y);
 
@@ -2274,6 +2286,7 @@ function draw(deltaTime) {
   if (window.robotDoctorSystem) {
     window.robotDoctorSystem.draw();
   }
+  window.outpostCaptainSystem.drawCaptain(ctx, cameraX, cameraY);
   clockSystem.draw();
   window.droneSystem.draw();
 

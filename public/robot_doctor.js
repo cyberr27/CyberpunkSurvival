@@ -1,8 +1,8 @@
 // robot_doctor.js — Полностью обновлённая версия под новую логику (2025)
 
 window.robotDoctorSystem = (function () {
-  const DOCTOR_X = 2673;
-  const DOCTOR_Y = 2296;
+  const DOCTOR_X = 2772;
+  const DOCTOR_Y = 2332;
   const PROXIMITY = 50;
   const SPRITE_W = 70;
   const SPRITE_H = 70;

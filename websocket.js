@@ -197,6 +197,7 @@ function setupWebSocket(
             npcMet: false,
             jackMet: false,
             alexNeonMet: false,
+            captainMet: false,
             level: 0,
             xp: 0,
             upgradePoints: 0,
@@ -338,6 +339,7 @@ function setupWebSocket(
             npcMet: player.npcMet || false,
             jackMet: player.jackMet || false,
             alexNeonMet: player.alexNeonMet || false,
+            captainMet: player.captainMet || false,
             selectedQuestId: player.selectedQuestId || null,
             level: player.level || 0,
             xp: player.xp || 0,
@@ -383,6 +385,7 @@ function setupWebSocket(
               npcMet: playerData.npcMet,
               jackMet: playerData.jackMet,
               alexNeonMet: playerData.alexNeonMet,
+              captainMet: playerData.captainMet,
               selectedQuestId: playerData.selectedQuestId,
               level: playerData.level,
               xp: playerData.xp,
@@ -509,6 +512,48 @@ function setupWebSocket(
           if (data.npcMet && data.availableQuests) {
             player.availableQuests = data.availableQuests;
           }
+          players.set(id, { ...player });
+          userDatabase.set(id, { ...player });
+          await saveUserDatabase(dbCollection, id, player);
+        }
+      } else if (data.type === "meetJack") {
+        const id = clients.get(ws);
+        if (id) {
+          const player = players.get(id);
+          player.jackMet = true;
+          players.set(id, { ...player });
+          userDatabase.set(id, { ...player });
+          await saveUserDatabase(dbCollection, id, player);
+        }
+      } else if (data.type === "meetNeonAlex") {
+        const id = clients.get(ws);
+        if (id) {
+          const player = players.get(id);
+          player.alexNeonMet = true;
+          players.set(id, { ...player });
+          userDatabase.set(id, { ...player });
+          await saveUserDatabase(dbCollection, id, player);
+
+          // Рассылаем всем в мире обновление (чтобы у других игроков тоже обновился флаг)
+          broadcastToWorld(
+            wss,
+            clients,
+            players,
+            player.worldId,
+            JSON.stringify({
+              type: "update",
+              player: {
+                id: player.id,
+                alexNeonMet: true,
+              },
+            })
+          );
+        }
+      } else if (data.type === "meetCaptain") {
+        const id = clients.get(ws);
+        if (id) {
+          const player = players.get(id);
+          player.captainMet = data.captainMet;
           players.set(id, { ...player });
           userDatabase.set(id, { ...player });
           await saveUserDatabase(dbCollection, id, player);
@@ -1805,39 +1850,6 @@ function setupWebSocket(
                 health: enemy.health,
                 x: enemy.x,
                 y: enemy.y,
-              },
-            })
-          );
-        }
-      } else if (data.type === "meetJack") {
-        const id = clients.get(ws);
-        if (id) {
-          const player = players.get(id);
-          player.jackMet = true;
-          players.set(id, { ...player });
-          userDatabase.set(id, { ...player });
-          await saveUserDatabase(dbCollection, id, player);
-        }
-      } else if (data.type === "meetNeonAlex") {
-        const id = clients.get(ws);
-        if (id) {
-          const player = players.get(id);
-          player.alexNeonMet = true;
-          players.set(id, { ...player });
-          userDatabase.set(id, { ...player });
-          await saveUserDatabase(dbCollection, id, player);
-
-          // Рассылаем всем в мире обновление (чтобы у других игроков тоже обновился флаг)
-          broadcastToWorld(
-            wss,
-            clients,
-            players,
-            player.worldId,
-            JSON.stringify({
-              type: "update",
-              player: {
-                id: player.id,
-                alexNeonMet: true,
               },
             })
           );
