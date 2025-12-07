@@ -1910,6 +1910,29 @@ function handleGameMessage(event) {
           updateInventoryDisplay();
         }
         break;
+      case "robotDoctorResult":
+        if (data.success) {
+          const me = players.get(myId);
+          if (me) {
+            if (data.health !== undefined) me.health = data.health;
+            if (data.inventory) {
+              inventory = data.inventory.map((i) => (i ? { ...i } : null));
+              updateInventoryDisplay();
+            }
+            updateStatsDisplay();
+            showNotification(
+              data.action === "freeHeal"
+                ? "Осмотр пройден. Здоровье восстановлено!"
+                : data.action === "heal20"
+                ? "+20 HP за 1 баляр"
+                : `Полное восстановление за ${data.cost} баляров!`,
+              "#00ff44"
+            );
+          }
+        } else {
+          showNotification(data.error || "Лечение невозможно", "#ff0066");
+        }
+        break;
     }
   } catch (error) {
     console.error("Ошибка в handleGameMessage:", error);

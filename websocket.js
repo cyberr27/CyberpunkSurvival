@@ -1943,6 +1943,141 @@ function setupWebSocket(
             medicalCertificate: true, // отправляем клиенту
           })
         );
+      } else if (data.type === "robotDoctorFreeHeal") {
+        const playerId = clients.get(ws);
+        if (!playerId || !players.has(playerId)) return;
+
+        const player = players.get(playerId);
+        if (player.level > 5 || player.health >= player.maxStats.health) {
+          ws.send(
+            JSON.stringify({
+              type: "robotDoctorResult",
+              success: false,
+              error: "Условия не выполнены",
+            })
+          );
+          return;
+        }
+
+        player.health = player.maxStats.health;
+
+        players.set(playerId, player);
+        userDatabase.set(playerId, player);
+        await saveUserDatabase(dbCollection, playerId, player);
+
+        ws.send(
+          JSON.stringify({
+            type: "robotDoctorResult",
+            success: true,
+            action: "freeHeal",
+            health: player.health,
+          })
+        );
+      } else if (data.type === "robotDoctorHeal20") {
+        const playerId = clients.get(ws);
+        if (!playerId || !players.has(playerId)) return;
+
+        const player = players.get(playerId);
+
+        // Ищем баляры
+        const balyarySlot = player.inventory.findIndex(
+          (s) => s && s.type === "balyary"
+        );
+        if (
+          balyarySlot === -1 ||
+          (player.inventory[balyarySlot].quantity || 0) < 1
+        ) {
+          ws.send(
+            JSON.stringify({
+              type: "robotDoctorResult",
+              success: false,
+              error: "Нет баляров",
+            })
+          );
+          return;
+        }
+
+        // Снимаем 1 баляр
+        if (player.inventory[balyarySlot].quantity === 1) {
+          player.inventory[balyarySlot] = null;
+        } else {
+          player.inventory[balyarySlot].quantity -= 1;
+        }
+
+        // +20 HP (но не больше максимума)
+        player.health = Math.min(player.maxStats.health, player.health + 20);
+
+        players.set(playerId, player);
+        userDatabase.set(playerId, player);
+        await saveUserDatabase(dbCollection, playerId, player);
+
+        ws.send(
+          JSON.stringify({
+            type: "robotDoctorResult",
+            success: true,
+            action: "heal20",
+            health: player.health,
+            inventory: player.inventory,
+          })
+        );
+      } else if (data.type === "robotDoctorFullHeal") {
+        const playerId = clients.get(ws);
+        if (!playerId || !players.has(playerId)) return;
+
+        const player = players.get(playerId);
+        const missingHP = player.maxStats.health - player.health;
+        if (missingHP <= 0) {
+          ws.send(
+            JSON.stringify({
+              type: "robotDoctorResult",
+              success: false,
+              error: "Здоровье уже полное",
+            })
+          );
+          return;
+        }
+
+        const cost = Math.floor(missingHP / 20);
+        const balyarySlot = player.inventory.findIndex(
+          (s) => s && s.type === "balyary"
+        );
+        const balyaryCount =
+          balyarySlot !== -1 ? player.inventory[balyarySlot].quantity || 0 : 0;
+
+        if (balyaryCount < cost) {
+          ws.send(
+            JSON.stringify({
+              type: "robotDoctorResult",
+              success: false,
+              error: "Недостаточно баляров",
+            })
+          );
+          return;
+        }
+
+        // Снимаем баляры
+        if (balyaryCount === cost) {
+          player.inventory[balyarySlot] = null;
+        } else {
+          player.inventory[balyarySlot].quantity -= cost;
+        }
+
+        player.health = player.maxStats.health;
+
+        players.set(playerId, player);
+        userDatabase.set(playerId, player);
+        await saveUserDatabase(dbCollection, playerId, player);
+
+        ws.send(
+          JSON.stringify({
+            type: "robotDoctorResult",
+            success: true,
+            action: "fullHeal",
+            health: player.health,
+            cost: cost,
+            inventory: player.inventory,
+          })
+        );
       }
     });
 
