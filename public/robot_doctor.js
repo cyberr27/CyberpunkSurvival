@@ -1,118 +1,94 @@
-// robot_doctor.js
+// robot_doctor.js — Оптимизированная версия 2025
 // Робот-Доктор в Неоновом городе (worldId 0) — координаты 2673, 2296
-// Анимация идёт всегда, останавливается только при близком подходе игрока
 
 window.robotDoctorSystem = (function () {
   const DOCTOR_X = 2673;
   const DOCTOR_Y = 2296;
-  const PROXIMITY_DISTANCE = 50; // пикселей — зона показа кнопок
-  const SPRITE_WIDTH = 70;
-  const SPRITE_HEIGHT = 70;
+  const PROXIMITY = 50;
+  const SPRITE_W = 70;
+  const SPRITE_H = 70;
   const FRAME_COUNT = 13;
-  const FRAME_DURATION = 140; // ms на кадр (≈8.3 FPS)
+  const FRAME_MS = 140;
 
   let sprite = null;
   let frame = 0;
   let frameTime = 0;
-  let buttonsContainer = null;
-  let isVisible = false;
   let isNear = false;
 
+  // Кэшируем элементы один раз
+  let buttonsContainer = null;
+  let currentDialog = null; // вместо querySelector каждый раз
+
+  // === Инициализация ===
   function initialize(doctorSprite) {
     sprite = doctorSprite;
     createButtons();
   }
 
+  // === Создание кнопок (один раз) ===
   function createButtons() {
+    if (buttonsContainer) return;
+
     buttonsContainer = document.createElement("div");
     buttonsContainer.className = "npc-buttons-container";
     buttonsContainer.style.display = "none";
 
-    const talkBtn = document.createElement("div");
-    talkBtn.className = "npc-button npc-talk-btn";
-    talkBtn.textContent = "Говорить";
-    talkBtn.onclick = () => openDialog("talk");
+    const buttons = [
+      { text: "Говорить", class: "npc-talk-btn", mode: "talk" },
+      { text: "Лечение", class: "npc-quests-btn", mode: "heal" },
+      { text: "Задания", class: "npc-quest-btn", mode: "quest" },
+    ];
 
-    const healBtn = document.createElement("div");
-    healBtn.className = "npc-button npc-quests-btn";
-    healBtn.textContent = "Лечение";
-    healBtn.onclick = () => openDialog("heal");
+    buttons.forEach((btn) => {
+      const el = document.createElement("div");
+      el.className = `npc-button ${btn.class}`;
+      el.textContent = btn.text;
+      el.onclick = () => openDialog(btn.mode);
+      buttonsContainer.appendChild(el);
+    });
 
-    const questBtn = document.createElement("div");
-    questBtn.className = "npc-button npc-quest-btn";
-    questBtn.textContent = "Задания";
-    questBtn.onclick = () => openDialog("quest");
-
-    buttonsContainer.appendChild(talkBtn);
-    buttonsContainer.appendChild(healBtn);
-    buttonsContainer.appendChild(questBtn);
     document.body.appendChild(buttonsContainer);
   }
 
+  // === Открытие диалога (синглтон + фикс закрытия) ===
   function openDialog(mode) {
-    // Удаляем старый диалог, если есть
-    document.querySelector(".npc-dialog")?.remove();
+    closeDialog(); // закрываем старый, если был
 
-    const dialog = document.createElement("div");
-    dialog.className = "npc-dialog";
+    currentDialog = document.createElement("div");
+    currentDialog.className = "npc-dialog";
 
-    let content = "";
+    const content =
+      mode === "talk"
+        ? getTalkText()
+        : mode === "heal"
+        ? getHealOptions()
+        : getQuestContent();
 
-    if (mode === "talk") {
-      content = getTalkText();
-    } else if (mode === "heal") {
-      content = getHealOptions();
-    } else if (mode === "quest") {
-      content = getQuestContent();
-    }
-
-    dialog.innerHTML = `
-    <div class="npc-dialog-header">
-      <img src="robot_doctor_photo.png" class="npc-photo" alt="Робот-Доктор">
-      <h2 class="npc-title">Робот-Доктор v3.7</h2>
-    </div>
-    <div class="npc-dialog-content">
-      ${content}
-    </div>
-    <button class="neon-btn" onclick="this.parentElement.parentElement.remove()">Закрыть</button>
-  `;
-
-    document.body.appendChild(dialog);
-
-    // Фикс: правильное закрытие по кнопке "Закрыть"
-    dialog.querySelector(".neon-btn").addEventListener("click", () => {
-      dialog.remove();
-    });
-  }
-
-  function getQuestContent() {
-    const me = players.get(myId);
-    const hasCertificate = !!me.medicalCertificate; // ГЛАВНОЕ ИЗМЕНЕНИЕ: проверяем флаг, а не инвентарь
-
-    if (hasCertificate) {
-      return `
-      <div style="text-align:center; padding:20px;">
-        <h3 style="color:#00ff44; margin-bottom:15px;">Получение мед. справки</h3>
-        <p class="npc-text fullscreen">Справка формы МД-07 уже выдана. Повторная выдача не предусмотрена протоколом.</p>
+    currentDialog.innerHTML = `
+      <div class="npc-dialog-header">
+        <img src="robot_doctor_photo.png" class="npc-photo" alt="Робот-Доктор">
+        <h2 class="npc-title">Робот-Доктор v3.7</h2>
       </div>
+      <div class="npc-dialog-content">${content}</div>
+      <button class="neon-btn close-dialog">Закрыть</button>
     `;
-    }
 
-    return `
-    <div style="text-align:center; padding:20px;">
-      <h3 style="color:#00ffff; margin-bottom:15px;">Получение мед. справки</h3>
-      После сканирования:
-      <p class="npc-text fullscreen" style="margin:20px 0;">
-        «Органические ткани в пределах нормы для постапокалиптического выжившего.<br>
-        Мутаций не обнаружено. Зомби-вирус отсутствует.<br>
-        Готов выдать официальную справку формы МД-07.»
-      </p>
-      <button class="neon-btn" style="background:#00ff44; padding:12px 24px; font-size:18px;" 
-              onclick="window.completeDoctorQuest()">Получить справку</button>
-    </div>
-  `;
+    document.body.appendChild(currentDialog);
+
+    // Один обработчик на кнопку закрытия
+    currentDialog
+      .querySelector(".close-dialog")
+      .addEventListener("click", closeDialog);
   }
 
+  function closeDialog() {
+    if (currentDialog) {
+      currentDialog.remove();
+      currentDialog = null;
+    }
+  }
+
+  // === Контент ===
   function getTalkText() {
     const lines = [
       "Системы в норме. Жизненные показатели: стабильны.",
@@ -121,136 +97,140 @@ window.robotDoctorSystem = (function () {
       "Ты выглядишь... приемлемо. Для человека.",
     ];
     return `<p class="npc-text fullscreen">${
-      lines[Math.floor(Math.random() * lines.length)]
+      lines[(Math.random() * lines.length) | 0]
     }</p>`;
   }
 
   function getHealOptions() {
     return `
-      <div style="text-align:center; padding:20px;">
+      <div style="text-align:center;padding:20px">
         <p class="npc-text">Выберите услугу:</p>
-        <button class="neon-btn" style="margin:10px; background:#00ff44;" onclick="healPlayer(50, 100)">Лечение +50 HP — 100 баляров</button><br>
-        <button class="neon-btn" style="margin:10px; background:#00ffff;" onclick="healPlayer(100, 250)">Полное восстановление — 250 баляров</button><br>
-        <button class="neon-btn" style="margin:10px; background:#ff00ff;" onclick="cureRadiation()">Очистка от радиации — 150 баляров</button>
-      </div>
-    `;
+        <button class="neon-btn" style="margin:10px;background:#00ff44" onclick="healPlayer(50,100)">Лечение +50 HP — 100 баляров</button><br>
+        <button class="neon-btn" style="margin:10px;background:#00ffff" onclick="healPlayer(100,250)">Полное восстановление — 250 баляров</button><br>
+        <button class="neon-btn" style="margin:10px;background:#ff00ff" onclick="cureRadiation()">Очистка от радиации — 150 баляров</button>
+      </div>`;
   }
 
-  // Глобальные функции
-  window.healPlayer = function (hp, cost) {
-    if (ws && ws.readyState === WebSocket.OPEN) {
+  function getQuestContent() {
+    const me = players.get(myId);
+    const hasCert = me?.medicalCertificate;
+
+    if (hasCert) {
+      return `
+        <div style="text-align:center;padding:20px">
+          <h3 style="color:#00ff44;margin-bottom:15px">Получение мед. справки</h3>
+          <p class="npc-text fullscreen">Справка формы МД-07 уже выдана. Повторная выдача не предусмотрена протоколом.</p>
+        </div>`;
+    }
+
+    return `
+      <div style="text-align:center;padding:20px">
+        <h3 style="color:#00ffff;margin-bottom:15px">Получение мед. справки</h3>
+        <p class="npc-text fullscreen" style="margin:20px 0">
+          «Органические ткани в пределах нормы для постапокалиптического выжившего.<br>
+          Мутаций не обнаружено. Зомби-вирус отсутствует.<br>
+          Готов выдать официальную справку формы МД-07.»
+        </p>
+        <button class="neon-btn" style="background:#00ff44;padding:12px 24px;font-size:18px" 
+                onclick="window.completeDoctorQuest()">Получить справку</button>
+      </div>`;
+  }
+
+  // === Глобальные функции (остаются, но теперь закрывают диалог автоматически) ===
+  window.healPlayer = (hp, cost) => {
+    if (ws?.readyState === WebSocket.OPEN) {
       sendWhenReady(
         ws,
-        JSON.stringify({
-          type: "robotDoctorHeal",
-          healAmount: hp,
-          cost: cost,
-        })
+        JSON.stringify({ type: "robotDoctorHeal", healAmount: hp, cost })
       );
     }
-    document.querySelector(".npc-dialog")?.remove();
+    closeDialog();
   };
 
-  window.cureRadiation = function () {
-    if (ws && ws.readyState === WebSocket.OPEN) {
+  window.cureRadiation = () => {
+    if (ws?.readyState === WebSocket.OPEN) {
       sendWhenReady(
         ws,
-        JSON.stringify({
-          type: "robotDoctorCureRadiation",
-          cost: 150,
-        })
+        JSON.stringify({ type: "robotDoctorCureRadiation", cost: 150 })
       );
     }
-    document.querySelector(".npc-dialog")?.remove();
+    closeDialog();
   };
 
-  window.completeDoctorQuest = function () {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      sendWhenReady(
-        ws,
-        JSON.stringify({
-          type: "completeDoctorQuest",
-        })
-      );
+  window.completeDoctorQuest = () => {
+    if (ws?.readyState === WebSocket.OPEN) {
+      sendWhenReady(ws, JSON.stringify({ type: "completeDoctorQuest" }));
     }
-    // Закрываем диалог сразу после нажатия
-    document.querySelector(".npc-dialog")?.remove();
+    closeDialog();
   };
 
+  // === Обновление ===
   function update(deltaTime) {
-    if (!sprite || !sprite.complete) return;
+    if (!sprite?.complete) return;
 
     const me = players.get(myId);
     if (!me || me.worldId !== 0) {
       buttonsContainer.style.display = "none";
-      isVisible = false;
       isNear = false;
       return;
     }
 
     const dx = me.x + 35 - DOCTOR_X;
     const dy = me.y + 35 - DOCTOR_Y;
-    const distance = Math.hypot(dx, dy);
+    const dist = Math.hypot(dx, dy);
+    const near = dist <= PROXIMITY;
 
     // Анимация
-    if (distance <= PROXIMITY_DISTANCE) {
+    if (near) {
       if (!isNear) {
-        isNear = true;
         frame = 0;
         frameTime = 0;
       }
+      isNear = true;
     } else {
       if (isNear) isNear = false;
       frameTime += deltaTime;
-      while (frameTime >= FRAME_DURATION) {
-        frameTime -= FRAME_DURATION;
+      while (frameTime >= FRAME_MS) {
+        frameTime -= FRAME_MS;
         frame = (frame + 1) % FRAME_COUNT;
       }
     }
 
     // Кнопки
-    if (distance < PROXIMITY_DISTANCE) {
-      if (!isVisible) {
-        isVisible = true;
-        buttonsContainer.style.display = "flex";
-      }
-      const screenX = DOCTOR_X - window.movementSystem.getCamera().x + 35;
-      const screenY = DOCTOR_Y - window.movementSystem.getCamera().y - 60;
-      buttonsContainer.style.left = screenX + "px";
-      buttonsContainer.style.top = screenY + "px";
+    if (near) {
+      buttonsContainer.style.display = "flex";
+      const cam = window.movementSystem.getCamera();
+      const sx = DOCTOR_X - cam.x + 35;
+      const sy = DOCTOR_Y - cam.y - 60;
+      buttonsContainer.style.left = sx + "px";
+      buttonsContainer.style.top = sy + "px";
     } else {
-      if (isVisible) {
-        isVisible = false;
-        buttonsContainer.style.display = "none";
-      }
+      buttonsContainer.style.display = "none";
     }
   }
 
+  // === Рисование ===
   function draw() {
-    if (!sprite || !sprite.complete) return;
+    if (!sprite?.complete) return;
     const me = players.get(myId);
     if (!me || me.worldId !== 0) return;
 
-    const camera = window.movementSystem.getCamera();
-    const screenX = DOCTOR_X - camera.x;
-    const screenY = DOCTOR_Y - camera.y;
+    const cam = window.movementSystem.getCamera();
+    const sx = DOCTOR_X - cam.x;
+    const sy = DOCTOR_Y - cam.y;
 
     ctx.drawImage(
       sprite,
-      frame * SPRITE_WIDTH,
+      frame * SPRITE_W,
       0,
-      SPRITE_WIDTH,
-      SPRITE_HEIGHT,
-      screenX,
-      screenY,
-      SPRITE_WIDTH,
-      SPRITE_HEIGHT
+      SPRITE_W,
+      SPRITE_H,
+      sx,
+      sy,
+      SPRITE_W,
+      SPRITE_H
     );
   }
 
-  return {
-    initialize,
-    update,
-    draw,
-  };
+  return { initialize, update, draw };
 })();
