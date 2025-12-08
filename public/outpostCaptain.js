@@ -1,6 +1,5 @@
 // ===============================================
-//          КАПИТАН ЗАСТАВЫ — ФИНАЛЬНАЯ ВЕРСИЯ 2025
-//  100% синхронизация | без багов | чистый код
+//          КАПИТАН ЗАСТАВЫ — ФИНАЛЬНАЯ ВЕРСИЯ 2025 (ОБНОВЛЕНО ПОД НОВУЮ ЛОГИКУ ПЕЧАТИ)
 // ===============================================
 
 const OUTPOST_CAPTAIN = {
@@ -82,7 +81,6 @@ function drawCaptain(ctx, cameraX, cameraY) {
   const screenX = OUTPOST_CAPTAIN.x - cameraX;
   const screenY = OUTPOST_CAPTAIN.y - cameraY - OUTPOST_CAPTAIN.height + 30;
 
-  // Если далеко — закрываем всё
   if (
     screenX < -200 ||
     screenX > canvas.width + 200 ||
@@ -93,7 +91,6 @@ function drawCaptain(ctx, cameraX, cameraY) {
     return;
   }
 
-  // Рисуем спрайт
   if (captainSprite?.complete && captainSprite.naturalWidth > 0) {
     ctx.drawImage(
       captainSprite,
@@ -114,7 +111,6 @@ function drawCaptain(ctx, cameraX, cameraY) {
     ctx.fillText("CAPT", screenX + 20, screenY + 40);
   }
 
-  // Имя
   ctx.font = "16px 'Courier New'";
   ctx.fillStyle = "#00ffff";
   ctx.strokeStyle = "#000";
@@ -143,7 +139,7 @@ function drawCaptain(ctx, cameraX, cameraY) {
       createCaptainButtons(screenX, screenY);
     }
   } else {
-    closeAllCaptainUI(); // ← ГАРАНТИРОВАННОЕ ЗАКРЫТИЕ
+    closeAllCaptainUI();
   }
 }
 
@@ -278,7 +274,7 @@ function openCaptainTalk() {
 }
 
 // ===============================================
-// ГЛАВНОЕ: ЗАДАНИЯ — ПЕЧАТЬ НА СПРАВКУ
+// ГЛАВНОЕ: ЗАДАНИЯ — ПЕЧАТЬ НА СПРАВКУ (НОВАЯ ЛОГИКА 2025)
 // ===============================================
 function openCaptainQuests() {
   closeAllCaptainUI();
@@ -287,15 +283,13 @@ function openCaptainQuests() {
   const me = players.get(myId);
   if (!me) return;
 
-  const hasStamp = me.medicalCertificateStamped === true;
-
   const dialog = document.createElement("div");
   dialog.className = "npc-dialog";
   dialog.id = "captainDialog";
   document.getElementById("gameContainer").appendChild(dialog);
 
-  if (hasStamp) {
-    // УЖЕ ЕСТЬ ПЕЧАТЬ
+  // Если печать уже стоит
+  if (me.medicalCertificateStamped === true) {
     dialog.innerHTML = `
       <div class="npc-dialog-header">
         <div style="width:80px;height:80px;background:#222;border:2px solid #00ff00;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#00ff00;font-size:32px;font-weight:bold;">✓</div>
@@ -308,10 +302,17 @@ function openCaptainQuests() {
           Возвращайся позже — может, что-то подвернётся.
         </p>
       </div>
-      <button class="neon-btn" onclick="document.getElementById('captainDialog')?.remove(); window.outpostCaptainSystem.isCaptainDialogOpen=false;">Закрыть</button>
+      <button class="neon-btn" id="closeBtn">Закрыть</button>
     `;
-  } else {
-    // ЕСТЬ СПРАВКА — ПРЕДЛАГАЕМ ПОСТАВИТЬ ПЕЧАТЬ
+    dialog.querySelector("#closeBtn").onclick = () => {
+      dialog.remove();
+      isCaptainDialogOpen = false;
+    };
+    return;
+  }
+
+  // Если есть справка, но нет печати — предлагаем поставить
+  if (me.medicalCertificate === true) {
     dialog.innerHTML = `
       <div class="npc-dialog-header">
         <div style="width:80px;height:80px;background:#222;border:2px solid #ffff00;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#ffff00;font-size:36px;font-weight:bold;">?</div>
@@ -329,12 +330,30 @@ function openCaptainQuests() {
     `;
 
     dialog.querySelector("#stampRequestBtn").onclick = () => {
-      sendWhenReady(ws, JSON.stringify({ type: "requestCaptainStamp" })); // ← правильный тип!
-      dialog.querySelector(".npc-text").innerHTML = "Печать ставится...";
-      dialog.querySelector("#stampRequestBtn").disabled = true;
-      dialog.querySelector("#stampRequestBtn").textContent = "Ждём...";
+      sendWhenReady(ws, JSON.stringify({ type: "requestCaptainStamp" }));
+      dialog.remove(); // ← сразу закрываем
+      isCaptainDialogOpen = false; // ← без "Ждём..."
     };
 
+    dialog.querySelector("#closeBtn").onclick = () => {
+      dialog.remove();
+      isCaptainDialogOpen = false;
+    };
+  } else {
+    // Нет справки — просто инфа
+    dialog.innerHTML = `
+      <div class="npc-dialog-header">
+        <div style="width:80px;height:80px;background:#222;border:2px solid #ff0066;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#ff0066;font-size:36px;font-weight:bold;">!</div>
+        <h2 class="npc-title">Капитан Райдер</h2>
+      </div>
+      <div class="npc-dialog-content">
+        <p class="npc-text fullscreen" style="line-height:1.8;">
+          Принеси медсправку МД-07 от робота-доктора.<br><br>
+          Только с печатью заставы пропустим в Неоновый Город.
+        </p>
+      </div>
+      <button class="neon-btn" id="closeBtn">Понял</button>
+    `;
     dialog.querySelector("#closeBtn").onclick = () => {
       dialog.remove();
       isCaptainDialogOpen = false;
@@ -354,5 +373,5 @@ window.outpostCaptainSystem = {
     if (!met) hasCaptainGreetingShown = false;
   },
   isCaptainDialogOpen: () => isCaptainDialogOpen,
-  closeAllCaptainUI, // можно использовать извне, если надо
+  closeAllCaptainUI,
 };
