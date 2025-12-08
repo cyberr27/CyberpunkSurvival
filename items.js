@@ -1,6 +1,8 @@
 // items.js — ПОЛНОСТЬЮ ОБНОВЛЁННАЯ ВЕРСИЯ (на декабрь 2025)
 // Используется как на клиенте, так и на сервере (если нужно)
 
+const e = require("express");
+
 const ITEM_CONFIG = {
   // === ЕДА / НАПИТКИ ===
   energy_drink: {
@@ -181,149 +183,166 @@ const ITEM_CONFIG = {
   // === НОВАЯ ПОРВАННАЯ ЭКИПИРОВКА (СТАРТОВАЯ ===
   torn_baseball_cap_of_health: {
     type: "headgear",
-    effect: { health: 5 },
-    description: "Порванная кепка здоровья: +5 к максимальному здоровью",
+    effect: { armor: 5, health: 5 },
+    description:
+      "Порванная кепка здоровья: +5 к максимальному здоровью и броне",
     rarity: 1,
   },
   torn_health_t_shirt: {
     type: "armor",
-    effect: { health: 10 },
-    description: "Порванная футболка здоровья: +10 к максимальному здоровью",
+    effect: { armor: 10, health: 10 },
+    description:
+      "Порванная футболка здоровья: +10 к максимальному здоровью, +10 к броне",
     rarity: 1,
   },
   torn_health_gloves: {
     type: "gloves",
-    effect: { health: 3 },
-    description: "Порванные перчатки здоровья: +3 к максимальному здоровью",
+    effect: { armor: 5, health: 3 },
+    description:
+      "Порванные перчатки здоровья: +3 к максимальному здоровью, +5 к броне",
     rarity: 1,
   },
   torn_belt_of_health: {
     type: "belt",
-    effect: { health: 7 },
-    description: "Порванный пояс здоровья: +7 к максимальному здоровью",
+    effect: { armor: 3, health: 7 },
+    description:
+      "Порванный пояс здоровья: +7 к максимальному здоровью, +3 к броне",
     rarity: 1,
   },
   torn_pants_of_health: {
     type: "pants",
-    effect: { health: 8 },
-    description: "Порванные штаны здоровья: +8 к максимальному здоровью",
+    effect: { armor: 7, health: 6 },
+    description:
+      "Порванные штаны здоровья: +6 к максимальному здоровью, +7 к броне",
     rarity: 1,
   },
   torn_health_sneakers: {
     type: "boots",
-    effect: { health: 4 },
-    description: "Порванные кроссовки здоровья: +4 к максимальному здоровью",
+    effect: { armor: 5, health: 4 },
+    description:
+      "Порванные кроссовки здоровья: +4 к максимальному здоровью, +5 к броне",
     rarity: 1,
   },
 
   torn_energy_cap: {
     type: "headgear",
-    effect: { energy: 8 },
-    description: "Порванная кепка энергии: +8 к максимальной энергии",
+    effect: { armor: 5, energy: 5 },
+    description:
+      "Порванная кепка энергии: +5 к максимальной энергии, +5 к броне",
     rarity: 1,
   },
   torn_energy_t_shirt: {
     type: "armor",
-    effect: { energy: 15 },
-    description: "Порванная футболка энергии: +15 к максимальной энергии",
+    effect: { armor: 10, energy: 10 },
+    description:
+      "Порванная футболка энергии: +10 к максимальной энергии, +10 к броне",
     rarity: 1,
   },
   torn_gloves_of_energy: {
     type: "gloves",
-    effect: { energy: 5 },
-    description: "Порванные перчатки энергии: +5 к максимальной энергии",
+    effect: { armor: 5, energy: 3 },
+    description:
+      "Порванные перчатки энергии: +3 к максимальной энергии, +5 к броне",
     rarity: 1,
   },
   torn_energy_belt: {
     type: "belt",
-    effect: { energy: 10 },
-    description: "Порванный пояс энергии: +10 к максимальной энергии",
+    effect: { armor: 3, energy: 7 },
+    description:
+      "Порванный пояс энергии: +7 к максимальной энергии, +3 к броне",
     rarity: 1,
   },
   torn_pants_of_energy: {
     type: "pants",
-    effect: { energy: 12 },
-    description: "Порванные штаны энергии: +12 к максимальной энергии",
+    effect: { armor: 7, energy: 6 },
+    description:
+      "Порванные штаны энергии: +6 к максимальной энергии, +7 к броне",
     rarity: 1,
   },
   torn_sneakers_of_energy: {
     type: "boots",
-    effect: { energy: 7 },
-    description: "Порванные кроссовки энергии: +7 к максимальной энергии",
+    effect: { armor: 5, energy: 4 },
+    description:
+      "Порванные кроссовки энергии: +4 к максимальной энергии, +5 к броне",
     rarity: 1,
   },
 
   torn_cap_of_gluttony: {
     type: "headgear",
-    effect: { food: 10 },
-    description: "Порванная кепка обжорства: +10 к максимальной еде",
+    effect: { armor: 5, food: 5 },
+    description: "Порванная кепка обжорства: +5 к максимальной еде, +5 к броне",
     rarity: 1,
   },
   torn_t_shirt_of_gluttony: {
     type: "armor",
-    effect: { food: 20 },
-    description: "Порванная футболка обжорства: +20 к максимальной еде",
+    effect: { armor: 10, food: 10 },
+    description:
+      "Порванная футболка обжорства: +10 к максимальной еде, +10 к броне",
     rarity: 1,
   },
   torn_gloves_of_gluttony: {
     type: "gloves",
-    effect: { food: 6 },
-    description: "Порванные перчатки обжорства: +6 к максимальной еде",
+    effect: { armor: 5, food: 3 },
+    description:
+      "Порванные перчатки обжорства: +3 к максимальной еде, +5 к броне",
     rarity: 1,
   },
   torn_belt_of_gluttony: {
     type: "belt",
-    effect: { food: 15 },
-    description: "Порванный пояс обжорства: +15 к максимальной еде",
+    effect: { armor: 3, food: 7 },
+    description: "Порванный пояс обжорства: +7 к максимальной еде, +3 к броне",
     rarity: 1,
   },
   torn_pants_of_gluttony: {
     type: "pants",
-    effect: { food: 18 },
-    description: "Порванные штаны обжорства: +18 к максимальной еде",
+    effect: { armor: 7, food: 6 },
+    description: "Порванные штаны обжорства: +6 к максимальной еде, +7 к броне",
     rarity: 1,
   },
   torn_sneakers_of_gluttony: {
     type: "boots",
-    effect: { food: 8 },
-    description: "Порванные кроссовки обжорства: +8 к максимальной еде",
+    effect: { armor: 5, food: 4 },
+    description:
+      "Порванные кроссовки обжорства: +4 к максимальной еде, +5 к броне",
     rarity: 1,
   },
 
   torn_cap_of_thirst: {
     type: "headgear",
-    effect: { water: 12 },
-    description: "Порванная кепка жажды: +12 к максимальной воде",
+    effect: { armor: 5, water: 5 },
+    description: "Порванная кепка жажды: +5 к максимальной воде, +5 к броне",
     rarity: 1,
   },
   torn_t_shirt_of_thirst: {
     type: "armor",
-    effect: { water: 25 },
-    description: "Порванная футболка жажды: +25 к максимальной воде",
+    effect: { armor: 10, water: 10 },
+    description:
+      "Порванная футболка жажды: +10 к максимальной воде, +10 к броне",
     rarity: 1,
   },
   torn_gloves_of_thirst: {
     type: "gloves",
-    effect: { water: 7 },
-    description: "Порванные перчатки жажды: +7 к максимальной воде",
+    effect: { armor: 5, water: 3 },
+    description: "Порванные перчатки жажды: +3 к максимальной воде, +5 к броне",
     rarity: 1,
   },
   torn_belt_of_thirst: {
     type: "belt",
-    effect: { water: 18 },
-    description: "Порванный пояс жажды: +18 к максимальной воде",
+    effect: { armor: 3, water: 7 },
+    description: "Порванный пояс жажды: +7 к максимальной воде, +3 к броне",
     rarity: 1,
   },
   torn_pants_of_thirst: {
     type: "pants",
-    effect: { water: 20 },
-    description: "Порванные штаны жажды: +20 к максимальной воде",
+    effect: { armor: 7, water: 6 },
+    description: "Порванные штаны жажды: +6 к максимальной воде, +7 к броне",
     rarity: 1,
   },
   torn_sneakers_of_thirst: {
     type: "boots",
-    effect: { water: 9 },
-    description: "Порванные кроссовки жажды: +9 к максимальной воде",
+    effect: { armor: 5, water: 4 },
+    description:
+      "Порванные кроссовки жажды: +4 к максимальной воде, +5 к броне",
     rarity: 1,
   },
 };

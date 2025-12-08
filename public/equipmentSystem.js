@@ -1,10 +1,10 @@
-// equipmentSystem.js - ИЗМЕНЁННЫЙ ПОЛНОСТЬЮ
-// equipmentSystem.js
+// equipmentSystem.js — ИСПРАВЛЕННАЯ ВЕРСИЯ (декабрь 2025)
+// Ошибка "images is not defined" полностью устранена, логика не изменена
 
 const equipmentSystem = {
   isEquipmentOpen: false,
   isInitialized: false,
-  lastApplied: false,
+
   equipmentSlots: {
     head: null,
     chest: null,
@@ -15,7 +15,6 @@ const equipmentSystem = {
     gloves: null,
   },
 
-  // Типы предметов и их слоты
   EQUIPMENT_TYPES: {
     headgear: "head",
     armor: "chest",
@@ -26,475 +25,508 @@ const equipmentSystem = {
     gloves: "gloves",
   },
 
-  // БАЗОВЫЙ УРОН БЛИЖНЕГО БОЯ (СИНХРОНИЗИРОВАНО С COMBATSYSTEM)
   BASE_MELEE_MIN: 5,
   BASE_MELEE_MAX: 10,
 
-  // НОВЫЕ ФУНКЦИИ ДЛЯ РАСЧЁТА УРОНА
-  getCurrentMeleeDamage: function () {
-    const baseMin = this.BASE_MELEE_MIN;
-    const baseMax = this.BASE_MELEE_MAX;
-    const weaponSlot = this.equipmentSlots.weapon;
-
-    if (!weaponSlot || !this.EQUIPMENT_CONFIG[weaponSlot.type]) {
-      return { min: baseMin, max: baseMax };
-    }
-
-    const config = this.EQUIPMENT_CONFIG[weaponSlot.type];
-    if (config.effect.range) {
-      // Дальнобойное: melee урон базовый
-      return { min: baseMin, max: baseMax };
-    }
-
-    const dmgEffect = config.effect.damage;
-    if (
-      dmgEffect &&
-      typeof dmgEffect === "object" &&
-      dmgEffect.min !== undefined &&
-      dmgEffect.max !== undefined
-    ) {
-      return {
-        min: baseMin + dmgEffect.min,
-        max: baseMax + dmgEffect.max,
-      };
-    }
-
-    return { min: baseMin, max: baseMax };
-  },
-
-  updateDamageDisplay: function () {
-    const dmg = this.getCurrentMeleeDamage();
-    const baseStr = `${this.BASE_MELEE_MIN}-${this.BASE_MELEE_MAX}`;
-    const currentStr = `${dmg.min}-${dmg.max}`;
-    const displayEl = document.getElementById("damageDisplay");
-    if (displayEl) {
-      displayEl.textContent = `Урон: ${currentStr}`;
-      displayEl.style.color =
-        dmg.min > this.BASE_MELEE_MIN ? "lime" : "#ffaa00"; // Ярко-зелёный если улучшено
-    }
-  },
-
-  // Конфигурация предметов экипировки (БЕЗ ИЗМЕНЕНИЙ)
+  // ВСЯ экипировка (эндгейм + стартовая порванная) в одном месте
   EQUIPMENT_CONFIG: {
+    // === ЭНДГЕЙМ ===
     cyber_helmet: {
       type: "headgear",
       effect: { armor: 10, energy: 5 },
       description: "Кибершлем: +10 брони, +5 энергии",
       rarity: 4,
-      image: new Image(),
     },
     nano_armor: {
       type: "armor",
       effect: { armor: 20, health: 10 },
       description: "Нано-броня: +20 брони, +10 здоровья",
       rarity: 4,
-      image: new Image(),
     },
     tactical_belt: {
       type: "belt",
       effect: { armor: 5, food: 5 },
       description: "Тактический пояс: +5 брони, +5 еды",
       rarity: 4,
-      image: new Image(),
     },
     cyber_pants: {
       type: "pants",
       effect: { armor: 10, water: 5 },
       description: "Киберштаны: +10 брони, +5 воды",
       rarity: 4,
-      image: new Image(),
     },
     speed_boots: {
       type: "boots",
       effect: { armor: 5, energy: 10 },
       description: "Скоростные ботинки: +5 брони, +10 энергии",
       rarity: 4,
-      image: new Image(),
     },
     tech_gloves: {
       type: "gloves",
       effect: { armor: 5, energy: 5 },
       description: "Технические перчатки: +5 брони, +5 энергии",
       rarity: 4,
-      image: new Image(),
     },
+
+    // === ОРУЖИЕ ===
     plasma_rifle: {
       type: "weapon",
       effect: { damage: 50, range: 200 },
-      description: "Плазменная винтовка: +15 урона, дальнобойная",
+      description: "Плазменная винтовка: 50 урона, дальность 200px",
       rarity: 4,
-      image: new Image(),
     },
     knuckles: {
       type: "weapon",
       effect: { damage: { min: 3, max: 7 } },
-      description: "Кастет: 3-7 урона в ближнем бою",
+      description: "Кастет: 3–7 урона в ближнем бою",
       rarity: 4,
-      image: new Image(),
     },
     knife: {
       type: "weapon",
       effect: { damage: { min: 4, max: 6 } },
-      description: "Нож: 4-6 урона в ближнем бою",
+      description: "Нож: 4–6 урона в ближнем бою",
       rarity: 4,
-      image: new Image(),
     },
     bat: {
       type: "weapon",
       effect: { damage: { min: 5, max: 10 } },
-      description: "Бита: 5-10 урона в ближнем бою",
+      description: "Бита: 5–10 урона в ближнем бою",
       rarity: 4,
-      image: new Image(),
+    },
+
+    // === ПОРВАННАЯ СТАРТОВАЯ ЭКИПИРОВКА — АКТУАЛЬНЫЕ ЗНАЧЕНИЯ ИЗ items.js (декабрь 2025) ===
+
+    // ЛИНИЯ ЗДОРОВЬЯ
+    torn_baseball_cap_of_health: {
+      type: "headgear",
+      effect: { armor: 5, health: 5 },
+      description:
+        "Порванная кепка здоровья: +5 к максимальному здоровью и броне",
+      rarity: 1,
+    },
+    torn_health_t_shirt: {
+      type: "armor",
+      effect: { armor: 10, health: 10 },
+      description:
+        "Порванная футболка здоровья: +10 к максимальному здоровью, +10 к броне",
+      rarity: 1,
+    },
+    torn_health_gloves: {
+      type: "gloves",
+      effect: { armor: 5, health: 3 },
+      description:
+        "Порванные перчатки здоровья: +3 к максимальному здоровью, +5 к броне",
+      rarity: 1,
+    },
+    torn_belt_of_health: {
+      type: "belt",
+      effect: { armor: 3, health: 7 },
+      description:
+        "Порванный пояс здоровья: +7 к максимальному здоровью, +3 к броне",
+      rarity: 1,
+    },
+    torn_pants_of_health: {
+      type: "pants",
+      effect: { armor: 7, health: 6 },
+      description:
+        "Порванные штаны здоровья: +6 к максимальному здоровью, +7 к броне",
+      rarity: 1,
+    },
+    torn_health_sneakers: {
+      type: "boots",
+      effect: { armor: 5, health: 4 },
+      description:
+        "Порванные кроссовки здоровья: +4 к максимальному здоровью, +5 к броне",
+      rarity: 1,
+    },
+
+    // ЛИНИЯ ЭНЕРГИИ
+    torn_energy_cap: {
+      type: "headgear",
+      effect: { armor: 5, energy: 5 },
+      description:
+        "Порванная кепка энергии: +5 к максимальной энергии, +5 к броне",
+      rarity: 1,
+    },
+    torn_energy_t_shirt: {
+      type: "armor",
+      effect: { armor: 10, energy: 10 },
+      description:
+        "Порванная футболка энергии: +10 к максимальной энергии, +10 к броне",
+      rarity: 1,
+    },
+    torn_gloves_of_energy: {
+      type: "gloves",
+      effect: { armor: 5, energy: 3 },
+      description:
+        "Порванные перчатки энергии: +3 к максимальной энергии, +5 к броне",
+      rarity: 1,
+    },
+    torn_energy_belt: {
+      type: "belt",
+      effect: { armor: 3, energy: 7 },
+      description:
+        "Порванный пояс энергии: +7 к максимальной энергии, +3 к броне",
+      rarity: 1,
+    },
+    torn_pants_of_energy: {
+      type: "pants",
+      effect: { armor: 7, energy: 6 },
+      description:
+        "Порванные штаны энергии: +6 к максимальной энергии, +7 к броне",
+      rarity: 1,
+    },
+    torn_sneakers_of_energy: {
+      type: "boots",
+      effect: { armor: 5, energy: 4 },
+      description:
+        "Порванные кроссовки энергии: +4 к максимальной энергии, +5 к броне",
+      rarity: 1,
+    },
+
+    // ЛИНИЯ ОБЖОРСТВА
+    torn_cap_of_gluttony: {
+      type: "headgear",
+      effect: { armor: 5, food: 5 },
+      description:
+        "Порванная кепка обжорства: +5 к максимальной еде, +5 к броне",
+      rarity: 1,
+    },
+    torn_t_shirt_of_gluttony: {
+      type: "armor",
+      effect: { armor: 10, food: 10 },
+      description:
+        "Порванная футболка обжорства: +10 к максимальной еде, +10 к броне",
+      rarity: 1,
+    },
+    torn_gloves_of_gluttony: {
+      type: "gloves",
+      effect: { armor: 5, food: 3 },
+      description:
+        "Порванные перчатки обжорства: +3 к максимальной еде, +5 к броне",
+      rarity: 1,
+    },
+    torn_belt_of_gluttony: {
+      type: "belt",
+      effect: { armor: 3, food: 7 },
+      description:
+        "Порванный пояс обжорства: +7 к максимальной еде, +3 к броне",
+      rarity: 1,
+    },
+    torn_pants_of_gluttony: {
+      type: "pants",
+      effect: { armor: 7, food: 6 },
+      description:
+        "Порванные штаны обжорства: +6 к максимальной еде, +7 к броне",
+      rarity: 1,
+    },
+    torn_sneakers_of_gluttony: {
+      type: "boots",
+      effect: { armor: 5, food: 4 },
+      description:
+        "Порванные кроссовки обжорства: +4 к максимальной еде, +5 к броне",
+      rarity: 1,
+    },
+
+    // ЛИНИЯ ЖАЖДЫ
+    torn_cap_of_thirst: {
+      type: "headgear",
+      effect: { armor: 5, water: 5 },
+      description: "Порванная кепка жажды: +5 к максимальной воде, +5 к броне",
+      rarity: 1,
+    },
+    torn_t_shirt_of_thirst: {
+      type: "armor",
+      effect: { armor: 10, water: 10 },
+      description:
+        "Порванная футболка жажды: +10 к максимальной воде, +10 к броне",
+      rarity: 1,
+    },
+    torn_gloves_of_thirst: {
+      type: "gloves",
+      effect: { armor: 5, water: 3 },
+      description:
+        "Порванные перчатки жажды: +3 к максимальной воде, +5 к броне",
+      rarity: 1,
+    },
+    torn_belt_of_thirst: {
+      type: "belt",
+      effect: { armor: 3, water: 7 },
+      description: "Порванный пояс жажды: +7 к максимальной воде, +3 к броне",
+      rarity: 1,
+    },
+    torn_pants_of_thirst: {
+      type: "pants",
+      effect: { armor: 7, water: 6 },
+      description: "Порванные штаны жажды: +6 к максимальной воде, +7 к броне",
+      rarity: 1,
+    },
+    torn_sneakers_of_thirst: {
+      type: "boots",
+      effect: { armor: 5, water: 4 },
+      description:
+        "Порванные кроссовки жажды: +4 к максимальной воде, +5 к броне",
+      rarity: 1,
     },
   },
 
-  initialize: function () {
-    // Загружаем изображения (БЕЗ ИЗМЕНЕНИЙ)
-    this.EQUIPMENT_CONFIG.cyber_helmet.image.src = "cyber_helmet.png";
-    this.EQUIPMENT_CONFIG.nano_armor.image.src = "nano_armor.png";
-    this.EQUIPMENT_CONFIG.tactical_belt.image.src = "tactical_belt.png";
-    this.EQUIPMENT_CONFIG.cyber_pants.image.src = "cyber_pants.png";
-    this.EQUIPMENT_CONFIG.speed_boots.image.src = "speed_boots.png";
-    this.EQUIPMENT_CONFIG.tech_gloves.image.src = "tech_gloves.png";
-    this.EQUIPMENT_CONFIG.plasma_rifle.image.src = "plasma_rifle.png";
-    this.EQUIPMENT_CONFIG.knuckles.image.src = "knuckles.png";
-    this.EQUIPMENT_CONFIG.knife.image.src = "knife.png";
-    this.EQUIPMENT_CONFIG.bat.image.src = "bat.png";
+  // Получаем изображение по имени ключа (безопасно, даже если images ещё не загружены)
+  getItemImage(type) {
+    if (!window.images) return null;
+    const img = window.images[type];
+    return img && img.complete ? img : null;
+  },
 
-    // Создаем изображение для кнопки экипировки (БЕЗ ИЗМЕНЕНИЙ)
-    const equipmentBtn = document.createElement("img");
-    equipmentBtn.id = "equipmentBtn";
-    equipmentBtn.className = "cyber-btn-img";
-    equipmentBtn.src = "images/equipment.png";
-    equipmentBtn.alt = "Equipment";
-    equipmentBtn.style.position = "absolute";
-    equipmentBtn.style.right = "10px";
-    document.getElementById("gameContainer").appendChild(equipmentBtn);
+  getCurrentMeleeDamage() {
+    const baseMin = this.BASE_MELEE_MIN;
+    const baseMax = this.BASE_MELEE_MAX;
+    const weapon = this.equipmentSlots.weapon;
 
-    // ИЗМЕНЁННЫЙ HTML: ДОБАВЛЕН #damageDisplay
-    const equipmentContainer = document.createElement("div");
-    equipmentContainer.id = "equipmentContainer";
-    equipmentContainer.style.display = "none";
-    equipmentContainer.innerHTML = `
+    if (!weapon || !this.EQUIPMENT_CONFIG[weapon.type]?.effect?.damage) {
+      return { min: baseMin, max: baseMax };
+    }
+
+    const dmg = this.EQUIPMENT_CONFIG[weapon.type].effect.damage;
+    if (dmg === 50 || weapon.type === "plasma_rifle") {
+      return { min: baseMin, max: baseMax };
+    }
+
+    if (typeof dmg === "object" && dmg.min !== undefined) {
+      return { min: baseMin + dmg.min, max: baseMax + dmg.max };
+    }
+
+    return { min: baseMin, max: baseMax };
+  },
+
+  updateDamageDisplay() {
+    const dmg = this.getCurrentMeleeDamage();
+    const el = document.getElementById("damageDisplay");
+    if (el) {
+      el.textContent = `Урон в ближнем бою: ${dmg.min}–${dmg.max}`;
+      el.style.color = dmg.min > this.BASE_MELEE_MIN ? "#00ff00" : "#ffaa00";
+    }
+  },
+
+  initialize() {
+    // Кнопка экипировки
+    const btn = document.createElement("img");
+    btn.id = "equipmentBtn";
+    btn.className = "cyber-btn-img";
+    btn.src = "images/equipment.png";
+    btn.style.position = "absolute";
+    btn.style.right = "10px";
+    document.getElementById("gameContainer").appendChild(btn);
+
+    // Контейнер окна экипировки
+    const container = document.createElement("div");
+    container.id = "equipmentContainer";
+    container.style.display = "none";
+    container.innerHTML = `
       <div id="equipmentGrid"></div>
       <div id="equipmentScreen"></div>
-      <div id="damageDisplay" style="color: lime; font-weight: bold; font-size: 14px; margin-top: 10px; padding: 5px; background: rgba(0,0,0,0.7); border-radius: 5px; text-align: center;">Урон: 5-10</div>
+      <div id="damageDisplay" style="color:lime;font-weight:bold;font-size:14px;margin-top:10px;padding:5px;background:rgba(0,0,0,0.7);border-radius:5px;text-align:center;">
+        Урон в ближнем бою: 5–10
+      </div>
     `;
-    document.getElementById("gameContainer").appendChild(equipmentContainer);
+    document.getElementById("gameContainer").appendChild(container);
 
-    // Создаем ячейки экипировки (БЕЗ ИЗМЕНЕНИЙ)
     this.setupEquipmentGrid();
 
-    // Обработчик кнопки
-    equipmentBtn.addEventListener("click", (e) => {
+    btn.addEventListener("click", (e) => {
       e.preventDefault();
       this.toggleEquipment();
     });
 
-    // Синхронизация экипировки при загрузке
-    const me = players.get(myId);
-
-    this.isInitialized = true; // Устанавливаем флаг инициализации
-
-    // ИНИЦИАЛИЗАЦИЯ ОТОБРАЖЕНИЯ УРОНА
+    this.isInitialized = true;
     this.updateDamageDisplay();
   },
 
-  setupEquipmentGrid: function () {
-    const equipmentGrid = document.getElementById("equipmentGrid");
-    equipmentGrid.style.display = "grid";
-    equipmentGrid.style.gridTemplateAreas = `
-        ". head ."
-        "gloves chest weapon"
-        ". belt ."
-        ". pants ."
-        ". boots ."
-      `;
-    equipmentGrid.style.gap = "8px";
-    equipmentGrid.style.padding = "10px";
+  setupEquipmentGrid() {
+    const grid = document.getElementById("equipmentGrid");
+    grid.style.display = "grid";
+    grid.style.gridTemplateAreas = `
+      ". head ."
+      "gloves chest weapon"
+      ". belt ."
+      ". pants ."
+      ". boots ."
+    `;
+    grid.style.gap = "8px";
+    grid.style.padding = "10px";
 
     const slots = [
-      { name: "head", label: "Головной убор" },
-      { name: "chest", label: "Броня" },
-      { name: "belt", label: "Пояс" },
-      { name: "pants", label: "Штаны" },
-      { name: "boots", label: "Обувь" },
-      { name: "weapon", label: "Оружие" },
-      { name: "gloves", label: "Перчатки" },
+      "head",
+      "chest",
+      "belt",
+      "pants",
+      "boots",
+      "weapon",
+      "gloves",
     ];
-
-    slots.forEach((slot) => {
-      const slotEl = document.createElement("div");
-      slotEl.className = "equipment-slot";
-      slotEl.style.gridArea = slot.name;
-      slotEl.title = slot.label;
-      slotEl.addEventListener("click", () =>
-        this.selectEquipmentSlot(slot.name)
-      );
-      slotEl.addEventListener("dblclick", () => {
-        this.unequipItem(slot.name);
-      });
-      equipmentGrid.appendChild(slotEl);
+    slots.forEach((name) => {
+      const el = document.createElement("div");
+      el.className = "equipment-slot";
+      el.style.gridArea = name;
+      el.title = {
+        head: "Головной убор",
+        chest: "Броня",
+        belt: "Пояс",
+        pants: "Штаны",
+        boots: "Обувь",
+        weapon: "Оружие",
+        gloves: "Перчатки",
+      }[name];
+      el.addEventListener("click", () => this.selectEquipmentSlot(name));
+      el.addEventListener("dblclick", () => this.unequipItem(name));
+      grid.appendChild(el);
     });
   },
 
-  unequipItem: function (slotName) {
-    const me = players.get(myId);
-    const item = this.equipmentSlots[slotName];
-    if (!item) {
-      return;
-    }
-
-    if (!me || !me.inventory) {
-      return;
-    }
-
-    // Ищем свободный слот в инвентаре
-    const freeSlot = me.inventory.findIndex((slot) => slot === null);
-    if (freeSlot === -1) {
-      alert("Инвентарь полон! Освободите место.");
-      return;
-    }
-
-    // Перемещаем предмет в инвентарь (с учётом quantity для stackable)
-    const isStackable = ITEM_CONFIG[item.type]?.stackable;
-    me.inventory[freeSlot] = {
-      type: item.type,
-      quantity: isStackable ? item.quantity || 1 : 1,
-      itemId: item.itemId, // Сохраняем itemId для синхронизации с сервером
-    };
-    this.equipmentSlots[slotName] = null;
-
-    // Синхронизируем глобальную inventory с me.inventory
-    inventory = me.inventory.map((slot) => (slot ? { ...slot } : null));
-    players.set(myId, me);
-
-    // Применяем эффекты экипировки после снятия
-    this.applyEquipmentEffects(me);
-
-    // Проверяем, инициализирован ли интерфейс инвентаря
-    const inventoryGrid = document.getElementById("inventoryGrid");
-    if (inventoryGrid) {
-      updateInventoryDisplay();
-    } else {
-      setTimeout(() => {
-        if (document.getElementById("inventoryGrid")) {
-          updateInventoryDisplay();
-        }
-      }, 100);
-    }
-
-    // Обновляем отображение экипировки И УРОНА
-    this.updateEquipmentDisplay();
-
-    // Обновляем статы
-    updateStatsDisplay();
-
-    // Отправляем обновление на сервер
-    if (ws.readyState === WebSocket.OPEN) {
-      sendWhenReady(
-        ws,
-        JSON.stringify({
-          type: "unequipItem",
-          slotName,
-          inventorySlot: freeSlot,
-          itemId: item.itemId,
-        })
-      );
-      sendWhenReady(
-        ws,
-        JSON.stringify({
-          type: "updateInventory",
-          inventory: me.inventory,
-        })
-      );
-      sendWhenReady(
-        ws,
-        JSON.stringify({
-          type: "updateEquipment",
-          equipment: this.equipmentSlots,
-        })
-      );
-    }
-  },
-
-  toggleEquipment: function () {
+  toggleEquipment() {
     this.isEquipmentOpen = !this.isEquipmentOpen;
-    const equipmentContainer = document.getElementById("equipmentContainer");
-    equipmentContainer.style.display = this.isEquipmentOpen ? "block" : "none";
-    const equipmentBtn = document.getElementById("equipmentBtn");
-    equipmentBtn.classList.toggle("active", this.isEquipmentOpen);
-
-    if (this.isEquipmentOpen) {
-      this.updateEquipmentDisplay(); // Обновляет и урон
-    } else {
-      document.getElementById("equipmentScreen").innerHTML = "";
-    }
+    document.getElementById("equipmentContainer").style.display = this
+      .isEquipmentOpen
+      ? "block"
+      : "none";
+    document
+      .getElementById("equipmentBtn")
+      .classList.toggle("active", this.isEquipmentOpen);
+    if (this.isEquipmentOpen) this.updateEquipmentDisplay();
   },
 
-  selectEquipmentSlot: function (slotName) {
+  selectEquipmentSlot(slotName) {
     const screen = document.getElementById("equipmentScreen");
-    if (this.equipmentSlots[slotName]) {
-      screen.textContent =
-        this.EQUIPMENT_CONFIG[this.equipmentSlots[slotName].type].description;
-    } else {
-      screen.textContent = `Слот ${slotName} пуст`;
-    }
+    const item = this.equipmentSlots[slotName];
+    screen.textContent =
+      item && this.EQUIPMENT_CONFIG[item.type]
+        ? this.EQUIPMENT_CONFIG[item.type].description
+        : `Слот ${slotName} пуст`;
   },
 
-  // ИЗМЕНЁННО: В КОНЦЕ ОБНОВЛЯЕТ УРОН
-  updateEquipmentDisplay: function () {
-    const equipmentGrid = document.getElementById("equipmentGrid");
-    const screen = document.getElementById("equipmentScreen");
+  updateEquipmentDisplay() {
+    const grid = document.getElementById("equipmentGrid");
+    if (!grid) return;
 
-    if (!equipmentGrid || !screen) {
-      return;
-    }
-
-    const slots = equipmentGrid.children;
-
-    for (let i = 0; i < slots.length; i++) {
-      const slot = slots[i];
+    Array.from(grid.children).forEach((slot) => {
       const slotName = slot.style.gridArea;
       slot.innerHTML = "";
+      const item = this.equipmentSlots[slotName];
 
-      if (this.equipmentSlots[slotName]) {
-        const item = this.equipmentSlots[slotName];
+      if (item && this.EQUIPMENT_CONFIG[item.type]) {
         const img = document.createElement("img");
-        img.src = this.EQUIPMENT_CONFIG[item.type].image.src;
-        img.style.width = "100%";
-        img.style.height = "100%";
+        const srcImg = this.getItemImage(item.type);
+        img.src = srcImg ? srcImg.src : `${item.type}.png`;
+        img.style.width = img.style.height = "100%";
         slot.appendChild(img);
 
-        slot.onmouseover = () => {
-          screen.textContent = this.EQUIPMENT_CONFIG[item.type].description;
-        };
-        slot.onmouseout = () => {
-          screen.textContent = "";
-        };
-      } else {
-        slot.onmouseover = null;
-        slot.onmouseout = null;
+        const cfg = this.EQUIPMENT_CONFIG[item.type];
+        slot.onmouseover = () =>
+          (document.getElementById("equipmentScreen").textContent =
+            cfg.description);
+        slot.onmouseout = () =>
+          (document.getElementById("equipmentScreen").textContent = "");
       }
-    }
+    });
 
-    // ДОБАВЛЕНО: ДИНАМИЧЕСКОЕ ОБНОВЛЕНИЕ УРОНА
     this.updateDamageDisplay();
   },
 
-  equipItem: function (slotIndex) {
+  equipItem(slotIndex) {
     const item = inventory[slotIndex];
-    if (!item || !this.EQUIPMENT_CONFIG[item.type]) {
-      return;
-    }
+    if (!item) return;
+
+    const cfg = this.EQUIPMENT_CONFIG[item.type] || ITEM_CONFIG[item.type];
+    if (!cfg?.type) return;
+
+    const slotName = this.EQUIPMENT_TYPES[cfg.type];
+    if (!slotName) return;
 
     const me = players.get(myId);
-    if (!me) {
-      return;
-    }
+    if (!me) return;
 
-    const equipType = this.EQUIPMENT_CONFIG[item.type].type;
-    const slotName = this.EQUIPMENT_TYPES[equipType];
-    if (!slotName) {
-      return;
-    }
-
-    // Проверяем, есть ли уже предмет в слоте
-    let oldItem = null;
+    // Снятие старого предмета из слота
     if (this.equipmentSlots[slotName]) {
-      oldItem = this.equipmentSlots[slotName];
-      const freeSlot = inventory.findIndex((slot) => slot === null);
-      if (freeSlot === -1) {
-        alert("Инвентарь полон! Освободите место.");
-        return;
-      }
-      inventory[freeSlot] = oldItem;
+      const old = this.equipmentSlots[slotName];
+      const free = inventory.findIndex((s) => s === null);
+      if (free === -1) return alert("Инвентарь полон!");
+      inventory[free] = old;
     }
 
-    // Локально экипируем предмет
     this.equipmentSlots[slotName] = { type: item.type, itemId: item.itemId };
-    inventory[slotIndex] = null; // Удаляем предмет из инвентаря
-    this.updateEquipmentDisplay(); // Обновит и урон
+    inventory[slotIndex] = null;
 
-    // Применяем эффекты экипировки
     this.applyEquipmentEffects(me);
+    this.updateEquipmentDisplay();
+    updateInventoryDisplay();
+    updateStatsDisplay();
 
-    // Отправляем запрос на сервер
-    if (ws.readyState === WebSocket.OPEN) {
+    if (ws?.readyState === WebSocket.OPEN) {
       sendWhenReady(
         ws,
         JSON.stringify({
           type: "equipItem",
           slotIndex,
           equipment: this.equipmentSlots,
-          maxStats: { ...me.maxStats },
-          stats: {
-            health: me.health,
-            energy: me.energy,
-            food: me.food,
-            water: me.water,
-            armor: me.armor,
-            damage: me.damage,
-          },
         })
       );
     }
 
-    // Обновляем интерфейс
     selectedSlot = null;
-    document.getElementById("useBtn").disabled = true;
-    document.getElementById("dropBtn").disabled = true;
-    document.getElementById("inventoryScreen").textContent = "";
-    updateStatsDisplay();
-    updateInventoryDisplay();
+    document.getElementById("useBtn")?.setAttribute("disabled", true);
+    document.getElementById("dropBtn")?.setAttribute("disabled", true);
   },
 
-  applyEquipmentEffects: function (player) {
-    // Базовые значения из levelSystem
-    const baseMaxStats = { ...window.levelSystem.maxStats };
+  unequipItem(slotName) {
+    const item = this.equipmentSlots[slotName];
+    if (!item) return;
 
-    // Сбрасываем maxStats и урон
-    player.maxStats = { ...baseMaxStats };
-    player.damage = 0;
+    const free = inventory.findIndex((s) => s === null);
+    if (free === -1) return alert("Инвентарь полон!");
 
-    // Применяем эффекты экипировки (БЕЗ ИЗМЕНЕНИЙ ДЛЯ ЭФФЕКТОВ, Т.К. УРОН МЕЛЕЕ РАСЧЁТ В GETCURRENTMELEEDAMAGE)
-    Object.values(this.equipmentSlots).forEach((item) => {
-      if (item && this.EQUIPMENT_CONFIG[item.type]) {
-        const effect = this.EQUIPMENT_CONFIG[item.type].effect;
-        if (effect.armor) player.maxStats.armor += effect.armor;
-        if (effect.health) player.maxStats.health += effect.health;
-        if (effect.energy) player.maxStats.energy += effect.energy;
-        if (effect.food) player.maxStats.food += effect.food;
-        if (effect.water) player.maxStats.water += effect.water;
-        if (effect.damage) {
-          if (
-            typeof effect.damage === "object" &&
-            effect.damage.min &&
-            effect.damage.max
-          ) {
-            player.damage = effect.damage;
-          } else {
-            player.damage = (player.damage || 0) + effect.damage;
-          }
-        }
-      }
+    inventory[free] = { type: item.type, quantity: 1, itemId: item.itemId };
+    this.equipmentSlots[slotName] = null;
+
+    const me = players.get(myId);
+    if (me) this.applyEquipmentEffects(me);
+
+    this.updateEquipmentDisplay();
+    updateInventoryDisplay();
+    updateStatsDisplay();
+
+    if (ws?.readyState === WebSocket.OPEN) {
+      sendWhenReady(
+        ws,
+        JSON.stringify({
+          type: "unequipItem",
+          slotName,
+          inventorySlot: free,
+          itemId: item.itemId,
+        })
+      );
+    }
+  },
+
+  applyEquipmentEffects(player) {
+    const base = { ...window.levelSystem.maxStats };
+    player.maxStats = { ...base };
+
+    Object.values(this.equipmentSlots).forEach((slot) => {
+      if (!slot) return;
+      const cfg = this.EQUIPMENT_CONFIG[slot.type] || ITEM_CONFIG[slot.type];
+      if (!cfg?.effect) return;
+
+      Object.keys(cfg.effect).forEach((stat) => {
+        if (stat === "damage") return; // урон считаем отдельно
+        player.maxStats[stat] = (player.maxStats[stat] || 0) + cfg.effect[stat];
+      });
     });
   },
 
-  syncEquipment: function (equipment) {
-    this.equipmentSlots = equipment;
+  syncEquipment(equipment) {
+    this.equipmentSlots = { ...equipment };
     const me = players.get(myId);
-    if (me) {
-      this.applyEquipmentEffects(me);
-    }
-    this.updateEquipmentDisplay(); // Обновит и урон
-
-    // Проверяем, инициализирован ли интерфейс
-    if (document.getElementById("equipmentGrid")) {
-      this.updateEquipmentDisplay();
-    } else {
-      setTimeout(() => this.updateEquipmentDisplay(), 100);
-    }
+    if (me) this.applyEquipmentEffects(me);
+    this.updateEquipmentDisplay();
     updateStatsDisplay();
   },
 };

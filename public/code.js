@@ -128,13 +128,6 @@ Object.entries(imageSources).forEach(([key, src]) => {
       window.robotDoctorSystem.initialize(images.robotDoctorSprite);
     }
   };
-  images[key].onerror = () => {
-    images[key].src = "fallback.png"; // Запасное изображение
-    imagesLoaded++;
-    if (imagesLoaded === totalImages) {
-      window.addEventListener("resize", resizeCanvas);
-    }
-  };
 });
 
 let inventory = Array(20).fill(null);
@@ -142,6 +135,7 @@ let inventory = Array(20).fill(null);
 // Конфигурация эффектов предметов (расширяем ITEM_CONFIG)
 // Обновляем ITEM_CONFIG, чтобы использовать объект images
 const ITEM_CONFIG = {
+  // === ЕДА И НАПИТКИ ===
   energy_drink: {
     effect: { energy: 20, water: 5 },
     image: images.energyDrinkImage,
@@ -187,7 +181,7 @@ const ITEM_CONFIG = {
   mushroom: {
     effect: { food: 5, energy: 15 },
     image: images.mushroomImage,
-    description: "Гриб прущий: +15 энергии. +5 еды.",
+    description: "Гриб прущий: +15 энергии, +5 еды.",
     rarity: 1,
   },
   sausage: {
@@ -217,7 +211,7 @@ const ITEM_CONFIG = {
   meat_chunk: {
     effect: { food: 20, energy: 5, water: -2 },
     image: images.meatChunkImage,
-    description: "Кусок мяса: +20 еды, +5 эн. -2 воды.",
+    description: "Кусок мяса: +20 еды, +5 эн., -2 воды.",
     rarity: 2,
   },
   blood_syringe: {
@@ -244,14 +238,37 @@ const ITEM_CONFIG = {
     description: "Сушёная рыба: +10 еды, -3 воды.",
     rarity: 2,
   },
+
+  // === ВАЛЮТА И СПЕЦПРЕДМЕТЫ ===
   balyary: {
     effect: {},
     image: images.balyaryImage,
     description: "Баляр: игровая валюта.",
     stackable: true,
-    rarity: 1,
     balyary: true,
+    rarity: 1,
   },
+  atom: {
+    effect: { armor: 5 },
+    image: images.atomImage,
+    description: "Атом — даёт +5 брони при использовании.",
+    stackable: true,
+    rarity: 1,
+  },
+  medical_certificate: {
+    effect: {},
+    image: images.medicalCertificateImage,
+    description: "Мед. справка МД-07: подтверждает, что ты не зомби.",
+    rarity: 5,
+  },
+  medical_certificate_stamped: {
+    effect: {},
+    image: images.medicalCertificateStampedImage,
+    description: "Мед. справка с печатью заставы. Допуск в Неоновый Город.",
+    rarity: 5,
+  },
+
+  // === КИБЕР-ЭКИПИРОВКА (ЭНДГЕЙМ) ===
   cyber_helmet: {
     type: "headgear",
     effect: { armor: 10, energy: 5 },
@@ -298,219 +315,221 @@ const ITEM_CONFIG = {
     type: "weapon",
     effect: { damage: 50, range: 200 },
     image: images.plasmaRifleImage,
-    description: "Плазменная винтовка: 50 урона, 200 пикселей дальность",
+    description: "Плазменная винтовка: 50 урона, дальность 200px",
     rarity: 4,
   },
   knuckles: {
     type: "weapon",
     effect: { damage: { min: 3, max: 7 } },
     image: images.knucklesImage,
-    description: "Кастет: 3-7 урона в ближнем бою",
+    description: "Кастет: 3–7 урона в ближнем бою",
     rarity: 4,
   },
   knife: {
     type: "weapon",
     effect: { damage: { min: 4, max: 6 } },
     image: images.knifeImage,
-    description: "Нож: 4-6 урона в ближнем бою",
+    description: "Нож: 4–6 урона в ближнем бою",
     rarity: 4,
   },
   bat: {
     type: "weapon",
     effect: { damage: { min: 5, max: 10 } },
     image: images.batImage,
-    description: "Бита: 5-10 урона в ближнем бою",
+    description: "Бита: 5–10 урона в ближнем бою",
     rarity: 4,
   },
-  atom: {
-    effect: { armor: 5 },
-    image: images.atomImage,
-    description: "Atom",
-    stackable: true,
-    rarity: 1,
-  },
-  medical_certificate: {
-    effect: {},
-    image: images.medicalCertificateImage,
-    description: "Мед. справка МД-07: подтверждает, что ты не зомби.",
-    rarity: 5,
-  },
-  medical_certificate_stamped: {
-    effect: {},
-    image: images.medicalCertificateStampedImage,
-    description: "Мед. справка с печатью заставы. Допуск в Неоновый Город.",
-    rarity: 5,
-  },
-  // === НОВАЯ ПОРВАННАЯ ЭКИПИРОВКА (начальная) ===
+
+  // === ПОРВАННАЯ СТАРТОВАЯ ЭКИПИРОВКА — АКТУАЛЬНЫЕ ЗНАЧЕНИЯ ИЗ items.js ===
   torn_baseball_cap_of_health: {
     type: "headgear",
-    effect: { health: 5 },
+    effect: { armor: 5, health: 5 },
     image: images.torn_baseball_cap_of_health,
-    description: "Порванная кепка здоровья: +5 к максимальному здоровью",
+    description:
+      "Порванная кепка здоровья: +5 к максимальному здоровью и броне",
     rarity: 1,
   },
   torn_health_t_shirt: {
     type: "armor",
-    effect: { health: 10 },
+    effect: { armor: 10, health: 10 },
     image: images.torn_health_t_shirt,
-    description: "Порванная футболка здоровья: +10 к максимальному здоровью",
+    description:
+      "Порванная футболка здоровья: +10 к максимальному здоровью, +10 к броне",
     rarity: 1,
   },
   torn_health_gloves: {
     type: "gloves",
-    effect: { health: 3 },
+    effect: { armor: 5, health: 3 },
     image: images.torn_health_gloves,
-    description: "Порванные перчатки здоровья: +3 к максимальному здоровью",
+    description:
+      "Порванные перчатки здоровья: +3 к максимальному здоровью, +5 к броне",
     rarity: 1,
   },
   torn_belt_of_health: {
     type: "belt",
-    effect: { health: 7 },
+    effect: { armor: 3, health: 7 },
     image: images.torn_belt_of_health,
-    description: "Порванный пояс здоровья: +7 к максимальному здоровью",
+    description:
+      "Порванный пояс здоровья: +7 к максимальному здоровью, +3 к броне",
     rarity: 1,
   },
   torn_pants_of_health: {
     type: "pants",
-    effect: { health: 8 },
+    effect: { armor: 7, health: 6 },
     image: images.torn_pants_of_health,
-    description: "Порванные штаны здоровья: +8 к максимальному здоровью",
+    description:
+      "Порванные штаны здоровья: +6 к максимальному здоровью, +7 к броне",
     rarity: 1,
   },
   torn_health_sneakers: {
     type: "boots",
-    effect: { health: 4 },
+    effect: { armor: 5, health: 4 },
     image: images.torn_health_sneakers,
-    description: "Порванные кроссовки здоровья: +4 к максимальному здоровью",
+    description:
+      "Порванные кроссовки здоровья: +4 к максимальному здоровью, +5 к броне",
     rarity: 1,
   },
 
+  // ЭНЕРГЕТИЧЕСКАЯ ЛИНИЯ
   torn_energy_cap: {
     type: "headgear",
-    effect: { energy: 8 },
+    effect: { armor: 5, energy: 5 },
     image: images.torn_energy_cap,
-    description: "Порванная кепка энергии: +8 к максимальной энергии",
+    description:
+      "Порванная кепка энергии: +5 к максимальной энергии, +5 к броне",
     rarity: 1,
   },
   torn_energy_t_shirt: {
     type: "armor",
-    effect: { energy: 15 },
+    effect: { armor: 10, energy: 10 },
     image: images.torn_energy_t_shirt,
-    description: "Порванная футболка энергии: +15 к максимальной энергии",
+    description:
+      "Порванная футболка энергии: +10 к максимальной энергии, +10 к броне",
     rarity: 1,
   },
   torn_gloves_of_energy: {
     type: "gloves",
-    effect: { energy: 5 },
+    effect: { armor: 5, energy: 3 },
     image: images.torn_gloves_of_energy,
-    description: "Порванные перчатки энергии: +5 к максимальной энергии",
+    description:
+      "Порванные перчатки энергии: +3 к максимальной энергии, +5 к броне",
     rarity: 1,
   },
   torn_energy_belt: {
     type: "belt",
-    effect: { energy: 10 },
+    effect: { armor: 3, energy: 7 },
     image: images.torn_energy_belt,
-    description: "Порванный пояс энергии: +10 к максимальной энергии",
+    description:
+      "Порванный пояс энергии: +7 к максимальной энергии, +3 к броне",
     rarity: 1,
   },
   torn_pants_of_energy: {
     type: "pants",
-    effect: { energy: 12 },
+    effect: { armor: 7, energy: 6 },
     image: images.torn_pants_of_energy,
-    description: "Порванные штаны энергии: +12 к максимальной энергии",
+    description:
+      "Порванные штаны энергии: +6 к максимальной энергии, +7 к броне",
     rarity: 1,
   },
   torn_sneakers_of_energy: {
     type: "boots",
-    effect: { energy: 7 },
+    effect: { armor: 5, energy: 4 },
     image: images.torn_sneakers_of_energy,
-    description: "Порванные кроссовки энергии: +7 к максимальной энергии",
+    description:
+      "Порванные кроссовки энергии: +4 к максимальной энергии, +5 к броне",
     rarity: 1,
   },
 
+  // ОБЖОРСТВО
   torn_cap_of_gluttony: {
     type: "headgear",
-    effect: { food: 10 },
+    effect: { armor: 5, food: 5 },
     image: images.torn_cap_of_gluttony,
-    description: "Порванная кепка обжорства: +10 к максимальной еде",
+    description: "Порванная кепка обжорства: +5 к максимальной еде, +5 к броне",
     rarity: 1,
   },
   torn_t_shirt_of_gluttony: {
     type: "armor",
-    effect: { food: 20 },
+    effect: { armor: 10, food: 10 },
     image: images.torn_t_shirt_of_gluttony,
-    description: "Порванная футболка обжорства: +20 к максимальной еде",
+    description:
+      "Порванная футболка обжорства: +10 к максимальной еде, +10 к броне",
     rarity: 1,
   },
   torn_gloves_of_gluttony: {
     type: "gloves",
-    effect: { food: 6 },
+    effect: { armor: 5, food: 3 },
     image: images.torn_gloves_of_gluttony,
-    description: "Порванные перчатки обжорства: +6 к максимальной еде",
+    description:
+      "Порванные перчатки обжорства: +3 к максимальной еде, +5 к броне",
     rarity: 1,
   },
   torn_belt_of_gluttony: {
     type: "belt",
-    effect: { food: 15 },
+    effect: { armor: 3, food: 7 },
     image: images.torn_belt_of_gluttony,
-    description: "Порванный пояс обжорства: +15 к максимальной еде",
+    description: "Порванный пояс обжорства: +7 к максимальной еде, +3 к броне",
     rarity: 1,
   },
   torn_pants_of_gluttony: {
     type: "pants",
-    effect: { food: 18 },
+    effect: { armor: 7, food: 6 },
     image: images.torn_pants_of_gluttony,
-    description: "Порванные штаны обжорства: +18 к максимальной еде",
+    description: "Порванные штаны обжорства: +6 к максимальной еде, +7 к броне",
     rarity: 1,
   },
   torn_sneakers_of_gluttony: {
     type: "boots",
-    effect: { food: 8 },
+    effect: { armor: 5, food: 4 },
     image: images.torn_sneakers_of_gluttony,
-    description: "Порванные кроссовки обжорства: +8 к максимальной еде",
+    description:
+      "Порванные кроссовки обжорства: +4 к максимальной еде, +5 к броне",
     rarity: 1,
   },
 
+  // ЖАЖДА
   torn_cap_of_thirst: {
     type: "headgear",
-    effect: { water: 12 },
+    effect: { armor: 5, water: 5 },
     image: images.torn_cap_of_thirst,
-    description: "Порванная кепка жажды: +12 к максимальной воде",
+    description: "Порванная кепка жажды: +5 к максимальной воде, +5 к броне",
     rarity: 1,
   },
   torn_t_shirt_of_thirst: {
     type: "armor",
-    effect: { water: 25 },
+    effect: { armor: 10, water: 10 },
     image: images.torn_t_shirt_of_thirst,
-    description: "Порванная футболка жажды: +25 к максимальной воде",
+    description:
+      "Порванная футболка жажды: +10 к максимальной воде, +10 к броне",
     rarity: 1,
   },
   torn_gloves_of_thirst: {
     type: "gloves",
-    effect: { water: 7 },
+    effect: { armor: 5, water: 3 },
     image: images.torn_gloves_of_thirst,
-    description: "Порванные перчатки жажды: +7 к максимальной воде",
+    description: "Порванные перчатки жажды: +3 к максимальной воде, +5 к броне",
     rarity: 1,
   },
   torn_belt_of_thirst: {
     type: "belt",
-    effect: { water: 18 },
+    effect: { armor: 3, water: 7 },
     image: images.torn_belt_of_thirst,
-    description: "Порванный пояс жажды: +18 к максимальной воде",
+    description: "Порванный пояс жажды: +7 к максимальной воде, +3 к броне",
     rarity: 1,
   },
   torn_pants_of_thirst: {
     type: "pants",
-    effect: { water: 20 },
+    effect: { armor: 7, water: 6 },
     image: images.torn_pants_of_thirst,
-    description: "Порванные штаны жажды: +20 к максимальной воде",
+    description: "Порванные штаны жажды: +6 к максимальной воде, +7 к броне",
     rarity: 1,
   },
   torn_sneakers_of_thirst: {
     type: "boots",
-    effect: { water: 10 },
+    effect: { armor: 5, water: 4 },
     image: images.torn_sneakers_of_thirst,
-    description: "Порванные кроссовки жажды: +10 к максимальной воде",
+    description:
+      "Порванные кроссовки жажды: +4 к максимальной воде, +5 к броне",
     rarity: 1,
   },
 };
