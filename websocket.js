@@ -217,6 +217,7 @@ function setupWebSocket(
               completed: [],
             },
             medicalCertificate: false,
+            medicalCertificateStamped: false,
           };
 
           userDatabase.set(data.username, newPlayer);
@@ -362,6 +363,8 @@ function setupWebSocket(
               completed: [],
             },
             medicalCertificate: player.medicalCertificate || false,
+            medicalCertificateStamped:
+              player.medicalCertificateStamped || false,
           };
 
           players.set(data.username, playerData);
@@ -2096,7 +2099,7 @@ function setupWebSocket(
 
         const player = players.get(playerId);
 
-        // Проверяем: есть ли справка и флаг
+        // Проверяем наличие обычной справки + флаг
         const certSlot = player.inventory.findIndex(
           (item) => item && item.type === "medical_certificate"
         );
@@ -2106,27 +2109,45 @@ function setupWebSocket(
             JSON.stringify({
               type: "captainStampResult",
               success: false,
-              error: "У вас нет медицинской справки!",
+              error: "У вас нет медицинской справки МД-07!",
             })
           );
           return;
         }
 
-        // Удаляем старую справку
+        // Заменяем справку на проштампованную
         player.inventory[certSlot] = {
           type: "medical_certificate_stamped",
           quantity: 1,
         };
 
+        // Главное — ставим флаг!
+        player.medicalCertificateStamped = true;
+
+        // Сохраняем всё
         players.set(playerId, player);
         userDatabase.set(playerId, player);
         await saveUserDatabase(dbCollection, playerId, player);
 
+        // Отправляем клиенту обновлённый инвентарь + флаг
         ws.send(
           JSON.stringify({
             type: "captainStampResult",
             success: true,
             inventory: player.inventory,
+            medicalCertificateStamped: true, // ← важно!
+          })
+        );
+
+        // Уведомляем всех в мире (опционально — звук/эффект)
+        broadcastToWorld(
+          wss,
+          clients,
+          players,
+          player.worldId,
+          JSON.stringify({
+            type: "playerGotStamp",
+            playerId: playerId,
           })
         );
       }

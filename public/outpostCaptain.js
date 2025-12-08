@@ -1,6 +1,6 @@
 // ===============================================
-//          КАПИТАН ЗАСТАВЫ — ФИНАЛЬНАЯ ВЕРСИЯ 2025
-//  Получение печати на медсправку МД-07
+//          КАПИТАН ЗАСТАВЫ — ОБНОВЛЁННАЯ ВЕРСИЯ 2025
+//  Новый флаг medicalCertificateStamped + упрощённые задания
 // ===============================================
 
 const OUTPOST_CAPTAIN = {
@@ -8,7 +8,7 @@ const OUTPOST_CAPTAIN = {
   y: 1593,
   width: 70,
   height: 70,
-  interactionRadius: 70, // удобный радиус
+  interactionRadius: 70,
   name: "Капитан Райдер",
   spriteSrc: "outpost_captain.png",
   totalFrames: 13,
@@ -72,7 +72,6 @@ function drawCaptain(ctx, cameraX, cameraY) {
   const screenX = OUTPOST_CAPTAIN.x - cameraX;
   const screenY = OUTPOST_CAPTAIN.y - cameraY - OUTPOST_CAPTAIN.height + 30;
 
-  // Отсечение за экраном
   if (
     screenX < -150 ||
     screenX > canvas.width + 150 ||
@@ -84,7 +83,6 @@ function drawCaptain(ctx, cameraX, cameraY) {
     return;
   }
 
-  // Спрайт
   if (captainSprite?.complete && captainSprite.naturalWidth > 0) {
     ctx.drawImage(
       captainSprite,
@@ -106,7 +104,6 @@ function drawCaptain(ctx, cameraX, cameraY) {
     ctx.fillText("CAPT", screenX + 35, screenY + 40);
   }
 
-  // Имя над головой
   ctx.font = "16px 'Courier New'";
   ctx.fillStyle = "#00ffff";
   ctx.textAlign = "center";
@@ -141,7 +138,7 @@ function drawCaptain(ctx, cameraX, cameraY) {
 }
 
 // ===============================================
-// ПРИВЕТСТВИЕ ПРИ ПЕРВОЙ ВСТРЕЧЕ
+// ПРИВЕТСТВИЕ
 // ===============================================
 function showCaptainGreeting() {
   if (isCaptainDialogOpen || hasCaptainGreetingShown) return;
@@ -215,9 +212,6 @@ function removeCaptainButtons() {
   }
 }
 
-// ===============================================
-// ЗАКРЫТИЕ ЛЮБОГО ДИАЛОГА КАПИТАНА
-// ===================================
 function closeCaptainDialog() {
   const dialog = document.getElementById("captainDialog");
   if (dialog) dialog.remove();
@@ -225,7 +219,7 @@ function closeCaptainDialog() {
 }
 
 // ===============================================
-// ДИАЛОГ "ГОВОРИТЬ"
+// ДИАЛОГ "ГОВОРИТЬ" (без изменений)
 // ===============================================
 function openCaptainTalk() {
   removeCaptainButtons();
@@ -275,77 +269,57 @@ function openCaptainTalk() {
 }
 
 // ===============================================
-// ДИАЛОГ "ЗАДАНИЯ" + ПЕЧАТЬ НА СПРАВКУ
+// ДИАЛОГ "ЗАДАНИЯ" — НОВАЯ ЛОГИКА
 // ===============================================
 function openCaptainQuests() {
   removeCaptainButtons();
   isCaptainDialogOpen = true;
 
   const me = players.get(myId);
-  const hasCertificate =
-    me?.medicalCertificate &&
-    me?.inventory?.some((i) => i?.type === "medical_certificate");
+  const hasStampedCertificate = me?.medicalCertificateStamped === true;
 
   const dialog = document.createElement("div");
   dialog.className = "npc-dialog";
   dialog.id = "captainDialog";
   document.getElementById("gameContainer").appendChild(dialog);
 
-  if (hasCertificate) {
-    // === ДИАЛОГ ПОЛУЧЕНИЯ ПЕЧАТИ ===
+  if (hasStampedCertificate) {
+    // Печать уже получена
     dialog.innerHTML = `
       <div class="npc-dialog-header">
-        <div style="width:80px;height:80px;background:#222;border:2px solid #00ff00;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#00ff00;font-size:32px;font-weight:bold;">ПЕЧАТЬ</div>
-        <h2 class="npc-title">Получение печати</h2>
-      </div>
-      <div class="npc-dialog-content">
-        <p class="npc-text fullscreen" style="line-height:1.7;">
-          Так-так... Вижу у тебя справка МД-07.<br><br>
-          Отлично. Значит, ты чистый.<br>
-          Сейчас поставлю печать заставы «Северный Периметр».<br><br>
-          С этого момента ты официально допущен в Неоновый Город.<br><br>
-          Но помни: там свои законы. Не расслабляйся.<br><br>
-          Удачи, сталкер.
-        </p>
-      </div>
-      <div style="display:flex;gap:20px;justify-content:center;margin-top:15px;">
-        <button class="neon-btn" id="getStampBtn">Получить печать</button>
-        <button class="neon-btn red" id="closeStampBtn">Закрыть</button>
-      </div>
-    `;
-
-    dialog.querySelector("#getStampBtn").onclick = () => {
-      sendWhenReady(ws, JSON.stringify({ type: "requestCaptainStamp" }));
-      // Диалог закроется автоматически после ответа сервера
-    };
-
-    dialog.querySelector("#closeStampBtn").onclick = closeCaptainDialog;
-  } else {
-    // === ОБЫЧНЫЙ СПИСОК ЗАДАНИЙ ===
-    dialog.innerHTML = `
-      <div class="npc-dialog-header">
-        <div style="width:80px;height:80px;background:#222;border:2px solid #ff00ff;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#ff00ff;font-size:36px;font-weight:bold;">C</div>
+        <div style="width:80px;height:80px;background:#222;border:2px solid #00ff00;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#00ff00;font-size:32px;font-weight:bold;">✓</div>
         <h2 class="npc-title">Капитан Райдер</h2>
       </div>
       <div class="npc-dialog-content">
-        <p class="npc-text">Доступные задания:</p>
-        <div class="quest-list">
-          <div class="quest-item">
-            <span class="quest-marker">Checkmark</span>
-            <div><strong>Получить медсправку МД-07</strong><br><span style="font-size:14px;color:#aaa;">Поговори с роботом-врачом в бункере</span></div>
-          </div>
-          <div class="quest-item disabled">
-            <span class="quest-marker">Cross</span>
-            <div>Дальнейшие задания — после печати</div>
-          </div>
-        </div>
-        <p class="npc-text" style="margin-top:20px;color:#ff6666;">Без справки с печатью в город не пустят.</p>
+        <p class="npc-text fullscreen" style="line-height:1.8;">
+          Печать на справке стоит.<br><br>
+          Ты прошёл проверку. Допуск в Неоновый Город у тебя есть.<br><br>
+          Пока новых заданий нет.<br>
+          Приходи позже — возможно, что-то подвернётся.
+        </p>
       </div>
       <button class="neon-btn" id="closeBtn">Закрыть</button>
     `;
-
-    dialog.querySelector("#closeBtn").onclick = closeCaptainDialog;
+  } else {
+    // Печати нет
+    dialog.innerHTML = `
+      <div class="npc-dialog-header">
+        <div style="width:80px;height:80px;background:#222;border:2px solid #ff0066;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#ff0066;font-size:36px;font-weight:bold;">✗</div>
+        <h2 class="npc-title">Капитан Райдер</h2>
+      </div>
+      <div class="npc-dialog-content">
+        <p class="npc-text fullscreen" style="line-height:1.8;color:#ff8888;">
+          Без медицинской справки с печатью заставы<br>
+          в Неоновый Город не пустят.<br><br>
+          Принеси справку МД-07 — поставлю печать.<br><br>
+          Пока заданий нет.
+        </p>
+      </div>
+      <button class="neon-btn" id="closeBtn">Закрыть</button>
+    `;
   }
+
+  dialog.querySelector("#closeBtn").onclick = closeCaptainDialog;
 }
 
 // ===============================================

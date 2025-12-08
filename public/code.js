@@ -536,7 +536,7 @@ function handleAuthMessage(event) {
         },
         npcMet: data.npcMet || false,
         jackMet: data.jackMet || false,
-        alexNeonMet: data.alexNeonMet || false, // ДОБАВЛЕНО
+        alexNeonMet: data.alexNeonMet || false,
         captainMet: data.captainMet || false,
         selectedQuestId: data.selectedQuestId || null,
         level: data.level || 0,
@@ -551,8 +551,15 @@ function handleAuthMessage(event) {
         foodUpgrade: data.foodUpgrade || 0,
         waterUpgrade: data.waterUpgrade || 0,
 
+        // === МЕДСПРАВКИ ===
         medicalCertificate: data.medicalCertificate || false,
+        medicalCertificateStamped: data.medicalCertificateStamped || false, // ← КРИТИЧНО!
       };
+
+      // === ДОПОЛНИТЕЛЬНО: если сервер вдруг пришлёт maxStats — сохраняем ===
+      if (data.maxStats) {
+        me.maxStats = data.maxStats;
+      }
 
       if (window.welcomeGuideSystem && window.welcomeGuideSystem.setSeen) {
         window.welcomeGuideSystem.setSeen(data.hasSeenWelcomeGuide === true);
@@ -584,6 +591,10 @@ function handleAuthMessage(event) {
       if (data.players) {
         data.players.forEach((p) => {
           if (p.id !== myId) {
+            // Важно: тоже синхронизируем флаг у других игроков (если придёт)
+            if (p.medicalCertificateStamped === undefined) {
+              p.medicalCertificateStamped = false;
+            }
             players.set(p.id, p);
           }
         });
@@ -623,15 +634,15 @@ function handleAuthMessage(event) {
       window.npcSystem.setNPCMet(data.npcMet || false);
       window.jackSystem.setJackMet(data.jackMet || false);
 
-      // НЕОН АЛЕКС — САМОЕ ГЛАВНОЕ
       if (window.neonNpcSystem && data.alexNeonMet !== undefined) {
         NEON_NPC.isMet = !!data.alexNeonMet;
       }
+
       if (window.outpostCaptainSystem) {
         window.outpostCaptainSystem.setCaptainMet(data.captainMet === true);
       }
 
-      // Квесты Джона
+      // Квесты
       window.npcSystem.setSelectedQuest(data.selectedQuestId || null);
       window.npcSystem.checkQuestCompletion();
       window.npcSystem.setAvailableQuests(data.availableQuests || []);
@@ -1955,27 +1966,37 @@ function handleGameMessage(event) {
           inventory = data.inventory.map((i) => (i ? { ...i } : null));
           updateInventoryDisplay();
 
-          // Показываем уведомление ТОЛЬКО НА КЛИЕНТЕ
+          // Важно: сохраняем новый флаг в объекте игрока
+          const me = players.get(myId);
+          if (me) {
+            me.medicalCertificateStamped =
+              data.medicalCertificateStamped ?? true;
+            players.set(myId, me);
+          }
+
+          // Уведомление
           showNotification(
-            "Печать получена! Теперь ты официально допущен в Неоновый Город.",
+            "Печать получена! Допуск в Неоновый Город выдан.",
             "#00ff44"
           );
 
-          // Звук, если есть
+          // Звук успеха
           if (window.soundSystem && window.soundSystem.play) {
             window.soundSystem.play("success");
           }
+
+          // Автоматически закрываем диалог капитана
+          const captainDialog = document.getElementById("captainDialog");
+          if (captainDialog) captainDialog.remove();
+
+          if (window.outpostCaptainSystem) {
+            window.outpostCaptainSystem.isCaptainDialogOpen = () => false;
+          }
         } else {
           showNotification(
-            data.error || "Не удалось поставить печать",
+            data.error || "Капитан отказался ставить печать.",
             "#ff0066"
           );
-        }
-
-        // Закрываем диалог
-        document.getElementById("captainDialog")?.remove();
-        if (window.outpostCaptainSystem) {
-          window.outpostCaptainSystem.isCaptainDialogOpen = false;
         }
         break;
     }
