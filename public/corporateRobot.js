@@ -122,7 +122,7 @@ window.corporateRobotSystem = (function () {
   }
 
   function openQuestDialog() {
-    // Скрываем кнопку принятия задания
+    // Скрываем кнопку принятия задания по умолчанию
     if (acceptBtn) acceptBtn.style.display = "none";
 
     // 1. Нет справки вообще
@@ -137,7 +137,7 @@ window.corporateRobotSystem = (function () {
       return;
     }
 
-    // 2. Есть справка, но без печати
+    // 2. Есть справка, но без печати нет
     if (hasMedicalCertificate() && !hasStampedCertificate()) {
       dialogText.innerHTML = `
         <strong>Справка обнаружена. Проверка печати...</strong><br><br>
@@ -149,26 +149,51 @@ window.corporateRobotSystem = (function () {
       return;
     }
 
-    // 3. Всё ок — показываем квест и кнопку
+    // 3. Всё есть — проверяем, сдавал ли уже документы
+    const me = players.get(myId);
+    if (me?.corporateDocumentsSubmitted) {
+      dialogText.innerHTML = `
+        <strong>Добро пожаловать, служащий корпорации.</strong><br><br>
+        Ваши документы уже приняты и зарегистрированы в системе.<br><br>
+        Продолжайте выполнять свои обязанности. Корпорация следит за вами.
+      `;
+      dialogWindow.style.display = "flex";
+      return;
+    }
+
+    // 4. Все условия выполнены — можно сдать документы!
     dialogText.innerHTML = `
-      <strong>Доступное задание:</strong><br><br>
-      <div style="text-align:left; margin:15px 0;">
-        • ${QUEST.title}<br>
-        • ${QUEST.description}<br><br>
-        <strong style="color:#ff00ff">Награда:</strong> ${QUEST.reward.xp} XP + ${QUEST.reward.balyary} баляров
-      </div>
+      <strong>Все документы в порядке.</strong><br><br>
+      Вы готовы к службе в корпорации.<br><br>
+      Подтвердите сдачу документов для получения допуска к корпоративным заданиям.
     `;
 
+    // Кнопка "Сдать документы"
     if (!acceptBtn) {
       acceptBtn = document.createElement("div");
       acceptBtn.className = "neon-btn";
-      acceptBtn.textContent = "Взять задание";
-      acceptBtn.onclick = acceptQuest;
+      acceptBtn.textContent = "Сдать документы";
+      acceptBtn.onclick = submitDocuments;
       dialogWindow.insertBefore(acceptBtn, dialogWindow.lastElementChild);
+    } else {
+      acceptBtn.textContent = "Сдать документы";
+      acceptBtn.onclick = submitDocuments;
     }
     acceptBtn.style.display = "block";
 
     dialogWindow.style.display = "flex";
+  }
+
+  function submitDocuments() {
+    if (ws?.readyState === WebSocket.OPEN) {
+      sendWhenReady(
+        ws,
+        JSON.stringify({
+          type: "submitCorporateDocuments",
+        })
+      );
+    }
+    dialogWindow.style.display = "none";
   }
 
   function acceptQuest() {

@@ -365,6 +365,8 @@ function setupWebSocket(
             medicalCertificate: player.medicalCertificate || false,
             medicalCertificateStamped:
               player.medicalCertificateStamped || false,
+            corporateDocumentsSubmitted:
+              player.corporateDocumentsSubmitted || false,
           };
 
           players.set(data.username, playerData);
@@ -2148,6 +2150,90 @@ function setupWebSocket(
           JSON.stringify({
             type: "playerGotStamp",
             playerId: playerId,
+          })
+        );
+      } else if (data.type === "submitCorporateDocuments") {
+        const playerId = clients.get(ws);
+        if (!playerId || !players.has(playerId)) return;
+
+        const player = players.get(playerId);
+
+        // Проверяем все три условия
+        if (
+          !player.medicalCertificate ||
+          !player.medicalCertificateStamped ||
+          !player.inventory.some(
+            (item) => item && item.type === "medical_certificate_stamped"
+          )
+        ) {
+          ws.send(
+            JSON.stringify({
+              type: "corporateDocumentsResult",
+              success: false,
+              error: "Документы не соответствуют требованиям корпорации.",
+            })
+          );
+          return;
+        }
+
+        // Проверяем, не сдавал ли уже
+        if (player.corporateDocumentsSubmitted) {
+          ws.send(
+            JSON.stringify({
+              type: "corporateDocumentsResult",
+              success: false,
+              error: "Вы уже сдали документы ранее.",
+            })
+          );
+          return;
+        }
+
+        // Даём награду
+        player.xp = (player.xp || 0) + 66;
+
+        let xpToNext = calculateXPToNextLevel(player.level);
+        while (player.xp >= xpToNext && player.level < 100) {
+          player.level += 1;
+          player.xp -= xpToNext;
+          player.upgradePoints = (player.upgradePoints || 0) + 10;
+          xpToNext = calculateXPToNextLevel(player.level);
+        }
+
+        // +10 баляров
+        let added = false;
+        for (let i = 0; i < player.inventory.length; i++) {
+          if (player.inventory[i]?.type === "balyary") {
+            player.inventory[i].quantity += 10;
+            added = true;
+            break;
+          }
+          if (!player.inventory[i]) {
+            player.inventory[i] = { type: "balyary", quantity: 10 };
+            added = true;
+            break;
+          }
+        }
+
+        // Ставим вечный флаг
+        player.corporateDocumentsSubmitted = true;
+
+        // Сохраняем
+        players.set(playerId, player);
+        userDatabase.set(playerId, player);
+        await saveUserDatabase(dbCollection, playerId, player);
+
+        // Отправляем успех
+        ws.send(
+          JSON.stringify({
+            type: "corporateDocumentsResult",
+            success: true,
+            xpGained: 66,
+            balyaryGained: 10,
+            level: player.level,
+            xp: player.xp,
+            xpToNextLevel: xpToNext,
+            upgradePoints: player.upgradePoints,
+            inventory: player.inventory,
           })
         );
       }

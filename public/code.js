@@ -553,7 +553,8 @@ function handleAuthMessage(event) {
 
         // === МЕДСПРАВКИ ===
         medicalCertificate: data.medicalCertificate || false,
-        medicalCertificateStamped: data.medicalCertificateStamped || false, // ← КРИТИЧНО!
+        medicalCertificateStamped: data.medicalCertificateStamped || false,
+        corporateDocumentsSubmitted: data.corporateDocumentsSubmitted || false,
       };
 
       // === ДОПОЛНИТЕЛЬНО: если сервер вдруг пришлёт maxStats — сохраняем ===
@@ -1995,6 +1996,39 @@ function handleGameMessage(event) {
         } else {
           showNotification(
             data.error || "Капитан отказался ставить печать.",
+            "#ff0066"
+          );
+        }
+        break;
+      case "corporateDocumentsResult":
+        if (data.success) {
+          showNotification(
+            "Документы приняты! +66 XP | +10 баляров. Добро пожаловать в корпорацию!",
+            "#00ffff"
+          );
+
+          const me = players.get(myId);
+          if (me) {
+            me.corporateDocumentsSubmitted = true;
+            me.xp = data.xp;
+            me.level = data.level;
+            me.upgradePoints = data.upgradePoints;
+            inventory = data.inventory;
+            updateInventoryDisplay();
+
+            if (window.levelSystem) {
+              window.levelSystem.setLevelData(
+                data.level,
+                data.xp,
+                data.xpToNextLevel,
+                data.upgradePoints
+              );
+              window.levelSystem.showXPEffect(66);
+            }
+          }
+        } else {
+          showNotification(
+            data.error || "Ошибка при сдаче документов",
             "#ff0066"
           );
         }
