@@ -1951,17 +1951,32 @@ function handleGameMessage(event) {
         break;
       case "captainStampResult":
         if (data.success) {
+          // Обновляем инвентарь
           inventory = data.inventory.map((i) => (i ? { ...i } : null));
           updateInventoryDisplay();
+
+          // Показываем уведомление ТОЛЬКО НА КЛИЕНТЕ
           showNotification(
-            "Печать получена! Теперь ты — официально допущен в город.",
+            "Печать получена! Теперь ты официально допущен в Неоновый Город.",
             "#00ff44"
           );
+
+          // Звук, если есть
+          if (window.soundSystem && window.soundSystem.play) {
+            window.soundSystem.play("success");
+          }
         } else {
-          showNotification(data.error || "Ошибка получения печати", "#ff0066");
+          showNotification(
+            data.error || "Не удалось поставить печать",
+            "#ff0066"
+          );
         }
+
+        // Закрываем диалог
         document.getElementById("captainDialog")?.remove();
-        window.outpostCaptainSystem.isCaptainDialogOpen = false;
+        if (window.outpostCaptainSystem) {
+          window.outpostCaptainSystem.isCaptainDialogOpen = false;
+        }
         break;
     }
   } catch (error) {

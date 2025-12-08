@@ -2129,11 +2129,6 @@ function setupWebSocket(
             inventory: player.inventory,
           })
         );
-
-        showNotification(
-          "Печать получена! Теперь вы допущены в Неоновый Город.",
-          "#00ff44"
-        );
       }
     });
 
