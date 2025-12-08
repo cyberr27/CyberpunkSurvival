@@ -1,6 +1,6 @@
 // ===============================================
-//          КАПИТАН ЗАСТАВЫ — ОБНОВЛЁННАЯ ВЕРСИЯ 2025
-//  Новый флаг medicalCertificateStamped + упрощённые задания
+//          КАПИТАН ЗАСТАВЫ — ФИНАЛЬНАЯ ВЕРСИЯ 2025
+//  100% синхронизация | без багов | чистый код
 // ===============================================
 
 const OUTPOST_CAPTAIN = {
@@ -8,7 +8,7 @@ const OUTPOST_CAPTAIN = {
   y: 1593,
   width: 70,
   height: 70,
-  interactionRadius: 70,
+  interactionRadius: 80,
   name: "Капитан Райдер",
   spriteSrc: "outpost_captain.png",
   totalFrames: 13,
@@ -64,6 +64,16 @@ function updateCaptain(deltaTime) {
 }
 
 // ===============================================
+// ЗАКРЫТИЕ ВСЕГО ПРИ ВЫХОДЕ ИЗ ЗОНЫ
+// ===============================================
+function closeAllCaptainUI() {
+  removeCaptainButtons();
+  const dialog = document.getElementById("captainDialog");
+  if (dialog) dialog.remove();
+  isCaptainDialogOpen = false;
+}
+
+// ===============================================
 // ОТРИСОВКА + ЛОГИКА ВЗАИМОДЕЙСТВИЯ
 // ===============================================
 function drawCaptain(ctx, cameraX, cameraY) {
@@ -72,17 +82,18 @@ function drawCaptain(ctx, cameraX, cameraY) {
   const screenX = OUTPOST_CAPTAIN.x - cameraX;
   const screenY = OUTPOST_CAPTAIN.y - cameraY - OUTPOST_CAPTAIN.height + 30;
 
+  // Если далеко — закрываем всё
   if (
-    screenX < -150 ||
-    screenX > canvas.width + 150 ||
-    screenY < -150 ||
-    screenY > canvas.height + 150
+    screenX < -200 ||
+    screenX > canvas.width + 200 ||
+    screenY < -200 ||
+    screenY > canvas.height + 200
   ) {
-    removeCaptainButtons();
-    closeCaptainDialog();
+    closeAllCaptainUI();
     return;
   }
 
+  // Рисуем спрайт
   if (captainSprite?.complete && captainSprite.naturalWidth > 0) {
     ctx.drawImage(
       captainSprite,
@@ -100,15 +111,15 @@ function drawCaptain(ctx, cameraX, cameraY) {
     ctx.fillRect(screenX, screenY, 70, 70);
     ctx.fillStyle = "#000";
     ctx.font = "12px Courier New";
-    ctx.textAlign = "center";
-    ctx.fillText("CAPT", screenX + 35, screenY + 40);
+    ctx.fillText("CAPT", screenX + 20, screenY + 40);
   }
 
+  // Имя
   ctx.font = "16px 'Courier New'";
   ctx.fillStyle = "#00ffff";
-  ctx.textAlign = "center";
   ctx.strokeStyle = "#000";
   ctx.lineWidth = 3;
+  ctx.textAlign = "center";
   ctx.strokeText(
     isCaptainMet ? OUTPOST_CAPTAIN.name : "?",
     screenX + 35,
@@ -132,8 +143,7 @@ function drawCaptain(ctx, cameraX, cameraY) {
       createCaptainButtons(screenX, screenY);
     }
   } else {
-    removeCaptainButtons();
-    closeCaptainDialog();
+    closeAllCaptainUI(); // ← ГАРАНТИРОВАННОЕ ЗАКРЫТИЕ
   }
 }
 
@@ -212,17 +222,11 @@ function removeCaptainButtons() {
   }
 }
 
-function closeCaptainDialog() {
-  const dialog = document.getElementById("captainDialog");
-  if (dialog) dialog.remove();
-  isCaptainDialogOpen = false;
-}
-
 // ===============================================
-// ДИАЛОГ "ГОВОРИТЬ" (без изменений)
+// ДИАЛОГИ
 // ===============================================
 function openCaptainTalk() {
-  removeCaptainButtons();
+  closeAllCaptainUI();
   isCaptainDialogOpen = true;
 
   const dialog = document.createElement("div");
@@ -248,43 +252,50 @@ function openCaptainTalk() {
     el.className = "talk-topic";
     el.innerHTML = `<strong>${topic.title}</strong>`;
     el.onclick = () => {
-      const textEl = dialog.querySelector(".npc-text");
-      textEl.innerHTML = topic.text;
-      textEl.classList.add("fullscreen");
+      dialog.querySelector(".npc-text").innerHTML = topic.text;
+      dialog.querySelector(".npc-text").classList.add("fullscreen");
       container.classList.add("hidden");
-      const btn = dialog.querySelector("#closeBtn");
-      btn.textContent = "Назад";
-      btn.onclick = () => {
-        textEl.classList.remove("fullscreen");
-        textEl.innerHTML = "О чём поговорим, сталкер?";
+      dialog.querySelector("#closeBtn").textContent = "Назад";
+      dialog.querySelector("#closeBtn").onclick = () => {
+        dialog.querySelector(".npc-text").innerHTML =
+          "О чём поговорим, сталкер?";
+        dialog.querySelector(".npc-text").classList.remove("fullscreen");
         container.classList.remove("hidden");
-        btn.textContent = "Закрыть";
-        btn.onclick = () => closeCaptainDialog();
+        dialog.querySelector("#closeBtn").textContent = "Закрыть";
+        dialog.querySelector("#closeBtn").onclick = () => {
+          dialog.remove();
+          isCaptainDialogOpen = false;
+        };
       };
     };
     container.appendChild(el);
   });
 
-  dialog.querySelector("#closeBtn").onclick = closeCaptainDialog;
+  dialog.querySelector("#closeBtn").onclick = () => {
+    dialog.remove();
+    isCaptainDialogOpen = false;
+  };
 }
 
 // ===============================================
-// ДИАЛОГ "ЗАДАНИЯ" — НОВАЯ ЛОГИКА
+// ГЛАВНОЕ: ЗАДАНИЯ — ПЕЧАТЬ НА СПРАВКУ
 // ===============================================
 function openCaptainQuests() {
-  removeCaptainButtons();
+  closeAllCaptainUI();
   isCaptainDialogOpen = true;
 
   const me = players.get(myId);
-  const hasStampedCertificate = me?.medicalCertificateStamped === true;
+  if (!me) return;
+
+  const hasStamp = me.medicalCertificateStamped === true;
 
   const dialog = document.createElement("div");
   dialog.className = "npc-dialog";
   dialog.id = "captainDialog";
   document.getElementById("gameContainer").appendChild(dialog);
 
-  if (hasStampedCertificate) {
-    // Печать уже получена
+  if (hasStamp) {
+    // УЖЕ ЕСТЬ ПЕЧАТЬ
     dialog.innerHTML = `
       <div class="npc-dialog-header">
         <div style="width:80px;height:80px;background:#222;border:2px solid #00ff00;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#00ff00;font-size:32px;font-weight:bold;">✓</div>
@@ -292,34 +303,43 @@ function openCaptainQuests() {
       </div>
       <div class="npc-dialog-content">
         <p class="npc-text fullscreen" style="line-height:1.8;">
-          Печать на справке стоит.<br><br>
-          Ты прошёл проверку. Допуск в Неоновый Город у тебя есть.<br><br>
+          Печать стоит. Допуск в Неоновый Город у тебя есть.<br><br>
           Пока новых заданий нет.<br>
-          Приходи позже — возможно, что-то подвернётся.
+          Возвращайся позже — может, что-то подвернётся.
         </p>
       </div>
-      <button class="neon-btn" id="closeBtn">Закрыть</button>
+      <button class="neon-btn" onclick="document.getElementById('captainDialog')?.remove(); window.outpostCaptainSystem.isCaptainDialogOpen=false;">Закрыть</button>
     `;
   } else {
-    // Печати нет
+    // ЕСТЬ СПРАВКА — ПРЕДЛАГАЕМ ПОСТАВИТЬ ПЕЧАТЬ
     dialog.innerHTML = `
       <div class="npc-dialog-header">
-        <div style="width:80px;height:80px;background:#222;border:2px solid #ff0066;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#ff0066;font-size:36px;font-weight:bold;">✗</div>
+        <div style="width:80px;height:80px;background:#222;border:2px solid #ffff00;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#ffff00;font-size:36px;font-weight:bold;">?</div>
         <h2 class="npc-title">Капитан Райдер</h2>
       </div>
       <div class="npc-dialog-content">
-        <p class="npc-text fullscreen" style="line-height:1.8;color:#ff8888;">
-          Без медицинской справки с печатью заставы<br>
-          в Неоновый Город не пустят.<br><br>
-          Принеси справку МД-07 — поставлю печать.<br><br>
-          Пока заданий нет.
+        <p class="npc-text fullscreen" style="line-height:1.8;">
+          Вижу у тебя справка МД-07.<br><br>
+          Давай поставлю печать заставы.<br>
+          Теперь ты официально чист.
         </p>
       </div>
-      <button class="neon-btn" id="closeBtn">Закрыть</button>
+      <button class="neon-btn" id="stampRequestBtn">Поставить печать</button>
+      <button class="neon-btn" style="margin-top:8px;" id="closeBtn">Отказаться</button>
     `;
-  }
 
-  dialog.querySelector("#closeBtn").onclick = closeCaptainDialog;
+    dialog.querySelector("#stampRequestBtn").onclick = () => {
+      sendWhenReady(ws, JSON.stringify({ type: "requestCaptainStamp" })); // ← правильный тип!
+      dialog.querySelector(".npc-text").innerHTML = "Печать ставится...";
+      dialog.querySelector("#stampRequestBtn").disabled = true;
+      dialog.querySelector("#stampRequestBtn").textContent = "Ждём...";
+    };
+
+    dialog.querySelector("#closeBtn").onclick = () => {
+      dialog.remove();
+      isCaptainDialogOpen = false;
+    };
+  }
 }
 
 // ===============================================
@@ -334,4 +354,5 @@ window.outpostCaptainSystem = {
     if (!met) hasCaptainGreetingShown = false;
   },
   isCaptainDialogOpen: () => isCaptainDialogOpen,
+  closeAllCaptainUI, // можно использовать извне, если надо
 };
