@@ -77,6 +77,7 @@ const imageSources = {
   corporateRobotSprite: "corporate_robot.png",
   robotDoctorSprite: "robotDoctorSprite.png",
   medicalCertificateImage: "medical_certificate.png",
+  medicalCertificateStampedImage: "medical_certificate_stamped.png",
 };
 
 const images = {};
@@ -304,6 +305,12 @@ const ITEM_CONFIG = {
     effect: {},
     image: images.medicalCertificateImage,
     description: "Мед. справка МД-07: подтверждает, что ты не зомби.",
+    rarity: 5,
+  },
+  medical_certificate_stamped: {
+    effect: {},
+    image: images.medicalCertificateStampedImage,
+    description: "Мед. справка с печатью заставы. Допуск в Неоновый Город.",
     rarity: 5,
   },
 };
@@ -1941,6 +1948,20 @@ function handleGameMessage(event) {
         } else {
           showNotification(data.error || "Лечение невозможно", "#ff0066");
         }
+        break;
+      case "captainStampResult":
+        if (data.success) {
+          inventory = data.inventory.map((i) => (i ? { ...i } : null));
+          updateInventoryDisplay();
+          showNotification(
+            "Печать получена! Теперь ты — официально допущен в город.",
+            "#00ff44"
+          );
+        } else {
+          showNotification(data.error || "Ошибка получения печати", "#ff0066");
+        }
+        document.getElementById("captainDialog")?.remove();
+        window.outpostCaptainSystem.isCaptainDialogOpen = false;
         break;
     }
   } catch (error) {

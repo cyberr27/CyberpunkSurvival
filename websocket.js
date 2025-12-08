@@ -2090,6 +2090,50 @@ function setupWebSocket(
             inventory: player.inventory,
           })
         );
+      } else if (data.type === "requestCaptainStamp") {
+        const playerId = clients.get(ws);
+        if (!playerId || !players.has(playerId)) return;
+
+        const player = players.get(playerId);
+
+        // Проверяем: есть ли справка и флаг
+        const certSlot = player.inventory.findIndex(
+          (item) => item && item.type === "medical_certificate"
+        );
+
+        if (certSlot === -1 || !player.medicalCertificate) {
+          ws.send(
+            JSON.stringify({
+              type: "captainStampResult",
+              success: false,
+              error: "У вас нет медицинской справки!",
+            })
+          );
+          return;
+        }
+
+        // Удаляем старую справку
+        player.inventory[certSlot] = {
+          type: "medical_certificate_stamped",
+          quantity: 1,
+        };
+
+        players.set(playerId, player);
+        userDatabase.set(playerId, player);
+        await saveUserDatabase(dbCollection, playerId, player);
+
+        ws.send(
+          JSON.stringify({
+            type: "captainStampResult",
+            success: true,
+            inventory: player.inventory,
+          })
+        );
+
+        showNotification(
+          "Печать получена! Теперь вы допущены в Неоновый Город.",
+          "#00ff44"
+        );
       }
     });
 

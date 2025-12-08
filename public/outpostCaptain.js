@@ -1,7 +1,6 @@
 // ===============================================
-//          КАПИТАН ЗАСТАВЫ — ВЕРСИЯ С КНОПКОЙ "ЗАДАНИЯ"
-//  Координаты: X=675, Y=1593 | Мир 0
-//  Спрайт: outpost_captain.png (13 кадров по горизонтали, 70×70)
+//          КАПИТАН ЗАСТАВЫ — ФИНАЛЬНАЯ ВЕРСИЯ 2025
+//  Получение печати на медсправку МД-07
 // ===============================================
 
 const OUTPOST_CAPTAIN = {
@@ -9,24 +8,23 @@ const OUTPOST_CAPTAIN = {
   y: 1593,
   width: 70,
   height: 70,
-  interactionRadius: 50,
+  interactionRadius: 70, // удобный радиус
   name: "Капитан Райдер",
   spriteSrc: "outpost_captain.png",
   totalFrames: 13,
-  frameDuration: 180, // ms на кадр
+  frameDuration: 180,
 };
 
 let isCaptainMet = false;
 let isCaptainDialogOpen = false;
 let hasCaptainGreetingShown = false;
+
 let captainButtonsContainer = null;
 let captainSprite = null;
 
-// Анимация
 let captainFrame = 0;
 let captainFrameTime = 0;
 
-// Темы разговора (без изменений)
 const captainTopics = [
   {
     title: "О заставах",
@@ -34,15 +32,15 @@ const captainTopics = [
   },
   {
     title: "Пустоши",
-    text: "За стенами — ад. Песчаные бури, радиация, мутанты размером с грузовик. Вода там — на вес золота, а баляры не котируются. Люди там либо становятся рейдерами, либо сжираются в пустыне. Говорят, раньше были целые города... теперь только кости и ржавчина. Если пойдёшь туда — бери с собой много воды и крепкий ствол.",
+    text: "За стенами — ад. Песчаные бури, радиация, мутанты размером с грузовик. Вода там — на вес золота, а баляры не котируются. Люди там либо становятся рейдерами, либо сжираются в пустыне. Говорят, раньше были целые города... теперь только кости и ржавчина.",
   },
   {
     title: "Корпорации",
-    text: "Эти ублюдки в башнях думают, что могут купить всё. Даже нас. Предлагали контракт — охранять их грузы за баляры. Отказались. Потому что знаем: сегодня ты охраняешь их склад, а завтра они сбрасывают бомбу на твою заставу, чтобы 'очистить зону'. Мы не наёмники. Мы — стена.",
+    text: "Эти ублюдки в башнях думают, что могут купить всё. Даже нас. Предлагали контракт — охранять их грузы за баляры. Отказались. Потому что знаем: сегодня ты охраняешь их склад, а завтра они сбрасывают бомбу на твою заставу.",
   },
   {
     title: "Твой путь",
-    text: "Вижу в тебе что-то... не как у других крыс из подвалов. Глаза горят. Слушай сюда, новичок: в этом мире выживает не сильнейший, а тот, кто не сдаётся. Бери оружие, учись, строй связи. Когда-нибудь ты можешь стать одним из нас. А может... даже больше. Но пока — докажи, что не сдохнешь в первой же стычке.",
+    text: "Вижу в тебе что-то... не как у других крыс из подвалов. Глаза горят. Слушай сюда, новичок: в этом мире выживает не сильнейший, а тот, кто не сдаётся. Докажи, что достоин войти в Неоновый Город.",
   },
 ];
 
@@ -55,7 +53,7 @@ function initializeCaptain() {
 }
 
 // ===============================================
-// ОБНОВЛЕНИЕ АНИМАЦИИ
+// АНИМАЦИЯ
 // ===============================================
 function updateCaptain(deltaTime) {
   captainFrameTime += deltaTime;
@@ -66,7 +64,7 @@ function updateCaptain(deltaTime) {
 }
 
 // ===============================================
-// ОТРИСОВКА
+// ОТРИСОВКА + ЛОГИКА ВЗАИМОДЕЙСТВИЯ
 // ===============================================
 function drawCaptain(ctx, cameraX, cameraY) {
   if (window.worldSystem.currentWorldId !== 0) return;
@@ -74,14 +72,17 @@ function drawCaptain(ctx, cameraX, cameraY) {
   const screenX = OUTPOST_CAPTAIN.x - cameraX;
   const screenY = OUTPOST_CAPTAIN.y - cameraY - OUTPOST_CAPTAIN.height + 30;
 
-  // Отсечение
+  // Отсечение за экраном
   if (
-    screenX < -100 ||
-    screenX > canvas.width + 100 ||
-    screenY < -100 ||
-    screenY > canvas.height + 100
-  )
+    screenX < -150 ||
+    screenX > canvas.width + 150 ||
+    screenY < -150 ||
+    screenY > canvas.height + 150
+  ) {
+    removeCaptainButtons();
+    closeCaptainDialog();
     return;
+  }
 
   // Спрайт
   if (captainSprite?.complete && captainSprite.naturalWidth > 0) {
@@ -111,17 +112,21 @@ function drawCaptain(ctx, cameraX, cameraY) {
   ctx.textAlign = "center";
   ctx.strokeStyle = "#000";
   ctx.lineWidth = 3;
-  const displayText = isCaptainMet ? OUTPOST_CAPTAIN.name : "?";
-  ctx.strokeText(displayText, screenX + 35, screenY - 10);
-  ctx.fillText(displayText, screenX + 35, screenY - 10);
+  ctx.strokeText(
+    isCaptainMet ? OUTPOST_CAPTAIN.name : "?",
+    screenX + 35,
+    screenY - 10
+  );
+  ctx.fillText(
+    isCaptainMet ? OUTPOST_CAPTAIN.name : "?",
+    screenX + 35,
+    screenY - 10
+  );
 
-  // Проверка дистанции
   const me = players.get(myId);
   if (!me) return;
 
-  const dx = me.x - OUTPOST_CAPTAIN.x;
-  const dy = me.y - OUTPOST_CAPTAIN.y;
-  const dist = Math.hypot(dx, dy);
+  const dist = Math.hypot(me.x - OUTPOST_CAPTAIN.x, me.y - OUTPOST_CAPTAIN.y);
 
   if (dist < OUTPOST_CAPTAIN.interactionRadius) {
     if (!isCaptainMet && !hasCaptainGreetingShown) {
@@ -131,6 +136,7 @@ function drawCaptain(ctx, cameraX, cameraY) {
     }
   } else {
     removeCaptainButtons();
+    closeCaptainDialog();
   }
 }
 
@@ -155,21 +161,20 @@ function showCaptainGreeting() {
     </div>
     <div class="npc-dialog-content">
       <p class="npc-text fullscreen">
-        Назовись, сталкер. Ты из города?<br><br>
+        Назовись, сталкер.<br><br>
         Я — Райдер, капитан заставы «Северный Периметр».<br>
-        Мы держим рубеж от мутантов и рейдеров.<br><br>
-        Если хочешь выжить в Пустошах — слушай внимательно.<br>
-        А если хочешь стать одним из нас — докажи делом.
+        Держим рубеж от мутантов и рейдеров.<br><br>
+        Хочешь попасть в Неоновый Город — принеси медсправку МД-07.<br>
+        Поставлю печать. Без неё — ни шагу за стену.
       </p>
     </div>
-    <button class="neon-btn" id="captainOkBtn">Хорошо</button>
+    <button class="neon-btn" id="captainGreetingOk">Понял</button>
   `;
 
-  document.getElementById("captainOkBtn").onclick = () => {
+  dialog.querySelector("#captainGreetingOk").onclick = () => {
     dialog.remove();
     isCaptainDialogOpen = false;
     isCaptainMet = true;
-
     sendWhenReady(
       ws,
       JSON.stringify({ type: "meetCaptain", captainMet: true })
@@ -178,7 +183,7 @@ function showCaptainGreeting() {
 }
 
 // ===============================================
-// КНОПКИ НАД ГОЛОВОЙ — ГОВОРИТЬ + ЗАДАНИЯ
+// КНОПКИ НАД ГОЛОВОЙ
 // ===============================================
 function createCaptainButtons(screenX, screenY) {
   if (captainButtonsContainer) return;
@@ -189,21 +194,17 @@ function createCaptainButtons(screenX, screenY) {
   captainButtonsContainer.style.top = screenY - 100 + "px";
   captainButtonsContainer.style.transform = "translateX(-50%)";
 
-  // Кнопка "Говорить"
   const talkBtn = document.createElement("div");
   talkBtn.className = "npc-button npc-talk-btn";
   talkBtn.textContent = "Говорить";
   talkBtn.onclick = openCaptainTalk;
 
-  // Кнопка "Задания
   const questsBtn = document.createElement("div");
   questsBtn.className = "npc-button npc-quests-btn";
   questsBtn.textContent = "Задания";
   questsBtn.onclick = openCaptainQuests;
 
-  captainButtonsContainer.appendChild(talkBtn);
-  captainButtonsContainer.appendChild(questsBtn);
-
+  captainButtonsContainer.append(talkBtn, questsBtn);
   document.body.appendChild(captainButtonsContainer);
 }
 
@@ -212,6 +213,15 @@ function removeCaptainButtons() {
     captainButtonsContainer.remove();
     captainButtonsContainer = null;
   }
+}
+
+// ===============================================
+// ЗАКРЫТИЕ ЛЮБОГО ДИАЛОГА КАПИТАНА
+// ===================================
+function closeCaptainDialog() {
+  const dialog = document.getElementById("captainDialog");
+  if (dialog) dialog.remove();
+  isCaptainDialogOpen = false;
 }
 
 // ===============================================
@@ -235,84 +245,107 @@ function openCaptainTalk() {
       <p class="npc-text">О чём поговорим, сталкер?</p>
       <div id="captainTopics" class="talk-topics"></div>
     </div>
-    <button class="neon-btn" id="closeCaptainBtn">Закрыть</button>
+    <button class="neon-btn" id="closeBtn">Закрыть</button>
   `;
 
-  const container = document.getElementById("captainTopics");
-  captainTopics.forEach((t) => {
+  const container = dialog.querySelector("#captainTopics");
+  captainTopics.forEach((topic) => {
     const el = document.createElement("div");
     el.className = "talk-topic";
-    el.innerHTML = `<strong>${t.title}</strong>`;
+    el.innerHTML = `<strong>${topic.title}</strong>`;
     el.onclick = () => {
       const textEl = dialog.querySelector(".npc-text");
-      textEl.innerHTML = t.text;
+      textEl.innerHTML = topic.text;
       textEl.classList.add("fullscreen");
       container.classList.add("hidden");
-      const btn = document.getElementById("closeCaptainBtn");
+      const btn = dialog.querySelector("#closeBtn");
       btn.textContent = "Назад";
       btn.onclick = () => {
         textEl.classList.remove("fullscreen");
         textEl.innerHTML = "О чём поговорим, сталкер?";
         container.classList.remove("hidden");
         btn.textContent = "Закрыть";
-        btn.onclick = closeCaptainDialog;
+        btn.onclick = () => closeCaptainDialog();
       };
     };
     container.appendChild(el);
   });
 
-  document.getElementById("closeCaptainBtn").onclick = closeCaptainDialog;
+  dialog.querySelector("#closeBtn").onclick = closeCaptainDialog;
 }
 
 // ===============================================
-// ДИАЛОГ "ЗАДАНИЯ" — заглушка (можно будет наполнить квестами позже)
+// ДИАЛОГ "ЗАДАНИЯ" + ПЕЧАТЬ НА СПРАВКУ
 // ===============================================
 function openCaptainQuests() {
   removeCaptainButtons();
   isCaptainDialogOpen = true;
+
+  const me = players.get(myId);
+  const hasCertificate =
+    me?.medicalCertificate &&
+    me?.inventory?.some((i) => i?.type === "medical_certificate");
 
   const dialog = document.createElement("div");
   dialog.className = "npc-dialog";
   dialog.id = "captainDialog";
   document.getElementById("gameContainer").appendChild(dialog);
 
-  dialog.innerHTML = `
-    <div class="npc-dialog-header">
-      <div style="width:80px;height:80px;background:#222;border:2px solid #ff00ff;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#ff00ff;font-size:36px;font-weight:bold;">C</div>
-      <h2 class="npc-title">Капитан Райдер</h2>
-    </div>
-    <div class="npc-dialog-content">
-      <p class="npc-text">Доступные задания:</p>
-      <div class="quest-list">
-        <div class="quest-item">
-          <span class="quest-marker">▶</span>
-          <div>
-            <strong>Очистить периметр</strong><br>
-            <span style="font-size:14px;color:#aaa;">Уничтожьте 10 мутантов в радиусе заставы</span>
-          </div>
-          <div class="quest-reward">+500 баляров</div>
-        </div>
-        <div class="quest-item">
-          <span class="quest-marker">▶</span>
-          <div>
-            <strong>Доставка припасов</strong><br>
-            <span style="font-size:14px;color:#aaa;">Отнесите ящик в лагерь выживших</span>
-          </div>
-          <div class="quest-reward">+800 баляров + репутация</div>
-        </div>
+  if (hasCertificate) {
+    // === ДИАЛОГ ПОЛУЧЕНИЯ ПЕЧАТИ ===
+    dialog.innerHTML = `
+      <div class="npc-dialog-header">
+        <div style="width:80px;height:80px;background:#222;border:2px solid #00ff00;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#00ff00;font-size:32px;font-weight:bold;">ПЕЧАТЬ</div>
+        <h2 class="npc-title">Получение печати</h2>
       </div>
-      <p class="npc-text" style="margin-top:20px;font-size:15px;color:#ff6666;">Новые задания появятся после выполнения текущих.</p>
-    </div>
-    <button class="neon-btn" id="closeCaptainBtn">Закрыть</button>
-  `;
+      <div class="npc-dialog-content">
+        <p class="npc-text fullscreen" style="line-height:1.7;">
+          Так-так... Вижу у тебя справка МД-07.<br><br>
+          Отлично. Значит, ты чистый.<br>
+          Сейчас поставлю печать заставы «Северный Периметр».<br><br>
+          С этого момента ты официально допущен в Неоновый Город.<br><br>
+          Но помни: там свои законы. Не расслабляйся.<br><br>
+          Удачи, сталкер.
+        </p>
+      </div>
+      <div style="display:flex;gap:20px;justify-content:center;margin-top:15px;">
+        <button class="neon-btn" id="getStampBtn">Получить печать</button>
+        <button class="neon-btn red" id="closeStampBtn">Закрыть</button>
+      </div>
+    `;
 
-  document.getElementById("closeCaptainBtn").onclick = closeCaptainDialog;
-}
+    dialog.querySelector("#getStampBtn").onclick = () => {
+      sendWhenReady(ws, JSON.stringify({ type: "requestCaptainStamp" }));
+      // Диалог закроется автоматически после ответа сервера
+    };
 
-function closeCaptainDialog() {
-  isCaptainDialogOpen = false;
-  const d = document.getElementById("captainDialog");
-  if (d) d.remove();
+    dialog.querySelector("#closeStampBtn").onclick = closeCaptainDialog;
+  } else {
+    // === ОБЫЧНЫЙ СПИСОК ЗАДАНИЙ ===
+    dialog.innerHTML = `
+      <div class="npc-dialog-header">
+        <div style="width:80px;height:80px;background:#222;border:2px solid #ff00ff;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#ff00ff;font-size:36px;font-weight:bold;">C</div>
+        <h2 class="npc-title">Капитан Райдер</h2>
+      </div>
+      <div class="npc-dialog-content">
+        <p class="npc-text">Доступные задания:</p>
+        <div class="quest-list">
+          <div class="quest-item">
+            <span class="quest-marker">Checkmark</span>
+            <div><strong>Получить медсправку МД-07</strong><br><span style="font-size:14px;color:#aaa;">Поговори с роботом-врачом в бункере</span></div>
+          </div>
+          <div class="quest-item disabled">
+            <span class="quest-marker">Cross</span>
+            <div>Дальнейшие задания — после печати</div>
+          </div>
+        </div>
+        <p class="npc-text" style="margin-top:20px;color:#ff6666;">Без справки с печатью в город не пустят.</p>
+      </div>
+      <button class="neon-btn" id="closeBtn">Закрыть</button>
+    `;
+
+    dialog.querySelector("#closeBtn").onclick = closeCaptainDialog;
+  }
 }
 
 // ===============================================
@@ -326,4 +359,5 @@ window.outpostCaptainSystem = {
     isCaptainMet = met;
     if (!met) hasCaptainGreetingShown = false;
   },
+  isCaptainDialogOpen: () => isCaptainDialogOpen,
 };

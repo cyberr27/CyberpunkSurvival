@@ -62,6 +62,13 @@ const ITEM_CONFIG = {
     description:
       "Официальная справка формы МД-07. Подтверждает отсутствие мутаций и зомби-вируса.",
   },
+  medical_certificate_stamped: {
+    effect: {},
+    rarity: 5,
+    name: "Мед. справка с печатью",
+    description:
+      "Официальная справка МД-07 с печатью заставы. Подтверждает допуск в Неоновый Город.",
+  },
 };
 
 module.exports = { ITEM_CONFIG };
