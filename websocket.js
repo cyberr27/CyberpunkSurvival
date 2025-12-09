@@ -347,7 +347,7 @@ function setupWebSocket(
             upgradePoints: player.upgradePoints || 0,
             availableQuests: player.availableQuests || [],
             worldId: player.worldId || 0,
-            hasSeenWelcomeGuide: false,
+            hasSeenWelcomeGuide: player.hasSeenWelcomeGuide || false,
             worldPositions: player.worldPositions || {
               0: { x: player.x, y: player.y },
             },
@@ -397,7 +397,7 @@ function setupWebSocket(
               upgradePoints: playerData.upgradePoints,
               availableQuests: playerData.availableQuests,
               worldId: playerData.worldId,
-              hasSeenWelcomeGuide: playerData.hasSeenWelcomeGuide || false, // ← ЭТО ГЛАВНОЕ
+              hasSeenWelcomeGuide: playerData.hasSeenWelcomeGuide || false,
               worldPositions: playerData.worldPositions,
               healthUpgrade: playerData.healthUpgrade || 0,
               energyUpgrade: playerData.energyUpgrade || 0,
