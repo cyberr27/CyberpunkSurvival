@@ -362,11 +362,11 @@ function setupWebSocket(
               progress: {},
               completed: [],
             },
-            medicalCertificate: player.medicalCertificate ?? false,
+            medicalCertificate: player.medicalCertificate || false,
             medicalCertificateStamped:
-              player.medicalCertificateStamped ?? false,
+              player.medicalCertificateStamped || false,
             corporateDocumentsSubmitted:
-              player.corporateDocumentsSubmitted ?? false,
+              player.corporateDocumentsSubmitted || false,
           };
 
           players.set(data.username, playerData);
@@ -397,13 +397,18 @@ function setupWebSocket(
               upgradePoints: playerData.upgradePoints,
               availableQuests: playerData.availableQuests,
               worldId: playerData.worldId,
-              hasSeenWelcomeGuide: player.hasSeenWelcomeGuide || false, // ← ЭТО ГЛАВНОЕ
+              hasSeenWelcomeGuide: playerData.hasSeenWelcomeGuide || false, // ← ЭТО ГЛАВНОЕ
               worldPositions: playerData.worldPositions,
               healthUpgrade: playerData.healthUpgrade || 0,
               energyUpgrade: playerData.energyUpgrade || 0,
               foodUpgrade: playerData.foodUpgrade || 0,
               waterUpgrade: playerData.waterUpgrade || 0,
               neonQuest: playerData.neonQuest,
+              medicalCertificate: playerData.medicalCertificate || false,
+              medicalCertificateStamped:
+                playerData.medicalCertificateStamped || false,
+              corporateDocumentsSubmitted:
+                playerData.corporateDocumentsSubmitted || false,
               players: Array.from(players.values()).filter(
                 (p) =>
                   p.id !== data.username && p.worldId === playerData.worldId

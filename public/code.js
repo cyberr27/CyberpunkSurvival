@@ -771,9 +771,9 @@ function handleAuthMessage(event) {
         waterUpgrade: data.waterUpgrade || 0,
 
         // === МЕДСПРАВКИ ===
-        medicalCertificate: data.medicalCertificate ?? false,
-        medicalCertificateStamped: data.medicalCertificateStamped ?? false,
-        corporateDocumentsSubmitted: data.corporateDocumentsSubmitted ?? false,
+        medicalCertificate: data.medicalCertificate || false,
+        medicalCertificateStamped: data.medicalCertificateStamped || false,
+        corporateDocumentsSubmitted: data.corporateDocumentsSubmitted || false,
       };
 
       // === ДОПОЛНИТЕЛЬНО: если сервер вдруг пришлёт maxStats — сохраняем ===
