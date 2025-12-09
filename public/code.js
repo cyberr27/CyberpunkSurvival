@@ -2221,34 +2221,37 @@ function handleGameMessage(event) {
         break;
       case "corporateDocumentsResult":
         if (data.success) {
-          showNotification(
-            "Документы приняты! +66 XP | +10 баляров. Добро пожаловать в корпорацию!",
-            "#00ffff"
+          // Обновляем уровень и опыт
+          window.levelSystem.setLevelData(
+            data.level,
+            data.xp,
+            null,
+            data.upgradePoints
           );
 
-          const me = players.get(myId);
-          if (me) {
-            me.corporateDocumentsSubmitted = true;
-            me.xp = data.xp;
-            me.level = data.level;
-            me.upgradePoints = data.upgradePoints;
-            inventory = data.inventory;
-            updateInventoryDisplay();
+          // Обновляем инвентарь
+          inventory = data.inventory;
+          updateInventoryDisplay();
 
-            if (window.levelSystem) {
-              window.levelSystem.setLevelData(
-                data.level,
-                data.xp,
-                data.xpToNextLevel,
-                data.upgradePoints
-              );
-              window.levelSystem.showXPEffect(66);
-            }
+          // Уведомление
+          showNotification(
+            "Документы приняты. Добро пожаловать в Корпорацию!",
+            "#00ffff"
+          );
+          showNotification(
+            "Получен стартовый комплект снаряжения и кастет",
+            "#ffff00"
+          );
+
+          // Закрываем диалог
+          if (window.corporateRobotSystem?.isPlayerInteracting()) {
+            document.querySelector(".npc-dialog")?.style &&
+              (document.querySelector(".npc-dialog").style.display = "none");
           }
         } else {
           showNotification(
             data.error || "Ошибка при сдаче документов",
-            "#ff0066"
+            "#ff0000"
           );
         }
         break;

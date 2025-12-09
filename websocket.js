@@ -2188,7 +2188,15 @@ function setupWebSocket(
           return;
         }
 
-        // Даём награду
+        // === УДАЛЯЕМ СПРАВКУ С ПЕЧАТЬЮ ИЗ ИНВЕНТАРЯ ===
+        const certIndex = player.inventory.findIndex(
+          (item) => item && item.type === "medical_certificate_stamped"
+        );
+        if (certIndex !== -1) {
+          player.inventory[certIndex] = null;
+        }
+
+        // === ОПЫТ +66 ===
         player.xp = (player.xp || 0) + 66;
 
         let xpToNext = calculateXPToNextLevel(player.level);
@@ -2199,30 +2207,71 @@ function setupWebSocket(
           xpToNext = calculateXPToNextLevel(player.level);
         }
 
-        // +10 баляров
-        let added = false;
+        // === +10 БАЛЯРОВ ===
+        let balyaryAdded = false;
         for (let i = 0; i < player.inventory.length; i++) {
           if (player.inventory[i]?.type === "balyary") {
-            player.inventory[i].quantity += 10;
-            added = true;
+            player.inventory[i].quantity =
+              (player.inventory[i].quantity || 1) + 10;
+            balyaryAdded = true;
             break;
           }
           if (!player.inventory[i]) {
             player.inventory[i] = { type: "balyary", quantity: 10 };
-            added = true;
+            balyaryAdded = true;
             break;
           }
         }
 
-        // Ставим вечный флаг
+        // === НАБОР НОВИЧКА КОРПОРАЦИИ ===
+        const starterArmor = [
+          "torn_health_t_shirt",
+          "torn_energy_t_shirt",
+          "torn_t_shirt_of_thirst",
+          "torn_t_shirt_of_gluttony",
+        ];
+        const starterPants = [
+          "torn_pants_of_health",
+          "torn_pants_of_energy",
+          "torn_pants_of_thirst",
+          "torn_pants_of_gluttony",
+        ];
+        const starterBoots = [
+          "torn_health_sneakers",
+          "torn_sneakers_of_energy",
+          "torn_sneakers_of_thirst",
+          "torn_sneakers_of_gluttony",
+        ];
+
+        const itemsToGive = [
+          starterArmor[Math.floor(Math.random() * starterArmor.length)],
+          starterPants[Math.floor(Math.random() * starterPants.length)],
+          starterBoots[Math.floor(Math.random() * starterBoots.length)],
+          "knuckles", // кастет — всегда
+        ];
+
+        // Добавляем предметы в инвентарь
+        itemsToGive.forEach((type) => {
+          let placed = false;
+          for (let i = 0; i < player.inventory.length; i++) {
+            if (!player.inventory[i]) {
+              player.inventory[i] = { type, quantity: 1 };
+              placed = true;
+              break;
+            }
+          }
+          // Если инвентарь полон — просто теряем предмет (или можно потом сделать дроп)
+        });
+
+        // === ФЛАГ СДАЧИ ДОКУМЕНТОВ ===
         player.corporateDocumentsSubmitted = true;
 
-        // Сохраняем
+        // === СОХРАНЯЕМ ===
         players.set(playerId, player);
         userDatabase.set(playerId, player);
         await saveUserDatabase(dbCollection, playerId, player);
 
-        // Отправляем успех
+        // === ОТПРАВЛЯЕМ КЛИЕНТУ ВСЁ ОБНОВЛЁННОЕ ===
         ws.send(
           JSON.stringify({
             type: "corporateDocumentsResult",
@@ -2234,6 +2283,7 @@ function setupWebSocket(
             xpToNextLevel: xpToNext,
             upgradePoints: player.upgradePoints,
             inventory: player.inventory,
+            corporateDocumentsSubmitted: true,
           })
         );
       }

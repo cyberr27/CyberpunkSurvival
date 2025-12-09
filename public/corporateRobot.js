@@ -185,16 +185,16 @@ window.corporateRobotSystem = (function () {
   }
 
   function submitDocuments() {
-    if (ws?.readyState === WebSocket.OPEN) {
-      sendWhenReady(
-        ws,
-        JSON.stringify({
-          type: "submitCorporateDocuments",
-        })
-      );
-    }
-    dialogWindow.style.display = "none";
+  if (ws?.readyState === WebSocket.OPEN) {
+    sendWhenReady(
+      ws,
+      JSON.stringify({
+        type: "submitCorporateDocuments",
+      })
+    );
   }
+  dialogWindow.style.display = "none"; // закрываем окно
+}
 
   function acceptQuest() {
     if (ws?.readyState === WebSocket.OPEN) {
