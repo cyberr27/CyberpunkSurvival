@@ -6,6 +6,47 @@
   let dialog = null;
   let checkInterval = null;
 
+  // ←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←
+  // Защита от отсутствия showNotification (бывает при ранней загрузке скрипта)
+  const safeNotify = (text, color = "#00ff44") => {
+    if (typeof window.showNotification === "function") {
+      window.showNotification(text, color);
+    } else {
+      // fallback – простое консольное сообщение + временный оверлей
+      console.log(
+        "%c[WelcomeGuide] " + text,
+        `color:${color};font-weight:bold;`
+      );
+      // Если совсем нет системы уведомлений – создаём минимальный оверлей
+      toast(text, color);
+    }
+  };
+
+  const toast = (msg, color) => {
+    const div = document.createElement("div");
+    div.textContent = msg;
+    div.style.cssText = `
+      position:fixed;top:20px;left:50%;transform:translateX(-50%);
+      padding:12px 24px;background:#000c;border:2px solid ${color};
+      color:${color};font-family:monospace;font-size:16px;
+      border-radius:8px;z-index:999999;box-shadow:0 0 20px ${color};
+      pointer-events:none;opacity:0;animation:fade 4s forwards;
+    `;
+    document.body.appendChild(div);
+    const style = document.createElement("style");
+    style.textContent = `
+      @keyframes fade{0%{opacity:0;transform:translateX(-50%) translateY(-20px)}
+      15%,85%{opacity:1;transform:translateX(-50%)}
+      100%{opacity:0;transform:translateX(-50%) translateY(-30px)}}
+    `;
+    document.head.appendChild(style);
+    setTimeout(() => {
+      div.remove();
+      style.remove();
+    }, 4000);
+  };
+  // ←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←
+
   const HTML = `
     <div class="npc-dialog">
       <div class="npc-dialog-header">
@@ -75,14 +116,11 @@
         sendWhenReady(ws, JSON.stringify({ type: "welcomeGuideSeen" }));
       }
 
-      // Уведомления с минимальной нагрузкой
-      showNotification("Ожидание проводника... 60 сек", "#00ff44");
+      // ← ИСПРАВЛЕНО: теперь используем безопасную функцию
+      safeNotify("Ожидание проводника... 60 сек", "#00ff44");
       setTimeout(() => {
-        showNotification("Проводник опаздывает...", "#ff8800");
-        setTimeout(
-          () => showNotification("Ты один. Выживай.", "#ff0000"),
-          30000
-        );
+        safeNotify("Проводник опаздывает...", "#ff8800");
+        setTimeout(() => safeNotify("Ты один. Выживай.", "#ff0000"), 30000);
       }, 60000);
     };
   };
@@ -102,7 +140,7 @@
         clearInterval(checkInterval);
         checkInterval = null;
       }
-    }, 1800); // 1.8 сек — оптимально: не грузит CPU, не пропустит условие
+    }, 1800); // 1.8 сек — оптимально
   };
 
   // Экспорт системы
