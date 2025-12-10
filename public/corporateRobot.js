@@ -1,6 +1,7 @@
 // corporateRobot.js
 // Робот «Воспитатель Корпорации» — патруль между двумя точками, мир 0
 // Версия 2025 — фикс кнопок + оптимизация памяти/CPU + ИСПРАВЛЕНА проверка мед. справки
+// + Добавлена прокрутка в диалоговом окне с использованием .npc-dialog-content для красивого скроллбара
 
 window.corporateRobotSystem = (function () {
   const POINT_A = { x: 2654, y: 2314 };
@@ -41,6 +42,7 @@ window.corporateRobotSystem = (function () {
   // UI элементы
   let buttonsContainer = null;
   let dialogWindow = null;
+  let dialogContent = null; // Новый контейнер для прокрутки
   let dialogText = null;
   let acceptBtn = null;
 
@@ -87,9 +89,14 @@ window.corporateRobotSystem = (function () {
     header.appendChild(title);
     dialogWindow.appendChild(header);
 
+    // Добавляем контейнер для прокрутки (используем существующий стиль .npc-dialog-content)
+    dialogContent = document.createElement("div");
+    dialogContent.className = "npc-dialog-content";
+    dialogWindow.appendChild(dialogContent);
+
     dialogText = document.createElement("div");
     dialogText.className = "npc-text";
-    dialogWindow.appendChild(dialogText);
+    dialogContent.appendChild(dialogText); // Теперь текст внутри контейнера с прокруткой
 
     const closeBtn = document.createElement("div");
     closeBtn.className = "neon-btn";
@@ -128,10 +135,9 @@ window.corporateRobotSystem = (function () {
     // 1. Нет справки вообще
     if (!hasMedicalCertificate()) {
       dialogText.innerHTML = `
-        <strong>Воспитатель Корпорации внимательно сканирует тебя...</strong><br><br>
-        Тебе нужно сначала сходить к врачу и пройти медицинское обследование.<br><br>
-        Он выдаст тебе <span style="color:#00ffff">медицинскую справку</span> — только с ней ты сможешь получить доступ к заданиям корпорации.<br><br>
-        Возвращайся, когда будет справка.
+        <strong><span style="color:#FF0000;">Воспитатель Корпорации внимательно сканирует тебя... Документ <span style="color:#FFD700;">(МН-69)</span> не обнаружен ...</span></strong><br><br>
+        Сначала тебе нужно :<br><span style="color:#00FF00;">Посетить мед.бота и пройти обследование.</span><br> Он находится около здания больницы NeoCorp - ярко зеленое здание на координатах<br><span style="color:#FFD700;">Х : 2772, Y: 2332.</span><br><br>
+        Если все будет хорошо и у тебя не обнаружится мутаций, возвращайся ко мне с докуметном, я скажу что делать дальше.<br><strong><span style="color:#FFFF00;">По окончнии всей процедуры регистрации NeoCorp выдаст :</span></strong><br> <span style="color:#FF00FF;">"Базовый набор резидента"!</span>
       `;
       dialogWindow.style.display = "flex";
       return;
@@ -140,10 +146,11 @@ window.corporateRobotSystem = (function () {
     // 2. Есть справка, но без печати нет
     if (hasMedicalCertificate() && !hasStampedCertificate()) {
       dialogText.innerHTML = `
-        <strong>Справка обнаружена. Проверка печати...</strong><br><br>
-        Печать охранной службы отсутствует.<br><br>
-        Теперь отнеси медицинскую справку на <span style="color:#ff00ff">охранную заставу</span> — там тебе поставят официальную печать корпорации.<br><br>
-        Без печати доступ к заданиям закрыт. Возвращайся с пропечатанной справкой.
+        <strong><span style="color:#00FF00;">Справка обнаружена! Проверка печати...</span></strong><br><br>
+        <span style="color:#FF0000;"><strong>Печать охранной службы отсутствует!</span></strong><br><br>
+        Отнеси документ <span style="color:#FFD700;">Капитану Райдеру</span> на охранную заставу — там тебе поставят официальную печать корпорации NeoCorp. Сможешь найти его на координатах <span style="color:#FFD700;"> X : 675, Y : 1593.</span><br><br>
+        <strong><span style="color:#FF0000;">Без печати доступ к услугам корпорации NeoCorp закрыт!</strong></span><br>
+        Я занесу документы в базу и вы сможете ощутить все преимущества жизни в нашем анклаве <span style="color:#00FF00;">NeoCorp.</span>
       `;
       dialogWindow.style.display = "flex";
       return;
@@ -163,9 +170,9 @@ window.corporateRobotSystem = (function () {
 
     // 4. Все условия выполнены — можно сдать документы!
     dialogText.innerHTML = `
-      <strong>Все документы в порядке.</strong><br><br>
-      Вы готовы к службе в корпорации.<br><br>
-      Подтвердите сдачу документов для получения допуска к корпоративным заданиям.
+      <strong><span style="color:#00FF00;">Медицинская справка <span style="color:#FFFF00;">(МН-69)</span> с печатью охранной службы обнаружена!</span></strong><br><br>
+      Ваши биометрические данные загружены в корпоративную базу. Вы готовы к службе в корпорации!<br><br>
+      <span style="color:#FFD700;">Подтвердите сдачу документов для получения допуска к корпоративным заданиям и получение</span> <span style="color:#FF00FF;">"Базового набора резидента".</span>
     `;
 
     // Кнопка "Сдать документы"
@@ -174,7 +181,7 @@ window.corporateRobotSystem = (function () {
       acceptBtn.className = "neon-btn";
       acceptBtn.textContent = "Сдать документы";
       acceptBtn.onclick = submitDocuments;
-      dialogWindow.insertBefore(acceptBtn, dialogWindow.lastElementChild);
+      dialogWindow.insertBefore(acceptBtn, dialogWindow.lastElementChild); // Вставляем перед closeBtn
     } else {
       acceptBtn.textContent = "Сдать документы";
       acceptBtn.onclick = submitDocuments;
@@ -185,29 +192,15 @@ window.corporateRobotSystem = (function () {
   }
 
   function submitDocuments() {
-  if (ws?.readyState === WebSocket.OPEN) {
-    sendWhenReady(
-      ws,
-      JSON.stringify({
-        type: "submitCorporateDocuments",
-      })
-    );
-  }
-  dialogWindow.style.display = "none"; // закрываем окно
-}
-
-  function acceptQuest() {
     if (ws?.readyState === WebSocket.OPEN) {
       sendWhenReady(
         ws,
         JSON.stringify({
-          type: "acceptCorporateQuest",
-          questId: QUEST.id,
+          type: "submitCorporateDocuments",
         })
       );
     }
-    showNotification("Задание принято: Принеси 5 баляров", "#00ffff");
-    dialogWindow.style.display = "none";
+    dialogWindow.style.display = "none"; // закрываем окно
   }
 
   // === Движение ===
