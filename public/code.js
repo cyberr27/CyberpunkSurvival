@@ -75,6 +75,7 @@ const imageSources = {
   bonfireImage: "bonfire.png",
   oclocSprite: "oclocSprite.png",
   corporateRobotSprite: "corporate_robot.png",
+  corporateRobotFoto: "corporate_robot_foto.png",
   robotDoctorSprite: "robotDoctorSprite.png",
   medicalCertificateImage: "medical_certificate.png",
   medicalCertificateStampedImage: "medical_certificate_stamped.png",

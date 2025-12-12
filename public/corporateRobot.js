@@ -74,7 +74,7 @@ window.corporateRobotSystem = (function () {
 
     const photo = document.createElement("img");
     photo.className = "npc-photo";
-    photo.src = "fotoQuestNPC.png";
+    photo.src = "corporate_robot_foto.png";
 
     const title = document.createElement("h2");
     title.className = "npc-title";
