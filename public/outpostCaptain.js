@@ -7,7 +7,7 @@ const OUTPOST_CAPTAIN = {
   y: 1593,
   width: 70,
   height: 70,
-  interactionRadius: 80,
+  interactionRadius: 50,
   name: "Капитан Райдер",
   spriteSrc: "outpost_captain.png",
   totalFrames: 13,

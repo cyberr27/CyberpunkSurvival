@@ -251,6 +251,8 @@ body.npc-dialog-active {
     padding: 15px;
   }
   .npc-photo {
+    position: relative;
+    left: 6%;
     width: 60px;
     height: 60px;
   }

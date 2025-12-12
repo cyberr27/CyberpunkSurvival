@@ -69,7 +69,12 @@
       rafId = requestAnimationFrame(check);
       return;
     }
-    if (!myId || !players.has(myId)) {
+    if (
+      typeof myId === "undefined" ||
+      !myId ||
+      typeof players === "undefined" ||
+      !players.has(myId)
+    ) {
       rafId = requestAnimationFrame(check);
       return;
     }
@@ -108,11 +113,21 @@
     },
   };
 
-  if (myId && players.has(myId)) {
+  if (
+    typeof myId !== "undefined" &&
+    myId &&
+    typeof players !== "undefined" &&
+    players.has(myId)
+  ) {
     window.welcomeGuideSystem.init();
   } else {
     const waiter = () => {
-      if (myId && players.has(myId)) {
+      if (
+        typeof myId !== "undefined" &&
+        myId &&
+        typeof players !== "undefined" &&
+        players.has(myId)
+      ) {
         window.welcomeGuideSystem.init();
       } else {
         requestAnimationFrame(waiter);

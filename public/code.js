@@ -77,6 +77,7 @@ const imageSources = {
   corporateRobotSprite: "corporate_robot.png",
   corporateRobotFoto: "corporate_robot_foto.png",
   robotDoctorSprite: "robotDoctorSprite.png",
+  robotDoctorFoto: "robot_doctor_foto.png",
   medicalCertificateImage: "medical_certificate.png",
   medicalCertificateStampedImage: "medical_certificate_stamped.png",
   // === НОВАЯ ПОРВАННАЯ ЭКИПИРОВКА ===
