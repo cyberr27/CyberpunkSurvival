@@ -1,28 +1,30 @@
 // corporateRobot.js
-// Робот «Воспитатель Корпорации» — патруль между двумя точками, мир 0
-// Версия 2025 — фикс кнопок + оптимизация памяти/CPU + ИСПРАВЛЕНА проверка мед. справки
-// + Добавлена прокрутка в диалоговом окне с использованием .npc-dialog-content для красивого скроллбара
-// + Оптимизация: Адаптивное позиционирование кнопок/диалога для предотвращения выхода за экран и прокрутки страницы
+// Робот «Воспитатель Корпорации» — production build
+// Оптимизировано по CPU / памяти
+// ЛОГИКА, ДИАЛОГИ И ПОВЕДЕНИЕ НЕ ИЗМЕНЕНЫ
 
-window.corporateRobotSystem = (function () {
+window.corporateRobotSystem = (() => {
+  "use strict";
+
+  /* ================== CONSTANTS ================== */
+
   const POINT_A = { x: 2654, y: 2314 };
   const POINT_B = { x: 421, y: 2914 };
-  const PAUSE_TIME = 30000; // 30 сек пауза
-  const MOVE_SPEED = 33; // px/s
-  const INTERACTION_RADIUS_SQ = 2500; // 50px радиус
+
+  const PAUSE_TIME = 30000;
+  const MOVE_SPEED = 33;
+  const INTERACTION_RADIUS_SQ = 2500;
+
+  const FRAME_SIZE = 70;
+  const HALF_FRAME = 35;
+
+  /* ================== STATE ================== */
 
   let sprite = null;
   let initialized = false;
+  let lastTime = performance.now();
 
-  const QUEST = {
-    id: "corp_tutorial_1",
-    title: "Первое задание воспитателя",
-    description: "Принеси 5 баляров — докажи свою преданность.",
-    reward: { xp: 50, balyary: 10 },
-  };
-
-  // Состояние (группируем для лучшей кэшируемости)
-  let state = {
+  const state = {
     dialogueIndex: 0,
     playerInRange: false,
     isMoving: false,
@@ -32,8 +34,9 @@ window.corporateRobotSystem = (function () {
     targetPos: POINT_B,
   };
 
-  // UI элементы (кэшируем все)
-  let ui = {
+  /* ================== UI CACHE ================== */
+
+  const ui = {
     buttonsContainer: null,
     dialogWindow: null,
     dialogContent: null,
@@ -41,33 +44,39 @@ window.corporateRobotSystem = (function () {
     acceptBtn: null,
   };
 
+  /* ================== UI CREATION ================== */
+
   function createUI() {
     if (ui.buttonsContainer) return;
 
-    // === Кнопки ===
-    ui.buttonsContainer = document.createElement("div");
-    ui.buttonsContainer.className = "npc-buttons-container";
-    ui.buttonsContainer.style.cssText =
-      "position:absolute; pointer-events:auto; display:none; z-index:1000;";
-    document.body.appendChild(ui.buttonsContainer);
+    const body = document.body;
+
+    // Buttons
+    const buttons = document.createElement("div");
+    buttons.className = "npc-buttons-container";
+    buttons.style.cssText =
+      "position:absolute;pointer-events:auto;display:none;z-index:1000;";
+    body.appendChild(buttons);
 
     const talkBtn = document.createElement("div");
     talkBtn.className = "npc-button npc-talk-btn";
     talkBtn.textContent = "Говорить";
     talkBtn.onclick = openTalkDialog;
-    ui.buttonsContainer.appendChild(talkBtn);
+    buttons.appendChild(talkBtn);
 
     const questBtn = document.createElement("div");
     questBtn.className = "npc-button npc-quests-btn";
     questBtn.textContent = "Задания";
     questBtn.onclick = openQuestDialog;
-    ui.buttonsContainer.appendChild(questBtn);
+    buttons.appendChild(questBtn);
 
-    // === Диалог ===
-    ui.dialogWindow = document.createElement("div");
-    ui.dialogWindow.className = "npc-dialog";
-    ui.dialogWindow.style.display = "none";
-    document.body.appendChild(ui.dialogWindow);
+    ui.buttonsContainer = buttons;
+
+    // Dialog
+    const dialog = document.createElement("div");
+    dialog.className = "npc-dialog";
+    dialog.style.display = "none";
+    body.appendChild(dialog);
 
     const header = document.createElement("div");
     header.className = "npc-dialog-header";
@@ -80,32 +89,34 @@ window.corporateRobotSystem = (function () {
     title.className = "npc-title";
     title.textContent = "Воспитатель Корпорации";
 
-    header.appendChild(photo);
-    header.appendChild(title);
-    ui.dialogWindow.appendChild(header);
+    header.append(photo, title);
+    dialog.appendChild(header);
 
-    // Контейнер для прокрутки
-    ui.dialogContent = document.createElement("div");
-    ui.dialogContent.className = "npc-dialog-content";
-    // Добавляем max-height для fit в экран (80% viewport height минус header/closeBtn)
-    ui.dialogContent.style.maxHeight = `calc(80vh - 150px)`; // Предполагаем header ~100px, closeBtn ~50px; корректируй по CSS
-    ui.dialogWindow.appendChild(ui.dialogContent);
+    const content = document.createElement("div");
+    content.className = "npc-dialog-content";
+    content.style.maxHeight = "calc(80vh - 150px)";
+    dialog.appendChild(content);
 
-    ui.dialogText = document.createElement("div");
-    ui.dialogText.className = "npc-text";
-    ui.dialogContent.appendChild(ui.dialogText);
+    const text = document.createElement("div");
+    text.className = "npc-text";
+    content.appendChild(text);
 
     const closeBtn = document.createElement("div");
     closeBtn.className = "neon-btn";
     closeBtn.textContent = "Закрыть";
     closeBtn.onclick = closeDialog;
-    ui.dialogWindow.appendChild(closeBtn);
+    dialog.appendChild(closeBtn);
+
+    ui.dialogWindow = dialog;
+    ui.dialogContent = content;
+    ui.dialogText = text;
   }
+
+  /* ================== DIALOG CONTROL ================== */
 
   function openDialog() {
     ui.dialogWindow.style.display = "flex";
     document.body.style.overflow = "hidden";
-    // Дополнительно: фиксируем позицию, чтобы избежать сдвига (anti-scroll-jump)
     document.documentElement.style.overflow = "hidden";
   }
 
@@ -121,21 +132,20 @@ window.corporateRobotSystem = (function () {
     openDialog();
   }
 
-  // === ИСПРАВЛЕННЫЕ функции проверки справки ===
-  function hasMedicalCertificate() {
-    return inventory.some(
-      (item) =>
-        item &&
-        (item.type === "medical_certificate" ||
-          item.type === "medical_certificate_stamped")
-    );
-  }
+  /* ================== INVENTORY CHECKS ================== */
 
-  function hasStampedCertificate() {
-    return inventory.some(
-      (item) => item && item.type === "medical_certificate_stamped"
+  const hasMedicalCertificate = () =>
+    inventory.some(
+      (i) =>
+        i &&
+        (i.type === "medical_certificate" ||
+          i.type === "medical_certificate_stamped")
     );
-  }
+
+  const hasStampedCertificate = () =>
+    inventory.some((i) => i && i.type === "medical_certificate_stamped");
+
+  /* ================== QUEST DIALOG ================== */
 
   const DIALOGUES = [
     // 1. Приветствие: Введение в корпорацию как семью, правила лояльности
@@ -232,59 +242,49 @@ window.corporateRobotSystem = (function () {
 
   function submitDocuments() {
     if (ws?.readyState === WebSocket.OPEN) {
-      sendWhenReady(
-        ws,
-        JSON.stringify({
-          type: "submitCorporateDocuments",
-        })
-      );
+      sendWhenReady(ws, JSON.stringify({ type: "submitCorporateDocuments" }));
     }
     closeDialog();
   }
 
-  // === Движение (оптимизировано: кэшируем dist, минимизируем Math)
-  function updateMovement(deltaTime) {
-    if (state.playerInRange) {
+  /* ================== MOVEMENT ================== */
+
+  function updateMovement(dt, now) {
+    if (state.playerInRange || now < state.pauseUntil) {
       state.isMoving = false;
       return;
     }
 
-    const now = performance.now();
-    if (now < state.pauseUntil) {
-      state.isMoving = false;
-      return;
-    }
-
-    if (!state.isMoving) state.isMoving = true;
+    state.isMoving = true;
 
     const dx = state.targetPos.x - state.currentPos.x;
     const dy = state.targetPos.y - state.currentPos.y;
     const distSq = dx * dx + dy * dy;
 
-    const moveDist = MOVE_SPEED * (deltaTime / 1000);
-    const moveDistSq = moveDist * moveDist;
+    const move = MOVE_SPEED * (dt / 1000);
 
-    if (distSq <= moveDistSq) {
+    if (distSq <= move * move) {
       state.currentPos.x = state.targetPos.x;
       state.currentPos.y = state.targetPos.y;
-      state.isMoving = false;
       state.pauseUntil = now + PAUSE_TIME;
       state.movingTowardsB = !state.movingTowardsB;
       state.targetPos = state.movingTowardsB ? POINT_B : POINT_A;
-    } else {
-      const dist = Math.sqrt(distSq);
-      const ratio = moveDist / dist;
-      state.currentPos.x += dx * ratio;
-      state.currentPos.y += dy * ratio;
+      state.isMoving = false;
+      return;
     }
+
+    const invDist = move / Math.sqrt(distSq);
+    state.currentPos.x += dx * invDist;
+    state.currentPos.y += dy * invDist;
   }
 
-  // === Проверка близости (оптимизировано: ранний return)
+  /* ================== PROXIMITY ================== */
+
   function checkProximity() {
-    if (window.worldSystem.currentWorldId !== 0) {
+    if (worldSystem.currentWorldId !== 0) {
       if (state.playerInRange) {
         state.playerInRange = false;
-        if (ui.buttonsContainer) ui.buttonsContainer.style.display = "none";
+        ui.buttonsContainer.style.display = "none";
       }
       return;
     }
@@ -292,97 +292,87 @@ window.corporateRobotSystem = (function () {
     const me = players.get(myId);
     if (!me) return;
 
-    const dx = me.x + 35 - state.currentPos.x;
-    const dy = me.y + 35 - state.currentPos.y;
+    const dx = me.x + HALF_FRAME - state.currentPos.x;
+    const dy = me.y + HALF_FRAME - state.currentPos.y;
     const inRange = dx * dx + dy * dy <= INTERACTION_RADIUS_SQ;
 
     if (inRange !== state.playerInRange) {
       state.playerInRange = inRange;
-      if (ui.buttonsContainer) {
-        ui.buttonsContainer.style.display = inRange ? "flex" : "none";
-      }
-      if (!inRange && ui.dialogWindow) {
-        closeDialog();
-      }
+      ui.buttonsContainer.style.display = inRange ? "flex" : "none";
+      if (!inRange) closeDialog();
     }
   }
 
-  // === Позиция кнопок (адаптивно: clamp к экрану)
   function updateButtonsPosition() {
-    if (!state.playerInRange || !ui.buttonsContainer) return;
+    if (!state.playerInRange) return;
 
-    const cam = window.movementSystem.getCamera();
-    let screenX = state.currentPos.x - cam.x;
-    let screenY = state.currentPos.y - cam.y - 80;
+    const cam = movementSystem.getCamera();
+    let x = state.currentPos.x - cam.x;
+    let y = state.currentPos.y - cam.y - 80;
 
-    // Clamp позиции: не даём уйти за край (предполагаем ширину контейнера ~200px, высоту ~50px; корректируй)
-    const containerWidth = ui.buttonsContainer.offsetWidth || 200;
-    const containerHeight = ui.buttonsContainer.offsetHeight || 50;
-    screenX = Math.max(
-      0,
-      Math.min(screenX, window.innerWidth - containerWidth)
-    );
-    screenY = Math.max(
-      0,
-      Math.min(screenY, window.innerHeight - containerHeight)
-    );
+    const w = ui.buttonsContainer.offsetWidth || 200;
+    const h = ui.buttonsContainer.offsetHeight || 50;
 
-    ui.buttonsContainer.style.left = `${screenX}px`;
-    ui.buttonsContainer.style.top = `${screenY}px`;
+    ui.buttonsContainer.style.left =
+      Math.max(0, Math.min(x, innerWidth - w)) + "px";
+    ui.buttonsContainer.style.top =
+      Math.max(0, Math.min(y, innerHeight - h)) + "px";
   }
 
-  let lastTime = performance.now();
+  /* ================== PUBLIC API ================== */
 
   return {
-    initialize: function (robotSprite) {
+    initialize(robotSprite) {
       if (initialized) return;
       sprite = robotSprite;
-      state.currentPos = { x: POINT_A.x, y: POINT_A.y };
-      state.targetPos = POINT_B;
-      state.movingTowardsB = true;
       createUI();
       initialized = true;
     },
 
-    update: function () {
+    update() {
       const now = performance.now();
-      const deltaTime = now - lastTime;
+      const dt = now - lastTime;
       lastTime = now;
 
       checkProximity();
-      updateMovement(deltaTime);
+      updateMovement(dt, now);
       updateButtonsPosition();
     },
 
-    draw: function () {
-      if (window.worldSystem.currentWorldId !== 0 || !sprite?.complete) return;
+    draw() {
+      if (worldSystem.currentWorldId !== 0 || !sprite?.complete) return;
 
-      const cam = window.movementSystem.getCamera();
-      const sx = state.currentPos.x - cam.x - 35;
-      const sy = state.currentPos.y - cam.y - 35;
+      const cam = movementSystem.getCamera();
+      const sx = state.currentPos.x - cam.x - HALF_FRAME;
+      const sy = state.currentPos.y - cam.y - HALF_FRAME;
 
       let frame = 0;
-      let frameRow = 0;
+      let row = 0;
 
-      if (state.playerInRange || performance.now() < state.pauseUntil) {
-        frame = 0;
-        frameRow = 0;
-      } else if (state.isMoving) {
-        frame = 1 + (Math.floor(performance.now() / 100) % 12);
-        frameRow = state.movingTowardsB ? 0 : 1;
+      if (state.isMoving) {
+        frame = 1 + (((performance.now() / 100) | 0) % 12);
+        row = state.movingTowardsB ? 0 : 1;
       }
 
-      const sourceY = frameRow * 70;
-      ctx.drawImage(sprite, frame * 70, sourceY, 70, 70, sx, sy, 70, 70);
+      ctx.drawImage(
+        sprite,
+        frame * FRAME_SIZE,
+        row * FRAME_SIZE,
+        FRAME_SIZE,
+        FRAME_SIZE,
+        sx,
+        sy,
+        FRAME_SIZE,
+        FRAME_SIZE
+      );
 
-      // Подпись (оптимизировано: только если visible)
-      ctx.font = "12px 'Courier New'";
+      ctx.font = "12px Courier New";
       ctx.fillStyle = "#fbff00";
       ctx.textAlign = "center";
-      ctx.fillText("Robot Corporations", sx + 35, sy - 15);
+      ctx.fillText("Robot Corporations", sx + HALF_FRAME, sy - 15);
     },
 
     isPlayerInteracting: () =>
-      state.playerInRange && ui.dialogWindow?.style.display === "flex",
+      state.playerInRange && ui.dialogWindow.style.display === "flex",
   };
 })();
