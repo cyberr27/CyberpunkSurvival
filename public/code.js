@@ -2477,33 +2477,46 @@ function draw(deltaTime) {
       return;
     }
 
-    if (player.state === "walking") {
-      player.frameTime += deltaTime;
-      if (player.frameTime >= GAME_CONFIG.FRAME_DURATION / 40) {
-        player.frameTime -= GAME_CONFIG.FRAME_DURATION / 40;
-        player.frame = (player.frame + 1) % 40;
+    // Рассчитываем spriteY на основе state и direction (новая логика спрайта)
+    let row = 0; // По умолчанию up
+    if (player.state === "dying") {
+      row = 1; // Используем down для dying, как раньше
+    } else if (player.state === "attacking") {
+      // Атака: маппим направление
+      if (
+        [
+          "up",
+          "down",
+          "up-left",
+          "up-right",
+          "down-left",
+          "down-right",
+        ].includes(player.direction)
+      ) {
+        row = 4; // Up/down атака
+      } else if (player.direction === "right") {
+        row = 5; // Right атака
+      } else {
+        // left
+        row = 6;
       }
-    } else if (player.state === "dying") {
-      player.frame = 0;
-      player.frameTime = 0;
     } else {
-      player.frame = 0;
-      player.frameTime = 0;
+      // Walking или idle: маппим направление
+      if (["up", "up-left", "up-right"].includes(player.direction)) {
+        row = 0; // Up
+      } else if (
+        ["down", "down-left", "down-right"].includes(player.direction)
+      ) {
+        row = 1; // Down
+      } else if (player.direction === "right") {
+        row = 2; // Right
+      } else {
+        row = 3; // Left
+      }
     }
 
-    let spriteX = player.frame * 70;
-    let spriteY;
-    if (player.state === "dying") {
-      spriteY = 70;
-    } else {
-      spriteY =
-        {
-          up: 0,
-          down: 70,
-          left: 210,
-          right: 140,
-        }[player.direction] || 0;
-    }
+    const spriteX = player.frame * 70;
+    const spriteY = row * 70; // Высота ряда 70px
 
     if (images.playerSprite?.complete) {
       ctx.drawImage(
