@@ -218,6 +218,7 @@ function setupWebSocket(
             },
             medicalCertificate: false,
             medicalCertificateStamped: false,
+            corporateDocumentsSubmitted: false,
           };
 
           userDatabase.set(data.username, newPlayer);

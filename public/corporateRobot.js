@@ -166,6 +166,24 @@ window.corporateRobotSystem = (function () {
   function openQuestDialog() {
     if (ui.acceptBtn) ui.acceptBtn.style.display = "none";
 
+    const me = players.get(myId);
+    if (
+      me?.medicalCertificate === true &&
+      me?.medicalCertificateStamped === true &&
+      me?.corporateDocumentsSubmitted === true
+    ) {
+      ui.dialogText.innerHTML = `
+      <strong><span style="color:#00FF00;">Регистрация завершена успешно.</span></strong><br><br>
+      Поздравляем. Ваши данные приняты и зафиксированы в системе корпорации <span style="color:#FFD700;">NeoCorp</span>.<br><br>
+      На данный момент активных заданий для вас нет.<br>
+      Продолжайте поддерживать показатели в норме и возвращайтесь позже — 
+      <span style="color:#00FF00;">возможно, корпорация подготовит для вас новые поручения.</span><br><br>
+      <span style="color:#888;">Корпорация наблюдает. Корпорация помнит.</span>
+    `;
+      openDialog();
+      return;
+    }
+
     if (!hasMedicalCertificate()) {
       ui.dialogText.innerHTML = `
         <strong><span style="color:#FF0000;">Воспитатель Корпорации внимательно сканирует тебя... Документ <span style="color:#FFD700;">(МН-69)</span> не обнаружен ...</span></strong><br><br>
@@ -183,17 +201,6 @@ window.corporateRobotSystem = (function () {
         Отнеси документ <span style="color:#FFD700;">Капитану Райдеру</span> на охранную заставу — там тебе поставят официальную печать корпорации NeoCorp. Сможешь найти его на координатах <span style="color:#FFD700;"> X : 675, Y : 1593.</span><br><br>
         <strong><span style="color:#FF0000;">Без печати доступ к услугам корпорации NeoCorp закрыт!</strong></span><br>
         Я занесу документы в базу и вы сможете ощутить все преимущества жизни в нашем анклаве <span style="color:#00FF00;">NeoCorp.</span>
-      `;
-      openDialog();
-      return;
-    }
-
-    const me = players.get(myId);
-    if (me?.corporateDocumentsSubmitted) {
-      ui.dialogText.innerHTML = `
-        <strong>Добро пожаловать, служащий корпорации.</strong><br><br>
-        Ваши документы уже приняты и зарегистрированы в системе.<br><br>
-        Продолжайте выполнять свои обязанности. Корпорация следит за вами.
       `;
       openDialog();
       return;
