@@ -23,10 +23,13 @@ const items = new Map();
 // Глобальная анимация АТОМА (для поля + инвентаря)
 let atomFrame = 0;
 let atomFrameTime = 0;
-const ATOM_FRAMES = 40; // Количество кадров в спрайте (из вашего кода: % 40, спрайт 70x(40 кадров)? Подтвердите ширину atomImage.png / 50px на кадр)
-const ATOM_FRAME_DURATION = 180; // ms на кадр (8 FPS: плавно, без лагов. Можно протестировать 100-150 для скорости)
+const ATOM_FRAMES = 40;
+const ATOM_FRAME_DURATION = 180;
 let inventoryAtomTimer = null;
 const pendingPickups = new Set();
+
+const PLAYER_FRAME_DURATION = 110; // Унифицируем на 110ms (~9 FPS, плавно)
+const PLAYER_FRAMES = 13;
 
 // Загрузка изображений
 const imageSources = {
@@ -2281,6 +2284,43 @@ function update(deltaTime) {
     atomFrame = (atomFrame + 1) % ATOM_FRAMES;
   }
   const me = players.get(myId);
+
+  players.forEach((player) => {
+    if (
+      player.state === "walking" ||
+      player.state === "dying" ||
+      player.state === "attacking"
+    ) {
+      player.frameTime += deltaTime;
+
+      if (player.frameTime >= PLAYER_FRAME_DURATION) {
+        // Изменено: на 110
+        player.frameTime -= PLAYER_FRAME_DURATION;
+
+        if (player.state === "attacking") {
+          // One-shot для атаки: инкремент до 12, затем сброс в idle
+          if (player.frame < PLAYER_FRAMES - 1) {
+            // <12
+            player.frame += 1;
+          } else {
+            player.state = "idle";
+            player.frame = 0;
+            player.frameTime = 0;
+          }
+        } else if (player.state === "dying") {
+          // Dying: one-shot до 12 (не loop)
+          if (player.frame < PLAYER_FRAMES - 1) {
+            // <12 вместо <6
+            player.frame += 1;
+          }
+          // Не сбрасываем, dying остаётся до респауна/смерти
+        } else {
+          // Walking: loop %13
+          player.frame = (player.frame + 1) % PLAYER_FRAMES;
+        }
+      }
+    }
+  });
 
   // ИСПРАВЛЕНИЕ: Применяем эффекты экипировки, если не применены и игрок существует
   if (
