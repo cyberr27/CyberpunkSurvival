@@ -23,13 +23,10 @@ const items = new Map();
 // Глобальная анимация АТОМА (для поля + инвентаря)
 let atomFrame = 0;
 let atomFrameTime = 0;
-const ATOM_FRAMES = 40;
-const ATOM_FRAME_DURATION = 180;
+const ATOM_FRAMES = 40; // Количество кадров в спрайте (из вашего кода: % 40, спрайт 70x(40 кадров)? Подтвердите ширину atomImage.png / 50px на кадр)
+const ATOM_FRAME_DURATION = 180; // ms на кадр (8 FPS: плавно, без лагов. Можно протестировать 100-150 для скорости)
 let inventoryAtomTimer = null;
 const pendingPickups = new Set();
-
-const PLAYER_FRAME_DURATION = 110; // Унифицируем на 110ms (~9 FPS, плавно)
-const PLAYER_FRAMES = 13;
 
 // Загрузка изображений
 const imageSources = {
@@ -2285,43 +2282,6 @@ function update(deltaTime) {
   }
   const me = players.get(myId);
 
-  players.forEach((player) => {
-    if (
-      player.state === "walking" ||
-      player.state === "dying" ||
-      player.state === "attacking"
-    ) {
-      player.frameTime += deltaTime;
-
-      if (player.frameTime >= PLAYER_FRAME_DURATION) {
-        // Изменено: на 110
-        player.frameTime -= PLAYER_FRAME_DURATION;
-
-        if (player.state === "attacking") {
-          // One-shot для атаки: инкремент до 12, затем сброс в idle
-          if (player.frame < PLAYER_FRAMES - 1) {
-            // <12
-            player.frame += 1;
-          } else {
-            player.state = "idle";
-            player.frame = 0;
-            player.frameTime = 0;
-          }
-        } else if (player.state === "dying") {
-          // Dying: one-shot до 12 (не loop)
-          if (player.frame < PLAYER_FRAMES - 1) {
-            // <12 вместо <6
-            player.frame += 1;
-          }
-          // Не сбрасываем, dying остаётся до респауна/смерти
-        } else {
-          // Walking: loop %13
-          player.frame = (player.frame + 1) % PLAYER_FRAMES;
-        }
-      }
-    }
-  });
-
   // ИСПРАВЛЕНИЕ: Применяем эффекты экипировки, если не применены и игрок существует
   if (
     window.equipmentSystem &&
@@ -2517,46 +2477,33 @@ function draw(deltaTime) {
       return;
     }
 
-    // Рассчитываем spriteY на основе state и direction (новая логика спрайта)
-    let row = 0; // По умолчанию up
-    if (player.state === "dying") {
-      row = 1; // Используем down для dying, как раньше
-    } else if (player.state === "attacking") {
-      // Атака: маппим направление
-      if (
-        [
-          "up",
-          "down",
-          "up-left",
-          "up-right",
-          "down-left",
-          "down-right",
-        ].includes(player.direction)
-      ) {
-        row = 4; // Up/down атака
-      } else if (player.direction === "right") {
-        row = 5; // Right атака
-      } else {
-        // left
-        row = 6;
+    if (player.state === "walking") {
+      player.frameTime += deltaTime;
+      if (player.frameTime >= GAME_CONFIG.FRAME_DURATION / 40) {
+        player.frameTime -= GAME_CONFIG.FRAME_DURATION / 40;
+        player.frame = (player.frame + 1) % 40;
       }
+    } else if (player.state === "dying") {
+      player.frame = 0;
+      player.frameTime = 0;
     } else {
-      // Walking или idle: маппим направление
-      if (["up", "up-left", "up-right"].includes(player.direction)) {
-        row = 0; // Up
-      } else if (
-        ["down", "down-left", "down-right"].includes(player.direction)
-      ) {
-        row = 1; // Down
-      } else if (player.direction === "right") {
-        row = 2; // Right
-      } else {
-        row = 3; // Left
-      }
+      player.frame = 0;
+      player.frameTime = 0;
     }
 
-    const spriteX = player.frame * 70;
-    const spriteY = row * 70; // Высота ряда 70px
+    let spriteX = player.frame * 70;
+    let spriteY;
+    if (player.state === "dying") {
+      spriteY = 70;
+    } else {
+      spriteY =
+        {
+          up: 0,
+          down: 70,
+          left: 210,
+          right: 140,
+        }[player.direction] || 0;
+    }
 
     if (images.playerSprite?.complete) {
       ctx.drawImage(

@@ -12,8 +12,7 @@
   const camera = { x: 0, y: 0, targetX: 0, targetY: 0, lerpFactor: 0.1 };
 
   // Анимационные параметры
-  const PLAYER_FRAME_DURATION = 110; // Вместо 200
-  const PLAYER_FRAMES = 13;
+  const frameDuration = 200; // Длительность одного кадра анимации в мс
   const directions = [
     "up",
     "down",
@@ -165,8 +164,8 @@
       // Если мёртв, только обновляем камеру и анимацию смерти, если нужно
       if (me.state === "dying") {
         me.frameTime += deltaTime;
-        if (me.frameTime >= PLAYER_FRAME_DURATION) {
-          me.frameTime -= PLAYER_FRAME_DURATION;
+        if (me.frameTime >= frameDuration) {
+          me.frameTime -= frameDuration;
           if (me.frame < 6) me.frame += 1;
         }
         // Отправляем только по интервалу или если анимация закончилась
@@ -233,8 +232,8 @@
 
         // Обновляем анимацию
         me.frameTime += deltaTime;
-        if (me.frameTime >= PLAYER_FRAME_DURATION) {
-          me.frameTime = me.frameTime % PLAYER_FRAME_DURATION; // Оптимизация: используем % для предотвращения переполнения
+        if (me.frameTime >= frameDuration) {
+          me.frameTime = me.frameTime % frameDuration; // Оптимизация: используем % для предотвращения переполнения
           me.frame = (me.frame + 1) % 7;
         }
 
@@ -318,8 +317,8 @@
 
         // Обновляем анимацию
         me.frameTime += deltaTime;
-        if (me.frameTime >= PLAYER_FRAME_DURATION) {
-          me.frameTime = me.frameTime % PLAYER_FRAME_DURATION;
+        if (me.frameTime >= frameDuration) {
+          me.frameTime = me.frameTime % frameDuration;
           me.frame = (me.frame + 1) % 7;
         }
 
@@ -357,38 +356,9 @@
     if (me.state === "dying") {
       // Обработка анимации смерти
       me.frameTime += deltaTime;
-      if (me.frameTime >= PLAYER_FRAME_DURATION) {
-        me.frameTime -= PLAYER_FRAME_DURATION;
+      if (me.frameTime >= frameDuration) {
+        me.frameTime -= frameDuration;
         if (me.frame < 6) me.frame += 1;
-      }
-      if (
-        me.state === "walking" ||
-        me.state === "dying" ||
-        me.state === "attacking"
-      ) {
-        me.frameTime += deltaTime;
-        if (me.frameTime >= PLAYER_FRAME_DURATION) {
-          me.frameTime -= PLAYER_FRAME_DURATION;
-
-          if (me.state === "attacking") {
-            // One-shot для атаки: как в code.js
-            if (me.frame < PLAYER_FRAMES - 1) {
-              me.frame += 1;
-            } else {
-              me.state = "idle";
-              me.frame = 0;
-              me.frameTime = 0;
-            }
-          } else if (me.state === "dying") {
-            // Dying: one-shot до 12
-            if (me.frame < PLAYER_FRAMES - 1) {
-              me.frame += 1;
-            }
-          } else {
-            // Walking: loop %13
-            me.frame = (me.frame + 1) % PLAYER_FRAMES;
-          }
-        }
       }
       // Отправляем по интервалу
       if (currentTime - lastSendTime >= sendInterval) {

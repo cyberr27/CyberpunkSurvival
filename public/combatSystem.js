@@ -101,7 +101,27 @@ function performAttack() {
           worldId: currentWorldId,
         })
       );
-      // УДАЛЕНО: бесполезная отправка type="update" для ranged (state не меняется)
+      sendWhenReady(
+        ws,
+        JSON.stringify({
+          type: "update",
+          player: {
+            id: myId,
+            x: me.x,
+            y: me.y,
+            health: me.health,
+            energy: me.energy,
+            food: me.food,
+            water: me.water,
+            armor: me.armor,
+            distanceTraveled: me.distanceTraveled,
+            direction: me.direction,
+            state: me.state,
+            frame: me.frame,
+            worldId: currentWorldId,
+          },
+        })
+      );
     } else {
       // Ближний бой: НОВЫЙ РАСЧЁТ УРОНА (базовый 5-10 + оружие)
       let damage;
@@ -147,8 +167,10 @@ function performMeleeAttack(damage, worldId) {
       const distance = Math.sqrt(dx * dx + dy * dy);
       if (distance <= MELEE_ATTACK_RANGE) {
         hit = true;
+        // Принудительно обновляем локально здоровье (для мгновенного отображения)
         player.health = Math.max(0, player.health - damage);
         players.set(id, player);
+
         sendWhenReady(
           ws,
           JSON.stringify({
@@ -158,7 +180,11 @@ function performMeleeAttack(damage, worldId) {
             worldId,
           })
         );
-        if (id === myId) triggerAttackAnimation();
+
+        // Если попали по текущему игроку — анимация получения урона
+        if (id === myId) {
+          triggerAttackAnimation();
+        }
       }
     }
   });
@@ -171,8 +197,10 @@ function performMeleeAttack(damage, worldId) {
       const distance = Math.sqrt(dx * dx + dy * dy);
       if (distance <= MELEE_ATTACK_RANGE) {
         hit = true;
+        // Принудительно обновляем здоровье мутанта локально
         enemy.health = Math.max(0, enemy.health - damage);
         enemies.set(enemyId, enemy);
+
         sendWhenReady(
           ws,
           JSON.stringify({
@@ -187,26 +215,25 @@ function performMeleeAttack(damage, worldId) {
   });
 
   if (hit) {
-    // НОВАЯ ЛОГИКА: устанавливаем attacking только если hit и это melee (не ranged)
-    me.state = "attacking";
-    me.frame = 0;
-    me.frameTime = 0;
-
     sendWhenReady(
       ws,
       JSON.stringify({
-        type: "move", // ИЗМЕНЕНО: на "move" для серверной обработки и broadcast
-        x: me.x,
-        y: me.y,
-        health: me.health,
-        energy: me.energy,
-        food: me.food,
-        water: me.water,
-        armor: me.armor,
-        distanceTraveled: me.distanceTraveled,
-        direction: me.direction,
-        state: me.state,
-        frame: me.frame,
+        type: "update",
+        player: {
+          id: myId,
+          x: me.x,
+          y: me.y,
+          health: me.health,
+          energy: me.energy,
+          food: me.food,
+          water: me.water,
+          armor: me.armor,
+          distanceTraveled: me.distanceTraveled,
+          direction: me.direction,
+          state: me.state,
+          frame: me.frame,
+          worldId,
+        },
       })
     );
   }
@@ -214,7 +241,7 @@ function performMeleeAttack(damage, worldId) {
   return hit;
 }
 
-// Получение угла направления игрока
+// Получение угла поворота игрока (БЕЗ ИЗМЕНЕНИЙ)
 function getPlayerAngle(direction) {
   switch (direction) {
     case "up":
