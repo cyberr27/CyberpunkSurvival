@@ -273,6 +273,8 @@ function openCaptainTalk() {
   };
 }
 
+const hasMedicalCertificateInInventory = () =>
+  inventory.some((i) => i && i.type === "medical_certificate");
 // ===============================================
 // ГЛАВНОЕ: ЗАДАНИЯ — ПЕЧАТЬ НА СПРАВКУ (НОВАЯ ЛОГИКА 2025)
 // ===============================================
@@ -312,7 +314,7 @@ function openCaptainQuests() {
   }
 
   // Если есть справка, но нет печати — предлагаем поставить
-  if (me.medicalCertificate === true) {
+  if (me.medicalCertificate === true && hasMedicalCertificateInInventory()) {
     dialog.innerHTML = `
       <div class="npc-dialog-header">
         <img src="outpost_captain_foto.png" alt="Капитан Райдер" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:2px solid #ff00ff;">
