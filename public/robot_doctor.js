@@ -91,7 +91,7 @@ window.robotDoctorSystem = (() => {
 
     const title = document.createElement("h2");
     title.className = "npc-title";
-    title.textContent = "Медицинский Модуль NeoCorp";
+    title.textContent = "Медицинский Модуль";
 
     header.append(img, title);
 

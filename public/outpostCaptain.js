@@ -150,7 +150,6 @@ function showCaptainGreeting() {
   if (isCaptainDialogOpen || hasCaptainGreetingShown) return;
 
   isCaptainDialogOpen = true;
-  hasCaptainGreetingShown = true;
 
   const dialog = document.createElement("div");
   dialog.className = "npc-dialog";
@@ -159,11 +158,11 @@ function showCaptainGreeting() {
 
   dialog.innerHTML = `
     <div class="npc-dialog-header">
-      <div style="width:80px;height:80px;background:#222;border:2px solid #ff00ff;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#ff00ff;font-size:36px;font-weight:bold;">C</div>
+      <img src="outpost_captain_foto.png" alt="Капитан Райдер" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:2px solid #ff00ff;">
       <h2 class="npc-title">Капитан Райдер</h2>
     </div>
     <div class="npc-dialog-content">
-      <p class="npc-text fullscreen">
+      <p class="npc-text">
         Назовись, сталкер.<br><br>
         Я — Райдер, капитан заставы «Северный Периметр».<br>
         Держим рубеж от мутантов и рейдеров.<br><br>
@@ -178,6 +177,7 @@ function showCaptainGreeting() {
     dialog.remove();
     isCaptainDialogOpen = false;
     isCaptainMet = true;
+    hasCaptainGreetingShown = true;
     sendWhenReady(
       ws,
       JSON.stringify({ type: "meetCaptain", captainMet: true })
@@ -232,7 +232,7 @@ function openCaptainTalk() {
 
   dialog.innerHTML = `
     <div class="npc-dialog-header">
-      <div style="width:80px;height:80px;background:#222;border:2px solid #ff00ff;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#ff00ff;font-size:36px;font-weight:bold;">C</div>
+      <img src="outpost_captain_foto.png" alt="Капитан Райдер" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:2px solid #ff00ff;">
       <h2 class="npc-title">Капитан Райдер</h2>
     </div>
     <div class="npc-dialog-content">
@@ -292,11 +292,11 @@ function openCaptainQuests() {
   if (me.medicalCertificateStamped === true) {
     dialog.innerHTML = `
       <div class="npc-dialog-header">
-        <div style="width:80px;height:80px;background:#222;border:2px solid #00ff00;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#00ff00;font-size:32px;font-weight:bold;">✓</div>
+        <img src="outpost_captain_foto.png" alt="Капитан Райдер" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:2px solid #ff00ff;">
         <h2 class="npc-title">Капитан Райдер</h2>
       </div>
       <div class="npc-dialog-content">
-        <p class="npc-text fullscreen" style="line-height:1.8;">
+        <p class="npc-text">
           Печать стоит. Допуск в Неоновый Город у тебя есть.<br><br>
           Пока новых заданий нет.<br>
           Возвращайся позже — может, что-то подвернётся.
@@ -315,11 +315,11 @@ function openCaptainQuests() {
   if (me.medicalCertificate === true) {
     dialog.innerHTML = `
       <div class="npc-dialog-header">
-        <div style="width:80px;height:80px;background:#222;border:2px solid #ffff00;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#ffff00;font-size:36px;font-weight:bold;">?</div>
+        <img src="outpost_captain_foto.png" alt="Капитан Райдер" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:2px solid #ff00ff;">
         <h2 class="npc-title">Капитан Райдер</h2>
       </div>
       <div class="npc-dialog-content">
-        <p class="npc-text fullscreen" style="line-height:1.8;">
+        <p class="npc-text">
           Вижу у тебя справка МД-07.<br><br>
           Давай поставлю печать заставы.<br>
           Теперь ты официально чист.
@@ -343,11 +343,11 @@ function openCaptainQuests() {
     // Нет справки — просто инфа
     dialog.innerHTML = `
       <div class="npc-dialog-header">
-        <div style="width:80px;height:80px;background:#222;border:2px solid #ff0066;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#ff0066;font-size:36px;font-weight:bold;">!</div>
+        <img src="outpost_captain_foto.png" alt="Капитан Райдер" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:2px solid #ff00ff;">
         <h2 class="npc-title">Капитан Райдер</h2>
       </div>
       <div class="npc-dialog-content">
-        <p class="npc-text fullscreen" style="line-height:1.8;">
+        <p class="npc-text">
           Принеси медсправку МД-07 от робота-доктора.<br><br>
           Только с печатью заставы пропустим в Неоновый Город.
         </p>
