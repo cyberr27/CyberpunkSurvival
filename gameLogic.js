@@ -413,12 +413,34 @@ function runGameLoop(
       );
 
       if (allItems.length > 0) {
-        const syncMsg = JSON.stringify({
-          type: "syncItems",
-          items: allItems,
-          worldId,
+        wss.clients.forEach((client) => {
+          if (client.readyState !== WebSocket.OPEN) return;
+
+          const playerId = clients.get(client);
+          const player = players.get(playerId);
+          if (!player || player.worldId !== worldId) return;
+
+          const visibleItems = allItems.filter((item) => {
+            const serverItem = items.get(item.itemId);
+            if (!serverItem) return false;
+
+            // обычные предметы видят все
+            if (!serverItem.isQuestItem) return true;
+
+            // квестовые — ТОЛЬКО владелец
+            return serverItem.questOwnerId === playerId;
+          });
+
+          if (visibleItems.length === 0) return;
+
+          client.send(
+            JSON.stringify({
+              type: "syncItems",
+              items: visibleItems,
+              worldId,
+            })
+          );
         });
-        broadcastToWorld(wss, clients, players, worldId, syncMsg);
       }
     }
   }, 30_000);
