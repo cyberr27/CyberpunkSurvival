@@ -127,6 +127,7 @@ window.corporateRobotSystem = (() => {
   }
 
   function openTalkDialog() {
+    if (ui.acceptBtn) ui.acceptBtn.style.display = "none";
     ui.dialogText.innerHTML = DIALOGUES[state.dialogueIndex];
     state.dialogueIndex = (state.dialogueIndex + 1) % DIALOGUES.length;
     openDialog();
