@@ -2256,18 +2256,63 @@ function setupWebSocket(
           "knuckles", // кастет — всегда
         ];
 
-        // Добавляем предметы в инвентарь
-        itemsToGive.forEach((type) => {
-          let placed = false;
-          for (let i = 0; i < player.inventory.length; i++) {
-            if (!player.inventory[i]) {
-              player.inventory[i] = { type, quantity: 1 };
-              placed = true;
-              break;
+        const freeSlots = player.inventory.filter(
+          (slot) => slot === null
+        ).length;
+
+        if (freeSlots >= itemsToGive.length) {
+          // ✅ Хватает места — кладём в инвентарь (СТАРОЕ ПОВЕДЕНИЕ)
+          itemsToGive.forEach((type) => {
+            for (let i = 0; i < player.inventory.length; i++) {
+              if (!player.inventory[i]) {
+                player.inventory[i] = { type, quantity: 1 };
+                break;
+              }
             }
-          }
-          // Если инвентарь полон — просто теряем предмет (или можно потом сделать дроп)
-        });
+          });
+        } else {
+          // ❗ Места НЕ хватает — спавним ВСЕ предметы на поле (ТОЛЬКО ДЛЯ ЭТОГО ИГРОКА)
+          const radius = 30;
+
+          itemsToGive.forEach((type, index) => {
+            const angle = Math.random() * Math.PI * 2;
+            const r = Math.random() * radius;
+
+            const x = player.x + Math.cos(angle) * r;
+            const y = player.y + Math.sin(angle) * r;
+
+            const itemId = `quest_${type}_${playerId}_${Date.now()}_${index}`;
+
+            const questItem = {
+              x,
+              y,
+              type,
+              spawnTime: Date.now(),
+              worldId: player.worldId,
+              questOwnerId: playerId, 
+              isQuestItem: true,
+            };
+
+            items.set(itemId, questItem);
+
+            // 👁 Отправляем ТОЛЬКО этому игроку
+            ws.send(
+              JSON.stringify({
+                type: "newItem",
+                items: [
+                  {
+                    itemId,
+                    x,
+                    y,
+                    type,
+                    worldId: player.worldId,
+                    isQuestItem: true,
+                  },
+                ],
+              })
+            );
+          });
+        }
 
         // === ФЛАГ СДАЧИ ДОКУМЕНТОВ ===
         player.corporateDocumentsSubmitted = true;
