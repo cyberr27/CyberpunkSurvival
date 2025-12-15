@@ -932,6 +932,11 @@ function setupWebSocket(
 
         const item = items.get(data.itemId);
         const player = players.get(id);
+
+        if (item.isQuestItem && item.questOwnerId !== id) {
+          return;
+        }
+
         if (!player.inventory) player.inventory = Array(20).fill(null);
 
         // НОВОЕ: Расширили условие на atom, чтобы он тоже стекался как balyary
@@ -2289,7 +2294,7 @@ function setupWebSocket(
               type,
               spawnTime: Date.now(),
               worldId: player.worldId,
-              questOwnerId: playerId, 
+              questOwnerId: playerId,
               isQuestItem: true,
             };
 
