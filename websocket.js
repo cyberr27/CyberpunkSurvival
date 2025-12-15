@@ -1741,42 +1741,130 @@ function setupWebSocket(
             })
           );
 
-          // Дроп
-          if (Math.random() < 0.5) {
-            const dropType = Math.random() < 0.7 ? "meat_chunk" : "blood_pack";
-            const itemId = `${dropType}_${Date.now()}`;
-            const dropItem = {
+          // НОВАЯ ЛОГИКА ДРОПА (замена старой)
+          const dropChance = Math.random();
+          const newItems = []; // Массив для broadcast
+
+          // Список порванных вещей (torn_* из ITEM_CONFIG)
+          const tornItems = [
+            "torn_baseball_cap_of_health",
+            "torn_health_t_shirt",
+            "torn_health_gloves",
+            "torn_belt_of_health",
+            "torn_pants_of_health",
+            "torn_health_sneakers",
+            "torn_energy_cap",
+            "torn_energy_t_shirt",
+            "torn_gloves_of_energy",
+            "torn_energy_belt",
+            "torn_pants_of_energy",
+            "torn_sneakers_of_energy",
+            "torn_cap_of_gluttony",
+            "torn_t_shirt_of_gluttony",
+            "torn_gloves_of_gluttony",
+            "torn_belt_of_gluttony",
+            "torn_pants_of_gluttony",
+            "torn_sneakers_of_gluttony",
+            "torn_cap_of_thirst",
+            "torn_t_shirt_of_thirst",
+            "torn_gloves_of_thirst",
+            "torn_belt_of_thirst",
+            "torn_pants_of_thirst",
+            "torn_sneakers_of_thirst",
+          ];
+
+          if (dropChance < 0.33) {
+            // 33% - ничего
+          } else if (dropChance < 0.45) {
+            // 0.33 + 0.12 = 0.45
+            // 12% - порванная вещь + атом + баляр
+            const tornType =
+              tornItems[Math.floor(Math.random() * tornItems.length)];
+            const tornItemId = `${tornType}_${Date.now()}`;
+            const tornDrop = {
               x: enemy.x,
               y: enemy.y,
-              type: dropType,
+              type: tornType,
               spawnTime: Date.now(),
               worldId: data.worldId,
             };
-            items.set(itemId, dropItem);
+            items.set(tornItemId, tornDrop);
+            newItems.push({ itemId: tornItemId, ...tornDrop });
 
-            broadcastToWorld(
-              wss,
-              clients,
-              players,
-              data.worldId,
-              JSON.stringify({
-                type: "newItem",
-                items: [{ itemId, ...dropItem }],
-              })
-            );
-          }
-
-          if (Math.random() < 0.15) {
-            const itemId = `atom_${Date.now()}`;
-            const dropItem = {
+            const atomItemId = `atom_${Date.now()}`;
+            const atomDrop = {
               x: enemy.x,
               y: enemy.y,
               type: "atom",
               spawnTime: Date.now(),
               worldId: data.worldId,
             };
-            items.set(itemId, dropItem);
+            items.set(atomItemId, atomDrop);
+            newItems.push({ itemId: atomItemId, ...atomDrop });
 
+            const balyaryItemId = `balyary_${Date.now()}`;
+            const balyaryDrop = {
+              x: enemy.x,
+              y: enemy.y,
+              type: "balyary",
+              spawnTime: Date.now(),
+              worldId: data.worldId,
+            };
+            items.set(balyaryItemId, balyaryDrop);
+            newItems.push({ itemId: balyaryItemId, ...balyaryDrop });
+          } else if (dropChance < 0.7) {
+            // 0.45 + 0.25 = 0.70
+            // 25% - баляр + атом
+            const atomItemId = `atom_${Date.now()}`;
+            const atomDrop = {
+              x: enemy.x,
+              y: enemy.y,
+              type: "atom",
+              spawnTime: Date.now(),
+              worldId: data.worldId,
+            };
+            items.set(atomItemId, atomDrop);
+            newItems.push({ itemId: atomItemId, ...atomDrop });
+
+            const balyaryItemId = `balyary_${Date.now()}`;
+            const balyaryDrop = {
+              x: enemy.x,
+              y: enemy.y,
+              type: "balyary",
+              spawnTime: Date.now(),
+              worldId: data.worldId,
+            };
+            items.set(balyaryItemId, balyaryDrop);
+            newItems.push({ itemId: balyaryItemId, ...balyaryDrop });
+          } else if (dropChance < 0.85) {
+            // 0.70 + 0.15 = 0.85
+            // 15% - баляр
+            const balyaryItemId = `balyary_${Date.now()}`;
+            const balyaryDrop = {
+              x: enemy.x,
+              y: enemy.y,
+              type: "balyary",
+              spawnTime: Date.now(),
+              worldId: data.worldId,
+            };
+            items.set(balyaryItemId, balyaryDrop);
+            newItems.push({ itemId: balyaryItemId, ...balyaryDrop });
+          } else {
+            // 15% - атом
+            const atomItemId = `atom_${Date.now()}`;
+            const atomDrop = {
+              x: enemy.x,
+              y: enemy.y,
+              type: "atom",
+              spawnTime: Date.now(),
+              worldId: data.worldId,
+            };
+            items.set(atomItemId, atomDrop);
+            newItems.push({ itemId: atomItemId, ...atomDrop });
+          }
+
+          // Если есть новые предметы — broadcast всем в мире
+          if (newItems.length > 0) {
             broadcastToWorld(
               wss,
               clients,
@@ -1784,7 +1872,7 @@ function setupWebSocket(
               data.worldId,
               JSON.stringify({
                 type: "newItem",
-                items: [{ itemId, ...dropItem }],
+                items: newItems,
               })
             );
           }
@@ -1804,7 +1892,6 @@ function setupWebSocket(
             levelUp = true;
             xpToNext = calculateXPToNextLevel(attacker.level);
           }
-
           players.set(attackerId, attacker);
           userDatabase.set(attackerId, attacker);
           await saveUserDatabase(dbCollection, attackerId, attacker);
@@ -1820,7 +1907,6 @@ function setupWebSocket(
               xpGained,
             })
           );
-
           if (enemy.type === "mutant") {
             if (
               attacker.neonQuest &&
@@ -1829,12 +1915,10 @@ function setupWebSocket(
               attacker.neonQuest.progress = attacker.neonQuest.progress || {};
               attacker.neonQuest.progress.killMutants =
                 (attacker.neonQuest.progress.killMutants || 0) + 1;
-
               // Сохраняем в БД
               players.set(attackerId, attacker);
               userDatabase.set(attackerId, attacker);
               await saveUserDatabase(dbCollection, attackerId, attacker);
-
               // Отправляем игроку обновлённый прогресс
               ws.send(
                 JSON.stringify({
@@ -1844,7 +1928,6 @@ function setupWebSocket(
               );
             }
           }
-
           // Респавн через 8-15 сек
           setTimeout(
             () => spawnNewEnemy(data.worldId),
@@ -1853,7 +1936,6 @@ function setupWebSocket(
         } else {
           // Если жив — просто обновляем здоровье
           enemies.set(data.targetId, enemy);
-
           broadcastToWorld(
             wss,
             clients,
