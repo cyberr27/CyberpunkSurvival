@@ -151,7 +151,7 @@ const equipmentSystem = {
       effect: { armor: 5, health: 5 },
       description:
         "Порванная кепка здоровья: +5 к максимальному здоровью и броне",
-      rarity: 1,
+      rarity: 4,
       image: new Image(),
     },
     torn_health_t_shirt: {
@@ -159,7 +159,7 @@ const equipmentSystem = {
       effect: { armor: 10, health: 10 },
       description:
         "Порванная футболка здоровья: +10 к максимальному здоровью, +10 к броне",
-      rarity: 1,
+      rarity: 4,
       image: new Image(),
     },
     torn_health_gloves: {
@@ -167,7 +167,7 @@ const equipmentSystem = {
       effect: { armor: 5, health: 3 },
       description:
         "Порванные перчатки здоровья: +3 к максимальному здоровью, +5 к броне",
-      rarity: 1,
+      rarity: 4,
       image: new Image(),
     },
     torn_belt_of_health: {
@@ -175,7 +175,7 @@ const equipmentSystem = {
       effect: { armor: 3, health: 7 },
       description:
         "Порванный пояс здоровья: +7 к максимальному здоровью, +3 к броне",
-      rarity: 1,
+      rarity: 4,
       image: new Image(),
     },
     torn_pants_of_health: {
@@ -183,7 +183,7 @@ const equipmentSystem = {
       effect: { armor: 7, health: 6 },
       description:
         "Порванные штаны здоровья: +6 к максимальному здоровью, +7 к броне",
-      rarity: 1,
+      rarity: 4,
       image: new Image(),
     },
     torn_health_sneakers: {
@@ -191,7 +191,7 @@ const equipmentSystem = {
       effect: { armor: 5, health: 4 },
       description:
         "Порванные кроссовки здоровья: +4 к максимальному здоровью, +5 к броне",
-      rarity: 1,
+      rarity: 4,
       image: new Image(),
     },
 
@@ -200,7 +200,7 @@ const equipmentSystem = {
       effect: { armor: 5, energy: 5 },
       description:
         "Порванная кепка энергии: +5 к максимальной энергии, +5 к броне",
-      rarity: 1,
+      rarity: 4,
       image: new Image(),
     },
     torn_energy_t_shirt: {
@@ -208,7 +208,7 @@ const equipmentSystem = {
       effect: { armor: 10, energy: 10 },
       description:
         "Порванная футболка энергии: +10 к максимальной энергии, +10 к броне",
-      rarity: 1,
+      rarity: 4,
       image: new Image(),
     },
     torn_gloves_of_energy: {
@@ -216,7 +216,7 @@ const equipmentSystem = {
       effect: { armor: 5, energy: 3 },
       description:
         "Порванные перчатки энергии: +3 к максимальной энергии, +5 к броне",
-      rarity: 1,
+      rarity: 4,
       image: new Image(),
     },
     torn_energy_belt: {
@@ -224,7 +224,7 @@ const equipmentSystem = {
       effect: { armor: 3, energy: 7 },
       description:
         "Порванный пояс энергии: +7 к максимальной энергии, +3 к броне",
-      rarity: 1,
+      rarity: 4,
       image: new Image(),
     },
     torn_pants_of_energy: {
@@ -232,7 +232,7 @@ const equipmentSystem = {
       effect: { armor: 7, energy: 6 },
       description:
         "Порванные штаны энергии: +6 к максимальной энергии, +7 к броне",
-      rarity: 1,
+      rarity: 4,
       image: new Image(),
     },
     torn_sneakers_of_energy: {
@@ -240,7 +240,7 @@ const equipmentSystem = {
       effect: { armor: 5, energy: 4 },
       description:
         "Порванные кроссовки энергии: +4 к максимальной энергии, +5 к броне",
-      rarity: 1,
+      rarity: 4,
       image: new Image(),
     },
 
@@ -249,7 +249,7 @@ const equipmentSystem = {
       effect: { armor: 5, food: 5 },
       description:
         "Порванная кепка обжорства: +5 к максимальной еде, +5 к броне",
-      rarity: 1,
+      rarity: 4,
       image: new Image(),
     },
     torn_t_shirt_of_gluttony: {
@@ -257,7 +257,7 @@ const equipmentSystem = {
       effect: { armor: 10, food: 10 },
       description:
         "Порванная футболка обжорства: +10 к максимальной еде, +10 к броне",
-      rarity: 1,
+      rarity: 4,
       image: new Image(),
     },
     torn_gloves_of_gluttony: {
@@ -265,7 +265,7 @@ const equipmentSystem = {
       effect: { armor: 5, food: 3 },
       description:
         "Порванные перчатки обжорства: +3 к максимальной еде, +5 к броне",
-      rarity: 1,
+      rarity: 4,
       image: new Image(),
     },
     torn_belt_of_gluttony: {
@@ -273,7 +273,7 @@ const equipmentSystem = {
       effect: { armor: 3, food: 7 },
       description:
         "Порванный пояс обжорства: +7 к максимальной еде, +3 к броне",
-      rarity: 1,
+      rarity: 4,
       image: new Image(),
     },
     torn_pants_of_gluttony: {
@@ -281,7 +281,7 @@ const equipmentSystem = {
       effect: { armor: 7, food: 6 },
       description:
         "Порванные штаны обжорства: +6 к максимальной еде, +7 к броне",
-      rarity: 1,
+      rarity: 4,
       image: new Image(),
     },
     torn_sneakers_of_gluttony: {
@@ -289,7 +289,7 @@ const equipmentSystem = {
       effect: { armor: 5, food: 4 },
       description:
         "Порванные кроссовки обжорства: +4 к максимальной еде, +5 к броне",
-      rarity: 1,
+      rarity: 4,
       image: new Image(),
     },
 
@@ -297,7 +297,7 @@ const equipmentSystem = {
       type: "headgear",
       effect: { armor: 5, water: 5 },
       description: "Порванная кепка жажды: +5 к максимальной воде, +5 к броне",
-      rarity: 1,
+      rarity: 4,
       image: new Image(),
     },
     torn_t_shirt_of_thirst: {
@@ -305,7 +305,7 @@ const equipmentSystem = {
       effect: { armor: 10, water: 10 },
       description:
         "Порванная футболка жажды: +10 к максимальной воде, +10 к броне",
-      rarity: 1,
+      rarity: 4,
       image: new Image(),
     },
     torn_gloves_of_thirst: {
@@ -313,21 +313,21 @@ const equipmentSystem = {
       effect: { armor: 5, water: 3 },
       description:
         "Порванные перчатки жажды: +3 к максимальной воде, +5 к броне",
-      rarity: 1,
+      rarity: 4,
       image: new Image(),
     },
     torn_belt_of_thirst: {
       type: "belt",
       effect: { armor: 3, water: 7 },
       description: "Порванный пояс жажды: +7 к максимальной воде, +3 к броне",
-      rarity: 1,
+      rarity: 4,
       image: new Image(),
     },
     torn_pants_of_thirst: {
       type: "pants",
       effect: { armor: 7, water: 6 },
       description: "Порванные штаны жажды: +6 к максимальной воде, +7 к броне",
-      rarity: 1,
+      rarity: 4,
       image: new Image(),
     },
     torn_sneakers_of_thirst: {
@@ -335,7 +335,7 @@ const equipmentSystem = {
       effect: { armor: 5, water: 4 },
       description:
         "Порванные кроссовки жажды: +4 к максимальной воде, +5 к броне",
-      rarity: 1,
+      rarity: 4,
       image: new Image(),
     },
   },

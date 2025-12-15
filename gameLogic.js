@@ -259,7 +259,7 @@ function runGameLoop(
             commonCount--;
           } else {
             const allTypes = Object.keys(ITEM_CONFIG).filter(
-              (t) => ITEM_CONFIG[t].rarity !== 4
+              (t) => ITEM_CONFIG[t].rarity !== 4 && ITEM_CONFIG[t].rarity !== 5
             );
             type = allTypes[Math.floor(Math.random() * allTypes.length)];
           }
