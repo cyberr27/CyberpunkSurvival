@@ -1741,11 +1741,8 @@ function setupWebSocket(
             })
           );
 
-          // НОВАЯ ЛОГИКА ДРОПА (замена старой)
+          // Новый дроп (замена старого)
           const dropChance = Math.random();
-          const newItems = []; // Массив для broadcast
-
-          // Список порванных вещей (torn_* из ITEM_CONFIG)
           const tornItems = [
             "torn_baseball_cap_of_health",
             "torn_health_t_shirt",
@@ -1772,12 +1769,12 @@ function setupWebSocket(
             "torn_pants_of_thirst",
             "torn_sneakers_of_thirst",
           ];
+          const newDropItems = []; // Массив для всех дропнутых предметов
 
           if (dropChance < 0.33) {
             // 33% - ничего
           } else if (dropChance < 0.45) {
-            // 0.33 + 0.12 = 0.45
-            // 12% - порванная вещь + атом + баляр
+            // 33% + 12% = 45% - torn + atom + balyary
             const tornType =
               tornItems[Math.floor(Math.random() * tornItems.length)];
             const tornItemId = `${tornType}_${Date.now()}`;
@@ -1789,7 +1786,7 @@ function setupWebSocket(
               worldId: data.worldId,
             };
             items.set(tornItemId, tornDrop);
-            newItems.push({ itemId: tornItemId, ...tornDrop });
+            newDropItems.push({ itemId: tornItemId, ...tornDrop });
 
             const atomItemId = `atom_${Date.now()}`;
             const atomDrop = {
@@ -1800,57 +1797,32 @@ function setupWebSocket(
               worldId: data.worldId,
             };
             items.set(atomItemId, atomDrop);
-            newItems.push({ itemId: atomItemId, ...atomDrop });
+            newDropItems.push({ itemId: atomItemId, ...atomDrop });
 
             const balyaryItemId = `balyary_${Date.now()}`;
             const balyaryDrop = {
               x: enemy.x,
               y: enemy.y,
               type: "balyary",
+              quantity: 1,
               spawnTime: Date.now(),
               worldId: data.worldId,
             };
             items.set(balyaryItemId, balyaryDrop);
-            newItems.push({ itemId: balyaryItemId, ...balyaryDrop });
+            newDropItems.push({ itemId: balyaryItemId, ...balyaryDrop });
           } else if (dropChance < 0.7) {
-            // 0.45 + 0.25 = 0.70
-            // 25% - баляр + атом
-            const atomItemId = `atom_${Date.now()}`;
-            const atomDrop = {
+            // 45% + 25% = 70% - blood_pack + atom
+            const bloodItemId = `blood_pack_${Date.now()}`;
+            const bloodDrop = {
               x: enemy.x,
               y: enemy.y,
-              type: "atom",
+              type: "blood_pack",
               spawnTime: Date.now(),
               worldId: data.worldId,
             };
-            items.set(atomItemId, atomDrop);
-            newItems.push({ itemId: atomItemId, ...atomDrop });
+            items.set(bloodItemId, bloodDrop);
+            newDropItems.push({ itemId: bloodItemId, ...bloodDrop });
 
-            const balyaryItemId = `balyary_${Date.now()}`;
-            const balyaryDrop = {
-              x: enemy.x,
-              y: enemy.y,
-              type: "balyary",
-              spawnTime: Date.now(),
-              worldId: data.worldId,
-            };
-            items.set(balyaryItemId, balyaryDrop);
-            newItems.push({ itemId: balyaryItemId, ...balyaryDrop });
-          } else if (dropChance < 0.85) {
-            // 0.70 + 0.15 = 0.85
-            // 15% - баляр
-            const balyaryItemId = `balyary_${Date.now()}`;
-            const balyaryDrop = {
-              x: enemy.x,
-              y: enemy.y,
-              type: "balyary",
-              spawnTime: Date.now(),
-              worldId: data.worldId,
-            };
-            items.set(balyaryItemId, balyaryDrop);
-            newItems.push({ itemId: balyaryItemId, ...balyaryDrop });
-          } else {
-            // 15% - атом
             const atomItemId = `atom_${Date.now()}`;
             const atomDrop = {
               x: enemy.x,
@@ -1860,11 +1832,37 @@ function setupWebSocket(
               worldId: data.worldId,
             };
             items.set(atomItemId, atomDrop);
-            newItems.push({ itemId: atomItemId, ...atomDrop });
+            newDropItems.push({ itemId: atomItemId, ...atomDrop });
+          } else if (dropChance < 0.85) {
+            // 70% + 15% = 85% - torn
+            const tornType =
+              tornItems[Math.floor(Math.random() * tornItems.length)];
+            const tornItemId = `${tornType}_${Date.now()}`;
+            const tornDrop = {
+              x: enemy.x,
+              y: enemy.y,
+              type: tornType,
+              spawnTime: Date.now(),
+              worldId: data.worldId,
+            };
+            items.set(tornItemId, tornDrop);
+            newDropItems.push({ itemId: tornItemId, ...tornDrop });
+          } else {
+            // 85% + 15% = 100% - atom
+            const atomItemId = `atom_${Date.now()}`;
+            const atomDrop = {
+              x: enemy.x,
+              y: enemy.y,
+              type: "atom",
+              spawnTime: Date.now(),
+              worldId: data.worldId,
+            };
+            items.set(atomItemId, atomDrop);
+            newDropItems.push({ itemId: atomItemId, ...atomDrop });
           }
 
-          // Если есть новые предметы — broadcast всем в мире
-          if (newItems.length > 0) {
+          // Если есть дроп — отправляем один broadcast с массивом
+          if (newDropItems.length > 0) {
             broadcastToWorld(
               wss,
               clients,
@@ -1872,7 +1870,7 @@ function setupWebSocket(
               data.worldId,
               JSON.stringify({
                 type: "newItem",
-                items: newItems,
+                items: newDropItems,
               })
             );
           }
@@ -1895,7 +1893,6 @@ function setupWebSocket(
           players.set(attackerId, attacker);
           userDatabase.set(attackerId, attacker);
           await saveUserDatabase(dbCollection, attackerId, attacker);
-
           // Уведомление атакующего (levelSyncAfterKill)
           ws.send(
             JSON.stringify({
