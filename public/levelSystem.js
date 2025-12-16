@@ -6,6 +6,9 @@ let xpToNextLevel = 100;
 let isInitialized = false;
 let upgradePoints = 0;
 
+// НОВОЕ: Бонус к melee damage от уровня (начинается с 0)
+let meleeDamageBonus = 0;
+
 let maxStats = {
   health: 100,
   energy: 100,
@@ -213,6 +216,9 @@ function setLevelData(level, xp, maxStatsData, upgradePointsData) {
     window.levelSystem.foodUpgrade = me.foodUpgrade || 0;
     window.levelSystem.waterUpgrade = me.waterUpgrade || 0;
 
+    // НОВОЕ: Устанавливаем бонус melee damage от текущего уровня (level = bonus)
+    window.levelSystem.meleeDamageBonus = currentLevel;
+
     // ВЫЧИСЛЯЕМ maxStats ИЗ UPGRADE (base 100 + upgrades, armor 0; equip добавится позже в applyEquipmentEffects)
     maxStats = {
       health: 100 + window.levelSystem.healthUpgrade,
@@ -343,6 +349,9 @@ function handleEnemyKill(data) {
     xpToNextLevel = data.xpToNextLevel;
     upgradePoints = data.upgradePoints;
 
+    // НОВОЕ: Синхронизируем бонус melee damage от уровня
+    window.levelSystem.meleeDamageBonus = currentLevel;
+
     const me = players.get(myId);
     if (me) {
       me.level = currentLevel;
@@ -366,6 +375,9 @@ function checkLevelUp() {
       currentXP -= xpToNextLevel;
       xpToNextLevel = calculateXPToNextLevel(currentLevel);
       upgradePoints += 10;
+
+      // НОВОЕ: Увеличиваем бонус melee damage на +1 при level up
+      window.levelSystem.meleeDamageBonus += 1;
 
       showLevelUpEffect();
       updateUpgradeButtons();
@@ -439,4 +451,6 @@ window.levelSystem = {
   maxStats,
   updateUpgradeButtons,
   handleEnemyKill,
+  // НОВОЕ: Экспортируем бонус для доступа из других систем
+  meleeDamageBonus,
 };

@@ -50,6 +50,9 @@ function performAttack() {
   const equippedWeapon = me.equipment && me.equipment.weapon;
   const currentWorldId = window.worldSystem.currentWorldId;
 
+  // НОВОЕ: Получаем бонус от уровня (из levelSystem)
+  const levelBonus = window.levelSystem.meleeDamageBonus || 0;
+
   if (
     equippedWeapon &&
     ITEM_CONFIG[equippedWeapon.type] &&
@@ -126,8 +129,8 @@ function performAttack() {
       // Ближний бой: НОВЫЙ РАСЧЁТ УРОНА (базовый 5-10 + оружие)
       let damage;
       const weaponDamage = weaponConfig.effect.damage;
-      let minDamage = BASE_MELEE_MIN_DAMAGE;
-      let maxDamage = BASE_MELEE_MAX_DAMAGE;
+      let minDamage = BASE_MELEE_MIN_DAMAGE + levelBonus; // НОВОЕ: + levelBonus
+      let maxDamage = BASE_MELEE_MAX_DAMAGE + levelBonus; // НОВОЕ: + levelBonus
 
       if (
         weaponDamage &&
@@ -147,8 +150,12 @@ function performAttack() {
   } else {
     // Атака без оружия (кулаками): фиксированный базовый 5-10
     const damage = Math.floor(
-      Math.random() * (BASE_MELEE_MAX_DAMAGE - BASE_MELEE_MIN_DAMAGE + 1) +
-        BASE_MELEE_MIN_DAMAGE
+      Math.random() *
+        (BASE_MELEE_MAX_DAMAGE +
+          levelBonus -
+          (BASE_MELEE_MIN_DAMAGE + levelBonus) +
+          1) + // НОВОЕ: + levelBonus к min и max
+        (BASE_MELEE_MIN_DAMAGE + levelBonus)
     );
     performMeleeAttack(damage, currentWorldId);
   }

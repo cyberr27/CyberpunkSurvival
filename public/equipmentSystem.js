@@ -32,8 +32,9 @@ const equipmentSystem = {
 
   // НОВЫЕ ФУНКЦИИ ДЛЯ РАСЧЁТА УРОНА
   getCurrentMeleeDamage: function () {
-    const baseMin = this.BASE_MELEE_MIN;
-    const baseMax = this.BASE_MELEE_MAX;
+    const levelBonus = window.levelSystem.meleeDamageBonus || 0;
+    const baseMin = this.BASE_MELEE_MIN + levelBonus; // НОВОЕ: + levelBonus
+    const baseMax = this.BASE_MELEE_MAX + levelBonus; // НОВОЕ: + levelBonus
     const weaponSlot = this.equipmentSlots.weapon;
 
     if (!weaponSlot || !this.EQUIPMENT_CONFIG[weaponSlot.type]) {
