@@ -1134,8 +1134,23 @@ function setupWebSocket(
               weapon: "weapon",
               gloves: "gloves",
             }[ITEM_CONFIG[item.type].type];
-
             if (slotName) {
+              // <-- НАЧАЛО ВСТАВКИ: Добавляем проверку уровня для melee оружия
+              const meleeWeapons = ["knuckles", "knife", "bat"];
+              if (slotName === "weapon" && meleeWeapons.includes(item.type)) {
+                if (player.level < 2) {
+                  ws.send(
+                    JSON.stringify({
+                      type: "equipItemFail",
+                      error:
+                        "Вы должны быть как минимум 2 уровня для экипировки этого оружия",
+                    })
+                  );
+                  return;
+                }
+              }
+              // <-- КОНЕЦ ВСТАВКИ
+
               if (player.equipment[slotName]) {
                 const freeSlot = player.inventory.findIndex(
                   (slot) => slot === null
@@ -1158,15 +1173,12 @@ function setupWebSocket(
                 itemId: item.itemId,
               };
               player.inventory[slotIndex] = null;
-
               // Полностью пересчитываем maxStats и обрезаем текущие статы
               calculateMaxStats(player, ITEM_CONFIG);
-
               // Сохраняем изменения
               players.set(id, { ...player });
               userDatabase.set(id, { ...player });
               await saveUserDatabase(dbCollection, id, player);
-
               // Отправляем обновление клиенту (с новыми статами)
               ws.send(
                 JSON.stringify({
@@ -1185,7 +1197,6 @@ function setupWebSocket(
                   },
                 })
               );
-
               // Отправляем обновление другим игрокам в том же мире (только статы, если нужно)
               wss.clients.forEach((client) => {
                 if (client !== ws && client.readyState === WebSocket.OPEN) {
