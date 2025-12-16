@@ -636,6 +636,8 @@ const equipmentSystem = {
     this.updateDamageDisplay();
   },
 
+  pendingEquip: null,
+
   equipItem: function (slotIndex) {
     const item = inventory[slotIndex];
     if (!item || !this.EQUIPMENT_CONFIG[item.type]) {
@@ -655,15 +657,27 @@ const equipmentSystem = {
 
     // Проверяем, есть ли уже предмет в слоте
     let oldItem = null;
+    let freeSlot = null; // <-- НАЧАЛО ИЗМЕНЕНИЯ: Объявляем freeSlot здесь для доступа ниже
     if (this.equipmentSlots[slotName]) {
       oldItem = this.equipmentSlots[slotName];
-      const freeSlot = inventory.findIndex((slot) => slot === null);
+      freeSlot = inventory.findIndex((slot) => slot === null);
       if (freeSlot === -1) {
         alert("Инвентарь полон! Освободите место.");
         return;
       }
       inventory[freeSlot] = oldItem;
     }
+    // <-- КОНЕЦ ИЗМЕНЕНИЯ (freeSlot доступен)
+
+    // <-- НАЧАЛО ИЗМЕНЕНИЯ: Добавляем freeSlot в pending (null если нет swap)
+    this.pendingEquip = {
+      slotIndex,
+      item: { ...item },
+      slotName,
+      oldItem,
+      freeSlot: oldItem ? freeSlot : null,
+    };
+    // <-- КОНЕЦ ИЗМЕНЕНИЯ
 
     // Локально экипируем предмет
     this.equipmentSlots[slotName] = { type: item.type, itemId: item.itemId };
@@ -750,6 +764,38 @@ const equipmentSystem = {
       setTimeout(() => this.updateEquipmentDisplay(), 100);
     }
     updateStatsDisplay();
+  },
+
+  handleEquipFail: function (error) {
+    if (!this.pendingEquip) return; // Нет pending — игнор
+
+    const { slotIndex, item, slotName, oldItem } = this.pendingEquip; // freeSlot уже в pending
+
+    // Revert: Вернуть item в inventory, очистить slot
+    inventory[slotIndex] = item;
+    this.equipmentSlots[slotName] = oldItem; // Вернуть oldItem если был
+
+    // <-- НАЧАЛО ИЗМЕНЕНИЯ: Используем сохраненный freeSlot вместо findIndex
+    if (oldItem) {
+      const oldSlot = this.pendingEquip.freeSlot;
+      if (oldSlot !== null) inventory[oldSlot] = null;
+    }
+    // <-- КОНЕЦ ИЗМЕНЕНИЯ
+
+    // Переприменить эффекты и обновить UI
+    const me = players.get(myId);
+    if (me) {
+      this.applyEquipmentEffects(me);
+    }
+    this.updateEquipmentDisplay();
+    updateInventoryDisplay();
+    updateStatsDisplay();
+
+    // Показать ошибку
+    alert(error);
+
+    // Очистить pending
+    this.pendingEquip = null;
   },
 };
 

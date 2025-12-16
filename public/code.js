@@ -1956,6 +1956,9 @@ function handleGameMessage(event) {
         items.delete(data.itemId);
         pendingPickups.delete(data.itemId);
         break;
+      case "equipItemFail":
+        window.equipmentSystem.handleEquipFail(data.error);
+        break;
       case "inventoryFull":
         pendingPickups.delete(data.itemId);
         break;
