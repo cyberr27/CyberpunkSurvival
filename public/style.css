@@ -389,7 +389,6 @@ body {
   left: 15%;
   width: 300px;
   height: 480px;
-  background: linear-gradient(180deg, #1a1a1a, #0f0f0f);
   border: 2px solid #00ccff;
   border-radius: 0;
   box-shadow: 0 0 15px rgba(0, 204, 255, 0.5),
@@ -401,7 +400,7 @@ body {
   box-sizing: border-box;
   z-index: 100;
   font-family: "Orbitron", sans-serif;
-  background-image: url("https://i.imgur.com/8Z1z7qU.png");
+  background-image: url("inventory_background.png") center no-repeat;
   background-size: cover;
 }
 
