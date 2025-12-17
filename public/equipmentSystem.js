@@ -71,7 +71,7 @@ const equipmentSystem = {
     if (displayEl) {
       displayEl.textContent = `Урон: ${currentStr}`;
       displayEl.style.color =
-        dmg.min > this.BASE_MELEE_MIN ? "lime" : "#ffaa00"; // Ярко-зелёный если улучшено
+        this.equipmentSlots.weapon !== null ? "lime" : "#ffaa00";
     }
   },
 
