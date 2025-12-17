@@ -33,8 +33,8 @@ const equipmentSystem = {
   // НОВЫЕ ФУНКЦИИ ДЛЯ РАСЧЁТА УРОНА
   getCurrentMeleeDamage: function () {
     const levelBonus = window.levelSystem.meleeDamageBonus || 0;
-    const baseMin = this.BASE_MELEE_MIN + levelBonus; // НОВОЕ: + levelBonus
-    const baseMax = this.BASE_MELEE_MAX + levelBonus; // НОВОЕ: + levelBonus
+    const baseMin = this.BASE_MELEE_MIN + levelBonus;
+    const baseMax = this.BASE_MELEE_MAX + levelBonus;
     const weaponSlot = this.equipmentSlots.weapon;
 
     if (!weaponSlot || !this.EQUIPMENT_CONFIG[weaponSlot.type]) {
@@ -71,7 +71,7 @@ const equipmentSystem = {
     if (displayEl) {
       displayEl.textContent = `Урон: ${currentStr}`;
       displayEl.style.color =
-        dmg.min > this.BASE_MELEE_MIN ? "lime" : "#ffaa00"; // Ярко-зелёный если улучшено
+        this.equipmentSlots.weapon !== null ? "lime" : "#ffaa00";
     }
   },
 
@@ -421,6 +421,9 @@ const equipmentSystem = {
       <div id="equipmentScreen"></div>
       <div id="damageDisplay" style="color: lime; font-weight: bold; font-size: 14px; margin-top: 10px; padding: 5px; background: rgba(0,0,0,0.7); border-radius: 5px; text-align: center;">Урон: 5-10</div>
     `;
+    equipmentContainer.style.backgroundImage =
+      'url("/images/equipment_background.png")';
+    equipmentContainer.style.backgroundSize = "cover";
     document.getElementById("gameContainer").appendChild(equipmentContainer);
 
     // Создаем ячейки экипировки (БЕЗ ИЗМЕНЕНИЙ)
@@ -469,6 +472,14 @@ const equipmentSystem = {
       slotEl.className = "equipment-slot";
       slotEl.style.gridArea = slot.name;
       slotEl.title = slot.label;
+      slotEl.style.background = "transparent";
+      slotEl.style.border = "none";
+      slotEl.addEventListener("mouseover", () => {
+        slotEl.style.border = "1px solid pink";
+      });
+      slotEl.addEventListener("mouseout", () => {
+        slotEl.style.border = "none";
+      });
       slotEl.addEventListener("click", () =>
         this.selectEquipmentSlot(slot.name)
       );
