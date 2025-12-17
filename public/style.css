@@ -750,7 +750,6 @@ body {
 /* Контейнер экипировки */
 #equipmentContainer {
   position: fixed;
-  background: url(equipment_background.png) center no-repeat;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
