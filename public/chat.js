@@ -1,8 +1,8 @@
 // Получаем элементы DOM для чата
-const chatBtn = document.getElementById("chatBtn");
-const chatContainer = document.getElementById("chatContainer");
-const chatMessages = document.getElementById("chatMessages");
-const chatInput = document.getElementById("chatInput");
+chatBtn = document.getElementById("chatBtn");
+chatContainer = document.getElementById("chatContainer");
+chatMessages = document.getElementById("chatMessages");
+chatInput = document.getElementById("chatInput");
 
 // Создаём глобальный объект для системы чата
 window.chatSystem = window.chatSystem || {};
