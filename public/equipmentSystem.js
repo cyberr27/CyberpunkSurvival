@@ -71,7 +71,7 @@ const equipmentSystem = {
     if (displayEl) {
       displayEl.textContent = `Урон: ${currentStr}`;
       displayEl.style.color =
-        dmg.min > this.BASE_MELEE_MIN ? "lime" : "#ffaa00"; // Ярко-зелёный если улучшено
+        this.equipmentSlots.weapon !== null ? "lime" : "#ffaa00";
     }
   },
 
@@ -418,7 +418,6 @@ const equipmentSystem = {
     equipmentContainer.style.display = "none";
     equipmentContainer.innerHTML = `
       <div id="equipmentGrid"></div>
-      <div id="equipmentScreen"></div>
       <div id="damageDisplay" style="color: lime; font-weight: bold; font-size: 14px; margin-top: 10px; padding: 5px; background: rgba(0,0,0,0.7); border-radius: 5px; text-align: center;">Урон: 5-10</div>
     `;
     document.getElementById("gameContainer").appendChild(equipmentContainer);
@@ -469,9 +468,6 @@ const equipmentSystem = {
       slotEl.className = "equipment-slot";
       slotEl.style.gridArea = slot.name;
       slotEl.title = slot.label;
-      slotEl.addEventListener("click", () =>
-        this.selectEquipmentSlot(slot.name)
-      );
       slotEl.addEventListener("dblclick", () => {
         this.unequipItem(slot.name);
       });
@@ -568,27 +564,13 @@ const equipmentSystem = {
 
     if (this.isEquipmentOpen) {
       this.updateEquipmentDisplay(); // Обновляет и урон
-    } else {
-      document.getElementById("equipmentScreen").innerHTML = "";
     }
   },
 
-  selectEquipmentSlot: function (slotName) {
-    const screen = document.getElementById("equipmentScreen");
-    if (this.equipmentSlots[slotName]) {
-      screen.textContent =
-        this.EQUIPMENT_CONFIG[this.equipmentSlots[slotName].type].description;
-    } else {
-      screen.textContent = `Слот ${slotName} пуст`;
-    }
-  },
-
-  // ИЗМЕНЁННО: В КОНЦЕ ОБНОВЛЯЕТ УРОН
   updateEquipmentDisplay: function () {
     const equipmentGrid = document.getElementById("equipmentGrid");
-    const screen = document.getElementById("equipmentScreen");
 
-    if (!equipmentGrid || !screen) {
+    if (!equipmentGrid) {
       return;
     }
 
@@ -617,19 +599,9 @@ const equipmentSystem = {
         img.style.height = "100%";
         slot.appendChild(img);
 
-        slot.onmouseover = () => {
-          const currentItem = this.equipmentSlots[slotName];
-          if (currentItem && this.EQUIPMENT_CONFIG[currentItem.type]) {
-            screen.textContent =
-              this.EQUIPMENT_CONFIG[currentItem.type].description;
-          }
-        };
-        slot.onmouseout = () => {
-          screen.textContent = "";
-        };
+        slot.title = config.description;
       } else {
-        slot.onmouseover = null;
-        slot.onmouseout = null;
+        slot.title = `Слот ${slotName} пуст`;
       }
     }
 
