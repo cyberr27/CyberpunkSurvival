@@ -8,6 +8,7 @@ const tradeSystem = {
   partnerOffer: Array(4).fill(null),
   myConfirmed: false,
   partnerConfirmed: false,
+  currentOfferSlot: null, // НОВАЯ: для отслеживания слота, для которого активен input
 
   initialize(ws) {
     this.ws = ws;
@@ -78,6 +79,11 @@ const tradeSystem = {
         <div id="myOfferGrid" class="trade-offer-grid"></div>
         <h3 class="cyber-text">Предложение партнёра</h3>
         <div id="partnerOfferGrid" class="trade-offer-grid"></div>
+        <div class="offer-amount-container">
+          <input type="number" id="offerAmount" min="1" value="1" class="cyber-input" disabled>
+          <button id="confirmOfferBtn" class="action-btn use-btn" style="display: none;">Подтвердить</button>
+          <button id="cancelOfferBtn" class="action-btn drop-btn" style="display: none;">Отмена</button>
+        </div>
         <div class="trade-buttons">
           <button id="confirmTradeBtn" class="action-btn use-btn" disabled>Подтвердить</button>
           <button id="cancelTradeWindowBtn" class="action-btn drop-btn">Отмена</button>
@@ -221,6 +227,12 @@ const tradeSystem = {
     document.getElementById("tradeBtn").classList.add("active");
     this.updateTradeWindow();
     this.startAtomAnimation();
+
+    // Делаем input видимым, но disabled по умолчанию
+    const offerAmount = document.getElementById("offerAmount");
+    offerAmount.disabled = true;
+    document.getElementById("confirmOfferBtn").style.display = "none";
+    document.getElementById("cancelOfferBtn").style.display = "none";
   },
 
   closeTradeWindow() {
@@ -255,67 +267,87 @@ const tradeSystem = {
     )
       return;
 
-    // ВСТАВКА НАЧАЛО: Проверка на stackable (баляр или атом) с quantity >1 - показываем форму
+    // НОВАЯ ЛОГИКА: Если input активен (не disabled) и это другой слот - сбросить input как при cancel
+    const offerAmount = document.getElementById("offerAmount");
+    const confirmBtn = document.getElementById("confirmOfferBtn");
+    const cancelBtn = document.getElementById("cancelOfferBtn");
+    if (!offerAmount.disabled && slotIndex !== this.currentOfferSlot) {
+      offerAmount.disabled = true;
+      offerAmount.value = 1;
+      confirmBtn.style.display = "none";
+      cancelBtn.style.display = "none";
+      this.currentOfferSlot = null;
+      // Удаляем listeners, если они висят (хотя они one-time, но на всякий)
+      // Нет нужды, т.к. они добавляются заново при новой активации
+    }
+
+    // ВСТАВКА НАЧАЛО: Проверка на stackable (баляр или атом) с quantity >1 - активируем input
     if (ITEM_CONFIG[item.type]?.stackable && (item.quantity || 1) > 1) {
-      const tradeFormContainer = document.getElementById("tradeFormContainer");
-      const form = document.createElement("div");
-      form.className = "balyary-drop-form"; // Аналогично форме в инвентаре (добавьте CSS если нужно: position relative, etc.)
-      form.innerHTML = `
-      <input type="number" id="offerAmount" min="1" max="${item.quantity}" value="1" class="cyber-input">
-      <button id="confirmOfferBtn" class="action-btn use-btn">Подтвердить</button>
-      <button id="cancelOfferBtn" class="action-btn drop-btn">Отмена</button>
-    `;
-      tradeFormContainer.innerHTML = "";
-      tradeFormContainer.appendChild(form);
-      tradeFormContainer.style.display = "flex";
+      this.currentOfferSlot = slotIndex; // Запоминаем слот
+      offerAmount.max = item.quantity;
+      offerAmount.value = 1;
+      offerAmount.disabled = false;
+      offerAmount.focus(); // Фокус на input
 
-      document
-        .getElementById("confirmOfferBtn")
-        .addEventListener("click", () => {
-          const amount = parseInt(document.getElementById("offerAmount").value);
-          if (amount >= 1 && amount <= item.quantity) {
-            // Создаем item для offer с выбранным quantity
-            this.myOffer[freeSlot] = {
-              ...item,
-              quantity: amount,
-              originalSlot: slotIndex,
-            };
+      // Показываем кнопки
+      confirmBtn.style.display = "inline-block";
+      cancelBtn.style.display = "inline-block";
 
-            // Уменьшаем в инвентаре
-            inventory[slotIndex].quantity -= amount;
-            if (inventory[slotIndex].quantity <= 0) {
-              inventory[slotIndex] = null;
-            }
+      // Обработчики (одноразовые, чтобы не дублировать)
+      const confirmHandler = () => {
+        const amount = parseInt(offerAmount.value);
+        if (amount >= 1 && amount <= item.quantity) {
+          // Создаем item для offer с выбранным quantity
+          this.myOffer[freeSlot] = {
+            ...item,
+            quantity: amount,
+            originalSlot: slotIndex,
+          };
 
-            // Отправляем обновление
-            sendWhenReady(
-              this.ws,
-              JSON.stringify({
-                type: "tradeOffer",
-                fromId: myId,
-                toId: this.tradePartnerId,
-                offer: this.myOffer,
-                inventory: inventory,
-              })
-            );
-
-            this.updateTradeWindow();
-            updateInventoryDisplay();
+          // Уменьшаем в инвентаре
+          inventory[slotIndex].quantity -= amount;
+          if (inventory[slotIndex].quantity <= 0) {
+            inventory[slotIndex] = null;
           }
-          // Скрываем форму
-          tradeFormContainer.style.display = "none";
-          tradeFormContainer.innerHTML = "";
-        });
 
-      document
-        .getElementById("cancelOfferBtn")
-        .addEventListener("click", () => {
-          // Скрываем форму без изменений
-          tradeFormContainer.style.display = "none";
-          tradeFormContainer.innerHTML = "";
-        });
+          // Отправляем обновление
+          sendWhenReady(
+            this.ws,
+            JSON.stringify({
+              type: "tradeOffer",
+              fromId: myId,
+              toId: this.tradePartnerId,
+              offer: this.myOffer,
+              inventory: inventory,
+            })
+          );
 
-      return; // Прерываем, пока форма активна
+          this.updateTradeWindow();
+          updateInventoryDisplay();
+        }
+        // Деактивируем
+        offerAmount.disabled = true;
+        confirmBtn.style.display = "none";
+        cancelBtn.style.display = "none";
+        this.currentOfferSlot = null; // Сброс
+        confirmBtn.removeEventListener("click", confirmHandler);
+        cancelBtn.removeEventListener("click", cancelHandler);
+      };
+
+      const cancelHandler = () => {
+        // Деактивируем без изменений
+        offerAmount.disabled = true;
+        confirmBtn.style.display = "none";
+        cancelBtn.style.display = "none";
+        this.currentOfferSlot = null; // Сброс
+        confirmBtn.removeEventListener("click", confirmHandler);
+        cancelBtn.removeEventListener("click", cancelHandler);
+      };
+
+      confirmBtn.addEventListener("click", confirmHandler);
+      cancelBtn.addEventListener("click", cancelHandler);
+
+      return; // Прерываем, пока input активен
     }
     // ВСТАВКА КОНЕЦ
 
