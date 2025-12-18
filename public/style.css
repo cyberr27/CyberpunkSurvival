@@ -400,7 +400,7 @@ body {
   box-sizing: border-box;
   z-index: 100;
   font-family: "Orbitron", sans-serif;
-  background-image: url("inventory_background.png") center no-repeat;
+  background: url("inventory_background.png") center no-repeat;
   background-size: cover;
 }
 
