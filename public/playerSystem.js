@@ -2,18 +2,31 @@
 // Модуль игроков для Cyberpunk Survival
 
 let players = new Map();
-let myId;
+let myId = null;
+let items = new Map();
 
-// Здесь должны быть все функции работы с игроками, синхронизация, обработка движения, отрисовка игроков
-// Например:
-// function syncPlayers(data) { ... }
-// function drawPlayers() { ... }
-// function updatePlayerState(id, state) { ... }
-// ... и другие связанные функции ...
+function getMyPlayer() {
+  return players.get(myId);
+}
+
+function setMyId(id) {
+  myId = id;
+}
+
+function setPlayers(newPlayers) {
+  players = newPlayers;
+}
+
+function drawPlayers(ctx, atomFrame) {
+  // ...реализация drawPlayers из code.js...
+}
 
 window.playerSystem = {
-  // syncPlayers,
-  // drawPlayers,
-  // updatePlayerState,
-  // ...
+  players,
+  myId,
+  items,
+  getMyPlayer,
+  setMyId,
+  setPlayers,
+  drawPlayers,
 };

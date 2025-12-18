@@ -1,13 +1,32 @@
 // Получаем элементы DOM
 
-window.inventorySystem = window.inventorySystem || {};
-window.chatSystem = window.chatSystem || {};
-window.authSystem = window.authSystem || {};
-window.playerSystem = window.playerSystem || {};
-window.renderSystem = window.renderSystem || {};
-window.resourceLoader = window.resourceLoader || {};
-window.wsSystem = window.wsSystem || {};
-window.statsSystem = window.statsSystem || {};
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+const inventoryEl = document.getElementById("items");
+const statsEl = document.getElementById("stats");
+
+// Элементы авторизации
+const authContainer = document.getElementById("authContainer");
+const loginForm = document.getElementById("loginForm");
+const registerForm = document.getElementById("registerForm");
+const loginBtn = document.getElementById("loginBtn");
+const registerBtn = document.getElementById("registerBtn");
+const toRegister = document.getElementById("toRegister");
+const toLogin = document.getElementById("toLogin");
+const loginError = document.getElementById("loginError");
+const registerError = document.getElementById("registerError");
+
+let ws;
+let players = new Map();
+let myId;
+const items = new Map();
+// Глобальная анимация АТОМА (для поля + инвентаря)
+let atomFrame = 0;
+let atomFrameTime = 0;
+const ATOM_FRAMES = 40; // Количество кадров в спрайте (из вашего кода: % 40, спрайт 70x(40 кадров)? Подтвердите ширину atomImage.png / 50px на кадр)
+const ATOM_FRAME_DURATION = 180; // ms на кадр (8 FPS: плавно, без лагов. Можно протестировать 100-150 для скорости)
+let inventoryAtomTimer = null;
+const pendingPickups = new Set();
 
 // Загрузка изображений
 const imageSources = {
@@ -696,7 +715,7 @@ loginBtn.addEventListener("click", () => {
     loginError.textContent = "Введите имя и пароль";
     return;
   }
-  if (ws && ws.readyState === WebSocket.OPEN) {
+  if (ws.readyState === WebSocket.OPEN) {
     sendWhenReady(ws, JSON.stringify({ type: "login", username, password }));
   } else {
     loginError.textContent = "Нет соединения с сервером";
