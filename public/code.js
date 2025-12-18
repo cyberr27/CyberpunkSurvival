@@ -696,7 +696,7 @@ loginBtn.addEventListener("click", () => {
     loginError.textContent = "Введите имя и пароль";
     return;
   }
-  if (ws.readyState === WebSocket.OPEN) {
+  if (ws && ws.readyState === WebSocket.OPEN) {
     sendWhenReady(ws, JSON.stringify({ type: "login", username, password }));
   } else {
     loginError.textContent = "Нет соединения с сервером";
