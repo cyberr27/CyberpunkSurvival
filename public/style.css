@@ -820,6 +820,40 @@ body {
   visibility: visible;
 }
 
+.trade-slot,
+.offer-slot {
+  position: relative;
+}
+
+.trade-slot::after,
+.offer-slot::after {
+  content: attr(data-title);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #0a0a0a;
+  border: 1px solid #00ccff;
+  color: #00ccff;
+  font-size: 12px;
+  font-family: "Orbitron", sans-serif;
+  text-shadow: 0 0 5px rgba(0, 204, 255, 0.7);
+  padding: 5px 10px;
+  border-radius: 5px;
+  white-space: pre-line; /* Чтобы \n работали как переносы строк */
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s, visibility 0.3s;
+  box-shadow: 0 0 10px rgba(0, 204, 255, 0.5);
+  z-index: 1001;
+}
+
+.trade-slot:hover::after,
+.offer-slot:hover::after {
+  opacity: 1;
+  visibility: visible;
+}
+
 /* Адаптация для мобильных устройств (max-width: 500px) */
 @media (max-width: 500px) {
   body {

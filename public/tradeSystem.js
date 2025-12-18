@@ -70,7 +70,7 @@ const tradeSystem = {
     tradeWindow.className = "trade-window";
     tradeWindow.style.display = "none";
     tradeWindow.innerHTML = `
-      <div id="tradeScreen" class="trade-screen">Наведите на предмет для просмотра свойств</div>
+      <div id="tradeFormContainer" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10; display: flex; align-items: center; justify-content: center;"></div>
       <div class="trade-panel">
         <h3 class="cyber-text">Ваш инвентарь</h3>
         <div id="myTradeGrid" class="trade-grid"></div>
@@ -108,51 +108,6 @@ const tradeSystem = {
       slot.dataset.slotIndex = i;
       document.getElementById("partnerOfferGrid").appendChild(slot);
     }
-
-    // HOVER LISTENERS (все гриды)
-    document
-      .getElementById("myTradeGrid")
-      .addEventListener("mouseover", (e) => {
-        const slot = e.target.closest(".trade-slot");
-        if (slot && slot.dataset.slotIndex !== undefined) {
-          const slotIndex = parseInt(slot.dataset.slotIndex);
-          const item = inventory[slotIndex];
-          tradeSystem.showItemDescription(item);
-        }
-      });
-    document.getElementById("myTradeGrid").addEventListener("mouseout", () => {
-      tradeSystem.showItemDescription(null);
-    });
-
-    document
-      .getElementById("myOfferGrid")
-      .addEventListener("mouseover", (e) => {
-        const slot = e.target.closest(".offer-slot");
-        if (slot && slot.dataset.slotIndex !== undefined) {
-          const slotIndex = parseInt(slot.dataset.slotIndex);
-          const item = tradeSystem.myOffer[slotIndex];
-          tradeSystem.showItemDescription(item);
-        }
-      });
-    document.getElementById("myOfferGrid").addEventListener("mouseout", () => {
-      tradeSystem.showItemDescription(null);
-    });
-
-    document
-      .getElementById("partnerOfferGrid")
-      .addEventListener("mouseover", (e) => {
-        const slot = e.target.closest(".offer-slot");
-        if (slot && slot.dataset.slotIndex !== undefined) {
-          const slotIndex = parseInt(slot.dataset.slotIndex);
-          const item = tradeSystem.partnerOffer[slotIndex];
-          tradeSystem.showItemDescription(item);
-        }
-      });
-    document
-      .getElementById("partnerOfferGrid")
-      .addEventListener("mouseout", () => {
-        tradeSystem.showItemDescription(null);
-      });
 
     // Анимация атомов
     this.atomAnimations = {
@@ -265,7 +220,6 @@ const tradeSystem = {
     document.getElementById("tradeWindow").style.display = "flex";
     document.getElementById("tradeBtn").classList.add("active");
     this.updateTradeWindow();
-    this.showItemDescription(null);
     this.startAtomAnimation();
   },
 
@@ -273,7 +227,6 @@ const tradeSystem = {
     this.isTradeWindowOpen = false;
     document.getElementById("tradeWindow").style.display = "none";
     document.getElementById("tradeBtn").classList.remove("active");
-    this.showItemDescription(null);
     this.atomAnimations.myTradeGrid.forEach((anim) => {
       anim.frame = 0;
       anim.frameTime = 0;
@@ -304,9 +257,7 @@ const tradeSystem = {
 
     // ВСТАВКА НАЧАЛО: Проверка на stackable (баляр или атом) с quantity >1 - показываем форму
     if (ITEM_CONFIG[item.type]?.stackable && (item.quantity || 1) > 1) {
-      const tradeScreen = document.getElementById("tradeScreen");
-      tradeScreen.innerHTML = ""; // Очищаем описание
-
+      const tradeFormContainer = document.getElementById("tradeFormContainer");
       const form = document.createElement("div");
       form.className = "balyary-drop-form"; // Аналогично форме в инвентаре (добавьте CSS если нужно: position relative, etc.)
       form.innerHTML = `
@@ -314,7 +265,9 @@ const tradeSystem = {
       <button id="confirmOfferBtn" class="action-btn use-btn">Подтвердить</button>
       <button id="cancelOfferBtn" class="action-btn drop-btn">Отмена</button>
     `;
-      tradeScreen.appendChild(form);
+      tradeFormContainer.innerHTML = "";
+      tradeFormContainer.appendChild(form);
+      tradeFormContainer.style.display = "flex";
 
       document
         .getElementById("confirmOfferBtn")
@@ -349,15 +302,17 @@ const tradeSystem = {
             this.updateTradeWindow();
             updateInventoryDisplay();
           }
-          // Восстанавливаем tradeScreen
-          tradeScreen.innerHTML = "Наведите на предмет для просмотра свойств";
+          // Скрываем форму
+          tradeFormContainer.style.display = "none";
+          tradeFormContainer.innerHTML = "";
         });
 
       document
         .getElementById("cancelOfferBtn")
         .addEventListener("click", () => {
-          // Восстанавливаем tradeScreen без изменений
-          tradeScreen.innerHTML = "Наведите на предмет для просмотра свойств";
+          // Скрываем форму без изменений
+          tradeFormContainer.style.display = "none";
+          tradeFormContainer.innerHTML = "";
         });
 
       return; // Прерываем, пока форма активна
@@ -505,8 +460,21 @@ const tradeSystem = {
 
     for (let i = 0; i < myTradeGrid.length; i++) {
       myTradeGrid[i].innerHTML = "";
+      myTradeGrid[i].setAttribute("data-title", ""); // Сбрасываем tooltip
       if (inventory[i] && inventory[i].type) {
         const img = document.createElement("img");
+        const config = ITEM_CONFIG[inventory[i].type];
+        let tooltipText = config
+          ? config.description || "Нет описания"
+          : "Нет описания";
+        if (
+          ITEM_CONFIG[inventory[i].type]?.stackable &&
+          inventory[i].quantity > 1
+        ) {
+          tooltipText += `\nКоличество: ${inventory[i].quantity}`;
+        }
+        myTradeGrid[i].setAttribute("data-title", tooltipText);
+
         if (inventory[i].type === "atom") {
           img.src = ITEM_CONFIG[inventory[i].type].image.src;
           img.style.width = "100%";
@@ -549,8 +517,21 @@ const tradeSystem = {
 
     for (let i = 0; i < 4; i++) {
       myOfferGrid[i].innerHTML = "";
+      myOfferGrid[i].setAttribute("data-title", ""); // Сбрасываем tooltip
       if (this.myOffer[i] && this.myOffer[i].type) {
         const img = document.createElement("img");
+        const config = ITEM_CONFIG[this.myOffer[i].type];
+        let tooltipText = config
+          ? config.description || "Нет описания"
+          : "Нет описания";
+        if (
+          ITEM_CONFIG[this.myOffer[i].type]?.stackable &&
+          this.myOffer[i].quantity > 1
+        ) {
+          tooltipText += `\nКоличество: ${this.myOffer[i].quantity}`;
+        }
+        myOfferGrid[i].setAttribute("data-title", tooltipText);
+
         if (this.myOffer[i].type === "atom") {
           img.src = ITEM_CONFIG[this.myOffer[i].type].image.src;
           img.style.width = "100%";
@@ -590,8 +571,21 @@ const tradeSystem = {
 
     for (let i = 0; i < 4; i++) {
       partnerOfferGrid[i].innerHTML = "";
+      partnerOfferGrid[i].setAttribute("data-title", ""); // Сбрасываем tooltip
       if (this.partnerOffer[i] && this.partnerOffer[i].type) {
         const img = document.createElement("img");
+        const config = ITEM_CONFIG[this.partnerOffer[i].type];
+        let tooltipText = config
+          ? config.description || "Нет описания"
+          : "Нет описания";
+        if (
+          ITEM_CONFIG[this.partnerOffer[i].type]?.stackable &&
+          this.partnerOffer[i].quantity > 1
+        ) {
+          tooltipText += `\nКоличество: ${this.partnerOffer[i].quantity}`;
+        }
+        partnerOfferGrid[i].setAttribute("data-title", tooltipText);
+
         if (this.partnerOffer[i].type === "atom") {
           img.src = ITEM_CONFIG[this.partnerOffer[i].type].image.src;
           img.style.width = "100%";
@@ -630,16 +624,6 @@ const tradeSystem = {
     }
 
     document.getElementById("confirmTradeBtn").disabled = this.myConfirmed;
-  },
-
-  showItemDescription(item) {
-    const tradeScreen = document.getElementById("tradeScreen");
-    if (item && item.type && ITEM_CONFIG && ITEM_CONFIG[item.type]) {
-      const config = ITEM_CONFIG[item.type];
-      tradeScreen.textContent = config.description || "Нет описания";
-    } else {
-      tradeScreen.textContent = "Наведите на предмет для просмотра свойств";
-    }
   },
 
   startAtomAnimation() {
