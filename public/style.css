@@ -478,49 +478,6 @@ body {
   padding: 0;
 }
 
-#inventoryActions button {
-  width: 120px;
-  height: 40px;
-  border: none;
-  padding: 0;
-  margin: 0;
-  background-color: transparent;
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: contain;
-  cursor: pointer;
-  transition: transform 0.15s, filter 0.15s;
-}
-
-/* Кнопка "Использовать" */
-#useBtn {
-  background-image: url("public/useBtn.png");
-}
-
-/* Кнопка "Выкинуть" */
-#dropBtn {
-  background-image: url("public/dropBtn.png");
-}
-
-/* Hover */
-#inventoryActions button:not(:disabled):hover {
-  transform: translateY(-2px);
-  filter: brightness(1.2);
-}
-
-/* Active */
-#inventoryActions button:not(:disabled):active {
-  transform: translateY(0);
-  filter: brightness(0.9);
-}
-
-/* Disabled — визуально */
-#inventoryActions button:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-  filter: grayscale(100%);
-}
-
 /* Сетка инвентаря */
 #inventoryGrid {
   display: grid;
@@ -532,6 +489,56 @@ body {
   justify-items: center;
   align-items: center;
   grid-row: 2;
+}
+
+/* Кнопки действий */
+.action-btn {
+  padding: 8px 16px;
+  font-size: 14px;
+  font-family: "Orbitron", sans-serif;
+  border: 2px solid #00ccff;
+  color: #00ccff;
+  background: #0a0a0a;
+  border-radius: 0;
+  cursor: pointer;
+  width: 120px;
+  height: 40px;
+  box-sizing: border-box;
+  text-transform: uppercase;
+  transition: all 0.2s;
+  box-shadow: 0 0 10px rgba(0, 204, 255, 0.5);
+}
+
+.use-btn {
+  border-color: #00ccff;
+  color: #00ccff;
+}
+
+.drop-btn {
+  border-color: #ff0066;
+  color: #ff0066;
+}
+
+.action-btn:hover:not(:disabled) {
+  box-shadow: 0 0 15px rgba(0, 204, 255, 0.9);
+  background: #1a1a1a;
+  transform: translateY(-2px);
+}
+
+.action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+#useBtn {
+  background-image: url("public/useBtn.png");
+}
+
+/* Кнопка "Выкинуть" */
+#dropBtn {
+  background-image: url("public/dropBtn.png");
 }
 
 /* Форма выброса Баляр */
