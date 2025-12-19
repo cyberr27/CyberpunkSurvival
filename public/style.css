@@ -499,7 +499,7 @@ body {
   cursor: pointer;
   width: 120px;
   height: 40px;
-  background: url(/public/useBtn.png) center no-repeat;
+  background: url("/public/useBtn.png") center no-repeat;
 }
 
 .drop-btn {
@@ -510,20 +510,7 @@ body {
   cursor: pointer;
   width: 120px;
   height: 40px;
-  background: url(/public/dropBtn.png) center no-repeat;
-}
-
-.action-btn:hover:not(:disabled) {
-  box-shadow: 0 0 15px rgba(0, 204, 255, 0.9);
-  background: #1a1a1a;
-  transform: translateY(-2px);
-}
-
-.action-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  box-shadow: none;
-  transform: none;
+  background: url("/public/dropBtn.png") center no-repeat;
 }
 
 /* Форма выброса Баляр */
