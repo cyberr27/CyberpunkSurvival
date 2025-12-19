@@ -1290,7 +1290,6 @@ function toggleInventory() {
     selectedSlot = null;
     const useBtn = document.getElementById("useBtn");
     const dropBtn = document.getElementById("dropBtn");
-    useBtn.textContent = "Использовать";
     useBtn.disabled = true;
     dropBtn.disabled = true;
     // Очищаем массив анимаций при закрытии
@@ -1308,7 +1307,6 @@ function selectSlot(slotIndex, slotElement) {
   if (selectedSlot === slotIndex) {
     selectedSlot = null;
     screen.innerHTML = "";
-    useBtn.textContent = "Использовать"; // Возвращаем текст
     useBtn.disabled = true;
     dropBtn.disabled = true;
     return;
@@ -1317,7 +1315,6 @@ function selectSlot(slotIndex, slotElement) {
   selectedSlot = slotIndex;
   // Если ранее была форма для stackable, убираем её и показываем описание
   screen.textContent = ITEM_CONFIG[inventory[slotIndex].type].description;
-  useBtn.textContent = "Использовать"; // Сбрасываем текст
   useBtn.disabled = ITEM_CONFIG[inventory[slotIndex].type].balyary; // Отключаем для stackable предметов (balyary и atom)
   dropBtn.disabled = false;
 }
@@ -1447,7 +1444,6 @@ function dropItem(slotIndex) {
       if (input.value === "") input.value = "";
     });
 
-    useBtn.textContent = "Подтвердить";
     useBtn.disabled = false;
     dropBtn.disabled = true;
 
@@ -1494,7 +1490,6 @@ function dropItem(slotIndex) {
         inventory[slotIndex].quantity -= amount;
       }
 
-      useBtn.textContent = "Использовать";
       useBtn.disabled = true;
       dropBtn.disabled = true;
       useBtn.onclick = () => useItem(slotIndex); // Восстанавливаем оригинальный onclick для useBtn (предполагаю, что useItem — функция использования)
