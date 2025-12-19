@@ -499,7 +499,7 @@ body {
   cursor: pointer;
   width: 120px;
   height: 40px;
-  background: url("/public/useBtn.png") center no-repeat;
+  background: url("useBtn.png") center no-repeat;
 }
 
 .drop-btn {
@@ -510,7 +510,7 @@ body {
   cursor: pointer;
   width: 120px;
   height: 40px;
-  background: url("/public/dropBtn.png") center no-repeat;
+  background: url("dropBtn.png") center no-repeat;
 }
 
 /* Форма выброса Баляр */
