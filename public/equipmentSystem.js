@@ -466,6 +466,7 @@ const equipmentSystem = {
     slots.forEach((slot) => {
       const slotEl = document.createElement("div");
       slotEl.className = "equipment-slot";
+      slotEl.className = `equipment-slot ${slot.name}-slot`; 
       slotEl.style.gridArea = slot.name;
       slotEl.title = slot.label;
       slotEl.addEventListener("dblclick", () => {
