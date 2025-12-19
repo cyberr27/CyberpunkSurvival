@@ -492,44 +492,12 @@ body {
 }
 
 /* Кнопки действий */
-.action-btn {
+.action-btn-inventory {
   padding: 8px 16px;
-  font-size: 14px;
-  font-family: "Orbitron", sans-serif;
-  border: 2px solid #00ccff;
-  color: #00ccff;
-  background: #0a0a0a;
   border-radius: 0;
   cursor: pointer;
   width: 120px;
   height: 40px;
-  box-sizing: border-box;
-  text-transform: uppercase;
-  transition: all 0.2s;
-  box-shadow: 0 0 10px rgba(0, 204, 255, 0.5);
-}
-
-.use-btn {
-  border-color: #00ccff;
-  color: #00ccff;
-}
-
-.drop-btn {
-  border-color: #ff0066;
-  color: #ff0066;
-}
-
-.action-btn:hover:not(:disabled) {
-  box-shadow: 0 0 15px rgba(0, 204, 255, 0.9);
-  background: #1a1a1a;
-  transform: translateY(-2px);
-}
-
-.action-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  box-shadow: none;
-  transform: none;
 }
 
 #useBtn {
