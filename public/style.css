@@ -404,7 +404,7 @@ body {
 /* Экран инвентаря */
 #inventoryScreen {
   position: relative;
-  top: 435%;
+  top: 430%;
   width: 100%;
   height: 100px;
   border-radius: 0;
@@ -492,21 +492,46 @@ body {
 }
 
 /* Кнопки действий */
-.action-btn-inventory {
+.action-btn {
   padding: 8px 16px;
+  font-size: 14px;
+  font-family: "Orbitron", sans-serif;
+  border: 2px solid #00ccff;
+  color: #00ccff;
+  background: #0a0a0a;
   border-radius: 0;
   cursor: pointer;
   width: 120px;
   height: 40px;
+  box-sizing: border-box;
+  text-transform: uppercase;
+  transition: all 0.2s;
+  box-shadow: 0 0 10px rgba(0, 204, 255, 0.5);
 }
 
-#useBtn {
-  background-image: url("public/useBtn.png");
+.use-btn {
+  border-color: #00ccff;
+  color: #00ccff;
+  background: url(/public/useBtn.png);
 }
 
-/* Кнопка "Выкинуть" */
-#dropBtn {
-  background-image: url("public/dropBtn.png");
+.drop-btn {
+  border-color: #ff0066;
+  color: #ff0066;
+  background: url(/public/dropBtn.png);
+}
+
+.action-btn:hover:not(:disabled) {
+  box-shadow: 0 0 15px rgba(0, 204, 255, 0.9);
+  background: #1a1a1a;
+  transform: translateY(-2px);
+}
+
+.action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
 }
 
 /* Форма выброса Баляр */
