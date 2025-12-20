@@ -569,7 +569,7 @@ body {
 }
 
 .level-display {
-  position: fixed;
+  position: absolute;
   bottom: 0px;
   left: 1%;
   color: #000000;
@@ -1085,67 +1085,67 @@ body {
     padding: 10px;
   }
 
- /* Индивидуальные стили для каждого слота экипировки */
-.head-slot {
-  position: relative;
-  top: -20%;
-  left: -13%;
-  width: 70px;
-  height: 70px;
-}
+  /* Индивидуальные стили для каждого слота экипировки */
+  .head-slot {
+    position: relative;
+    top: -20%;
+    left: -13%;
+    width: 70px;
+    height: 70px;
+  }
 
-.chest-slot {
-  position: relative;
-  top: -10%;
-  left: -13%;
-  width: 70px;
-  height: 70px;
-}
+  .chest-slot {
+    position: relative;
+    top: -10%;
+    left: -13%;
+    width: 70px;
+    height: 70px;
+  }
 
-.pants-slot {
-  position: relative;
-  top: 10%;
-  left: -13%;
-  width: 70px;
-  height: 70px;
-  z-index: 1;
-}
+  .pants-slot {
+    position: relative;
+    top: 10%;
+    left: -13%;
+    width: 70px;
+    height: 70px;
+    z-index: 1;
+  }
 
-.belt-slot {
-  position: relative;
-  top: 0%;
-  left: -13%;
-  width: 70px;
-  height: 70px;
-  z-index: 2;
-}
+  .belt-slot {
+    position: relative;
+    top: 0%;
+    left: -13%;
+    width: 70px;
+    height: 70px;
+    z-index: 2;
+  }
 
-.boots-slot {
-  position: relative;
-  top: 20%;
-  left: -13%;
-  width: 70px;
-  height: 70px;
-  z-index: 2;
-}
+  .boots-slot {
+    position: relative;
+    top: 20%;
+    left: -13%;
+    width: 70px;
+    height: 70px;
+    z-index: 2;
+  }
 
-.weapon-slot {
-  position: relative;
-  top: 155%;
-  left: 0%;
-  width: 70px;
-  height: 70px;
-  z-index: 2;
-}
+  .weapon-slot {
+    position: relative;
+    top: 155%;
+    left: 0%;
+    width: 70px;
+    height: 70px;
+    z-index: 2;
+  }
 
-.gloves-slot {
-  position: relative;
-  top: 40%;
-  left: -23%;
-  width: 70px;
-  height: 70px;
-  z-index: 0;
-}
+  .gloves-slot {
+    position: relative;
+    top: 40%;
+    left: -23%;
+    width: 70px;
+    height: 70px;
+    z-index: 0;
+  }
 
   #damageDisplay {
     font-size: 12px;
@@ -1229,5 +1229,11 @@ body {
     height: auto;
     aspect-ratio: 1/1; /* Квадратные пропорции */
     min-width: 0; /* Без минимума */
+  }
+
+  .level-display {
+    position: absolute;
+    top: 97%;
+    font-size: 14px;
   }
 }
