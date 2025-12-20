@@ -543,10 +543,6 @@ body {
   margin: 0;
 }
 
-.cyber-input[type="number"] {
-  -moz-appearance: textfield;
-}
-
 .error-text {
   color: #ff4444;
   font-size: 12px;
