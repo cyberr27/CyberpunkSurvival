@@ -895,10 +895,9 @@ body {
 .equipment-slot::after {
   content: attr(title);
   position: absolute;
-  top: 100%; /* У нижней границы */
-  left: auto; /* Сбрасываем left */
-  right: 0; /* С правой стороны */
-  transform: none; /* Убираем центрирование */
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
   background: #0a0a0a;
   border: 1px solid #00ccff;
   color: #00ccff;
@@ -914,8 +913,7 @@ body {
   box-shadow: 0 0 10px rgba(0, 204, 255, 0.5);
 }
 
-.equipment-slot:hover::after,
-.equipment-slot.hover::after {
+.equipment-slot:hover::after {
   opacity: 1;
   visibility: visible;
 }

@@ -1,5 +1,5 @@
-/* equipmentSystem.js - ИЗМЕНЁННЫЙ ПОЛНОСТЬЮ */
-/* equipmentSystem.js */
+// equipmentSystem.js - ИЗМЕНЁННЫЙ ПОЛНОСТЬЮ
+// equipmentSystem.js
 
 const equipmentSystem = {
   isEquipmentOpen: false,
@@ -477,21 +477,12 @@ const equipmentSystem = {
       let lastTouchTime = 0;
       slotEl.addEventListener("touchstart", (e) => {
         e.preventDefault(); // Предотвращаем зум/скролл на мобильных
-        slotEl.classList.add("hover"); // Добавляем класс для показа tooltip на touch
         const now = Date.now();
         if (now - lastTouchTime < 300) {
           // Порог для double tap (300 мс)
           this.unequipItem(slotInfo.name);
         }
         lastTouchTime = now;
-      });
-
-      slotEl.addEventListener("touchend", () => {
-        slotEl.classList.remove("hover"); // Убираем класс при завершении touch
-      });
-
-      slotEl.addEventListener("touchcancel", () => {
-        slotEl.classList.remove("hover"); // Убираем на cancel
       });
 
       equipmentGrid.appendChild(slotEl);
