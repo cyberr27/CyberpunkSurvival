@@ -1,5 +1,5 @@
-// equipmentSystem.js - ИЗМЕНЁННЫЙ ПОЛНОСТЬЮ
-// equipmentSystem.js
+/* equipmentSystem.js - ИЗМЕНЁННЫЙ ПОЛНОСТЬЮ */
+/* equipmentSystem.js */
 
 const equipmentSystem = {
   isEquipmentOpen: false,
@@ -463,15 +463,37 @@ const equipmentSystem = {
       { name: "gloves", label: "Перчатки" },
     ];
 
-    slots.forEach((slot) => {
+    slots.forEach((slotInfo) => {
       const slotEl = document.createElement("div");
       slotEl.className = "equipment-slot";
-      slotEl.className = `equipment-slot ${slot.name}-slot`;
-      slotEl.style.gridArea = slot.name;
-      slotEl.title = slot.label;
+      slotEl.className = `equipment-slot ${slotInfo.name}-slot`;
+      slotEl.style.gridArea = slotInfo.name;
+      slotEl.title = slotInfo.label;
       slotEl.addEventListener("dblclick", () => {
-        this.unequipItem(slot.name);
+        this.unequipItem(slotInfo.name);
       });
+
+      // Добавляем поддержку двойного тапа для мобильных
+      let lastTouchTime = 0;
+      slotEl.addEventListener("touchstart", (e) => {
+        e.preventDefault(); // Предотвращаем зум/скролл на мобильных
+        slotEl.classList.add("hover"); // Добавляем класс для показа tooltip на touch
+        const now = Date.now();
+        if (now - lastTouchTime < 300) {
+          // Порог для double tap (300 мс)
+          this.unequipItem(slotInfo.name);
+        }
+        lastTouchTime = now;
+      });
+
+      slotEl.addEventListener("touchend", () => {
+        slotEl.classList.remove("hover"); // Убираем класс при завершении touch
+      });
+
+      slotEl.addEventListener("touchcancel", () => {
+        slotEl.classList.remove("hover"); // Убираем на cancel
+      });
+
       equipmentGrid.appendChild(slotEl);
     });
   },
@@ -600,7 +622,25 @@ const equipmentSystem = {
         img.style.height = "100%";
         slot.appendChild(img);
 
-        slot.title = config.description;
+        // Генерируем многострочный tooltip: название + свойства по строкам
+        let tooltipText = item.type.replace(/_/g, " ").toUpperCase() + "\n";
+        for (let [key, value] of Object.entries(config.effect)) {
+          if (
+            key === "damage" &&
+            typeof value === "object" &&
+            value.min !== undefined &&
+            value.max !== undefined
+          ) {
+            tooltipText += `Damage: ${value.min}-${value.max}\n`;
+          } else if (key === "range") {
+            tooltipText += `Range: +${value}\n`;
+          } else {
+            tooltipText += `${
+              key.charAt(0).toUpperCase() + key.slice(1)
+            }: +${value}\n`;
+          }
+        }
+        slot.title = tooltipText.trim(); // Убираем trailing \n
       } else {
         slot.title = `Слот ${slotName} пуст`;
       }
