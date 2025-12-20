@@ -814,6 +814,7 @@ body {
 .equipment-slot {
   width: 60px;
   height: 60px;
+  box-shadow: inset 0 0 5px rgba(0, 204, 255, 0.3);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -823,48 +824,51 @@ body {
 }
 
 .equipment-slot:hover {
+  border-color: #ff0066;
+  box-shadow: 0 0 10px rgba(255, 0, 102, 0.7),
+    inset 0 0 5px rgba(255, 0, 102, 0.3);
   transform: scale(1.05);
 }
 
 /* Индивидуальные стили для каждого слота экипировки */
 .head-slot {
   position: relative;
-  top: -30%;
-  left: -38.8%;
-  width: 105px;
+  top: -20%;
+  left: -8%;
+  width: 80px;
   height: 80px;
 }
 
 .chest-slot {
   position: relative;
-  top: -17%;
-  left: -39%;
-  width: 245px;
-  height: 160px;
+  top: -10%;
+  left: -10%;
+  width: 80px;
+  height: 80px;
 }
 
 .pants-slot {
   position: absolute;
-  top: -45%;
-  left: -38%;
-  width: 455px;
-  height: 270px;
+  top: 28%;
+  left: -8%;
+  width: 80px;
+  height: 80px;
   z-index: 1;
 }
 
 .belt-slot {
   position: relative;
-  top: -83%;
-  left: -39%;
-  width: 160px;
+  top: 0%;
+  left: -10%;
+  width: 80px;
   height: 80px;
   z-index: 2;
 }
 
 .boots-slot {
   position: relative;
-  top: -280%;
-  left: -38%;
+  top: 40%;
+  left: -8%;
   width: 80px;
   height: 80px;
   z-index: 2;
@@ -872,17 +876,17 @@ body {
 
 .weapon-slot {
   position: relative;
-  top: 66%;
-  left: -636%;
-  width: 50px;
-  height: 50px;
+  top: 100%;
+  left: 0%;
+  width: 80px;
+  height: 80px;
   z-index: 2;
 }
 
 .gloves-slot {
   position: relative;
-  top: 5%;
-  left: -20%;
+  top: 66%;
+  left: -23%;
   width: 80px;
   height: 80px;
   z-index: 0;
@@ -1081,67 +1085,67 @@ body {
     padding: 10px;
   }
 
-  /* Индивидуальные стили для каждого слота экипировки */
-  .head-slot {
-    position: relative;
-    top: -30%;
-    left: -39.5%;
-    width: 86px;
-    height: 60px;
-  }
+ /* Индивидуальные стили для каждого слота экипировки */
+.head-slot {
+  position: relative;
+  top: -20%;
+  left: -13%;
+  width: 70px;
+  height: 70px;
+}
 
-  .chest-slot {
-    position: relative;
-    top: -15%;
-    left: -39%;
-    width: 200px;
-    height: 160px;
-  }
+.chest-slot {
+  position: relative;
+  top: -10%;
+  left: -13%;
+  width: 70px;
+  height: 70px;
+}
 
-  .pants-slot {
-    position: absolute;
-    top: -130px;
-    left: -87%;
-    width: 400px;
-    height: 210px;
-    z-index: 1;
-  }
+.pants-slot {
+  position: relative;
+  top: 10%;
+  left: -13%;
+  width: 70px;
+  height: 70px;
+  z-index: 1;
+}
 
-  .belt-slot {
-    position: relative;
-    top: -100%;
-    left: -39%;
-    width: 130px;
-    height: 80px;
-    z-index: 2;
-  }
+.belt-slot {
+  position: relative;
+  top: 0%;
+  left: -13%;
+  width: 70px;
+  height: 70px;
+  z-index: 2;
+}
 
-  .boots-slot {
-    position: relative;
-    top: -5%;
-    left: -37%;
-    width: 70px;
-    height: 70px;
-    z-index: 2;
-  }
+.boots-slot {
+  position: relative;
+  top: 20%;
+  left: -13%;
+  width: 70px;
+  height: 70px;
+  z-index: 2;
+}
 
-  .weapon-slot {
-    position: relative;
-    top: 50%;
-    left: -220%;
-    width: 50px;
-    height: 50px;
-    z-index: 2;
-  }
+.weapon-slot {
+  position: relative;
+  top: 155%;
+  left: 0%;
+  width: 70px;
+  height: 70px;
+  z-index: 2;
+}
 
-  .gloves-slot {
-    position: relative;
-    top: 5%;
-    left: -30%;
-    width: 80px;
-    height: 80px;
-    z-index: 0;
-  }
+.gloves-slot {
+  position: relative;
+  top: 40%;
+  left: -23%;
+  width: 70px;
+  height: 70px;
+  z-index: 0;
+}
 
   #damageDisplay {
     font-size: 12px;
