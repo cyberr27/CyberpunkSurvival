@@ -418,7 +418,7 @@ const equipmentSystem = {
     equipmentContainer.style.display = "none";
     equipmentContainer.innerHTML = `
       <div id="equipmentGrid"></div>
-      <div id="damageDisplay" style="color: lime; font-weight: bold; font-size: 14px; margin-top: 10px; padding: 5px; background: rgba(0,0,0,0.7); border-radius: 5px; text-align: center;">Урон: 5-10</div>
+      <div id="damageDisplay">Урон : 5-10</div>
     `;
     document.getElementById("gameContainer").appendChild(equipmentContainer);
 
@@ -466,7 +466,7 @@ const equipmentSystem = {
     slots.forEach((slot) => {
       const slotEl = document.createElement("div");
       slotEl.className = "equipment-slot";
-      slotEl.className = `equipment-slot ${slot.name}-slot`; 
+      slotEl.className = `equipment-slot ${slot.name}-slot`;
       slotEl.style.gridArea = slot.name;
       slotEl.title = slot.label;
       slotEl.addEventListener("dblclick", () => {

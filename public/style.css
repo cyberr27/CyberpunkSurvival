@@ -781,7 +781,25 @@ body {
   border-radius: 13px;
   z-index: 1000;
   padding: 10px;
-  display: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+#damageDisplay {
+  position: absolute;
+  top: 3%;
+  left: 20%;
+  transform: translateX(-50%) scale(1);
+  min-width: 80px;
+  padding: 6px 12px;
+  font-family: "Orbitron", sans-serif;
+  font-size: 14px;
+  text-align: center;
+  background: rgba(0, 0, 0);
+  border-radius: 6px;
+  z-index: 10;
+  transition: transform 0.2s ease, font-size 0.2s ease;
 }
 
 #equipmentGrid {
@@ -789,6 +807,8 @@ body {
   width: 100%;
   justify-items: center;
   align-items: center;
+  flex: 1;
+  position: relative;
 }
 
 .equipment-slot {
@@ -817,9 +837,9 @@ body {
 
 .chest-slot {
   position: relative;
-  top: -16%;
-  left: -38%;
-  width: 235px;
+  top: -17%;
+  left: -39%;
+  width: 245px;
   height: 160px;
 }
 
@@ -829,7 +849,7 @@ body {
   left: -38%;
   width: 455px;
   height: 270px;
-  z-index: 0;
+  z-index: 1;
 }
 
 .belt-slot {
@@ -838,7 +858,7 @@ body {
   left: -39%;
   width: 160px;
   height: 80px;
-  z-index: 1;
+  z-index: 2;
 }
 
 .boots-slot {
@@ -847,6 +867,7 @@ body {
   left: -38%;
   width: 80px;
   height: 80px;
+  z-index: 2;
 }
 
 .weapon-slot {
@@ -864,6 +885,7 @@ body {
   left: -20%;
   width: 80px;
   height: 80px;
+  z-index: 0;
 }
 
 .equipment-slot {
@@ -889,7 +911,6 @@ body {
   visibility: hidden;
   transition: opacity 0.3s, visibility 0.3s;
   box-shadow: 0 0 10px rgba(0, 204, 255, 0.5);
-  z-index: 1001;
 }
 
 .equipment-slot:hover::after {
@@ -1058,6 +1079,73 @@ body {
     height: 53.5%;
     top: 46%;
     padding: 10px;
+  }
+
+  /* Индивидуальные стили для каждого слота экипировки */
+.head-slot {
+  position: relative;
+  top: -30%;
+  left: -39.5%;
+  width: 86px;
+  height: 60px;
+}
+
+.chest-slot {
+  position: relative;
+  top: -15%;
+  left: -39%;
+  width: 200px;
+  height: 160px;
+}
+
+.pants-slot {
+  position: absolute;
+  top: -130px;
+  left: -87%;
+  width: 400px;
+  height: 210px;
+  z-index: 1;
+}
+
+.belt-slot {
+  position: relative;
+  top: -100%;
+  left: -39%;
+  width: 130px;
+  height: 80px;
+  z-index: 2;
+}
+
+.boots-slot {
+  position: relative;
+  top: -5%;
+  left: -37%;
+  width: 70px;
+  height: 70px;
+  z-index: 2;
+}
+
+.weapon-slot {
+  position: relative;
+  top: 50%;
+  left: -220%;
+  width: 50px;
+  height: 50px;
+  z-index: 2;
+}
+
+.gloves-slot {
+  position: relative;
+  top: 5%;
+  left: -30%;
+  width: 80px;
+  height: 80px;
+  z-index: 0;
+}
+
+  #damageDisplay {
+    font-size: 12px;
+    transform: translateX(-50%) scale(0.9);
   }
 
   .action-btn {
