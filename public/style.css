@@ -959,6 +959,29 @@ body {
   visibility: visible;
 }
 
+/* Стили для виртуального джойстика */
+#joystickContainer {
+  display: none; /* По умолчанию скрыт, показывается JS на мобильных */
+}
+
+@media (max-width: 767px) {
+  #joystickContainer {
+    display: block; /* Показываем только на мобильных */
+  }
+}
+
+#outerCircle {
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.5),
+    inset 0 0 5px rgba(0, 255, 255, 0.3);
+  animation: neonPulse 1.5s infinite alternate;
+}
+
+#innerCircle {
+  box-shadow: 0 0 10px rgba(255, 0, 255, 0.5),
+    inset 0 0 5px rgba(255, 0, 255, 0.3);
+  transition: transform 0.1s ease-out;
+}
+
 /* Адаптация для мобильных устройств (max-width: 500px) */
 @media (max-width: 500px) {
   body {
