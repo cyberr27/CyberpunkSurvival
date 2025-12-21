@@ -1243,6 +1243,13 @@ function handlePlayerClick(worldX, worldY) {
 // Функция переключения инвентаря
 function toggleInventory() {
   isInventoryOpen = !isInventoryOpen;
+
+  // НОВОЕ: Проверка на мобильное устройство и закрытие экипировки, если она открыта и мы открываем инвентарь
+  const isMobile = window.innerWidth <= 500;
+  if (isMobile && isInventoryOpen && window.equipmentSystem.isEquipmentOpen) {
+    window.equipmentSystem.toggleEquipment(); // Автоматически закрываем экипировку
+  }
+
   const inventoryContainer = document.getElementById("inventoryContainer");
   inventoryContainer.style.display = isInventoryOpen ? "grid" : "none";
   const inventoryBtn = document.getElementById("inventoryBtn");
