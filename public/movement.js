@@ -40,7 +40,9 @@
 
   // Добавлено: объект для отслеживания нажатых клавиш
   let keys = {};
-
+  const isMobile = window.joystickSystem
+    ? window.joystickSystem.isMobile
+    : false;
   // Инициализация системы движения
   function initializeMovement() {
     const canvas = document.getElementById("gameCanvas");
@@ -48,6 +50,11 @@
     // Кэшируем половину размеров канваса один раз для оптимизации камеры
     const halfWidth = canvas.width / 2;
     const halfHeight = canvas.height / 2;
+
+    if (isMobile && window.joystickSystem) {
+      // ВСТАВЬ: Инициализация джойстика только на мобильных
+      window.joystickSystem.initialize();
+    }
 
     // Обработчики мыши (оригинал, без изменений)
     canvas.addEventListener("mousedown", (e) => {
@@ -88,42 +95,46 @@
       }
     });
 
-    // Обработчики тач-событий (оригинал, без изменений)
-    canvas.addEventListener("touchstart", (e) => {
-      e.preventDefault();
-      const me = players.get(myId);
-      if (!me || me.health <= 0) return;
+    if (!isMobile) {
+      // ИЗМЕНИ: Touch-обработчики только если НЕ мобильное (убираем на мобильных)
+      // Обработчики тач-событий (оригинал, без изменений)
+      canvas.addEventListener("touchstart", (e) => {
+        e.preventDefault();
+        const me = players.get(myId);
+        if (!me || me.health <= 0) return;
 
-      const touch = e.touches[0];
-      const inventoryContainer = document.getElementById("inventoryContainer");
-      const rect = inventoryContainer.getBoundingClientRect();
+        const touch = e.touches[0];
+        const inventoryContainer =
+          document.getElementById("inventoryContainer");
+        const rect = inventoryContainer.getBoundingClientRect();
 
-      if (
-        isInventoryOpen &&
-        touch.clientX >= rect.left &&
-        touch.clientX <= rect.right &&
-        touch.clientY >= rect.top &&
-        touch.clientY <= rect.bottom
-      ) {
-        return; // Пропускаем, если тач по инвентарю
-      }
+        if (
+          isInventoryOpen &&
+          touch.clientX >= rect.left &&
+          touch.clientX <= rect.right &&
+          touch.clientY >= rect.top &&
+          touch.clientY <= rect.bottom
+        ) {
+          return; // Пропускаем, если тач по инвентарю
+        }
 
-      isMoving = true;
-      targetX = touch.clientX + camera.x;
-      targetY = touch.clientY + camera.y;
-    });
+        isMoving = true;
+        targetX = touch.clientX + camera.x;
+        targetY = touch.clientY + camera.y;
+      });
 
-    canvas.addEventListener("touchmove", (e) => {
-      e.preventDefault();
-      const touch = e.touches[0];
-      targetX = touch.clientX + camera.x;
-      targetY = touch.clientY + camera.y;
-    });
+      canvas.addEventListener("touchmove", (e) => {
+        e.preventDefault();
+        const touch = e.touches[0];
+        targetX = touch.clientX + camera.x;
+        targetY = touch.clientY + camera.y;
+      });
 
-    canvas.addEventListener("touchend", (e) => {
-      e.preventDefault();
-      stopMovement();
-    });
+      canvas.addEventListener("touchend", (e) => {
+        e.preventDefault();
+        stopMovement();
+      });
+    } // Конец !isMobile
 
     // Добавлено: обработчики клавиатуры (глобально, чтобы не конфликтовать с инвентарем)
     window.addEventListener("keydown", (e) => {
@@ -133,9 +144,6 @@
     window.addEventListener("keyup", (e) => {
       keys[e.key.toLowerCase()] = false;
     });
-
-    // Экспортируем halfWidth и halfHeight, если нужно, но не трогаем другие модули
-    // (они используются только в updateCamera, так что ок)
   }
 
   // Остановка движения
@@ -345,6 +353,85 @@
         moved = true;
       } else if (me.state !== "idle") {
         // Если клавиши отпущены, останавливаем
+        me.state = "idle";
+        me.frame = 0;
+        me.frameTime = 0;
+        sendMovementUpdate(me);
+        lastSendTime = currentTime;
+      }
+    }
+
+    // Добавлено: обработка джойстика на мобильных
+    if (isMobile && window.joystickSystem) {
+      const joyDir = window.joystickSystem.getDirection();
+      if (joyDir.dx !== 0 || joyDir.dy !== 0) {
+        const distance = Math.sqrt(
+          joyDir.dx * joyDir.dx + joyDir.dy * joyDir.dy
+        );
+        const normalizedDx = joyDir.dx / distance;
+        const normalizedDy = joyDir.dy / distance;
+
+        const moveSpeed = baseSpeed * (deltaTime / 1000);
+        const moveX = normalizedDx * moveSpeed;
+        const moveY = normalizedDy * moveSpeed;
+
+        const prevX = me.x;
+        const prevY = me.y;
+
+        me.x += moveX;
+        me.y += moveY;
+
+        // Ограничиваем позицию в пределах мира
+        me.x = Math.max(0, Math.min(worldWidth - 40, me.x));
+        me.y = Math.max(0, Math.min(worldHeight - 40, me.y));
+
+        // Проверка коллизий
+        if (checkCollision(me.x, me.y)) {
+          me.x = prevX;
+          me.y = prevY;
+          me.state = "idle";
+          me.frame = 0;
+          me.frameTime = 0;
+          sendMovementUpdate(me);
+          lastSendTime = currentTime;
+          updateCamera(me);
+          return;
+        }
+
+        // Определяем направление
+        me.state = "walking";
+        me.direction = getDirection(normalizedDx, normalizedDy);
+
+        // Обновляем анимацию
+        me.frameTime += deltaTime;
+        if (me.frameTime >= frameDuration) {
+          me.frameTime = me.frameTime % frameDuration;
+          me.frame = (me.frame + 1) % 7;
+        }
+
+        // Обновляем дистанцию
+        const traveled = Math.sqrt((me.x - prevX) ** 2 + (me.y - prevY) ** 2);
+        me.distanceTraveled = (me.distanceTraveled || 0) + traveled;
+
+        // Проверяем взаимодействие с NPC, квестами и торговым автоматом
+        window.npcSystem.checkNPCProximity();
+        window.jackSystem.checkJackProximity();
+        window.npcSystem.checkQuestCompletion();
+        window.vendingMachine.checkProximity();
+
+        // Обновляем ресурсы и коллизии
+        updateResources();
+        checkCollisions();
+
+        // Отправляем данные на сервер только по интервалу
+        if (currentTime - lastSendTime >= sendInterval) {
+          sendMovementUpdate(me);
+          lastSendTime = currentTime;
+        }
+
+        moved = true;
+      } else if (me.state !== "idle") {
+        // Если джойстик отпущен, останавливаем
         me.state = "idle";
         me.frame = 0;
         me.frameTime = 0;
