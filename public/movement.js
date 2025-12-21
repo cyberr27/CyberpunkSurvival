@@ -2,118 +2,126 @@
   let isMoving = false;
   let targetX = 0;
   let targetY = 0;
+
   const baseSpeed = 65;
   const worldWidth = 3135;
   const worldHeight = 3300;
+  const worldMaxX = worldWidth - 40;
+  const worldMaxY = worldHeight - 40;
+
   const camera = { x: 0, y: 0, targetX: 0, targetY: 0, lerpFactor: 0.1 };
 
-  // Анимация теперь фиксированная по времени (как было до джойстика — 5 кадров в секунду)
-  const ANIMATION_FRAME_DURATION = 200; // ms на кадр → 5 FPS анимации ходьбы
-  const WALK_FRAME_COUNT = 7; // Количество кадров в анимации ходьбы
+  const ANIMATION_FRAME_DURATION = 100; // ms → 5 FPS
+  const WALK_FRAME_COUNT = 7;
 
   const sendInterval = 100;
   let lastSendTime = 0;
-  let keys = {};
 
+  let keys = {};
   const isMobile = window.joystickSystem
     ? window.joystickSystem.isMobile
     : false;
 
-  function initializeMovement() {
-    const canvas = document.getElementById("gameCanvas");
+  // Кэшируем часто используемые элементы/функции
+  const canvas = document.getElementById("gameCanvas");
+  const inventoryContainer = document.getElementById("inventoryContainer");
+  const getInventoryRect = () => inventoryContainer.getBoundingClientRect();
 
+  function initializeMovement() {
     if (isMobile && window.joystickSystem) {
       window.joystickSystem.initialize();
     }
 
-    // === Обработчики клика/тача по карте (без изменений) ===
-    canvas.addEventListener("mousedown", (e) => {
-      if (e.button !== 0) return;
-      const me = players.get(myId);
-      if (!me || me.health <= 0) return;
-
-      const inventoryContainer = document.getElementById("inventoryContainer");
-      const rect = inventoryContainer.getBoundingClientRect();
-      if (
-        window.isInventoryOpen &&
-        e.clientX >= rect.left &&
-        e.clientX <= rect.right &&
-        e.clientY >= rect.top &&
-        e.clientY <= rect.bottom
-      )
-        return;
-
-      isMoving = true;
-      targetX = e.clientX + camera.x;
-      targetY = e.clientY + camera.y;
-    });
-
-    canvas.addEventListener("mousemove", (e) => {
-      if (isMoving) {
-        targetX = e.clientX + camera.x;
-        targetY = e.clientY + camera.y;
-      }
-    });
-
-    canvas.addEventListener("mouseup", (e) => {
-      if (e.button === 0) stopMovement();
-    });
+    // === Обработчики клика/тача по карте ===
+    canvas.addEventListener("mousedown", handlePointerDown);
+    canvas.addEventListener("mousemove", handlePointerMove);
+    canvas.addEventListener("mouseup", handlePointerUp);
 
     if (!isMobile) {
-      // Touch для десктопа (если вдруг)
-      canvas.addEventListener("touchstart", (e) => {
-        e.preventDefault();
-        const me = players.get(myId);
-        if (!me || me.health <= 0) return;
-
-        const touch = e.touches[0];
-        const inventoryContainer =
-          document.getElementById("inventoryContainer");
-        const rect = inventoryContainer.getBoundingClientRect();
-
-        if (
-          window.isInventoryOpen &&
-          touch.clientX >= rect.left &&
-          touch.clientX <= rect.right &&
-          touch.clientY >= rect.top &&
-          touch.clientY <= rect.bottom
-        )
-          return;
-
-        isMoving = true;
-        targetX = touch.clientX + camera.x;
-        targetY = touch.clientY + camera.y;
-      });
-
-      canvas.addEventListener("touchmove", (e) => {
-        e.preventDefault();
-        if (isMoving) {
-          const touch = e.touches[0];
-          targetX = touch.clientX + camera.x;
-          targetY = touch.clientY + camera.y;
-        }
-      });
-
-      canvas.addEventListener("touchend", (e) => {
-        e.preventDefault();
-        stopMovement();
-      });
+      canvas.addEventListener("touchstart", handleTouchStart);
+      canvas.addEventListener("touchmove", handleTouchMove);
+      canvas.addEventListener("touchend", handleTouchEnd);
     }
 
     // Клавиатура
-    window.addEventListener("keydown", (e) => {
-      keys[e.key.toLowerCase()] = true;
-    });
-    window.addEventListener("keyup", (e) => {
-      keys[e.key.toLowerCase()] = false;
-    });
+    window.addEventListener(
+      "keydown",
+      (e) => (keys[e.key.toLowerCase()] = true)
+    );
+    window.addEventListener(
+      "keyup",
+      (e) => (keys[e.key.toLowerCase()] = false)
+    );
+  }
+
+  // Общие обработчики для мыши
+  function handlePointerDown(e) {
+    if (e.button !== 0) return;
+    if (!canStartMovement(e.clientX, e.clientY)) return;
+
+    isMoving = true;
+    updateTarget(e.clientX, e.clientY);
+  }
+
+  function handlePointerMove(e) {
+    if (isMoving) updateTarget(e.clientX, e.clientY);
+  }
+
+  function handlePointerUp(e) {
+    if (e.button === 0) stopMovement();
+  }
+
+  // Общие обработчики для тача (десктоп)
+  function handleTouchStart(e) {
+    e.preventDefault();
+    const touch = e.touches[0];
+    if (!canStartMovement(touch.clientX, touch.clientY)) return;
+
+    isMoving = true;
+    updateTarget(touch.clientX, touch.clientY);
+  }
+
+  function handleTouchMove(e) {
+    e.preventDefault();
+    if (isMoving) {
+      const touch = e.touches[0];
+      updateTarget(touch.clientX, touch.clientY);
+    }
+  }
+
+  function handleTouchEnd(e) {
+    e.preventDefault();
+    stopMovement();
+  }
+
+  function canStartMovement(clientX, clientY) {
+    const me = players.get(myId);
+    if (!me || me.health <= 0) return false;
+
+    if (window.isInventoryOpen) {
+      const rect = getInventoryRect();
+      if (
+        clientX >= rect.left &&
+        clientX <= rect.right &&
+        clientY >= rect.top &&
+        clientY <= rect.bottom
+      ) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  function updateTarget(clientX, clientY) {
+    targetX = clientX + camera.x;
+    targetY = clientY + camera.y;
   }
 
   function stopMovement() {
     isMoving = false;
   }
 
-  // Универсальная функция движения (используется всеми источниками ввода)
+  // Универсальная функция движения
   function movePlayer(dx, dy, deltaTime, me, currentTime, tolerance = 0) {
     const distance = Math.hypot(dx, dy);
     if (distance <= tolerance) return false;
@@ -128,8 +136,9 @@
     me.x += moveX;
     me.y += moveY;
 
-    me.x = Math.max(0, Math.min(worldWidth - 40, me.x));
-    me.y = Math.max(0, Math.min(worldHeight - 40, me.y));
+    // Границы мира
+    me.x = Math.max(0, Math.min(worldMaxX, me.x));
+    me.y = Math.max(0, Math.min(worldMaxY, me.y));
 
     if (checkCollision(me.x, me.y)) {
       me.x = prevX;
@@ -143,7 +152,7 @@
     const traveled = Math.hypot(me.x - prevX, me.y - prevY);
     me.distanceTraveled = (me.distanceTraveled || 0) + traveled;
 
-    // Проверки взаимодействия
+    // Проверки взаимодействия (один раз за тик движения)
     window.npcSystem.checkNPCProximity();
     window.jackSystem.checkJackProximity();
     window.npcSystem.checkQuestCompletion();
@@ -218,7 +227,7 @@
       }
     }
 
-    // 3. Джойстик (главное исправление)
+    // 3. Джойстик (мобильные)
     if (isMobile && window.joystickSystem && !isCurrentlyMoving) {
       const joy = window.joystickSystem.getDirection();
       if (joy.active && (Math.abs(joy.dx) > 0.05 || Math.abs(joy.dy) > 0.05)) {
@@ -228,7 +237,7 @@
       }
     }
 
-    // === АНИМАЦИЯ: независимая от ввода, только если движемся ===
+    // === Анимация ходьбы ===
     if (isCurrentlyMoving) {
       me.frameTime = (me.frameTime || 0) + deltaTime;
       while (me.frameTime >= ANIMATION_FRAME_DURATION) {
@@ -236,7 +245,7 @@
         me.frame = (me.frame + 1) % WALK_FRAME_COUNT;
       }
     } else if (me.state === "walking") {
-      // Остановка: плавный сброс
+      // Остановка анимации
       me.state = "idle";
       me.frame = 0;
       me.frameTime = 0;
@@ -247,8 +256,9 @@
     updateCamera(me);
   }
 
-  function getDirection(dx, dy) {
-    const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+  function getDirection(normX, normY) {
+    const angle = Math.atan2(normY, normX) * (180 / Math.PI);
+
     if (angle > -22.5 && angle <= 22.5) return "right";
     if (angle > 22.5 && angle <= 67.5) return "down-right";
     if (angle > 67.5 && angle <= 112.5) return "down";
@@ -281,7 +291,6 @@
   }
 
   function updateCamera(player) {
-    const canvas = document.getElementById("gameCanvas");
     const halfWidth = canvas.width / 2;
     const halfHeight = canvas.height / 2;
 
