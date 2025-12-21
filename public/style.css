@@ -1251,8 +1251,8 @@ body {
   /* Джойстик для мобильных */
   #joystickContainer {
     position: absolute;
-    top: 80%; /* Внизу, возле level-display (top:97% в level-display) */
-    left: 5%; /* Слева для удобства */
+    top: 78%; /* Внизу, возле level-display (top:97% в level-display) */
+    left: 7%; /* Слева для удобства */
     width: 120px; /* 2*radius */
     height: 120px;
     pointer-events: none; /* Не блокирует другие touch */
@@ -1263,9 +1263,9 @@ body {
     width: 100%;
     height: 100%;
     border-radius: 50%;
-    background: rgba(0, 255, 255, 0.2); /* Полупрозрачный циан */
+    background: rgba(0, 255, 255, 0.1); /* Полупрозрачный циан */
     border: 2px solid #00ffff;
-    box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
     pointer-events: auto; /* Включаем touch только здесь */
     position: relative;
   }
