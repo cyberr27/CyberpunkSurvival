@@ -59,43 +59,46 @@
       if (e.button === 0) stopMovement();
     });
 
-    // Touch для десктопа (если вдруг)
-    canvas.addEventListener("touchstart", (e) => {
-      e.preventDefault();
-      const me = players.get(myId);
-      if (!me || me.health <= 0) return;
+    if (!isMobile) {
+      // Touch для десктопа (если вдруг)
+      canvas.addEventListener("touchstart", (e) => {
+        e.preventDefault();
+        const me = players.get(myId);
+        if (!me || me.health <= 0) return;
 
-      const touch = e.touches[0];
-      const inventoryContainer = document.getElementById("inventoryContainer");
-      const rect = inventoryContainer.getBoundingClientRect();
-
-      if (
-        window.isInventoryOpen &&
-        touch.clientX >= rect.left &&
-        touch.clientX <= rect.right &&
-        touch.clientY >= rect.top &&
-        touch.clientY <= rect.bottom
-      )
-        return;
-
-      isMoving = true;
-      targetX = touch.clientX + camera.x;
-      targetY = touch.clientY + camera.y;
-    });
-
-    canvas.addEventListener("touchmove", (e) => {
-      e.preventDefault();
-      if (isMoving) {
         const touch = e.touches[0];
+        const inventoryContainer =
+          document.getElementById("inventoryContainer");
+        const rect = inventoryContainer.getBoundingClientRect();
+
+        if (
+          window.isInventoryOpen &&
+          touch.clientX >= rect.left &&
+          touch.clientX <= rect.right &&
+          touch.clientY >= rect.top &&
+          touch.clientY <= rect.bottom
+        )
+          return;
+
+        isMoving = true;
         targetX = touch.clientX + camera.x;
         targetY = touch.clientY + camera.y;
-      }
-    });
+      });
 
-    canvas.addEventListener("touchend", (e) => {
-      e.preventDefault();
-      stopMovement();
-    });
+      canvas.addEventListener("touchmove", (e) => {
+        e.preventDefault();
+        if (isMoving) {
+          const touch = e.touches[0];
+          targetX = touch.clientX + camera.x;
+          targetY = touch.clientY + camera.y;
+        }
+      });
+
+      canvas.addEventListener("touchend", (e) => {
+        e.preventDefault();
+        stopMovement();
+      });
+    }
 
     // Клавиатура
     window.addEventListener("keydown", (e) => {

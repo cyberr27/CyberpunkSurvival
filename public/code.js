@@ -542,7 +542,7 @@ let selectedSlot = null;
 
 // Глобальные настройки игры
 const GAME_CONFIG = {
-  FRAME_DURATION: 200, // 700 мс на весь цикл (≈100 мс на кадр)
+  FRAME_DURATION: 100, // 700 мс на весь цикл (≈100 мс на кадр)
 };
 
 let reconnectAttempts = 0;
