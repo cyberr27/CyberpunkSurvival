@@ -581,13 +581,6 @@ const equipmentSystem = {
 
   toggleEquipment: function () {
     this.isEquipmentOpen = !this.isEquipmentOpen;
-
-    // НОВОЕ: Проверка на мобильное устройство и закрытие инвентаря, если он открыт и мы открываем экипировку
-    const isMobile = window.innerWidth <= 500;
-    if (isMobile && this.isEquipmentOpen && window.isInventoryOpen) {
-      window.toggleInventory(); // Автоматически закрываем инвентарь
-    }
-
     const equipmentContainer = document.getElementById("equipmentContainer");
     equipmentContainer.style.display = this.isEquipmentOpen ? "block" : "none";
     const equipmentBtn = document.getElementById("equipmentBtn");

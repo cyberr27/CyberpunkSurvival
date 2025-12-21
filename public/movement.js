@@ -1,9 +1,6 @@
 // movement.js
 (function () {
   // Глобальные переменные для управления движением
-  const joystickSystem = window.joystickSystem || {
-    getDirection: () => ({ dx: 0, dy: 0, isActive: false }),
-  };
   let isMoving = false;
   let targetX = 0;
   let targetY = 0;
@@ -151,9 +148,6 @@
       me.frameTime = 0;
       // При остановке всегда отправляем, чтобы сервер знал сразу
       sendMovementUpdate(me);
-      if (window.joystickSystem) {
-        window.joystickSystem.resetJoystick();
-      }
     }
   }
 
@@ -357,84 +351,6 @@
         sendMovementUpdate(me);
         lastSendTime = currentTime;
       }
-    }
-
-    // Добавлено: обработка джойстика (аналогично клавишам)
-    const joystickDir = joystickSystem.getDirection();
-    if (joystickDir.isActive) {
-      dx = joystickDir.dx;
-      dy = joystickDir.dy;
-
-      const distance = Math.sqrt(dx * dx + dy * dy);
-      const normalizedDx = dx / distance;
-      const normalizedDy = dy / distance;
-
-      const moveSpeed = baseSpeed * (deltaTime / 1000);
-      const moveX = normalizedDx * moveSpeed;
-      const moveY = normalizedDy * moveSpeed;
-
-      const prevX = me.x;
-      const prevY = me.y;
-
-      me.x += moveX;
-      me.y += moveY;
-
-      // Ограничиваем позицию в пределах мира
-      me.x = Math.max(0, Math.min(worldWidth - 40, me.x));
-      me.y = Math.max(0, Math.min(worldHeight - 40, me.y));
-
-      // Проверка коллизий
-      if (checkCollision(me.x, me.y)) {
-        me.x = prevX;
-        me.y = prevY;
-        me.state = "idle";
-        me.frame = 0;
-        me.frameTime = 0;
-        sendMovementUpdate(me);
-        lastSendTime = currentTime;
-        updateCamera(me);
-        return;
-      }
-
-      // Определяем направление
-      me.state = "walking";
-      me.direction = getDirection(normalizedDx, normalizedDy);
-
-      // Обновляем анимацию
-      me.frameTime += deltaTime;
-      if (me.frameTime >= frameDuration) {
-        me.frameTime = me.frameTime % frameDuration;
-        me.frame = (me.frame + 1) % 7;
-      }
-
-      // Обновляем дистанцию
-      const traveled = Math.sqrt((me.x - prevX) ** 2 + (me.y - prevY) ** 2);
-      me.distanceTraveled = (me.distanceTraveled || 0) + traveled;
-
-      // Проверяем взаимодействие с NPC, квестами и торговым автоматом
-      window.npcSystem.checkNPCProximity();
-      window.jackSystem.checkJackProximity();
-      window.npcSystem.checkQuestCompletion();
-      window.vendingMachine.checkProximity();
-
-      // Обновляем ресурсы и коллизии
-      updateResources();
-      checkCollisions();
-
-      // Отправляем данные на сервер только по интервалу
-      if (currentTime - lastSendTime >= sendInterval) {
-        sendMovementUpdate(me);
-        lastSendTime = currentTime;
-      }
-
-      moved = true;
-    } else if (me.state !== "idle") {
-      // Если джойстик отпущен, останавливаем (аналогично клавишам)
-      me.state = "idle";
-      me.frame = 0;
-      me.frameTime = 0;
-      sendMovementUpdate(me);
-      lastSendTime = currentTime;
     }
 
     if (me.state === "dying") {
