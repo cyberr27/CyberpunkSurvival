@@ -1,18 +1,12 @@
-// movement.js
 (function () {
-  // Глобальные переменные для управления движением
   let isMoving = false;
   let targetX = 0;
   let targetY = 0;
-  const baseSpeed = 65; // Пикселей в секунду
+  const baseSpeed = 65;
   const worldWidth = 3135;
   const worldHeight = 3300;
-
-  // Камера с интерполяцией для плавного следования
   const camera = { x: 0, y: 0, targetX: 0, targetY: 0, lerpFactor: 0.1 };
-
-  // Анимационные параметры
-  const frameDuration = 200; // Длительность одного кадра анимации в мс
+  const frameDuration = 200;
   const directions = [
     "up",
     "down",
@@ -33,36 +27,26 @@
     "down-left": 80,
     "down-right": 120,
   };
-
-  // Оптимизация: интервал отправки обновлений на сервер (в мс), чтобы не спамить каждый кадр
-  const sendInterval = 100; // Можно настроить, например, 200 для ещё меньшей нагрузки
+  const sendInterval = 100;
   let lastSendTime = 0;
-
-  // Добавлено: объект для отслеживания нажатых клавиш
   let keys = {};
   const isMobile = window.joystickSystem
     ? window.joystickSystem.isMobile
     : false;
-  // Инициализация системы движения
+
   function initializeMovement() {
     const canvas = document.getElementById("gameCanvas");
-
-    // Кэшируем половину размеров канваса один раз для оптимизации камеры
     const halfWidth = canvas.width / 2;
     const halfHeight = canvas.height / 2;
 
     if (isMobile && window.joystickSystem) {
-      // ВСТАВЬ: Инициализация джойстика только на мобильных
       window.joystickSystem.initialize();
     }
 
-    // Обработчики мыши (оригинал, без изменений)
     canvas.addEventListener("mousedown", (e) => {
       if (e.button === 0) {
         const me = players.get(myId);
         if (!me || me.health <= 0) return;
-
-        // Проверяем, не кликнули ли по инвентарю
         const inventoryContainer =
           document.getElementById("inventoryContainer");
         const rect = inventoryContainer.getBoundingClientRect();
@@ -73,7 +57,7 @@
           e.clientY >= rect.top &&
           e.clientY <= rect.bottom
         ) {
-          return; // Пропускаем, если клик по инвентарю
+          return;
         }
 
         isMoving = true;
@@ -96,8 +80,6 @@
     });
 
     if (!isMobile) {
-      // ИЗМЕНИ: Touch-обработчики только если НЕ мобильное (убираем на мобильных)
-      // Обработчики тач-событий (оригинал, без изменений)
       canvas.addEventListener("touchstart", (e) => {
         e.preventDefault();
         const me = players.get(myId);
@@ -115,7 +97,7 @@
           touch.clientY >= rect.top &&
           touch.clientY <= rect.bottom
         ) {
-          return; // Пропускаем, если тач по инвентарю
+          return;
         }
 
         isMoving = true;
@@ -134,9 +116,8 @@
         e.preventDefault();
         stopMovement();
       });
-    } // Конец !isMobile
+    }
 
-    // Добавлено: обработчики клавиатуры (глобально, чтобы не конфликтовать с инвентарем)
     window.addEventListener("keydown", (e) => {
       keys[e.key.toLowerCase()] = true;
     });
@@ -146,7 +127,6 @@
     });
   }
 
-  // Остановка движения
   function stopMovement() {
     isMoving = false;
     const me = players.get(myId);
@@ -154,29 +134,81 @@
       me.state = "idle";
       me.frame = 0;
       me.frameTime = 0;
-      // При остановке всегда отправляем, чтобы сервер знал сразу
       sendMovementUpdate(me);
     }
   }
 
-  // Обновление движения персонажа
-  function updateMovement(deltaTime) {
-    const me = players.get(myId);
-    if (!me) {
-      return; // Нет игрока — выходим рано, чтобы сэкономить CPU
+  function movePlayer(dx, dy, deltaTime, me, currentTime, minDistance = 0) {
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    if (distance <= minDistance) return false;
+
+    const normalizedDx = dx / distance;
+    const normalizedDy = dy / distance;
+    const moveSpeed = baseSpeed * (deltaTime / 1000);
+    const moveX = normalizedDx * moveSpeed;
+    const moveY = normalizedDy * moveSpeed;
+
+    const prevX = me.x;
+    const prevY = me.y;
+
+    me.x += moveX;
+    me.y += moveY;
+
+    me.x = Math.max(0, Math.min(worldWidth - 40, me.x));
+    me.y = Math.max(0, Math.min(worldHeight - 40, me.y));
+
+    if (checkCollision(me.x, me.y)) {
+      me.x = prevX;
+      me.y = prevY;
+      me.state = "idle";
+      me.frame = 0;
+      me.frameTime = 0;
+      sendMovementUpdate(me);
+      lastSendTime = currentTime;
+      return false;
     }
 
-    const currentTime = Date.now(); // Для throttling отправок
+    me.state = "walking";
+    me.direction = getDirection(normalizedDx, normalizedDy);
+
+    me.frameTime += deltaTime;
+    if (me.frameTime >= frameDuration) {
+      me.frameTime %= frameDuration;
+      me.frame = (me.frame + 1) % 7;
+    }
+
+    const traveled = Math.sqrt((me.x - prevX) ** 2 + (me.y - prevY) ** 2);
+    me.distanceTraveled = (me.distanceTraveled || 0) + traveled;
+
+    window.npcSystem.checkNPCProximity();
+    window.jackSystem.checkJackProximity();
+    window.npcSystem.checkQuestCompletion();
+    window.vendingMachine.checkProximity();
+
+    updateResources();
+    checkCollisions();
+
+    if (currentTime - lastSendTime >= sendInterval) {
+      sendMovementUpdate(me);
+      lastSendTime = currentTime;
+    }
+
+    return true;
+  }
+
+  function updateMovement(deltaTime) {
+    const me = players.get(myId);
+    if (!me) return;
+
+    const currentTime = Date.now();
 
     if (me.health <= 0) {
-      // Если мёртв, только обновляем камеру и анимацию смерти, если нужно
       if (me.state === "dying") {
         me.frameTime += deltaTime;
         if (me.frameTime >= frameDuration) {
           me.frameTime -= frameDuration;
           if (me.frame < 6) me.frame += 1;
         }
-        // Отправляем только по интервалу или если анимация закончилась
         if (currentTime - lastSendTime >= sendInterval || me.frame >= 6) {
           sendMovementUpdate(me);
           lastSendTime = currentTime;
@@ -186,10 +218,9 @@
       return;
     }
 
-    // Добавлено: проверка на открытый инвентарь — игнорируем клавиатуру, чтобы избежать глюков
     if (window.isInventoryOpen) {
       if (isMoving) {
-        stopMovement(); // Если инвентарь открыт, останавливаем движение по мыши
+        stopMovement();
       }
       updateCamera(me);
       return;
@@ -198,161 +229,31 @@
     let moved = false;
 
     if (isMoving) {
-      // Вычисляем вектор направления (оригинал, без изменений)
       const dx = targetX - me.x;
       const dy = targetY - me.y;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-
-      if (distance > 5) {
-        const moveSpeed = baseSpeed * (deltaTime / 1000);
-        const normalizedDx = dx / distance;
-        const normalizedDy = dy / distance;
-        const moveX = normalizedDx * moveSpeed;
-        const moveY = normalizedDy * moveSpeed;
-
-        const prevX = me.x;
-        const prevY = me.y;
-
-        me.x += moveX;
-        me.y += moveY;
-
-        // Ограничиваем позицию в пределах мира
-        me.x = Math.max(0, Math.min(worldWidth - 40, me.x));
-        me.y = Math.max(0, Math.min(worldHeight - 40, me.y));
-
-        // Проверка коллизий
-        if (checkCollision(me.x, me.y)) {
-          me.x = prevX;
-          me.y = prevY;
-          me.state = "idle";
-          me.frame = 0;
-          me.frameTime = 0;
-          isMoving = false;
-          sendMovementUpdate(me); // Отправляем сразу при коллизии
-          lastSendTime = currentTime;
-          updateCamera(me);
-          return;
-        }
-
-        // Определяем направление
-        me.state = "walking";
-        me.direction = getDirection(normalizedDx, normalizedDy); // Используем нормализованные, чтобы избежать повторного atan2 на dx/dy
-
-        // Обновляем анимацию
-        me.frameTime += deltaTime;
-        if (me.frameTime >= frameDuration) {
-          me.frameTime = me.frameTime % frameDuration; // Оптимизация: используем % для предотвращения переполнения
-          me.frame = (me.frame + 1) % 7;
-        }
-
-        // Обновляем дистанцию
-        const traveled = Math.sqrt(
-          (me.x - prevX) ** 2 + (me.y - prevY) ** 2 // Используем **2 вместо pow для скорости в modern JS
-        );
-        me.distanceTraveled = (me.distanceTraveled || 0) + traveled;
-
-        // Проверяем взаимодействие с NPC, квестами и торговым автоматом
-        window.npcSystem.checkNPCProximity();
-        window.jackSystem.checkJackProximity();
-        window.npcSystem.checkQuestCompletion();
-        window.vendingMachine.checkProximity();
-
-        // Обновляем ресурсы и коллизии
-        updateResources();
-        checkCollisions();
-
-        // Отправляем данные на сервер только по интервалу
-        if (currentTime - lastSendTime >= sendInterval) {
-          sendMovementUpdate(me);
-          lastSendTime = currentTime;
-        }
-
-        moved = true;
-      } else {
-        // Достигли цели
+      if (!movePlayer(dx, dy, deltaTime, me, currentTime, 5)) {
         me.state = "idle";
         me.frame = 0;
         me.frameTime = 0;
         isMoving = false;
-        sendMovementUpdate(me); // Отправляем сразу при остановке
+        sendMovementUpdate(me);
         lastSendTime = currentTime;
+      } else {
+        moved = true;
       }
     } else {
-      // Добавлено: обработка клавиатуры WASD, если не двигаемся по мыши
       let dx = 0;
       let dy = 0;
-
-      if (keys["w"]) dy -= 1; // Вверх
-      if (keys["s"]) dy += 1; // Вниз
-      if (keys["a"]) dx -= 1; // Влево
-      if (keys["d"]) dx += 1; // Вправо
+      if (keys["w"]) dy -= 1;
+      if (keys["s"]) dy += 1;
+      if (keys["a"]) dx -= 1;
+      if (keys["d"]) dx += 1;
 
       if (dx !== 0 || dy !== 0) {
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        const normalizedDx = dx / distance;
-        const normalizedDy = dy / distance;
-
-        const moveSpeed = baseSpeed * (deltaTime / 1000);
-        const moveX = normalizedDx * moveSpeed;
-        const moveY = normalizedDy * moveSpeed;
-
-        const prevX = me.x;
-        const prevY = me.y;
-
-        me.x += moveX;
-        me.y += moveY;
-
-        // Ограничиваем позицию в пределах мира
-        me.x = Math.max(0, Math.min(worldWidth - 40, me.x));
-        me.y = Math.max(0, Math.min(worldHeight - 40, me.y));
-
-        // Проверка коллизий
-        if (checkCollision(me.x, me.y)) {
-          me.x = prevX;
-          me.y = prevY;
-          me.state = "idle";
-          me.frame = 0;
-          me.frameTime = 0;
-          sendMovementUpdate(me);
-          lastSendTime = currentTime;
-          updateCamera(me);
-          return;
+        if (movePlayer(dx, dy, deltaTime, me, currentTime, 0)) {
+          moved = true;
         }
-
-        // Определяем направление
-        me.state = "walking";
-        me.direction = getDirection(normalizedDx, normalizedDy);
-
-        // Обновляем анимацию
-        me.frameTime += deltaTime;
-        if (me.frameTime >= frameDuration) {
-          me.frameTime = me.frameTime % frameDuration;
-          me.frame = (me.frame + 1) % 7;
-        }
-
-        // Обновляем дистанцию
-        const traveled = Math.sqrt((me.x - prevX) ** 2 + (me.y - prevY) ** 2);
-        me.distanceTraveled = (me.distanceTraveled || 0) + traveled;
-
-        // Проверяем взаимодействие с NPC, квестами и торговым автоматом
-        window.npcSystem.checkNPCProximity();
-        window.jackSystem.checkJackProximity();
-        window.npcSystem.checkQuestCompletion();
-        window.vendingMachine.checkProximity();
-
-        // Обновляем ресурсы и коллизии
-        updateResources();
-        checkCollisions();
-
-        // Отправляем данные на сервер только по интервалу
-        if (currentTime - lastSendTime >= sendInterval) {
-          sendMovementUpdate(me);
-          lastSendTime = currentTime;
-        }
-
-        moved = true;
       } else if (me.state !== "idle") {
-        // Если клавиши отпущены, останавливаем
         me.state = "idle";
         me.frame = 0;
         me.frameTime = 0;
@@ -361,77 +262,13 @@
       }
     }
 
-    // Добавлено: обработка джойстика на мобильных
     if (isMobile && window.joystickSystem) {
       const joyDir = window.joystickSystem.getDirection();
       if (joyDir.dx !== 0 || joyDir.dy !== 0) {
-        const distance = Math.sqrt(
-          joyDir.dx * joyDir.dx + joyDir.dy * joyDir.dy
-        );
-        const normalizedDx = joyDir.dx / distance;
-        const normalizedDy = joyDir.dy / distance;
-
-        const moveSpeed = baseSpeed * (deltaTime / 1000);
-        const moveX = normalizedDx * moveSpeed;
-        const moveY = normalizedDy * moveSpeed;
-
-        const prevX = me.x;
-        const prevY = me.y;
-
-        me.x += moveX;
-        me.y += moveY;
-
-        // Ограничиваем позицию в пределах мира
-        me.x = Math.max(0, Math.min(worldWidth - 40, me.x));
-        me.y = Math.max(0, Math.min(worldHeight - 40, me.y));
-
-        // Проверка коллизий
-        if (checkCollision(me.x, me.y)) {
-          me.x = prevX;
-          me.y = prevY;
-          me.state = "idle";
-          me.frame = 0;
-          me.frameTime = 0;
-          sendMovementUpdate(me);
-          lastSendTime = currentTime;
-          updateCamera(me);
-          return;
+        if (movePlayer(joyDir.dx, joyDir.dy, deltaTime, me, currentTime, 0)) {
+          moved = true;
         }
-
-        // Определяем направление
-        me.state = "walking";
-        me.direction = getDirection(normalizedDx, normalizedDy);
-
-        // Обновляем анимацию
-        me.frameTime += deltaTime;
-        if (me.frameTime >= frameDuration) {
-          me.frameTime = me.frameTime % frameDuration;
-          me.frame = (me.frame + 1) % 7;
-        }
-
-        // Обновляем дистанцию
-        const traveled = Math.sqrt((me.x - prevX) ** 2 + (me.y - prevY) ** 2);
-        me.distanceTraveled = (me.distanceTraveled || 0) + traveled;
-
-        // Проверяем взаимодействие с NPC, квестами и торговым автоматом
-        window.npcSystem.checkNPCProximity();
-        window.jackSystem.checkJackProximity();
-        window.npcSystem.checkQuestCompletion();
-        window.vendingMachine.checkProximity();
-
-        // Обновляем ресурсы и коллизии
-        updateResources();
-        checkCollisions();
-
-        // Отправляем данные на сервер только по интервалу
-        if (currentTime - lastSendTime >= sendInterval) {
-          sendMovementUpdate(me);
-          lastSendTime = currentTime;
-        }
-
-        moved = true;
       } else if (me.state !== "idle") {
-        // Если джойстик отпущен, останавливаем
         me.state = "idle";
         me.frame = 0;
         me.frameTime = 0;
@@ -441,24 +278,20 @@
     }
 
     if (me.state === "dying") {
-      // Обработка анимации смерти
       me.frameTime += deltaTime;
       if (me.frameTime >= frameDuration) {
         me.frameTime -= frameDuration;
         if (me.frame < 6) me.frame += 1;
       }
-      // Отправляем по интервалу
       if (currentTime - lastSendTime >= sendInterval) {
         sendMovementUpdate(me);
         lastSendTime = currentTime;
       }
     }
 
-    // Обновляем камеру всегда в конце
     updateCamera(me);
   }
 
-  // Определение направления движения (оптимизировал условия для скорости)
   function getDirection(dx, dy) {
     const angle = Math.atan2(dy, dx) * (180 / Math.PI);
     if (angle > -22.5 && angle <= 22.5) return "right";
@@ -469,10 +302,9 @@
     if (angle > -157.5 && angle <= -112.5) return "up-left";
     if (angle > -112.5 && angle <= -67.5) return "up";
     if (angle > -67.5 && angle <= -22.5) return "up-right";
-    return "down"; // По умолчанию
+    return "down";
   }
 
-  // Отправка обновления движения на сервер
   function sendMovementUpdate(player) {
     sendWhenReady(
       ws,
@@ -493,30 +325,25 @@
     );
   }
 
-  // Обновление камеры с интерполяцией
   function updateCamera(player) {
     const canvas = document.getElementById("gameCanvas");
-    const halfWidth = canvas.width / 2; // Кэшируем здесь, если не закешировано в init
+    const halfWidth = canvas.width / 2;
     const halfHeight = canvas.height / 2;
 
     camera.targetX = player.x - halfWidth;
     camera.targetY = player.y - halfHeight;
 
-    // Интерполяция для плавного следования
     camera.x += (camera.targetX - camera.x) * camera.lerpFactor;
     camera.y += (camera.targetY - camera.y) * camera.lerpFactor;
 
-    // Ограничиваем камеру в пределах мира
     camera.x = Math.max(0, Math.min(camera.x, worldWidth - canvas.width));
     camera.y = Math.max(0, Math.min(camera.y, worldHeight - canvas.height));
   }
 
-  // Получение текущей позиции камеры
   function getCamera() {
     return camera;
   }
 
-  // Экспортируем функции для использования в code.js
   window.movementSystem = {
     initialize: initializeMovement,
     update: updateMovement,
