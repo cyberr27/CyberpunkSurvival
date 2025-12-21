@@ -6,27 +6,7 @@
   const worldWidth = 3135;
   const worldHeight = 3300;
   const camera = { x: 0, y: 0, targetX: 0, targetY: 0, lerpFactor: 0.1 };
-  const frameDuration = 200;
-  const directions = [
-    "up",
-    "down",
-    "left",
-    "right",
-    "up-left",
-    "up-right",
-    "down-left",
-    "down-right",
-  ];
-  const spriteOffsets = {
-    up: 0,
-    down: 40,
-    left: 80,
-    right: 120,
-    "up-left": 80,
-    "up-right": 120,
-    "down-left": 80,
-    "down-right": 120,
-  };
+  const frameDuration = 200; // длительность одного кадра анимации в мс
   const sendInterval = 100;
   let lastSendTime = 0;
   let keys = {};
@@ -36,12 +16,13 @@
 
   function initializeMovement() {
     const canvas = document.getElementById("gameCanvas");
-    const halfWidth = canvas.width / 2;
-    const halfHeight = canvas.height / 2;
 
     if (isMobile && window.joystickSystem) {
       window.joystickSystem.initialize();
     }
+
+    // ... (весь код обработки mouse/touch для клика по карте остаётся без изменений) ...
+    // (оставляем как был — он работает нормально)
 
     canvas.addEventListener("mousedown", (e) => {
       if (e.button === 0) {
@@ -131,15 +112,13 @@
     isMoving = false;
     const me = players.get(myId);
     if (me) {
-      me.state = "idle";
-      me.frame = 0;
-      me.frameTime = 0;
+      // Не ставим сразу idle — пусть анимация доиграет текущий цикл
       sendMovementUpdate(me);
     }
   }
 
   function movePlayer(dx, dy, deltaTime, me, currentTime, minDistance = 0) {
-    const distance = Math.sqrt(dx * dx + dy * dy);
+    const distance = Math.hypot(dx, dy);
     if (distance <= minDistance) return false;
 
     const normalizedDx = dx / distance;
@@ -160,24 +139,20 @@
     if (checkCollision(me.x, me.y)) {
       me.x = prevX;
       me.y = prevY;
-      me.state = "idle";
-      me.frame = 0;
-      me.frameTime = 0;
-      sendMovementUpdate(me);
-      lastSendTime = currentTime;
       return false;
     }
 
     me.state = "walking";
     me.direction = getDirection(normalizedDx, normalizedDy);
 
-    me.frameTime += deltaTime;
+    // Анимация идёт всегда по фиксированному таймеру — независимо от ввода
+    me.frameTime = (me.frameTime || 0) + deltaTime;
     if (me.frameTime >= frameDuration) {
-      me.frameTime %= frameDuration;
-      me.frame = (me.frame + 1) % 7;
+      me.frameTime -= frameDuration;
+      me.frame = (me.frame + 1) % 7; // 7 кадров в твоём спрайте (если 40 — поменяй)
     }
 
-    const traveled = Math.sqrt((me.x - prevX) ** 2 + (me.y - prevY) ** 2);
+    const traveled = Math.hypot(me.x - prevX, me.y - prevY);
     me.distanceTraveled = (me.distanceTraveled || 0) + traveled;
 
     window.npcSystem.checkNPCProximity();
@@ -203,8 +178,9 @@
     const currentTime = Date.now();
 
     if (me.health <= 0) {
+      // ... (логика смерти остаётся без изменений)
       if (me.state === "dying") {
-        me.frameTime += deltaTime;
+        me.frameTime = (me.frameTime || 0) + deltaTime;
         if (me.frameTime >= frameDuration) {
           me.frameTime -= frameDuration;
           if (me.frame < 6) me.frame += 1;
@@ -219,29 +195,25 @@
     }
 
     if (window.isInventoryOpen) {
-      if (isMoving) {
-        stopMovement();
-      }
+      if (isMoving) stopMovement();
       updateCamera(me);
       return;
     }
 
     let moved = false;
 
+    // 1. Клик по карте
     if (isMoving) {
       const dx = targetX - me.x;
       const dy = targetY - me.y;
       if (!movePlayer(dx, dy, deltaTime, me, currentTime, 5)) {
-        me.state = "idle";
-        me.frame = 0;
-        me.frameTime = 0;
         isMoving = false;
-        sendMovementUpdate(me);
-        lastSendTime = currentTime;
       } else {
         moved = true;
       }
-    } else {
+    }
+    // 2. Клавиатура
+    else {
       let dx = 0;
       let dy = 0;
       if (keys["w"]) dy -= 1;
@@ -253,7 +225,7 @@
         if (movePlayer(dx, dy, deltaTime, me, currentTime, 0)) {
           moved = true;
         }
-      } else if (me.state !== "idle") {
+      } else if (me.state === "walking") {
         me.state = "idle";
         me.frame = 0;
         me.frameTime = 0;
@@ -262,13 +234,15 @@
       }
     }
 
+    // 3. Джойстик — главное изменение
     if (isMobile && window.joystickSystem) {
-      const joyDir = window.joystickSystem.getDirection();
-      if (joyDir.dx !== 0 || joyDir.dy !== 0) {
-        if (movePlayer(joyDir.dx, joyDir.dy, deltaTime, me, currentTime, 0)) {
+      const joy = window.joystickSystem.getDirection();
+      if (joy.active && (Math.abs(joy.dx) > 0.01 || Math.abs(joy.dy) > 0.01)) {
+        if (movePlayer(joy.dx, joy.dy, deltaTime, me, currentTime, 0)) {
           moved = true;
         }
-      } else if (me.state !== "idle") {
+      } else if (me.state === "walking" && !joy.active) {
+        // Только когда джойстик полностью отпущен и неактивен
         me.state = "idle";
         me.frame = 0;
         me.frameTime = 0;
@@ -277,16 +251,11 @@
       }
     }
 
-    if (me.state === "dying") {
-      me.frameTime += deltaTime;
-      if (me.frameTime >= frameDuration) {
-        me.frameTime -= frameDuration;
-        if (me.frame < 6) me.frame += 1;
-      }
-      if (currentTime - lastSendTime >= sendInterval) {
-        sendMovementUpdate(me);
-        lastSendTime = currentTime;
-      }
+    // Если вообще не двигаемся — сбрасываем анимацию
+    if (!moved && !isMoving && me.state === "walking") {
+      me.state = "idle";
+      me.frame = 0;
+      me.frameTime = 0;
     }
 
     updateCamera(me);
