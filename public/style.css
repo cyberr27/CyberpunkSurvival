@@ -833,6 +833,7 @@ body {
   left: -8%;
   width: 80px;
   height: 80px;
+  z-index: 4;
 }
 
 .chest-slot {
@@ -841,6 +842,7 @@ body {
   left: -10%;
   width: 80px;
   height: 80px;
+  z-index: 3;
 }
 
 .pants-slot {
@@ -867,7 +869,7 @@ body {
   left: -8%;
   width: 80px;
   height: 80px;
-  z-index: 2;
+  z-index: 0;
 }
 
 .weapon-slot {
@@ -876,7 +878,7 @@ body {
   left: 0%;
   width: 80px;
   height: 80px;
-  z-index: 2;
+  z-index: 0;
 }
 
 .gloves-slot {
@@ -885,7 +887,7 @@ body {
   left: -23%;
   width: 80px;
   height: 80px;
-  z-index: 0;
+  z-index: 4;
 }
 
 .equipment-slot {
@@ -895,8 +897,8 @@ body {
 .equipment-slot::after {
   content: attr(title);
   position: absolute;
-  bottom: 100%;
-  left: 50%;
+  top: 80%;
+  left: 120%;
   transform: translateX(-50%);
   background: #0a0a0a;
   border: 1px solid #00ccff;
@@ -914,6 +916,11 @@ body {
 }
 
 .equipment-slot:hover::after {
+  opacity: 1;
+  visibility: visible;
+}
+
+.equipment-slot.show-tooltip::after {
   opacity: 1;
   visibility: visible;
 }
@@ -1081,6 +1088,11 @@ body {
     padding: 10px;
   }
 
+  .equipment-slot::after {
+    left: 115%;
+    top: 70%;
+  }
+
   /* Индивидуальные стили для каждого слота экипировки */
   .head-slot {
     position: relative;
@@ -1088,6 +1100,7 @@ body {
     left: -13%;
     width: 70px;
     height: 70px;
+    z-index: 4;
   }
 
   .chest-slot {
@@ -1096,6 +1109,7 @@ body {
     left: -13%;
     width: 70px;
     height: 70px;
+    z-index: 3;
   }
 
   .pants-slot {
@@ -1122,7 +1136,7 @@ body {
     left: -13%;
     width: 70px;
     height: 70px;
-    z-index: 2;
+    z-index: 0;
   }
 
   .weapon-slot {
@@ -1131,7 +1145,7 @@ body {
     left: 0%;
     width: 70px;
     height: 70px;
-    z-index: 2;
+    z-index: 0;
   }
 
   .gloves-slot {
@@ -1140,7 +1154,7 @@ body {
     left: -23%;
     width: 70px;
     height: 70px;
-    z-index: 0;
+    z-index: 4;
   }
 
   #damageDisplay {

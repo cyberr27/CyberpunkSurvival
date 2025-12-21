@@ -475,12 +475,22 @@ const equipmentSystem = {
 
       // Добавляем поддержку двойного тапа для мобильных
       let lastTouchTime = 0;
+      let tooltipTimeout;
       slotEl.addEventListener("touchstart", (e) => {
         e.preventDefault(); // Предотвращаем зум/скролл на мобильных
         const now = Date.now();
         if (now - lastTouchTime < 300) {
           // Порог для double tap (300 мс)
           this.unequipItem(slotInfo.name);
+          if (tooltipTimeout) clearTimeout(tooltipTimeout); // Отменяем показ tooltip если double tap
+        } else {
+          // Если single tap, ждём 300ms и показываем tooltip на 3 секунды
+          tooltipTimeout = setTimeout(() => {
+            slotEl.classList.add("show-tooltip");
+            setTimeout(() => {
+              slotEl.classList.remove("show-tooltip");
+            }, 3000); // Скрываем через 3 секунды
+          }, 300);
         }
         lastTouchTime = now;
       });
