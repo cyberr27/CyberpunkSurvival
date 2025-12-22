@@ -11,7 +11,7 @@
 
   const camera = { x: 0, y: 0, targetX: 0, targetY: 0, lerpFactor: 0.1 };
 
-  const ANIMATION_FRAME_DURATION = 100; // ms → 5 FPS
+  const ANIMATION_FRAME_DURATION = 200; // ms → 5 FPS
   const WALK_FRAME_COUNT = 7;
 
   const sendInterval = 100;
