@@ -20,6 +20,11 @@ let ws;
 let players = new Map();
 let myId;
 const items = new Map();
+
+const GAME_CONFIG = {
+  FRAME_DURATION: 300, // 700 мс на весь цикл (≈100 мс на кадр)
+};
+
 // Глобальная анимация АТОМА (для поля + инвентаря)
 let atomFrame = 0;
 let atomFrameTime = 0;
@@ -27,6 +32,23 @@ const ATOM_FRAMES = 40; // Количество кадров в спрайте (
 const ATOM_FRAME_DURATION = 180; // ms на кадр (8 FPS: плавно, без лагов. Можно протестировать 100-150 для скорости)
 let inventoryAtomTimer = null;
 const pendingPickups = new Set();
+
+const PLAYER_FRAME_WIDTH = 70; // Ширина кадра (не меняем)
+const PLAYER_FRAME_HEIGHT = 70; // Высота кадра (не меняем)
+const WALK_FRAME_COUNT = 13; // Новый: 13 кадров для ходьбы (цикл)
+const ATTACK_FRAME_COUNT = 13; // Новый: 13 кадров для атаки (one-shot)
+const WALK_FRAME_DURATION = GAME_CONFIG.FRAME_DURATION / WALK_FRAME_COUNT; // Адаптируем FPS (было /40, теперь /13 для похожей скорости)
+const ATTACK_FRAME_DURATION = 500 / ATTACK_FRAME_COUNT;
+
+const SPRITE_ROWS = {
+  walk_up: 0,
+  walk_down: 70,
+  walk_right: 140,
+  walk_left: 210,
+  attack_up_down: 280, // Строка 4 для атаки вверх/вниз (один ряд для обоих)
+  attack_right: 350,
+  attack_left: 420,
+};
 
 // Загрузка изображений
 const imageSources = {
@@ -540,11 +562,6 @@ let isInventoryOpen = false;
 window.isInventoryOpen = false;
 // Выбранный слот инвентаря
 let selectedSlot = null;
-
-// Глобальные настройки игры
-const GAME_CONFIG = {
-  FRAME_DURATION: 100, // 700 мс на весь цикл (≈100 мс на кадр)
-};
 
 let reconnectAttempts = 0;
 const maxReconnectAttempts = 5;
@@ -1261,6 +1278,19 @@ function toggleInventory() {
     if (!inventoryAtomTimer) {
       inventoryAtomTimer = setInterval(() => {
         atomFrame = (atomFrame + 1) % ATOM_FRAMES; // Только frame, без time (просто для инвентаря)
+        if (me.state === "attacking") {
+          me.attackFrameTime = (me.attackFrameTime || 0) + deltaTime;
+          if (me.attackFrameTime >= ATTACK_FRAME_DURATION) {
+            me.attackFrameTime -= ATTACK_FRAME_DURATION;
+            me.attackFrame = (me.attackFrame || 0) + 1;
+            if (me.attackFrame >= ATTACK_FRAME_COUNT) {
+              // Завершение анимации атаки
+              me.state = isMoving ? "walking" : "idle"; // Возвращаем к предыдущему состоянию (с проверкой на движение из movement.js)
+              me.attackFrame = 0;
+              me.attackFrameTime = 0;
+            }
+          }
+        }
         // Обновляем только canvas атомов, без полной перерисовки инвентаря
         if (window.atomAnimations) {
           window.atomAnimations.forEach((anim) => {
@@ -2483,32 +2513,42 @@ function draw(deltaTime) {
       return;
     }
 
-    if (player.state === "walking") {
-      player.frameTime += deltaTime;
-      if (player.frameTime >= GAME_CONFIG.FRAME_DURATION / 40) {
-        player.frameTime -= GAME_CONFIG.FRAME_DURATION / 40;
-        player.frame = (player.frame + 1) % 40;
-      }
-    } else if (player.state === "dying") {
-      player.frame = 0;
-      player.frameTime = 0;
-    } else {
-      player.frame = 0;
-      player.frameTime = 0;
-    }
+    let spriteX, spriteY, frameCount;
 
-    let spriteX = player.frame * 70;
-    let spriteY;
     if (player.state === "dying") {
-      spriteY = 70;
+      spriteY = SPRITE_ROWS.walk_down; // Используем walk_down как базовый для dying (или адаптируй, если есть отдельный ряд)
+      spriteX = player.frame * PLAYER_FRAME_WIDTH;
+      frameCount = WALK_FRAME_COUNT; // Dying использует walk-анимацию (как раньше)
+    } else if (player.state === "attacking") {
+      // Атака: one-shot, используем attackFrame
+      let frame = player.attackFrame || 0;
+      if (frame >= ATTACK_FRAME_COUNT) {
+        frame = ATTACK_FRAME_COUNT - 1; // Защита: не превышаем последний кадр
+      }
+      spriteX = frame * PLAYER_FRAME_WIDTH;
+      if (player.direction === "up" || player.direction === "down") {
+        spriteY = SPRITE_ROWS.attack_up_down;
+      } else if (player.direction === "right") {
+        spriteY = SPRITE_ROWS.attack_right;
+      } else if (player.direction === "left") {
+        spriteY = SPRITE_ROWS.attack_left;
+      } else {
+        spriteY = SPRITE_ROWS.attack_up_down; // Фоллбек
+      }
+      frameCount = ATTACK_FRAME_COUNT;
     } else {
+      // Ходьба или idle
+      const frame = player.state === "walking" ? player.frame : 0; // Idle: первый кадр
+      spriteX = frame * PLAYER_FRAME_WIDTH;
       spriteY =
         {
-          up: 0,
-          down: 70,
-          left: 210,
-          right: 140,
-        }[player.direction] || 0;
+          up: SPRITE_ROWS.walk_up,
+          down: SPRITE_ROWS.walk_down,
+          left: SPRITE_ROWS.walk_left,
+          right: SPRITE_ROWS.walk_right,
+        }[player.direction] || SPRITE_ROWS.walk_down;
+      frameCount = WALK_FRAME_COUNT;
+      player.attackFrame = 0; // Сброс attackFrame, если не в атаке (на всякий случай)
     }
 
     if (images.playerSprite?.complete) {
@@ -2516,8 +2556,8 @@ function draw(deltaTime) {
         images.playerSprite,
         spriteX,
         spriteY,
-        70,
-        70,
+        PLAYER_FRAME_WIDTH,
+        PLAYER_FRAME_HEIGHT,
         screenX,
         screenY,
         70,

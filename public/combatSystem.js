@@ -47,6 +47,12 @@ function performAttack() {
   if (currentTime - lastAttackTime < ATTACK_COOLDOWN) return;
 
   lastAttackTime = currentTime;
+  // Устанавливаем state атаки и сбрасываем frame
+  me.state = "attacking";
+  me.attackFrame = 0;
+  me.attackFrameTime = 0;
+  me.frame = 0; // Сбрасываем walk-frame, чтобы не конфликтовать
+
   const equippedWeapon = me.equipment && me.equipment.weapon;
   const currentWorldId = window.worldSystem.currentWorldId;
 
@@ -428,4 +434,12 @@ window.combatSystem = {
   update: updateBullets,
   draw: drawBullets,
   syncBullets,
+  resetAttackState: function () {
+    const me = players.get(myId);
+    if (me) {
+      me.state = "idle";
+      me.attackFrame = 0;
+      me.attackFrameTime = 0;
+    }
+  },
 };

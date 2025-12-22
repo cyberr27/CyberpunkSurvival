@@ -146,7 +146,9 @@
       return false;
     }
 
-    me.state = "walking";
+    if (me.state !== "attacking") {
+      me.state = "walking";
+    }
     me.direction = getDirection(dx / distance, dy / distance);
 
     const traveled = Math.hypot(me.x - prevX, me.y - prevY);
@@ -237,20 +239,34 @@
       }
     }
 
-    // === Анимация ходьбы ===
-    if (isCurrentlyMoving) {
-      me.frameTime = (me.frameTime || 0) + deltaTime;
-      while (me.frameTime >= ANIMATION_FRAME_DURATION) {
-        me.frameTime -= ANIMATION_FRAME_DURATION;
-        me.frame = (me.frame + 1) % WALK_FRAME_COUNT;
+    if (me.state === "attacking") {
+      me.attackFrameTime = (me.attackFrameTime || 0) + deltaTime;
+      while (me.attackFrameTime >= ATTACK_FRAME_DURATION) {
+        me.attackFrameTime -= ATTACK_FRAME_DURATION;
+        me.attackFrame = (me.attackFrame || 0) + 1;
+        if (me.attackFrame >= ATTACK_FRAME_COUNT) {
+          me.attackFrame = 0;
+          me.attackFrameTime = 0;
+          me.state = isCurrentlyMoving ? "walking" : "idle";
+          me.frame = 0; // Сбрасываем кадр ходьбы, чтобы начать с начала при возврате
+          sendMovementUpdate(me); // Синхронизируем смену состояния с сервером
+          lastSendTime = currentTime;
+        }
       }
-    } else if (me.state === "walking") {
-      // Остановка анимации
-      me.state = "idle";
-      me.frame = 0;
-      me.frameTime = 0;
-      sendMovementUpdate(me);
-      lastSendTime = currentTime;
+    } else {
+      if (isCurrentlyMoving) {
+        me.frameTime = (me.frameTime || 0) + deltaTime;
+        while (me.frameTime >= ANIMATION_FRAME_DURATION) {
+          me.frameTime -= ANIMATION_FRAME_DURATION;
+          me.frame = (me.frame + 1) % WALK_FRAME_COUNT;
+        }
+      } else if (me.state === "walking") {
+        me.state = "idle";
+        me.frame = 0;
+        me.frameTime = 0;
+        sendMovementUpdate(me);
+        lastSendTime = currentTime;
+      }
     }
 
     updateCamera(me);
