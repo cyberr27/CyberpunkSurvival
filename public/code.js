@@ -41,8 +41,8 @@ const WALK_FRAME_DURATION = GAME_CONFIG.FRAME_DURATION / WALK_FRAME_COUNT; // А
 const ATTACK_FRAME_DURATION = 500 / ATTACK_FRAME_COUNT;
 
 const SPRITE_ROWS = {
-  walk_up: 0,
-  walk_down: 70,
+  walk_up: 70,
+  walk_down: 0,
   walk_right: 140,
   walk_left: 210,
   attack_up_down: 280, // Строка 4 для атаки вверх/вниз (один ряд для обоих)
