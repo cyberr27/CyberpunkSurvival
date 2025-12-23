@@ -277,13 +277,13 @@
 
     if (angle > -22.5 && angle <= 22.5) return "right";
     if (angle > 22.5 && angle <= 67.5) return "down-right";
-    if (angle > 67.5 && angle <= 112.5) return "down";
-    if (angle > 112.5 && angle <= 157.5) return "down-left";
+    if (angle > 67.5 && angle <= 112.5) return "up"; // ← ИСПРАВЛЕНО: было "down" → теперь "up"
+    if (angle > 112.5 && angle <= 157.5) return "up-left"; // ← ИСПРАВЛЕНО: было "down-left" → "up-left"
     if (angle > 157.5 || angle <= -157.5) return "left";
-    if (angle > -157.5 && angle <= -112.5) return "up-left";
-    if (angle > -112.5 && angle <= -67.5) return "up";
-    if (angle > -67.5 && angle <= -22.5) return "up-right";
-    return "down";
+    if (angle > -157.5 && angle <= -112.5) return "down-left"; // ← ИСПРАВЛЕНО: было "up-left" → "down-left"
+    if (angle > -112.5 && angle <= -67.5) return "down"; // ← ИСПРАВЛЕНО: было "up" → "down"
+    if (angle > -67.5 && angle <= -22.5) return "down-right"; // ← ИСПРАВЛЕНО: было "up-right" → "down-right"
+    return "up"; // фоллбек — был "down", теперь "up"
   }
 
   function sendMovementUpdate(player) {
