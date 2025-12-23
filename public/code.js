@@ -2003,7 +2003,11 @@ function handleGameMessage(event) {
           // === НОВАЯ ЛОГИКА СТАБИЛИЗАЦИИ ПОЗИЦИИ ===
           // Если игрок активно движется (любым способом) — игнорируем серверную позицию
           // Это сохраняет отзывчивость управления
-          const isCurrentlyMoving = window.movementSystem.isPlayerMoving();
+          const isCurrentlyMoving =
+            window.movementSystem.isPlayerMoving?.() || // если добавим флаг
+            me.state === "walking" ||
+            me.state === "attacking";
+
           if (isCurrentlyMoving) {
             // Всё равно обновляем остальные статы (health, energy, etc.), но НЕ позицию
             const { x, y, direction, state, frame, ...otherStats } =
