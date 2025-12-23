@@ -12,7 +12,7 @@
   const camera = { x: 0, y: 0, targetX: 0, targetY: 0, lerpFactor: 0.1 };
 
   const ANIMATION_FRAME_DURATION = 80; // ms → 5 FPS
-  const WALK_FRAME_COUNT = 7;
+  const WALK_FRAME_COUNT = 13;
 
   const sendInterval = 100;
   let lastSendTime = 0;
@@ -374,5 +374,9 @@
     initialize: initializeMovement,
     update: updateMovement,
     getCamera: getCamera,
+    isPlayerMoving: () => {
+      const me = players.get(myId);
+      return me ? me.state === "walking" || me.state === "attacking" : false;
+    },
   };
 })();

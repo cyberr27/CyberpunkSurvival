@@ -22,7 +22,7 @@ let myId;
 const items = new Map();
 
 const GAME_CONFIG = {
-  FRAME_DURATION: 500, // 700 мс на весь цикл (≈100 мс на кадр)
+  FRAME_DURATION: 80, // 700 мс на весь цикл (≈100 мс на кадр)
 };
 
 // Глобальная анимация АТОМА (для поля + инвентаря)
@@ -1997,23 +1997,61 @@ function handleGameMessage(event) {
         pendingPickups.delete(data.itemId);
         break;
       case "update":
-        // Синхронизируем игрока, инвентарь и экипировку
         if (data.player && data.player.id === myId) {
-          // Обновляем игрока
-          players.set(myId, { ...players.get(myId), ...data.player });
-          // Обновляем инвентарь
+          const me = players.get(myId);
+
+          // === НОВАЯ ЛОГИКА СТАБИЛИЗАЦИИ ПОЗИЦИИ ===
+          // Если игрок активно движется (любым способом) — игнорируем серверную позицию
+          // Это сохраняет отзывчивость управления
+          const isCurrentlyMoving = window.movementSystem.isPlayerMoving();
+          if (isCurrentlyMoving) {
+            // Всё равно обновляем остальные статы (health, energy, etc.), но НЕ позицию
+            const { x, y, direction, state, frame, ...otherStats } =
+              data.player;
+            Object.assign(me, otherStats);
+          } else {
+            // Игрок стоит или только что остановился → плавно подгоняем позицию под серверную
+            if (data.player.x !== undefined && data.player.y !== undefined) {
+              // Инициализируем целевые координаты при первом откате
+              if (me.serverTargetX === undefined) me.serverTargetX = me.x;
+              if (me.serverTargetY === undefined) me.serverTargetY = me.y;
+
+              // Устанавливаем новые цели от сервера
+              me.serverTargetX = data.player.x;
+              me.serverTargetY = data.player.y;
+
+              // Плавно интерполируем (lerp 0.1 — как у камеры)
+              me.x += (me.serverTargetX - me.x) * 0.1;
+              me.y += (me.serverTargetY - me.y) * 0.1;
+
+              // Если почти дошли — фиксируем точно, чтобы не было вечного подрагивания
+              if (
+                Math.abs(me.serverTargetX - me.x) < 0.5 &&
+                Math.abs(me.serverTargetY - me.y) < 0.5
+              ) {
+                me.x = me.serverTargetX;
+                me.y = me.serverTargetY;
+                delete me.serverTargetX;
+                delete me.serverTargetY;
+              }
+            }
+
+            // Обновляем остальные данные полностью
+            const { x, y, ...safeStats } = data.player;
+            Object.assign(me, safeStats);
+          }
+
+          // Инвентарь и экипировка — обновляем всегда
           if (data.player.inventory) {
             inventory = data.player.inventory;
             updateInventoryDisplay();
           }
-
-          // Обновляем экипировку
           if (data.player.equipment) {
             window.equipmentSystem.syncEquipment(data.player.equipment);
           }
           updateStatsDisplay();
         } else if (data.player && data.player.id) {
-          // обновление других игроков
+          // Другие игроки — обновляем жёстко, как и было
           players.set(data.player.id, {
             ...players.get(data.player.id),
             ...data.player,
