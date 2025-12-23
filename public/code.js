@@ -1263,6 +1263,8 @@ function toggleInventory() {
   isInventoryOpen = !isInventoryOpen;
   window.isInventoryOpen = isInventoryOpen;
 
+  const me = players.get(myId);
+
   // НОВОЕ: Проверка на мобильное устройство и закрытие экипировки, если она открыта и мы открываем инвентарь
   const isMobile = window.innerWidth <= 500;
   if (isMobile && isInventoryOpen && window.equipmentSystem.isEquipmentOpen) {
