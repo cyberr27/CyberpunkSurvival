@@ -1851,7 +1851,16 @@ function handleGameMessage(event) {
           }
           data.players.forEach((p) => {
             if (p && p.id && p.id !== myId && typeof p === "object") {
-              players.set(p.id, { ...p, frameTime: 0 });
+              players.set(p.id, {
+                ...p,
+                frameTime: 0,
+                targetX: p.x,
+                targetY: p.y,
+                targetFrame: p.state === "walking" ? p.frame : 0,
+                targetDirection: p.direction,
+                targetState: p.state,
+                targetAttackFrame: p.attackFrame || 0,
+              });
             } else {
             }
           });
@@ -1923,9 +1932,29 @@ function handleGameMessage(event) {
           break;
         }
         if (players.has(data.player.id)) {
-          players.set(data.player.id, { ...data.player, frameTime: 0 });
+          players.set(data.player.id, {
+            ...data.player,
+            frameTime: 0,
+            targetX: data.player.x,
+            targetY: data.player.y,
+            targetFrame:
+              data.player.state === "walking" ? data.player.frame : 0,
+            targetDirection: data.player.direction,
+            targetState: data.player.state,
+            targetAttackFrame: data.player.attackFrame || 0,
+          });
         } else {
-          players.set(data.player.id, { ...data.player, frameTime: 0 });
+          players.set(data.player.id, {
+            ...data.player,
+            frameTime: 0,
+            targetX: data.player.x,
+            targetY: data.player.y,
+            targetFrame:
+              data.player.state === "walking" ? data.player.frame : 0,
+            targetDirection: data.player.direction,
+            targetState: data.player.state,
+            targetAttackFrame: data.player.attackFrame || 0,
+          });
         }
         break;
       case "playerLeft":
@@ -2057,11 +2086,34 @@ function handleGameMessage(event) {
           }
           updateStatsDisplay();
         } else if (data.player && data.player.id) {
-          // Другие игроки — обновляем жёстко, как и было
-          players.set(data.player.id, {
-            ...players.get(data.player.id),
+          const existing = players.get(data.player.id) || {};
+
+          // Сразу обновляем важные вещи, которые не нужно интерполировать
+          const updated = {
+            ...existing,
             ...data.player,
-          });
+
+            // Целевые значения для интерполяции (всегда берём с сервера)
+            targetX: data.player.x,
+            targetY: data.player.y,
+            targetFrame:
+              data.player.state === "walking" ? data.player.frame : 0,
+            targetDirection: data.player.direction,
+            targetState: data.player.state,
+            targetAttackFrame: data.player.attackFrame || 0,
+
+            // Инициализируем текущие отображаемые значения, если их ещё нет
+            x: existing.x ?? data.player.x,
+            y: existing.y ?? data.player.y,
+            frame:
+              existing.frame ??
+              (data.player.state === "walking" ? data.player.frame : 0),
+            direction: data.player.direction,
+            state: data.player.state,
+            attackFrame: data.player.attackFrame || 0,
+          };
+
+          players.set(data.player.id, updated);
         }
         break;
       case "itemDropped":
@@ -2357,16 +2409,66 @@ function resizeCanvas() {
 }
 
 function update(deltaTime) {
-  // ГЛОБАЛЬНАЯ АНИМАЦИЯ АТОМА — 1 раз/кадр, супер-дешево
+  // ГЛОБАЛЬНАЯ АНИМАЦИЯ АТОМА
   atomFrameTime += deltaTime;
   while (atomFrameTime >= ATOM_FRAME_DURATION) {
-    // while для fixed-rate (не зависит от FPS)
     atomFrameTime -= ATOM_FRAME_DURATION;
     atomFrame = (atomFrame + 1) % ATOM_FRAMES;
   }
-  const me = players.get(myId);
 
-  // ИСПРАВЛЕНИЕ: Применяем эффекты экипировки, если не применены и игрок существует
+  const me = players.get(myId);
+  const currentWorldId = window.worldSystem.currentWorldId;
+
+  // === Интерполяция и локальная анимация других игроков ===
+  players.forEach((player, id) => {
+    if (id === myId) return;
+    if (player.worldId !== currentWorldId) return;
+
+    const lerpFactor = 0.15;
+
+    // Плавная позиция
+    if (player.targetX !== undefined && player.targetY !== undefined) {
+      player.x += (player.targetX - player.x) * lerpFactor;
+      player.y += (player.targetY - player.y) * lerpFactor;
+    }
+
+    // Направление и состояние — сразу с сервера
+    if (player.targetDirection !== undefined) {
+      player.direction = player.targetDirection;
+    }
+    if (player.targetState !== undefined) {
+      player.state = player.targetState;
+    }
+
+    // Атака — one-shot кадр с сервера
+    if (
+      player.state === "attacking" &&
+      player.targetAttackFrame !== undefined
+    ) {
+      player.attackFrame = player.targetAttackFrame;
+    }
+
+    // === ЛОКАЛЬНАЯ АНИМАЦИЯ ХОДЬБЫ ===
+    if (player.state === "walking") {
+      // Инициализируем animTime, если его нет
+      if (player.animTime === undefined) player.animTime = 0;
+
+      player.animTime += deltaTime;
+
+      // Скорость анимации — как у своего игрока (80 мс на кадр, 13 кадров)
+      const frameDuration = 80; // ms на кадр — это ≈12.5 FPS, выглядит бодро
+      const frameIndex =
+        Math.floor(player.animTime / frameDuration) % WALK_FRAME_COUNT;
+
+      player.frame = frameIndex;
+    } else {
+      // Не ходим — первый кадр (idle) или атака
+      player.frame = 0;
+      if (player.animTime !== undefined) player.animTime = 0; // сбрасываем для плавного старта при следующем движении
+    }
+  });
+
+  // Экипировка один раз
   if (
     window.equipmentSystem &&
     me &&
@@ -2376,53 +2478,39 @@ function update(deltaTime) {
     window.equipmentSystem.syncEquipment(me.equipment);
     window.equipmentSystem.lastApplied = true;
     updateStatsDisplay();
-    // Убрал console.log, чтобы не нагружать CPU на каждом кадре
   }
 
-  // Обновляем движение через movementSystem
   window.movementSystem.update(deltaTime);
   if (!me || me.health <= 0) return;
 
   window.combatSystem.update(deltaTime);
   window.enemySystem.update(deltaTime);
-  // === Новый NPC: Neon Alex ===
-  if (window.neonNpcSystem) {
-    window.neonNpcSystem.update(deltaTime);
-  }
-  if (window.vacuumRobotSystem) {
-    window.vacuumRobotSystem.update(deltaTime);
-  }
+
+  if (window.neonNpcSystem) window.neonNpcSystem.update(deltaTime);
+  if (window.vacuumRobotSystem) window.vacuumRobotSystem.update(deltaTime);
   window.cockroachSystem.update(deltaTime);
   window.droneSystem.update(deltaTime);
   window.bonfireSystem.update(deltaTime);
   clockSystem.update(deltaTime);
-  if (window.corporateRobotSystem) {
+  if (window.corporateRobotSystem)
     window.corporateRobotSystem.update(deltaTime);
-  }
-  if (window.robotDoctorSystem) {
-    window.robotDoctorSystem.update(deltaTime);
-  }
-  if (window.outpostCaptainSystem) {
+  if (window.robotDoctorSystem) window.robotDoctorSystem.update(deltaTime);
+  if (window.outpostCaptainSystem)
     window.outpostCaptainSystem.update(deltaTime);
-  }
-  // Проверяем зоны перехода
+
   window.worldSystem.checkTransitionZones(me.x, me.y);
 
-  // Обновление анимаций предметов (без отрисовки и без console.log)
-  const currentWorldId = window.worldSystem.currentWorldId;
+  // Анимация атомов на земле
   items.forEach((item) => {
-    // Пропускаем предметы из других миров сразу, без логов
     if (item.worldId !== currentWorldId) return;
-
-    // Специальная обработка только для атома: обновляем frame (анимация)
     if (item.type === "atom") {
       if (item.frameTime === undefined) item.frameTime = 0;
       if (item.frame === undefined) item.frame = 0;
       item.frameTime += deltaTime;
-      const frameDuration = 300; // Скорость анимации
+      const frameDuration = 300;
       if (item.frameTime >= frameDuration) {
         item.frameTime -= frameDuration;
-        item.frame = (item.frame + 1) % 40; // 40 кадров
+        item.frame = (item.frame + 1) % 40;
       }
     }
   });
@@ -2550,43 +2638,32 @@ function draw(deltaTime) {
 
     const screenX = player.x - cameraX;
     const screenY = player.y - cameraY;
-
-    // Быстрая проверка видимости
     if (
       screenX < -70 ||
       screenX > viewWidth ||
       screenY < -70 ||
       screenY > viewHeight
-    ) {
+    )
       return;
-    }
 
-    let spriteX, spriteY, frameCount;
+    let spriteX, spriteY;
 
     if (player.state === "dying") {
-      spriteY = SPRITE_ROWS.walk_down; // Используем walk_down как базовый для dying (или адаптируй, если есть отдельный ряд)
+      spriteY = SPRITE_ROWS.walk_down;
       spriteX = player.frame * PLAYER_FRAME_WIDTH;
-      frameCount = WALK_FRAME_COUNT; // Dying использует walk-анимацию (как раньше)
     } else if (player.state === "attacking") {
-      // Атака: one-shot, используем attackFrame
       let frame = player.attackFrame || 0;
-      if (frame >= ATTACK_FRAME_COUNT) {
-        frame = ATTACK_FRAME_COUNT - 1; // Защита: не превышаем последний кадр
-      }
+      if (frame >= ATTACK_FRAME_COUNT) frame = ATTACK_FRAME_COUNT - 1;
       spriteX = frame * PLAYER_FRAME_WIDTH;
-      if (player.direction === "up" || player.direction === "down") {
-        spriteY = SPRITE_ROWS.attack_up_down;
-      } else if (player.direction === "right") {
-        spriteY = SPRITE_ROWS.attack_right;
-      } else if (player.direction === "left") {
-        spriteY = SPRITE_ROWS.attack_left;
-      } else {
-        spriteY = SPRITE_ROWS.attack_up_down; // Фоллбек
-      }
-      frameCount = ATTACK_FRAME_COUNT;
+      spriteY =
+        player.direction === "up" || player.direction === "down"
+          ? SPRITE_ROWS.attack_up_down
+          : player.direction === "right"
+          ? SPRITE_ROWS.attack_right
+          : SPRITE_ROWS.attack_left;
     } else {
-      // Ходьба или idle
-      const frame = player.state === "walking" ? player.frame : 0; // Idle: первый кадр
+      // walking или idle
+      const frame = player.state === "walking" ? player.frame : 0;
       spriteX = frame * PLAYER_FRAME_WIDTH;
       spriteY =
         {
@@ -2595,8 +2672,6 @@ function draw(deltaTime) {
           left: SPRITE_ROWS.walk_left,
           right: SPRITE_ROWS.walk_right,
         }[player.direction] || SPRITE_ROWS.walk_down;
-      frameCount = WALK_FRAME_COUNT;
-      player.attackFrame = 0; // Сброс attackFrame, если не в атаке (на всякий случай)
     }
 
     if (images.playerSprite?.complete) {

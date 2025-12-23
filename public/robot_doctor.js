@@ -87,7 +87,7 @@ window.robotDoctorSystem = (() => {
 
     const img = document.createElement("img");
     img.className = "npc-photo";
-    img.src = "robot_doctor_photo.png";
+    img.src = "robot_doctor_foto.png";
 
     const title = document.createElement("h2");
     title.className = "npc-title";
