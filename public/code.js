@@ -2105,14 +2105,18 @@ function handleGameMessage(event) {
         window.tradeSystem.handleTradeMessage(data);
         break;
       case "useItemSuccess":
-        me = players.get(myId);
-        me.health = data.stats.health;
-        me.energy = data.stats.energy;
-        me.food = data.stats.food;
-        me.water = data.stats.water;
-        inventory = data.inventory;
-        updateStatsDisplay();
-        updateInventoryDisplay();
+        {
+          const me = players.get(myId);
+          if (me) {
+            me.health = data.stats.health;
+            me.energy = data.stats.energy;
+            me.food = data.stats.food;
+            me.water = data.stats.water;
+          }
+          inventory = data.inventory;
+          updateStatsDisplay();
+          updateInventoryDisplay();
+        }
         break;
       case "syncBullets":
         window.combatSystem.syncBullets(data.bullets);
