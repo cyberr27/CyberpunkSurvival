@@ -11,7 +11,7 @@
 
   const camera = { x: 0, y: 0, targetX: 0, targetY: 0, lerpFactor: 0.1 };
 
-  const ANIMATION_FRAME_DURATION = 200; // ms → 5 FPS
+  const ANIMATION_FRAME_DURATION = 80; // ms → 5 FPS
   const WALK_FRAME_COUNT = 7;
 
   const sendInterval = 100;
@@ -149,7 +149,7 @@
     if (me.state !== "attacking") {
       me.state = "walking";
     }
-    me.direction = getDirection(dx / distance, dy / distance);
+    me.direction = getDirection(dx / distance, dy / distance, me);
 
     const traveled = Math.hypot(me.x - prevX, me.y - prevY);
     me.distanceTraveled = (me.distanceTraveled || 0) + traveled;
@@ -255,12 +255,24 @@
       }
     } else {
       if (isCurrentlyMoving) {
+        // === СТАБИЛИЗАЦИЯ НАПРАВЛЕНИЯ И СБРОС КАДРА ПРИ СМЕНЕ ===
+        const prevDirection = me.direction;
+
+        // direction уже обновлён в movePlayer() — используем его
+        if (me.direction !== prevDirection) {
+          // При смене направления сбрасываем кадр анимации
+          me.frame = 0;
+          me.frameTime = 0; // чтобы не было задержки перед первым кадром
+        }
+
+        // Продолжаем анимацию ходьбы
         me.frameTime = (me.frameTime || 0) + deltaTime;
         while (me.frameTime >= ANIMATION_FRAME_DURATION) {
           me.frameTime -= ANIMATION_FRAME_DURATION;
           me.frame = (me.frame + 1) % WALK_FRAME_COUNT;
         }
       } else if (me.state === "walking") {
+        // Переход в idle
         me.state = "idle";
         me.frame = 0;
         me.frameTime = 0;
@@ -272,18 +284,52 @@
     updateCamera(me);
   }
 
-  function getDirection(normX, normY) {
+  function getDirection(normX, normY, currentPlayer) {
     const angle = Math.atan2(normY, normX) * (180 / Math.PI);
 
+    // Гистерезис: используем текущее направление игрока
+    const currentDir = currentPlayer.direction || "down"; // фоллбек на down
+
+    const prevAngleMap = {
+      right: 0,
+      "down-right": 45,
+      down: 90,
+      "up-left": 135,
+      left: 180,
+      "down-left": -135,
+      up: -90,
+      "up-right": -45,
+    };
+
+    const prevAngle = prevAngleMap[currentDir] || 0;
+
+    let diff = angle - prevAngle;
+    // Нормализуем угол
+    while (diff > 180) diff -= 360;
+    while (diff <= -180) diff += 360;
+
+    // Если отклонение меньше 20° — сохраняем старое направление
+    if (Math.abs(diff) < 20) {
+      return currentDir;
+    }
+
+    // Стандартное определение направления
     if (angle > -22.5 && angle <= 22.5) return "right";
     if (angle > 22.5 && angle <= 67.5) return "down-right";
-    if (angle > 67.5 && angle <= 112.5) return "up"; // ← ИСПРАВЛЕНО: было "down" → теперь "up"
-    if (angle > 112.5 && angle <= 157.5) return "up-left"; // ← ИСПРАВЛЕНО: было "down-left" → "up-left"
+    if (angle > 67.5 && angle <= 112.5) return "up";
+    if (angle > 112.5 && angle <= 157.5) return "up-left";
     if (angle > 157.5 || angle <= -157.5) return "left";
-    if (angle > -157.5 && angle <= -112.5) return "down-left"; // ← ИСПРАВЛЕНО: было "up-left" → "down-left"
-    if (angle > -112.5 && angle <= -67.5) return "down"; // ← ИСПРАВЛЕНО: было "up" → "down"
-    if (angle > -67.5 && angle <= -22.5) return "down-right"; // ← ИСПРАВЛЕНО: было "up-right" → "down-right"
-    return "up"; // фоллбек — был "down", теперь "up"
+    if (angle > -157.5 && angle <= -112.5) return "down-left";
+    if (angle > -112.5 && angle <= -67.5) return "down";
+    if (angle > -67.5 && angle <= -22.5) return "down-right";
+    return "up"; // фоллбек
+  }
+
+  // Вспомогательная функция нормализации угла
+  function normalizeAngle(angle) {
+    while (angle > 180) angle -= 360;
+    while (angle <= -180) angle += 360;
+    return angle;
   }
 
   function sendMovementUpdate(player) {

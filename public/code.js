@@ -22,7 +22,7 @@ let myId;
 const items = new Map();
 
 const GAME_CONFIG = {
-  FRAME_DURATION: 300, // 700 мс на весь цикл (≈100 мс на кадр)
+  FRAME_DURATION: 500, // 700 мс на весь цикл (≈100 мс на кадр)
 };
 
 // Глобальная анимация АТОМА (для поля + инвентаря)
@@ -32,6 +32,11 @@ const ATOM_FRAMES = 40; // Количество кадров в спрайте (
 const ATOM_FRAME_DURATION = 180; // ms на кадр (8 FPS: плавно, без лагов. Можно протестировать 100-150 для скорости)
 let inventoryAtomTimer = null;
 const pendingPickups = new Set();
+
+// Добавляем переменные для управления анимацией
+let lastTime = 0; // Время последнего кадра для расчета deltaTime
+let lastRender = 0; // Новая для трекинга последнего рендера
+const FPS = 60; // Целевой FPS, можно изменить
 
 const PLAYER_FRAME_WIDTH = 70; // Ширина кадра (не меняем)
 const PLAYER_FRAME_HEIGHT = 70; // Высота кадра (не меняем)
@@ -567,11 +572,6 @@ let reconnectAttempts = 0;
 const maxReconnectAttempts = 5;
 const reconnectDelay = 2000; // 2 секунды
 let lastDistance = 0; // Добавляем глобальную переменную
-
-// Добавляем переменные для управления анимацией
-let lastTime = 0; // Время последнего кадра для расчета deltaTime
-let lastRender = 0; // Новая для трекинга последнего рендера
-const FPS = 12; // Целевой FPS, можно изменить
 
 // Переключение форм
 toRegister.addEventListener("click", () => {
