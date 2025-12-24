@@ -1839,21 +1839,17 @@ function handleGameMessage(event) {
 
     switch (data.type) {
       case "syncPlayers":
-        if (
-          data.players &&
-          data.worldId === window.worldSystem.currentWorldId
-        ) {
+        if (data.worldId === currentWorldId && data.players) {
           const myPlayer = players.get(myId);
           players.clear();
-          if (myPlayer) {
-            players.set(myId, { ...myPlayer, frameTime: 0 });
-          } else {
-          }
+          if (myPlayer) players.set(myId, { ...myPlayer, frameTime: 0 });
+
           data.players.forEach((p) => {
-            if (p && p.id && p.id !== myId && typeof p === "object") {
+            if (p?.id && p.id !== myId) {
               players.set(p.id, {
                 ...p,
                 frameTime: 0,
+                animTime: 0,
                 targetX: p.x,
                 targetY: p.y,
                 targetFrame: p.state === "walking" ? p.frame : 0,
@@ -1861,7 +1857,6 @@ function handleGameMessage(event) {
                 targetState: p.state,
                 targetAttackFrame: p.attackFrame || 0,
               });
-            } else {
             }
           });
         }
@@ -1917,40 +1912,12 @@ function handleGameMessage(event) {
         }, 1000); // Задержка 1 секунда
         break;
       case "newPlayer":
-        if (!data.player || typeof data.player !== "object") {
-          console.warn(
-            "newPlayer: Получены некорректные данные игрока:",
-            data.player
-          );
-          break;
-        }
-        if (!data.player.id) {
-          console.warn("newPlayer: Отсутствует ID игрока:", data.player);
-          break;
-        }
-        if (data.player.worldId !== currentWorldId) {
-          break;
-        }
-        if (players.has(data.player.id)) {
+        if (data.player?.id && data.player.worldId === currentWorldId) {
           players.set(data.player.id, {
             ...data.player,
-            frameTime: 0,
+            animTime: 0,
             targetX: data.player.x,
             targetY: data.player.y,
-            targetFrame:
-              data.player.state === "walking" ? data.player.frame : 0,
-            targetDirection: data.player.direction,
-            targetState: data.player.state,
-            targetAttackFrame: data.player.attackFrame || 0,
-          });
-        } else {
-          players.set(data.player.id, {
-            ...data.player,
-            frameTime: 0,
-            targetX: data.player.x,
-            targetY: data.player.y,
-            targetFrame:
-              data.player.state === "walking" ? data.player.frame : 0,
             targetDirection: data.player.direction,
             targetState: data.player.state,
             targetAttackFrame: data.player.attackFrame || 0,
@@ -2028,38 +1995,19 @@ function handleGameMessage(event) {
         pendingPickups.delete(data.itemId);
         break;
       case "update":
-        if (data.player && data.player.id === myId) {
+        if (data.player?.id === myId) {
           const me = players.get(myId);
+          const isMoving = me.state === "walking" || me.state === "attacking";
 
-          // === НОВАЯ ЛОГИКА СТАБИЛИЗАЦИИ ПОЗИЦИИ ===
-          // Если игрок активно движется (любым способом) — игнорируем серверную позицию
-          // Это сохраняет отзывчивость управления
-          const isCurrentlyMoving =
-            window.movementSystem.isPlayerMoving?.() || // если добавим флаг
-            me.state === "walking" ||
-            me.state === "attacking";
-
-          if (isCurrentlyMoving) {
-            // Всё равно обновляем остальные статы (health, energy, etc.), но НЕ позицию
-            const { x, y, direction, state, frame, ...otherStats } =
-              data.player;
-            Object.assign(me, otherStats);
+          if (isMoving) {
+            const { x, y, direction, state, frame, ...stats } = data.player;
+            Object.assign(me, stats);
           } else {
-            // Игрок стоит или только что остановился → плавно подгоняем позицию под серверную
-            if (data.player.x !== undefined && data.player.y !== undefined) {
-              // Инициализируем целевые координаты при первом откате
-              if (me.serverTargetX === undefined) me.serverTargetX = me.x;
-              if (me.serverTargetY === undefined) me.serverTargetY = me.y;
-
-              // Устанавливаем новые цели от сервера
+            if (data.player.x !== undefined) {
               me.serverTargetX = data.player.x;
               me.serverTargetY = data.player.y;
-
-              // Плавно интерполируем (lerp 0.1 — как у камеры)
               me.x += (me.serverTargetX - me.x) * 0.1;
               me.y += (me.serverTargetY - me.y) * 0.1;
-
-              // Если почти дошли — фиксируем точно, чтобы не было вечного подрагивания
               if (
                 Math.abs(me.serverTargetX - me.x) < 0.5 &&
                 Math.abs(me.serverTargetY - me.y) < 0.5
@@ -2070,13 +2018,10 @@ function handleGameMessage(event) {
                 delete me.serverTargetY;
               }
             }
-
-            // Обновляем остальные данные полностью
-            const { x, y, ...safeStats } = data.player;
-            Object.assign(me, safeStats);
+            const { x, y, ...stats } = data.player;
+            Object.assign(me, stats);
           }
 
-          // Инвентарь и экипировка — обновляем всегда
           if (data.player.inventory) {
             inventory = data.player.inventory;
             updateInventoryDisplay();
@@ -2085,24 +2030,16 @@ function handleGameMessage(event) {
             window.equipmentSystem.syncEquipment(data.player.equipment);
           }
           updateStatsDisplay();
-        } else if (data.player && data.player.id) {
+        } else if (data.player?.id) {
           const existing = players.get(data.player.id) || {};
-
-          // Сразу обновляем важные вещи, которые не нужно интерполировать
-          const updated = {
+          players.set(data.player.id, {
             ...existing,
             ...data.player,
-
-            // Целевые значения для интерполяции (всегда берём с сервера)
             targetX: data.player.x,
             targetY: data.player.y,
-            targetFrame:
-              data.player.state === "walking" ? data.player.frame : 0,
             targetDirection: data.player.direction,
             targetState: data.player.state,
             targetAttackFrame: data.player.attackFrame || 0,
-
-            // Инициализируем текущие отображаемые значения, если их ещё нет
             x: existing.x ?? data.player.x,
             y: existing.y ?? data.player.y,
             frame:
@@ -2111,9 +2048,7 @@ function handleGameMessage(event) {
             direction: data.player.direction,
             state: data.player.state,
             attackFrame: data.player.attackFrame || 0,
-          };
-
-          players.set(data.player.id, updated);
+          });
         }
         break;
       case "itemDropped":
@@ -2409,7 +2344,7 @@ function resizeCanvas() {
 }
 
 function update(deltaTime) {
-  // ГЛОБАЛЬНАЯ АНИМАЦИЯ АТОМА
+  // Глобальная анимация атома — одна на всю игру
   atomFrameTime += deltaTime;
   while (atomFrameTime >= ATOM_FRAME_DURATION) {
     atomFrameTime -= ATOM_FRAME_DURATION;
@@ -2417,30 +2352,28 @@ function update(deltaTime) {
   }
 
   const me = players.get(myId);
-  const currentWorldId = window.worldSystem.currentWorldId;
+  if (!me) return;
 
-  // === Интерполяция и локальная анимация других игроков ===
+  const currentWorldId = window.worldSystem.currentWorldId;
+  const camera = window.movementSystem.getCamera();
+
+  // === Интерполяция и анимация других игроков ===
   players.forEach((player, id) => {
-    if (id === myId) return;
-    if (player.worldId !== currentWorldId) return;
+    if (id === myId || player.worldId !== currentWorldId) return;
 
     const lerpFactor = 0.15;
 
-    // Плавная позиция
-    if (player.targetX !== undefined && player.targetY !== undefined) {
+    // Позиция
+    if (player.targetX !== undefined) {
       player.x += (player.targetX - player.x) * lerpFactor;
       player.y += (player.targetY - player.y) * lerpFactor;
     }
 
-    // Направление и состояние — сразу с сервера
-    if (player.targetDirection !== undefined) {
-      player.direction = player.targetDirection;
-    }
-    if (player.targetState !== undefined) {
-      player.state = player.targetState;
-    }
+    // Состояние и направление — сразу с сервера
+    player.direction = player.targetDirection ?? player.direction;
+    player.state = player.targetState ?? player.state;
 
-    // Атака — one-shot кадр с сервера
+    // Атака — фиксируем кадр с сервера
     if (
       player.state === "attacking" &&
       player.targetAttackFrame !== undefined
@@ -2448,30 +2381,21 @@ function update(deltaTime) {
       player.attackFrame = player.targetAttackFrame;
     }
 
-    // === ЛОКАЛЬНАЯ АНИМАЦИЯ ХОДЬБЫ ===
+    // Локальная анимация ходьбы (13 кадров, плавно)
     if (player.state === "walking") {
-      // Инициализируем animTime, если его нет
-      if (player.animTime === undefined) player.animTime = 0;
-
-      player.animTime += deltaTime;
-
-      // Скорость анимации — как у своего игрока (80 мс на кадр, 13 кадров)
-      const frameDuration = 80; // ms на кадр — это ≈12.5 FPS, выглядит бодро
-      const frameIndex =
+      player.animTime = (player.animTime || 0) + deltaTime;
+      const frameDuration = 80; // одинаково с своим игроком
+      player.frame =
         Math.floor(player.animTime / frameDuration) % WALK_FRAME_COUNT;
-
-      player.frame = frameIndex;
     } else {
-      // Не ходим — первый кадр (idle) или атака
       player.frame = 0;
-      if (player.animTime !== undefined) player.animTime = 0; // сбрасываем для плавного старта при следующем движении
+      player.animTime = 0;
     }
   });
 
-  // Экипировка один раз
+  // Применяем эффекты экипировки один раз при логине
   if (
     window.equipmentSystem &&
-    me &&
     me.equipment &&
     !window.equipmentSystem.lastApplied
   ) {
@@ -2481,8 +2405,9 @@ function update(deltaTime) {
   }
 
   window.movementSystem.update(deltaTime);
-  if (!me || me.health <= 0) return;
+  if (me.health <= 0) return;
 
+  // Обновление систем
   window.combatSystem.update(deltaTime);
   window.enemySystem.update(deltaTime);
 
@@ -2499,21 +2424,6 @@ function update(deltaTime) {
     window.outpostCaptainSystem.update(deltaTime);
 
   window.worldSystem.checkTransitionZones(me.x, me.y);
-
-  // Анимация атомов на земле
-  items.forEach((item) => {
-    if (item.worldId !== currentWorldId) return;
-    if (item.type === "atom") {
-      if (item.frameTime === undefined) item.frameTime = 0;
-      if (item.frame === undefined) item.frame = 0;
-      item.frameTime += deltaTime;
-      const frameDuration = 300;
-      if (item.frameTime >= frameDuration) {
-        item.frameTime -= frameDuration;
-        item.frame = (item.frame + 1) % 40;
-      }
-    }
-  });
 }
 
 function draw(deltaTime) {
@@ -2561,26 +2471,26 @@ function draw(deltaTime) {
   // Отрисовка предметов (оптимизировано: без дубликатов, с ранней проверкой видимости)
   const cameraX = window.movementSystem.getCamera().x;
   const cameraY = window.movementSystem.getCamera().y;
-  const viewWidth = canvas.width + 80; // Буфер для видимости (40 слева/справа)
-  const viewHeight = canvas.height + 80;
-  items.forEach((item, itemId) => {
-    if (item.worldId !== currentWorldId) return; // Ранняя проверка мира
+  // Предметы — оптимизированная отрисовка
+  const viewWidth = canvas.width + 100;
+  const viewHeight = canvas.height + 100;
+
+  items.forEach((item) => {
+    if (item.worldId !== currentWorldId) return;
 
     const screenX = item.x - cameraX;
     const screenY = item.y - cameraY;
 
-    // Быстрая проверка видимости без Math.sqrt (bounding box)
     if (
-      screenX < -40 ||
+      screenX < -60 ||
       screenX > viewWidth ||
-      screenY < -40 ||
+      screenY < -60 ||
       screenY > viewHeight
-    ) {
-      return; // Пропускаем невидимые предметы раньше
-    }
+    )
+      return;
 
-    if (!ITEM_CONFIG[item.type] || !ITEM_CONFIG[item.type].image?.complete) {
-      // Упрощённая заглушка без console.warn (чтобы не нагружать)
+    const config = ITEM_CONFIG[item.type];
+    if (!config?.image?.complete) {
       ctx.fillStyle = "yellow";
       ctx.fillRect(screenX, screenY, 20, 20);
       return;
@@ -2588,8 +2498,8 @@ function draw(deltaTime) {
 
     if (item.type === "atom") {
       ctx.drawImage(
-        ITEM_CONFIG[item.type].image,
-        atomFrame * 50, // ГЛОБАЛЬНЫЙ вместо item.frame * 50
+        config.image,
+        atomFrame * 50,
         0,
         50,
         50,
@@ -2599,7 +2509,7 @@ function draw(deltaTime) {
         50
       );
     } else {
-      ctx.drawImage(ITEM_CONFIG[item.type].image, screenX, screenY, 20, 20);
+      ctx.drawImage(config.image, screenX, screenY, 20, 20);
     }
   });
 
@@ -2639,9 +2549,9 @@ function draw(deltaTime) {
     const screenX = player.x - cameraX;
     const screenY = player.y - cameraY;
     if (
-      screenX < -70 ||
+      screenX < -80 ||
       screenX > viewWidth ||
-      screenY < -70 ||
+      screenY < -80 ||
       screenY > viewHeight
     )
       return;
@@ -2662,7 +2572,6 @@ function draw(deltaTime) {
           ? SPRITE_ROWS.attack_right
           : SPRITE_ROWS.attack_left;
     } else {
-      // walking или idle
       const frame = player.state === "walking" ? player.frame : 0;
       spriteX = frame * PLAYER_FRAME_WIDTH;
       spriteY =
@@ -2691,65 +2600,37 @@ function draw(deltaTime) {
       ctx.fillRect(screenX, screenY, 70, 70);
     }
 
-    const nameY = screenY - 45; // имя выше
-    const healthY = screenY - 25; // здоровье ниже имени, идеальный отступ
+    // Оптимизированный неоновый текст (меньше слоёв, но всё ещё красиво)
+    const nameY = screenY - 45;
+    const healthY = screenY - 25;
 
-    // Имя игрока — неоновый стиль
     ctx.font = "20px 'Courier New', monospace";
     ctx.textAlign = "center";
+
+    // Имя
     ctx.strokeStyle = "black";
     ctx.lineWidth = 4;
-
-    // Мерцание + основной цвет
-    ctx.fillStyle = "#3700ffff";
     ctx.strokeText(player.id, screenX + 35, nameY);
+    ctx.fillStyle = "#00ffff";
+    ctx.shadowColor = "#00ffff";
+    ctx.shadowBlur = 10;
     ctx.fillText(player.id, screenX + 35, nameY);
 
-    // Дополнительный розовый glow
-    ctx.fillStyle = "#ff00ff";
-    ctx.globalAlpha = 0.6;
-    ctx.fillText(player.id, screenX + 35, nameY);
-    ctx.globalAlpha = 1.0;
-
-    // Тень/свечение имени
-    ctx.shadowColor = "#00bbffff";
-    ctx.shadowBlur = 12;
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = "#00ffff";
-    ctx.strokeText(player.id, screenX + 35, nameY);
-    ctx.shadowBlur = 0;
-
-    // Здоровье — жирный неон с чёрной обводкой
-    const currentHealth = Math.floor(player.health ?? 0);
-    const maxHealth = player.maxStats?.health ?? 100;
-    const healthText = `${currentHealth} / ${maxHealth}`;
-
+    // Здоровье
+    const healthText = `${Math.floor(player.health ?? 0)} / ${
+      player.maxStats?.health ?? 100
+    }`;
     ctx.font = "bold 15px 'Courier New', monospace";
-    ctx.textAlign = "center";
-
-    // Чёрная обводка
     ctx.strokeStyle = "black";
-    ctx.lineWidth = 5;
+    ctx.lineWidth = 4;
     ctx.strokeText(healthText, screenX + 35, healthY);
-
-    // Основной цвет — яркий циан
-    ctx.fillStyle = "#ff0000ff";
+    ctx.fillStyle = "#ff0066";
+    ctx.shadowColor = "#ff0066";
+    ctx.shadowBlur = 10;
     ctx.fillText(healthText, screenX + 35, healthY);
 
-    // Розовое свечение
-    ctx.fillStyle = "#ff0000ff";
-    ctx.globalAlpha = 0.5;
-    ctx.fillText(healthText, screenX + 35, healthY);
-    ctx.globalAlpha = 1.0;
-
-    // Финальное неоновое свечение
-    ctx.shadowColor = "#ff0000ff";
-    ctx.shadowBlur = 15;
-    ctx.fillStyle = "#ff0000ff";
-    ctx.fillText(healthText, screenX + 35, healthY);
     ctx.shadowBlur = 0;
   });
-
   if (currentWorld.veg.complete) {
     ctx.drawImage(
       currentWorld.veg,
