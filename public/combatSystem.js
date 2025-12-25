@@ -49,7 +49,6 @@ function performAttack() {
   lastAttackTime = currentTime;
   // Устанавливаем state атаки и сбрасываем frame
   me.state = "attacking";
-  me.lastAttackUpdate = 0;
   me.attackFrame = 0;
   me.attackFrameTime = 0;
   me.frame = 0; // Сбрасываем walk-frame, чтобы не конфликтовать
