@@ -2046,31 +2046,40 @@ function handleGameMessage(event) {
             state: data.player.state,
           };
 
-          // Если сервер сообщает, что игрок начал атаку — принудительно запускаем анимацию локально
-          if (data.player.state === "attacking") {
-            if (existing.state !== "attacking") {
-              // Только если это переход в атаку — сбрасываем кадры и таймер
-              updatedPlayer.attackFrame = 0;
-              updatedPlayer.attackFrameTime = 0;
-            } else {
-              // Если уже атаковал — сохраняем текущий прогресс анимации
-              updatedPlayer.attackFrame = existing.attackFrame || 0;
-              updatedPlayer.attackFrameTime = existing.attackFrameTime || 0;
-            }
+          // КРИТИЧНО ВАЖНЫЙ БЛОК: детект начала атаки у других игроков
+          const wasAttacking = existing.state === "attacking";
+          const isAttacking = data.player.state === "attacking";
+
+          if (isAttacking && !wasAttacking) {
+            // Игрок ТОЛЬКО ЧТО начал атаковать (даже стоя на месте!)
+            updatedPlayer.attackFrame = 0;
+            updatedPlayer.attackFrameTime = 0;
+            updatedPlayer.animTime = 0; // сбрасываем анимацию ходьбы
+            updatedPlayer.frame = 0;
+            updatedPlayer.prevState = existing.state || "idle"; // на всякий
+          } else if (!isAttacking && wasAttacking) {
+            // Закончил атаку
+            updatedPlayer.attackFrame = 0;
+            updatedPlayer.attackFrameTime = 0;
+          } else if (isAttacking && wasAttacking) {
+            // Продолжает атаковать — сохраняем прогресс
+            updatedPlayer.attackFrame = existing.attackFrame || 0;
+            updatedPlayer.attackFrameTime = existing.attackFrameTime || 0;
           } else {
-            // Если вышел из атаки — очищаем таймеры
+            // Не атакует вообще
             updatedPlayer.attackFrame = 0;
             updatedPlayer.attackFrameTime = 0;
           }
 
-          // Анимация ходьбы
+          // Анимация ходьбы — только если не атакует
           if (data.player.state === "walking") {
             updatedPlayer.animTime = existing.animTime || 0;
-            updatedPlayer.frame = existing.frame ?? data.player.frame;
+            updatedPlayer.frame = existing.frame ?? 0;
           } else if (data.player.state !== "attacking") {
             updatedPlayer.frame = 0;
             updatedPlayer.animTime = 0;
           }
+
           players.set(data.player.id, updatedPlayer);
         }
         break;
