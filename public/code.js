@@ -2046,6 +2046,23 @@ function handleGameMessage(event) {
             state: data.player.state,
           };
 
+          if (data.player.attackFrame !== undefined) {
+            updatedPlayer.attackFrame = data.player.attackFrame;
+            updatedPlayer.attackFrameTime = data.player.attackFrameTime || 0;
+          } else if (data.player.state !== "attacking") {
+            updatedPlayer.attackFrame = 0;
+            updatedPlayer.attackFrameTime = 0;
+          }
+
+          // Если атака только началась — гарантируем сброс
+          if (
+            data.player.state === "attacking" &&
+            existing.state !== "attacking"
+          ) {
+            updatedPlayer.attackFrame = 0;
+            updatedPlayer.attackFrameTime = 0;
+          }
+
           // Добавь это:
           if (data.player.attackFrame !== undefined) {
             updatedPlayer.attackFrame = data.player.attackFrame;

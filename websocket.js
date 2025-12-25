@@ -2432,32 +2432,41 @@ function setupWebSocket(
             corporateDocumentsSubmitted: true,
           })
         );
-      } else if (data.type === "update" && data.player) {
+      }
+      if (data.type === "update" || data.type === "move") {
         const playerId = clients.get(ws);
         if (!playerId || !players.has(playerId)) return;
 
         const player = players.get(playerId);
-        if (player.worldId !== data.player.worldId) return;
+        const currentWorldId = player.worldId;
 
-        // Обновляем только разрешённые поля
-        if (data.player.x !== undefined) player.x = data.player.x;
-        if (data.player.y !== undefined) player.y = data.player.y;
-        if (data.player.direction) player.direction = data.player.direction;
-        if (data.player.state) player.state = data.player.state;
-        if (data.player.attackFrame !== undefined)
-          player.attackFrame = data.player.attackFrame;
-        if (data.player.attackFrameTime !== undefined)
-          player.attackFrameTime = data.player.attackFrameTime;
-        if (data.player.frame !== undefined) player.frame = data.player.frame;
+        // Принимаем только безопасные поля
+        if (data.x !== undefined) player.x = data.x;
+        if (data.y !== undefined) player.y = data.y;
+        if (data.direction) player.direction = data.direction;
+        if (data.state) player.state = data.state;
+        if (data.attackFrame !== undefined)
+          player.attackFrame = data.attackFrame;
+        if (data.attackFrameTime !== undefined)
+          player.attackFrameTime = data.attackFrameTime;
+        if (data.frame !== undefined) player.frame = data.frame;
+        if (data.health !== undefined) player.health = data.health;
+        if (data.energy !== undefined) player.energy = data.energy;
+        if (data.food !== undefined) player.food = data.food;
+        if (data.water !== undefined) player.water = data.water;
+        if (data.armor !== undefined) player.armor = data.armor;
+        if (data.distanceTraveled !== undefined)
+          player.distanceTraveled = data.distanceTraveled;
 
+        // Обновляем в мапе
         players.set(playerId, { ...player });
 
-        // Рассылаем ВСЕМ в мире обновлённого игрока, включая attackFrame
+        // Рассылаем ВСЕМ в этом мире обновление с attackFrame
         broadcastToWorld(
           wss,
           clients,
           players,
-          player.worldId,
+          currentWorldId,
           JSON.stringify({
             type: "update",
             player: {
@@ -2470,7 +2479,11 @@ function setupWebSocket(
               attackFrameTime: player.attackFrameTime,
               frame: player.frame,
               health: player.health,
-              // Можно добавить и другие статы, если нужно
+              energy: player.energy,
+              food: player.food,
+              water: player.water,
+              armor: player.armor,
+              distanceTraveled: player.distanceTraveled,
             },
           })
         );
