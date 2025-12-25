@@ -2505,6 +2505,7 @@ function update(deltaTime) {
 
   // Обновление систем
   window.combatSystem.update(deltaTime);
+
   window.enemySystem.update(deltaTime);
 
   if (window.neonNpcSystem) window.neonNpcSystem.update(deltaTime);
@@ -2518,7 +2519,30 @@ function update(deltaTime) {
   if (window.robotDoctorSystem) window.robotDoctorSystem.update(deltaTime);
   if (window.outpostCaptainSystem)
     window.outpostCaptainSystem.update(deltaTime);
+  if (me && me.state === "attacking" && ws.readyState === WebSocket.OPEN) {
+    // Отправляем каждые 100 мс (или реже, чтобы не спамить)
+    const currentTime = Date.now();
+    if (!me.lastAttackUpdate || currentTime - me.lastAttackUpdate > 100) {
+      me.lastAttackUpdate = currentTime;
 
+      sendWhenReady(
+        ws,
+        JSON.stringify({
+          type: "update",
+          player: {
+            id: myId,
+            state: "attacking",
+            attackFrame: me.attackFrame || 0,
+            attackFrameTime: me.attackFrameTime || 0,
+            direction: me.direction,
+            x: me.x,
+            y: me.y,
+            // Не обязательно слать статы каждый раз — только если нужно
+          },
+        })
+      );
+    }
+  }
   window.worldSystem.checkTransitionZones(me.x, me.y);
 }
 
