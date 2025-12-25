@@ -2063,6 +2063,13 @@ function handleGameMessage(event) {
             updatedPlayer.attackFrameTime = 0;
           }
 
+          if (data.player.attackFrameTime !== undefined) {
+            updatedPlayer.attackFrameTime = data.player.attackFrameTime;
+          }
+          if (data.player.attackFrame !== undefined) {
+            updatedPlayer.attackFrame = data.player.attackFrame;
+          }
+
           // Добавь это:
           if (data.player.attackFrame !== undefined) {
             updatedPlayer.attackFrame = data.player.attackFrame;
