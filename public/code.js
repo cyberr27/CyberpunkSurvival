@@ -1439,7 +1439,6 @@ function useItem(slotIndex) {
           inventory,
         })
       );
-    } else {
     }
   }
 
@@ -1687,7 +1686,11 @@ function updateInventoryDisplay() {
   }
 
   // Синхронизируем глобальную inventory
-  inventory = me.inventory.map((slot) => (slot ? { ...slot } : null));
+  if (me && me.inventory) {
+    inventory = me.inventory.map((slot) => (slot ? { ...slot } : null));
+  } else {
+    inventory = Array(20).fill(null);
+  }
 
   // Проверяем, активна ли форма выброса stackable
   const isStackableFormActive =
@@ -1707,6 +1710,10 @@ function updateInventoryDisplay() {
 
   // Очищаем слоты
   inventoryGrid.innerHTML = "";
+
+  if (window.atomAnimations) {
+    window.atomAnimations = [];
+  }
 
   // Хранилище для анимации атомов (canvas ссылок)
   window.atomAnimations = []; // Глобальный массив для хранения, чтобы обновлять в interval
@@ -2159,14 +2166,39 @@ function handleGameMessage(event) {
         {
           const me = players.get(myId);
           if (me) {
+            // Обновляем статы игрока (важно для других систем)
             me.health = data.stats.health;
             me.energy = data.stats.energy;
             me.food = data.stats.food;
             me.water = data.stats.water;
+            me.armor = data.stats.armor || me.armor;
+
+            // КРИТИЧНО: полностью синхронизируем инвентарь игрока с серверным
+            me.inventory = data.inventory.map((slot) =>
+              slot ? { ...slot } : null
+            );
           }
-          inventory = data.inventory;
+
+          // Обновляем глобальную переменную inventory (используется в UI)
+          inventory = data.inventory.map((slot) => (slot ? { ...slot } : null));
+
+          // Перерисовываем всё
           updateStatsDisplay();
           updateInventoryDisplay();
+
+          // Если был выбран слот с использованным предметом — снимаем выделение
+          if (
+            selectedSlot !== null &&
+            (!inventory[selectedSlot] || inventory[selectedSlot] === null)
+          ) {
+            selectedSlot = null;
+            document
+              .querySelectorAll(".inventory-slot.selected")
+              ?.forEach((el) => el.classList.remove("selected"));
+            document.getElementById("inventoryScreen").textContent = "";
+            document.getElementById("useBtn").disabled = true;
+            document.getElementById("dropBtn").disabled = true;
+          }
         }
         break;
       case "syncBullets":
