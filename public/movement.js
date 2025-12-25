@@ -274,6 +274,14 @@
       }
     }
 
+    if (me.state === "attacking") {
+      // Отправляем каждые 100 мс прогресс атаки (attackFrame и attackFrameTime)
+      if (currentTime - lastSendTime >= 100) {
+        sendMovementUpdate(me);
+        lastSendTime = currentTime;
+      }
+    }
+
     updateCamera(me);
   }
 
