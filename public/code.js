@@ -1996,43 +1996,66 @@ function handleGameMessage(event) {
         break;
       case "update":
         if (data.player?.id === myId) {
+          // Обновление себя — только статы (позиция интерполируется движением)
           const me = players.get(myId);
-          const isMoving = me.state === "walking" || me.state === "attacking";
-
-          if (isMoving) {
-            const { x, y, direction, state, frame, ...stats } = data.player;
-            Object.assign(me, stats);
-          } else {
-            if (data.player.x !== undefined) {
-              me.serverTargetX = data.player.x;
-              me.serverTargetY = data.player.y;
-              me.x += (me.serverTargetX - me.x) * 0.1;
-              me.y += (me.serverTargetY - me.y) * 0.1;
-              if (
-                Math.abs(me.serverTargetX - me.x) < 0.5 &&
-                Math.abs(me.serverTargetY - me.y) < 0.5
-              ) {
-                me.x = me.serverTargetX;
-                me.y = me.serverTargetY;
-                delete me.serverTargetX;
-                delete me.serverTargetY;
+          if (me) {
+            // Если двигаемся или атакуем — обновляем только статы
+            const isMoving = me.state === "walking" || me.state === "attacking";
+            if (isMoving) {
+              const {
+                x,
+                y,
+                direction,
+                state,
+                frame,
+                attackFrame,
+                attackFrameTime,
+                ...stats
+              } = data.player;
+              Object.assign(me, stats);
+            } else {
+              // Стоим — лёгкая интерполяция позиции от сервера
+              if (data.player.x !== undefined && data.player.y !== undefined) {
+                me.serverTargetX = data.player.x;
+                me.serverTargetY = data.player.y;
+                me.x += (me.serverTargetX - me.x) * 0.15;
+                me.y += (me.serverTargetY - me.y) * 0.15;
+                if (
+                  Math.abs(me.serverTargetX - me.x) < 1 &&
+                  Math.abs(me.serverTargetY - me.y) < 1
+                ) {
+                  me.x = me.serverTargetX;
+                  me.y = me.serverTargetY;
+                  delete me.serverTargetX;
+                  delete me.serverTargetY;
+                }
               }
+              const { x, y, ...stats } = data.player;
+              Object.assign(me, stats);
             }
-            const { x, y, ...stats } = data.player;
-            Object.assign(me, stats);
-          }
 
-          if (data.player.inventory) {
-            inventory = data.player.inventory;
-            updateInventoryDisplay();
+            // Всегда обновляем direction и state (важно для атаки!)
+            if (data.player.direction !== undefined)
+              me.direction = data.player.direction;
+            if (data.player.state !== undefined) me.state = data.player.state;
+
+            // Инвентарь и экипировка
+            if (data.player.inventory) {
+              inventory = data.player.inventory;
+              updateInventoryDisplay();
+            }
+            if (data.player.equipment) {
+              window.equipmentSystem.syncEquipment(data.player.equipment);
+            }
+            updateStatsDisplay();
           }
-          if (data.player.equipment) {
-            window.equipmentSystem.syncEquipment(data.player.equipment);
-          }
-          updateStatsDisplay();
         } else if (data.player?.id) {
+          // ===== ДРУГИЕ ИГРОКИ =====
           const existing = players.get(data.player.id) || {};
+          const wasAttacking = existing.state === "attacking";
+          const isAttacking = data.player.state === "attacking";
 
+          // Основное обновление
           const updatedPlayer = {
             ...existing,
             ...data.player,
@@ -2042,59 +2065,35 @@ function handleGameMessage(event) {
             targetState: data.player.state,
             x: existing.x ?? data.player.x,
             y: existing.y ?? data.player.y,
-            direction: data.player.direction,
-            state: data.player.state,
+            direction: data.player.direction ?? existing.direction,
+            state: data.player.state ?? existing.state,
           };
 
-          if (data.player.attackFrame !== undefined) {
-            updatedPlayer.attackFrame = data.player.attackFrame;
-            updatedPlayer.attackFrameTime = data.player.attackFrameTime || 0;
-          } else if (data.player.state !== "attacking") {
-            updatedPlayer.attackFrame = 0;
-            updatedPlayer.attackFrameTime = 0;
-          }
-
-          // Если атака только началась — гарантируем сброс
-          if (
-            data.player.state === "attacking" &&
-            existing.state !== "attacking"
-          ) {
-            updatedPlayer.attackFrame = 0;
-            updatedPlayer.attackFrameTime = 0;
-          }
-
-          // Добавь это:
-          if (data.player.attackFrame !== undefined) {
-            updatedPlayer.attackFrame = data.player.attackFrame;
-            updatedPlayer.attackFrameTime = data.player.attackFrameTime || 0;
-          }
-
-          // КРИТИЧНО ВАЖНЫЙ БЛОК: детект начала атаки у других игроков
-          const wasAttacking = existing.state === "attacking";
-          const isAttacking = data.player.state === "attacking";
-
+          // === КРИТИЧНАЯ ЛОГИКА АНИМАЦИИ АТАКИ ===
           if (isAttacking && !wasAttacking) {
-            // Игрок ТОЛЬКО ЧТО начал атаковать (даже стоя на месте!)
+            // Только что начал атаковать (даже стоя!)
             updatedPlayer.attackFrame = 0;
             updatedPlayer.attackFrameTime = 0;
-            updatedPlayer.animTime = 0; // сбрасываем анимацию ходьбы
+            updatedPlayer.animTime = 0;
             updatedPlayer.frame = 0;
-            updatedPlayer.prevState = existing.state || "idle"; // на всякий
+          } else if (isAttacking && wasAttacking) {
+            // Продолжает атаку — можно принять кадр с сервера, если пришёл
+            if (data.player.attackFrame !== undefined) {
+              updatedPlayer.attackFrame = data.player.attackFrame;
+              updatedPlayer.attackFrameTime = data.player.attackFrameTime || 0;
+            }
           } else if (!isAttacking && wasAttacking) {
             // Закончил атаку
             updatedPlayer.attackFrame = 0;
             updatedPlayer.attackFrameTime = 0;
-          } else if (isAttacking && wasAttacking) {
-            // Продолжает атаковать — сохраняем прогресс
-            updatedPlayer.attackFrame = existing.attackFrame || 0;
-            updatedPlayer.attackFrameTime = existing.attackFrameTime || 0;
-          } else {
-            // Не атакует вообще
+          }
+          // Если не атакует — сбрасываем
+          if (!isAttacking) {
             updatedPlayer.attackFrame = 0;
             updatedPlayer.attackFrameTime = 0;
           }
 
-          // Анимация ходьбы — только если не атакует
+          // Ходьба — только если не атакует
           if (data.player.state === "walking") {
             updatedPlayer.animTime = existing.animTime || 0;
             updatedPlayer.frame = existing.frame ?? 0;

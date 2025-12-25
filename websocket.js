@@ -660,58 +660,6 @@ function setupWebSocket(
             inventory: player.inventory,
           })
         );
-      } else if (data.type === "move") {
-        const id = clients.get(ws);
-        if (id) {
-          const existingPlayer = players.get(id);
-          const updatedPlayer = {
-            ...existingPlayer,
-            ...data,
-            inventory: existingPlayer.inventory || Array(20).fill(null),
-            npcMet: existingPlayer.npcMet || false,
-            level: existingPlayer.level || 0,
-            xp: existingPlayer.xp || 0,
-            maxStats: existingPlayer.maxStats || {
-              health: 100,
-              energy: 100,
-              food: 100,
-              water: 100,
-            },
-            upgradePoints: existingPlayer.upgradePoints || 0,
-            worldId:
-              data.worldId !== undefined
-                ? data.worldId
-                : existingPlayer.worldId || 0,
-            worldPositions: existingPlayer.worldPositions || {},
-            alexNeonMet: existingPlayer.alexNeonMet || false,
-          };
-          if (data.worldId !== undefined) {
-            updatedPlayer.worldPositions[data.worldId] = {
-              x: data.x,
-              y: data.y,
-            };
-          }
-          players.set(id, updatedPlayer);
-          userDatabase.set(id, updatedPlayer);
-          await saveUserDatabase(dbCollection, id, updatedPlayer);
-          // Broadcast update to all players in the same world
-          wss.clients.forEach((client) => {
-            if (client.readyState === WebSocket.OPEN) {
-              const clientPlayer = players.get(clients.get(client));
-              if (
-                clientPlayer &&
-                clientPlayer.worldId === updatedPlayer.worldId
-              ) {
-                client.send(
-                  JSON.stringify({
-                    type: "update",
-                    player: updatedPlayer,
-                  })
-                );
-              }
-            }
-          });
-        }
       } else if (data.type === "updateLevel") {
         const id = clients.get(ws);
         if (id) {
