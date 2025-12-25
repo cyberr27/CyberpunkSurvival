@@ -2032,23 +2032,46 @@ function handleGameMessage(event) {
           updateStatsDisplay();
         } else if (data.player?.id) {
           const existing = players.get(data.player.id) || {};
-          players.set(data.player.id, {
+
+          const updatedPlayer = {
             ...existing,
             ...data.player,
             targetX: data.player.x,
             targetY: data.player.y,
             targetDirection: data.player.direction,
             targetState: data.player.state,
-            targetAttackFrame: data.player.attackFrame || 0,
             x: existing.x ?? data.player.x,
             y: existing.y ?? data.player.y,
-            frame:
-              existing.frame ??
-              (data.player.state === "walking" ? data.player.frame : 0),
             direction: data.player.direction,
             state: data.player.state,
-            attackFrame: data.player.attackFrame || 0,
-          });
+          };
+
+          // Если сервер сообщает, что игрок начал атаку — принудительно запускаем анимацию локально
+          if (data.player.state === "attacking") {
+            if (existing.state !== "attacking") {
+              // Только если это переход в атаку — сбрасываем кадры и таймер
+              updatedPlayer.attackFrame = 0;
+              updatedPlayer.attackFrameTime = 0;
+            } else {
+              // Если уже атаковал — сохраняем текущий прогресс анимации
+              updatedPlayer.attackFrame = existing.attackFrame || 0;
+              updatedPlayer.attackFrameTime = existing.attackFrameTime || 0;
+            }
+          } else {
+            // Если вышел из атаки — очищаем таймеры
+            updatedPlayer.attackFrame = 0;
+            updatedPlayer.attackFrameTime = 0;
+          }
+
+          // Анимация ходьбы
+          if (data.player.state === "walking") {
+            updatedPlayer.animTime = existing.animTime || 0;
+            updatedPlayer.frame = existing.frame ?? data.player.frame;
+          } else if (data.player.state !== "attacking") {
+            updatedPlayer.frame = 0;
+            updatedPlayer.animTime = 0;
+          }
+          players.set(data.player.id, updatedPlayer);
         }
         break;
       case "itemDropped":
@@ -2373,21 +2396,63 @@ function update(deltaTime) {
     player.direction = player.targetDirection ?? player.direction;
     player.state = player.targetState ?? player.state;
 
-    // Атака — фиксируем кадр с сервера
-    if (
-      player.state === "attacking" &&
-      player.targetAttackFrame !== undefined
-    ) {
-      player.attackFrame = player.targetAttackFrame;
+    // === ОТСЛЕЖИВАНИЕ ПЕРЕХОДА В АТАКУ ===
+    // Сохраняем предыдущее состояние (нужно для детекта начала атаки)
+    if (player.prevState === undefined) {
+      player.prevState = player.state;
     }
 
-    // Локальная анимация ходьбы (13 кадров, плавно)
+    // Если только что перешёл в атаку — принудительно запускаем анимацию с начала
+    if (player.state === "attacking" && player.prevState !== "attacking") {
+      player.attackFrame = 0;
+      player.attackFrameTime = 0;
+      player.animTime = 0; // на всякий случай сбрасываем ходьбу
+      player.frame = 0;
+    }
+
+    // Обновляем prevState для следующего кадра
+    player.prevState = player.state;
+
+    // Атака — фиксируем кадр с сервера
+    if (player.state === "attacking") {
+      // Таймеры инициализируются при переходе в атаку (выше)
+      player.attackFrameTime += deltaTime;
+
+      const ATTACK_FRAME_DURATION = 500 / ATTACK_FRAME_COUNT; // ~38.46 мс на кадр (500 мс на всю атаку)
+
+      while (player.attackFrameTime >= ATTACK_FRAME_DURATION) {
+        player.attackFrameTime -= ATTACK_FRAME_DURATION;
+        player.attackFrame += 1;
+
+        if (player.attackFrame >= ATTACK_FRAME_COUNT) {
+          // Анимация закончилась
+          player.attackFrame = 0;
+          player.attackFrameTime = 0;
+
+          // Определяем, куда возвращаться
+          const isMoving =
+            player.targetX !== undefined &&
+            (Math.abs(player.targetX - player.x) > 3 ||
+              Math.abs(player.targetY - player.y) > 3);
+
+          player.state = isMoving ? "walking" : "idle";
+          player.animTime = 0;
+          player.frame = 0;
+        }
+      }
+    } else {
+      // Не атакует — сбрасываем всё связанное с атакой
+      player.attackFrame = 0;
+      player.attackFrameTime = 0;
+    }
+
+    // === ЛОКАЛЬНАЯ АНИМАЦИЯ ХОДЬБЫ ===
     if (player.state === "walking") {
       player.animTime = (player.animTime || 0) + deltaTime;
-      const frameDuration = 80; // одинаково с своим игроком
+      const frameDuration = 80;
       player.frame =
         Math.floor(player.animTime / frameDuration) % WALK_FRAME_COUNT;
-    } else {
+    } else if (player.state !== "attacking") {
       player.frame = 0;
       player.animTime = 0;
     }

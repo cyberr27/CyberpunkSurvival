@@ -146,7 +146,7 @@
       return false;
     }
 
-    if (me.state !== "attacking") {
+    if (me.state !== "attacking" && me.state !== "dying") {
       me.state = "walking";
     }
     me.direction = getDirection(dx / distance, dy / distance, me);
@@ -247,7 +247,7 @@
         }
       }
     } else {
-      if (isCurrentlyMoving) {
+      if (isCurrentlyMoving && me.state !== "dying") {
         // === СТАБИЛИЗАЦИЯ НАПРАВЛЕНИЯ И СБРОС КАДРА ПРИ СМЕНЕ ===
         const prevDirection = me.direction;
 
