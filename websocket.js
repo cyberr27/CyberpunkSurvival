@@ -2432,6 +2432,48 @@ function setupWebSocket(
             corporateDocumentsSubmitted: true,
           })
         );
+      } else if (data.type === "update" && data.player) {
+        const playerId = clients.get(ws);
+        if (!playerId || !players.has(playerId)) return;
+
+        const player = players.get(playerId);
+        if (player.worldId !== data.player.worldId) return;
+
+        // Обновляем только разрешённые поля
+        if (data.player.x !== undefined) player.x = data.player.x;
+        if (data.player.y !== undefined) player.y = data.player.y;
+        if (data.player.direction) player.direction = data.player.direction;
+        if (data.player.state) player.state = data.player.state;
+        if (data.player.attackFrame !== undefined)
+          player.attackFrame = data.player.attackFrame;
+        if (data.player.attackFrameTime !== undefined)
+          player.attackFrameTime = data.player.attackFrameTime;
+        if (data.player.frame !== undefined) player.frame = data.player.frame;
+
+        players.set(playerId, { ...player });
+
+        // Рассылаем ВСЕМ в мире обновлённого игрока, включая attackFrame
+        broadcastToWorld(
+          wss,
+          clients,
+          players,
+          player.worldId,
+          JSON.stringify({
+            type: "update",
+            player: {
+              id: playerId,
+              x: player.x,
+              y: player.y,
+              direction: player.direction,
+              state: player.state,
+              attackFrame: player.attackFrame,
+              attackFrameTime: player.attackFrameTime,
+              frame: player.frame,
+              health: player.health,
+              // Можно добавить и другие статы, если нужно
+            },
+          })
+        );
       }
     });
 

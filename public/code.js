@@ -2046,6 +2046,12 @@ function handleGameMessage(event) {
             state: data.player.state,
           };
 
+          // Добавь это:
+          if (data.player.attackFrame !== undefined) {
+            updatedPlayer.attackFrame = data.player.attackFrame;
+            updatedPlayer.attackFrameTime = data.player.attackFrameTime || 0;
+          }
+
           // КРИТИЧНО ВАЖНЫЙ БЛОК: детект начала атаки у других игроков
           const wasAttacking = existing.state === "attacking";
           const isAttacking = data.player.state === "attacking";

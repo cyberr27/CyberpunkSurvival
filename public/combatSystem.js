@@ -125,8 +125,9 @@ function performAttack() {
             armor: me.armor,
             distanceTraveled: me.distanceTraveled,
             direction: me.direction,
-            state: me.state,
-            frame: me.frame,
+            state: "attacking",
+            attackFrame: 0, // ← ВОТ ЭТО ГЛАВНОЕ!
+            attackFrameTime: 0,
             worldId: currentWorldId,
           },
         })
