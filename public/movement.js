@@ -37,6 +37,12 @@
     canvas.addEventListener("mousemove", handlePointerMove);
     canvas.addEventListener("mouseup", handlePointerUp);
 
+    if (!isMobile) {
+      canvas.addEventListener("touchstart", handleTouchStart);
+      canvas.addEventListener("touchmove", handleTouchMove);
+      canvas.addEventListener("touchend", handleTouchEnd);
+    }
+
     // Клавиатура
     window.addEventListener(
       "keydown",
