@@ -60,7 +60,19 @@
   }
 
   function onTouchStart(e) {
-    e.preventDefault();
+    // НЕ вызываем preventDefault() здесь тоже!
+    // Чтобы кнопки могли получать свои события
+
+    const touch = e.touches[0];
+    const rect = outer.getBoundingClientRect();
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+
+    const distFromCenter = Math.hypot(x - centerX, y - centerY);
+    if (distFromCenter > radius + 30) {
+      return; // тач начался слишком далеко — не активируем джойстик
+    }
+
     isActive = true;
     lastTouchTime = Date.now();
     onTouchMove(e);
@@ -68,13 +80,27 @@
 
   function onTouchMove(e) {
     if (!isActive) return;
-    e.preventDefault();
+
+    // УДАЛЯЕМ e.preventDefault() ОТСЮДА!!!
+    // Это ключевое изменение — теперь другие кнопки смогут получать touch события
 
     const touch = e.touches[0];
     const rect = outer.getBoundingClientRect();
 
-    let x = touch.clientX - rect.left;
-    let y = touch.clientY - rect.top;
+    // Добавляем проверку: обрабатываем только если тач внутри джойстика
+    // Это защищает от "захвата" тачей, начатых на кнопках
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+
+    // Если тач далеко от центра джойстика — игнорируем (чтобы не мешать кнопкам)
+    const distFromCenter = Math.hypot(x - centerX, y - centerY);
+    if (distFromCenter > radius + 50) {
+      // +50 — буфер
+      return;
+    }
+
+    let clampedX = x;
+    let clampedY = y;
 
     const offsetX = x - centerX;
     const offsetY = y - centerY;
@@ -85,18 +111,16 @@
     if (distSq > radiusSq) {
       const dist = Math.sqrt(distSq);
       const scale = radius / dist;
-      x = centerX + offsetX * scale;
-      y = centerY + offsetY * scale;
+      clampedX = centerX + offsetX * scale;
+      clampedY = centerY + offsetY * scale;
     }
 
-    inner.style.left = x - innerRadius + "px";
-    inner.style.top = y - innerRadius + "px";
+    inner.style.left = clampedX - innerRadius + "px";
+    inner.style.top = clampedY - innerRadius + "px";
 
-    // Сохраняем "сырые" значения
-    rawDx = (x - centerX) / radius;
-    rawDy = (y - centerY) / radius;
+    rawDx = (clampedX - centerX) / radius;
+    rawDy = (clampedY - centerY) / radius;
 
-    // Применяем deadzone
     const magnitude = Math.sqrt(rawDx * rawDx + rawDy * rawDy);
     if (magnitude < DEADZONE) {
       rawDx = 0;
