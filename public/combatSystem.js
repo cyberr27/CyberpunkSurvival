@@ -19,6 +19,75 @@ function initializeCombatSystem() {
     performAttack(); // Запускаем атаку при клике
   });
 
+  let attackInterval = null;
+
+  combatBtn.addEventListener(
+    "touchstart",
+    (e) => {
+      e.preventDefault(); // Обязательно — чтобы не было скролла и контекстного меню
+      performAttack(); // Первая атака сразу при касании
+
+      // Запускаем повторяющиеся атаки при удержании
+      if (attackInterval === null) {
+        attackInterval = setInterval(() => {
+          performAttack();
+        }, ATTACK_COOLDOWN); // Повтор каждые 500 мс (как кулдаун)
+      }
+    },
+    { passive: false }
+  );
+
+  combatBtn.addEventListener(
+    "touchend",
+    (e) => {
+      e.preventDefault();
+      if (attackInterval !== null) {
+        clearInterval(attackInterval);
+        attackInterval = null;
+      }
+    },
+    { passive: false }
+  );
+
+  combatBtn.addEventListener(
+    "touchcancel",
+    (e) => {
+      e.preventDefault();
+      if (attackInterval !== null) {
+        clearInterval(attackInterval);
+        attackInterval = null;
+      }
+    },
+    { passive: false }
+  );
+
+  // Дополнительно: для мыши тоже можно удерживать (бонус для десктопа)
+  combatBtn.addEventListener("mousedown", (e) => {
+    if (e.button !== 0) return; // Только левая кнопка
+    e.preventDefault();
+    performAttack();
+
+    if (attackInterval === null) {
+      attackInterval = setInterval(() => {
+        performAttack();
+      }, ATTACK_COOLDOWN);
+    }
+  });
+
+  combatBtn.addEventListener("mouseup", (e) => {
+    if (attackInterval !== null) {
+      clearInterval(attackInterval);
+      attackInterval = null;
+    }
+  });
+
+  combatBtn.addEventListener("mouseleave", () => {
+    if (attackInterval !== null) {
+      clearInterval(attackInterval);
+      attackInterval = null;
+    }
+  });
+
   // Добавлено: обработчик пробела для атаки (глобально)
   window.addEventListener("keydown", (e) => {
     if (e.key === " " && !window.isInventoryOpen) {
