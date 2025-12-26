@@ -270,16 +270,20 @@ const worldSystem = {
     ctx2.lineWidth = 2;
 
     // Батчинг: рисуем ВСЕ зоны одним вызовом
-    ctx2.beginPath();
-    for (let i = 0; i < cache.batchData.length; i += 8) {
-      ctx2.moveTo(cache.batchData[i], cache.batchData[i + 1]);
-      ctx2.lineTo(cache.batchData[i + 2], cache.batchData[i + 3]);
-      ctx2.lineTo(cache.batchData[i + 4], cache.batchData[i + 5]);
-      ctx2.lineTo(cache.batchData[i + 6], cache.batchData[i + 7]);
-      ctx2.closePath();
+    ctx2.strokeStyle = "rgba(0,255,255,0.5)";
+    ctx2.fillStyle = "rgba(0,255,255,0.2)";
+    ctx2.lineWidth = 3; // Чуть толще, чтобы лучше видно было
+
+    for (let i = 0; i < cache.zonesToDraw.length; i += 3) {
+      const screenX = cache.zonesToDraw[i];
+      const screenY = cache.zonesToDraw[i + 1];
+      const radius = cache.zonesToDraw[i + 2];
+
+      ctx2.beginPath();
+      ctx2.arc(screenX, screenY, radius, 0, Math.PI * 2);
+      ctx2.fill();
+      ctx2.stroke();
     }
-    ctx2.fill();
-    ctx2.stroke();
   },
 };
 
