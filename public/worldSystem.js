@@ -221,22 +221,30 @@ const worldSystem = {
       cache.lastCamera = { x: cam.x, y: cam.y };
       cache.zonesToDraw.length = 0;
 
-      const camRight = cam.x + canvas.width;
-      const camBottom = cam.y + canvas.height;
-      const camLeft = cam.x - 50;
-      const camTop = cam.y - 50;
+      const viewLeft = cam.x;
+      const viewRight = cam.x + canvas.width;
+      const viewTop = cam.y;
+      const viewBottom = cam.y + canvas.height;
 
       for (const z of this.transitionZones) {
         if (z.sourceWorldId !== this.currentWorldId) continue;
 
-        const sx = z.x - cam.x;
+        // Ограничивающий прямоугольник зоны в мировых координатах
+        const zoneLeft = z.x - z.radius;
+        const zoneRight = z.x + z.radius;
+        const zoneTop = z.y - z.radius;
+        const zoneBottom = z.y + z.radius;
+
+        // Проверка пересечения с видимой областью
         if (
-          sx + z.radius > 0 &&
-          sx - z.radius < canvas.width &&
-          z.y - camBottom < z.radius &&
-          z.y - camTop > -z.radius
+          zoneRight >= viewLeft &&
+          zoneLeft <= viewRight &&
+          zoneBottom >= viewTop &&
+          zoneTop <= viewBottom
         ) {
-          cache.zonesToDraw.push(sx, z.y - cam.y, z.radius);
+          const screenX = z.x - cam.x;
+          const screenY = z.y - cam.y;
+          cache.zonesToDraw.push(screenX, screenY, z.radius);
         }
       }
 
