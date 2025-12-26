@@ -86,8 +86,17 @@
         alt="Combat"
       />
       <div id="chatContainer">
+        <div id="chatCloseHint">Нажми на кнопку чата или ESC для закрытия</div>
+        <div id="chatHeader">ЧАТ</div>
         <div id="chatMessages"></div>
-        <input type="text" id="chatInput" placeholder="Сообщение..." />
+        <div id="chatInputContainer">
+          <input
+            type="text"
+            id="chatInput"
+            placeholder="ВВЕДИ СООБЩЕНИЕ..."
+            maxlength="200"
+          />
+        </div>
       </div>
       <div id="inventoryContainer">
         <div id="inventoryScreen"></div>

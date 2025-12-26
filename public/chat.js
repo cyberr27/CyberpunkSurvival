@@ -1,33 +1,50 @@
-// Получаем элементы DOM для чата
 const chatBtn = document.getElementById("chatBtn");
 const chatContainer = document.getElementById("chatContainer");
 const chatMessages = document.getElementById("chatMessages");
 const chatInput = document.getElementById("chatInput");
 
-// Создаём глобальный объект для системы чата
 window.chatSystem = window.chatSystem || {};
 
 // Инициализация чата
 window.chatSystem.initializeChat = function (webSocket) {
-  // Настройка кнопки Chat
+  // Переключение видимости чата
+  const toggleChat = () => {
+    const isVisible = chatContainer.style.display === "flex";
+    chatContainer.style.display = isVisible ? "none" : "flex";
+    chatBtn.classList.toggle("active", !isVisible);
+
+    if (!isVisible) {
+      chatInput.focus();
+      // Прокручиваем вниз
+      setTimeout(() => {
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      }, 100);
+    } else {
+      chatInput.blur();
+    }
+  };
+
+  // Клик по кнопке
   chatBtn.addEventListener("click", (e) => {
     e.preventDefault();
-    const isChatVisible = chatContainer.style.display === "flex";
-    chatContainer.style.display = isChatVisible ? "none" : "flex";
-    chatBtn.classList.toggle("active", !isChatVisible);
-    if (!isChatVisible) chatInput.focus();
-    else chatInput.blur();
+    e.stopPropagation();
+    toggleChat();
   });
 
-  // Закрытие чата по Esc
+  // Закрытие по ESC
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && chatContainer.style.display === "flex") {
-      chatContainer.style.display = "none";
-      chatInput.blur();
+      toggleChat();
+    }
+    // Открытие чата по T (как в большинстве игр)
+    if (e.key === "t" || e.key === "T" || e.key === "е" || e.key === "Е") {
+      if (chatContainer.style.display !== "flex") {
+        toggleChat();
+      }
     }
   });
 
-  // Отправка сообщения по Enter
+  // Отправка по Enter
   chatInput.addEventListener("keypress", (e) => {
     if (e.key === "Enter" && chatInput.value.trim()) {
       sendWhenReady(
@@ -37,43 +54,36 @@ window.chatSystem.initializeChat = function (webSocket) {
       chatInput.value = "";
     }
   });
+
+  // Автофокус при открытии
+  chatContainer.addEventListener("transitionend", () => {
+    if (chatContainer.style.display === "flex") {
+      chatInput.focus();
+    }
+  });
 };
 
-// Функция для отправки данных, когда WebSocket готов
-function sendWhenReady(webSocket, message) {
-  if (webSocket.readyState === WebSocket.OPEN) {
-    webSocket.send(message);
-  } else if (webSocket.readyState === WebSocket.CONNECTING) {
-    const checkInterval = setInterval(() => {
-      if (webSocket.readyState === WebSocket.OPEN) {
-        webSocket.send(message);
-        clearInterval(checkInterval);
-      }
-    }, 100);
-    setTimeout(() => clearInterval(checkInterval), 5000);
-  }
-}
-
-// Функция для отправки данных, когда WebSocket готов
+// Отправка с ожиданием готовности WS
 function sendWhenReady(ws, message) {
   if (ws.readyState === WebSocket.OPEN) {
     ws.send(message);
   } else if (ws.readyState === WebSocket.CONNECTING) {
-    const checkInterval = setInterval(() => {
+    const interval = setInterval(() => {
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(message);
-        clearInterval(checkInterval);
+        clearInterval(interval);
       }
     }, 100);
-    setTimeout(() => clearInterval(checkInterval), 5000);
+    setTimeout(() => clearInterval(interval), 5000);
   }
 }
 
-// Обработка входящих сообщений чата
+// Добавление сообщения
 window.chatSystem.handleChatMessage = function (data) {
   const messageEl = document.createElement("div");
-  messageEl.textContent = `${data.id}: ${data.message}`;
   messageEl.classList.add("chat-message");
+  messageEl.textContent = `${data.id}: ${data.message}`;
+
   chatMessages.appendChild(messageEl);
   chatMessages.scrollTop = chatMessages.scrollHeight;
 };
