@@ -1532,14 +1532,46 @@ function setupWebSocket(
         }
 
         // УДАЛЕНИЕ предложенных предметов
+        // УДАЛЕНИЕ предложенных предметов (с поддержкой частичного стака)
         offerFromA.forEach((item) => {
           if (item && item.originalSlot !== undefined) {
-            playerA.inventory[item.originalSlot] = null;
+            const slotIndex = item.originalSlot;
+            const invItem = playerA.inventory[slotIndex];
+
+            // Защита от подлога
+            if (!invItem || invItem.type !== item.type) return;
+
+            if (ITEM_CONFIG[item.type]?.stackable && item.quantity) {
+              // Это stackable (баляры, атомы) — уменьшаем количество
+              invItem.quantity = (invItem.quantity || 1) - item.quantity;
+              if (invItem.quantity <= 0) {
+                playerA.inventory[slotIndex] = null;
+              }
+            } else {
+              // Не stackable — полностью удаляем
+              playerA.inventory[slotIndex] = null;
+            }
           }
         });
+
         offerFromB.forEach((item) => {
           if (item && item.originalSlot !== undefined) {
-            playerB.inventory[item.originalSlot] = null;
+            const slotIndex = item.originalSlot;
+            const invItem = playerB.inventory[slotIndex];
+
+            // Защита от подлога
+            if (!invItem || invItem.type !== item.type) return;
+
+            if (ITEM_CONFIG[item.type]?.stackable && item.quantity) {
+              // Это stackable — уменьшаем количество
+              invItem.quantity = (invItem.quantity || 1) - item.quantity;
+              if (invItem.quantity <= 0) {
+                playerB.inventory[slotIndex] = null;
+              }
+            } else {
+              // Не stackable — полностью удаляем
+              playerB.inventory[slotIndex] = null;
+            }
           }
         });
 
