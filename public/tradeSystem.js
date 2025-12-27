@@ -71,22 +71,29 @@ const tradeSystem = {
     tradeWindow.className = "trade-window";
     tradeWindow.style.display = "none";
     tradeWindow.innerHTML = `
-      <div id="tradeFormContainer" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10; align-items: center; justify-content: center;"></div>
       <div class="trade-panel">
+        <h3 class="cyber-text">ТОРГОВЛЯ С ИГРОКОМ: ${
+          this.tradePartnerId || "..."
+        }</h3>
+        
         <h3 class="cyber-text">Ваш инвентарь</h3>
         <div id="myTradeGrid" class="trade-grid"></div>
+        
         <h3 class="cyber-text">Ваше предложение</h3>
         <div id="myOfferGrid" class="trade-offer-grid"></div>
+        
         <h3 class="cyber-text">Предложение партнёра</h3>
         <div id="partnerOfferGrid" class="trade-offer-grid"></div>
+        
         <div class="offer-amount-container">
-          <input type="number" id="offerAmount" min="1" value="1" class="cyber-input" disabled>
+          <input type="number" id="offerAmount" min="1" value="1" class="cyber-input" disabled placeholder="Кол-во">
           <button id="confirmOfferBtn" class="action-btn use-btn" style="display: none;">Подтвердить</button>
           <button id="cancelOfferBtn" class="action-btn drop-btn" style="display: none;">Отмена</button>
         </div>
+        
         <div class="trade-buttons">
-          <button id="confirmTradeBtn" class="action-btn use-btn" disabled>Подтвердить</button>
-          <button id="cancelTradeWindowBtn" class="action-btn drop-btn">Отмена</button>
+          <button id="confirmTradeBtn" class="action-btn use-btn" disabled>ПОДТВЕРДИТЬ ТОРГ</button>
+          <button id="cancelTradeWindowBtn" class="action-btn drop-btn">ОТМЕНА</button>
         </div>
       </div>
     `;
