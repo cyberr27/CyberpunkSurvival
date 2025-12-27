@@ -178,61 +178,64 @@
 
     // === Смерть ===
     if (me.health <= 0) {
-      if (me.state === "dying") {
-        me.frameTime = (me.frameTime || 0) + deltaTime;
-        if (me.frameTime >= ANIMATION_FRAME_DURATION) {
-          me.frameTime -= ANIMATION_FRAME_DURATION;
-          if (me.frame < 6) me.frame += 1;
-        }
-        if (currentTime - lastSendTime >= sendInterval || me.frame >= 6) {
-          sendMovementUpdate(me);
-          lastSendTime = currentTime;
-        }
+      me.state = "idle";
+      me.frame = 0;
+      me.frameTime = 0;
+
+      // Отправляем состояние на сервер (чтобы другие видели idle)
+      if (currentTime - lastSendTime >= sendInterval) {
+        sendMovementUpdate(me);
+        lastSendTime = currentTime;
       }
       updateCamera(me);
-      return;
     }
 
     let isCurrentlyMoving = false;
 
-    // 1. Клик по карте
-    if (isMoving) {
-      const dx = targetX - me.x;
-      const dy = targetY - me.y;
-      if (movePlayer(dx, dy, deltaTime, me, currentTime, 5)) {
-        isCurrentlyMoving = true;
-      } else {
-        isMoving = false;
-      }
-    }
-
-    // 2. Клавиатура
-    if (!isCurrentlyMoving) {
-      let dx = 0,
-        dy = 0;
-      if (keys["w"]) dy -= 1;
-      if (keys["s"]) dy += 1;
-      if (keys["a"]) dx -= 1;
-      if (keys["d"]) dx += 1;
-
-      if (dx !== 0 || dy !== 0) {
-        if (movePlayer(dx, dy, deltaTime, me, currentTime, 0)) {
+    // Движение разрешено только если жив
+    if (me.health > 0) {
+      // 1. Клик по карте
+      if (isMoving) {
+        const dx = targetX - me.x;
+        const dy = targetY - me.y;
+        if (movePlayer(dx, dy, deltaTime, me, currentTime, 5)) {
           isCurrentlyMoving = true;
+        } else {
+          isMoving = false;
+        }
+      }
+
+      // 2. Клавиатура
+      if (!isCurrentlyMoving) {
+        let dx = 0,
+          dy = 0;
+        if (keys["w"]) dy -= 1;
+        if (keys["s"]) dy += 1;
+        if (keys["a"]) dx -= 1;
+        if (keys["d"]) dx += 1;
+
+        if (dx !== 0 || dy !== 0) {
+          if (movePlayer(dx, dy, deltaTime, me, currentTime, 0)) {
+            isCurrentlyMoving = true;
+          }
+        }
+      }
+
+      // 3. Джойстик (мобильные)
+      if (isMobile && window.joystickSystem && !isCurrentlyMoving) {
+        const joy = window.joystickSystem.getDirection();
+        if (
+          joy.active &&
+          (Math.abs(joy.dx) > 0.05 || Math.abs(joy.dy) > 0.05)
+        ) {
+          if (movePlayer(joy.dx, joy.dy, deltaTime, me, currentTime, 0)) {
+            isCurrentlyMoving = true;
+          }
         }
       }
     }
 
-    // 3. Джойстик (мобильные)
-    if (isMobile && window.joystickSystem && !isCurrentlyMoving) {
-      const joy = window.joystickSystem.getDirection();
-      if (joy.active && (Math.abs(joy.dx) > 0.05 || Math.abs(joy.dy) > 0.05)) {
-        if (movePlayer(joy.dx, joy.dy, deltaTime, me, currentTime, 0)) {
-          isCurrentlyMoving = true;
-        }
-      }
-    }
-
-    if (me.state === "attacking") {
+    if (me.state === "attacking" && me.health > 0) {
       me.attackFrameTime = (me.attackFrameTime || 0) + deltaTime;
       while (me.attackFrameTime >= ATTACK_FRAME_DURATION) {
         me.attackFrameTime -= ATTACK_FRAME_DURATION;
@@ -241,11 +244,16 @@
           me.attackFrame = 0;
           me.attackFrameTime = 0;
           me.state = isCurrentlyMoving ? "walking" : "idle";
-          me.frame = 0; // Сбрасываем кадр ходьбы, чтобы начать с начала при возврате
-          sendMovementUpdate(me); // Синхронизируем смену состояния с сервером
+          me.frame = 0;
+          sendMovementUpdate(me);
           lastSendTime = currentTime;
         }
       }
+    } else if (me.health <= 0) {
+      // Принудительно сбрасываем атаку, если умер во время неё
+      me.state = "idle";
+      me.attackFrame = 0;
+      me.attackFrameTime = 0;
     } else {
       if (isCurrentlyMoving && me.state !== "dying") {
         // === СТАБИЛИЗАЦИЯ НАПРАВЛЕНИЯ И СБРОС КАДРА ПРИ СМЕНЕ ===

@@ -12,6 +12,17 @@ function broadcastToWorld(wss, clients, players, worldId, message) {
   });
 }
 
+function broadcastTradeCancelled(wss, clients, playerAId, playerBId) {
+  wss.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      const id = clients.get(client);
+      if (id === playerAId || id === playerBId) {
+        client.send(JSON.stringify({ type: "tradeCancelled" }));
+      }
+    }
+  });
+}
+
 const tradeRequests = new Map();
 const tradeOffers = new Map();
 
@@ -1448,173 +1459,140 @@ function setupWebSocket(
         });
       } else if (data.type === "tradeCompleted") {
         const fromId = clients.get(ws);
-        if (!fromId || !players.has(fromId) || !players.has(data.toId)) return;
+        if (!fromId || !players.has(fromId)) return;
 
+        const toId = data.toId;
+        if (!players.has(toId)) return;
+
+        // Нормализуем ключ торговли
         const tradeKey =
-          fromId < data.toId
-            ? `${fromId}-${data.toId}`
-            : `${data.toId}-${fromId}`;
-
+          fromId < toId ? `${fromId}-${toId}` : `${toId}-${fromId}`;
         if (!tradeOffers.has(tradeKey)) return;
 
         const offers = tradeOffers.get(tradeKey);
         if (!offers.myConfirmed || !offers.partnerConfirmed) return;
 
-        const initiatorId = tradeKey.split("-")[0];
-        const partnerId = tradeKey.split("-")[1];
-        const fromPlayer = players.get(initiatorId);
-        const toPlayer = players.get(partnerId);
+        const playerAId = tradeKey.split("-")[0];
+        const playerBId = tradeKey.split("-")[1];
 
-        if (!fromPlayer.inventory || !toPlayer.inventory) return;
+        const playerA = players.get(playerAId);
+        const playerB = players.get(playerBId);
 
-        const fromOfferValid = offers.myOffer.every((item) => {
-          if (!item) return true;
-          const invItem = fromPlayer.inventory[item.originalSlot];
-          return (
-            invItem &&
-            invItem.type === item.type &&
-            (!item.quantity || invItem.quantity === item.quantity)
-          );
-        });
+        if (!playerA || !playerB || !playerA.inventory || !playerB.inventory)
+          return;
 
-        const toOfferValid = offers.partnerOffer.every((item) => {
-          if (!item) return true;
-          const invItem = toPlayer.inventory[item.originalSlot];
-          return (
-            invItem &&
-            invItem.type === item.type &&
-            (!item.quantity || invItem.quantity === item.quantity)
-          );
-        });
+        // Определяем, чьё предложение принадлежит кому
+        const offerFromA =
+          playerAId === fromId ? offers.myOffer : offers.partnerOffer;
+        const offerFromB =
+          playerAId === fromId ? offers.partnerOffer : offers.myOffer;
 
-        if (!fromOfferValid || !toOfferValid) {
-          wss.clients.forEach((client) => {
-            if (
-              client.readyState === WebSocket.OPEN &&
-              (clients.get(client) === initiatorId ||
-                clients.get(client) === partnerId)
-            ) {
-              client.send(
-                JSON.stringify({
-                  type: "tradeCancelled",
-                  fromId: initiatorId,
-                  toId: partnerId,
-                })
-              );
-            }
+        // ВАЛИДАЦИЯ: предметы всё ещё в инвентаре и не изменились
+        const validateOffer = (player, offer) => {
+          return offer.every((item) => {
+            if (!item) return true;
+            const invItem = player.inventory[item.originalSlot];
+            if (!invItem) return false;
+            if (invItem.type !== item.type) return false;
+            if (item.quantity && invItem.quantity < item.quantity) return false;
+            return true;
           });
+        };
+
+        if (
+          !validateOffer(playerA, offerFromA) ||
+          !validateOffer(playerB, offerFromB)
+        ) {
+          // Один из игроков изменил инвентарь — отменяем
+          broadcastTradeCancelled(wss, clients, playerAId, playerBId);
           tradeRequests.delete(tradeKey);
           tradeOffers.delete(tradeKey);
           return;
         }
 
-        const fromFreeSlots = fromPlayer.inventory.filter(
-          (slot) => slot === null
-        ).length;
-        const toFreeSlots = toPlayer.inventory.filter(
-          (slot) => slot === null
-        ).length;
-        const fromOfferCount = offers.myOffer.filter(
-          (item) => item !== null
-        ).length;
-        const toOfferCount = offers.partnerOffer.filter(
-          (item) => item !== null
-        ).length;
+        // Подсчёт свободных слотов
+        const freeSlotsA = playerA.inventory.filter((s) => s === null).length;
+        const freeSlotsB = playerB.inventory.filter((s) => s === null).length;
+        const itemsFromA = offerFromA.filter(Boolean).length;
+        const itemsFromB = offerFromB.filter(Boolean).length;
 
-        if (fromFreeSlots < toOfferCount || toFreeSlots < fromOfferCount) {
-          wss.clients.forEach((client) => {
-            if (
-              client.readyState === WebSocket.OPEN &&
-              (clients.get(client) === initiatorId ||
-                clients.get(client) === partnerId)
-            ) {
-              client.send(
-                JSON.stringify({
-                  type: "tradeCancelled",
-                  fromId: initiatorId,
-                  toId: partnerId,
-                })
-              );
-            }
-          });
+        if (freeSlotsA < itemsFromB || freeSlotsB < itemsFromA) {
+          broadcastTradeCancelled(wss, clients, playerAId, playerBId);
           tradeRequests.delete(tradeKey);
           tradeOffers.delete(tradeKey);
           return;
         }
 
-        offers.myOffer.forEach((item) => {
-          if (item) {
-            fromPlayer.inventory[item.originalSlot] = null;
+        // УДАЛЕНИЕ ПРЕДЛОЖЕННЫХ ПРЕДМЕТОВ
+        offerFromA.forEach((item) => {
+          if (item && item.originalSlot !== undefined) {
+            playerA.inventory[item.originalSlot] = null;
           }
         });
 
-        offers.partnerOffer.forEach((item) => {
-          if (item) {
-            toPlayer.inventory[item.originalSlot] = null;
+        offerFromB.forEach((item) => {
+          if (item && item.originalSlot !== undefined) {
+            playerB.inventory[item.originalSlot] = null;
           }
         });
 
-        offers.myOffer.forEach((item) => {
+        // ДОБАВЛЕНИЕ ПОЛУЧЕННЫХ ПРЕДМЕТОВ
+        offerFromB.forEach((item) => {
           if (item) {
-            const freeSlot = toPlayer.inventory.findIndex(
-              (slot) => slot === null
-            );
-            if (freeSlot !== -1) {
-              toPlayer.inventory[freeSlot] = {
+            const slot = playerA.inventory.findIndex((s) => s === null);
+            if (slot !== -1) {
+              playerA.inventory[slot] = {
                 type: item.type,
-                quantity: item.quantity,
-                itemId: `${item.type}_${Date.now()}`,
+                quantity: item.quantity || 1,
+                itemId: `${item.type}_${Date.now()}_${Math.random()}`,
               };
             }
           }
         });
 
-        offers.partnerOffer.forEach((item) => {
+        offerFromA.forEach((item) => {
           if (item) {
-            const freeSlot = fromPlayer.inventory.findIndex(
-              (slot) => slot === null
-            );
-            if (freeSlot !== -1) {
-              fromPlayer.inventory[freeSlot] = {
+            const slot = playerB.inventory.findIndex((s) => s === null);
+            if (slot !== -1) {
+              playerB.inventory[slot] = {
                 type: item.type,
-                quantity: item.quantity,
-                itemId: `${item.type}_${Date.now()}`,
+                quantity: item.quantity || 1,
+                itemId: `${item.type}_${Date.now()}_${Math.random()}`,
               };
             }
           }
         });
 
-        players.set(initiatorId, { ...fromPlayer });
-        players.set(partnerId, { ...toPlayer });
-        userDatabase.set(initiatorId, { ...fromPlayer });
-        userDatabase.set(partnerId, { ...toPlayer });
-        await saveUserDatabase(dbCollection, initiatorId, fromPlayer);
-        await saveUserDatabase(dbCollection, partnerId, toPlayer);
+        // Сохраняем и отправляем
+        players.set(playerAId, { ...playerA });
+        players.set(playerBId, { ...playerB });
+        userDatabase.set(playerAId, { ...playerA });
+        userDatabase.set(playerBId, { ...playerB });
+        await saveUserDatabase(dbCollection, playerAId, playerA);
+        await saveUserDatabase(dbCollection, playerBId, playerB);
 
+        // Отправляем каждому свой новый инвентарь
         wss.clients.forEach((client) => {
-          if (client.readyState === WebSocket.OPEN) {
-            if (clients.get(client) === initiatorId) {
-              client.send(
-                JSON.stringify({
-                  type: "tradeCompleted",
-                  fromId: initiatorId,
-                  toId: partnerId,
-                  newInventory: fromPlayer.inventory,
-                })
-              );
-            } else if (clients.get(client) === partnerId) {
-              client.send(
-                JSON.stringify({
-                  type: "tradeCompleted",
-                  fromId: initiatorId,
-                  toId: partnerId,
-                  newInventory: toPlayer.inventory,
-                })
-              );
-            }
+          if (client.readyState !== WebSocket.OPEN) return;
+          const clientId = clients.get(client);
+          if (clientId === playerAId) {
+            client.send(
+              JSON.stringify({
+                type: "tradeCompleted",
+                newInventory: playerA.inventory,
+              })
+            );
+          } else if (clientId === playerBId) {
+            client.send(
+              JSON.stringify({
+                type: "tradeCompleted",
+                newInventory: playerB.inventory,
+              })
+            );
           }
         });
 
+        // Очистка
         tradeRequests.delete(tradeKey);
         tradeOffers.delete(tradeKey);
       } else if (data.type === "tradeCancelled") {

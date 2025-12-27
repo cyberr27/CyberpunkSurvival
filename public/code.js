@@ -2156,11 +2156,34 @@ function handleGameMessage(event) {
         break;
       case "tradeRequest":
       case "tradeAccepted":
-      case "tradeCancelled":
       case "tradeOffer":
       case "tradeConfirmed":
-      case "tradeCompleted":
+      case "tradeCancelled":
         window.tradeSystem.handleTradeMessage(data);
+        break;
+
+      case "tradeCompleted":
+        if (data.newInventory) {
+          // КРИТИЧНО: обновляем локальный инвентарь
+          inventory = data.newInventory.map((slot) =>
+            slot ? { ...slot } : null
+          );
+
+          // Также обновляем инвентарь в объекте игрока (для других систем)
+          const me = players.get(myId);
+          if (me) {
+            me.inventory = [...inventory]; // глубокая копия
+            players.set(myId, me);
+          }
+
+          // Закрываем окно торговли и сбрасываем состояние
+          window.tradeSystem.closeTradeWindow();
+          window.tradeSystem.resetTrade();
+
+          // Перерисовываем инвентарь и статы
+          updateInventoryDisplay();
+          updateStatsDisplay();
+        }
         break;
       case "useItemSuccess":
         {
@@ -2541,7 +2564,6 @@ function update(deltaTime) {
   }
 
   window.movementSystem.update(deltaTime);
-  if (me.health <= 0) return;
 
   // Обновление систем
   window.combatSystem.update(deltaTime);
@@ -2694,10 +2716,14 @@ function draw(deltaTime) {
 
     let spriteX, spriteY;
 
-    if (player.state === "dying") {
-      spriteY = SPRITE_ROWS.walk_down;
-      spriteX = player.frame * PLAYER_FRAME_WIDTH;
-    } else if (player.state === "attacking") {
+    let effectiveState = player.state;
+
+    // Если здоровье <= 0 — принудительно рисуем как idle
+    if (player.health <= 0) {
+      effectiveState = "idle";
+    }
+
+    if (effectiveState === "attacking") {
       let frame = player.attackFrame || 0;
       if (frame >= ATTACK_FRAME_COUNT) frame = ATTACK_FRAME_COUNT - 1;
       spriteX = frame * PLAYER_FRAME_WIDTH;
@@ -2708,7 +2734,8 @@ function draw(deltaTime) {
           ? SPRITE_ROWS.attack_right
           : SPRITE_ROWS.attack_left;
     } else {
-      const frame = player.state === "walking" ? player.frame : 0;
+      // Для idle и walking используем кадр 0 при idle, или текущий при ходьбе
+      const frame = effectiveState === "walking" ? player.frame : 0;
       spriteX = frame * PLAYER_FRAME_WIDTH;
       spriteY =
         {
