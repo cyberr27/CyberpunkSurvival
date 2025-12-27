@@ -12,42 +12,43 @@ const ITEM_CONFIG = {
   },
   nut: {
     effect: { food: 7 },
-    description: "Орех: +7 еды.",
+    description: "Синтетический протеиновый батончик: +7 еды.",
     rarity: 3,
   },
   water_bottle: {
     effect: { water: 30 },
-    description: "Вода: +30 воды.",
+    description:
+      "Гидро-гель пакет: +30 воды. Чистая H₂O из атмосферного конденсатора.",
     rarity: 3,
   },
   apple: {
     effect: { food: 8, water: 5 },
-    description: "Яблоко: +8 еды, +5 воды.",
+    description: "Био-яблоко (ген-модификат): +8 еды, +5 воды.",
     rarity: 3,
   },
   berries: {
     effect: { food: 6, water: 6 },
-    description: "Ягоды: +6 еды, +6 воды.",
+    description: "Неоновые ягоды: +6 еды, +6 воды.",
     rarity: 3,
   },
   carrot: {
     effect: { food: 5, energy: 3 },
-    description: "Морковь: +5 еды, +3 энергии.",
+    description: "Нейро-морковь (стимулятор мозга): +5 еды, +3 энергии.",
     rarity: 3,
   },
   canned_meat: {
     effect: { food: 20 },
-    description: "Банка тушёнки: +20 еды.",
+    description: "Банка синтетического протеина: +20 еды. Вкус — на выбор ИИ.",
     rarity: 1,
   },
   mushroom: {
     effect: { food: 5, energy: 15 },
-    description: "Гриб прущий: +15 энергии, +5 еды.",
+    description: "Стимулирующий гриб (лабораторный): +5 еды, +15 энергии.",
     rarity: 1,
   },
   sausage: {
     effect: { food: 16, energy: 3 },
-    description: "Колбаса: +16 еды, +3 энергии.",
+    description: "Синтетическая колбаса: +16 еды, +3 энергии.",
     rarity: 2,
   },
   blood_pack: {
@@ -57,17 +58,18 @@ const ITEM_CONFIG = {
   },
   bread: {
     effect: { food: 13, water: -2 },
-    description: "Хлеб: +13 еды, -2 воды.",
+    description: "Питательный брикет (сухой паёк): +13 еды, -2 воды.",
     rarity: 2,
   },
   vodka_bottle: {
     effect: { health: 5, energy: -2, water: 1, food: 2 },
-    description: "Водка: +5 здоровья, -2 эн. +1 воды, +2 еды.",
+    description:
+      "Синтетическая водка: +5 здоровья, -2 энергии, +1 вода, +2 еда.",
     rarity: 2,
   },
   meat_chunk: {
     effect: { food: 20, energy: 5, water: -2 },
-    description: "Кусок мяса: +20 еды, +5 эн., -2 воды.",
+    description: "Кусок лабораторного мяса: +20 еды, +5 энергии, -2 воды.",
     rarity: 2,
   },
   blood_syringe: {
@@ -77,17 +79,17 @@ const ITEM_CONFIG = {
   },
   milk: {
     effect: { water: 15, food: 5 },
-    description: "Молоко: +15 воды, +5 еды.",
+    description: "Нано-молоко (синтезировано): +15 воды, +5 еды.",
     rarity: 2,
   },
   condensed_milk: {
     effect: { water: 5, food: 11, energy: 2 },
-    description: "Сгущёнка: +11 еды, +5 воды, +2 эн.",
+    description: "Сгущённый питательный гель: +11 еды, +5 воды, +2 энергии.",
     rarity: 2,
   },
   dried_fish: {
     effect: { food: 10, water: -3 },
-    description: "Сушёная рыба: +10 еды, -3 воды.",
+    description: "Сушёный протеиновый стик: +10 еды, -3 воды.",
     rarity: 2,
   },
 
