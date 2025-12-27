@@ -1536,10 +1536,10 @@ function setupWebSocket(
           }
         });
       } else if (data.type === "tradeAccepted") {
-        const fromId = clients.get(ws); // тот, кто принял (B)
+        const fromId = clients.get(ws); // B — тот, кто принял запрос
         if (!fromId) return;
 
-        const initiatorId = data.fromId; // тот, кто начал (A)
+        const initiatorId = data.fromId; // A — инициатор (отправлено из клиента: acceptTradeRequest() → fromId: myId, toId: tradePartnerId)
         const tradeKey = [fromId, initiatorId].sort().join("-");
 
         const request = tradeRequests.get(tradeKey);
@@ -1551,13 +1551,13 @@ function setupWebSocket(
         });
 
         tradeOffers.set(tradeKey, {
-          offerA: Array(4).fill(null), // предложение инициатора
-          offerB: Array(4).fill(null), // предложение принявшего
+          offerA: Array(4).fill(null), // A — инициатор
+          offerB: Array(4).fill(null), // B — принявший
           confirmedA: false,
           confirmedB: false,
         });
 
-        // Уведомляем обоих
+        // Уведомляем ОБА ИГРОКА с правильными полями fromId и toId
         wss.clients.forEach((client) => {
           if (client.readyState === WebSocket.OPEN) {
             const clientId = clients.get(client);
@@ -1565,7 +1565,8 @@ function setupWebSocket(
               client.send(
                 JSON.stringify({
                   type: "tradeAccepted",
-                  partnerId: clientId === fromId ? initiatorId : fromId,
+                  fromId: initiatorId, // инициатор всегда "отправитель"
+                  toId: clientId, // получатель — текущий клиент
                 })
               );
             }
