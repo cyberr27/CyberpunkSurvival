@@ -1519,12 +1519,46 @@ function setupWebSocket(
         }
 
         // Проверка свободного места
-        const freeSlotsA = playerA.inventory.filter((s) => s === null).length;
-        const freeSlotsB = playerB.inventory.filter((s) => s === null).length;
+        const calculateAvailableSlots = (player, ownOffer, incomingItems) => {
+          let currentFree = player.inventory.filter((s) => s === null).length;
+
+          // Освобождаются слоты от предметов, которые игрок отдаёт (кроме частичных стаков)
+          ownOffer.forEach((item) => {
+            if (!item || item.originalSlot === undefined) return;
+
+            const slotItem = player.inventory[item.originalSlot];
+            if (!slotItem) return;
+
+            if (ITEM_CONFIG[item.type]?.stackable && item.quantity) {
+              // Для стакаемых: слот освободится только если после вычета quantity станет 0
+              const remaining = (slotItem.quantity || 1) - item.quantity;
+              if (remaining <= 0) {
+                currentFree += 1;
+              }
+            } else {
+              // Для не-стакаемых — всегда освобождается слот
+              currentFree += 1;
+            }
+          });
+
+          return currentFree;
+        };
+
+        const availableForA = calculateAvailableSlots(
+          playerA,
+          offerFromA,
+          offerFromB
+        );
+        const availableForB = calculateAvailableSlots(
+          playerB,
+          offerFromB,
+          offerFromA
+        );
+
         const neededForA = offerFromB.filter(Boolean).length;
         const neededForB = offerFromA.filter(Boolean).length;
 
-        if (freeSlotsA < neededForA || freeSlotsB < neededForB) {
+        if (availableForA < neededForA || availableForB < neededForB) {
           broadcastTradeCancelled(wss, clients, playerAId, playerBId);
           tradeRequests.delete(tradeKey);
           tradeOffers.delete(tradeKey);
