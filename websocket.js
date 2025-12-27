@@ -1340,196 +1340,112 @@ function setupWebSocket(
       } else if (data.type === "tradeRequest") {
         const fromId = clients.get(ws);
         if (!fromId) return;
-
         const toId = data.toId;
-        if (!toId || fromId === toId) return;
-
         const playerA = players.get(fromId);
         const playerB = players.get(toId);
+
+        // УБРАНЫ ПРОВЕРКИ НА РАССТОЯНИЕ И ЗДОРОВЬЕ
         if (!playerA || !playerB || playerA.worldId !== playerB.worldId) return;
 
-        // Уникальный ключ трейда (всегда меньший ID первым)
-        const tradeKey =
-          fromId < toId ? `${fromId}-${toId}` : `${toId}-${fromId}`;
+        // ИСПРАВЛЕНИЕ: всегда сортированный ключ (меньший ID первым)
+        const sortedIds = [fromId, toId].sort();
+        const tradeKey = `${sortedIds[0]}-${sortedIds[1]}`;
+        tradeRequests.set(tradeKey, { status: "pending" });
 
-        // Защита от спама и параллельных трейдов
-        if (tradeRequests.has(tradeKey)) return;
-
-        tradeRequests.set(tradeKey, {
-          initiator: fromId,
-          status: "pending",
-          createdAt: Date.now(),
-        });
-
-        // Отправляем запрос только получателю
         wss.clients.forEach((client) => {
           if (
             client.readyState === WebSocket.OPEN &&
             clients.get(client) === toId
           ) {
-            client.send(
-              JSON.stringify({
-                type: "tradeRequest",
-                fromId,
-                toId: fromId, // для клиента toId = initiator
-              })
-            );
+            client.send(JSON.stringify({ type: "tradeRequest", fromId, toId }));
           }
         });
       } else if (data.type === "tradeAccepted") {
-        const fromId = clients.get(ws); // кто принял = fromId
-        if (!fromId) return;
-
-        const initiatorId = data.toId; // инициатор
-        if (!initiatorId || fromId === initiatorId) return;
-
-        const tradeKey =
-          fromId < initiatorId
-            ? `${fromId}-${initiatorId}`
-            : `${initiatorId}-${fromId}`;
-
-        const request = tradeRequests.get(tradeKey);
+        const fromId = data.fromId; // B accepts, fromId = B, toId = A (initiator)
+        const toId = data.toId;
+        // ИСПРАВЛЕНИЕ: всегда сортированный ключ (меньший ID первым)
+        const sortedIds = [fromId, toId].sort();
+        const tradeKey = `${sortedIds[0]}-${sortedIds[1]}`;
         if (
-          !request ||
-          request.status !== "pending" ||
-          request.initiator !== initiatorId
-        ) {
-          return; // устаревший или неверный запрос
-        }
+          !tradeRequests.has(tradeKey) ||
+          tradeRequests.get(tradeKey).status !== "pending"
+        )
+          return;
 
-        // Переводим в accepted
-        tradeRequests.set(tradeKey, { ...request, status: "accepted" });
-
-        // Создаём хранилище предложений
+        tradeRequests.set(tradeKey, { status: "accepted" });
         tradeOffers.set(tradeKey, {
-          offerA: Array(4).fill(null), // предложение игрока с меньшим ID
-          offerB: Array(4).fill(null), // предложение второго
-          confirmedA: false,
-          confirmedB: false,
+          myOffer: Array(4).fill(null),
+          partnerOffer: Array(4).fill(null),
+          myConfirmed: false,
+          partnerConfirmed: false,
         });
 
-        // Уведомляем обоих, что трейд начат
-        const ids = tradeKey.split("-");
+        // Notify both of trade start
         wss.clients.forEach((client) => {
           if (client.readyState === WebSocket.OPEN) {
             const clientId = clients.get(client);
-            if (clientId === ids[0] || clientId === ids[1]) {
+            if (clientId === fromId || clientId === toId) {
               client.send(
                 JSON.stringify({
                   type: "tradeAccepted",
-                  partnerId: clientId === ids[0] ? ids[1] : ids[0],
+                  fromId: toId,
+                  toId: fromId,
                 })
-              );
+              ); // fromId = initiator for both
             }
           }
         });
       } else if (data.type === "tradeOffer") {
         const fromId = clients.get(ws);
         if (!fromId) return;
-
         const toId = data.toId;
         const tradeKey =
-          fromId < toId ? `${fromId}-${toId}` : `${toId}-${fromId}`;
+          fromId < toId ? `${fromId}-${toId}` : `${toId}-${fromId}`; // Symmetric key
 
+        if (!tradeOffers.has(tradeKey)) return;
+
+        // Update offer from fromId
         const offers = tradeOffers.get(tradeKey);
-        if (!offers) return;
-
-        // Проверяем, что игрок не подтверждён (нельзя менять после confirm)
-        const isPlayerA = fromId === tradeKey.split("-")[0];
-        if (
-          (isPlayerA && offers.confirmedA) ||
-          (!isPlayerA && offers.confirmedB)
-        )
-          return;
-
-        // Валидируем каждое предложение
-        const player = players.get(fromId);
-        if (!player || !player.inventory) return;
-
-        const newOffer = data.offer; // массив из 4 элементов
-
-        for (let i = 0; i < 4; i++) {
-          const offeredItem = newOffer[i];
-          if (!offeredItem) continue;
-
-          const originalSlot = offeredItem.originalSlot;
-          if (
-            typeof originalSlot !== "number" ||
-            originalSlot < 0 ||
-            originalSlot >= 20
-          ) {
-            return; // неверный слот
-          }
-
-          const invItem = player.inventory[originalSlot];
-          if (!invItem || invItem.type !== offeredItem.type) return;
-
-          // Проверка количества для stackable
-          if (offeredItem.quantity !== undefined) {
-            if (!ITEM_CONFIG[offeredItem.type]?.stackable) return; // не должен иметь quantity
-            if (invItem.quantity < offeredItem.quantity) return;
-          } else {
-            if (ITEM_CONFIG[offeredItem.type]?.stackable) return; // должен иметь quantity
-          }
-        }
-
-        // Всё валидно — обновляем offer
-        if (isPlayerA) {
-          offers.offerA = newOffer;
+        if (fromId === tradeKey.split("-")[0]) {
+          // A - initiator
+          offers.myOffer = data.offer;
         } else {
-          offers.offerB = newOffer;
+          offers.partnerOffer = data.offer;
         }
         tradeOffers.set(tradeKey, offers);
 
-        // Рассылаем обновление партнёру
+        // Send to partner (dynamic update)
         wss.clients.forEach((client) => {
           if (
             client.readyState === WebSocket.OPEN &&
             clients.get(client) === toId
           ) {
             client.send(
-              JSON.stringify({
-                type: "tradeOffer",
-                fromId,
-                offer: newOffer,
-              })
+              JSON.stringify({ type: "tradeOffer", fromId, offer: data.offer })
             );
           }
         });
       } else if (data.type === "tradeConfirmed") {
         const fromId = clients.get(ws);
-        if (!fromId) return;
-
         const toId = data.toId;
         const tradeKey =
           fromId < toId ? `${fromId}-${toId}` : `${toId}-${fromId}`;
 
+        if (!tradeOffers.has(tradeKey)) return;
+
         const offers = tradeOffers.get(tradeKey);
-        if (!offers) return;
+        if (fromId === tradeKey.split("-")[0]) {
+          offers.myConfirmed = true;
+        } else {
+          offers.partnerConfirmed = true;
+        }
 
-        const isPlayerA = fromId === tradeKey.split("-")[0];
-        if (
-          (isPlayerA && offers.confirmedA) ||
-          (!isPlayerA && offers.confirmedB)
-        )
-          return;
-
-        if (isPlayerA) offers.confirmedA = true;
-        else offers.confirmedB = true;
-
+        // Send confirmation to partner
         wss.clients.forEach((client) => {
-          if (
-            client.readyState === WebSocket.OPEN &&
-            clients.get(client) === toId
-          ) {
+          if (clients.get(client) === toId) {
             client.send(JSON.stringify({ type: "tradeConfirmed", fromId }));
           }
         });
-
-        // Если оба подтвердили — вызываем функцию, которая уже объявлена ниже
-        if (offers.confirmedA && offers.confirmedB) {
-          completeTrade(tradeKey); // ← Просто вызываем по имени
-        }
       } else if (data.type === "tradeCompleted") {
         const fromId = clients.get(ws);
         if (!fromId || !players.has(fromId) || !players.has(data.toId)) return;
@@ -1703,26 +1619,16 @@ function setupWebSocket(
         tradeOffers.delete(tradeKey);
       } else if (data.type === "tradeCancelled") {
         const fromId = clients.get(ws);
-        if (!fromId) return;
-
         const toId = data.toId;
-        if (!toId) return;
-
         const tradeKey =
           fromId < toId ? `${fromId}-${toId}` : `${toId}-${fromId}`;
 
-        // Удаляем трейд
         tradeRequests.delete(tradeKey);
         tradeOffers.delete(tradeKey);
 
-        // Уведомляем обоих
-        const ids = [fromId, toId];
         wss.clients.forEach((client) => {
-          if (client.readyState === WebSocket.OPEN) {
-            const clientId = clients.get(client);
-            if (ids.includes(clientId)) {
-              client.send(JSON.stringify({ type: "tradeCancelled" }));
-            }
+          if (clients.get(client) === fromId || clients.get(client) === toId) {
+            client.send(JSON.stringify({ type: "tradeCancelled" }));
           }
         });
       } else if (data.type === "attackPlayer") {
@@ -2537,149 +2443,6 @@ function setupWebSocket(
         );
       }
     });
-
-    async function completeTrade(tradeKey) {
-      const offers = tradeOffers.get(tradeKey);
-      if (!offers || !offers.confirmedA || !offers.confirmedB) return;
-
-      const [idA, idB] = tradeKey.split("-");
-      const playerA = players.get(idA);
-      const playerB = players.get(idB);
-      if (!playerA || !playerB || !playerA.inventory || !playerB.inventory)
-        return;
-
-      const validateOffer = (offerArray, player) => {
-        return offerArray.every((item) => {
-          if (!item) return true;
-          const invItem = player.inventory[item.originalSlot];
-          if (!invItem || invItem.type !== item.type) return false;
-          if (item.quantity !== undefined) {
-            return invItem.quantity >= item.quantity;
-          }
-          return true;
-        });
-      };
-
-      if (
-        !validateOffer(offers.offerA, playerA) ||
-        !validateOffer(offers.offerB, playerB)
-      ) {
-        cancelTradeForBoth(idA, idB);
-        return;
-      }
-
-      const freeA = playerA.inventory.filter((s) => s === null).length;
-      const freeB = playerB.inventory.filter((s) => s === null).length;
-      const neededA = offers.offerB.filter((i) => i !== null).length;
-      const neededB = offers.offerA.filter((i) => i !== null).length;
-
-      if (freeA < neededA || freeB < neededB) {
-        cancelTradeForBoth(idA, idB);
-        return;
-      }
-
-      // Удаление у отправителей
-      offers.offerA.forEach((item) => {
-        if (item) {
-          if (item.quantity && ITEM_CONFIG[item.type]?.stackable) {
-            playerA.inventory[item.originalSlot].quantity -= item.quantity;
-            if (playerA.inventory[item.originalSlot].quantity <= 0) {
-              playerA.inventory[item.originalSlot] = null;
-            }
-          } else {
-            playerA.inventory[item.originalSlot] = null;
-          }
-        }
-      });
-
-      offers.offerB.forEach((item) => {
-        if (item) {
-          if (item.quantity && ITEM_CONFIG[item.type]?.stackable) {
-            playerB.inventory[item.originalSlot].quantity -= item.quantity;
-            if (playerB.inventory[item.originalSlot].quantity <= 0) {
-              playerB.inventory[item.originalSlot] = null;
-            }
-          } else {
-            playerB.inventory[item.originalSlot] = null;
-          }
-        }
-      });
-
-      // Добавление получателям
-      offers.offerA.forEach((item) => {
-        if (item) {
-          const slot = playerB.inventory.findIndex((s) => s === null);
-          if (slot !== -1) {
-            playerB.inventory[slot] = {
-              type: item.type,
-              quantity: item.quantity || 1,
-              itemId: `${item.type}_${Date.now()}_${Math.random()}`,
-            };
-          }
-        }
-      });
-
-      offers.offerB.forEach((item) => {
-        if (item) {
-          const slot = playerA.inventory.findIndex((s) => s === null);
-          if (slot !== -1) {
-            playerA.inventory[slot] = {
-              type: item.type,
-              quantity: item.quantity || 1,
-              itemId: `${item.type}_${Date.now()}_${Math.random()}`,
-            };
-          }
-        }
-      });
-
-      // Сохранение
-      players.set(idA, { ...playerA });
-      players.set(idB, { ...playerB });
-      userDatabase.set(idA, { ...playerA });
-      userDatabase.set(idB, { ...playerB });
-      await saveUserDatabase(dbCollection, idA, playerA);
-      await saveUserDatabase(dbCollection, idB, playerB);
-
-      // Уведомления
-      wss.clients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN) {
-          const cid = clients.get(client);
-          if (cid === idA) {
-            client.send(
-              JSON.stringify({
-                type: "tradeCompleted",
-                newInventory: playerA.inventory,
-              })
-            );
-          } else if (cid === idB) {
-            client.send(
-              JSON.stringify({
-                type: "tradeCompleted",
-                newInventory: playerB.inventory,
-              })
-            );
-          }
-        }
-      });
-
-      tradeRequests.delete(tradeKey);
-      tradeOffers.delete(tradeKey);
-    }
-
-    function cancelTradeForBoth(idA, idB) {
-      const tradeKey = idA < idB ? `${idA}-${idB}` : `${idB}-${idA}`;
-      tradeRequests.delete(tradeKey);
-      tradeOffers.delete(tradeKey);
-
-      wss.clients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN) {
-          const cid = clients.get(client);
-          if (cid === idA || cid === idB) {
-            client.send(JSON.stringify({ type: "tradeCancelled" }));
-          }
-        }
-      });
-    }
 
     const enemyUpdateInterval = setInterval(() => {
       enemies.forEach((enemy, enemyId) => {
