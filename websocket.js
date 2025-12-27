@@ -1517,18 +1517,22 @@ function setupWebSocket(
 
         const tradeKey = [fromId, toId].sort().join("-");
 
-        // Защита от спама
         if (tradeRequests.has(tradeKey)) return;
 
         tradeRequests.set(tradeKey, { status: "pending", initiator: fromId });
 
-        // Уведомляем только получателя
         wss.clients.forEach((client) => {
           if (
             client.readyState === WebSocket.OPEN &&
             clients.get(client) === toId
           ) {
-            client.send(JSON.stringify({ type: "tradeRequest", fromId }));
+            client.send(
+              JSON.stringify({
+                type: "tradeRequest",
+                fromId: fromId,
+                toId: toId,
+              })
+            );
           }
         });
       } else if (data.type === "tradeAccepted") {
