@@ -1461,10 +1461,21 @@ function setupWebSocket(
         const fromId = clients.get(ws);
         if (!fromId || !players.has(fromId)) return;
 
-        const toId = data.toId;
-        if (!players.has(toId)) return;
+        // Получаем второго участника — он должен быть в данных или в tradeOffers
+        let toId = data.toId;
+        if (!toId || !players.has(toId)) {
+          // Если toId не пришёл — ищем по активным трейдам
+          for (const [key, offers] of tradeOffers.entries()) {
+            const [id1, id2] = key.split("-");
+            if (id1 === fromId || id2 === fromId) {
+              toId = id1 === fromId ? id2 : id1;
+              break;
+            }
+          }
+        }
+        if (!toId || !players.has(toId)) return;
 
-        // Нормализуем ключ торговли
+        // Нормализуем ключ торговли (всегда меньший ID первым)
         const tradeKey =
           fromId < toId ? `${fromId}-${toId}` : `${toId}-${fromId}`;
         if (!tradeOffers.has(tradeKey)) return;
@@ -1472,22 +1483,20 @@ function setupWebSocket(
         const offers = tradeOffers.get(tradeKey);
         if (!offers.myConfirmed || !offers.partnerConfirmed) return;
 
-        const playerAId = tradeKey.split("-")[0];
-        const playerBId = tradeKey.split("-")[1];
-
+        // Определяем игроков
+        const playerAId = tradeKey.split("-")[0]; // меньший ID
+        const playerBId = tradeKey.split("-")[1]; // больший ID
         const playerA = players.get(playerAId);
         const playerB = players.get(playerBId);
 
         if (!playerA || !playerB || !playerA.inventory || !playerB.inventory)
           return;
 
-        // Определяем, чьё предложение принадлежит кому
-        const offerFromA =
-          playerAId === fromId ? offers.myOffer : offers.partnerOffer;
-        const offerFromB =
-          playerAId === fromId ? offers.partnerOffer : offers.myOffer;
+        // Определяем, чьё предложение чьё (симметрично!)
+        const offerFromA = offers.myOffer; // всегда от игрока A (меньший ID)
+        const offerFromB = offers.partnerOffer; // всегда от игрока B
 
-        // ВАЛИДАЦИЯ: предметы всё ещё в инвентаре и не изменились
+        // ВАЛИДАЦИЯ: предметы на месте
         const validateOffer = (player, offer) => {
           return offer.every((item) => {
             if (!item) return true;
@@ -1503,40 +1512,38 @@ function setupWebSocket(
           !validateOffer(playerA, offerFromA) ||
           !validateOffer(playerB, offerFromB)
         ) {
-          // Один из игроков изменил инвентарь — отменяем
           broadcastTradeCancelled(wss, clients, playerAId, playerBId);
           tradeRequests.delete(tradeKey);
           tradeOffers.delete(tradeKey);
           return;
         }
 
-        // Подсчёт свободных слотов
+        // Проверка свободного места
         const freeSlotsA = playerA.inventory.filter((s) => s === null).length;
         const freeSlotsB = playerB.inventory.filter((s) => s === null).length;
-        const itemsFromA = offerFromA.filter(Boolean).length;
-        const itemsFromB = offerFromB.filter(Boolean).length;
+        const neededForA = offerFromB.filter(Boolean).length;
+        const neededForB = offerFromA.filter(Boolean).length;
 
-        if (freeSlotsA < itemsFromB || freeSlotsB < itemsFromA) {
+        if (freeSlotsA < neededForA || freeSlotsB < neededForB) {
           broadcastTradeCancelled(wss, clients, playerAId, playerBId);
           tradeRequests.delete(tradeKey);
           tradeOffers.delete(tradeKey);
           return;
         }
 
-        // УДАЛЕНИЕ ПРЕДЛОЖЕННЫХ ПРЕДМЕТОВ
+        // УДАЛЕНИЕ предложенных предметов
         offerFromA.forEach((item) => {
           if (item && item.originalSlot !== undefined) {
             playerA.inventory[item.originalSlot] = null;
           }
         });
-
         offerFromB.forEach((item) => {
           if (item && item.originalSlot !== undefined) {
             playerB.inventory[item.originalSlot] = null;
           }
         });
 
-        // ДОБАВЛЕНИЕ ПОЛУЧЕННЫХ ПРЕДМЕТОВ
+        // ДОБАВЛЕНИЕ полученных предметов
         offerFromB.forEach((item) => {
           if (item) {
             const slot = playerA.inventory.findIndex((s) => s === null);
@@ -1549,7 +1556,6 @@ function setupWebSocket(
             }
           }
         });
-
         offerFromA.forEach((item) => {
           if (item) {
             const slot = playerB.inventory.findIndex((s) => s === null);
@@ -1563,7 +1569,7 @@ function setupWebSocket(
           }
         });
 
-        // Сохраняем и отправляем
+        // Сохранение
         players.set(playerAId, { ...playerA });
         players.set(playerBId, { ...playerB });
         userDatabase.set(playerAId, { ...playerA });
