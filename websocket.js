@@ -1575,31 +1575,45 @@ function setupWebSocket(
           }
         });
 
-        // ДОБАВЛЕНИЕ полученных предметов
-        offerFromB.forEach((item) => {
-          if (item) {
-            const slot = playerA.inventory.findIndex((s) => s === null);
-            if (slot !== -1) {
-              playerA.inventory[slot] = {
-                type: item.type,
-                quantity: item.quantity || 1,
-                itemId: `${item.type}_${Date.now()}_${Math.random()}`,
+        // ДОБАВЛЕНИЕ полученных предметов (с поддержкой стека для stackable)
+        const addItemsToPlayer = (player, itemsToAdd) => {
+          itemsToAdd.forEach((item) => {
+            if (!item) return;
+
+            const type = item.type;
+            const qty = item.quantity || 1;
+
+            // Если предмет stackable — ищем существующий стек
+            if (ITEM_CONFIG[type]?.stackable) {
+              let added = false;
+              for (let i = 0; i < player.inventory.length; i++) {
+                const slot = player.inventory[i];
+                if (slot && slot.type === type) {
+                  // Нашли существующий стек — прибавляем
+                  slot.quantity = (slot.quantity || 1) + qty;
+                  added = true;
+                  break;
+                }
+              }
+              if (added) return; // Уже добавили в существующий стек
+            }
+
+            // Если не stackable или не нашли стек — ищем свободный слот
+            const freeSlot = player.inventory.findIndex((s) => s === null);
+            if (freeSlot !== -1) {
+              player.inventory[freeSlot] = {
+                type: type,
+                quantity: qty,
+                itemId: `${type}_${Date.now()}_${Math.random()}`,
               };
             }
-          }
-        });
-        offerFromA.forEach((item) => {
-          if (item) {
-            const slot = playerB.inventory.findIndex((s) => s === null);
-            if (slot !== -1) {
-              playerB.inventory[slot] = {
-                type: item.type,
-                quantity: item.quantity || 1,
-                itemId: `${item.type}_${Date.now()}_${Math.random()}`,
-              };
-            }
-          }
-        });
+            // Если нет места — предмет пропадает (уже проверено ранее через freeSlots)
+          });
+        };
+
+        // Применяем для обоих игроков
+        addItemsToPlayer(playerA, offerFromB);
+        addItemsToPlayer(playerB, offerFromA);
 
         // Сохранение
         players.set(playerAId, { ...playerA });
