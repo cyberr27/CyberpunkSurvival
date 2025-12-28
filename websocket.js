@@ -1695,32 +1695,6 @@ function setupWebSocket(
             client.send(JSON.stringify({ type: "tradeCancelled" }));
           }
         });
-      } else if (data.type === "tradeChat") {
-        const fromId = clients.get(ws);
-        if (!fromId) return;
-
-        const toClient = Array.from(clients.entries()).find(
-          ([client, id]) => id === data.toId
-        )?.[0];
-
-        if (toClient && toClient.readyState === WebSocket.OPEN) {
-          toClient.send(
-            JSON.stringify({
-              type: "tradeChat",
-              fromId: fromId,
-              message: data.message,
-            })
-          );
-        }
-
-        // Также отправляем отправителю (чтобы он видел своё сообщение)
-        ws.send(
-          JSON.stringify({
-            type: "tradeChat",
-            fromId: fromId,
-            message: data.message,
-          })
-        );
       } else if (data.type === "attackPlayer") {
         const attackerId = clients.get(ws);
         if (

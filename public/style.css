@@ -654,275 +654,165 @@ body {
 }
 
 /* Диалоговое окно приглашения */
-#tradeWindow {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.9);
-  display: none;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-  padding: 20px;
-  box-sizing: border-box;
-  overflow: hidden; /* Убираем скролл по всему окну */
-}
-
 .trade-dialog {
-  position: fixed;
+  position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   width: 300px;
-  padding: 20px;
-  background: rgba(10, 10, 20, 0.95);
-  border: 2px solid #00ffff;
-  border-radius: 12px;
-  box-shadow: 0 0 25px rgba(0, 255, 255, 0.6);
-  z-index: 101;
+  background: linear-gradient(180deg, #1a1a1a, #0f0f0f);
+  border: 2px solid #ff0066;
+  border-radius: 0;
+  box-shadow: 0 0 15px rgba(255, 0, 102, 0.5);
   display: none;
+  flex-direction: column;
+  padding: 20px;
+  z-index: 200;
+  font-family: "Orbitron", sans-serif;
+  background-image: url("https://i.imgur.com/8Z1z7qU.png");
+  background-size: cover;
+}
+
+.trade-dialog-content {
+  display: flex;
   flex-direction: column;
   align-items: center;
   gap: 15px;
 }
 
-.trade-dialog-content {
-  text-align: center;
-}
-
-.trade-dialog .cyber-text {
-  font-size: 18px;
-  margin-bottom: 10px;
-}
-
-.trade-dialog .action-btn {
-  width: 120px;
-  padding: 10px;
-}
-
-/* === НОВОЕ ПОЛНОЭКРАННОЕ ОКНО ТОРГОВЛИ === */
-#tradeWindow {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.9);
+/* Окно торговли */
+.trade-window {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 90%; /* 90% от body */
+  max-width: 400px; /* Ограничение для больших экранов */
+  height: auto; /* Авто-высота для responsivity */
+  background: linear-gradient(180deg, #1a1a1a, #0f0f0f);
+  border: 2px solid #00ccff;
+  border-radius: 0;
+  box-shadow: 0 0 20px rgba(0, 204, 255, 0.5);
   display: none;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
+  flex-direction: column;
   padding: 20px;
-  box-sizing: border-box;
-  overflow: hidden; /* Убираем скролл по всему окну */
+  gap: 10px;
+  z-index: 150;
+  font-family: "Orbitron", sans-serif;
+  background-image: url("https://i.imgur.com/8Z1z7qU.png");
+  background-size: cover;
+}
+
+/* Экран торговли (аналог inventoryScreen) */
+#tradeScreen {
+  width: 100%;
+  height: 100px;
+  background: #0a0a0a;
+  border: 2px solid #ff0066;
+  border-radius: 0;
+  color: #00ccff;
+  font-size: 14px;
+  font-family: "Orbitron", sans-serif;
+  text-shadow: 0 0 5px rgba(0, 204, 255, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 10px rgba(255, 0, 102, 0.4);
+  grid-row: 1;
+  text-transform: uppercase;
 }
 
 .trade-panel {
-  position: absolute;
-  left: 30%;
-  background: rgba(10, 10, 20, 0.95);
-  border: 2px solid #00ffff;
-  border-radius: 12px;
-  padding: 25px;
-  width: 90%;
-  max-width: 900px;
-  height: 85vh;
-  max-height: 800px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  box-shadow: 0 0 30px rgba(0, 255, 255, 0.6);
-  overflow: hidden; /* Внутренний скролл не нужен — всё влезет */
+  gap: 10px;
 }
 
-.trade-panel h3 {
-  margin: 0 0 10px 0;
-  text-align: center;
-  color: #00ffff;
-  text-shadow: 0 0 10px #00ffff;
-  font-size: 20px;
-  letter-spacing: 1px;
+.trade-buttons {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
 }
 
-/* Сетки */
 .trade-grid {
   display: grid;
-  grid-template-columns: repeat(10, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 8px;
-  justify-items: center;
+}
+
+.trade-slot,
+.offer-slot {
+  width: 50px;
+  height: 50px;
+  min-width: 40px; /* Минимальный размер для мобильных */
+  min-height: 40px;
+  background: #1c1c1c;
+  border: 1px solid #00ccff;
+  box-shadow: inset 0 0 5px rgba(0, 204, 255, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  flex-grow: 1; /* Растягиваются в гриде */
+}
+
+.trade-slot:hover,
+.offer-slot:hover {
+  border-color: #ff0066;
+  box-shadow: 0 0 10px rgba(255, 0, 102, 0.7);
+  transform: scale(1.05);
 }
 
 .trade-offer-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-  justify-items: center;
-}
-
-.trade-slot,
-.offer-slot {
-  width: 60px;
-  height: 60px;
-  background: rgba(0, 255, 255, 0.1);
-  border: 1px solid #00ffff;
-  border-radius: 8px;
-  box-shadow: 0 0 8px rgba(0, 255, 255, 0.3);
-  position: relative;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.trade-slot:hover,
-.offer-slot:hover {
-  box-shadow: 0 0 15px rgba(0, 255, 255, 0.6);
-  transform: scale(1.05);
-}
-
-.trade-slot img,
-.offer-slot img {
-  max-width: 90%;
-  max-height: 90%;
-  object-fit: contain;
-}
-
-/* Количество в углу */
-.quantity {
-  position: absolute;
-  bottom: 3px;
-  right: 5px;
-  font-size: 13px;
-  color: #00ffff;
-  text-shadow: 0 0 5px #00ffff;
-  pointer-events: none;
-  font-weight: bold;
-}
-
-/* === ВНУТРЕННИЙ ЧАТ В ОКНЕ ТОРГОВЛИ === */
-.trade-chat {
-  position: absolute;
-  top: 3.2%;
-  left: 1%;
-  height: 90%; /* Фиксированная высота всего чата */
-  background: rgba(0, 0, 0, 0.6);
-  border: 1px solid #00ffff;
-  border-radius: 8px;
-  padding: 10px;
-  display: flex;
-  flex-direction: column;
-  box-shadow: inset 0 0 10px rgba(0, 255, 255, 0.3);
-}
-
-.trade-chat-messages {
-  flex-grow: 1;
-  overflow-y: auto;
-  font-size: 14px;
-  color: #00ccff;
-  padding: 8px;
-  max-height: 120px; /* или сколько нужно */
-}
-.trade-chat-messages::-webkit-scrollbar {
-  width: 6px;
-}
-
-.trade-chat-messages::-webkit-scrollbar-thumb {
-  background: #00ffff;
-  border-radius: 3px;
-  box-shadow: 0 0 6px rgba(0, 255, 255, 0.8);
-}
-
-.trade-chat-messages div {
-  margin: 4px 0;
-  word-wrap: break-word;
-  padding: 4px 8px;
-  border-radius: 6px;
-  max-width: 80%;
-}
-
-.trade-chat-messages div.mine {
-  align-self: flex-end;
-  background: rgba(0, 255, 0, 0.2);
-  border: 1px solid #00ff00;
-  color: #00ff00;
-  text-align: right;
-}
-
-.trade-chat-messages div.theirs {
-  align-self: flex-start;
-  background: rgba(255, 0, 255, 0.2);
-  border: 1px solid #ff00ff;
-  color: #ff00ff;
-}
-
-.trade-chat-input-container {
-  display: flex;
   gap: 8px;
 }
 
-.trade-chat-input {
-  flex-grow: 1;
-  padding: 8px 12px;
-  background: #0d0d0d;
-  border: 1px solid #00ffff;
-  border-radius: 5px;
-  color: #00ffff;
-  font-size: 14px;
-  box-shadow: 0 0 8px rgba(0, 255, 255, 0.3);
-}
-
-.trade-chat-input:focus {
-  outline: none;
-  box-shadow: 0 0 12px rgba(0, 255, 255, 0.6);
-}
-
-.trade-chat-send {
-  padding: 8px 16px;
-  background: linear-gradient(135deg, #00ffff, #ff00ff);
-  border: none;
-  color: black;
-  border-radius: 5px;
-  cursor: pointer;
-  font-weight: bold;
-}
-
-/* Нижние блоки */
+/* Новый контейнер для input количества в tradeWindow */
 .offer-amount-container {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+  margin: 10px 0;
+  padding: 5px;
+  background: #0a0a0a;
+  border: 1px solid #ff0066;
+  border-radius: 0;
+  box-shadow: 0 0 8px rgba(255, 0, 102, 0.3);
+  flex-wrap: wrap; /* Перенос на новую строку если не влезает */
+  justify-content: space-evenly; /* Равномерно по ширине */
 }
 
-.trade-buttons {
-  display: flex;
-  justify-content: center;
-  gap: 25px;
-  margin-top: 10px;
+.offer-amount-container .cyber-input {
+  width: 80px; /* Аккуратная ширина */
+  text-align: center;
+}
+
+.offer-amount-container .action-btn {
+  width: auto;
+  padding: 5px 10px;
+  font-size: 12px;
+  height: auto;
 }
 
 .action-btn {
-  padding: 12px 24px;
-  font-size: 16px;
-  min-width: 140px;
-  background: linear-gradient(135deg, #00ffff, #ff00ff);
-  border: none;
-  color: #000;
-  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-family: "Orbitron", sans-serif;
+  border: 2px solid #00ccff;
+  color: #00ccff;
+  background: #0a0a0a;
+  border-radius: 0;
   cursor: pointer;
-  box-shadow: 0 0 12px rgba(0, 255, 255, 0.7);
-  transition: all 0.3s;
-}
-
-.action-btn:hover:not(:disabled) {
-  transform: scale(1.05);
-  box-shadow: 0 0 20px rgba(255, 0, 255, 0.8);
-}
-
-.action-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  transform: none;
+  min-width: 100px; /* Минимальная ширина для responsivity */
+  height: 40px;
+  box-sizing: border-box;
+  text-transform: uppercase;
+  transition: all 0.2s;
+  box-shadow: 0 0 10px rgba(0, 204, 255, 0.5);
 }
 
 /* Контейнер экипировки */
@@ -1083,6 +973,40 @@ body {
 }
 
 .equipment-slot.show-tooltip::after {
+  opacity: 1;
+  visibility: visible;
+}
+
+.trade-slot,
+.offer-slot {
+  position: relative;
+}
+
+.trade-slot::after,
+.offer-slot::after {
+  content: attr(data-title);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #0a0a0a;
+  border: 1px solid #00ccff;
+  color: #00ccff;
+  font-size: 12px;
+  font-family: "Orbitron", sans-serif;
+  text-shadow: 0 0 5px rgba(0, 204, 255, 0.7);
+  padding: 5px 10px;
+  border-radius: 5px;
+  white-space: pre-line; /* Чтобы \n работали как переносы строк */
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s, visibility 0.3s;
+  box-shadow: 0 0 10px rgba(0, 204, 255, 0.5);
+  z-index: 1001;
+}
+
+.trade-slot:hover::after,
+.offer-slot:hover::after {
   opacity: 1;
   visibility: visible;
 }
@@ -1317,57 +1241,50 @@ body {
     margin-top: 3px;
   }
 
-  @media (max-width: 768px) {
-    .trade-dialog {
-      width: 280px;
-      padding: 15px;
-    }
+  .trade-dialog {
+    width: 260px;
+    padding: 15px;
+  }
 
-    .trade-dialog .cyber-text {
-      font-size: 16px;
-    }
+  .trade-window {
+    width: 90vw; /* 90% от viewport для мобильных */
+    max-width: none; /* Без ограничения */
+    height: auto;
+    padding: 15px;
+  }
 
-    .trade-panel {
-      width: 95%;
-      padding: 15px;
-      gap: 10px;
-    }
+  .trade-slot,
+  .offer-slot {
+    width: 45px;
+    height: 45px;
+  }
 
-    .trade-panel h3 {
-      font-size: 16px;
-    }
+  /* Responsive для offer-amount-container на мобильных */
+  .offer-amount-container {
+    flex-direction: column; /* Стек в колонку */
+    gap: 5px;
+    margin: 5px 0;
+    padding: 5px;
+    width: 100%; /* Полная ширина */
+  }
 
-    .trade-grid,
-    .trade-offer-grid {
-      grid-template-columns: repeat(5, 1fr);
-      gap: 8px;
-    }
+  .offer-amount-container .cyber-input {
+    width: 100%; /* Полная ширина input */
+  }
 
-    .trade-slot,
-    .offer-slot {
-      width: 50px;
-      height: 50px;
-    }
+  .offer-amount-container .action-btn {
+    width: 100%; /* Полная ширина кнопок */
+    font-size: 10px;
+    padding: 5px;
+    min-width: auto; /* Снимаем min-width */
+  }
 
-    .offer-amount-container {
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .cyber-input {
-      width: 100px;
-    }
-
-    .action-btn {
-      padding: 8px 16px;
-      font-size: 13px;
-      min-width: 100px;
-    }
-
-    .trade-buttons {
-      flex-direction: column;
-      gap: 10px;
-    }
+  .trade-slot,
+  .offer-slot {
+    width: 100%; /* Полная ширина в гриде для мобильных */
+    height: auto;
+    aspect-ratio: 1/1; /* Квадратные пропорции */
+    min-width: 0; /* Без минимума */
   }
 
   .level-display {
