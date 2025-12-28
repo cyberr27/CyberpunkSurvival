@@ -71,25 +71,45 @@ const tradeSystem = {
     tradeWindow.className = "trade-window";
     tradeWindow.style.display = "none";
     tradeWindow.innerHTML = `
-      <div id="tradeFormContainer" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10; align-items: center; justify-content: center;"></div>
-      <div class="trade-panel">
-        <h3 class="cyber-text">Ваш инвентарь</h3>
+  <div id="tradeFormContainer" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10; align-items: center; justify-content: center;"></div>
+  
+  <div class="trade-panel">
+    <div class="trade-layout-horizontal">
+      
+      <!-- Левая колонка: Мой инвентарь -->
+      <div class="trade-section inventory-section">
+        <h3 class="cyber-text">ВАШ ИНВЕНТАРЬ</h3>
         <div id="myTradeGrid" class="trade-grid"></div>
-        <h3 class="cyber-text">Ваше предложение</h3>
-        <div id="myOfferGrid" class="trade-offer-grid"></div>
-        <h3 class="cyber-text">Предложение партнёра</h3>
-        <div id="partnerOfferGrid" class="trade-offer-grid"></div>
+      </div>
+      
+      <!-- Центральная колонка: Предложения -->
+      <div class="trade-section offers-section">
+        <div class="offer-block my-offer">
+          <h3 class="cyber-text">ВАШЕ ПРЕДЛОЖЕНИЕ</h3>
+          <div id="myOfferGrid" class="trade-offer-grid"></div>
+        </div>
+        
         <div class="offer-amount-container">
           <input type="number" id="offerAmount" min="1" value="1" class="cyber-input" disabled>
-          <button id="confirmOfferBtn" class="action-btn use-btn" style="display: none;">Подтвердить</button>
-          <button id="cancelOfferBtn" class="action-btn drop-btn" style="display: none;">Отмена</button>
+          <button id="confirmOfferBtn" class="action-btn use-btn" style="display: none;">ПОДТВЕРДИТЬ</button>
+          <button id="cancelOfferBtn" class="action-btn drop-btn" style="display: none;">ОТМЕНА</button>
         </div>
-        <div class="trade-buttons">
-          <button id="confirmTradeBtn" class="action-btn use-btn" disabled>Подтвердить</button>
-          <button id="cancelTradeWindowBtn" class="action-btn drop-btn">Отмена</button>
+        
+        <div class="offer-block partner-offer">
+          <h3 class="cyber-text">ПРЕДЛОЖЕНИЕ ПАРТНЁРА</h3>
+          <div id="partnerOfferGrid" class="trade-offer-grid"></div>
         </div>
       </div>
-    `;
+      
+    </div>
+    
+    <!-- Нижние кнопки -->
+    <div class="trade-buttons">
+      <button id="confirmTradeBtn" class="action-btn use-btn" disabled>ПОДТВЕРДИТЬ СДЕЛКУ</button>
+      <button id="cancelTradeWindowBtn" class="action-btn drop-btn">ОТМЕНА</button>
+    </div>
+  </div>
+`;
     document.getElementById("gameContainer").appendChild(tradeWindow);
 
     // 20 слотов инвентаря
