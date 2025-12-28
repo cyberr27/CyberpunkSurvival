@@ -1519,36 +1519,10 @@ function setupWebSocket(
         }
 
         // Проверка свободного места
-        const calculateRequiredSlots = (player, incomingOffer) => {
-          let requiredSlots = 0;
+        const calculateAvailableSlots = (player, ownOffer, incomingItems) => {
+          let currentFree = player.inventory.filter((s) => s === null).length;
 
-          incomingOffer.forEach((item) => {
-            if (!item) return;
-
-            const type = item.type;
-            const isStackable = ITEM_CONFIG[type]?.stackable;
-
-            if (isStackable) {
-              // Проверяем, есть ли уже стек этого типа в инвентаре
-              const hasExistingStack = player.inventory.some(
-                (slot) => slot && slot.type === type
-              );
-              if (!hasExistingStack) {
-                requiredSlots += 1; // Нужен новый слот только если нет стака
-              }
-              // Если есть — просто прибавим количество, слот не нужен
-            } else {
-              // Не-стакабельный — всегда нужен отдельный слот
-              requiredSlots += 1;
-            }
-          });
-
-          return requiredSlots;
-        };
-
-        const calculateFreedSlots = (player, ownOffer) => {
-          let freed = 0;
-
+          // Освобождаются слоты от предметов, которые игрок отдаёт (кроме частичных стаков)
           ownOffer.forEach((item) => {
             if (!item || item.originalSlot === undefined) return;
 
@@ -1556,37 +1530,35 @@ function setupWebSocket(
             if (!slotItem) return;
 
             if (ITEM_CONFIG[item.type]?.stackable && item.quantity) {
-              const remaining = (slotItem.quantity || 1) - (item.quantity || 1);
+              // Для стакаемых: слот освободится только если после вычета quantity станет 0
+              const remaining = (slotItem.quantity || 1) - item.quantity;
               if (remaining <= 0) {
-                freed += 1; // Слот полностью освобождается
+                currentFree += 1;
               }
-              // Если осталось >0 — слот остаётся занятым
             } else {
-              freed += 1; // Не-стакабельный — слот всегда освобождается
+              // Для не-стакаемых — всегда освобождается слот
+              currentFree += 1;
             }
           });
 
-          return freed;
+          return currentFree;
         };
 
-        // Текущие пустые слоты
-        const freeSlotsA = playerA.inventory.filter((s) => s === null).length;
-        const freeSlotsB = playerB.inventory.filter((s) => s === null).length;
+        const availableForA = calculateAvailableSlots(
+          playerA,
+          offerFromA,
+          offerFromB
+        );
+        const availableForB = calculateAvailableSlots(
+          playerB,
+          offerFromB,
+          offerFromA
+        );
 
-        // Освобождаются от своих отданных предметов
-        const freedByA = calculateFreedSlots(playerA, offerFromA);
-        const freedByB = calculateFreedSlots(playerB, offerFromB);
+        const neededForA = offerFromB.filter(Boolean).length;
+        const neededForB = offerFromA.filter(Boolean).length;
 
-        // Итого доступных слотов после отдачи
-        const totalAvailableA = freeSlotsA + freedByA;
-        const totalAvailableB = freeSlotsB + freedByB;
-
-        // Сколько реально нужно слотов для входящих предметов (с учётом стеков)
-        const requiredForA = calculateRequiredSlots(playerA, offerFromB);
-        const requiredForB = calculateRequiredSlots(playerB, offerFromA);
-
-        // Проверка: хватает ли места?
-        if (totalAvailableA < requiredForA || totalAvailableB < requiredForB) {
+        if (availableForA < neededForA || availableForB < neededForB) {
           broadcastTradeCancelled(wss, clients, playerAId, playerBId);
           tradeRequests.delete(tradeKey);
           tradeOffers.delete(tradeKey);
@@ -1723,24 +1695,6 @@ function setupWebSocket(
             client.send(JSON.stringify({ type: "tradeCancelled" }));
           }
         });
-      } else if (data.type === "tradeChatMessage") {
-        const fromId = clients.get(ws);
-        if (!fromId) return;
-
-        const toId = data.toId;
-        const targetClient = [...clients.entries()].find(
-          ([_, id]) => id === toId
-        )?.[0];
-
-        if (targetClient && targetClient.readyState === WebSocket.OPEN) {
-          targetClient.send(
-            JSON.stringify({
-              type: "tradeChatMessage",
-              fromId: fromId,
-              message: data.message,
-            })
-          );
-        }
       } else if (data.type === "attackPlayer") {
         const attackerId = clients.get(ws);
         if (
