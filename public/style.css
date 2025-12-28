@@ -816,16 +816,12 @@ body {
 
 .trade-chat-messages {
   flex-grow: 1;
-  overflow-y: auto; /* ВАЖНО: прокрутка появляется автоматически */
+  overflow-y: auto;
   font-size: 14px;
   color: #00ccff;
-  text-shadow: 0 0 3px rgba(0, 204, 255, 0.6);
-  margin-bottom: 8px;
-  padding-right: 5px; /* отступ для скроллбара */
-  display: flex;
-  flex-direction: column;
+  padding: 8px;
+  max-height: 120px; /* или сколько нужно */
 }
-
 .trade-chat-messages::-webkit-scrollbar {
   width: 6px;
 }

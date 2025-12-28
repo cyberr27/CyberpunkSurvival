@@ -115,6 +115,39 @@ const tradeSystem = {
     `;
     document.getElementById("gameContainer").appendChild(tradeWindow);
 
+    this.tradeChatMessages = document.getElementById("tradeChatMessages");
+    this.tradeChatInput = document.getElementById("tradeChatInput");
+    this.tradeChatSend = document.getElementById("tradeChatSend");
+    this.tradePartnerNameEl = document.getElementById("tradePartnerName");
+
+    if (
+      !this.tradeChatMessages ||
+      !this.tradeChatInput ||
+      !this.tradeChatSend
+    ) {
+      console.error("Ошибка: элементы чата торговли не найдены в DOM!");
+      return;
+    }
+
+    // Обработчики ввода сообщения
+    this.tradeChatInput.addEventListener("keypress", (e) => {
+      if (e.key === "Enter" && this.tradeChatInput.value.trim() !== "") {
+        this.sendTradeChatMessage(this.tradeChatInput.value.trim());
+        this.tradeChatInput.value = "";
+      }
+    });
+
+    this.tradeChatSend.addEventListener("click", () => {
+      const msg = this.tradeChatInput.value.trim();
+      if (msg !== "") {
+        this.sendTradeChatMessage(msg);
+        this.tradeChatInput.value = "";
+      }
+    });
+
+    // Фокус на ввод при открытии
+    this.tradeChatInput.focus();
+
     // Создаём слоты
     for (let i = 0; i < 20; i++) {
       const slot = document.createElement("div");
@@ -194,17 +227,33 @@ const tradeSystem = {
   },
 
   addMessageToChat(senderId, message) {
-    if (!this.tradeChatMessages) return;
+    if (!this.tradeChatMessages) {
+      console.warn("tradeChatMessages не инициализирован");
+      return;
+    }
 
     const msgEl = document.createElement("div");
+    msgEl.textContent =
+      senderId === myId ? `Вы: ${message}` : `${senderId}: ${message}`;
 
+    // Стили: свои сообщения — зелёные, справа; чужие — пурпурные, слева
     if (senderId === myId) {
-      msgEl.classList.add("mine");
-      msgEl.textContent = `Вы: ${message}`;
+      msgEl.style.color = "#00ff88";
+      msgEl.style.textAlign = "right";
+      msgEl.style.background = "rgba(0, 255, 136, 0.1)";
+      msgEl.style.borderLeft = "3px solid #00ff88";
     } else {
-      msgEl.classList.add("theirs");
-      msgEl.textContent = `${senderId}: ${message}`;
+      msgEl.style.color = "#ff00ff";
+      msgEl.style.textAlign = "left";
+      msgEl.style.background = "rgba(255, 0, 255, 0.1)";
+      msgEl.style.borderLeft = "3px solid #ff00ff";
     }
+
+    msgEl.style.padding = "6px 10px";
+    msgEl.style.margin = "4px 8px";
+    msgEl.style.borderRadius = "8px";
+    msgEl.style.maxWidth = "80%";
+    msgEl.style.wordBreak = "break-word";
 
     this.tradeChatMessages.appendChild(msgEl);
     this.tradeChatMessages.scrollTop = this.tradeChatMessages.scrollHeight;
@@ -282,7 +331,11 @@ const tradeSystem = {
     this.updateTradeWindow();
     this.updateTradePartnerName();
     this.clearTradeChat();
-    this.tradeChatInput?.focus();
+
+    // Фокус на чат
+    if (this.tradeChatInput) {
+      setTimeout(() => this.tradeChatInput.focus(), 100);
+    }
   },
 
   closeTradeWindow() {
