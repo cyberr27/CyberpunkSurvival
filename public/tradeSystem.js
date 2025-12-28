@@ -3,12 +3,18 @@ const tradeSystem = {
   isTradeWindowOpen: false,
   selectedPlayerId: null,
   tradePartnerId: null,
-  tradeStatus: null, // 'pending', 'accepted', 'confirmed', 'completed', 'cancelled'
+  tradeStatus: null,
   myOffer: Array(4).fill(null),
   partnerOffer: Array(4).fill(null),
   myConfirmed: false,
   partnerConfirmed: false,
   currentOfferSlot: null,
+
+  // Ссылки на DOM-элементы чата
+  tradeChatMessages: null,
+  tradeChatInput: null,
+  tradeChatSend: null,
+  tradePartnerNameEl: null,
 
   initialize(ws) {
     this.ws = ws;
@@ -23,7 +29,8 @@ const tradeSystem = {
     tradeBtn.className = "cyber-btn-img";
     tradeBtn.src = "images/trade.png";
     tradeBtn.alt = "Trade";
-    tradeBtn.style.pointerEvents = this.selectedPlayerId ? "auto" : "none";
+    tradeBtn.style.pointerEvents = "none";
+    tradeBtn.style.opacity = "0.5";
     document.getElementById("gameContainer").appendChild(tradeBtn);
 
     tradeBtn.addEventListener("click", () => {
@@ -48,12 +55,12 @@ const tradeSystem = {
     dialog.className = "trade-dialog";
     dialog.style.display = "none";
     dialog.innerHTML = `
-        <div class="trade-dialog-content">
-          <p id="tradeDialogText" class="cyber-text"></p>
-          <button id="acceptTradeBtn" class="action-btn use-btn">ТОРГ</button>
-          <button id="cancelTradeBtn" class="action-btn drop-btn">ОТМЕНА</button>
-        </div>
-      `;
+      <div class="trade-dialog-content">
+        <p id="tradeDialogText" class="cyber-text"></p>
+        <button id="acceptTradeBtn" class="action-btn use-btn">ТОРГ</button>
+        <button id="cancelTradeBtn" class="action-btn drop-btn">ОТМЕНА</button>
+      </div>
+    `;
     document.getElementById("gameContainer").appendChild(dialog);
 
     document.getElementById("acceptTradeBtn").addEventListener("click", () => {
@@ -79,7 +86,7 @@ const tradeSystem = {
         <h3 class="cyber-text">Ваш инвентарь</h3>
         <div id="myTradeGrid" class="trade-grid"></div>
         
-        <!-- ВНУТРЕННИЙ ЧАТ ТОРГОВЛИ -->
+        <!-- ЧАТ ТОРГОВЛИ -->
         <div class="trade-chat">
           <div id="tradeChatMessages" class="trade-chat-messages"></div>
           <div class="trade-chat-input-container">
@@ -95,7 +102,7 @@ const tradeSystem = {
         <div id="partnerOfferGrid" class="trade-offer-grid"></div>
         
         <div class="offer-amount-container">
-          <input type="number" id="offerAmount" min="1" value="1" class="cyber-input" disabled placeholder="Кол-во">
+          <input type="number" id="offerAmount" min="1" value="1" class="cyber-input" disabled>
           <button id="confirmOfferBtn" class="action-btn use-btn" style="display: none;">Подтвердить</button>
           <button id="cancelOfferBtn" class="action-btn drop-btn" style="display: none;">Отмена</button>
         </div>
@@ -108,7 +115,7 @@ const tradeSystem = {
     `;
     document.getElementById("gameContainer").appendChild(tradeWindow);
 
-    // Создаём 20 слотов инвентаря (10x2)
+    // Создаём слоты
     for (let i = 0; i < 20; i++) {
       const slot = document.createElement("div");
       slot.className = "trade-slot";
@@ -116,77 +123,55 @@ const tradeSystem = {
       document.getElementById("myTradeGrid").appendChild(slot);
     }
 
-    // 4 слота предложений
     for (let i = 0; i < 4; i++) {
       const slot = document.createElement("div");
       slot.className = "offer-slot";
       slot.dataset.slotIndex = i;
       document.getElementById("myOfferGrid").appendChild(slot);
+      document
+        .getElementById("partnerOfferGrid")
+        .appendChild(slot.cloneNode(true));
     }
 
-    for (let i = 0; i < 4; i++) {
-      const slot = document.createElement("div");
-      slot.className = "offer-slot";
-      slot.dataset.slotIndex = i;
-      document.getElementById("partnerOfferGrid").appendChild(slot);
-    }
-
-    // Сохраняем ссылки на элементы чата
+    // === КРИТИЧНО: сохраняем ссылки на элементы чата ===
     this.tradeChatMessages = document.getElementById("tradeChatMessages");
     this.tradeChatInput = document.getElementById("tradeChatInput");
     this.tradeChatSend = document.getElementById("tradeChatSend");
     this.tradePartnerNameEl = document.getElementById("tradePartnerName");
 
-    // Обработчики ввода чата
+    // Обработчики ввода
     this.tradeChatInput.addEventListener("keypress", (e) => {
       if (e.key === "Enter" && this.tradeChatInput.value.trim()) {
-        this.sendAndDisplayLocalMessage(this.tradeChatInput.value.trim());
+        this.sendTradeChatMessage(this.tradeChatInput.value.trim());
         this.tradeChatInput.value = "";
       }
     });
 
     this.tradeChatSend.addEventListener("click", () => {
       if (this.tradeChatInput.value.trim()) {
-        this.sendAndDisplayLocalMessage(this.tradeChatInput.value.trim());
+        this.sendTradeChatMessage(this.tradeChatInput.value.trim());
         this.tradeChatInput.value = "";
       }
     });
 
-    // Остальные обработчики (клик по слотам и т.д.) — оставляем как были
-    document.getElementById("myTradeGrid").addEventListener("click", (e) => {
-      const slot = e.target.closest(".trade-slot");
-      if (slot && slot.dataset.slotIndex) {
-        this.addToOffer(parseInt(slot.dataset.slotIndex));
-      }
-    });
-
-    document.getElementById("myOfferGrid").addEventListener("click", (e) => {
-      const slot = e.target.closest(".offer-slot");
-      if (slot && slot.dataset.slotIndex) {
-        this.removeFromOffer(parseInt(slot.dataset.slotIndex));
-      }
-    });
-
-    document.getElementById("confirmTradeBtn").addEventListener("click", () => {
-      this.confirmTrade();
-    });
-
+    // Остальные кнопки (подтверждение, отмена и т.д.) — оставь как у тебя было
+    document
+      .getElementById("confirmTradeBtn")
+      .addEventListener("click", () => this.confirmTrade());
     document
       .getElementById("cancelTradeWindowBtn")
-      .addEventListener("click", () => {
-        this.cancelTrade();
-      });
+      .addEventListener("click", () => this.cancelTrade());
 
-    // Анимация атомов
+    // Анимации атомов
     this.atomAnimations = {
       myTradeGrid: Array(20)
-        .fill(null)
+        .fill()
         .map(() => ({ frame: 0, frameTime: 0 })),
       myOfferGrid: Array(4)
-        .fill(null)
+        .fill()
         .map(() => ({ frame: 0, frameTime: 0 })),
       partnerOfferGrid: Array(4)
-        .fill(null)
+        .fill()
         .map(() => ({ frame: 0, frameTime: 0 })),
     };
   },
@@ -208,18 +193,17 @@ const tradeSystem = {
     );
   },
 
-  addMessageToChat(senderId, message, isMine = false) {
-    const msgEl = document.createElement("div");
-    msgEl.textContent = `${senderId}: ${message}`;
+  addMessageToChat(senderId, message) {
+    if (!this.tradeChatMessages) return;
 
-    if (isMine) {
-      msgEl.style.color = "#00ff00"; // свои сообщения — зелёный
-      msgEl.style.textAlign = "right";
-      msgEl.style.fontWeight = "bold";
+    const msgEl = document.createElement("div");
+
+    if (senderId === myId) {
+      msgEl.classList.add("mine");
+      msgEl.textContent = `Вы: ${message}`;
     } else {
-      msgEl.style.color = "#ff00ff"; // чужие — пурпурный
-      msgEl.style.textAlign = "left";
-      msgEl.style.fontWeight = "bold";
+      msgEl.classList.add("theirs");
+      msgEl.textContent = `${senderId}: ${message}`;
     }
 
     this.tradeChatMessages.appendChild(msgEl);
@@ -298,8 +282,7 @@ const tradeSystem = {
     this.updateTradeWindow();
     this.updateTradePartnerName();
     this.clearTradeChat();
-    this.startAtomAnimation();
-    this.tradeChatInput.focus();
+    this.tradeChatInput?.focus();
   },
 
   closeTradeWindow() {
@@ -794,9 +777,7 @@ const tradeSystem = {
         if (data.fromId === this.tradePartnerId) {
           this.partnerConfirmed = true;
           this.updateTradeWindow();
-          if (this.myConfirmed) {
-            this.completeTrade();
-          }
+          if (this.myConfirmed) this.completeTrade();
         }
         break;
       case "tradeCompleted":
@@ -806,26 +787,13 @@ const tradeSystem = {
         updateInventoryDisplay();
         break;
       case "tradeCancelled":
-        this.myOffer.forEach((item, index) => {
-          if (item) {
-            const freeSlot = inventory.findIndex((slot) => slot === null);
-            if (freeSlot !== -1) {
-              inventory[freeSlot] = {
-                ...item,
-                itemId: `${item.type}_${Date.now()}`,
-              };
-              this.myOffer[index] = null;
-            }
-          }
-        });
+        this.returnOfferItems();
         this.closeTradeWindow();
         this.resetTrade();
         updateInventoryDisplay();
         break;
       case "tradeChat":
         this.handleTradeChatMessage(data);
-        break;
-      case "tradeError":
         break;
     }
   },
@@ -838,6 +806,7 @@ const tradeSystem = {
 
   sendTradeChatMessage(message) {
     if (!this.tradePartnerId || !message) return;
+
     sendWhenReady(
       this.ws,
       JSON.stringify({
@@ -849,11 +818,10 @@ const tradeSystem = {
   },
 
   handleTradeChatMessage(data) {
-    // Принимаем только от текущего партнёра по торговле
-    if (data.fromId !== this.tradePartnerId) return;
-
-    // Добавляем чужое сообщение (isMine = false)
-    this.addMessageToChat(data.fromId, data.message, false);
+    // Принимаем сообщение, если оно от партнёра или от нас самих (эхо)
+    if (data.fromId === this.tradePartnerId || data.fromId === myId) {
+      this.addMessageToChat(data.fromId, data.message);
+    }
   },
 
   clearTradeChat() {
