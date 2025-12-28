@@ -1519,10 +1519,36 @@ function setupWebSocket(
         }
 
         // Проверка свободного места
-        const calculateAvailableSlots = (player, ownOffer, incomingItems) => {
-          let currentFree = player.inventory.filter((s) => s === null).length;
+        const calculateRequiredSlots = (player, incomingOffer) => {
+          let requiredSlots = 0;
 
-          // Освобождаются слоты от предметов, которые игрок отдаёт (кроме частичных стаков)
+          incomingOffer.forEach((item) => {
+            if (!item) return;
+
+            const type = item.type;
+            const isStackable = ITEM_CONFIG[type]?.stackable;
+
+            if (isStackable) {
+              // Проверяем, есть ли уже стек этого типа в инвентаре
+              const hasExistingStack = player.inventory.some(
+                (slot) => slot && slot.type === type
+              );
+              if (!hasExistingStack) {
+                requiredSlots += 1; // Нужен новый слот только если нет стака
+              }
+              // Если есть — просто прибавим количество, слот не нужен
+            } else {
+              // Не-стакабельный — всегда нужен отдельный слот
+              requiredSlots += 1;
+            }
+          });
+
+          return requiredSlots;
+        };
+
+        const calculateFreedSlots = (player, ownOffer) => {
+          let freed = 0;
+
           ownOffer.forEach((item) => {
             if (!item || item.originalSlot === undefined) return;
 
@@ -1530,35 +1556,37 @@ function setupWebSocket(
             if (!slotItem) return;
 
             if (ITEM_CONFIG[item.type]?.stackable && item.quantity) {
-              // Для стакаемых: слот освободится только если после вычета quantity станет 0
-              const remaining = (slotItem.quantity || 1) - item.quantity;
+              const remaining = (slotItem.quantity || 1) - (item.quantity || 1);
               if (remaining <= 0) {
-                currentFree += 1;
+                freed += 1; // Слот полностью освобождается
               }
+              // Если осталось >0 — слот остаётся занятым
             } else {
-              // Для не-стакаемых — всегда освобождается слот
-              currentFree += 1;
+              freed += 1; // Не-стакабельный — слот всегда освобождается
             }
           });
 
-          return currentFree;
+          return freed;
         };
 
-        const availableForA = calculateAvailableSlots(
-          playerA,
-          offerFromA,
-          offerFromB
-        );
-        const availableForB = calculateAvailableSlots(
-          playerB,
-          offerFromB,
-          offerFromA
-        );
+        // Текущие пустые слоты
+        const freeSlotsA = playerA.inventory.filter((s) => s === null).length;
+        const freeSlotsB = playerB.inventory.filter((s) => s === null).length;
 
-        const neededForA = offerFromB.filter(Boolean).length;
-        const neededForB = offerFromA.filter(Boolean).length;
+        // Освобождаются от своих отданных предметов
+        const freedByA = calculateFreedSlots(playerA, offerFromA);
+        const freedByB = calculateFreedSlots(playerB, offerFromB);
 
-        if (availableForA < neededForA || availableForB < neededForB) {
+        // Итого доступных слотов после отдачи
+        const totalAvailableA = freeSlotsA + freedByA;
+        const totalAvailableB = freeSlotsB + freedByB;
+
+        // Сколько реально нужно слотов для входящих предметов (с учётом стеков)
+        const requiredForA = calculateRequiredSlots(playerA, offerFromB);
+        const requiredForB = calculateRequiredSlots(playerB, offerFromA);
+
+        // Проверка: хватает ли места?
+        if (totalAvailableA < requiredForA || totalAvailableB < requiredForB) {
           broadcastTradeCancelled(wss, clients, playerAId, playerBId);
           tradeRequests.delete(tradeKey);
           tradeOffers.delete(tradeKey);
