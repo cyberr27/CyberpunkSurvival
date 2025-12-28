@@ -670,6 +670,55 @@ body {
   overflow: hidden; /* Убираем скролл по всему окну */
 }
 
+.trade-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 300px;
+  padding: 20px;
+  background: rgba(10, 10, 20, 0.95);
+  border: 2px solid #00ffff;
+  border-radius: 12px;
+  box-shadow: 0 0 25px rgba(0, 255, 255, 0.6);
+  z-index: 101;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+}
+
+.trade-dialog-content {
+  text-align: center;
+}
+
+.trade-dialog .cyber-text {
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+
+.trade-dialog .action-btn {
+  width: 120px;
+  padding: 10px;
+}
+
+/* === НОВОЕ ПОЛНОЭКРАННОЕ ОКНО ТОРГОВЛИ === */
+#tradeWindow {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.9);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  padding: 20px;
+  box-sizing: border-box;
+  overflow: hidden; /* Убираем скролл по всему окну */
+}
+
 .trade-panel {
   background: rgba(10, 10, 20, 0.95);
   border: 2px solid #00ffff;
