@@ -819,6 +819,8 @@ body {
 }
 
 .trade-chat-messages div {
+  position: relative;
+  top: 0%;
   margin: 4px 0;
   word-wrap: break-word;
 }
