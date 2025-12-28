@@ -1723,6 +1723,24 @@ function setupWebSocket(
             client.send(JSON.stringify({ type: "tradeCancelled" }));
           }
         });
+      } else if (data.type === "tradeChatMessage") {
+        const fromId = clients.get(ws);
+        if (!fromId) return;
+
+        const toId = data.toId;
+        const targetClient = [...clients.entries()].find(
+          ([_, id]) => id === toId
+        )?.[0];
+
+        if (targetClient && targetClient.readyState === WebSocket.OPEN) {
+          targetClient.send(
+            JSON.stringify({
+              type: "tradeChatMessage",
+              fromId: fromId,
+              message: data.message,
+            })
+          );
+        }
       } else if (data.type === "attackPlayer") {
         const attackerId = clients.get(ws);
         if (

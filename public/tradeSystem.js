@@ -71,28 +71,40 @@ const tradeSystem = {
     tradeWindow.className = "trade-window";
     tradeWindow.style.display = "none";
     tradeWindow.innerHTML = `
-      <div id="tradeFormContainer" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10; align-items: center; justify-content: center;"></div>
-      <div class="trade-panel">
-        <h3 class="cyber-text">Ваш инвентарь</h3>
-        <div id="myTradeGrid" class="trade-grid"></div>
-        <h3 class="cyber-text">Ваше предложение</h3>
-        <div id="myOfferGrid" class="trade-offer-grid"></div>
-        <h3 class="cyber-text">Предложение партнёра</h3>
-        <div id="partnerOfferGrid" class="trade-offer-grid"></div>
-        <div class="offer-amount-container">
-          <input type="number" id="offerAmount" min="1" value="1" class="cyber-input" disabled>
-          <button id="confirmOfferBtn" class="action-btn use-btn" style="display: none;">Подтвердить</button>
-          <button id="cancelOfferBtn" class="action-btn drop-btn" style="display: none;">Отмена</button>
+      <div class="trade-header">ТОРГОВЛЯ С ИГРОКОМ: <span id="tradePartnerName">...</span></div>
+      
+      <div class="trade-main">
+        <div class="trade-left">
+          <div class="trade-section-title">ВАШ ИНВЕНТАРЬ</div>
+          <div id="myTradeGrid" class="trade-grid"></div>
+          
+          <div class="trade-section-title">ВАШЕ ПРЕДЛОЖЕНИЕ</div>
+          <div id="myOfferGrid" class="trade-offer-grid"></div>
         </div>
-        <div class="trade-buttons">
-          <button id="confirmTradeBtn" class="action-btn use-btn" disabled>Подтвердить</button>
-          <button id="cancelTradeWindowBtn" class="action-btn drop-btn">Отмена</button>
+
+        <div class="trade-right">
+          <div class="trade-section-title">ПРЕДЛОЖЕНИЕ ПАРТНЁРА</div>
+          <div id="partnerOfferGrid" class="trade-offer-grid"></div>
+          
+          <div class="trade-section-title">ПРИВАТНЫЙ ЧАТ</div>
+          <div class="trade-chat">
+            <div id="tradeChatMessages"></div>
+            <div class="trade-chat-input-container">
+              <input type="text" id="tradeChatInput" placeholder="Напишите сообщение..." maxlength="100">
+              <button id="tradeChatSend">ОТПР</button>
+            </div>
+          </div>
         </div>
+      </div>
+
+      <div class="trade-footer">
+        <button id="confirmTradeBtn" class="action-btn use-btn" disabled>ПОДТВЕРДИТЬ</button>
+        <button id="cancelTradeWindowBtn" class="action-btn drop-btn">ОТМЕНА</button>
       </div>
     `;
     document.getElementById("gameContainer").appendChild(tradeWindow);
 
-    // 20 слотов инвентаря
+    // Создаём слоты
     for (let i = 0; i < 20; i++) {
       const slot = document.createElement("div");
       slot.className = "trade-slot";
@@ -100,19 +112,14 @@ const tradeSystem = {
       document.getElementById("myTradeGrid").appendChild(slot);
     }
 
-    // 4 слота для предложений
     for (let i = 0; i < 4; i++) {
       const slot = document.createElement("div");
       slot.className = "offer-slot";
       slot.dataset.slotIndex = i;
       document.getElementById("myOfferGrid").appendChild(slot);
-    }
-
-    for (let i = 0; i < 4; i++) {
-      const slot = document.createElement("div");
-      slot.className = "offer-slot";
-      slot.dataset.slotIndex = i;
-      document.getElementById("partnerOfferGrid").appendChild(slot);
+      document
+        .getElementById("partnerOfferGrid")
+        .appendChild(slot.cloneNode(true));
     }
 
     // Анимация атомов
@@ -128,6 +135,7 @@ const tradeSystem = {
         .map(() => ({ frame: 0, frameTime: 0 })),
     };
 
+    // Обработчики кликов
     document.getElementById("myTradeGrid").addEventListener("click", (e) => {
       const slot = e.target.closest(".trade-slot");
       if (slot && slot.dataset.slotIndex) {
@@ -152,7 +160,68 @@ const tradeSystem = {
         this.handleCancelTrade();
       });
 
+    // === ЧАТ: отправка по кнопке и Enter ===
+    const chatInput = document.getElementById("tradeChatInput");
+    const chatSend = document.getElementById("tradeChatSend");
+
+    const sendChatMessage = () => {
+      const text = chatInput.value.trim();
+      if (
+        text &&
+        this.tradePartnerId &&
+        this.ws.readyState === WebSocket.OPEN
+      ) {
+        sendWhenReady(
+          this.ws,
+          JSON.stringify({
+            type: "tradeChatMessage",
+            toId: this.tradePartnerId,
+            message: text,
+          })
+        );
+        this.addChatMessage(text, true); // своё сообщение
+        chatInput.value = "";
+      }
+    };
+
+    chatSend.addEventListener("click", sendChatMessage);
+    chatInput.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") sendChatMessage();
+    });
+
     this.startAtomAnimation();
+  },
+
+  // Новая функция: добавить сообщение в чат
+  addChatMessage(text, isMine = false) {
+    const messages = document.getElementById("tradeChatMessages");
+    const msgEl = document.createElement("div");
+    msgEl.className = "trade-chat-message" + (isMine ? " me" : "");
+    msgEl.textContent = (isMine ? "Вы" : this.tradePartnerId) + ": " + text;
+    messages.appendChild(msgEl);
+    messages.scrollTop = messages.scrollHeight;
+  },
+
+  // Обновление имени партнёра в шапке
+  updateTradeHeader() {
+    if (this.tradePartnerId) {
+      document.getElementById("tradePartnerName").textContent =
+        this.tradePartnerId;
+    }
+  },
+
+  openTradeWindow() {
+    document.getElementById("tradeWindow").style.display = "flex";
+    this.isTradeWindowOpen = true;
+    this.updateTradeHeader();
+    this.updateTradeWindow();
+    document.getElementById("tradeChatMessages").innerHTML = "";
+    this.addChatMessage("Торговля началась. Обсудите условия.", false);
+  },
+
+  closeTradeWindow() {
+    document.getElementById("tradeWindow").style.display = "none";
+    this.isTradeWindowOpen = false;
   },
 
   // УБРАНЫ ПРОВЕРКИ НА РАССТОЯНИЕ И ЗДОРОВЬЕ
@@ -767,6 +836,11 @@ const tradeSystem = {
         this.closeTradeWindow();
         this.resetTrade();
         updateInventoryDisplay();
+        break;
+      case "tradeChatMessage":
+        if (data.fromId === this.tradePartnerId && this.isTradeWindowOpen) {
+          this.addChatMessage(data.message, false);
+        }
         break;
       case "tradeError":
         break;
