@@ -38,10 +38,14 @@
   margin: 0 15px;
 }
 
+#acceptTradeBtn {
+  background: url(okBtn.png) no-repeat center;
+}
+
 /* === ПОЛНОЭКРАННОЕ ОКНО ТОРГОВЛИ === */
 .trade-window {
   position: fixed;
-  
+
   background: rgba(5, 10, 20, 0.69);
   border: 3px solid #6600ff;
   box-shadow: 0 0 60px rgba(0, 255, 255, 0.8),
@@ -81,9 +85,11 @@
 
 .trade-section.offers-section {
   flex: 1;
+  position: relative;
+  top: -0.5%;
   display: flex;
   flex-direction: column;
-  gap: 30px;
+  gap: 34px;
   justify-content: center;
   align-items: center;
   min-width: 400px;
@@ -91,12 +97,9 @@
 
 .offer-block {
   position: relative;
-  left: -10%;
+  left: 0%;
   width: 100%;
   max-width: 500px;
-  background: rgba(0, 0, 0, 0.4);
-  border: 2px solid #00ffff;
-  border-radius: 12px;
   padding: 20px;
   text-align: center;
 }
@@ -190,9 +193,9 @@
   width: 80px;
   height: 80px;
   background: rgba(0, 20, 40, 0.7);
-  border: 3px solid #00ffff;
+  border: 3px solid #05009c;
   border-radius: 10px;
-  box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
+  box-shadow: 0 0 15px rgba(0, 94, 255, 0.5);
   position: relative;
   cursor: pointer;
   display: flex;
