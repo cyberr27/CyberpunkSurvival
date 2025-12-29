@@ -136,16 +136,33 @@
   font-size: 20px;
 }
 
+/* Блок сообщений чата */
+#tradeChatMessages {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 10px 0;
+}
+
+/* Сообщения в чате */
 .trade-chat-message {
   margin: 8px 12px;
   padding: 10px 14px;
   border-radius: 12px;
   max-width: 80%;
-  word-wrap: break-word;
   font-size: 15px;
   line-height: 1.4;
   box-shadow: 0 0 8px rgba(0, 0, 0, 0.6);
   align-self: flex-start;
+  background: linear-gradient(
+    135deg,
+    rgba(100, 0, 50, 0.8),
+    rgba(200, 0, 100, 0.6)
+  );
+  border: 2px solid #ff00ff;
+  color: #ff00ff;
+  text-shadow: 0 0 8px #ff00ff;
 }
 
 .trade-chat-message.me {
@@ -158,18 +175,6 @@
   border: 2px solid #00ffff;
   color: #00ffff;
   text-shadow: 0 0 8px #00ffff;
-}
-
-.trade-chat-message.partner {
-  align-self: flex-start;
-  background: linear-gradient(
-    135deg,
-    rgba(100, 0, 100, 0.8),
-    rgba(150, 0, 200, 0.6)
-  );
-  border: 2px solid #ff00ff;
-  color: #ff00ff;
-  text-shadow: 0 0 8px #ff00ff;
 }
 
 /* Слоты — увеличенные для большого экрана */

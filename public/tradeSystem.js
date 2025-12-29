@@ -558,8 +558,37 @@ const tradeSystem = {
     this.partnerOffer = Array(4).fill(null);
     this.myConfirmed = false;
     this.partnerConfirmed = false;
-    const tradeBtn = document.getElementById("tradeBtn");
-    if (tradeBtn) tradeBtn.disabled = true;
+    this.currentOfferSlot = null;
+
+    // Полная очистка чата
+    const messagesDiv = document.getElementById("tradeChatMessages");
+    if (messagesDiv) {
+      messagesDiv.innerHTML = "";
+    }
+
+    // Сброс заголовка чата
+    const partnerNameEl = document.getElementById("tradeChatPartnerName");
+    if (partnerNameEl) {
+      partnerNameEl.textContent = "ИГРОК";
+    }
+
+    // Сброс кнопки подтверждения
+    const confirmBtn = document.getElementById("confirmTradeBtn");
+    if (confirmBtn) {
+      confirmBtn.disabled = true;
+    }
+
+    // Очистка всех слотов визуально (на всякий случай)
+    document.querySelectorAll("#myOfferGrid .offer-slot").forEach((slot) => {
+      slot.innerHTML = "";
+      slot.setAttribute("data-title", "");
+    });
+    document
+      .querySelectorAll("#partnerOfferGrid .offer-slot")
+      .forEach((slot) => {
+        slot.innerHTML = "";
+        slot.setAttribute("data-title", "");
+      });
   },
 
   updateTradeWindow() {
@@ -805,14 +834,14 @@ const tradeSystem = {
     const message = input.value.trim();
     if (!message) return;
 
-    // СНАЧАЛА добавляем своё сообщение локально — чтобы сразу видеть
+    // Добавляем своё сообщение локально — только один раз
     this.addChatMessage(message, true);
 
-    // Очищаем поле
+    // Очищаем поле ввода
     input.value = "";
 
-    // Если торговля активна — отправляем на сервер
-    if (this.tradePartnerId && this.ws) {
+    // Отправляем на сервер только если есть активный партнёр
+    if (this.tradePartnerId && this.ws?.readyState === WebSocket.OPEN) {
       sendWhenReady(
         this.ws,
         JSON.stringify({
@@ -878,7 +907,7 @@ const tradeSystem = {
       case "tradeCompleted":
         inventory = data.newInventory;
         this.closeTradeWindow();
-        this.resetTrade();
+        this.resetTrade(); // ← ВАЖНО: полная очистка
         updateInventoryDisplay();
         break;
       case "tradeCancelled":
@@ -901,19 +930,24 @@ const tradeSystem = {
       case "tradeChatMessage":
         if (!data.message || !data.fromId) return;
 
-        // Если это сообщение ОТ ПАРТНЁРА — добавляем как чужое
-        if (data.fromId !== myId) {
-          this.addChatMessage(data.message, false);
+        // Если сообщение от себя — игнорируем (мы уже добавили локально при отправке)
+        if (data.fromId === myId) {
+          return;
         }
-        // Если от себя — мы уже добавили локально при отправке, поэтому игнорируем
-        // (чтобы не было дублей)
 
-        // Синхронизируем партнёра на всякий
-        if (data.fromId !== myId && this.tradePartnerId !== data.fromId) {
-          this.tradePartnerId = data.fromId;
-          const nameEl = document.getElementById("tradeChatPartnerName");
-          if (nameEl) nameEl.textContent = this.tradePartnerId;
+        // Если сообщение от кого-то другого — считаем его партнёром по торговле
+        // (даже если tradePartnerId ещё не установлен — это надёжная синхронизация)
+        this.tradePartnerId = data.fromId;
+
+        // Обновляем имя в заголовке чата
+        const nameEl = document.getElementById("tradeChatPartnerName");
+        if (nameEl) {
+          nameEl.textContent = this.tradePartnerId;
         }
+
+        // Добавляем сообщение как чужое
+        this.addChatMessage(data.message, false);
+
         break;
       case "tradeError":
         break;
