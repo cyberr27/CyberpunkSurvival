@@ -1723,6 +1723,36 @@ function setupWebSocket(
             client.send(JSON.stringify({ type: "tradeCancelled" }));
           }
         });
+      } else if (data.type === "tradeChatMessage") {
+        const fromId = clients.get(ws);
+        if (!fromId) return;
+
+        const toId = data.toId;
+        if (!toId || !players.has(toId)) return;
+
+        // Находим активную торговлю между этими двумя игроками
+        const sortedIds = [fromId, toId].sort();
+        const tradeKey = `${sortedIds[0]}-${sortedIds[1]}`;
+
+        if (!tradeOffers.has(tradeKey) && !tradeRequests.has(tradeKey)) {
+          return; // Торговля не активна — игнорируем
+        }
+
+        const messagePacket = JSON.stringify({
+          type: "tradeChatMessage",
+          fromId: fromId,
+          message: data.message,
+        });
+
+        // Отправляем сообщение И партнёру, И обратно отправителю
+        wss.clients.forEach((client) => {
+          if (client.readyState === WebSocket.OPEN) {
+            const clientId = clients.get(client);
+            if (clientId === toId || clientId === fromId) {
+              client.send(messagePacket);
+            }
+          }
+        });
       } else if (data.type === "attackPlayer") {
         const attackerId = clients.get(ws);
         if (
