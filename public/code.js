@@ -2185,6 +2185,9 @@ function handleGameMessage(event) {
           updateStatsDisplay();
         }
         break;
+      case "tradeChatMessage":
+        window.tradeSystem.handleTradeMessage(data);
+        break;
       case "useItemSuccess":
         {
           const me = players.get(myId);

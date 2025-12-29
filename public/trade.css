@@ -1,6 +1,3 @@
-/* trade.css — Полноэкранное окно торговли + приватный чат */
-
-/* Диалоговое окно приглашения */
 .trade-dialog {
   position: fixed;
   top: 50%;
@@ -44,10 +41,9 @@
 /* === ПОЛНОЭКРАННОЕ ОКНО ТОРГОВЛИ === */
 .trade-window {
   position: fixed;
-  inset: 20px; /* Отступы со всех сторон */
-  background: rgba(5, 10, 20, 0.97);
-  border: 3px solid #00ffff;
-  border-radius: 16px;
+  
+  background: rgba(5, 10, 20, 0.69);
+  border: 3px solid #6600ff;
   box-shadow: 0 0 60px rgba(0, 255, 255, 0.8),
     inset 0 0 30px rgba(0, 255, 255, 0.2);
   display: none;
@@ -58,6 +54,8 @@
   font-family: "Orbitron", sans-serif;
   backdrop-filter: blur(5px);
   gap: 20px;
+  width: 100%;
+  height: 100%;
 }
 
 .trade-layout-horizontal {
@@ -68,16 +66,9 @@
   align-items: stretch;
 }
 
-/* Левая колонка — инвентарь */
 .trade-section.inventory-section {
-  flex: 0 0 360px; /* Фиксированная ширина */
-  display: flex;
+  width: 38.5%;
   flex-direction: column;
-  background: rgba(0, 0, 0, 0.5);
-  border: 2px solid #00ffff;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: inset 0 0 20px rgba(0, 255, 255, 0.2);
 }
 
 .trade-section.inventory-section h3 {
@@ -88,7 +79,6 @@
   font-size: 20px;
 }
 
-/* Центральная колонка — предложения */
 .trade-section.offers-section {
   flex: 1;
   display: flex;
@@ -100,6 +90,8 @@
 }
 
 .offer-block {
+  position: relative;
+  left: -10%;
   width: 100%;
   max-width: 500px;
   background: rgba(0, 0, 0, 0.4);
@@ -109,16 +101,18 @@
   text-align: center;
 }
 
-.offer-block h3 {
-  color: #00ffff;
-  text-shadow: 0 0 10px #00ffff;
-  margin-bottom: 15px;
-  font-size: 20px;
+.offer-block.my-offer {
+  width: 80%;
+  height: 20%;
 }
 
-/* Правая колонка — приватный чат */
+.offer-block.partner-offer {
+  width: 80%;
+  height: 20%;
+}
+
 .trade-chat-section {
-  flex: 0 0 200px;
+  flex: 0 0 300px;
   display: flex;
   flex-direction: column;
   background: rgba(0, 0, 0, 0.6);
@@ -136,7 +130,6 @@
   font-size: 20px;
 }
 
-/* Блок сообщений чата */
 #tradeChatMessages {
   flex: 1;
   overflow-y: auto;
@@ -145,12 +138,12 @@
   padding: 10px 0;
 }
 
-/* Сообщения в чате */
 .trade-chat-message {
   margin: 8px 12px;
   padding: 10px 14px;
   border-radius: 12px;
   max-width: 80%;
+  word-wrap: break-word;
   font-size: 15px;
   line-height: 1.4;
   box-shadow: 0 0 8px rgba(0, 0, 0, 0.6);
@@ -177,7 +170,6 @@
   text-shadow: 0 0 8px #00ffff;
 }
 
-/* Слоты — увеличенные для большого экрана */
 .trade-grid,
 .trade-offer-grid {
   display: grid;
@@ -215,7 +207,6 @@
   object-fit: contain;
 }
 
-/* Количество в углу */
 .trade-slot > div:last-child,
 .offer-slot > div:last-child {
   position: absolute;
@@ -229,7 +220,6 @@
   z-index: 2;
 }
 
-/* Тултипы */
 .trade-slot::after,
 .offer-slot::after {
   content: attr(data-title);
@@ -259,7 +249,6 @@
   visibility: visible;
 }
 
-/* Блок количества */
 .offer-amount-container {
   display: none;
   flex-direction: row;
@@ -280,7 +269,6 @@
   padding: 12px;
 }
 
-/* Нижние кнопки */
 .trade-buttons {
   display: flex;
   justify-content: center;
@@ -296,7 +284,7 @@
   font-size: 20px;
 }
 
-/* === МОБИЛЬНАЯ АДАПТАЦИЯ === */
+/* МОБИЛЬНАЯ АДАПТАЦИЯ */
 @media (max-width: 900px) {
   .trade-window {
     inset: 10px;

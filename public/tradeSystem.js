@@ -91,7 +91,6 @@ const tradeSystem = {
     <!-- Центральная колонка: Предложения -->
     <div class="trade-section offers-section">
       <div class="offer-block my-offer">
-        <h3 class="cyber-text">ВАШЕ ПРЕДЛОЖЕНИЕ</h3>
         <div id="myOfferGrid" class="trade-offer-grid"></div>
       </div>
 
@@ -102,7 +101,6 @@ const tradeSystem = {
       </div>
 
       <div class="offer-block partner-offer">
-        <h3 class="cyber-text">ПРЕДЛОЖЕНИЕ ПАРТНЁРА</h3>
         <div id="partnerOfferGrid" class="trade-offer-grid"></div>
       </div>
     </div>
@@ -125,24 +123,6 @@ const tradeSystem = {
     <button id="cancelTradeWindowBtn" class="action-btn drop-btn">ОТМЕНА</button>
   </div>
 `;
-
-    const sendBtn = document.getElementById("tradeChatSendBtn");
-    if (sendBtn) {
-      sendBtn.addEventListener("click", () => {
-        this.sendTradeChatMessage();
-      });
-    }
-
-    // === ОТПРАВКА ПО ENTER В ПОЛЕ ВВОДА ===
-    const chatInput = document.getElementById("tradeChatInput");
-    if (chatInput) {
-      chatInput.addEventListener("keypress", (e) => {
-        if (e.key === "Enter") {
-          this.sendTradeChatMessage();
-        }
-      });
-    }
-
     document.getElementById("gameContainer").appendChild(tradeWindow);
 
     // 20 слотов инвентаря
@@ -558,37 +538,8 @@ const tradeSystem = {
     this.partnerOffer = Array(4).fill(null);
     this.myConfirmed = false;
     this.partnerConfirmed = false;
-    this.currentOfferSlot = null;
-
-    // Полная очистка чата
-    const messagesDiv = document.getElementById("tradeChatMessages");
-    if (messagesDiv) {
-      messagesDiv.innerHTML = "";
-    }
-
-    // Сброс заголовка чата
-    const partnerNameEl = document.getElementById("tradeChatPartnerName");
-    if (partnerNameEl) {
-      partnerNameEl.textContent = "ИГРОК";
-    }
-
-    // Сброс кнопки подтверждения
-    const confirmBtn = document.getElementById("confirmTradeBtn");
-    if (confirmBtn) {
-      confirmBtn.disabled = true;
-    }
-
-    // Очистка всех слотов визуально (на всякий случай)
-    document.querySelectorAll("#myOfferGrid .offer-slot").forEach((slot) => {
-      slot.innerHTML = "";
-      slot.setAttribute("data-title", "");
-    });
-    document
-      .querySelectorAll("#partnerOfferGrid .offer-slot")
-      .forEach((slot) => {
-        slot.innerHTML = "";
-        slot.setAttribute("data-title", "");
-      });
+    const tradeBtn = document.getElementById("tradeBtn");
+    if (tradeBtn) tradeBtn.disabled = true;
   },
 
   updateTradeWindow() {
@@ -829,19 +780,17 @@ const tradeSystem = {
 
   sendTradeChatMessage() {
     const input = document.getElementById("tradeChatInput");
-    if (!input) return;
-
     const message = input.value.trim();
     if (!message) return;
 
-    // Добавляем своё сообщение локально — только один раз
+    // Всегда добавляем своё сообщение в чат (как в глобальном чате)
     this.addChatMessage(message, true);
 
-    // Очищаем поле ввода
+    // Очищаем поле
     input.value = "";
 
-    // Отправляем на сервер только если есть активный партнёр
-    if (this.tradePartnerId && this.ws?.readyState === WebSocket.OPEN) {
+    // Отправляем только если есть партнёр и торговля активна
+    if (this.tradePartnerId && this.ws) {
       sendWhenReady(
         this.ws,
         JSON.stringify({
@@ -907,7 +856,7 @@ const tradeSystem = {
       case "tradeCompleted":
         inventory = data.newInventory;
         this.closeTradeWindow();
-        this.resetTrade(); // ← ВАЖНО: полная очистка
+        this.resetTrade();
         updateInventoryDisplay();
         break;
       case "tradeCancelled":
@@ -928,26 +877,9 @@ const tradeSystem = {
         updateInventoryDisplay();
         break;
       case "tradeChatMessage":
-        if (!data.message || !data.fromId) return;
-
-        // Если сообщение от себя — игнорируем (мы уже добавили локально при отправке)
-        if (data.fromId === myId) {
-          return;
+        if (data.fromId === this.tradePartnerId) {
+          this.addChatMessage(data.message, false);
         }
-
-        // Если сообщение от кого-то другого — считаем его партнёром по торговле
-        // (даже если tradePartnerId ещё не установлен — это надёжная синхронизация)
-        this.tradePartnerId = data.fromId;
-
-        // Обновляем имя в заголовке чата
-        const nameEl = document.getElementById("tradeChatPartnerName");
-        if (nameEl) {
-          nameEl.textContent = this.tradePartnerId;
-        }
-
-        // Добавляем сообщение как чужое
-        this.addChatMessage(data.message, false);
-
         break;
       case "tradeError":
         break;
