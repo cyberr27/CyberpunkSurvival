@@ -125,6 +125,24 @@ const tradeSystem = {
     <button id="cancelTradeWindowBtn" class="action-btn drop-btn">ОТМЕНА</button>
   </div>
 `;
+
+    const sendBtn = document.getElementById("tradeChatSendBtn");
+    if (sendBtn) {
+      sendBtn.addEventListener("click", () => {
+        this.sendTradeChatMessage();
+      });
+    }
+
+    // === ОТПРАВКА ПО ENTER В ПОЛЕ ВВОДА ===
+    const chatInput = document.getElementById("tradeChatInput");
+    if (chatInput) {
+      chatInput.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") {
+          this.sendTradeChatMessage();
+        }
+      });
+    }
+
     document.getElementById("gameContainer").appendChild(tradeWindow);
 
     // 20 слотов инвентаря
@@ -782,16 +800,18 @@ const tradeSystem = {
 
   sendTradeChatMessage() {
     const input = document.getElementById("tradeChatInput");
+    if (!input) return;
+
     const message = input.value.trim();
     if (!message) return;
 
-    // Всегда добавляем своё сообщение в чат (как в глобальном чате)
+    // СНАЧАЛА добавляем своё сообщение локально — чтобы сразу видеть
     this.addChatMessage(message, true);
 
     // Очищаем поле
     input.value = "";
 
-    // Отправляем только если есть партнёр и торговля активна
+    // Если торговля активна — отправляем на сервер
     if (this.tradePartnerId && this.ws) {
       sendWhenReady(
         this.ws,
@@ -879,8 +899,20 @@ const tradeSystem = {
         updateInventoryDisplay();
         break;
       case "tradeChatMessage":
-        if (data.fromId === this.tradePartnerId) {
+        if (!data.message || !data.fromId) return;
+
+        // Если это сообщение ОТ ПАРТНЁРА — добавляем как чужое
+        if (data.fromId !== myId) {
           this.addChatMessage(data.message, false);
+        }
+        // Если от себя — мы уже добавили локально при отправке, поэтому игнорируем
+        // (чтобы не было дублей)
+
+        // Синхронизируем партнёра на всякий
+        if (data.fromId !== myId && this.tradePartnerId !== data.fromId) {
+          this.tradePartnerId = data.fromId;
+          const nameEl = document.getElementById("tradeChatPartnerName");
+          if (nameEl) nameEl.textContent = this.tradePartnerId;
         }
         break;
       case "tradeError":
