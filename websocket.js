@@ -209,6 +209,7 @@ function setupWebSocket(
             jackMet: false,
             alexNeonMet: false,
             captainMet: false,
+            thimbleriggerMet: false,
             level: 0,
             xp: 0,
             upgradePoints: 0,
@@ -353,6 +354,7 @@ function setupWebSocket(
             jackMet: player.jackMet || false,
             alexNeonMet: player.alexNeonMet || false,
             captainMet: player.captainMet || false,
+            thimbleriggerMet: player.thimbleriggerMet || false,
             selectedQuestId: player.selectedQuestId || null,
             level: player.level || 0,
             xp: player.xp || 0,
@@ -403,6 +405,7 @@ function setupWebSocket(
               jackMet: playerData.jackMet,
               alexNeonMet: playerData.alexNeonMet,
               captainMet: playerData.captainMet,
+              thimbleriggerMet: playerData.thimbleriggerMet,
               selectedQuestId: playerData.selectedQuestId,
               level: playerData.level,
               xp: playerData.xp,
@@ -581,30 +584,23 @@ function setupWebSocket(
           await saveUserDatabase(dbCollection, id, player);
         }
       } else if (data.type === "meetThimblerigger") {
-        const id = clients.get(ws);
-        if (id) {
-          const player = players.get(id);
-          if (!player.thimbleriggerMet) {
-            player.thimbleriggerMet = true;
-            players.set(id, { ...player });
-            userDatabase.set(id, { ...player });
-            await saveUserDatabase(dbCollection, id, player);
+        const playerId = clients.get(ws);
+        if (!playerId) return;
 
-            // Отправляем подтверждение клиенту
-            ws.send(JSON.stringify({ type: "thimbleriggerMet" }));
+        const player = players.get(playerId);
+        if (player && !player.thimbleriggerMet) {
+          player.thimbleriggerMet = true;
+          players.set(playerId, player);
+          userDatabase.set(playerId, player);
+          await saveUserDatabase(dbCollection, playerId, player);
 
-            // Опционально: рассылаем всем в мире обновление
-            broadcastToWorld(
-              wss,
-              clients,
-              players,
-              player.worldId,
-              JSON.stringify({
-                type: "update",
-                player: { id: player.id, thimbleriggerMet: true },
-              })
-            );
-          }
+          // Уведомляем только этого игрока
+          ws.send(
+            JSON.stringify({
+              type: "thimbleriggerMet",
+              met: true,
+            })
+          );
         }
       } else if (data.type === "requestNeonQuestSync") {
         const id = clients.get(ws);

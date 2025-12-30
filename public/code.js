@@ -2457,31 +2457,7 @@ function handleGameMessage(event) {
         }
         break;
       case "thimbleriggerMet":
-        // Сервер подтвердил, что игрок познакомился с Напёрсточником
-        if (
-          window.thimbleriggerSystem &&
-          window.thimbleriggerSystem.setThimbleriggerMet
-        ) {
-          window.thimbleriggerSystem.setThimbleriggerMet(true);
-
-          // Показываем уведомление при первом знакомстве
-          showNotification(
-            "Вы познакомились с Напёрсточником. Теперь можно играть в напёрстки!",
-            "#ffd700"
-          );
-
-          // Если игрок сейчас рядом — сразу показываем кнопки
-          const me = players.get(myId);
-          if (me && me.worldId === 0) {
-            const dx = me.x + 35 - (228 + 35);
-            const dy = me.y + 35 - (2882 + 35);
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist < 80) {
-              // Принудительно вызываем проверку близости, чтобы появились кнопки
-              window.thimbleriggerSystem.checkThimbleriggerProximity();
-            }
-          }
-        }
+        window.thimbleriggerSystem.setThimbleriggerMet(data.met);
         break;
     }
   } catch (error) {

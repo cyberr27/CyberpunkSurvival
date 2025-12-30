@@ -17,20 +17,19 @@ let thimbleriggerSprite = null;
 // Анимация
 let thimbleriggerFrame = 0;
 let thimbleriggerFrameTime = 0;
-const THIMBLERIGGER_FRAME_DURATION = 150; // 10 FPS
+const THIMBLERIGGER_FRAME_DURATION = 150; // ~10 FPS
 const THIMBLERIGGER_TOTAL_FRAMES = 13;
 
 // Кнопки над NPC
 let thimbleriggerButtonsContainer = null;
 let isPlayerNearThimblerigger = false;
 
-// Флаг, чтобы приветствие показывалось только один раз
-let hasGreetingBeenShownThis = false;
+// Флаг одноразового приветствия
+let hasGreetingBeenShownThisSession = false;
 
 function initializeThimbleriggerStyles() {
   const style = document.createElement("style");
   style.textContent = `
-    /* Используем те же стили, что и у других NPC */
     .thimblerigger-talk-btn {
       background: linear-gradient(135deg, rgba(0, 255, 255, 0.25), rgba(0, 150, 150, 0.35));
       color: #00ffff;
@@ -131,7 +130,7 @@ function drawThimblerigger(deltaTime) {
     ctx.fillRect(screenX, screenY, 70, 70);
   }
 
-  // Надпись: "?" или имя
+  // Имя или "?"
   ctx.font = "bold 40px 'Courier New', monospace";
   ctx.textAlign = "center";
   ctx.strokeStyle = "black";
@@ -148,7 +147,6 @@ function drawThimblerigger(deltaTime) {
     screenY - 30
   );
 
-  // Обновляем позицию кнопок
   updateThimbleriggerButtonsPosition(cameraX, cameraY);
 }
 
@@ -174,13 +172,13 @@ function checkThimbleriggerProximity() {
       }
     }
 
-    // Автоматическое приветствие при первом приближении
+    // Одноразовое приветствие при первом приближении
     if (
       !isThimbleriggerMet &&
-      !hasGreetingBeenShownThis &&
+      !hasGreetingBeenShownThisSession &&
       ws?.readyState === WebSocket.OPEN
     ) {
-      hasGreetingBeenShownThis = true;
+      hasGreetingBeenShownThisSession = true;
       sendWhenReady(ws, JSON.stringify({ type: "meetThimblerigger" }));
     }
   } else {
@@ -204,10 +202,11 @@ function openThimbleriggerTalk() {
       <h2 class="npc-title">${THIMBLERIGGER.name}</h2>
     </div>
     <div class="npc-dialog-content">
-      <p class="npc-text">Эй, сталкер! Хочешь рискнуть? Три напёрстка — один шарик. Угадаешь — удвою ставку. Проиграешь — баляры мои.</p>
+      <p class="npc-text">Эй, сталкер! Хочешь рискнуть? Три напёрстка — один шарик.</p>
+      <p class="npc-text">Угадаешь — удвою твою ставку. Проиграешь — баляры мои.</p>
       <p class="npc-text">Ставка от 1 до 10 баляров. Готов играть?</p>
     </div>
-    <button class="neon-btn" onclick="closeThimbleriggerDialog()">ЗАКРЫТЬ</button>
+    <button class="neon-btn" onclick="window.thimbleriggerSystem.closeDialog()">ЗАКРЫТЬ</button>
   `;
   document.body.appendChild(dialog);
 }
@@ -226,9 +225,9 @@ function openThimbleriggerGame() {
     </div>
     <div class="npc-dialog-content">
       <p class="npc-text">Пока в разработке...</p>
-      <p class="npc-text">Скоро сможешь попытать удачу!</p>
+      <p class="npc-text">Но скоро ты сможешь попытать удачу!</p>
     </div>
-    <button class="neon-btn" onclick="closeThimbleriggerDialog()">ЗАКРЫТЬ</button>
+    <button class="neon-btn" onclick="window.thimbleriggerSystem.closeDialog()">ЗАКРЫТЬ</button>
   `;
   document.body.appendChild(dialog);
 }
@@ -240,30 +239,31 @@ function closeThimbleriggerDialog() {
   if (dialog) dialog.remove();
 }
 
-// Глобальная функция закрытия при ESC
+// ESC закрытие
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && isThimbleriggerDialogOpen) {
     closeThimbleriggerDialog();
   }
 });
 
-// === СИНХРОНИЗАЦИЯ С СЕРВЕРА ===
+// Серверная синхронизация
 function setThimbleriggerMet(met) {
   isThimbleriggerMet = met;
-  hasGreetingBeenShownThis = met; // если уже знаком — не показываем приветствие снова
+  hasGreetingBeenShownThisSession = met;
   if (!met) {
     removeThimbleriggerButtons();
   }
 }
 
-// === ЭКСПОРТ СИСТЕМЫ ===
+// Экспорт системы
 window.thimbleriggerSystem = {
   drawThimblerigger,
   checkThimbleriggerProximity,
   setThimbleriggerMet,
+  closeDialog: closeThimbleriggerDialog,
   initialize: (sprite) => {
     thimbleriggerSprite = sprite;
     initializeThimbleriggerStyles();
-    hasGreetingBeenShownThis = false;
+    hasGreetingBeenShownThisSession = false;
   },
 };
