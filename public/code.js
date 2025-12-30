@@ -107,6 +107,7 @@ const imageSources = {
   robotDoctorFoto: "robot_doctor_foto.png",
   medicalCertificateImage: "medical_certificate.png",
   medicalCertificateStampedImage: "medical_certificate_stamped.png",
+  thimbleriggerSprite: "thimblerigger.png",
   // === НОВАЯ ПОРВАННАЯ ЭКИПИРОВКА ===
   torn_baseball_cap_of_health: "torn_baseball_cap_of_health.png",
   torn_health_t_shirt: "torn_health_t_shirt.png",
@@ -155,6 +156,7 @@ Object.entries(imageSources).forEach(([key, src]) => {
       window.clockSystem.initialize(images.oclocSprite);
       window.corporateRobotSystem.initialize(images.corporateRobotSprite);
       window.robotDoctorSystem.initialize(images.robotDoctorSprite);
+      window.thimbleriggerSystem.initialize(images.thimbleriggerSprite);
     }
   };
 });
@@ -776,6 +778,7 @@ function handleAuthMessage(event) {
         jackMet: data.jackMet || false,
         alexNeonMet: data.alexNeonMet || false,
         captainMet: data.captainMet || false,
+        thimbleriggerMet: data.thimbleriggerMet || false,
         selectedQuestId: data.selectedQuestId || null,
         level: data.level || 0,
         xp: data.xp || 99,
@@ -793,6 +796,7 @@ function handleAuthMessage(event) {
         medicalCertificate: data.medicalCertificate || false,
         medicalCertificateStamped: data.medicalCertificateStamped || false,
         corporateDocumentsSubmitted: data.corporateDocumentsSubmitted || false,
+        thimbleriggerMet: data.thimbleriggerMet || false,
       };
 
       // === ДОПОЛНИТЕЛЬНО: если сервер вдруг пришлёт maxStats — сохраняем ===
@@ -879,6 +883,10 @@ function handleAuthMessage(event) {
 
       if (window.outpostCaptainSystem) {
         window.outpostCaptainSystem.setCaptainMet(data.captainMet === true);
+      }
+
+      if (window.thimbleriggerSystem && data.thimbleriggerMet !== undefined) {
+        window.thimbleriggerSystem.setThimbleriggerMet(!!data.thimbleriggerMet);
       }
 
       // Квесты
@@ -1002,7 +1010,7 @@ function startGame() {
   window.clockSystem.initialize(images.oclocSprite);
   window.corporateRobotSystem.initialize(images.corporateRobotSprite);
   window.robotDoctorSystem.initialize(images.robotDoctorSprite);
-
+  window.thimbleriggerSystem.initialize(images.thimbleriggerSprite);
   window.combatSystem.initialize();
 
   document.addEventListener("keydown", (e) => {
@@ -2448,6 +2456,33 @@ function handleGameMessage(event) {
           );
         }
         break;
+      case "thimbleriggerMet":
+        // Сервер подтвердил, что игрок познакомился с Напёрсточником
+        if (
+          window.thimbleriggerSystem &&
+          window.thimbleriggerSystem.setThimbleriggerMet
+        ) {
+          window.thimbleriggerSystem.setThimbleriggerMet(true);
+
+          // Показываем уведомление при первом знакомстве
+          showNotification(
+            "Вы познакомились с Напёрсточником. Теперь можно играть в напёрстки!",
+            "#ffd700"
+          );
+
+          // Если игрок сейчас рядом — сразу показываем кнопки
+          const me = players.get(myId);
+          if (me && me.worldId === 0) {
+            const dx = me.x + 35 - (228 + 35);
+            const dy = me.y + 35 - (2882 + 35);
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < 80) {
+              // Принудительно вызываем проверку близости, чтобы появились кнопки
+              window.thimbleriggerSystem.checkThimbleriggerProximity();
+            }
+          }
+        }
+        break;
     }
   } catch (error) {
     console.error("Ошибка в handleGameMessage:", error);
@@ -2583,6 +2618,7 @@ function update(deltaTime) {
   if (window.robotDoctorSystem) window.robotDoctorSystem.update(deltaTime);
   if (window.outpostCaptainSystem)
     window.outpostCaptainSystem.update(deltaTime);
+  window.thimbleriggerSystem.checkThimbleriggerProximity();
 
   window.worldSystem.checkTransitionZones(me.x, me.y);
 }
@@ -2817,6 +2853,7 @@ function draw(deltaTime) {
   if (window.robotDoctorSystem) {
     window.robotDoctorSystem.draw();
   }
+  window.thimbleriggerSystem.drawThimblerigger(deltaTime);
   window.outpostCaptainSystem.drawCaptain(ctx, cameraX, cameraY);
   clockSystem.draw();
   window.droneSystem.draw();

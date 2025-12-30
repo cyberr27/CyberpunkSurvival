@@ -580,6 +580,32 @@ function setupWebSocket(
           userDatabase.set(id, { ...player });
           await saveUserDatabase(dbCollection, id, player);
         }
+      } else if (data.type === "meetThimblerigger") {
+        const id = clients.get(ws);
+        if (id) {
+          const player = players.get(id);
+          if (!player.thimbleriggerMet) {
+            player.thimbleriggerMet = true;
+            players.set(id, { ...player });
+            userDatabase.set(id, { ...player });
+            await saveUserDatabase(dbCollection, id, player);
+
+            // Отправляем подтверждение клиенту
+            ws.send(JSON.stringify({ type: "thimbleriggerMet" }));
+
+            // Опционально: рассылаем всем в мире обновление
+            broadcastToWorld(
+              wss,
+              clients,
+              players,
+              player.worldId,
+              JSON.stringify({
+                type: "update",
+                player: { id: player.id, thimbleriggerMet: true },
+              })
+            );
+          }
+        }
       } else if (data.type === "requestNeonQuestSync") {
         const id = clients.get(ws);
         const player = players.get(id);
