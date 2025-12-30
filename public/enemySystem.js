@@ -1,8 +1,8 @@
-// enemySystem.js - ОПТИМИЗИРОВАННАЯ, СИНХРОНИЗИРОВАННАЯ, БЕЗ ЛАГОВ ВЕРСИЯ (2025)
+// enemySystem.js - ОПТИМИЗИРОВАННАЯ, ПЛАВНАЯ АНИМАЦИЯ, МИНИМАЛЬНАЯ НАГРУЗКА (2025)
 
 let enemies = new Map(); // Map<enemyId, enemyObject>
 
-// Конфиг типов врагов (расширяемо)
+// Конфиг типов врагов
 const ENEMY_TYPES = {
   mutant: {
     size: 70,
@@ -10,7 +10,7 @@ const ENEMY_TYPES = {
     frameDuration: 110,
     maxHealth: 200,
     spriteKey: "mutantSprite",
-    speed: 2, // базовая скорость мутанта
+    speed: 2,
   },
   scorpion: {
     size: 70,
@@ -18,7 +18,7 @@ const ENEMY_TYPES = {
     frameDuration: 110,
     maxHealth: 250,
     spriteKey: "scorpionSprite",
-    speed: 6, // в 2 раза быстрее мутанта
+    speed: 6,
     aggroRange: 300,
     attackCooldown: 1000,
     minDamage: 5,
@@ -28,12 +28,11 @@ const ENEMY_TYPES = {
   },
 };
 
-// Инициализация (загрузка спрайтов уже в code.js)
 function initializeEnemySystem() {
-  // Теперь спавн скорпионов только с сервера, здесь ничего не делаем
+  // Спавн только с сервера
 }
 
-// === Синхронизация с сервера (основной источник правды) ===
+// === Синхронизация с сервера ===
 function syncEnemies(serverEnemies) {
   const currentIds = new Set(enemies.keys());
 
@@ -41,7 +40,6 @@ function syncEnemies(serverEnemies) {
     const id = srv.id;
     currentIds.delete(id);
 
-    // Сервер никогда не шлёт мёртвых — но на всякий случай
     if (srv.health <= 0) {
       enemies.delete(id);
       return;
@@ -51,18 +49,17 @@ function syncEnemies(serverEnemies) {
     const config = ENEMY_TYPES[type] || ENEMY_TYPES.mutant;
 
     if (enemies.has(id)) {
-      // Обновляем существующего
       const e = enemies.get(id);
       e.x = srv.x;
       e.y = srv.y;
       e.health = srv.health;
       e.direction = srv.direction || "down";
       e.state = srv.state || "idle";
-      e.frame = srv.frame ?? 0;
       e.worldId = srv.worldId;
-      e.maxHealth = config.maxHealth; // в случае смены типа
+      e.type = type;
+      e.maxHealth = config.maxHealth;
+      // frame с сервера игнорируем для анимации ходьбы — у нас своя
     } else {
-      // Новый враг
       enemies.set(id, {
         id,
         x: srv.x,
@@ -71,88 +68,108 @@ function syncEnemies(serverEnemies) {
         maxHealth: config.maxHealth,
         direction: srv.direction || "down",
         state: srv.state || "idle",
-        frame: srv.frame ?? 0,
-        frameTime: 0,
-        type,
         worldId: srv.worldId,
+        type,
+        // Локальные поля для плавной анимации
+        walkFrame: 0,
+        walkFrameTime: 0,
       });
     }
   });
 
-  // Удаляем тех, кого сервер больше не присылает (умерли или ушли)
+  // Удаляем исчезнувших
   currentIds.forEach((id) => enemies.delete(id));
 }
 
-// === Отдельные события от сервера ===
 function handleEnemyDeath(enemyId) {
   enemies.delete(enemyId);
 }
 
 function handleNewEnemy(enemyData) {
-  if (enemyData.health <= 0) return; // на всякий пожарный
+  if (enemyData.health <= 0) return;
 
   const type = enemyData.type || "mutant";
   const config = ENEMY_TYPES[type] || ENEMY_TYPES.mutant;
 
   enemies.set(enemyData.id, {
     ...enemyData,
-    frameTime: 0,
+    type,
     maxHealth: config.maxHealth,
+    walkFrame: 0,
+    walkFrameTime: 0,
   });
 }
 
 // === Локальное обновление анимации (только визуал) ===
 function updateEnemies(deltaTime) {
   const currentWorldId = window.worldSystem.currentWorldId;
-  if (!currentWorldId && currentWorldId !== 0) return;
-  for (const [id, enemy] of enemies) {
-    if (enemy.worldId !== currentWorldId) continue;
-    if (enemy.health <= 0) {
-      enemies.delete(id);
-      continue;
-    }
+  if (currentWorldId === undefined) return;
+
+  for (const enemy of enemies.values()) {
+    if (enemy.worldId !== currentWorldId || enemy.health <= 0) continue;
+
     const config = ENEMY_TYPES[enemy.type] || ENEMY_TYPES.mutant;
-    // Плавная анимация: всегда меняем кадры равномерно по времени
-    enemy.frameTime = (enemy.frameTime || 0) + deltaTime;
-    if (enemy.frameTime >= config.frameDuration) {
-      enemy.frame = ((enemy.frame || 0) + 1) % config.frames;
-      enemy.frameTime = 0;
+
+    // Только анимация ходьбы управляется локально
+    if (enemy.state === "walking") {
+      enemy.walkFrameTime += deltaTime;
+      if (enemy.walkFrameTime >= config.frameDuration) {
+        enemy.walkFrame = (enemy.walkFrame + 1) % config.frames;
+        enemy.walkFrameTime -= config.frameDuration; // точнее, чем = 0
+      }
+    } else {
+      // В других состояниях сбрасываем анимацию ходьбы
+      enemy.walkFrame = 0;
+      enemy.walkFrameTime = 0;
     }
-    // ...остальная логика движения и AI врагов остаётся на сервере...
   }
 }
 
 // === Отрисовка ===
 function drawEnemies() {
   const currentWorldId = window.worldSystem.currentWorldId;
-  const camera = window.movementSystem.getCamera();
-  if (!camera && currentWorldId !== 0) return;
+  if (currentWorldId === undefined) return;
 
-  for (const [id, enemy] of enemies) {
+  const camera = window.movementSystem.getCamera();
+  if (!camera) return;
+
+  const camX = camera.x;
+  const camY = camera.y;
+  const canvasW = canvas.width;
+  const canvasH = canvas.height;
+
+  for (const enemy of enemies.values()) {
     if (enemy.worldId !== currentWorldId || enemy.health <= 0) continue;
+
     const config = ENEMY_TYPES[enemy.type] || ENEMY_TYPES.mutant;
-    const sprite = images[config.spriteKey];
-    const screenX = enemy.x - camera.x;
-    const screenY = enemy.y - camera.y - 20;
+    const size = config.size;
+
+    const screenX = enemy.x - camX;
+    const screenY = enemy.y - camY - 20;
+
     // Куллинг
     if (
-      screenX < -config.size - 100 ||
-      screenX > canvas.width + config.size + 100 ||
-      screenY < -config.size - 100 ||
-      screenY > canvas.height + config.size + 100
+      screenX < -size - 100 ||
+      screenX > canvasW + size + 100 ||
+      screenY < -size - 100 ||
+      screenY > canvasH + size + 100
     ) {
       continue;
     }
-    // === Рисуем ===
+
+    const sprite = images[config.spriteKey];
+
+    // Определяем текущий кадр
+    let sourceX = 0;
+    if (enemy.state === "walking") {
+      sourceX = enemy.walkFrame * 70;
+    } else if (enemy.state === "attacking") {
+      sourceX = 12 * 70; // атака начинается с 12-го кадра
+    }
+    // idle — sourceX = 0
+
+    // Рисуем спрайт или заглушку
     if (sprite?.complete && sprite.width >= 910) {
-      let sourceX = 0;
-      if (enemy.state === "walking") {
-        sourceX = enemy.frame * 70;
-      } else if (enemy.state === "attacking") {
-        sourceX = 12 * 70;
-      } else {
-        sourceX = 0;
-      }
       ctx.drawImage(sprite, sourceX, 0, 70, 70, screenX, screenY, 70, 70);
     } else {
       ctx.fillStyle = enemy.type === "scorpion" ? "#00eaff" : "purple";
@@ -165,10 +182,12 @@ function drawEnemies() {
         screenY + 50
       );
     }
-    // === Здоровье ===
+
+    // Полоска здоровья
     const hpPercent = enemy.health / enemy.maxHealth;
     ctx.fillStyle = "rgba(0,0,0,0.7)";
     ctx.fillRect(screenX + 5, screenY - 15, 60, 10);
+
     ctx.fillStyle =
       enemy.type === "scorpion"
         ? hpPercent > 0.3
@@ -178,17 +197,19 @@ function drawEnemies() {
         ? "#ff0000"
         : "#8B0000";
     ctx.fillRect(screenX + 5, screenY - 15, 60 * hpPercent, 10);
-    ctx.fillStyle = "white";
+
+    // Текст здоровья
     ctx.font = "bold 12px Arial";
     ctx.textAlign = "center";
     ctx.strokeStyle = "black";
     ctx.lineWidth = 3;
     ctx.strokeText(`${Math.floor(enemy.health)}`, screenX + 35, screenY - 7);
+    ctx.fillStyle = "white";
     ctx.fillText(`${Math.floor(enemy.health)}`, screenX + 35, screenY - 7);
-    // Дебаг ID
+
+    // Дебаг: тип врага
     ctx.font = "10px Arial";
     ctx.fillStyle = enemy.type === "scorpion" ? "#00eaff" : "#ffff00";
-    ctx.textAlign = "center";
     ctx.fillText(enemy.type, screenX + 35, screenY + 80);
   }
 }
@@ -198,7 +219,7 @@ window.enemySystem = {
   initialize: initializeEnemySystem,
   syncEnemies,
   handleEnemyDeath,
-  handleNewEnemy, // ← НОВОЕ: сервер шлёт при спавне
+  handleNewEnemy,
   update: updateEnemies,
   draw: drawEnemies,
 };
