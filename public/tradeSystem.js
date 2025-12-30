@@ -48,8 +48,8 @@ const tradeSystem = {
     dialog.innerHTML = `
         <div class="trade-dialog-content">
           <p id="tradeDialogText" class="cyber-text"></p>
-          <button id="acceptTradeBtn" class="action-btn use-btn">ТОРГ</button>
-          <button id="cancelTradeBtn" class="action-btn drop-btn">ОТМЕНА</button>
+          <button id="acceptTradeBtn" class="action-btn use-btn"></button>
+          <button id="cancelTradeBtn" class="action-btn drop-btn"></button>
         </div>
       `;
     document.getElementById("gameContainer").appendChild(dialog);
@@ -96,8 +96,8 @@ const tradeSystem = {
 
       <div class="offer-amount-container" id="offerAmountContainer">
         <input type="number" id="offerAmount" min="1" value="1" class="cyber-input">
-        <button id="confirmOfferBtn" class="action-btn use-btn">ОК</button>
-        <button id="cancelOfferBtn" class="action-btn drop-btn">ОТМЕНА</button>
+        <button id="confirmOfferBtn" class="action-btn use-btn"></button>
+        <button id="cancelOfferBtn" class="action-btn drop-btn"></button>
       </div>
 
       <div class="offer-block partner-offer">
@@ -119,8 +119,8 @@ const tradeSystem = {
 
   <!-- Нижние кнопки -->
   <div class="trade-buttons">
-    <button id="confirmTradeBtn" class="action-btn use-btn" disabled>ПОДТВЕРДИТЬ СДЕЛКУ</button>
-    <button id="cancelTradeWindowBtn" class="action-btn drop-btn">ОТМЕНА</button>
+    <button id="confirmTradeBtn" class="action-btn use-btn" disabled></button>
+    <button id="cancelTradeWindowBtn" class="action-btn drop-btn"></button>
   </div>
 `;
     document.getElementById("gameContainer").appendChild(tradeWindow);

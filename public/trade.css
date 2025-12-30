@@ -7,9 +7,9 @@
   max-width: 90vw;
   padding: 40px;
   background: rgba(5, 10, 20, 0.97);
-  border: 3px solid #00ffff;
-  box-shadow: 0 0 50px rgba(0, 255, 255, 0.9),
-    inset 0 0 20px rgba(0, 255, 255, 0.3);
+  border: 3px solid #4d0066;
+  box-shadow: 0 0 50px rgba(191, 0, 255, 0.9),
+    inset 0 0 20px rgba(166, 0, 255, 0.3);
   border-radius: 16px;
   z-index: 1500;
   display: none;
@@ -22,9 +22,9 @@
 }
 
 #tradeDialogText {
-  color: #00ffff;
+  color: #ff0000;
   font-size: 26px;
-  text-shadow: 0 0 15px #00ffff, 0 0 30px #ff00ff;
+  text-shadow: 0 0 15px #0026ff, 0 0 30px #0084ff;
   margin-bottom: 40px;
   text-transform: uppercase;
   letter-spacing: 4px;
@@ -40,12 +40,18 @@
 
 #acceptTradeBtn {
   background: url(okBtn.png) no-repeat center;
+  background-size: 100% 100%;
+  margin-left: 10%;
+}
+
+#cancelTradeBtn {
+  background: url(cancelBtn.png) no-repeat center;
+  background-size: 100% 100%;
 }
 
 /* === ПОЛНОЭКРАННОЕ ОКНО ТОРГОВЛИ === */
 .trade-window {
   position: fixed;
-
   background: rgba(5, 10, 20, 0.69);
   border: 3px solid #6600ff;
   box-shadow: 0 0 60px rgba(0, 255, 255, 0.8),
