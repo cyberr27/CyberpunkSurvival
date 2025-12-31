@@ -77,7 +77,7 @@
 
 .game-message {
   position: absolute;
-  top: 20px;
+  top: 73%;
   left: 50%;
   transform: translateX(-50%);
   font-size: 28px;
@@ -90,7 +90,7 @@
 .neon-btn-neon {
   position: relative;
   top: -75%;
-  left: 20%;
+  left: 19.8%;
   width: 25%;
   height: 10%;
   padding: 14px 28px;
@@ -114,10 +114,10 @@
   transform: scale(1.06);
 }
 
-/* Для диалога — overflow hidden, чтобы убрать прокрутку */
+
 .npc-dialog-content {
   flex: 1;
-  overflow: hidden; /* полностью убрать прокрутку (содержимое влезает) */
+  overflow: hidden; 
   padding-right: 10px;
   margin-top: 10px;
 }

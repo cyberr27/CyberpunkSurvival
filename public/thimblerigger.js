@@ -198,13 +198,12 @@ function chooseCup(selected, bet) {
     }
 
     if (won) {
-      msgEl.textContent = "УГАДАЛ! ВЫИГРЫШ!";
-      msgEl.style.color = "#00ff00";
-
       const balyarySlot = inventory.findIndex(
         (slot) => slot && slot.type === "balyary"
       );
       const winAmount = bet * 2;
+      msgEl.textContent = `ВЫИГРЫШ!${winAmount}баляров! ${bet}XP!`;
+      msgEl.style.color = "#00ff00";
       if (balyarySlot !== -1) {
         inventory[balyarySlot].quantity =
           (inventory[balyarySlot].quantity || 0) + winAmount;
@@ -220,7 +219,7 @@ function chooseCup(selected, bet) {
       updateInventoryDisplay();
       updateStatsDisplay();
     } else {
-      msgEl.textContent = "НЕ ПОВЕЗЛО! ПРОИГРЫШ!";
+      msgEl.textContent = "НЕ ПОВЕЗЛО!";
       msgEl.style.color = "#ff0000";
     }
 
@@ -285,7 +284,7 @@ function closeThimbleriggerGreeting() {
   document.body.classList.remove("npc-dialog-active");
 }
 
-window.thimbleriggerSystem.meetAndCloseGreeting = () => {
+const meetAndCloseGreeting = () => {
   if (ws.readyState === WebSocket.OPEN) {
     sendWhenReady(ws, JSON.stringify({ type: "meetThimblerigger" }));
   }
@@ -396,7 +395,7 @@ function drawThimblerigger(deltaTime) {
     ctx.fillRect(screenX, screenY, 70, 70);
   }
 
-  ctx.font = "bold 14px 'Courier New', monospace";
+  ctx.font = "14px 'Courier New', monospace";
   ctx.textAlign = "center";
   ctx.fillStyle = isThimbleriggerMet ? "#ffd700" : "#ffffff";
   const nameText = isThimbleriggerMet ? THIMBLERIGGER.name : "?";
@@ -446,7 +445,7 @@ window.thimbleriggerSystem = {
   checkThimbleriggerProximity,
   setThimbleriggerMet,
   closeDialog: closeThimbleriggerDialog,
-  meetAndCloseGreeting, // Новый: экспортируем для onclick в greeting
+  meetAndCloseGreeting,
   initialize: (sprite) => {
     thimbleriggerSprite = sprite;
     hasGreetingBeenShownThisSession = false;
