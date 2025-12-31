@@ -29,6 +29,8 @@ let gameDialog = null;
 let correctCup = -1; // 0, 1 или 2
 let gameActive = false;
 
+let greetingDialog = null;
+
 // Подключаем внешний CSS файл
 (() => {
   const link = document.createElement("link");
@@ -250,8 +252,45 @@ function closeThimbleriggerDialog() {
   const dialog = document.querySelector(".npc-dialog.open");
   if (dialog) dialog.remove();
   gameDialog = null;
+  greetingDialog = null;
   gameActive = false;
 }
+
+function openThimbleriggerGreeting() {
+  if (isThimbleriggerDialogOpen) return;
+  isThimbleriggerDialogOpen = true;
+  document.body.classList.add("npc-dialog-active");
+
+  greetingDialog = document.createElement("div");
+  greetingDialog.className = "npc-dialog open";
+  greetingDialog.innerHTML = `
+    <div class="npc-dialog-header">
+      <h2 class="npc-title">?</h2> <!-- Имя "?" до знакомства -->
+    </div>
+    <div class="npc-dialog-content">
+      <p class="npc-text">Эй, сталкер! Я Напёрсточник в этом Неоновом городе.</p>
+      <p class="npc-text">Хочешь рискнуть в напёрстки? Угадаешь — удвою ставку!</p>
+    </div>
+    <button class="neon-btn" onclick="window.thimbleriggerSystem.meetAndCloseGreeting()">Хорошо</button>
+  `;
+  document.body.appendChild(greetingDialog);
+}
+
+function closeThimbleriggerGreeting() {
+  if (greetingDialog) {
+    greetingDialog.remove();
+    greetingDialog = null;
+  }
+  isThimbleriggerDialogOpen = false;
+  document.body.classList.remove("npc-dialog-active");
+}
+
+window.thimbleriggerSystem.meetAndCloseGreeting = () => {
+  if (ws.readyState === WebSocket.OPEN) {
+    sendWhenReady(ws, JSON.stringify({ type: "meetThimblerigger" }));
+  }
+  closeThimbleriggerGreeting();
+};
 
 function openThimbleriggerTalk() {
   if (isThimbleriggerDialogOpen) return;
@@ -281,6 +320,7 @@ function setThimbleriggerMet(met) {
   isThimbleriggerMet = met;
   hasGreetingBeenShownThisSession = met;
   if (!met && isPlayerNearThimblerigger) removeThimbleriggerButtons();
+  if (met && isPlayerNearThimblerigger) createThimbleriggerButtons(); // Новый: показываем кнопки после знакомства
 }
 
 function createThimbleriggerButtons() {
@@ -358,8 +398,6 @@ function drawThimblerigger(deltaTime) {
 
   ctx.font = "bold 14px 'Courier New', monospace";
   ctx.textAlign = "center";
-  ctx.strokeStyle = "black";
-  ctx.lineWidth = 6;
   ctx.fillStyle = isThimbleriggerMet ? "#ffd700" : "#ffffff";
   const nameText = isThimbleriggerMet ? THIMBLERIGGER.name : "?";
   ctx.strokeText(nameText, screenX + 35, screenY - 30);
@@ -379,6 +417,7 @@ function checkThimbleriggerProximity() {
     if (isPlayerNearThimblerigger) {
       isPlayerNearThimblerigger = false;
       removeThimbleriggerButtons();
+      closeThimbleriggerDialog(); // Новый: закрываем любой диалог при выходе из зоны (даже если greeting был открыт)
     }
     return;
   }
@@ -391,17 +430,14 @@ function checkThimbleriggerProximity() {
   if (nowNear && !isPlayerNearThimblerigger) {
     isPlayerNearThimblerigger = true;
     if (isThimbleriggerMet) createThimbleriggerButtons();
-    if (
-      !isThimbleriggerMet &&
-      !hasGreetingBeenShownThisSession &&
-      ws?.readyState === WebSocket.OPEN
-    ) {
+    if (!isThimbleriggerMet && !hasGreetingBeenShownThisSession) {
       hasGreetingBeenShownThisSession = true;
-      sendWhenReady(ws, JSON.stringify({ type: "meetThimblerigger" }));
+      openThimbleriggerGreeting();
     }
   } else if (!nowNear && isPlayerNearThimblerigger) {
     isPlayerNearThimblerigger = false;
     removeThimbleriggerButtons();
+    closeThimbleriggerDialog();
   }
 }
 
@@ -410,6 +446,7 @@ window.thimbleriggerSystem = {
   checkThimbleriggerProximity,
   setThimbleriggerMet,
   closeDialog: closeThimbleriggerDialog,
+  meetAndCloseGreeting, // Новый: экспортируем для onclick в greeting
   initialize: (sprite) => {
     thimbleriggerSprite = sprite;
     hasGreetingBeenShownThisSession = false;

@@ -585,23 +585,16 @@ function setupWebSocket(
         }
       } else if (data.type === "meetThimblerigger") {
         const playerId = clients.get(ws);
-        if (!playerId) return;
+        if (!playerId || !players.has(playerId)) return;
 
         const player = players.get(playerId);
-        if (player && !player.thimbleriggerMet) {
-          player.thimbleriggerMet = true;
-          players.set(playerId, player);
-          userDatabase.set(playerId, player);
-          await saveUserDatabase(dbCollection, playerId, player);
+        player.thimbleriggerMet = true;
 
-          // Уведомляем только этого игрока
-          ws.send(
-            JSON.stringify({
-              type: "thimbleriggerMet",
-              met: true,
-            })
-          );
-        }
+        players.set(playerId, player);
+        userDatabase.set(playerId, player);
+        await saveUserDatabase(dbCollection, playerId, player);
+
+        ws.send(JSON.stringify({ type: "thimbleriggerMet", met: true }));
       } else if (data.type === "requestNeonQuestSync") {
         const id = clients.get(ws);
         const player = players.get(id);
