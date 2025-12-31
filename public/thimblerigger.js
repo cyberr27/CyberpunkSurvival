@@ -29,113 +29,12 @@ let gameDialog = null;
 let correctCup = -1; // 0, 1 или 2
 let gameActive = false;
 
+// Подключаем внешний CSS файл
 (() => {
-  const style = document.createElement("style");
-  style.textContent = `
-    .thimblerigger-talk-btn {
-      background: linear-gradient(135deg, rgba(0, 255, 255, 0.25), rgba(0, 150, 150, 0.35));
-      color: #00ffff;
-      border-color: #00ffff;
-    }
-    .thimblerigger-play-btn {
-      background: linear-gradient(135deg, rgba(255, 215, 0, 0.25), rgba(200, 150, 0, 0.35));
-      color: #ffd700;
-      border-color: #ffd700;
-    }
-    .thimblerigger-talk-btn:hover, .thimblerigger-play-btn:hover {
-      transform: scale(1.07);
-      box-shadow: 0 0 25px rgba(255, 215, 0, 1);
-    }
-
-    .thimble-game-container {
-      position: relative;
-      width: 100%;
-      height: 320px;
-      margin: 15px 0;
-      background: linear-gradient(135deg, rgba(10,0,30,0.95), rgba(0,20,40,0.95));
-      border: 2px solid #ff00ff;
-      border-radius: 12px;
-      overflow: hidden; /* ← ДОБАВЛЕНО: убрать прокрутку */
-      box-shadow: 0 0 20px rgba(255,0,255,0.6);
-    }
-
-    .thimble-cup {
-      position: absolute;
-      width: 90px;
-      height: 120px;
-      bottom: 40px;
-      background: radial-gradient(circle at top, #00ffff, #006666);
-      border: 3px solid #00ffff;
-      border-radius: 12px 12px 60px 60px;
-      box-shadow: 0 8px 20px rgba(0,255,255,0.6), inset 0 -15px 30px rgba(0,0,0,0.7);
-      cursor: pointer;
-      transition: left 0.25s ease-in-out;
-      user-select: none;
-    }
-    .thimble-cup:hover {
-      transform: translateY(-10px);
-      box-shadow: 0 15px 30px rgba(0,255,255,0.8);
-    }
-    .thimble-cup.lifted {
-      transform: translateY(-100px) !important;
-      box-shadow: 0 0 50px #ffd700 !important;
-    }
-
-    .thimble-ball {
-      position: absolute;
-      width: 40px;
-      height: 40px;
-      bottom: 60px;
-      background: radial-gradient(circle at 30% 30%, #ffff00, #ffaa00);
-      border-radius: 50%;
-      box-shadow: 0 0 25px #ffff00, 0 8px 15px rgba(0,0,0,0.6);
-      z-index: 5;
-    }
-
-    .game-message {
-      position: absolute;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      font-size: 28px;
-      font-weight: bold;
-      color: #ffd700;
-      text-shadow: 0 0 15px #ff00ff;
-      z-index: 30;
-    }
-
-    /* ← ДОБАВЛЕНО: стили из npc-styles.css для кнопок — .neon-btn и hover эффекты */
-    .neon-btn {
-      padding: 14px 28px;
-      font-size: 17px;
-      font-family: "Courier New", monospace;
-      background: linear-gradient(135deg, #00ffff, #ff00ff);
-      border: none;
-      color: #000;
-      border-radius: 6px;
-      cursor: pointer;
-      box-shadow: 0 0 15px rgba(0, 255, 255, 0.8), 0 0 25px rgba(255, 0, 255, 0.6);
-      transition: all 0.3s;
-      text-transform: uppercase;
-      letter-spacing: 1.5px;
-      flex-shrink: 0;
-      margin-top: 12px;
-    }
-
-    .neon-btn:hover {
-      box-shadow: 0 0 25px rgba(0, 255, 255, 1), 0 0 40px rgba(255, 0, 255, 0.8);
-      transform: scale(1.06);
-    }
-
-    /* Для диалога — overflow hidden, чтобы убрать прокрутку */
-    .npc-dialog-content {
-      flex: 1;
-      overflow: hidden; /* ← ДОБАВЛЕНО: полностью убрать прокрутку (содержимое влезает) */
-      padding-right: 10px;
-      margin-top: 10px;
-    }
-  `;
-  document.head.appendChild(style);
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = "thimblerigger.css";
+  document.head.appendChild(link);
 })();
 
 function openThimbleriggerGame() {
@@ -168,10 +67,8 @@ function openThimbleriggerGame() {
   const startBtn = gameDialog.querySelector("#startBtn");
   startBtn.onclick = () => {
     const bet = parseInt(gameDialog.querySelector("#betInput").value) || 50;
-    if (bet < 1 || bet > 100)
-      return alert("Ставка от 1 до 100 баляров!"); /* ← ИЗМЕНИЛ: 1-100 */
+    if (bet < 1 || bet > 100) return alert("Ставка от 1 до 100 баляров!");
 
-    // ← ДОБАВЛЕНО: отправка ставки на сервер (пункт 3)
     if (ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ type: "thimbleriggerBet", bet }));
     } else {
@@ -181,71 +78,61 @@ function openThimbleriggerGame() {
 }
 
 function startSimpleGame(bet) {
-  /* ← Принимаем bet */
   const area = document.getElementById("gameArea");
   const msg = document.getElementById("msg");
   msg.textContent = "";
   area.innerHTML = '<div class="game-message" id="msg"></div>';
 
-  // ← ДОБАВЛЕНО: рандомная стартовая позиция шарика (0,1,2), не всегда 1
   correctCup = Math.floor(Math.random() * 3); // 0, 1 или 2
 
-  // Позиции напёрстков и шарика
   const positions = [
-    "calc(20% - 45px)",
-    "calc(50% - 45px)",
-    "calc(80% - 45px)",
+    "calc(16.666% - 80px)",
+    "calc(50% - 80px)",
+    "calc(83.333% - 80px)",
   ];
   const ballPositions = [
-    "calc(20% - 20px)",
-    "calc(50% - 20px)",
-    "calc(80% - 20px)",
+    "calc(16.666% - 10px)",
+    "calc(50% - 10px)",
+    "calc(83.333% - 10px)",
   ];
 
-  // Создаём напёрстки
   const cups = [];
   for (let i = 0; i < 3; i++) {
     const cup = document.createElement("div");
     cup.className = "thimble-cup";
     cup.style.left = positions[i];
-    cup.style.transition = "left 0.25s ease-in-out"; // Быстрая анимация
+    cup.style.transition = "left 0.25s ease-in-out";
     area.appendChild(cup);
     cups.push(cup);
   }
 
-  // ← ДОБАВЛЕНО: показываем шарик под рандомным напёрстком в начале (игрок видит старт)
   const initialBall = document.createElement("div");
   initialBall.className = "thimble-ball";
   initialBall.style.left = ballPositions[correctCup];
-  initialBall.style.opacity = "1"; // Виден
+  initialBall.style.opacity = "1";
   area.appendChild(initialBall);
 
-  msg.textContent = "Смотри, где шарик!"; // Уведомление
+  msg.textContent = "Смотри, где шарик!";
 
   gameActive = false;
 
-  // 1. Шарик виден 2 секунды → напёрстки "накрывают" (убираем шарик)
   setTimeout(() => {
-    initialBall.remove(); // Убираем видимый шарик (теперь "под напёрстком")
+    initialBall.remove();
     msg.textContent = "Перемешиваю... быстро!";
 
-    // 2. Крутая логика свапов: 10-15 свапов, включая фейковые (a===b иногда), переменная скорость
     let swapCount = 0;
-    const totalSwaps = 10 + Math.floor(Math.random() * 6); // 10–15 свапов
+    const totalSwaps = 10 + Math.floor(Math.random() * 6);
 
     function performSwap() {
-      // Случайная пара (может быть фейк: a===b с шансом 20%)
       let a = Math.floor(Math.random() * 3);
       let b = Math.floor(Math.random() * 3);
-      if (Math.random() < 0.2) b = a; // Фейковый своп (запутать)
+      if (Math.random() < 0.2) b = a;
 
-      // Меняем позиции только если a !== b
       if (a !== b) {
         const temp = cups[a].style.left;
         cups[a].style.left = cups[b].style.left;
         cups[b].style.left = temp;
 
-        // Отслеживаем шарик
         if (correctCup === a) correctCup = b;
         else if (correctCup === b) correctCup = a;
       }
@@ -255,23 +142,19 @@ function startSimpleGame(bet) {
         msg.textContent = "Где шарик? Выбирай!";
         gameActive = true;
 
-        // ← ДОБАВЛЕНО: дебажный лог после всех свапов (убери после теста)
         console.log("Финальный correctCup после свапов:", correctCup);
 
-        // Навешиваем обработчики на текущие cups (индексы логические)
         cups.forEach((cup, idx) => {
           cup.onclick = () => chooseCup(idx, bet);
         });
       } else {
-        // Переменная скорость: random delay 200-500ms
         const nextDelay = 200 + Math.floor(Math.random() * 300);
         setTimeout(performSwap, nextDelay);
       }
     }
 
-    // Запускаем цепочку свапов (асинхронно, с переменными задержками)
     performSwap();
-  }, 2000); // 2 секунды на показ старта
+  }, 2000);
 }
 
 function chooseCup(selected, bet) {
@@ -281,23 +164,19 @@ function chooseCup(selected, bet) {
   const area = document.getElementById("gameArea");
   const msgEl = document.getElementById("msg");
 
-  // Поднимаем все напёрстки
   const cups = area.querySelectorAll(".thimble-cup");
   cups.forEach((cup) => cup.classList.add("lifted"));
 
-  // Показываем шарик под правильным (по логическому индексу correctCup)
   const ball = document.createElement("div");
   ball.className = "thimble-ball";
   const ballPositions = [
-    "calc(20% - 20px)",
-    "calc(50% - 20px)",
-    "calc(80% - 20px)",
+    "calc(16.666% - 10px)",
+    "calc(50% - 10px)",
+    "calc(83.333% - 10px)",
   ];
-  // ← ДОБАВЛЕНО: чтобы шарик показывался под текущей визуальной позицией correctCup (но поскольку позиции swapped, используем cups[correctCup].style.left для ball)
-  ball.style.left = cups[correctCup].style.left.replace("45px", "20px"); // Корректируем для центра (примерно)
+  ball.style.left = cups[correctCup].style.left.replace("80px", "10px"); // Корректировка для шарика (half_width diff)
   area.appendChild(ball);
 
-  // ← ДОБАВЛЕНО: дебажный лог для проверки (убери после теста)
   console.log(
     "Выбранный индекс:",
     selected,
@@ -307,11 +186,9 @@ function chooseCup(selected, bet) {
     cups[correctCup].style.left
   );
 
-  // Результат
   setTimeout(() => {
-    const won =
-      selected ===
-      correctCup; /* ← Уже строго ===, но добавим if (!won) console.warn("Может, клик на визуал не matches индекс?") для дебага */
+    const won = selected === correctCup;
+
     if (!won) {
       console.warn(
         "Проигрыш: возможно, несоответствие визуала и индекса — проверь свапы."
@@ -322,7 +199,6 @@ function chooseCup(selected, bet) {
       msgEl.textContent = "УГАДАЛ! ВЫИГРЫШ!";
       msgEl.style.color = "#00ff00";
 
-      // Локальное зачисление (но сервер перезапишет)
       const balyarySlot = inventory.findIndex(
         (slot) => slot && slot.type === "balyary"
       );
@@ -336,7 +212,6 @@ function chooseCup(selected, bet) {
           inventory[freeSlot] = { type: "balyary", quantity: winAmount };
         }
       }
-      // Локально +XP (сервер перезапишет)
       if (window.levelSystem) {
         window.levelSystem.currentXP += bet;
       }
@@ -347,7 +222,6 @@ function chooseCup(selected, bet) {
       msgEl.style.color = "#ff0000";
     }
 
-    // Отправка на сервер
     if (ws.readyState === WebSocket.OPEN) {
       ws.send(
         JSON.stringify({
@@ -355,12 +229,11 @@ function chooseCup(selected, bet) {
           won,
           bet,
           selectedCup: selected,
-          correctCup, // для валидации
+          correctCup,
         })
       );
     }
 
-    // Через 3 секунды — готовность к новой
     setTimeout(() => {
       const input = gameDialog.querySelector("#betInput");
       if (input) input.disabled = false;
@@ -379,8 +252,6 @@ function closeThimbleriggerDialog() {
   gameDialog = null;
   gameActive = false;
 }
-
-// === Остальной код NPC (без изменений) ===
 
 function openThimbleriggerTalk() {
   if (isThimbleriggerDialogOpen) return;
