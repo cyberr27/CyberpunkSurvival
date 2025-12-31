@@ -181,26 +181,25 @@ function openThimbleriggerGame() {
 }
 
 function startSimpleGame(bet) {
-  /* ← ДОБАВЛЕНО: принимаем bet как параметр (после серверного ок) */
+  /* ← Принимаем bet */
   const area = document.getElementById("gameArea");
   const msg = document.getElementById("msg");
   msg.textContent = "";
   area.innerHTML = '<div class="game-message" id="msg"></div>';
 
-  // Шарик начинается под центральным напёрстком (индекс 1)
-  correctCup = 1; // Фиксируем стартовую позицию — игрок увидит!
+  // ← ДОБАВЛЕНО: рандомная стартовая позиция шарика (0,1,2), не всегда 1
+  correctCup = Math.floor(Math.random() * 3); // 0, 1 или 2
 
-  // Создаём шарик в центре
-  const ball = document.createElement("div");
-  ball.className = "thimble-ball";
-  ball.style.left = "calc(50% - 20px)";
-  area.appendChild(ball);
-
-  // Позиции напёрстков
+  // Позиции напёрстков и шарика
   const positions = [
     "calc(20% - 45px)",
     "calc(50% - 45px)",
     "calc(80% - 45px)",
+  ];
+  const ballPositions = [
+    "calc(20% - 20px)",
+    "calc(50% - 20px)",
+    "calc(80% - 20px)",
   ];
 
   // Создаём напёрстки
@@ -214,53 +213,68 @@ function startSimpleGame(bet) {
     cups.push(cup);
   }
 
+  // ← ДОБАВЛЕНО: показываем шарик под рандомным напёрстком в начале (игрок видит старт)
+  const initialBall = document.createElement("div");
+  initialBall.className = "thimble-ball";
+  initialBall.style.left = ballPositions[correctCup];
+  initialBall.style.opacity = "1"; // Виден
+  area.appendChild(initialBall);
+
+  msg.textContent = "Смотри, где шарик!"; // Уведомление
+
   gameActive = false;
 
-  // 1. Шарик виден → напёрстки накрывают
+  // 1. Шарик виден 2 секунды → напёрстки "накрывают" (убираем шарик)
   setTimeout(() => {
-    ball.remove();
+    initialBall.remove(); // Убираем видимый шарик (теперь "под напёрстком")
     msg.textContent = "Перемешиваю... быстро!";
 
-    // 2. Случайные свапы — в 2 раза быстрее
+    // 2. Крутая логика свапов: 10-15 свапов, включая фейковые (a===b иногда), переменная скорость
     let swapCount = 0;
-    const totalSwaps = 9 + Math.floor(Math.random() * 4); // 9–12 свапов
+    const totalSwaps = 10 + Math.floor(Math.random() * 6); // 10–15 свапов
 
-    const swapInterval = setInterval(() => {
-      // Случайная пара разных напёрстков
+    function performSwap() {
+      // Случайная пара (может быть фейк: a===b с шансом 20%)
       let a = Math.floor(Math.random() * 3);
       let b = Math.floor(Math.random() * 3);
-      while (b === a) b = Math.floor(Math.random() * 3);
+      if (Math.random() < 0.2) b = a; // Фейковый своп (запутать)
 
-      // Меняем позиции
-      const temp = cups[a].style.left;
-      cups[a].style.left = cups[b].style.left;
-      cups[b].style.left = temp;
+      // Меняем позиции только если a !== b
+      if (a !== b) {
+        const temp = cups[a].style.left;
+        cups[a].style.left = cups[b].style.left;
+        cups[b].style.left = temp;
 
-      // Реально отслеживаем шарик!
-      if (correctCup === a) correctCup = b;
-      else if (correctCup === b) correctCup = a;
+        // Отслеживаем шарик
+        if (correctCup === a) correctCup = b;
+        else if (correctCup === b) correctCup = a;
+      }
 
       swapCount++;
       if (swapCount >= totalSwaps) {
-        clearInterval(swapInterval);
         msg.textContent = "Где шарик? Выбирай!";
         gameActive = true;
 
-        // ← ДОБАВЛЕНО: дебажный лог после всех свапов (пункт 1, убери после теста)
+        // ← ДОБАВЛЕНО: дебажный лог после всех свапов (убери после теста)
         console.log("Финальный correctCup после свапов:", correctCup);
 
-        // Навешиваем обработчики на текущие позиции
+        // Навешиваем обработчики на текущие cups (индексы логические)
         cups.forEach((cup, idx) => {
-          cup.onclick = () =>
-            chooseCup(idx, bet); /* ← ДОБАВЛЕНО: передаём bet в chooseCup */
+          cup.onclick = () => chooseCup(idx, bet);
         });
+      } else {
+        // Переменная скорость: random delay 200-500ms
+        const nextDelay = 200 + Math.floor(Math.random() * 300);
+        setTimeout(performSwap, nextDelay);
       }
-    }, 350); // В 2 раза быстрее (было 650)
-  }, 1200);
+    }
+
+    // Запускаем цепочку свапов (асинхронно, с переменными задержками)
+    performSwap();
+  }, 2000); // 2 секунды на показ старта
 }
 
 function chooseCup(selected, bet) {
-  /* ← ДОБАВЛЕНО: принимаем bet */
   if (!gameActive) return;
   gameActive = false;
 
@@ -271,7 +285,7 @@ function chooseCup(selected, bet) {
   const cups = area.querySelectorAll(".thimble-cup");
   cups.forEach((cup) => cup.classList.add("lifted"));
 
-  // Показываем шарик под правильным
+  // Показываем шарик под правильным (по логическому индексу correctCup)
   const ball = document.createElement("div");
   ball.className = "thimble-ball";
   const ballPositions = [
@@ -279,21 +293,36 @@ function chooseCup(selected, bet) {
     "calc(50% - 20px)",
     "calc(80% - 20px)",
   ];
-  ball.style.left = ballPositions[correctCup];
+  // ← ДОБАВЛЕНО: чтобы шарик показывался под текущей визуальной позицией correctCup (но поскольку позиции swapped, используем cups[correctCup].style.left для ball)
+  ball.style.left = cups[correctCup].style.left.replace("45px", "20px"); // Корректируем для центра (примерно)
   area.appendChild(ball);
 
-  // ← ДОБАВЛЕНО: дебажный лог для проверки (пункт 1, убери после теста)
-  console.log("Выбран:", selected, "Правильный:", correctCup);
+  // ← ДОБАВЛЕНО: дебажный лог для проверки (убери после теста)
+  console.log(
+    "Выбранный индекс:",
+    selected,
+    "Правильный индекс:",
+    correctCup,
+    "Визуальная позиция правильного:",
+    cups[correctCup].style.left
+  );
 
   // Результат
   setTimeout(() => {
     const won =
-      selected === correctCup; /* ← УТОЧНЕНО: строгий === для фикса бага */
+      selected ===
+      correctCup; /* ← Уже строго ===, но добавим if (!won) console.warn("Может, клик на визуал не matches индекс?") для дебага */
+    if (!won) {
+      console.warn(
+        "Проигрыш: возможно, несоответствие визуала и индекса — проверь свапы."
+      );
+    }
+
     if (won) {
       msgEl.textContent = "УГАДАЛ! ВЫИГРЫШ!";
       msgEl.style.color = "#00ff00";
 
-      // ← ДОБАВЛЕНО: локальное зачисление (пункт 2), но финально синхронизируем с сервером ниже
+      // Локальное зачисление (но сервер перезапишет)
       const balyarySlot = inventory.findIndex(
         (slot) => slot && slot.type === "balyary"
       );
@@ -307,7 +336,7 @@ function chooseCup(selected, bet) {
           inventory[freeSlot] = { type: "balyary", quantity: winAmount };
         }
       }
-      // Локально добавляем XP (но сервер перезапишет)
+      // Локально +XP (сервер перезапишет)
       if (window.levelSystem) {
         window.levelSystem.currentXP += bet;
       }
@@ -318,7 +347,7 @@ function chooseCup(selected, bet) {
       msgEl.style.color = "#ff0000";
     }
 
-    // ← ДОБАВЛЕНО: отправка результата на сервер (пункт 3)
+    // Отправка на сервер
     if (ws.readyState === WebSocket.OPEN) {
       ws.send(
         JSON.stringify({
@@ -326,12 +355,12 @@ function chooseCup(selected, bet) {
           won,
           bet,
           selectedCup: selected,
-          correctCup, // для серверной валидации
+          correctCup, // для валидации
         })
       );
     }
 
-    // Через 3 секунды — готовность к новой игре
+    // Через 3 секунды — готовность к новой
     setTimeout(() => {
       const input = gameDialog.querySelector("#betInput");
       if (input) input.disabled = false;

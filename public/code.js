@@ -2479,7 +2479,7 @@ function handleGameMessage(event) {
         if (data.success) {
           // Полная синхронизация: перезаписываем инвентарь, XP, уровень с сервера
           inventory = data.inventory.map((i) => (i ? { ...i } : null));
-          updateInventoryDisplay();
+          updateInventoryDisplay(); // Уже есть: динамика слота баляров
 
           if (window.levelSystem) {
             window.levelSystem.setLevelData(
@@ -2488,7 +2488,11 @@ function handleGameMessage(event) {
               null, // maxStats не меняем
               data.upgradePoints
             );
-            window.levelSystem.showXPEffect(data.xpGained || 0); // если сервер прислал xpGained
+            window.levelSystem.showXPEffect(data.xpGained || 0);
+
+            // ← ДОБАВЛЕНО: динамическое обновление level-display после +XP
+            window.levelSystem.updateLevelDisplay();
+            window.levelSystem.checkLevelUp(); // На всякий, хотя сервер уже проверил
           }
           updateStatsDisplay();
 
