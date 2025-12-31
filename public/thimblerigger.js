@@ -52,13 +52,13 @@ function openThimbleriggerGame() {
     <div class="npc-dialog-content" style="display:flex;flex-direction:column;gap:15px;">
       <div style="text-align:center;">
         <input type="number" min="1" max="100" value="50" id="betInput" class="bet-input" style="width:80px;padding:8px;font-size:16px;text-align:center;">  
-        <button class="neon-btn" id="startBtn" style="margin-left:15px;padding:12px 24px;">НАЧАТЬ ИГРУ</button>
+        <button class="neon-btn-neon" id="startBtn" style="margin-left:15px;padding:12px 24px;"></button>
 
       <div class="thimble-game-container" id="gameArea">
         <div class="game-message" id="msg"></div>
       </div>
 
-      <button class="neon-btn" onclick="window.thimbleriggerSystem.closeDialog()">ЗАКРЫТЬ</button>
+      <button class="neon-btn-neon" onclick="window.thimbleriggerSystem.closeDialog()"></button>
     </div>
   `;
   document.body.appendChild(gameDialog);
