@@ -1635,19 +1635,42 @@ function updateResources() {
 }
 
 function updateStatsDisplay() {
-  const me = players.get(myId);
-  if (!me) return;
-  statsEl.innerHTML = `
-    <span class="health">Здоровье: ${me.health}/${me.maxStats.health}</span><br>
-    <span class="energy">Энергия: ${me.energy}/${me.maxStats.energy}</span><br>
-    <span class="food">Еда: ${me.food}/${me.maxStats.food}</span><br>
-    <span class="water">Вода: ${me.water}/${me.maxStats.water}</span><br>
-    <span class="armor">Броня: ${me.armor}/${me.maxStats.armor || 0}</span>
-  `;
-  document.getElementById("coords").innerHTML = `X: ${Math.floor(
-    me.x
-  )}<br>Y: ${Math.floor(me.y)}`;
-  levelSystem.updateUpgradeButtons();
+  try {
+    const statsEl = document.getElementById("stats");
+    if (!statsEl) {
+      return;
+    }
+    const me = players.get(myId);
+    if (!me) {
+      return;
+    }
+    statsEl.innerHTML = `
+  <span class="health">Здоровье: ${Math.min(
+    me.health ?? 0,
+    me.maxStats?.health ?? 100
+  )}/${me.maxStats?.health ?? 100}</span><br>
+  <span class="energy">Энергия: ${Math.min(
+    me.energy ?? 0,
+    me.maxStats?.energy ?? 100
+  )}/${me.maxStats?.energy ?? 100}</span><br>
+  <span class="food">Еда: ${Math.min(me.food ?? 0, me.maxStats?.food ?? 100)}/${
+      me.maxStats?.food ?? 100
+    }</span><br>
+  <span class="water">Вода: ${Math.min(
+    me.water ?? 0,
+    me.maxStats?.water ?? 100
+  )}/${me.maxStats?.water ?? 100}</span><br>
+  <span class="armor">Броня: ${Math.min(
+    me.armor ?? 0,
+    me.maxStats?.armor ?? 0
+  )}/${me.maxStats?.armor ?? 0}</span>
+`;
+    updateUpgradeButtons();
+
+    document.getElementById("coords").innerHTML = `X: ${Math.floor(
+      me.x
+    )}<br>Y: ${Math.floor(me.y)}`;
+  } catch (error) {}
 }
 
 function startAtomAnimation(atomAnimations) {

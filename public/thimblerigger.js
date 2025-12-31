@@ -5,7 +5,7 @@ const THIMBLERIGGER = {
   y: 2882,
   width: 70,
   height: 70,
-  interactionRadius: 80,
+  interactionRadius: 50,
   name: "Напёрсточник",
   worldId: 0,
 };
@@ -249,6 +249,10 @@ function closeThimbleriggerDialog() {
   isThimbleriggerDialogOpen = false;
   document.body.classList.remove("npc-dialog-active");
   const dialog = document.querySelector(".npc-dialog.open");
+  const topicsContainer = document.getElementById("talkTopics");
+  if (topicsContainer) topicsContainer.classList.remove("hidden");
+  const npcText = document.querySelector(".npc-text");
+  if (npcText) npcText.classList.remove("fullscreen");
   if (dialog) dialog.remove();
   gameDialog = null;
   greetingDialog = null;
@@ -298,16 +302,69 @@ function openThimbleriggerTalk() {
 
   const dialog = document.createElement("div");
   dialog.className = "npc-dialog open";
+
+  // Новый массив тем (вставьте этот блок сразу после создания dialog)
+  const topics = [
+    {
+      title: "О себе",
+      text: "Я Напёрсточник, король уличных иллюзий в этом неоновом аду. Родился в нижних уровнях, где обман — единственный способ выжить. Мои напёрстки видели больше слёз и триумфов, чем корпоративные башни.",
+    },
+    {
+      title: "О Неоновом городе",
+      text: "Город — как моя игра: яркий снаружи, но полный обмана внутри. Неон мигает, скрывая тени, где баляры текут рекой. Здесь удача решает, выживешь ли ты или растворишься в токсинах.",
+    },
+    {
+      title: "Советы по игре",
+      text: "Смотри не на чашки, а на мои руки — но не слишком пристально, иначе обману. Удача любит смелых, но помни: дом всегда в выигрыше. Начни с малой ставки, сталкер.",
+    },
+    {
+      title: "Истории выигрышей",
+      text: "Один парень угадал пять раз подряд — ушёл с карманами, полными баляров. Но на следующий день его нашли в переулке без имплантов. Удача притягивает зависть в этом городе.",
+    },
+    {
+      title: "Почему напёрстки?",
+      text: "В мире ИИ и хакеров старая игра напоминает: не всё цифровое. Напёрстки — тест на интуицию, а не код. Здесь нет багов, только чистая ловкость и обман.",
+    },
+  ];
+
   dialog.innerHTML = `
     <div class="npc-dialog-header"><h2 class="npc-title">${THIMBLERIGGER.name}</h2></div>
     <div class="npc-dialog-content">
-      <p class="npc-text">Эй, сталкер! Хочешь рискнуть? Три напёрстка — один шарик.</p>
-      <p class="npc-text">Угадаешь — удвою твою ставку. Проиграешь — баляры мои.</p>
-      <p class="npc-text">Ставка от 1 до 10 баляров. Готов играть?</p>
+      <p class="npc-text">Эй, сталкер! Что хочешь узнать?</p>
+      <div id="talkTopics" class="talk-topics"></div>
     </div>
-    <button class="neon-btn" onclick="window.thimbleriggerSystem.closeDialog()">ЗАКРЫТЬ</button>
+    <button id="closeTalkBtn" class="neon-btn">ЗАКРЫТЬ</button>
   `;
   document.body.appendChild(dialog);
+
+  // Новый блок: обработка тем (вставьте этот блок сразу после document.body.appendChild(dialog))
+  const npcText = dialog.querySelector(".npc-text");
+  const topicsContainer = document.getElementById("talkTopics");
+  const closeBtn = document.getElementById("closeTalkBtn");
+
+  topics.forEach((topic) => {
+    const div = document.createElement("div");
+    div.className = "talk-topic";
+    div.innerHTML = `<strong>${topic.title}</strong>`;
+    div.addEventListener("click", () => {
+      topicsContainer.classList.add("hidden");
+      npcText.classList.add("fullscreen");
+      npcText.innerHTML = `<div style="flex:1;overflow-y:auto;padding-right:10px;">${topic.text}</div>`;
+      closeBtn.textContent = "Понятно";
+      closeBtn.onclick = showTopics;
+    });
+    topicsContainer.appendChild(div);
+  });
+
+  function showTopics() {
+    topicsContainer.classList.remove("hidden");
+    npcText.classList.remove("fullscreen");
+    npcText.textContent = "Эй, сталкер! Что хочешь узнать?";
+    closeBtn.textContent = "ЗАКРЫТЬ";
+    closeBtn.onclick = window.thimbleriggerSystem.closeDialog;
+  }
+
+  closeBtn.onclick = window.thimbleriggerSystem.closeDialog;
 }
 
 document.addEventListener("keydown", (e) => {
@@ -429,7 +486,7 @@ function checkThimbleriggerProximity() {
   if (nowNear && !isPlayerNearThimblerigger) {
     isPlayerNearThimblerigger = true;
     if (isThimbleriggerMet) createThimbleriggerButtons();
-    if (!isThimbleriggerMet && !hasGreetingBeenShownThisSession) {
+    if (!isThimbleriggerMet) {
       hasGreetingBeenShownThisSession = true;
       openThimbleriggerGreeting();
     }
