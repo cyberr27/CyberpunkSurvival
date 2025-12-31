@@ -2448,7 +2448,6 @@ function setupWebSocket(
         ).length;
 
         if (freeSlots >= itemsToGive.length) {
-          // ✅ Хватает места — кладём в инвентарь (СТАРОЕ ПОВЕДЕНИЕ)
           itemsToGive.forEach((type) => {
             for (let i = 0; i < player.inventory.length; i++) {
               if (!player.inventory[i]) {
@@ -2458,7 +2457,6 @@ function setupWebSocket(
             }
           });
         } else {
-          // ❗ Места НЕ хватает — спавним ВСЕ предметы на поле (ТОЛЬКО ДЛЯ ЭТОГО ИГРОКА)
           const radius = 30;
 
           itemsToGive.forEach((type, index) => {
@@ -2522,6 +2520,124 @@ function setupWebSocket(
             upgradePoints: player.upgradePoints,
             inventory: player.inventory,
             corporateDocumentsSubmitted: true,
+          })
+        );
+      } else if (data.type === "thimbleriggerBet") {
+        const playerId = clients.get(ws);
+        if (!playerId || !players.has(playerId)) return;
+
+        const player = players.get(playerId);
+        const bet = data.bet;
+
+        // Находим слот с балярами
+        let balyarySlot = player.inventory.findIndex(
+          (item) => item && item.type === "balyary"
+        );
+        if (
+          balyarySlot === -1 ||
+          (player.inventory[balyarySlot].quantity || 0) < bet
+        ) {
+          ws.send(
+            JSON.stringify({
+              type: "thimbleriggerBetResult",
+              success: false,
+              error: "Недостаточно баляров!",
+            })
+          );
+          return;
+        }
+
+        // Вычитаем ставку
+        player.inventory[balyarySlot].quantity -= bet;
+        if (player.inventory[balyarySlot].quantity <= 0) {
+          player.inventory[balyarySlot] = null;
+        }
+
+        // Сохраняем
+        players.set(playerId, player);
+        userDatabase.set(playerId, player);
+        await saveUserDatabase(dbCollection, playerId, player);
+
+        // Отправляем ок с обновлённым инвентарём
+        ws.send(
+          JSON.stringify({
+            type: "thimbleriggerBetResult",
+            success: true,
+            bet,
+            inventory: player.inventory,
+          })
+        );
+      } else if (data.type === "thimbleriggerGameResult") {
+        const playerId = clients.get(ws);
+        if (!playerId || !players.has(playerId)) return;
+
+        const player = players.get(playerId);
+        const { won, bet, selectedCup, correctCup } = data;
+
+        // Валидация: просто проверим won === (selectedCup === correctCup), чтобы избежать читов
+        const validatedWon = selectedCup === correctCup;
+        if (won !== validatedWon) {
+          ws.send(
+            JSON.stringify({
+              type: "thimbleriggerGameResultSync",
+              success: false,
+              error: "Неверный результат! Игра отменена.",
+            })
+          );
+          return;
+        }
+
+        let xpGained = 0;
+        if (won) {
+          // Добавляем выигрыш bet*2 баляров
+          let balyarySlot = player.inventory.findIndex(
+            (item) => item && item.type === "balyary"
+          );
+          const winAmount = bet * 2;
+          if (balyarySlot !== -1) {
+            player.inventory[balyarySlot].quantity =
+              (player.inventory[balyarySlot].quantity || 0) + winAmount;
+          } else {
+            balyarySlot = player.inventory.findIndex((item) => !item);
+            if (balyarySlot !== -1) {
+              player.inventory[balyarySlot] = {
+                type: "balyary",
+                quantity: winAmount,
+              };
+            }
+          }
+
+          // Добавляем XP = bet
+          player.xp = (player.xp || 0) + bet;
+          xpGained = bet;
+
+          // Проверяем level up
+          let xpToNext = calculateXPToNextLevel(player.level);
+          while (player.xp >= xpToNext && player.level < 100) {
+            player.level += 1;
+            player.xp -= xpToNext;
+            player.upgradePoints = (player.upgradePoints || 0) + 10;
+            xpToNext = calculateXPToNextLevel(player.level);
+          }
+        }
+
+        // Сохраняем всё
+        players.set(playerId, player);
+        userDatabase.set(playerId, player);
+        await saveUserDatabase(dbCollection, playerId, player);
+
+        // Отправляем синхронизацию
+        ws.send(
+          JSON.stringify({
+            type: "thimbleriggerGameResultSync",
+            success: true,
+            won,
+            inventory: player.inventory,
+            xp: player.xp,
+            level: player.level,
+            upgradePoints: player.upgradePoints,
+            xpToNext: xpToNext,
+            xpGained,
           })
         );
       }

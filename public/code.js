@@ -2459,6 +2459,50 @@ function handleGameMessage(event) {
       case "thimbleriggerMet":
         window.thimbleriggerSystem.setThimbleriggerMet(data.met);
         break;
+      case "thimbleriggerBetResult":
+        if (data.success) {
+          // Обновляем инвентарь (сервер вычел bet)
+          inventory = data.inventory.map((i) => (i ? { ...i } : null));
+          updateInventoryDisplay();
+
+          // Начинаем игру на клиенте (передаём bet)
+          startSimpleGame(data.bet);
+        } else {
+          showNotification(
+            data.error || "Недостаточно баляров для ставки!",
+            "#ff0066"
+          );
+        }
+        break;
+
+      case "thimbleriggerGameResultSync":
+        if (data.success) {
+          // Полная синхронизация: перезаписываем инвентарь, XP, уровень с сервера
+          inventory = data.inventory.map((i) => (i ? { ...i } : null));
+          updateInventoryDisplay();
+
+          if (window.levelSystem) {
+            window.levelSystem.setLevelData(
+              data.level,
+              data.xp,
+              null, // maxStats не меняем
+              data.upgradePoints
+            );
+            window.levelSystem.showXPEffect(data.xpGained || 0); // если сервер прислал xpGained
+          }
+          updateStatsDisplay();
+
+          showNotification(
+            data.won ? "Выигрыш зачислен! +XP" : "Проигрыш подтверждён.",
+            data.won ? "#00ff00" : "#ff0000"
+          );
+        } else {
+          showNotification(
+            data.error || "Ошибка в результате игры.",
+            "#ff0066"
+          );
+        }
+        break;
     }
   } catch (error) {
     console.error("Ошибка в handleGameMessage:", error);
