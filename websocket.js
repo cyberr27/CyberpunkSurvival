@@ -2574,6 +2574,8 @@ function setupWebSocket(
         const player = players.get(playerId);
         const { won, bet, selectedCup, correctCup } = data;
 
+        let xpToNext = calculateXPToNextLevel(player.level); // ← ДОБАВЛЕНО: выносим расчёт xpToNext наружу, чтобы он был всегда (даже при проигрыше)
+
         // Валидация: просто проверим won === (selectedCup === correctCup), чтобы избежать читов
         const validatedWon = selectedCup === correctCup;
         if (won !== validatedWon) {
@@ -2612,7 +2614,6 @@ function setupWebSocket(
           xpGained = bet;
 
           // Проверяем level up
-          let xpToNext = calculateXPToNextLevel(player.level);
           while (player.xp >= xpToNext && player.level < 100) {
             player.level += 1;
             player.xp -= xpToNext;

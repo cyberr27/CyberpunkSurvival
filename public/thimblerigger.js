@@ -152,16 +152,14 @@ function openThimbleriggerGame() {
     </div>
     <div class="npc-dialog-content" style="display:flex;flex-direction:column;gap:15px;">
       <div style="text-align:center;">
-        <p class="npc-text">Сколько баляров ставишь? (1-100)</p>  /* ← ИЗМЕНИЛ: 1-100 */
-        <input type="number" min="1" max="100" value="50" id="betInput" class="bet-input" style="width:80px;padding:8px;font-size:16px;text-align:center;">  /* ← ИЗМЕНИЛ: min=1 max=100 value=50 */
-        <button class="neon-btn" id="startBtn" style="margin-left:15px;padding:12px 24px;">НАЧАТЬ ИГРУ</button>  /* ← ИЗМЕНИЛ: class="neon-btn" (из npc-styles) */
-      </div>
+        <input type="number" min="1" max="100" value="50" id="betInput" class="bet-input" style="width:80px;padding:8px;font-size:16px;text-align:center;">  
+        <button class="neon-btn" id="startBtn" style="margin-left:15px;padding:12px 24px;">НАЧАТЬ ИГРУ</button>
 
       <div class="thimble-game-container" id="gameArea">
         <div class="game-message" id="msg"></div>
       </div>
 
-      <button class="neon-btn" onclick="window.thimbleriggerSystem.closeDialog()">ЗАКРЫТЬ</button>  /* ← ИЗМЕНИЛ: class="neon-btn" (из npc-styles) */
+      <button class="neon-btn" onclick="window.thimbleriggerSystem.closeDialog()">ЗАКРЫТЬ</button>
     </div>
   `;
   document.body.appendChild(gameDialog);
