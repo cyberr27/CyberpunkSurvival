@@ -6,7 +6,7 @@ const THIMBLERIGGER = {
   width: 70,
   height: 70,
   interactionRadius: 50,
-  name: "Напёрсточник",
+  name: "Thimble",
   worldId: 0,
 };
 
@@ -18,15 +18,20 @@ let hasGreetingBeenShownThisSession = false;
 let thimbleriggerSprite = null;
 let thimbleriggerButtonsContainer = null;
 
-// Анимация NPC
+// Новая система анимации
 let thimbleriggerFrame = 0;
 let thimbleriggerFrameTime = 0;
-const THIMBLERIGGER_FRAME_DURATION = 150;
-const THIMBLERIGGER_TOTAL_FRAMES = 13;
+const FRAME_DURATION_Thimble = 180; // 180 мс на кадр
+const TOTAL_FRAMES = 13;
 
-// Простая игра
+// Цикл анимации вне зоны взаимодействия
+let animationCycleTime = 0; // накапливаем время для переключения фаз
+const ATTRACT_PHASE_DURATION = 10000; // 5 секунд строка 1 (привлекающая)
+const IDLE_PHASE_DURATION = 10000; // 10 секунд строка 0 (спокойная)
+let currentPhase = "attract"; // "attract" или "idle"
+
 let gameDialog = null;
-let correctCup = -1; // 0, 1 или 2
+let correctCup = -1;
 let gameActive = false;
 
 let greetingDialog = null;
@@ -65,7 +70,6 @@ function openThimbleriggerGame() {
   `;
   document.body.appendChild(gameDialog);
 
-  // Навешиваем обработчик на кнопку НАЧАТЬ
   const startBtn = gameDialog.querySelector("#startBtn");
   startBtn.onclick = () => {
     const bet = parseInt(gameDialog.querySelector("#betInput").value) || 50;
@@ -85,7 +89,7 @@ function startSimpleGame(bet) {
   msg.textContent = "";
   area.innerHTML = '<div class="game-message" id="msg"></div>';
 
-  correctCup = Math.floor(Math.random() * 3); // 0, 1 или 2
+  correctCup = Math.floor(Math.random() * 3);
 
   const positions = [
     "calc(16.666% - 80px)",
@@ -176,7 +180,7 @@ function chooseCup(selected, bet) {
     "calc(50% - 10px)",
     "calc(83.333% - 10px)",
   ];
-  ball.style.left = cups[correctCup].style.left.replace("80px", "10px"); // Корректировка для шарика (half_width diff)
+  ball.style.left = cups[correctCup].style.left.replace("80px", "10px");
   area.appendChild(ball);
 
   console.log(
@@ -268,7 +272,7 @@ function openThimbleriggerGreeting() {
   greetingDialog.className = "npc-dialog open";
   greetingDialog.innerHTML = `
     <div class="npc-dialog-header">
-      <h2 class="npc-title">?</h2> <!-- Имя "?" до знакомства -->
+      <h2 class="npc-title">?</h2>
     </div>
     <div class="npc-dialog-content">
       <p class="npc-text">Эй, сталкер! Я Напёрсточник в этом Неоновом городе.</p>
@@ -303,7 +307,6 @@ function openThimbleriggerTalk() {
   const dialog = document.createElement("div");
   dialog.className = "npc-dialog open";
 
-  // Новый массив тем (вставьте этот блок сразу после создания dialog)
   const topics = [
     {
       title: "О себе",
@@ -337,7 +340,6 @@ function openThimbleriggerTalk() {
   `;
   document.body.appendChild(dialog);
 
-  // Новый блок: обработка тем (вставьте этот блок сразу после document.body.appendChild(dialog))
   const npcText = dialog.querySelector(".npc-text");
   const topicsContainer = document.getElementById("talkTopics");
   const closeBtn = document.getElementById("closeTalkBtn");
@@ -376,7 +378,7 @@ function setThimbleriggerMet(met) {
   isThimbleriggerMet = met;
   hasGreetingBeenShownThisSession = met;
   if (!met && isPlayerNearThimblerigger) removeThimbleriggerButtons();
-  if (met && isPlayerNearThimblerigger) createThimbleriggerButtons(); // Новый: показываем кнопки после знакомства
+  if (met && isPlayerNearThimblerigger) createThimbleriggerButtons();
 }
 
 function createThimbleriggerButtons() {
@@ -429,17 +431,53 @@ function drawThimblerigger(deltaTime) {
   const screenX = THIMBLERIGGER.x - cameraX;
   const screenY = THIMBLERIGGER.y - cameraY;
 
-  thimbleriggerFrameTime += deltaTime;
-  if (thimbleriggerFrameTime >= THIMBLERIGGER_FRAME_DURATION) {
-    thimbleriggerFrameTime -= THIMBLERIGGER_FRAME_DURATION;
-    thimbleriggerFrame = (thimbleriggerFrame + 1) % THIMBLERIGGER_TOTAL_FRAMES;
+  let sx, sy;
+
+  if (isPlayerNearThimblerigger) {
+    // В зоне взаимодействия — статичный 1-й кадр строки 1
+    sx = 0;
+    sy = 70;
+    thimbleriggerFrame = 0;
+    thimbleriggerFrameTime = 0;
+    animationCycleTime = 0;
+  } else {
+    // Вне зоны — циклическая анимация
+    animationCycleTime += deltaTime;
+
+    if (
+      currentPhase === "attract" &&
+      animationCycleTime >= ATTRACT_PHASE_DURATION
+    ) {
+      currentPhase = "idle";
+      animationCycleTime = 0;
+      thimbleriggerFrame = 0;
+      thimbleriggerFrameTime = 0;
+    } else if (
+      currentPhase === "idle" &&
+      animationCycleTime >= IDLE_PHASE_DURATION
+    ) {
+      currentPhase = "attract";
+      animationCycleTime = 0;
+      thimbleriggerFrame = 0;
+      thimbleriggerFrameTime = 0;
+    }
+
+    // Обновление кадров внутри текущей фазы
+    thimbleriggerFrameTime += deltaTime;
+    if (thimbleriggerFrameTime >= FRAME_DURATION_Thimble) {
+      thimbleriggerFrameTime -= FRAME_DURATION_Thimble;
+      thimbleriggerFrame = (thimbleriggerFrame + 1) % TOTAL_FRAMES;
+    }
+
+    sy = currentPhase === "attract" ? 70 : 0;
+    sx = thimbleriggerFrame * 70;
   }
 
   if (thimbleriggerSprite?.complete) {
     ctx.drawImage(
       thimbleriggerSprite,
-      thimbleriggerFrame * 70,
-      0,
+      sx,
+      sy,
       70,
       70,
       screenX,
@@ -452,12 +490,14 @@ function drawThimblerigger(deltaTime) {
     ctx.fillRect(screenX, screenY, 70, 70);
   }
 
-  ctx.font = "14px 'Courier New', monospace";
+  ctx.fillStyle = isThimbleriggerMet ? "#006effff" : "#ffffff";
+  ctx.font = "12px Arial";
   ctx.textAlign = "center";
-  ctx.fillStyle = isThimbleriggerMet ? "#ffd700" : "#ffffff";
-  const nameText = isThimbleriggerMet ? THIMBLERIGGER.name : "?";
-  ctx.strokeText(nameText, screenX + 35, screenY - 30);
-  ctx.fillText(nameText, screenX + 35, screenY - 30);
+  ctx.fillText(
+    isThimbleriggerMet ? THIMBLERIGGER.name : "?",
+    screenX + THIMBLERIGGER.width / 2,
+    screenY - 10
+  );
 
   updateThimbleriggerButtonsPosition(cameraX, cameraY);
 }
@@ -473,7 +513,7 @@ function checkThimbleriggerProximity() {
     if (isPlayerNearThimblerigger) {
       isPlayerNearThimblerigger = false;
       removeThimbleriggerButtons();
-      closeThimbleriggerDialog(); // Новый: закрываем любой диалог при выходе из зоны (даже если greeting был открыт)
+      closeThimbleriggerDialog();
     }
     return;
   }
@@ -494,6 +534,11 @@ function checkThimbleriggerProximity() {
     isPlayerNearThimblerigger = false;
     removeThimbleriggerButtons();
     closeThimbleriggerDialog();
+    // Сброс фазы анимации при выходе из зоны
+    currentPhase = "attract";
+    animationCycleTime = 0;
+    thimbleriggerFrame = 0;
+    thimbleriggerFrameTime = 0;
   }
 }
 
@@ -506,5 +551,10 @@ window.thimbleriggerSystem = {
   initialize: (sprite) => {
     thimbleriggerSprite = sprite;
     hasGreetingBeenShownThisSession = false;
+    // Инициализация анимации
+    currentPhase = "attract";
+    animationCycleTime = 0;
+    thimbleriggerFrame = 0;
+    thimbleriggerFrameTime = 0;
   },
 };
