@@ -23,6 +23,7 @@ let thimbleriggerFrame = 0;
 let thimbleriggerFrameTime = 0;
 const FRAME_DURATION_Thimble = 180; // 180 мс на кадр
 const TOTAL_FRAMES = 13;
+const MAX_DELTA_TIME = 1000; // Cap для deltaTime, чтобы избежать экстремальных скачков
 
 // Цикл анимации вне зоны взаимодействия
 let animationCycleTime = 0; // накапливаем время для переключения фаз
@@ -148,8 +149,6 @@ function startSimpleGame(bet) {
         msg.textContent = "Где шарик? Выбирай!";
         gameActive = true;
 
-        console.log("Финальный correctCup после свапов:", correctCup);
-
         cups.forEach((cup, idx) => {
           cup.onclick = () => chooseCup(idx, bet);
         });
@@ -175,31 +174,11 @@ function chooseCup(selected, bet) {
 
   const ball = document.createElement("div");
   ball.className = "thimble-ball";
-  const ballPositions = [
-    "calc(16.666% - 10px)",
-    "calc(50% - 10px)",
-    "calc(83.333% - 10px)",
-  ];
   ball.style.left = cups[correctCup].style.left.replace("80px", "10px");
   area.appendChild(ball);
 
-  console.log(
-    "Выбранный индекс:",
-    selected,
-    "Правильный индекс:",
-    correctCup,
-    "Визуальная позиция правильного:",
-    cups[correctCup].style.left
-  );
-
   setTimeout(() => {
     const won = selected === correctCup;
-
-    if (!won) {
-      console.warn(
-        "Проигрыш: возможно, несоответствие визуала и индекса — проверь свапы."
-      );
-    }
 
     if (won) {
       const balyarySlot = inventory.findIndex(
@@ -425,6 +404,9 @@ function updateThimbleriggerButtonsPosition(cameraX, cameraY) {
 function drawThimblerigger(deltaTime) {
   if (window.worldSystem.currentWorldId !== THIMBLERIGGER.worldId) return;
 
+  // Cap deltaTime для оптимизации и предотвращения экстремальных скачков
+  deltaTime = Math.min(deltaTime, MAX_DELTA_TIME);
+
   const camera = window.movementSystem.getCamera();
   const cameraX = camera.x;
   const cameraY = camera.y;
@@ -444,27 +426,17 @@ function drawThimblerigger(deltaTime) {
     // Вне зоны — циклическая анимация
     animationCycleTime += deltaTime;
 
-    if (
-      currentPhase === "attract" &&
-      animationCycleTime >= ATTRACT_PHASE_DURATION
-    ) {
-      currentPhase = "idle";
-      animationCycleTime = 0;
-      thimbleriggerFrame = 0;
-      thimbleriggerFrameTime = 0;
-    } else if (
-      currentPhase === "idle" &&
-      animationCycleTime >= IDLE_PHASE_DURATION
-    ) {
-      currentPhase = "attract";
-      animationCycleTime = 0;
+    // While для пропуска фаз при большом deltaTime
+    while (animationCycleTime >= (currentPhase === "attract" ? ATTRACT_PHASE_DURATION : IDLE_PHASE_DURATION)) {
+      animationCycleTime -= (currentPhase === "attract" ? ATTRACT_PHASE_DURATION : IDLE_PHASE_DURATION);
+      currentPhase = currentPhase === "attract" ? "idle" : "attract";
       thimbleriggerFrame = 0;
       thimbleriggerFrameTime = 0;
     }
 
-    // Обновление кадров внутри текущей фазы
+    // While для пропуска кадров внутри фазы при большом deltaTime
     thimbleriggerFrameTime += deltaTime;
-    if (thimbleriggerFrameTime >= FRAME_DURATION_Thimble) {
+    while (thimbleriggerFrameTime >= FRAME_DURATION_Thimble) {
       thimbleriggerFrameTime -= FRAME_DURATION_Thimble;
       thimbleriggerFrame = (thimbleriggerFrame + 1) % TOTAL_FRAMES;
     }
