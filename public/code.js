@@ -2368,19 +2368,19 @@ function handleGameMessage(event) {
             window.levelSystem.showXPEffect(data.reward.xp);
           }
           const me = players.get(myId);
-          inventory = data.inventory.map((i) => (i ? { ...i } : null));
+          me.inventory = data.inventory.map((i) => (i ? { ...i } : null));
           updateInventoryDisplay();
         }
         break;
       case "doctorQuestCompleted":
-        if (data.success) {
+        {
           console.log(
             "Мед. справка получена! Форма МД-07 в инвентаре.",
             "#00ff44"
           );
           const me = players.get(myId);
           if (me) {
-            me.medicalCertificate = data.medicalCertificate || true; // синхронизируем флаг
+            me.medicalCertificate = data.medicalCertificate || true;
             me.inventory = data.inventory.map((i) => (i ? { ...i } : null));
             updateInventoryDisplay();
           }
