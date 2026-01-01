@@ -2353,32 +2353,37 @@ function handleGameMessage(event) {
         }
         break;
       case "neonQuestCompleted":
-        showNotification(
-          `Заказ сдан! +${data.reward.xp} XP | +${data.reward.balyary} баляров!`,
-          "#00ffff"
-        );
-        if (window.levelSystem) {
-          window.levelSystem.setLevelData(
-            data.level,
-            data.xp,
-            data.xpToNextLevel,
-            data.upgradePoints
+        {
+          showNotification(
+            `Заказ сдан! +${data.reward.xp} XP | +${data.reward.balyary} баляров!`,
+            "#00ffff"
           );
-          window.levelSystem.showXPEffect(data.reward.xp);
-        }
-        updateInventoryDisplay();
-        break;
-      case "doctorQuestCompleted":
-        showNotification(
-          "Мед. справка получена! Форма МД-07 в инвентаре.",
-          "#00ff44"
-        );
-        me = players.get(myId);
-        if (me) {
-          me.inventory = data.inventory;
-          me.medicalCertificate = data.medicalCertificate || true; // синхронизируем флаг
+          if (window.levelSystem) {
+            window.levelSystem.setLevelData(
+              data.level,
+              data.xp,
+              data.xpToNextLevel,
+              data.upgradePoints
+            );
+            window.levelSystem.showXPEffect(data.reward.xp);
+          }
+          const me = players.get(myId);
           inventory = data.inventory.map((i) => (i ? { ...i } : null));
           updateInventoryDisplay();
+        }
+        break;
+      case "doctorQuestCompleted":
+        if (data.success) {
+          console.log(
+            "Мед. справка получена! Форма МД-07 в инвентаре.",
+            "#00ff44"
+          );
+          const me = players.get(myId);
+          if (me) {
+            me.medicalCertificate = data.medicalCertificate || true; // синхронизируем флаг
+            me.inventory = data.inventory.map((i) => (i ? { ...i } : null));
+            updateInventoryDisplay();
+          }
         }
         break;
       case "robotDoctorResult":
@@ -2387,7 +2392,7 @@ function handleGameMessage(event) {
           if (me) {
             if (data.health !== undefined) me.health = data.health;
             if (data.inventory) {
-              inventory = data.inventory.map((i) => (i ? { ...i } : null));
+              me.inventory = data.inventory.map((i) => (i ? { ...i } : null));
               updateInventoryDisplay();
             }
             updateStatsDisplay();
@@ -2407,11 +2412,10 @@ function handleGameMessage(event) {
       case "captainStampResult":
         if (data.success) {
           // Обновляем инвентарь
-          inventory = data.inventory.map((i) => (i ? { ...i } : null));
+          const me = players.get(myId);
+          me.inventory = data.inventory.map((i) => (i ? { ...i } : null));
           updateInventoryDisplay();
 
-          // Важно: сохраняем новый флаг в объекте игрока
-          const me = players.get(myId);
           if (me) {
             me.medicalCertificateStamped =
               data.medicalCertificateStamped ?? true;
@@ -2423,11 +2427,6 @@ function handleGameMessage(event) {
             "Печать получена! Допуск в Неоновый Город выдан.",
             "#00ff44"
           );
-
-          // Звук успеха
-          if (window.soundSystem && window.soundSystem.play) {
-            window.soundSystem.play("success");
-          }
 
           // Автоматически закрываем диалог капитана
           const captainDialog = document.getElementById("captainDialog");
@@ -2454,7 +2453,8 @@ function handleGameMessage(event) {
           );
 
           // Обновляем инвентарь
-          inventory = data.inventory;
+          const me = players.get(myId);
+          me.inventory = data.inventory;
           updateInventoryDisplay();
 
           // Уведомление
@@ -2484,8 +2484,8 @@ function handleGameMessage(event) {
         break;
       case "thimbleriggerBetResult":
         if (data.success) {
-          // Обновляем инвентарь (сервер вычел bet)
-          inventory = data.inventory.map((i) => (i ? { ...i } : null));
+          const me = players.get(myId);
+          me.inventory = data.inventory.map((i) => (i ? { ...i } : null));
           updateInventoryDisplay();
 
           // Начинаем игру на клиенте (передаём bet)
@@ -2497,11 +2497,10 @@ function handleGameMessage(event) {
           );
         }
         break;
-
       case "thimbleriggerGameResultSync":
         if (data.success) {
-          // Полная синхронизация: перезаписываем инвентарь, XP, уровень с сервера
-          inventory = data.inventory.map((i) => (i ? { ...i } : null));
+          const me = players.get(myId);
+          me.inventory = data.inventory.map((i) => (i ? { ...i } : null));
           updateInventoryDisplay(); // Уже есть: динамика слота баляров
 
           if (window.levelSystem) {

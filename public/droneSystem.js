@@ -1,6 +1,6 @@
 // droneSystem.js
 // Три корпоративных дрона-шпиона в мире 0. Максимально лёгкие и плавные.
-// Оптимизация: убраны лишние проверки, кэширование размеров мира, минимум операций в цикле.
+// Оптимизация: cap deltaTime, while для кадров, минимум операций в цикле.
 
 window.droneSystem = (function () {
   const WORLD_ID = 0;
@@ -8,12 +8,13 @@ window.droneSystem = (function () {
   const SPRITE_H = 70;
   const TOTAL_FRAMES = 13;
   const FRAME_MS = 120;
+  const MAX_DELTA_TIME = 500; // Кап для dt — предотвращает догонялки и дёрганья
 
   let sprite = null;
   let drones = [];
   let initialized = false;
 
-  // Кэшируем размер мира 0 (он почти никогда не меняется)
+  // Кэшируем размер мира 0
   let worldSize = { w: 5000, h: 5000 };
 
   const updateWorldSize = () => {
@@ -46,9 +47,9 @@ window.droneSystem = (function () {
       ty: t.y,
       speed: 0.22 + Math.random() * 0.04,
       frame: Math.floor(Math.random() * TOTAL_FRAMES),
-      ft: Math.random() * FRAME_MS, // frame time
-      hover: 0, // текущее время зависания
-      hoverDur: 3000 + Math.random() * 5000, // длительность зависания
+      ft: Math.random() * FRAME_MS,
+      hover: 0,
+      hoverDur: 3000 + Math.random() * 5000,
       state: Math.random() > 0.5 ? 1 : 0, // 0 = moving, 1 = hovering
     };
   };
@@ -72,20 +73,23 @@ window.droneSystem = (function () {
     if (!window.worldSystem || window.worldSystem.currentWorldId !== WORLD_ID)
       return;
 
-    // Один раз обновляем размер мира (на случай редкого изменения)
+    // Капим deltaTime — ключ к плавности после сворачивания вкладки
+    dt = Math.min(dt, MAX_DELTA_TIME);
+
+    // Редко обновляем размер мира
     if (Math.random() < 0.001) updateWorldSize();
 
     for (let i = 0; i < drones.length; i++) {
       const d = drones[i];
 
-      // Анимация кадров
+      // Анимация кадров — используем while, чтобы не догонять пропущенное время
       d.ft += dt;
-      if (d.ft >= FRAME_MS) {
+      while (d.ft >= FRAME_MS) {
         d.ft -= FRAME_MS;
         d.frame = (d.frame + 1) % TOTAL_FRAMES;
       }
 
-      // Зависание
+      // Состояние зависания
       if (d.state === 1) {
         d.hover += dt;
         if (d.hover >= d.hoverDur) {
@@ -112,6 +116,7 @@ window.droneSystem = (function () {
         continue;
       }
 
+      // Нормализованное движение с capped dt — плавно даже после паузы
       const move = (d.speed * dt) / dist;
       d.x += dx * move;
       d.y += dy * move;
@@ -138,7 +143,7 @@ window.droneSystem = (function () {
         0,
         SPRITE_W,
         SPRITE_H,
-        sx | 0, // быстрое приведение к int
+        sx | 0,
         sy | 0,
         SPRITE_W,
         SPRITE_H
