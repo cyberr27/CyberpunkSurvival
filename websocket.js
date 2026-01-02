@@ -103,11 +103,11 @@ function setupWebSocket(
   worlds[0].transitionZones.push({
     toWorld: 1,
     zone: { x: 1056, y: 2487, radius: 50 },
-    entry: { x: 1622, y: 2719 }, // entry в world 1, настрой если нужно
+    entry: { x: 2992, y: 2639 }, // entry в world 1, настрой если нужно
   });
   worlds[1].transitionZones.push({
     toWorld: 0,
-    zone: { x: 1422, y: 2719, radius: 50 },
+    zone: { x: 3003, y: 2552, radius: 50 },
     entry: { x: 900, y: 2487 }, // back to 0
   });
   worlds[1].transitionZones.push({
