@@ -1949,6 +1949,29 @@ function handleGameMessage(event) {
           }
         }, 1000); // Задержка 1 секунда
         break;
+      case "positionCorrection":
+        {
+          const me = players.get(myId);
+          if (me) {
+            me.x = data.x;
+            me.y = data.y;
+            // Update camera/movement
+            window.movementSystem.updateCamera();
+          }
+        }
+        break;
+      case "upgradeSuccess":
+        {
+          window.levelSystem.upgradePoints = data.upgradePoints;
+          const me = players.get(myId);
+          me.maxStats = data.maxStats;
+          window.levelSystem.updateUpgradeButtons();
+          updateStatsDisplay();
+        }
+        break;
+      case "upgradeFail":
+        alert(data.error || "Ошибка апгрейда");
+        break;
       case "newPlayer":
         if (data.player?.id && data.player.worldId === currentWorldId) {
           players.set(data.player.id, {

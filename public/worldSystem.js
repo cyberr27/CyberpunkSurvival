@@ -96,13 +96,11 @@ const worldSystem = {
         sendWhenReady(
           ws,
           JSON.stringify({
-            type: "worldTransition",
-            targetWorldId: z.targetWorldId,
-            x: px,
-            y: py,
+            type: "requestWorldTransition",
+            targetWorldId: zone.targetWorldId,
           })
         );
-        return; // Выходим после первого срабатывания
+        return;
       }
     }
   },
