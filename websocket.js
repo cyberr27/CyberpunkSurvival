@@ -100,7 +100,6 @@ function setupWebSocket(
     ...w,
     transitionZones: [], // {toWorld: id, zone: {x,y,radius}, entry: {x,y}}
   }));
-  /* Пример для world 0 to 1 */
   worlds[0].transitionZones.push({
     toWorld: 1,
     zone: { x: 1056, y: 2487, radius: 50 },
@@ -108,7 +107,7 @@ function setupWebSocket(
   });
   worlds[1].transitionZones.push({
     toWorld: 0,
-    zone: { x: 1622, y: 2719, radius: 50 },
+    zone: { x: 1422, y: 2719, radius: 50 },
     entry: { x: 900, y: 2487 }, // back to 0
   });
   worlds[1].transitionZones.push({
