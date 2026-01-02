@@ -58,11 +58,15 @@ const worldSystem = {
       });
     });
 
-    // Тестовые зоны из пула (быстрее чем new Object)
+    // Оптимизированное создание зон с пулингом и сортировкой по миру
+    this.transitionZones = []; // Очищаем для переинициализации
     this.createTransitionZone(1056, 2487, 50, 1, 0);
-    this.createTransitionZone(1622, 2719, 50, 0, 1);
+    this.createTransitionZone(3003, 2552, 50, 0, 1); // Исправил на 3003 из websocket.js
     this.createTransitionZone(1906, 3123, 50, 2, 1);
     this.createTransitionZone(2481, 3108, 50, 1, 2);
+
+    // Сортировка зон по sourceWorldId для быстрого фильтра (оптимизация check)
+    this.transitionZones.sort((a, b) => a.sourceWorldId - b.sourceWorldId);
   },
 
   createTransitionZone(x, y, r, target, source) {
@@ -85,13 +89,16 @@ const worldSystem = {
     const current = this.currentWorldId;
     const len = zones.length;
 
-    for (let i = 0; i < len; i++) {
-      const z = zones[i];
-      if (z.sourceWorldId !== current) continue;
+    // Быстрый пропуск: находим диапазон зон для current (благодаря сортировке)
+    let start = 0;
+    while (start < len && zones[start].sourceWorldId < current) start++;
+    let end = start;
+    while (end < len && zones[end].sourceWorldId === current) end++;
 
+    for (let i = start; i < end; i++) {
+      const z = zones[i];
       const dx = px - z.x;
       const dy = py - z.y;
-      // УБРАЛ Math.sqrt() - сравниваем квадраты (в 10 раз быстрее!)
       if (dx * dx + dy * dy < z.radius2) {
         sendWhenReady(
           ws,

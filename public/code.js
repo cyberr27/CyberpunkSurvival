@@ -2617,6 +2617,8 @@ function resizeCanvas() {
 }
 
 function update(deltaTime) {
+  let lastZoneCheck = 0;
+  const ZONE_CHECK_INTERVAL = 200; // ms
   // Глобальная анимация атома — одна на всю игру
   atomFrameTime += deltaTime;
   while (atomFrameTime >= ATOM_FRAME_DURATION) {
@@ -2738,7 +2740,12 @@ function update(deltaTime) {
     window.outpostCaptainSystem.update(deltaTime);
   window.thimbleriggerSystem.checkThimbleriggerProximity();
 
-  window.worldSystem.checkTransitionZones(me.x, me.y);
+  const now = performance.now();
+  if (now - lastZoneCheck >= ZONE_CHECK_INTERVAL) {
+    lastZoneCheck = now;
+    window.worldSystem.checkTransitionZones(me.x, me.y);
+    checkCollisions(); // Если нужно, throttling и для предметов
+  }
 }
 
 function draw(deltaTime) {

@@ -100,26 +100,34 @@ function setupWebSocket(
     ...w,
     transitionZones: [], // {toWorld: id, zone: {x,y,radius}, entry: {x,y}}
   }));
-  worlds[0].transitionZones.push({
-    toWorld: 1,
-    zone: { x: 1056, y: 2487, radius: 50 },
-    entry: { x: 2992, y: 2639 }, // entry в world 1, настрой если нужно
-  });
-  worlds[1].transitionZones.push({
-    toWorld: 0,
-    zone: { x: 3003, y: 2552, radius: 50 },
-    entry: { x: 900, y: 2487 }, // back to 0
-  });
-  worlds[1].transitionZones.push({
-    toWorld: 2,
-    zone: { x: 1906, y: 3123, radius: 50 },
-    entry: { x: 2481, y: 3108 }, // to 2
-  });
-  worlds[2].transitionZones.push({
-    toWorld: 1,
-    zone: { x: 2481, y: 3108, radius: 50 },
-    entry: { x: 1906, y: 3123 }, // back to 1
-  });
+
+  // Оптимизированное добавление зон с кэшированием radius2 и проверкой уникальности
+  function addTransitionZone(
+    worldIndex,
+    toWorld,
+    zoneX,
+    zoneY,
+    radius,
+    entryX,
+    entryY
+  ) {
+    const existing = worlds[worldIndex].transitionZones.find(
+      (z) => z.toWorld === toWorld && z.zone.x === zoneX && z.zone.y === zoneY
+    );
+    if (existing) return; // Избегаем дубликатов (оптимизация памяти)
+
+    worlds[worldIndex].transitionZones.push({
+      toWorld: toWorld,
+      zone: { x: zoneX, y: zoneY, radius: radius, radius2: radius * radius }, // Кэш radius2 для быстрой проверки расстояния
+      entry: { x: entryX, y: entryY },
+    });
+  }
+
+  // Примеры зон (изменяйте здесь позиции)
+  addTransitionZone(0, 1, 1056, 2487, 50, 2992, 2639);
+  addTransitionZone(1, 0, 3003, 2552, 50, 900, 2487);
+  addTransitionZone(1, 2, 1906, 3123, 50, 2481, 3108);
+  addTransitionZone(2, 1, 2481, 3108, 50, 1906, 3123);
 
   // === НОВАЯ ФУНКЦИЯ: спавн врага с отправкой newEnemy ===
   function spawnNewEnemy(worldId) {
@@ -294,7 +302,17 @@ function setupWebSocket(
           // Check pos in zone
           const dx = player.x - zone.zone.x;
           const dy = player.y - zone.zone.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
+          const distSquared = dx * dx + dy * dy; // Оптимизация: без Math.sqrt
+          if (distSquared > zone.zone.radius2) {
+            // Используем кэш radius2
+            ws.send(
+              JSON.stringify({
+                type: "worldTransitionFail",
+                error: "Не в зоне",
+              })
+            );
+            return;
+          }
           if (dist > zone.zone.radius) {
             ws.send(
               JSON.stringify({
