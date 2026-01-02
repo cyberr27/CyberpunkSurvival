@@ -1,0 +1,362 @@
+/* jack.css — Полные стили для Jack NPC */
+
+/* Основной диалог */
+.jack-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(
+    135deg,
+    rgba(10, 10, 10, 0.95),
+    rgba(20, 20, 20, 0.9)
+  );
+  border: 2px solid #00ffff;
+  border-radius: 10px;
+  padding: 20px;
+  color: #00ffff;
+  font-family: "Courier New", monospace;
+  text-align: center;
+  z-index: 1000;
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.5), 0 0 30px rgba(255, 0, 255, 0.3);
+  animation: neonPulse 2s infinite alternate;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-width: 90vw;
+  max-height: 90vh;
+}
+
+/* Разные режимы диалога */
+.jack-dialog.greeting,
+.jack-dialog.talk {
+  max-width: 450px;
+  height: 500px;
+}
+.jack-dialog.shop,
+.jack-dialog.buyback {
+  width: 70vw;
+  height: 74vh;
+  overflow: auto;
+}
+
+/* Заголовок */
+.jack-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 15px;
+}
+.jack-photo {
+  width: 80px;
+  height: 80px;
+  border: 2px solid #ff00ff;
+  border-radius: 50%;
+  margin-right: 15px;
+  box-shadow: 0 0 15px rgba(255, 0, 255, 0.5);
+  object-fit: cover;
+}
+.jack-title {
+  color: #00ffff;
+  font-size: 24px;
+  text-shadow: 0 0 5px #00ffff, 0 0 10px #ff00ff;
+  animation: flicker 1.5s infinite alternate;
+  margin: 0;
+}
+
+/* Текст */
+.jack-text {
+  margin: 15px 0;
+  font-size: 16px;
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.7);
+  line-height: 1.4;
+}
+.jack-text.fullscreen {
+  margin: 0;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid rgba(255, 0, 255, 0.5);
+  border-radius: 8px;
+  font-size: 18px;
+  min-height: 200px;
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  text-align: center;
+  overflow-y: auto;
+  overflow-x: hidden;
+  word-wrap: break-word;
+  scrollbar-width: thin;
+}
+
+/* Магазин */
+.shop-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-top: 15px;
+  overflow: visible;
+}
+.shop-item {
+  background: rgba(0, 0, 0, 0.85);
+  padding: 12px;
+  cursor: pointer;
+  border: 1px solid #00ffff;
+  border-radius: 5px;
+  color: #00ffff;
+  font-size: 14px;
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.7);
+  box-shadow: 0 0 8px rgba(0, 255, 255, 0.3);
+  transition: transform 0.2s, box-shadow 0.2s;
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+.shop-item:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.7), 0 0 20px rgba(255, 0, 255, 0.5);
+}
+.shop-item.selected {
+  border: 2px solid #ff00ff;
+  box-shadow: 0 0 12px rgba(255, 0, 255, 0.8);
+}
+.shop-reward {
+  color: #ff00ff;
+  font-weight: bold;
+  text-shadow: 0 0 5px rgba(255, 0, 255, 0.7);
+}
+
+/* СКУПКА — КОПИЯ ИНВЕНТАРЯ */
+#buybackInventoryGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(5, 1fr);
+  gap: 8px;
+  width: 100%;
+  height: 400px;
+  justify-items: center;
+  align-items: center;
+  margin: 15px 0;
+}
+.buyback-inventory-slot {
+  width: 50px;
+  height: 50px;
+  border: 2px solid rgba(0, 255, 255, 0.3);
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  border-radius: 5px;
+  transition: all 0.2s;
+}
+.buyback-inventory-slot:hover {
+  border-color: #ff0066;
+  box-shadow: 0 0 10px rgba(255, 0, 102, 0.7),
+    inset 0 0 5px rgba(255, 0, 102, 0.3);
+  transform: scale(1.05);
+}
+.buyback-inventory-slot.selected {
+  border: 2px solid #ff00ff;
+  box-shadow: 0 0 12px rgba(255, 0, 255, 0.8);
+}
+.buyback-inventory-slot div {
+  color: #00ccff;
+  font-size: 12px;
+  font-family: "Orbitron", sans-serif;
+  text-shadow: 0 0 5px rgba(0, 204, 255, 0.7);
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+}
+
+/* Кнопки в диалоге */
+.jack-button {
+  background: linear-gradient(135deg, #00ffff, #ff00ff);
+  border: none;
+  color: #000;
+  padding: 10px 20px;
+  margin: 10px 5px;
+  cursor: pointer;
+  border-radius: 5px;
+  font-size: 16px;
+  font-weight: bold;
+  text-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.5), 0 0 15px rgba(255, 0, 255, 0.3);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.jack-button:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.7), 0 0 20px rgba(255, 0, 255, 0.5);
+}
+.jack-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Кнопки над Джеком (3 кнопки) */
+.jack-buttons-container {
+  position: fixed;
+  z-index: 1000;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transform-origin: center top;
+}
+.jack-button-talk,
+.jack-button-shop,
+.jack-button-buyback {
+  pointer-events: all;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-family: "Courier New", monospace;
+  font-weight: bold;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.8);
+  transition: all 0.3s ease;
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.4);
+  min-width: 100px;
+  text-align: center;
+  user-select: none;
+}
+
+/* Цвета кнопок */
+.jack-button-talk {
+  background: linear-gradient(
+    135deg,
+    rgba(0, 255, 255, 0.2),
+    rgba(0, 150, 150, 0.3)
+  );
+  color: #00ffff;
+  border-color: #00ffff;
+}
+.jack-button-shop {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 0, 255, 0.2),
+    rgba(150, 0, 150, 0.3)
+  );
+  color: #ff00ff;
+  border-color: #ff00ff;
+}
+.jack-button-buyback {
+  background: linear-gradient(
+    135deg,
+    rgba(0, 255, 0, 0.2),
+    rgba(0, 136, 0, 0.3)
+  );
+  color: #00ff00;
+  border-color: #00ff00;
+}
+
+/* Hover эффекты */
+.jack-button-talk:hover {
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.8);
+}
+.jack-button-shop:hover {
+  box-shadow: 0 0 20px rgba(255, 0, 255, 0.8);
+}
+.jack-button-buyback:hover {
+  box-shadow: 0 0 20px rgba(0, 255, 0, 0.8);
+  transform: scale(1.05);
+}
+
+/* Контент диалога */
+.jack-dialog-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 10px;
+  margin-top: 10px;
+  scrollbar-width: thin;
+  scrollbar-color: #ff00ff rgba(0, 0, 0, 0.5);
+}
+.jack-dialog-content::-webkit-scrollbar {
+  width: 8px;
+}
+.jack-dialog-content::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 4px;
+}
+.jack-dialog-content::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #00ffff, #ff00ff);
+  border-radius: 4px;
+  box-shadow: 0 0 10px rgba(255, 0, 255, 0.7);
+}
+
+/* Темы разговора */
+.talk-topics {
+  max-height: 300px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: rgba(10, 10, 10, 0.9);
+  border: 1px solid #00ffff;
+  border-radius: 5px;
+  padding: 15px;
+  box-shadow: inset 0 0 10px rgba(0, 255, 255, 0.3);
+}
+.talk-topics.hidden {
+  display: none;
+}
+.talk-topic {
+  background: rgba(0, 0, 0, 0.85);
+  padding: 15px;
+  margin: 10px 0;
+  cursor: pointer;
+  border: 1px solid #00ffff;
+  border-radius: 5px;
+  color: #00ffff;
+  font-size: 14px;
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.7);
+  transition: all 0.3s ease;
+  text-align: center;
+  word-wrap: break-word;
+}
+.talk-topic:hover {
+  background: rgba(0, 255, 255, 0.15);
+  border-color: #ff00ff;
+  box-shadow: 0 0 15px rgba(255, 0, 255, 0.5);
+  transform: translateX(5px);
+}
+
+/* Кнопки магазина/скупки */
+.shop-buttons,
+.buyback-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin-top: 15px;
+}
+
+/* Анимации */
+@keyframes neonPulse {
+  from {
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+  }
+  to {
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.7);
+  }
+}
+@keyframes flicker {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+/* Блокировка скролла фона */
+body.npc-dialog-active {
+  overflow: hidden;
+}

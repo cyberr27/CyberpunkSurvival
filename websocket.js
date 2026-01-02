@@ -2634,6 +2634,204 @@ function setupWebSocket(
             xpGained,
           })
         );
+      } else if (data.type === "buyFromJack") {
+        const playerId = clients.get(ws);
+        if (!playerId || !players.has(playerId)) {
+          ws.send(
+            JSON.stringify({
+              type: "buyFromJackFail",
+              error: "Игрок не найден",
+            })
+          );
+          return;
+        }
+
+        const player = players.get(playerId);
+        const type = data.itemType;
+        const cfg = ITEM_CONFIG[type];
+        if (!cfg) {
+          ws.send(
+            JSON.stringify({
+              type: "buyFromJackFail",
+              error: "Неверный тип предмета",
+            })
+          );
+          return;
+        }
+
+        // Проверка: это еда rarity 1-3, не оружие, не чёрный список
+        const BLACKLIST = ["balyary", "atom", "blood_pack", "blood_syringe"];
+        const isValid =
+          cfg.rarity >= 1 &&
+          cfg.rarity <= 3 &&
+          !BLACKLIST.includes(type) &&
+          cfg.category !== "weapon";
+        if (!isValid) {
+          ws.send(
+            JSON.stringify({
+              type: "buyFromJackFail",
+              error: "Этот предмет нельзя купить у Джека",
+            })
+          );
+          return;
+        }
+
+        const price = cfg.rarity; // Цена = rarity
+        if (data.price !== price) {
+          ws.send(
+            JSON.stringify({ type: "buyFromJackFail", error: "Неверная цена" })
+          );
+          return;
+        }
+
+        // Находим баляры
+        const balyarySlot = player.inventory.findIndex(
+          (s) => s && s.type === "balyary"
+        );
+        const balyaryQty =
+          balyarySlot !== -1 ? player.inventory[balyarySlot].quantity || 0 : 0;
+        if (balyaryQty < price) {
+          ws.send(
+            JSON.stringify({
+              type: "buyFromJackFail",
+              error: "Не хватает баляров",
+            })
+          );
+          return;
+        }
+
+        // Вычитаем баляры
+        if (balyaryQty === price) {
+          player.inventory[balyarySlot] = null;
+        } else {
+          player.inventory[balyarySlot].quantity -= price;
+        }
+
+        // Находим свободный слот
+        const freeSlot = player.inventory.findIndex((s) => s === null);
+        if (freeSlot === -1) {
+          ws.send(
+            JSON.stringify({
+              type: "buyFromJackFail",
+              error: "Инвентарь полон",
+            })
+          );
+          return;
+        }
+
+        // Добавляем предмет
+        player.inventory[freeSlot] = {
+          type,
+          quantity: 1,
+          itemId: `${type}_${Date.now()}`,
+        };
+
+        // Сохраняем
+        players.set(playerId, { ...player });
+        userDatabase.set(playerId, { ...player });
+        await saveUserDatabase(dbCollection, playerId, player);
+
+        // Отправляем success с новым inventory
+        ws.send(
+          JSON.stringify({
+            type: "buyFromJackSuccess",
+            inventory: player.inventory,
+          })
+        );
+      } else if (data.type === "sellToJack") {
+        const playerId = clients.get(ws);
+        if (!playerId || !players.has(playerId)) {
+          ws.send(
+            JSON.stringify({ type: "sellToJackFail", error: "Игрок не найден" })
+          );
+          return;
+        }
+
+        const player = players.get(playerId);
+        const slotIndex = data.slotIndex;
+        if (slotIndex < 0 || slotIndex >= player.inventory.length) {
+          ws.send(
+            JSON.stringify({ type: "sellToJackFail", error: "Неверный слот" })
+          );
+          return;
+        }
+
+        const item = player.inventory[slotIndex];
+        if (!item) {
+          ws.send(
+            JSON.stringify({ type: "sellToJackFail", error: "Слот пустой" })
+          );
+          return;
+        }
+
+        // Проверка: это еда (та же как в покупке)
+        const cfg = ITEM_CONFIG[item.type];
+        if (!cfg) {
+          ws.send(
+            JSON.stringify({
+              type: "sellToJackFail",
+              error: "Неверный тип предмета",
+            })
+          );
+          return;
+        }
+
+        const BLACKLIST = ["balyary", "atom", "blood_pack", "blood_syringe"];
+        const isFood =
+          cfg.rarity >= 1 &&
+          cfg.rarity <= 3 &&
+          !BLACKLIST.includes(item.type) &&
+          cfg.category !== "weapon";
+        if (!isFood) {
+          ws.send(
+            JSON.stringify({
+              type: "sellToJackFail",
+              error: "Джек покупает только продукты питания",
+            })
+          );
+          return;
+        }
+
+        player.inventory[slotIndex] = null;
+
+        let balyarySlot = player.inventory.findIndex(
+          (s) => s && s.type === "balyary"
+        );
+        if (balyarySlot !== -1) {
+          player.inventory[balyarySlot].quantity =
+            (player.inventory[balyarySlot].quantity || 0) + 1;
+        } else {
+          const freeSlot = player.inventory.findIndex((s) => s === null);
+          if (freeSlot !== -1) {
+            player.inventory[freeSlot] = {
+              type: "balyary",
+              quantity: 1,
+              itemId: `balyary_${Date.now()}`,
+            };
+          } else {
+            // Редко: но если нет места — не добавляем (хотя проверено ранее? Нет, добавить проверку
+            ws.send(
+              JSON.stringify({
+                type: "sellToJackFail",
+                error: "Нет места для баляра",
+              })
+            );
+            return;
+          }
+        }
+
+        // Сохраняем
+        players.set(playerId, { ...player });
+        userDatabase.set(playerId, { ...player });
+        await saveUserDatabase(dbCollection, playerId, player);
+
+        // Отправляем success с новым inventory
+        ws.send(
+          JSON.stringify({
+            type: "sellToJackSuccess",
+            inventory: player.inventory,
+          })
+        );
       }
       if (data.type === "update" || data.type === "move") {
         const playerId = clients.get(ws);

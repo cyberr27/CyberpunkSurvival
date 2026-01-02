@@ -2533,6 +2533,48 @@ function handleGameMessage(event) {
           );
         }
         break;
+      case "buyFromJackSuccess":
+        {
+          // Обновляем инвентарь из сервера
+          inventory = data.inventory.map((slot) => (slot ? { ...slot } : null));
+          const me = players.get(myId);
+          if (me) {
+            me.inventory = [...inventory]; // Синхронизируем с игроком
+            players.set(myId, me);
+          }
+          updateInventoryDisplay();
+          updateStatsDisplay();
+
+          // Перезагружаем диалог магазина (обновит grid)
+          if (jackDialogStage === "shop") {
+            showJackDialog("shop");
+          }
+        }
+        break;
+      case "buyFromJackFail":
+        alert(data.error || "Ошибка покупки");
+        break;
+      case "sellToJackSuccess":
+        {
+          // Обновляем инвентарь из сервера
+          inventory = data.inventory.map((slot) => (slot ? { ...slot } : null));
+          const me = players.get(myId);
+          if (me) {
+            me.inventory = [...inventory];
+            players.set(myId, me);
+          }
+          updateInventoryDisplay();
+          updateStatsDisplay();
+
+          // Перезагружаем диалог скупки
+          if (jackDialogStage === "buyback") {
+            showJackDialog("buyback");
+          }
+        }
+        break;
+      case "sellToJackFail":
+        alert(data.error || "Ошибка продажи");
+        break;
     }
   } catch (error) {
     console.error("Ошибка в handleGameMessage:", error);

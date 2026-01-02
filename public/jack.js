@@ -1,4 +1,4 @@
-// jack.js (торговец, брат John)
+// jack.js (торговец, брат John) — Полная рабочая версия с скупкой
 
 // Константы и переменные
 const JACK = {
@@ -32,254 +32,53 @@ let isPlayerNearJack = false;
 // КРИТИЧНО: Флаг для предотвращения повторного показа приветствия
 let hasJackGreetingBeenShown = false;
 
-// Стили — динамические: приветствие как у Джона, магазин — 80vw × 70vh
-const jackStyles = `
-  .jack-dialog {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: linear-gradient(135deg, rgba(10,10,10,0.95), rgba(20,20,20,0.9));
-    border: 2px solid #00ffff;
-    border-radius: 10px;
-    padding: 20px;
-    color: #00ffff;
-    font-family: "Courier New", monospace;
-    text-align: center;
-    z-index: 1000;
-    box-shadow: 0 0 20px rgba(0,255,255,0.5), 0 0 30px rgba(255,0,255,0.3);
-    animation: neonPulse 2s infinite alternate;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-  }
-  .jack-dialog.greeting, .jack-dialog.talk {
-    max-width: 450px;
-    width: 90%;
-    height: 500px;
-  }
-  .jack-dialog.shop {
-    width: 70vw;
-    height: 74vh;
-    overflow: auto;
-  }
-  .jack-dialog-header {display:flex;align-items:center;justify-content:center;margin-bottom:15px;}
-  .jack-photo {width:80px;height:80px;border:2px solid #ff00ff;border-radius:50%;margin-right:15px;box-shadow:0 0 15px rgba(255,0,255,0.5);object-fit:cover;}
-  .jack-title {color:#00ffff;font-size:24px;text-shadow:0 0 5px #00ffff,0 0 10px #ff00ff;animation:flicker 1.5s infinite alternate;margin:0;}
-  .jack-text {margin:15px 0;font-size:16px;text-shadow:0 0 5px rgba(0,255,255,0.7);line-height:1.4;}
-  .jack-text.fullscreen {
-    margin: 0;
-    padding: 20px;
-    background: rgba(0, 0, 0, 0.8);
-    border: 1px solid rgba(255, 0, 255, 0.5);
-    border-radius: 8px;
-    font-size: 18px;
-    min-height: 200px;
-    flex: 1;
-    display: flex;
-    align-items: flex-start;
-    justify-content: flex-start;
-    text-align: center;
-    overflow-y: auto;
-    overflow-x: hidden;
-    word-wrap: break-word;
-    scrollbar-width: thin;
-  }
-  
-  .shop-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 12px;
-    margin-top: 15px;
-    overflow: visible;
-  }
-  .shop-item {
-    background: rgba(0,0,0,0.85);
-    padding: 12px;
-    cursor: pointer;
-    border: 1px solid #00ffff;
-    border-radius: 5px;
-    color: #00ffff;
-    font-size: 14px;
-    text-shadow: 0 0 5px rgba(0,255,255,0.7);
-    box-shadow: 0 0 8px rgba(0,255,255,0.3);
-    transition: transform .2s, box-shadow .2s;
-    display: flex;
-    align-items: center;
-    position: relative;
-  }
-  .shop-item:hover {transform:scale(1.05);box-shadow:0 0 15px rgba(0,255,255,0.7),0 0 20px rgba(255,0,255,0.5);}
-  .shop-item.selected {border:2px solid #ff00ff;box-shadow:0 0 12px rgba(255,0,255,0.8);}
-  .shop-reward {color:#ff00ff;font-weight:bold;text-shadow:0 0 5px rgba(255,0,255,0.7);}
-  .jack-button {
-    background: linear-gradient(135deg, #00ffff, #ff00ff);
-    border:none;color:#000;padding:10px 20px;margin:10px;cursor:pointer;border-radius:5px;
-    font-size:16px;font-weight:bold;text-shadow:0 0 5px rgba(0,0,0,0.5);
-    box-shadow:0 0 10px rgba(0,255,255,0.5),0 0 15px rgba(255,0,255,0.3);
-    transition:transform .2s,box-shadow .2s;
-  }
-  .jack-button:hover {transform:scale(1.05);box-shadow:0 0 15px rgba(0,255,255,0.7),0 0 20px rgba(255,0,255,0.5);}
-  .jack-button:disabled {opacity:0.5;cursor:not-allowed;transform:none;}
+// Переменные для скупки
+let selectedBuybackSlot = null;
 
-  /* Кнопки над Джеком */
-  .jack-buttons-container {
-    position: fixed;
-    z-index: 1000;
-    pointer-events: none;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    transform-origin: center top;
-  }
-  .jack-button-talk, .jack-button-shop {
-    pointer-events: all;
-    padding: 10px 20px;
-    font-size: 14px;
-    font-family: "Courier New", monospace;
-    font-weight: bold;
-    border: 2px solid transparent;
-    border-radius: 8px;
-    cursor: pointer;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    text-shadow: 0 0 5px rgba(0, 255, 255, 0.8);
-    transition: all 0.3s ease;
-    box-shadow: 0 0 10px rgba(0, 255, 255, 0.4);
-    min-width: 100px;
-    text-align: center;
-    user-select: none;
-  }
-  .jack-button-talk {
-    background: linear-gradient(135deg, rgba(0, 255, 255, 0.2), rgba(0, 150, 150, 0.3));
-    color: #00ffff;
-    border-color: #00ffff;
-  }
-  .jack-button-shop {
-    background: linear-gradient(135deg, rgba(255, 0, 255, 0.2), rgba(150, 0, 150, 0.3));
-    color: #ff00ff;
-    border-color: #ff00ff;
-  }
-  .jack-button-talk:hover, .jack-button-shop:hover {
-    transform: scale(1.05);
-    box-shadow: 0 0 20px rgba(0, 255, 255, 0.8);
-  }
-  .jack-button-shop:hover {
-    box-shadow: 0 0 20px rgba(255, 0, 255, 0.8);
-  }
-
-  /* Стили для диалога */
-  .jack-dialog-content {
-    flex: 1;
-    overflow-y: auto;
-    overflow-x: hidden;
-    padding-right: 10px;
-    margin-top: 10px;
-    scrollbar-width: thin;
-    scrollbar-color: #ff00ff rgba(0, 0, 0, 0.5);
-  }
-
-  .jack-dialog-content::-webkit-scrollbar {
-    width: 8px;
-  }
-  .jack-dialog-content::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.7);
-    border-radius: 4px;
-  }
-  .jack-dialog-content::-webkit-scrollbar-thumb {
-    background: linear-gradient(180deg, #00ffff, #ff00ff);
-    border-radius: 4px;
-    box-shadow: 0 0 10px rgba(255, 0, 255, 0.7);
-  }
-
-  .talk-topics {
-    max-height: 300px;
-    overflow-y: auto;
-    overflow-x: hidden;
-    background: rgba(10, 10, 10, 0.9);
-    border: 1px solid #00ffff;
-    border-radius: 5px;
-    padding: 15px;
-    box-shadow: inset 0 0 10px rgba(0, 255, 255, 0.3);
-  }
-  .talk-topics.hidden {
-    display: none;
-  }
-  .talk-topic {
-    background: rgba(0, 0, 0, 0.85);
-    padding: 15px;
-    margin: 10px 0;
-    cursor: pointer;
-    border: 1px solid #00ffff;
-    border-radius: 5px;
-    color: #00ffff;
-    font-size: 14px;
-    text-shadow: 0 0 5px rgba(0, 255, 255, 0.7);
-    transition: all 0.3s ease;
-    text-align: center;
-    word-wrap: break-word;
-  }
-  .talk-topic:hover {
-    background: rgba(0, 255, 255, 0.15);
-    border-color: #ff00ff;
-    box-shadow: 0 0 15px rgba(255, 0, 255, 0.5);
-    transform: translateX(5px);
-  }
-
-  /* Новые стили для кнопок в магазине */
-  .shop-buttons {
-    display: flex;
-    justify-content: center;
-    gap: 15px;
-    margin-top: 15px;
-  }
-
-  @keyframes neonPulse{from{box-shadow:0 0 10px rgba(0,255,255,0.3);}to{box-shadow:0 0 20px rgba(0,255,255,0.7);}}
-  @keyframes flicker{0%,100%{opacity:1;}50%{opacity:0.8;}}
-`;
-
-// Инициализация стилей
+// Инициализация стилей (подключаем jack.css)
 function initializeJackStyles() {
-  if (!document.getElementById("jackStyles")) {
-    const style = document.createElement("style");
-    style.id = "jackStyles";
-    style.innerHTML = jackStyles;
-    document.head.appendChild(style);
+  if (!document.getElementById("jackStylesLink")) {
+    const link = document.createElement("link");
+    link.id = "jackStylesLink";
+    link.rel = "stylesheet";
+    link.href = "jack.css";
+    document.head.appendChild(link);
   }
 }
 
-// Создание кнопок
+// Создание кнопок (3 кнопки: Говорить, Магазин, Скупка)
 function createJackButtons(screenX, screenY) {
   if (jackButtonsContainer) document.body.removeChild(jackButtonsContainer);
 
   jackButtonsContainer = document.createElement("div");
   jackButtonsContainer.className = "jack-buttons-container";
 
-  const totalButtonsHeight = 45 * 2 + 16;
+  const totalButtonsHeight = 45 * 3 + 16 * 2; // 3 кнопки
   jackButtonsContainer.style.left = screenX + JACK.width / 2 + "px";
   jackButtonsContainer.style.top = screenY - totalButtonsHeight - 25 + "px";
   jackButtonsContainer.style.transform = "translateX(-50%)";
 
+  // КНОПКА 1: Говорить
   const talkBtn = document.createElement("div");
   talkBtn.className = "jack-button-talk";
   talkBtn.textContent = "Говорить";
   talkBtn.addEventListener("click", openJackTalkDialog);
+  jackButtonsContainer.appendChild(talkBtn);
 
+  // КНОПКА 2: Магазин
   const shopBtn = document.createElement("div");
   shopBtn.className = "jack-button-shop";
   shopBtn.textContent = "Магазин";
-  shopBtn.addEventListener("click", () => {
-    const container = document.getElementById("jackDialog");
-    if (container) {
-      container.classList.remove("talk");
-      container.classList.add("shop");
-      showShopDialog(container);
-    } else {
-      openJackDialog(true);
-    }
-  });
-
-  jackButtonsContainer.appendChild(talkBtn);
+  shopBtn.addEventListener("click", openJackShopDialog);
   jackButtonsContainer.appendChild(shopBtn);
+
+  // КНОПКА 3: СКУПКА (НОВАЯ)
+  const buybackBtn = document.createElement("div");
+  buybackBtn.className = "jack-button-buyback";
+  buybackBtn.textContent = "Скупка";
+  buybackBtn.addEventListener("click", openJackBuybackDialog);
+  jackButtonsContainer.appendChild(buybackBtn);
+
   document.body.appendChild(jackButtonsContainer);
 }
 
@@ -290,7 +89,20 @@ function removeJackButtons() {
   }
 }
 
-// Отрисовка Jack
+// НОВЫЕ ФУНКЦИИ ДЛЯ КНОПОК
+function openJackTalkDialog() {
+  showJackDialog("talk");
+}
+
+function openJackShopDialog() {
+  showJackDialog("shop");
+}
+
+function openJackBuybackDialog() {
+  showJackDialog("buyback");
+}
+
+// Отрисовка Jack (без изменений)
 function drawJack(deltaTime) {
   if (window.worldSystem.currentWorldId !== 0) return;
 
@@ -345,13 +157,13 @@ function drawJack(deltaTime) {
 
   // Обновляем позицию кнопок
   if (isPlayerNearJack && jackButtonsContainer) {
-    const totalButtonsHeight = 45 * 2 + 16;
+    const totalButtonsHeight = 45 * 3 + 16 * 2;
     jackButtonsContainer.style.left = screenX + JACK.width / 2 + "px";
     jackButtonsContainer.style.top = screenY - totalButtonsHeight - 25 + "px";
   }
 }
 
-// Проверка расстояния
+// Проверка расстояния (адаптировано под 3 кнопки)
 function checkJackProximity() {
   const me = players.get(myId);
   if (!me || me.health <= 0) return;
@@ -381,22 +193,45 @@ function checkJackProximity() {
   }
 }
 
-// Открытие диалога
-function openJackDialog(skipGreeting = false) {
-  if (isJackDialogOpen) return;
-  isJackDialogOpen = true;
+// Универсальная функция показа диалога
+function showJackDialog(stage) {
+  jackDialogStage = stage;
 
-  const container = document.createElement("div");
-  container.className = "jack-dialog";
+  let container = document.getElementById("jackDialog");
+  if (container) {
+    container.remove();
+  }
+
+  container = document.createElement("div");
   container.id = "jackDialog";
+  container.className = `jack-dialog ${stage}`;
   document.body.appendChild(container);
 
+  switch (stage) {
+    case "greeting":
+      jackShowGreetingDialog(container);
+      break;
+    case "talk":
+      openJackTalkDialogContent(container);
+      break;
+    case "shop":
+      showShopDialog(container);
+      break;
+    case "buyback":
+      showBuybackDialog(container);
+      break;
+  }
+
+  document.body.classList.add("npc-dialog-active");
+  isJackDialogOpen = true;
+}
+
+// Открытие диалога (старое название для обратной совместимости)
+function openJackDialog(skipGreeting = false) {
   if (!isJackMet && !skipGreeting) {
-    container.classList.add("greeting");
-    jackShowGreetingDialog(container);
+    showJackDialog("greeting");
   } else {
-    container.classList.add("shop");
-    showShopDialog(container);
+    showJackDialog("shop");
   }
 }
 
@@ -405,10 +240,11 @@ function closeJackDialog() {
   const dlg = document.getElementById("jackDialog");
   if (dlg) dlg.remove();
   isJackDialogOpen = false;
+  document.body.classList.remove("npc-dialog-active");
   if (!isJackMet) hasJackGreetingBeenShown = false;
 }
 
-// Приветствие
+// Приветствие (без изменений)
 function jackShowGreetingDialog(container) {
   container.innerHTML = `
     <div class="jack-dialog-header">
@@ -422,7 +258,6 @@ function jackShowGreetingDialog(container) {
   document.getElementById("meetJackBtn").addEventListener("click", () => {
     isJackMet = true;
     sendWhenReady(ws, JSON.stringify({ type: "meetJack" }));
-
     closeJackDialog();
     isPlayerNearJack = true;
     const camera = window.movementSystem.getCamera();
@@ -430,16 +265,8 @@ function jackShowGreetingDialog(container) {
   });
 }
 
-// Диалог с темами
-function openJackTalkDialog() {
-  closeJackDialog();
-  jackDialogStage = "talk";
-
-  const container = document.createElement("div");
-  container.className = "jack-dialog talk";
-  container.id = "jackDialog";
-  document.body.appendChild(container);
-
+// Диалог разговора (перенесена логика из openJackTalkDialog)
+function openJackTalkDialogContent(container) {
   const topics = [
     {
       title: "Черный Рынок и Секреты",
@@ -514,10 +341,9 @@ function openJackTalkDialog() {
   }
 
   closeBtn.onclick = closeJackDialog;
-  isJackDialogOpen = true;
 }
 
-// Магазин
+// Магазин (без изменений)
 let selectedItemType = null;
 let selectedPrice = 0;
 
@@ -547,7 +373,6 @@ function showShopDialog(container) {
     const isBlacklisted = BLACKLIST.includes(type);
     const isWeapon = cfg.category === "weapon";
     const isRarityValid = cfg.rarity >= 1 && cfg.rarity <= 3;
-
     return isRarityValid && !isBlacklisted && !isWeapon;
   });
 
@@ -580,39 +405,100 @@ function showShopDialog(container) {
   });
 }
 
-// Покупка
+// Покупка (без изменений)
 function buyItem(type, price) {
-  const me = players.get(myId);
-  if (!me) return;
-
-  const balyarySlot = inventory.findIndex((s) => s && s.type === "balyary");
-  const balyaryQty =
-    balyarySlot !== -1 ? inventory[balyarySlot].quantity || 0 : 0;
-
-  if (balyaryQty < price) {
-    alert("Не хватает balyary!");
-    return;
+  if (ws.readyState === WebSocket.OPEN) {
+    sendWhenReady(
+      ws,
+      JSON.stringify({ type: "buyFromJack", itemType: type, price })
+    ); // Отправляем тип и цену (сервер проверит)
+  } else {
+    alert("Соединение потеряно. Попробуйте позже.");
   }
+}
 
-  inventory[balyarySlot].quantity -= price;
-  if (inventory[balyarySlot].quantity <= 0) inventory[balyarySlot] = null;
+// НОВЫЙ ДИАЛОГ СКУПКИ
+function showBuybackDialog(container) {
+  container.innerHTML = `
+    <div class="jack-dialog-header">
+      <img src="jackPhoto.png" alt="Jack Photo" class="jack-photo">
+      <h2 class="jack-title">${JACK.name}</h2>
+    </div>
+    <p class="jack-text">Возьму только продукты питания</p>
+    <div id="buybackInventoryGrid" class="buyback-inventory-grid"></div>
+    <div class="buyback-buttons">
+      <button class="jack-button" id="sellBtn" disabled>Продать (1 баляр)</button>
+      <button class="jack-button" id="closeBuybackBtn">Выход</button>
+    </div>
+  `;
 
-  const freeSlot = inventory.findIndex((s) => s === null);
-  if (freeSlot === -1) {
-    alert("Инвентарь полон!");
-    return;
+  const grid = document.getElementById("buybackInventoryGrid");
+  const sellBtn = document.getElementById("sellBtn");
+  const closeBtn = document.getElementById("closeBuybackBtn");
+
+  closeBtn.addEventListener("click", closeJackDialog);
+
+  // Создаем копию инвентаря (5x4 сетка)
+  inventory.forEach((item, index) => {
+    const slot = document.createElement("div");
+    slot.className = "buyback-inventory-slot";
+    if (item) {
+      const img = document.createElement("img");
+      img.src = ITEM_CONFIG[item.type]?.image?.src || "";
+      img.width = 40;
+      img.height = 40;
+      slot.appendChild(img);
+
+      if (item.quantity > 1) {
+        const qty = document.createElement("div");
+        qty.textContent = item.quantity;
+        slot.appendChild(qty);
+      }
+    }
+
+    // Клик по слоту
+    slot.addEventListener("click", () => {
+      document
+        .querySelectorAll(".buyback-inventory-slot")
+        .forEach((el) => el.classList.remove("selected"));
+      slot.classList.add("selected");
+      selectedBuybackSlot = index;
+
+      // АКТИВИРУЕМ кнопку только для продуктов питания
+      const itemType = inventory[index]?.type;
+      sellBtn.disabled = !isFoodProduct(itemType);
+    });
+
+    grid.appendChild(slot);
+  });
+
+  sellBtn.addEventListener("click", () => {
+    if (selectedBuybackSlot !== null) {
+      sellItemToJack(selectedBuybackSlot);
+      // Перезагружаем диалог для обновления инвентаря
+      showBuybackDialog(container);
+    }
+  });
+}
+
+// Проверка является ли предмет продуктом питания (та же логика что в магазине)
+function isFoodProduct(type) {
+  if (!type || !ITEM_CONFIG[type]) return false;
+  const cfg = ITEM_CONFIG[type];
+  const BLACKLIST = ["balyary", "atom", "blood_pack", "blood_syringe"];
+  const isBlacklisted = BLACKLIST.includes(type);
+  const isWeapon = cfg.category === "weapon";
+  const isRarityValid = cfg.rarity >= 1 && cfg.rarity <= 3;
+  return isRarityValid && !isBlacklisted && !isWeapon;
+}
+
+// Продажа предмета Джеку (1 баляр за любой продукт)
+function sellItemToJack(slotIndex) {
+  if (ws.readyState === WebSocket.OPEN) {
+    sendWhenReady(ws, JSON.stringify({ type: "sellToJack", slotIndex })); // Отправляем слот (сервер проверит item)
+  } else {
+    alert("Соединение потеряно. Попробуйте позже.");
   }
-  inventory[freeSlot] = { type, quantity: 1, itemId: `${type}_${Date.now()}` };
-
-  sendWhenReady(ws, JSON.stringify({ type: "updateInventory", inventory }));
-  updateInventoryDisplay();
-
-  selectedItemType = null;
-  selectedPrice = 0;
-  document
-    .querySelectorAll(".shop-item")
-    .forEach((el) => el.classList.remove("selected"));
-  document.getElementById("buyBtn").disabled = true;
 }
 
 // Экспорт
@@ -624,12 +510,12 @@ window.jackSystem = {
     if (!met) {
       removeJackButtons();
       isPlayerNearJack = false;
-      hasJackGreetingBeenShown = false; // Разрешаем повторное приветствие при респавне
+      hasJackGreetingBeenShown = false;
     }
   },
   initialize: (spriteImg) => {
     jackSprite = spriteImg;
     initializeJackStyles();
-    hasJackGreetingBeenShown = false; // Гарантируем чистое состояние
+    hasJackGreetingBeenShown = false;
   },
 };
