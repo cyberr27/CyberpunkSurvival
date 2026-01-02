@@ -304,7 +304,7 @@ function setupWebSocket(
           const dy = player.y - zone.zone.y;
           const distSquared = dx * dx + dy * dy; // Оптимизация: без Math.sqrt
           if (distSquared > zone.zone.radius2) {
-            // Используем кэш radius2
+            // Фикс: используем distSquared и radius2 (для "снаружи зоны")
             ws.send(
               JSON.stringify({
                 type: "worldTransitionFail",

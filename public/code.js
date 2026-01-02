@@ -2744,7 +2744,7 @@ function update(deltaTime) {
   if (now - lastZoneCheck >= ZONE_CHECK_INTERVAL) {
     lastZoneCheck = now;
     window.worldSystem.checkTransitionZones(me.x, me.y);
-    checkCollisions(); // Если нужно, throttling и для предметов
+    checkCollisions();
   }
 }
 
