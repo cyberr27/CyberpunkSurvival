@@ -2173,7 +2173,9 @@ function handleGameMessage(event) {
         if (data.success) {
           const me = players.get(myId);
           me.water = data.water;
-          inventory = data.inventory;
+          me.inventory = data.inventory.map((slot) =>
+            slot ? { ...slot } : null
+          );
           updateStatsDisplay();
           updateInventoryDisplay();
           window.vendingMachine.hideVendingMenu();
@@ -2368,7 +2370,9 @@ function handleGameMessage(event) {
             window.levelSystem.showXPEffect(data.reward.xp);
           }
           const me = players.get(myId);
-          me.inventory = data.inventory.map((i) => (i ? { ...i } : null));
+          me.inventory = data.inventory.map((slot) =>
+            slot ? { ...slot } : null
+          );
           updateInventoryDisplay();
         }
         break;
