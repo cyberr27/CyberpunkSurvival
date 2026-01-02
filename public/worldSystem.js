@@ -97,7 +97,7 @@ const worldSystem = {
           ws,
           JSON.stringify({
             type: "requestWorldTransition",
-            targetWorldId: zone.targetWorldId,
+            targetWorldId: z.targetWorldId,
           })
         );
         return;
