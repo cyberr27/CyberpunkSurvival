@@ -1960,6 +1960,9 @@ function handleGameMessage(event) {
           }
         }
         break;
+      case "worldTransitionFail":
+        showNotification(data.error || "Переход невозможен", "#ff0066");
+        break;
       case "upgradeSuccess":
         {
           window.levelSystem.upgradePoints = data.upgradePoints;

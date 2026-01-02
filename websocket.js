@@ -103,8 +103,23 @@ function setupWebSocket(
   /* Пример для world 0 to 1 */
   worlds[0].transitionZones.push({
     toWorld: 1,
-    zone: { x: 500, y: 500, radius: 50 }, // пример зоны
-    entry: { x: 100, y: 100 }, // entry в world 1
+    zone: { x: 1056, y: 2487, radius: 50 },
+    entry: { x: 1622, y: 2719 }, // entry в world 1, настрой если нужно
+  });
+  worlds[1].transitionZones.push({
+    toWorld: 0,
+    zone: { x: 1622, y: 2719, radius: 50 },
+    entry: { x: 1056, y: 2487 }, // back to 0
+  });
+  worlds[1].transitionZones.push({
+    toWorld: 2,
+    zone: { x: 1906, y: 3123, radius: 50 },
+    entry: { x: 2481, y: 3108 }, // to 2
+  });
+  worlds[2].transitionZones.push({
+    toWorld: 1,
+    zone: { x: 2481, y: 3108, radius: 50 },
+    entry: { x: 1906, y: 3123 }, // back to 1
   });
 
   // === НОВАЯ ФУНКЦИЯ: спавн врага с отправкой newEnemy ===
