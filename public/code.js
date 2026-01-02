@@ -2617,8 +2617,10 @@ function resizeCanvas() {
 }
 
 function update(deltaTime) {
+  // В начале функции (если нет — добавьте)
   let lastZoneCheck = 0;
   const ZONE_CHECK_INTERVAL = 200; // ms
+
   // Глобальная анимация атома — одна на всю игру
   atomFrameTime += deltaTime;
   while (atomFrameTime >= ATOM_FRAME_DURATION) {
@@ -2688,7 +2690,7 @@ function update(deltaTime) {
               Math.abs(player.targetY - player.y) > 3);
 
           player.state = isMoving ? "walking" : "idle";
-          player.animTime = 0;
+          player.animTime = 0; // на всякий случай сбрасываем ходьбу
           player.frame = 0;
         }
       }

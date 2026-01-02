@@ -299,21 +299,11 @@ function setupWebSocket(
             return;
           }
 
-          // Check pos in zone
+          // Check pos in zone (только одна проверка, без dist, с distSquared)
           const dx = player.x - zone.zone.x;
           const dy = player.y - zone.zone.y;
           const distSquared = dx * dx + dy * dy; // Оптимизация: без Math.sqrt
           if (distSquared > zone.zone.radius2) {
-            // Фикс: используем distSquared и radius2 (для "снаружи зоны")
-            ws.send(
-              JSON.stringify({
-                type: "worldTransitionFail",
-                error: "Не в зоне",
-              })
-            );
-            return;
-          }
-          if (dist > zone.zone.radius) {
             ws.send(
               JSON.stringify({
                 type: "worldTransitionFail",
@@ -359,7 +349,7 @@ function setupWebSocket(
             JSON.stringify({ type: "newPlayer", player })
           );
 
-          // Send success to client with SERVER x,y
+          // Send success to client with SERVER x,y with world data
           const worldItems = Array.from(items.entries())
             .filter(([_, item]) => item.worldId === targetWorldId)
             .map(([itemId, item]) => ({

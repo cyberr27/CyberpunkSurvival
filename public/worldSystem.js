@@ -12,10 +12,8 @@ const worldSystem = {
     clouds: null,
     loaded: 0,
   })),
-
   currentWorldId: 0,
   transitionZones: [],
-
   // Кэш для оптимизации
   _imageCache: new Map(),
   _transitionPool: [],
@@ -25,7 +23,6 @@ const worldSystem = {
     lastCamera: { x: 0, y: 0 },
     batchData: null,
   },
-
   initialize() {
     const imgMap = {
       0: ["backgr.png", "vegetation.png", "rocks.png", "clouds.png"],
@@ -42,7 +39,6 @@ const worldSystem = {
         "neon_city_clouds.png",
       ],
     };
-
     this.worlds.forEach((world) => {
       const paths = imgMap[world.id];
       ["bg", "veg", "rocks", "clouds"].forEach((key, i) => {
@@ -57,21 +53,17 @@ const worldSystem = {
         img.onload = img.onerror = () => world.loaded++;
       });
     });
-
     // Оптимизированное создание зон с пулингом и сортировкой по миру
     this.transitionZones = []; // Очищаем для переинициализации
     this.createTransitionZone(1056, 2487, 50, 1, 0);
     this.createTransitionZone(3003, 2552, 50, 0, 1); // Исправил на 3003 из websocket.js
     this.createTransitionZone(1906, 3123, 50, 2, 1);
     this.createTransitionZone(2481, 3108, 50, 1, 2);
-
     // Сортировка зон по sourceWorldId для быстрого фильтра (оптимизация check)
     this.transitionZones.sort((a, b) => a.sourceWorldId - b.sourceWorldId);
   },
-
   createTransitionZone(x, y, r, target, source) {
     if (r <= 0 || ![target, source].every((id) => this.worlds[id])) return;
-
     const zone = this._transitionPool.pop() || {};
     zone.x = x;
     zone.y = y;
@@ -81,20 +73,16 @@ const worldSystem = {
     zone.sourceWorldId = source;
     this.transitionZones.push(zone);
   },
-
   checkTransitionZones(px, py) {
     if (!players.has(myId)) return;
-
     const zones = this.transitionZones;
     const current = this.currentWorldId;
     const len = zones.length;
-
     // Быстрый пропуск: находим диапазон зон для current (благодаря сортировке)
     let start = 0;
     while (start < len && zones[start].sourceWorldId < current) start++;
     let end = start;
     while (end < len && zones[end].sourceWorldId === current) end++;
-
     for (let i = start; i < end; i++) {
       const z = zones[i];
       const dx = px - z.x;
@@ -111,18 +99,14 @@ const worldSystem = {
       }
     }
   },
-
   switchWorld(targetId, player, newX, newY) {
     if (targetId === this.currentWorldId || !this.worlds[targetId]) return;
-
     const prev = this.worlds[this.currentWorldId];
     const next = this.worlds[targetId];
-
     // Сохраняем позицию
     player.prevWorldX = player.x;
     player.prevWorldY = player.y;
     player.prevWorldId = this.currentWorldId;
-
     // Определяем позицию в новом мире (один if)
     if (newX !== undefined && newY !== undefined) {
       player.x = newX;
@@ -132,12 +116,10 @@ const worldSystem = {
       player.x = saved?.x ?? next.w >> 1;
       player.y = saved?.y ?? next.h >> 1;
     }
-
     // Сохраняем
     (player.worldPositions ??= {})[targetId] = { x: player.x, y: player.y };
     player.worldId = targetId;
     this.currentWorldId = targetId;
-
     // Очистка игроков ОДИН РАЗ (было дважды!)
     if (myId) {
       const keep = new Map();
@@ -149,23 +131,18 @@ const worldSystem = {
       players.clear();
       keep.forEach((p, id) => players.set(id, p));
     }
-
     window.lightsSystem.reset(targetId);
     this._syncCache.needsSync = true; // Принудительно обновляем кэш
     this.showTransitionEffect();
   },
-
   syncPlayers() {
     if (!myId || !ws || ws.readyState !== WebSocket.OPEN) return;
-
     const now = performance.now();
     if (now - this._syncCache.timestamp < 5000 && !this._syncCache.needsSync) {
       return; // Кэш валиден 5 секунд
     }
-
     this._syncCache.timestamp = now;
     this._syncCache.needsSync = false;
-
     // Проверяем только игроков в текущем мире (в 10 раз быстрее!)
     let hasOthers = false;
     for (const [id, p] of players) {
@@ -174,7 +151,6 @@ const worldSystem = {
         break;
       }
     }
-
     if (!hasOthers) {
       sendWhenReady(
         ws,
@@ -185,11 +161,9 @@ const worldSystem = {
       );
     }
   },
-
   getCurrentWorld() {
     return this.worlds[this.currentWorldId];
   },
-
   showTransitionEffect() {
     const el = document.createElement("div");
     Object.assign(el.style, {
@@ -204,19 +178,15 @@ const worldSystem = {
       pointerEvents: "none",
     });
     document.body.appendChild(el);
-
     requestAnimationFrame(() => (el.style.background = "rgba(0,0,0,1)"));
     setTimeout(() => (el.style.background = "rgba(0,0,0,0)"), 1000);
     setTimeout(() => el.remove(), 2000);
   },
-
   // СУПЕР-ОПТИМИЗИРОВАННАЯ отрисовка зон (вызывается 1 раз в 3 кадра)
   drawTransitionZones() {
     if (!window.movementSystem?.getCamera) return;
-
     const cam = window.movementSystem.getCamera();
     const cache = this._drawCache;
-
     // Обновляем кэш только если камера сильно сдвинулась
     if (
       Math.abs(cam.x - cache.lastCamera.x) > 50 ||
@@ -225,21 +195,17 @@ const worldSystem = {
     ) {
       cache.lastCamera = { x: cam.x, y: cam.y };
       cache.zonesToDraw.length = 0;
-
       const viewLeft = cam.x;
       const viewRight = cam.x + canvas.width;
       const viewTop = cam.y;
       const viewBottom = cam.y + canvas.height;
-
       for (const z of this.transitionZones) {
         if (z.sourceWorldId !== this.currentWorldId) continue;
-
         // Ограничивающий прямоугольник зоны в мировых координатах
         const zoneLeft = z.x - z.radius;
         const zoneRight = z.x + z.radius;
         const zoneTop = z.y - z.radius;
         const zoneBottom = z.y + z.radius;
-
         // Проверка пересечения с видимой областью
         if (
           zoneRight >= viewLeft &&
@@ -252,7 +218,6 @@ const worldSystem = {
           cache.zonesToDraw.push(screenX, screenY, z.radius);
         }
       }
-
       // Подготавливаем данные для батчинга
       if (cache.zonesToDraw.length) {
         cache.batchData ??= [];
@@ -266,24 +231,19 @@ const worldSystem = {
         }
       }
     }
-
     if (!cache.batchData?.length) return;
-
     const ctx2 = ctx;
     ctx2.strokeStyle = "rgba(0,255,255,0.5)";
     ctx2.fillStyle = "rgba(0,255,255,0.2)";
     ctx2.lineWidth = 2;
-
     // Батчинг: рисуем ВСЕ зоны одним вызовом
     ctx2.strokeStyle = "rgba(0,255,255,0.5)";
     ctx2.fillStyle = "rgba(0,255,255,0.2)";
     ctx2.lineWidth = 3; // Чуть толще, чтобы лучше видно было
-
     for (let i = 0; i < cache.zonesToDraw.length; i += 3) {
       const screenX = cache.zonesToDraw[i];
       const screenY = cache.zonesToDraw[i + 1];
       const radius = cache.zonesToDraw[i + 2];
-
       ctx2.beginPath();
       ctx2.arc(screenX, screenY, radius, 0, Math.PI * 2);
       ctx2.fill();
@@ -291,5 +251,4 @@ const worldSystem = {
     }
   },
 };
-
 window.worldSystem = worldSystem;
