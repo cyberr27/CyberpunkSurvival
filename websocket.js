@@ -30,7 +30,6 @@ const ENEMY_SPEED = 2;
 const AGGRO_RANGE = 300;
 const ATTACK_RANGE = 50;
 const ENEMY_ATTACK_COOLDOWN = 1000;
-const PLAYER_SPEED = 65;
 
 function calculateXPToNextLevel(level) {
   if (level >= 100) return 0;
@@ -94,40 +93,6 @@ function setupWebSocket(
     player.water = Math.min(player.water, player.maxStats.water);
     player.armor = Math.min(player.armor, player.maxStats.armor);
   }
-
-  // Добавляем transitionZones к worlds (пример, добавь реальные)
-  worlds = worlds.map((w) => ({
-    ...w,
-    transitionZones: [], // {toWorld: id, zone: {x,y,radius}, entry: {x,y}}
-  }));
-
-  // Оптимизированное добавление зон с кэшированием radius2 и проверкой уникальности
-  function addTransitionZone(
-    worldIndex,
-    toWorld,
-    zoneX,
-    zoneY,
-    radius,
-    entryX,
-    entryY
-  ) {
-    const existing = worlds[worldIndex].transitionZones.find(
-      (z) => z.toWorld === toWorld && z.zone.x === zoneX && z.zone.y === zoneY
-    );
-    if (existing) return; // Избегаем дубликатов (оптимизация памяти)
-
-    worlds[worldIndex].transitionZones.push({
-      toWorld: toWorld,
-      zone: { x: zoneX, y: zoneY, radius: radius, radius2: radius * radius }, // Кэш radius2 для быстрой проверки расстояния
-      entry: { x: entryX, y: entryY },
-    });
-  }
-
-  // Примеры зон (изменяйте здесь позиции)
-  addTransitionZone(0, 1, 1056, 2487, 50, 2992, 2639);
-  addTransitionZone(1, 0, 3003, 2552, 50, 900, 2487);
-  addTransitionZone(1, 2, 1906, 3123, 50, 2481, 3108);
-  addTransitionZone(2, 1, 2481, 3108, 50, 1906, 3123);
 
   // === НОВАЯ ФУНКЦИЯ: спавн врага с отправкой newEnemy ===
   function spawnNewEnemy(worldId) {
@@ -266,90 +231,54 @@ function setupWebSocket(
             medicalCertificate: false,
             medicalCertificateStamped: false,
             corporateDocumentsSubmitted: false,
-            lastUpdateTime: Date.now(),
-            lastX: 605,
-            lastY: 3177,
           };
 
           userDatabase.set(data.username, newPlayer);
           await saveUserDatabase(dbCollection, data.username, newPlayer);
           ws.send(JSON.stringify({ type: "registerSuccess" }));
         }
-      } else if (data.type === "requestWorldTransition") {
+      } else if (data.type === "worldTransition") {
         const id = clients.get(ws);
         if (id) {
           const player = players.get(id);
           const oldWorldId = player.worldId;
           const targetWorldId = data.targetWorldId;
 
-          const oldWorld = worlds.find((w) => w.id === oldWorldId);
-          if (!oldWorld) return;
-
-          // Найти зону
-          const zone = oldWorld.transitionZones.find(
-            (z) => z.toWorld === targetWorldId
-          );
-          if (!zone) {
-            ws.send(
-              JSON.stringify({
-                type: "worldTransitionFail",
-                error: "Нет перехода",
-              })
-            );
+          if (!worlds.find((w) => w.id === targetWorldId)) {
             return;
           }
 
-          // Check pos in zone (только одна проверка, без dist, с distSquared)
-          const dx = player.x - zone.zone.x;
-          const dy = player.y - zone.zone.y;
-          const distSquared = dx * dx + dy * dy; // Оптимизация: без Math.sqrt
-          if (distSquared > zone.zone.radius2) {
-            ws.send(
-              JSON.stringify({
-                type: "worldTransitionFail",
-                error: "Не в зоне",
-              })
-            );
-            return;
-          }
-
-          // Set from server entry
           player.worldId = targetWorldId;
-          player.x = zone.entry.x;
-          player.y = zone.entry.y;
-          player.worldPositions[targetWorldId] = { x: player.x, y: player.y };
-
-          // Reset lastUpdateTime/lastPos
-          player.lastUpdateTime = Date.now();
-          player.lastX = player.x;
-          player.lastY = player.y;
+          player.x = data.x;
+          player.y = data.y;
+          player.worldPositions[targetWorldId] = { x: data.x, y: data.y };
 
           players.set(id, { ...player });
           userDatabase.set(id, { ...player });
           await saveUserDatabase(dbCollection, id, player);
 
-          // Broadcast left to old world
-          broadcastToWorld(
-            wss,
-            clients,
-            players,
-            oldWorldId,
-            JSON.stringify({ type: "playerLeft", id })
-          );
+          wss.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+              const clientPlayer = players.get(clients.get(client));
+              if (clientPlayer && clientPlayer.worldId === oldWorldId) {
+                client.send(JSON.stringify({ type: "playerLeft", id }));
+              }
+            }
+          });
 
-          // Broadcast newPlayer to new world
           const worldPlayers = Array.from(players.values()).filter(
             (p) => p.id !== id && p.worldId === targetWorldId
           );
-          broadcastToWorld(
-            wss,
-            clients,
-            players,
-            targetWorldId,
-            JSON.stringify({ type: "newPlayer", player })
-          );
 
-          // Send success to client with SERVER x,y with world data
+          wss.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+              const clientPlayer = players.get(clients.get(client));
+              if (clientPlayer && clientPlayer.worldId === targetWorldId) {
+                client.send(JSON.stringify({ type: "newPlayer", player }));
+              }
+            }
+          });
+
           const worldItems = Array.from(items.entries())
             .filter(([_, item]) => item.worldId === targetWorldId)
             .map(([itemId, item]) => ({
@@ -372,11 +301,12 @@ function setupWebSocket(
               frame: enemy.frame,
               worldId: enemy.worldId,
             }));
+
           ws.send(
             JSON.stringify({
               type: "worldTransitionSuccess",
               worldId: targetWorldId,
-              x: player.x, // server-defined
+              x: player.x,
               y: player.y,
               lights: lights.get(targetWorldId).map(({ id, ...rest }) => rest),
               players: worldPlayers,
@@ -451,9 +381,6 @@ function setupWebSocket(
               player.medicalCertificateStamped || false,
             corporateDocumentsSubmitted:
               player.corporateDocumentsSubmitted || false,
-            lastUpdateTime: player.lastUpdateTime || Date.now(),
-            lastX: player.lastX || player.x,
-            lastY: player.lastY || player.y,
           };
 
           players.set(data.username, playerData);
@@ -759,48 +686,73 @@ function setupWebSocket(
             inventory: player.inventory,
           })
         );
-      } else if (data.type === "upgradeStat") {
+      } else if (data.type === "updateLevel") {
         const id = clients.get(ws);
-        if (id && players.has(id)) {
+        if (id) {
           const player = players.get(id);
-          if (player.upgradePoints < 1) {
-            ws.send(
-              JSON.stringify({ type: "upgradeFail", error: "Нет очков" })
-            );
-            return;
-          }
-          const stat = data.stat; // "health" etc
-          const valid = ["health", "energy", "food", "water"];
-          if (valid.includes(stat)) {
-            player[`${stat}Upgrade`] += 1;
-            player.upgradePoints -= 1;
-            calculateMaxStats(player, ITEM_CONFIG);
-            players.set(id, player);
-            userDatabase.set(id, player);
-            await saveUserDatabase(dbCollection, id, player);
-            ws.send(
-              JSON.stringify({
-                type: "upgradeSuccess",
-                upgradePoints: player.upgradePoints,
-                maxStats: player.maxStats,
-              })
-            );
-            // Broadcast stats update if needed
-            broadcastToWorld(
-              wss,
-              clients,
-              players,
-              player.worldId,
-              JSON.stringify({
-                type: "update",
-                player: { id, maxStats: player.maxStats },
-              })
-            );
-          } else {
-            ws.send(
-              JSON.stringify({ type: "upgradeFail", error: "Неверный stat" })
-            );
-          }
+          player.level = data.level;
+          player.xp = data.xp;
+          player.upgradePoints = data.upgradePoints || 0;
+          players.set(id, { ...player });
+          userDatabase.set(id, { ...player });
+          await saveUserDatabase(dbCollection, id, player);
+          wss.clients.forEach((client) => {
+            if (
+              client.readyState === WebSocket.OPEN &&
+              clients.get(client) === id
+            ) {
+              client.send(
+                JSON.stringify({ type: "update", player: { id, ...player } })
+              );
+            }
+          });
+        }
+      } else if (data.type === "updateMaxStats") {
+        const id = clients.get(ws);
+        if (id) {
+          const player = players.get(id);
+          player.upgradePoints = data.upgradePoints;
+          // СОХРАНЯЕМ UPGRADE ПОЛЯ
+          player.healthUpgrade =
+            data.healthUpgrade || player.healthUpgrade || 0;
+          player.energyUpgrade =
+            data.energyUpgrade || player.energyUpgrade || 0;
+          player.foodUpgrade = data.foodUpgrade || player.foodUpgrade || 0;
+          player.waterUpgrade = data.waterUpgrade || player.waterUpgrade || 0;
+          players.set(id, { ...player });
+          userDatabase.set(id, { ...player });
+          await saveUserDatabase(dbCollection, id, player);
+          wss.clients.forEach((client) => {
+            if (
+              client.readyState === WebSocket.OPEN &&
+              clients.get(client) === id
+            ) {
+              client.send(
+                JSON.stringify({ type: "update", player: { id, ...player } })
+              );
+            }
+          });
+        }
+      } else if (data.type === "updateInventory") {
+        const id = clients.get(ws);
+        if (id) {
+          const player = players.get(id);
+          player.inventory = data.inventory;
+          player.availableQuests =
+            data.availableQuests || player.availableQuests;
+          players.set(id, { ...player });
+          userDatabase.set(id, { ...player });
+          await saveUserDatabase(dbCollection, id, player);
+          wss.clients.forEach((client) => {
+            if (
+              client.readyState === WebSocket.OPEN &&
+              clients.get(client) === id
+            ) {
+              client.send(
+                JSON.stringify({ type: "update", player: { id, ...player } })
+              );
+            }
+          });
         }
       } else if (data.type === "unequipItem") {
         const playerId = clients.get(ws);
@@ -2887,30 +2839,6 @@ function setupWebSocket(
 
         const player = players.get(playerId);
         const currentWorldId = player.worldId;
-
-        const now = Date.now();
-        const dt = now - player.lastUpdateTime;
-        const maxDist = (PLAYER_SPEED / 1000) * dt + 10; // tolerance
-
-        const dx = data.x - player.lastX;
-        const dy = data.y - player.lastY;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-
-        if (dist > maxDist) {
-          ws.send(
-            JSON.stringify({
-              type: "positionCorrection",
-              x: player.lastX,
-              y: player.lastY,
-            })
-          );
-          return; // reject
-        }
-
-        // Ok - update last
-        player.lastUpdateTime = now;
-        player.lastX = data.x;
-        player.lastY = data.y;
 
         // Принимаем только безопасные поля
         if (data.x !== undefined) player.x = data.x;

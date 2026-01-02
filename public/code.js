@@ -1949,32 +1949,6 @@ function handleGameMessage(event) {
           }
         }, 1000); // Задержка 1 секунда
         break;
-      case "positionCorrection":
-        {
-          const me = players.get(myId);
-          if (me) {
-            me.x = data.x;
-            me.y = data.y;
-            // Update camera/movement
-            window.movementSystem.updateCamera();
-          }
-        }
-        break;
-      case "worldTransitionFail":
-        showNotification(data.error || "Переход невозможен", "#ff0066");
-        break;
-      case "upgradeSuccess":
-        {
-          window.levelSystem.upgradePoints = data.upgradePoints;
-          const me = players.get(myId);
-          me.maxStats = data.maxStats;
-          window.levelSystem.updateUpgradeButtons();
-          updateStatsDisplay();
-        }
-        break;
-      case "upgradeFail":
-        alert(data.error || "Ошибка апгрейда");
-        break;
       case "newPlayer":
         if (data.player?.id && data.player.worldId === currentWorldId) {
           players.set(data.player.id, {
@@ -2617,10 +2591,6 @@ function resizeCanvas() {
 }
 
 function update(deltaTime) {
-  // В начале функции (если нет — добавьте)
-  let lastZoneCheck = 0;
-  const ZONE_CHECK_INTERVAL = 200; // ms
-
   // Глобальная анимация атома — одна на всю игру
   atomFrameTime += deltaTime;
   while (atomFrameTime >= ATOM_FRAME_DURATION) {
@@ -2690,7 +2660,7 @@ function update(deltaTime) {
               Math.abs(player.targetY - player.y) > 3);
 
           player.state = isMoving ? "walking" : "idle";
-          player.animTime = 0; // на всякий случай сбрасываем ходьбу
+          player.animTime = 0;
           player.frame = 0;
         }
       }
@@ -2742,12 +2712,7 @@ function update(deltaTime) {
     window.outpostCaptainSystem.update(deltaTime);
   window.thimbleriggerSystem.checkThimbleriggerProximity();
 
-  const now = performance.now();
-  if (now - lastZoneCheck >= ZONE_CHECK_INTERVAL) {
-    lastZoneCheck = now;
-    window.worldSystem.checkTransitionZones(me.x, me.y);
-    checkCollisions();
-  }
+  window.worldSystem.checkTransitionZones(me.x, me.y);
 }
 
 function draw(deltaTime) {

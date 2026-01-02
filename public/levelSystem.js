@@ -133,7 +133,14 @@ function createUpgradeButtons() {
         if (ws.readyState === WebSocket.OPEN) {
           sendWhenReady(
             ws,
-            JSON.stringify({ type: "upgradeStat", stat: "health" })
+            JSON.stringify({
+              type: "updateMaxStats",
+              upgradePoints,
+              healthUpgrade: window.levelSystem.healthUpgrade || 0,
+              energyUpgrade: window.levelSystem.energyUpgrade || 0,
+              foodUpgrade: window.levelSystem.foodUpgrade || 0,
+              waterUpgrade: window.levelSystem.waterUpgrade || 0,
+            })
           );
         }
       });
