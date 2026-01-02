@@ -109,7 +109,7 @@ function setupWebSocket(
   worlds[1].transitionZones.push({
     toWorld: 0,
     zone: { x: 1622, y: 2719, radius: 50 },
-    entry: { x: 1056, y: 2487 }, // back to 0
+    entry: { x: 900, y: 2487 }, // back to 0
   });
   worlds[1].transitionZones.push({
     toWorld: 2,
