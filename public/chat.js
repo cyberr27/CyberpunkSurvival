@@ -82,6 +82,9 @@ function sendWhenReady(ws, message) {
 window.chatSystem.handleChatMessage = function (data) {
   const messageEl = document.createElement("div");
   messageEl.classList.add("chat-message");
+  if (data.id === "Система") {
+    messageEl.classList.add("system-message"); // Добавляем класс для системных сообщений (для стиля)
+  }
   messageEl.textContent = `${data.id}: ${data.message}`;
 
   chatMessages.appendChild(messageEl);

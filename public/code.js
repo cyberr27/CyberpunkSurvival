@@ -1815,7 +1815,7 @@ function handleGameMessage(event) {
         break;
       case "doctorQuestCompleted":
         {
-          console.log(
+          showNotification(
             "Мед. справка получена! Форма МД-07 в инвентаре.",
             "#00ff44"
           );

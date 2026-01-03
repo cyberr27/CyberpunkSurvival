@@ -132,6 +132,13 @@
   z-index: 91;
 }
 
+/* Системные сообщения в чате */
+.chat-message.system-message {
+  color: #ffff00; /* Жёлтый для выделения */
+  font-weight: bold;
+  text-shadow: 0 0 8px #ffff00; /* Неоновый эффект */
+}
+
 /* Мобильная адаптация чата */
 @media (max-width: 500px) {
   #chatMessages {
