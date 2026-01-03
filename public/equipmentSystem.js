@@ -195,6 +195,7 @@ const equipmentSystem = {
       rarity: 4,
       image: new Image(),
     },
+
     torn_energy_cap: {
       type: "headgear",
       effect: { armor: 5, energy: 5 },
@@ -243,6 +244,7 @@ const equipmentSystem = {
       rarity: 4,
       image: new Image(),
     },
+
     torn_cap_of_gluttony: {
       type: "headgear",
       effect: { armor: 5, food: 5 },
@@ -291,6 +293,7 @@ const equipmentSystem = {
       rarity: 4,
       image: new Image(),
     },
+
     torn_cap_of_thirst: {
       type: "headgear",
       effect: { armor: 5, water: 5 },
@@ -336,131 +339,306 @@ const equipmentSystem = {
       rarity: 4,
       image: new Image(),
     },
-    // НОВАЯ КОЛЛЕКЦИЯ "Light Chameleon"
-    chameleon_cap: {
-      type: "headgear",
-      effect: { armor: 15, health: 10, energy: 5, food: 5, water: 5 },
-      description:
-        "Хамелеон кепка: +15 брони, +10 здоровья, +5 энергии, +5 еды, +5 воды",
-      rarity: 4,
-      image: new Image(),
-    },
-    chameleon_t_shirt: {
-      type: "armor",
-      effect: { armor: 30, health: 20, energy: 10, food: 10, water: 10 },
-      description:
-        "Хамелеон футболка: +30 брони, +20 здоровья, +10 энергии, +10 еды, +10 воды",
-      rarity: 4,
-      image: new Image(),
-    },
-    chameleon_gloves: {
-      type: "gloves",
-      effect: { armor: 20, health: 6, energy: 3, food: 3, water: 3 },
-      description:
-        "Хамелеон перчатки: +20 брони, +6 здоровья, +3 энергии, +3 еды, +3 воды",
-      rarity: 4,
-      image: new Image(),
-    },
-    chameleon_belt: {
-      type: "belt",
-      effect: { armor: 18, health: 9, energy: 5, food: 5, water: 5 },
-      description:
-        "Хамелеон пояс: +18 брони, +9 здоровья, +5 энергии, +5 еды, +5 воды",
-      rarity: 4,
-      image: new Image(),
-    },
-    chameleon_pants: {
-      type: "pants",
-      effect: { armor: 21, health: 12, energy: 6, food: 6, water: 6 },
-      description:
-        "Хамелеон штаны: +21 брони, +12 здоровья, +6 энергии, +6 еды, +6 воды",
-      rarity: 4,
-      image: new Image(),
-    },
-    chameleon_sneakers: {
-      type: "boots",
-      effect: { armor: 15, health: 8, energy: 4, food: 4, water: 4 },
-      description:
-        "Хамелеон кроссовки: +15 брони, +8 здоровья, +4 энергии, +4 еды, +4 воды",
-      rarity: 4,
-      image: new Image(),
-    },
   },
 
   initialize: function () {
-    if (this.isInitialized) return;
+    // Загружаем изображения (БЕЗ ИЗМЕНЕНИЙ)
+    this.EQUIPMENT_CONFIG.cyber_helmet.image.src = "cyber_helmet.png";
+    this.EQUIPMENT_CONFIG.nano_armor.image.src = "nano_armor.png";
+    this.EQUIPMENT_CONFIG.tactical_belt.image.src = "tactical_belt.png";
+    this.EQUIPMENT_CONFIG.cyber_pants.image.src = "cyber_pants.png";
+    this.EQUIPMENT_CONFIG.speed_boots.image.src = "speed_boots.png";
+    this.EQUIPMENT_CONFIG.tech_gloves.image.src = "tech_gloves.png";
+    this.EQUIPMENT_CONFIG.plasma_rifle.image.src = "plasma_rifle.png";
+    this.EQUIPMENT_CONFIG.knuckles.image.src = "knuckles.png";
+    this.EQUIPMENT_CONFIG.knife.image.src = "knife.png";
+    this.EQUIPMENT_CONFIG.bat.image.src = "bat.png";
 
+    // Добавляем src для torn_ предметов
+    this.EQUIPMENT_CONFIG.torn_baseball_cap_of_health.image.src =
+      "torn_baseball_cap_of_health.png";
+    this.EQUIPMENT_CONFIG.torn_health_t_shirt.image.src =
+      "torn_health_t_shirt.png";
+    this.EQUIPMENT_CONFIG.torn_health_gloves.image.src =
+      "torn_health_gloves.png";
+    this.EQUIPMENT_CONFIG.torn_belt_of_health.image.src =
+      "torn_belt_of_health.png";
+    this.EQUIPMENT_CONFIG.torn_pants_of_health.image.src =
+      "torn_pants_of_health.png";
+    this.EQUIPMENT_CONFIG.torn_health_sneakers.image.src =
+      "torn_health_sneakers.png";
+    this.EQUIPMENT_CONFIG.torn_energy_cap.image.src = "torn_energy_cap.png";
+    this.EQUIPMENT_CONFIG.torn_energy_t_shirt.image.src =
+      "torn_energy_t_shirt.png";
+    this.EQUIPMENT_CONFIG.torn_gloves_of_energy.image.src =
+      "torn_gloves_of_energy.png";
+    this.EQUIPMENT_CONFIG.torn_energy_belt.image.src = "torn_energy_belt.png";
+    this.EQUIPMENT_CONFIG.torn_pants_of_energy.image.src =
+      "torn_pants_of_energy.png";
+    this.EQUIPMENT_CONFIG.torn_sneakers_of_energy.image.src =
+      "torn_sneakers_of_energy.png";
+    this.EQUIPMENT_CONFIG.torn_cap_of_gluttony.image.src =
+      "torn_cap_of_gluttony.png";
+    this.EQUIPMENT_CONFIG.torn_t_shirt_of_gluttony.image.src =
+      "torn_t_shirt_of_gluttony.png";
+    this.EQUIPMENT_CONFIG.torn_gloves_of_gluttony.image.src =
+      "torn_gloves_of_gluttony.png";
+    this.EQUIPMENT_CONFIG.torn_belt_of_gluttony.image.src =
+      "torn_belt_of_gluttony.png";
+    this.EQUIPMENT_CONFIG.torn_pants_of_gluttony.image.src =
+      "torn_pants_of_gluttony.png";
+    this.EQUIPMENT_CONFIG.torn_sneakers_of_gluttony.image.src =
+      "torn_sneakers_of_gluttony.png";
+    this.EQUIPMENT_CONFIG.torn_cap_of_thirst.image.src =
+      "torn_cap_of_thirst.png";
+    this.EQUIPMENT_CONFIG.torn_t_shirt_of_thirst.image.src =
+      "torn_t_shirt_of_thirst.png";
+    this.EQUIPMENT_CONFIG.torn_gloves_of_thirst.image.src =
+      "torn_gloves_of_thirst.png";
+    this.EQUIPMENT_CONFIG.torn_belt_of_thirst.image.src =
+      "torn_belt_of_thirst.png";
+    this.EQUIPMENT_CONFIG.torn_pants_of_thirst.image.src =
+      "torn_pants_of_thirst.png";
+    this.EQUIPMENT_CONFIG.torn_sneakers_of_thirst.image.src =
+      "torn_sneakers_of_thirst.png";
+
+    // Создаем изображение для кнопки экипировки (БЕЗ ИЗМЕНЕНИЙ)
+    const equipmentBtn = document.createElement("img");
+    equipmentBtn.id = "equipmentBtn";
+    equipmentBtn.className = "cyber-btn-img";
+    equipmentBtn.src = "images/equipment.png";
+    equipmentBtn.alt = "Equipment";
+    equipmentBtn.style.position = "absolute";
+    equipmentBtn.style.right = "10px";
+    document.getElementById("gameContainer").appendChild(equipmentBtn);
+
+    // ИЗМЕНЁННЫЙ HTML: ДОБАВЛЕН #damageDisplay
     const equipmentContainer = document.createElement("div");
     equipmentContainer.id = "equipmentContainer";
     equipmentContainer.style.display = "none";
-    document.body.appendChild(equipmentContainer);
+    equipmentContainer.innerHTML = `
+      <div id="equipmentGrid"></div>
+      <div id="damageDisplay">Урон : 5-10</div>
+    `;
+    document.getElementById("gameContainer").appendChild(equipmentContainer);
 
-    const equipmentGrid = document.createElement("div");
-    equipmentGrid.id = "equipmentGrid";
-    equipmentContainer.appendChild(equipmentGrid);
+    // Создаем ячейки экипировки (БЕЗ ИЗМЕНЕНИЙ)
+    this.setupEquipmentGrid();
+
+    // Обработчик кнопки
+    equipmentBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      this.toggleEquipment();
+    });
+
+    // Синхронизация экипировки при загрузке
+    const me = players.get(myId);
+
+    this.isInitialized = true; // Устанавливаем флаг инициализации
+
+    // ИНИЦИАЛИЗАЦИЯ ОТОБРАЖЕНИЯ УРОНА
+    this.updateDamageDisplay();
+  },
+
+  setupEquipmentGrid: function () {
+    const equipmentGrid = document.getElementById("equipmentGrid");
+    equipmentGrid.style.display = "grid";
+    equipmentGrid.style.gridTemplateAreas = `
+        ". head ."
+        "gloves chest weapon"
+        ". belt ."
+        ". pants ."
+        ". boots ."
+      `;
+    equipmentGrid.style.gap = "8px";
+    equipmentGrid.style.padding = "10px";
 
     const slots = [
-      { class: "head-slot", name: "head" },
-      { class: "chest-slot", name: "chest" },
-      { class: "belt-slot", name: "belt" },
-      { class: "pants-slot", name: "pants" },
-      { class: "boots-slot", name: "boots" },
-      { class: "weapon-slot", name: "weapon" },
-      { class: "gloves-slot", name: "gloves" },
+      { name: "head", label: "Головной убор" },
+      { name: "chest", label: "Броня" },
+      { name: "belt", label: "Пояс" },
+      { name: "pants", label: "Штаны" },
+      { name: "boots", label: "Обувь" },
+      { name: "weapon", label: "Оружие" },
+      { name: "gloves", label: "Перчатки" },
     ];
 
     slots.forEach((slotInfo) => {
-      const slot = document.createElement("div");
-      slot.className = `equipment-slot ${slotInfo.class}`;
-      slot.dataset.slot = slotInfo.name;
-      equipmentGrid.appendChild(slot);
-
-      slot.addEventListener("click", () => {
+      const slotEl = document.createElement("div");
+      slotEl.className = "equipment-slot";
+      slotEl.className = `equipment-slot ${slotInfo.name}-slot`;
+      slotEl.style.gridArea = slotInfo.name;
+      slotEl.title = slotInfo.label;
+      slotEl.addEventListener("dblclick", () => {
         this.unequipItem(slotInfo.name);
       });
+
+      // Добавляем поддержку двойного тапа для мобильных
+      let lastTouchTime = 0;
+      let tooltipTimeout;
+      slotEl.addEventListener("touchstart", (e) => {
+        e.preventDefault(); // Предотвращаем зум/скролл на мобильных
+        const now = Date.now();
+        if (now - lastTouchTime < 300) {
+          // Порог для double tap (300 мс)
+          this.unequipItem(slotInfo.name);
+          if (tooltipTimeout) clearTimeout(tooltipTimeout); // Отменяем показ tooltip если double tap
+        } else {
+          // Если single tap, ждём 300ms и показываем tooltip на 3 секунды
+          tooltipTimeout = setTimeout(() => {
+            slotEl.classList.add("show-tooltip");
+            setTimeout(() => {
+              slotEl.classList.remove("show-tooltip");
+            }, 3000); // Скрываем через 3 секунды
+          }, 300);
+        }
+        lastTouchTime = now;
+      });
+
+      equipmentGrid.appendChild(slotEl);
     });
+  },
 
-    const damageDisplay = document.createElement("div");
-    damageDisplay.id = "damageDisplay";
-    damageDisplay.textContent = `Урон: ${this.BASE_MELEE_MIN}-${this.BASE_MELEE_MAX}`;
-    equipmentContainer.appendChild(damageDisplay);
-
-    const equipmentBtn = document.getElementById("equipmentBtn");
-    if (equipmentBtn) {
-      equipmentBtn.addEventListener("click", () => this.toggleEquipment());
+  unequipItem: function (slotName) {
+    const me = players.get(myId);
+    const item = this.equipmentSlots[slotName];
+    if (!item) {
+      return;
     }
 
-    this.isInitialized = true;
+    if (!me || !me.inventory) {
+      return;
+    }
+
+    // Ищем свободный слот в инвентаре
+    const freeSlot = me.inventory.findIndex((slot) => slot === null);
+    if (freeSlot === -1) {
+      alert("Инвентарь полон! Освободите место.");
+      return;
+    }
+
+    // Перемещаем предмет в инвентарь (с учётом quantity для stackable)
+    const isStackable = ITEM_CONFIG[item.type]?.stackable;
+    me.inventory[freeSlot] = {
+      type: item.type,
+      quantity: isStackable ? item.quantity || 1 : 1,
+      itemId: item.itemId, // Сохраняем itemId для синхронизации с сервером
+    };
+    this.equipmentSlots[slotName] = null;
+
+    // Синхронизируем глобальную inventory с me.inventory
+    inventory = me.inventory.map((slot) => (slot ? { ...slot } : null));
+    players.set(myId, me);
+
+    // Применяем эффекты экипировки после снятия
+    this.applyEquipmentEffects(me);
+
+    // Проверяем, инициализирован ли интерфейс инвентаря
+    const inventoryGrid = document.getElementById("inventoryGrid");
+    if (inventoryGrid) {
+      updateInventoryDisplay();
+    } else {
+      setTimeout(() => {
+        if (document.getElementById("inventoryGrid")) {
+          updateInventoryDisplay();
+        }
+      }, 100);
+    }
+
+    // Обновляем отображение экипировки И УРОНА
     this.updateEquipmentDisplay();
+
+    // Обновляем статы
+    updateStatsDisplay();
+
+    // Отправляем обновление на сервер
+    if (ws.readyState === WebSocket.OPEN) {
+      sendWhenReady(
+        ws,
+        JSON.stringify({
+          type: "unequipItem",
+          slotName,
+          inventorySlot: freeSlot,
+          itemId: item.itemId,
+        })
+      );
+      sendWhenReady(
+        ws,
+        JSON.stringify({
+          type: "updateInventory",
+          inventory: me.inventory,
+        })
+      );
+      sendWhenReady(
+        ws,
+        JSON.stringify({
+          type: "updateEquipment",
+          equipment: this.equipmentSlots,
+        })
+      );
+    }
   },
 
   toggleEquipment: function () {
     this.isEquipmentOpen = !this.isEquipmentOpen;
-    const container = document.getElementById("equipmentContainer");
-    container.style.display = this.isEquipmentOpen ? "flex" : "none";
+
+    // НОВОЕ: Проверка на мобильное устройство и закрытие инвентаря, если он открыт и мы открываем экипировку
+    const isMobile = window.innerWidth <= 500;
+    if (isMobile && this.isEquipmentOpen && window.isInventoryOpen) {
+      window.toggleInventory(); // Автоматически закрываем инвентарь
+    }
+
+    const equipmentContainer = document.getElementById("equipmentContainer");
+    equipmentContainer.style.display = this.isEquipmentOpen ? "block" : "none";
+    const equipmentBtn = document.getElementById("equipmentBtn");
+    equipmentBtn.classList.toggle("active", this.isEquipmentOpen);
+
     if (this.isEquipmentOpen) {
-      this.updateEquipmentDisplay();
+      this.updateEquipmentDisplay(); // Обновляет и урон
     }
   },
 
   updateEquipmentDisplay: function () {
-    const slots = document.querySelectorAll(".equipment-slot");
-    slots.forEach((slot) => {
-      const slotName = slot.dataset.slot;
-      const item = this.equipmentSlots[slotName];
+    const equipmentGrid = document.getElementById("equipmentGrid");
+
+    if (!equipmentGrid) {
+      return;
+    }
+
+    const slots = equipmentGrid.children;
+
+    for (let i = 0; i < slots.length; i++) {
+      const slot = slots[i];
+      const slotName = slot.style.gridArea;
       slot.innerHTML = "";
 
-      if (item && this.EQUIPMENT_CONFIG[item.type]) {
+      if (this.equipmentSlots[slotName]) {
+        const item = this.equipmentSlots[slotName];
         const config = this.EQUIPMENT_CONFIG[item.type];
+        if (!config || !config.image || !config.image.src) {
+          // Заглушка на случай отсутствия конфига или изображения
+          const placeholder = document.createElement("div");
+          placeholder.style.width = "100%";
+          placeholder.style.height = "100%";
+          placeholder.style.backgroundColor = "gray";
+          slot.appendChild(placeholder);
+          continue;
+        }
         const img = document.createElement("img");
         img.src = config.image.src;
         img.style.width = "100%";
         img.style.height = "100%";
         slot.appendChild(img);
 
-        let tooltipText = config.description + "\n";
-        Object.entries(config.effect).forEach(([key, value]) => {
-          if (typeof value === "object" && value.min && value.max) {
+        // Генерируем многострочный tooltip: название + свойства по строкам
+        let tooltipText = item.type.replace(/_/g, " ").toUpperCase() + "\n";
+        for (let [key, value] of Object.entries(config.effect)) {
+          if (
+            key === "damage" &&
+            typeof value === "object" &&
+            value.min !== undefined &&
+            value.max !== undefined
+          ) {
             tooltipText += `Damage: ${value.min}-${value.max}\n`;
           } else if (key === "range") {
             tooltipText += `Range: +${value}\n`;
@@ -469,19 +647,18 @@ const equipmentSystem = {
               key.charAt(0).toUpperCase() + key.slice(1)
             }: +${value}\n`;
           }
-        });
+        }
         slot.title = tooltipText.trim(); // Убираем trailing \n
       } else {
         slot.title = `Слот ${slotName} пуст`;
       }
-    });
+    }
 
     // ДОБАВЛЕНО: ДИНАМИЧЕСКОЕ ОБНОВЛЕНИЕ УРОНА
     this.updateDamageDisplay();
   },
 
   pendingEquip: null,
-  pendingUnequip: null, // Добавлено для unequip rollback
 
   equipItem: function (slotIndex) {
     const item = inventory[slotIndex];
@@ -562,67 +739,6 @@ const equipmentSystem = {
     updateInventoryDisplay();
   },
 
-  unequipItem: function (slotName) {
-    const item = this.equipmentSlots[slotName];
-    if (!item || !this.EQUIPMENT_CONFIG[item.type]) {
-      return;
-    }
-
-    const me = players.get(myId);
-    if (!me) {
-      return;
-    }
-
-    // Находим свободный слот в инвентаре
-    const freeSlot = inventory.findIndex((slot) => slot === null);
-    if (freeSlot === -1) {
-      alert("Инвентарь полон! Освободите место.");
-      return;
-    }
-
-    // Сохраняем pending для rollback
-    this.pendingUnequip = {
-      slotName,
-      item: { ...item },
-      freeSlot,
-    };
-
-    // Локально снимаем предмет
-    inventory[freeSlot] = { type: item.type, itemId: item.itemId };
-    this.equipmentSlots[slotName] = null;
-    this.updateEquipmentDisplay();
-
-    // Пересчитываем эффекты
-    this.applyEquipmentEffects(me);
-
-    // Отправляем на сервер
-    if (ws.readyState === WebSocket.OPEN) {
-      sendWhenReady(
-        ws,
-        JSON.stringify({
-          type: "unequipItem",
-          slotName,
-          inventorySlot: freeSlot,
-          itemId: item.itemId,
-          equipment: this.equipmentSlots,
-          maxStats: { ...me.maxStats },
-          stats: {
-            health: me.health,
-            energy: me.energy,
-            food: me.food,
-            water: me.water,
-            armor: me.armor,
-            damage: me.damage,
-          },
-        })
-      );
-    }
-
-    // Обновляем UI
-    updateStatsDisplay();
-    updateInventoryDisplay();
-  },
-
   applyEquipmentEffects: function (player) {
     // Базовые значения из levelSystem
     const baseMaxStats = { ...window.levelSystem.maxStats };
@@ -631,47 +747,22 @@ const equipmentSystem = {
     player.maxStats = { ...baseMaxStats };
     player.damage = 0;
 
-    // Проверка полной коллекции (аналогично серверу)
-    const equippedItems = Object.values(this.equipmentSlots).filter(Boolean); // Только надетые
-    const collectionSlots = [
-      "head",
-      "chest",
-      "belt",
-      "pants",
-      "boots",
-      "gloves",
-    ]; // 6 слотов для коллекций
-    const equippedCollections = equippedItems
-      .map((item) => this.EQUIPMENT_CONFIG[item.type]?.collection)
-      .filter((c) => c);
-    const uniqueCollections = new Set(equippedCollections);
-    const isFullCollection =
-      equippedItems.length >= 6 && // Минимум 6 (weapon не counts)
-      uniqueCollections.size === 1 && // Все из одной коллекции
-      collectionSlots.every(
-        (slot) =>
-          this.equipmentSlots[slot] &&
-          this.EQUIPMENT_CONFIG[this.equipmentSlots[slot].type]?.collection ===
-            [...uniqueCollections][0]
-      );
-    const multiplier = isFullCollection ? 2 : 1;
-
-    // Применяем эффекты экипировки с multiplier
+    // Применяем эффекты экипировки (БЕЗ ИЗМЕНЕНИЙ ДЛЯ ЭФФЕКТОВ, Т.К. УРОН МЕЛЕЕ РАСЧЁТ В GETCURRENTMELEEDAMAGE)
     Object.values(this.equipmentSlots).forEach((item) => {
       if (item && this.EQUIPMENT_CONFIG[item.type]) {
         const effect = this.EQUIPMENT_CONFIG[item.type].effect;
-        if (effect.armor) player.maxStats.armor += effect.armor * multiplier;
-        if (effect.health) player.maxStats.health += effect.health * multiplier;
-        if (effect.energy) player.maxStats.energy += effect.energy * multiplier;
-        if (effect.food) player.maxStats.food += effect.food * multiplier;
-        if (effect.water) player.maxStats.water += effect.water * multiplier;
+        if (effect.armor) player.maxStats.armor += effect.armor;
+        if (effect.health) player.maxStats.health += effect.health;
+        if (effect.energy) player.maxStats.energy += effect.energy;
+        if (effect.food) player.maxStats.food += effect.food;
+        if (effect.water) player.maxStats.water += effect.water;
         if (effect.damage) {
           if (
             typeof effect.damage === "object" &&
             effect.damage.min &&
             effect.damage.max
           ) {
-            player.damage = { ...effect.damage }; // Damage не умножается
+            player.damage = effect.damage;
           } else {
             player.damage = (player.damage || 0) + effect.damage;
           }
@@ -727,28 +818,6 @@ const equipmentSystem = {
 
     // Очистить pending
     this.pendingEquip = null;
-  },
-
-  handleUnequipFail: function (error) {
-    if (!this.pendingUnequip) return;
-
-    const { slotName, item, freeSlot } = this.pendingUnequip;
-
-    // Revert: Вернуть item в slot, очистить inventory slot
-    this.equipmentSlots[slotName] = item;
-    inventory[freeSlot] = null;
-
-    // Переприменить эффекты
-    const me = players.get(myId);
-    if (me) {
-      this.applyEquipmentEffects(me);
-    }
-    this.updateEquipmentDisplay();
-    updateInventoryDisplay();
-    updateStatsDisplay();
-
-    alert(error);
-    this.pendingUnequip = null;
   },
 };
 
