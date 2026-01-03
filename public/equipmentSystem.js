@@ -154,7 +154,6 @@ const equipmentSystem = {
         "Порванная кепка здоровья: +5 к максимальному здоровью и броне",
       rarity: 4,
       image: new Image(),
-      collection: "Torn Health",
     },
     torn_health_t_shirt: {
       type: "armor",
@@ -163,7 +162,6 @@ const equipmentSystem = {
         "Порванная футболка здоровья: +10 к максимальному здоровью, +10 к броне",
       rarity: 4,
       image: new Image(),
-      collection: "Torn Health",
     },
     torn_health_gloves: {
       type: "gloves",
@@ -172,7 +170,6 @@ const equipmentSystem = {
         "Порванные перчатки здоровья: +3 к максимальному здоровью, +5 к броне",
       rarity: 4,
       image: new Image(),
-      collection: "Torn Health",
     },
     torn_belt_of_health: {
       type: "belt",
@@ -181,7 +178,6 @@ const equipmentSystem = {
         "Порванный пояс здоровья: +7 к максимальному здоровью, +3 к броне",
       rarity: 4,
       image: new Image(),
-      collection: "Torn Health",
     },
     torn_pants_of_health: {
       type: "pants",
@@ -190,7 +186,6 @@ const equipmentSystem = {
         "Порванные штаны здоровья: +6 к максимальному здоровью, +7 к броне",
       rarity: 4,
       image: new Image(),
-      collection: "Torn Health",
     },
     torn_health_sneakers: {
       type: "boots",
@@ -199,7 +194,6 @@ const equipmentSystem = {
         "Порванные кроссовки здоровья: +4 к максимальному здоровью, +5 к броне",
       rarity: 4,
       image: new Image(),
-      collection: "Torn Health",
     },
 
     torn_energy_cap: {
@@ -209,7 +203,6 @@ const equipmentSystem = {
         "Порванная кепка энергии: +5 к максимальной энергии, +5 к броне",
       rarity: 4,
       image: new Image(),
-      collection: "Torn Energy",
     },
     torn_energy_t_shirt: {
       type: "armor",
@@ -218,7 +211,6 @@ const equipmentSystem = {
         "Порванная футболка энергии: +10 к максимальной энергии, +10 к броне",
       rarity: 4,
       image: new Image(),
-      collection: "Torn Energy",
     },
     torn_gloves_of_energy: {
       type: "gloves",
@@ -227,7 +219,6 @@ const equipmentSystem = {
         "Порванные перчатки энергии: +3 к максимальной энергии, +5 к броне",
       rarity: 4,
       image: new Image(),
-      collection: "Torn Energy",
     },
     torn_energy_belt: {
       type: "belt",
@@ -236,7 +227,6 @@ const equipmentSystem = {
         "Порванный пояс энергии: +7 к максимальной энергии, +3 к броне",
       rarity: 4,
       image: new Image(),
-      collection: "Torn Energy",
     },
     torn_pants_of_energy: {
       type: "pants",
@@ -245,7 +235,6 @@ const equipmentSystem = {
         "Порванные штаны энергии: +6 к максимальной энергии, +7 к броне",
       rarity: 4,
       image: new Image(),
-      collection: "Torn Energy",
     },
     torn_sneakers_of_energy: {
       type: "boots",
@@ -254,7 +243,6 @@ const equipmentSystem = {
         "Порванные кроссовки энергии: +4 к максимальной энергии, +5 к броне",
       rarity: 4,
       image: new Image(),
-      collection: "Torn Energy",
     },
 
     torn_cap_of_gluttony: {
@@ -264,7 +252,6 @@ const equipmentSystem = {
         "Порванная кепка обжорства: +5 к максимальной еде, +5 к броне",
       rarity: 4,
       image: new Image(),
-      collection: "Torn Gluttony",
     },
     torn_t_shirt_of_gluttony: {
       type: "armor",
@@ -273,7 +260,6 @@ const equipmentSystem = {
         "Порванная футболка обжорства: +10 к максимальной еде, +10 к броне",
       rarity: 4,
       image: new Image(),
-      collection: "Torn Gluttony",
     },
     torn_gloves_of_gluttony: {
       type: "gloves",
@@ -282,7 +268,6 @@ const equipmentSystem = {
         "Порванные перчатки обжорства: +3 к максимальной еде, +5 к броне",
       rarity: 4,
       image: new Image(),
-      collection: "Torn Gluttony",
     },
     torn_belt_of_gluttony: {
       type: "belt",
@@ -291,7 +276,6 @@ const equipmentSystem = {
         "Порванный пояс обжорства: +7 к максимальной еде, +3 к броне",
       rarity: 4,
       image: new Image(),
-      collection: "Torn Gluttony",
     },
     torn_pants_of_gluttony: {
       type: "pants",
@@ -300,7 +284,6 @@ const equipmentSystem = {
         "Порванные штаны обжорства: +6 к максимальной еде, +7 к броне",
       rarity: 4,
       image: new Image(),
-      collection: "Torn Gluttony",
     },
     torn_sneakers_of_gluttony: {
       type: "boots",
@@ -309,7 +292,6 @@ const equipmentSystem = {
         "Порванные кроссовки обжорства: +4 к максимальной еде, +5 к броне",
       rarity: 4,
       image: new Image(),
-      collection: "Torn Gluttony",
     },
 
     torn_cap_of_thirst: {
@@ -318,7 +300,6 @@ const equipmentSystem = {
       description: "Порванная кепка жажды: +5 к максимальной воде, +5 к броне",
       rarity: 4,
       image: new Image(),
-      collection: "Torn Thirst",
     },
     torn_t_shirt_of_thirst: {
       type: "armor",
@@ -327,7 +308,6 @@ const equipmentSystem = {
         "Порванная футболка жажды: +10 к максимальной воде, +10 к броне",
       rarity: 4,
       image: new Image(),
-      collection: "Torn Thirst",
     },
     torn_gloves_of_thirst: {
       type: "gloves",
@@ -336,7 +316,6 @@ const equipmentSystem = {
         "Порванные перчатки жажды: +3 к максимальной воде, +5 к броне",
       rarity: 4,
       image: new Image(),
-      collection: "Torn Thirst",
     },
     torn_belt_of_thirst: {
       type: "belt",
@@ -344,7 +323,6 @@ const equipmentSystem = {
       description: "Порванный пояс жажды: +7 к максимальной воде, +3 к броне",
       rarity: 4,
       image: new Image(),
-      collection: "Torn Thirst",
     },
     torn_pants_of_thirst: {
       type: "pants",
@@ -352,7 +330,6 @@ const equipmentSystem = {
       description: "Порванные штаны жажды: +6 к максимальной воде, +7 к броне",
       rarity: 4,
       image: new Image(),
-      collection: "Torn Thirst",
     },
     torn_sneakers_of_thirst: {
       type: "boots",
@@ -361,62 +338,6 @@ const equipmentSystem = {
         "Порванные кроссовки жажды: +4 к максимальной воде, +5 к броне",
       rarity: 4,
       image: new Image(),
-      collection: "Torn Thirst",
-    },
-    // === НОВАЯ КОЛЛЕКЦИЯ: LIGHT CHAMELEON ===
-    chameleon_cap: {
-      type: "headgear",
-      effect: { armor: 15, health: 10, energy: 5, food: 5, water: 5 },
-      description:
-        "Хамелеон кепка: +15 брони, +10 здоровья, +5 энергии, +5 еды, +5 воды",
-      rarity: 4,
-      image: new Image(),
-      collection: "Light Chameleon",
-    },
-    chameleon_t_shirt: {
-      type: "armor",
-      effect: { armor: 30, health: 20, energy: 10, food: 10, water: 10 },
-      description:
-        "Хамелеон футболка: +30 брони, +20 здоровья, +10 энергии, +10 еды, +10 воды",
-      rarity: 4,
-      image: new Image(),
-      collection: "Light Chameleon",
-    },
-    chameleon_gloves: {
-      type: "gloves",
-      effect: { armor: 20, health: 6, energy: 3, food: 3, water: 3 },
-      description:
-        "Хамелеон перчатки: +20 брони, +6 здоровья, +3 энергии, +3 еды, +3 воды",
-      rarity: 4,
-      image: new Image(),
-      collection: "Light Chameleon",
-    },
-    chameleon_belt: {
-      type: "belt",
-      effect: { armor: 18, health: 10, energy: 5, food: 5, water: 5 },
-      description:
-        "Хамелеон пояс: +18 брони, +10 здоровья, +5 энергии, +5 еды, +5 воды",
-      rarity: 4,
-      image: new Image(),
-      collection: "Light Chameleon",
-    },
-    chameleon_pants: {
-      type: "pants",
-      effect: { armor: 21, health: 12, energy: 6, food: 6, water: 6 },
-      description:
-        "Хамелеон штаны: +21 брони, +12 здоровья, +6 энергии, +6 еды, +6 воды",
-      rarity: 4,
-      image: new Image(),
-      collection: "Light Chameleon",
-    },
-    chameleon_sneakers: {
-      type: "boots",
-      effect: { armor: 15, health: 8, energy: 4, food: 4, water: 4 },
-      description:
-        "Хамелеон кроссовки: +15 брони, +8 здоровья, +4 энергии, +4 еды, +4 воды",
-      rarity: 4,
-      image: new Image(),
-      collection: "Light Chameleon",
     },
   },
 
@@ -446,7 +367,6 @@ const equipmentSystem = {
       "torn_pants_of_health.png";
     this.EQUIPMENT_CONFIG.torn_health_sneakers.image.src =
       "torn_health_sneakers.png";
-
     this.EQUIPMENT_CONFIG.torn_energy_cap.image.src = "torn_energy_cap.png";
     this.EQUIPMENT_CONFIG.torn_energy_t_shirt.image.src =
       "torn_energy_t_shirt.png";
@@ -457,7 +377,6 @@ const equipmentSystem = {
       "torn_pants_of_energy.png";
     this.EQUIPMENT_CONFIG.torn_sneakers_of_energy.image.src =
       "torn_sneakers_of_energy.png";
-
     this.EQUIPMENT_CONFIG.torn_cap_of_gluttony.image.src =
       "torn_cap_of_gluttony.png";
     this.EQUIPMENT_CONFIG.torn_t_shirt_of_gluttony.image.src =
@@ -470,7 +389,6 @@ const equipmentSystem = {
       "torn_pants_of_gluttony.png";
     this.EQUIPMENT_CONFIG.torn_sneakers_of_gluttony.image.src =
       "torn_sneakers_of_gluttony.png";
-
     this.EQUIPMENT_CONFIG.torn_cap_of_thirst.image.src =
       "torn_cap_of_thirst.png";
     this.EQUIPMENT_CONFIG.torn_t_shirt_of_thirst.image.src =
@@ -484,35 +402,76 @@ const equipmentSystem = {
     this.EQUIPMENT_CONFIG.torn_sneakers_of_thirst.image.src =
       "torn_sneakers_of_thirst.png";
 
-    // Добавляем src для новой коллекции Light Chameleon
-    this.EQUIPMENT_CONFIG.chameleon_cap.image.src = "chameleon_cap.png";
-    this.EQUIPMENT_CONFIG.chameleon_t_shirt.image.src = "chameleon_t_shirt.png";
-    this.EQUIPMENT_CONFIG.chameleon_gloves.image.src = "chameleon_gloves.png";
-    this.EQUIPMENT_CONFIG.chameleon_belt.image.src = "chameleon_belt.png";
-    this.EQUIPMENT_CONFIG.chameleon_pants.image.src = "chameleon_pants.png";
-    this.EQUIPMENT_CONFIG.chameleon_sneakers.image.src =
-      "chameleon_sneakers.png";
+    // Создаем изображение для кнопки экипировки (БЕЗ ИЗМЕНЕНИЙ)
+    const equipmentBtn = document.createElement("img");
+    equipmentBtn.id = "equipmentBtn";
+    equipmentBtn.className = "cyber-btn-img";
+    equipmentBtn.src = "images/equipment.png";
+    equipmentBtn.alt = "Equipment";
+    equipmentBtn.style.position = "absolute";
+    equipmentBtn.style.right = "10px";
+    document.getElementById("gameContainer").appendChild(equipmentBtn);
 
-    // Создаём слоты экипировки
+    // ИЗМЕНЁННЫЙ HTML: ДОБАВЛЕН #damageDisplay
+    const equipmentContainer = document.createElement("div");
+    equipmentContainer.id = "equipmentContainer";
+    equipmentContainer.style.display = "none";
+    equipmentContainer.innerHTML = `
+      <div id="equipmentGrid"></div>
+      <div id="damageDisplay">Урон : 5-10</div>
+    `;
+    document.getElementById("gameContainer").appendChild(equipmentContainer);
+
+    // Создаем ячейки экипировки (БЕЗ ИЗМЕНЕНИЙ)
+    this.setupEquipmentGrid();
+
+    // Обработчик кнопки
+    equipmentBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      this.toggleEquipment();
+    });
+
+    // Синхронизация экипировки при загрузке
+    const me = players.get(myId);
+
+    this.isInitialized = true; // Устанавливаем флаг инициализации
+
+    // ИНИЦИАЛИЗАЦИЯ ОТОБРАЖЕНИЯ УРОНА
+    this.updateDamageDisplay();
+  },
+
+  setupEquipmentGrid: function () {
     const equipmentGrid = document.getElementById("equipmentGrid");
-    if (!equipmentGrid || this.isInitialized) return;
-    this.isInitialized = true;
+    equipmentGrid.style.display = "grid";
+    equipmentGrid.style.gridTemplateAreas = `
+        ". head ."
+        "gloves chest weapon"
+        ". belt ."
+        ". pants ."
+        ". boots ."
+      `;
+    equipmentGrid.style.gap = "8px";
+    equipmentGrid.style.padding = "10px";
 
-    const slotInfo = [
-      { name: "head", area: "head" },
-      { name: "chest", area: "chest" },
-      { name: "gloves", area: "gloves" },
-      { name: "belt", area: "belt" },
-      { name: "pants", area: "pants" },
-      { name: "boots", area: "boots" },
-      { name: "weapon", area: "weapon" },
+    const slots = [
+      { name: "head", label: "Головной убор" },
+      { name: "chest", label: "Броня" },
+      { name: "belt", label: "Пояс" },
+      { name: "pants", label: "Штаны" },
+      { name: "boots", label: "Обувь" },
+      { name: "weapon", label: "Оружие" },
+      { name: "gloves", label: "Перчатки" },
     ];
 
-    slotInfo.forEach((slotInfo) => {
+    slots.forEach((slotInfo) => {
       const slotEl = document.createElement("div");
-      slotEl.classList.add("equipment-slot");
+      slotEl.className = "equipment-slot";
+      slotEl.className = `equipment-slot ${slotInfo.name}-slot`;
       slotEl.style.gridArea = slotInfo.name;
-      slotEl.addEventListener("click", () => this.unequipItem(slotInfo.name));
+      slotEl.title = slotInfo.label;
+      slotEl.addEventListener("dblclick", () => {
+        this.unequipItem(slotInfo.name);
+      });
 
       // Добавляем поддержку двойного тапа для мобильных
       let lastTouchTime = 0;
@@ -671,9 +630,7 @@ const equipmentSystem = {
         img.style.height = "100%";
         slot.appendChild(img);
 
-        // Генерируем многострочный tooltip: название + свойства по строкам (с учётом multiplier, но для display — локально рассчитываем)
-        const me = players.get(myId);
-        this.applyEquipmentEffects(me); // Пересчитываем для точного multiplier
+        // Генерируем многострочный tooltip: название + свойства по строкам
         let tooltipText = item.type.replace(/_/g, " ").toUpperCase() + "\n";
         for (let [key, value] of Object.entries(config.effect)) {
           if (
@@ -688,11 +645,9 @@ const equipmentSystem = {
           } else {
             tooltipText += `${
               key.charAt(0).toUpperCase() + key.slice(1)
-            }: +${value}\n`; // Без multiplier в tooltip (или добавь *multiplier если хочешь показать effective)
+            }: +${value}\n`;
           }
         }
-        if (config.collection)
-          tooltipText += `Коллекция: ${config.collection}\n`;
         slot.title = tooltipText.trim(); // Убираем trailing \n
       } else {
         slot.title = `Слот ${slotName} пуст`;
@@ -792,48 +747,22 @@ const equipmentSystem = {
     player.maxStats = { ...baseMaxStats };
     player.damage = 0;
 
-    // Проверка полной коллекции (аналогично серверу)
-    const equippedItems = Object.values(this.equipmentSlots).filter(Boolean); // Только надетые
-    const collectionSlots = [
-      "head",
-      "chest",
-      "belt",
-      "pants",
-      "boots",
-      "gloves",
-    ]; // 6 слотов для коллекций
-    const equippedCollections = equippedItems
-      .map((item) => this.EQUIPMENT_CONFIG[item.type]?.collection)
-      .filter((c) => c);
-    const uniqueCollections = new Set(equippedCollections);
-    const isFullCollection =
-      equippedItems.length >= 6 && // Минимум 6 (weapon не counts)
-      uniqueCollections.size === 1 && // Все из одной
-      collectionSlots.every(
-        (slot) =>
-          this.equipmentSlots[slot] &&
-          this.EQUIPMENT_CONFIG[this.equipmentSlots[slot].type]?.collection ===
-            [...uniqueCollections][0]
-      );
-    const multiplier = isFullCollection ? 2 : 1;
-
-    // Применяем эффекты экипировки с multiplier (только для maxStats)
+    // Применяем эффекты экипировки (БЕЗ ИЗМЕНЕНИЙ ДЛЯ ЭФФЕКТОВ, Т.К. УРОН МЕЛЕЕ РАСЧЁТ В GETCURRENTMELEEDAMAGE)
     Object.values(this.equipmentSlots).forEach((item) => {
       if (item && this.EQUIPMENT_CONFIG[item.type]) {
         const effect = this.EQUIPMENT_CONFIG[item.type].effect;
-        if (effect.armor) player.maxStats.armor += effect.armor * multiplier;
-        if (effect.health) player.maxStats.health += effect.health * multiplier;
-        if (effect.energy) player.maxStats.energy += effect.energy * multiplier;
-        if (effect.food) player.maxStats.food += effect.food * multiplier;
-        if (effect.water) player.maxStats.water += effect.water * multiplier;
+        if (effect.armor) player.maxStats.armor += effect.armor;
+        if (effect.health) player.maxStats.health += effect.health;
+        if (effect.energy) player.maxStats.energy += effect.energy;
+        if (effect.food) player.maxStats.food += effect.food;
+        if (effect.water) player.maxStats.water += effect.water;
         if (effect.damage) {
-          // Damage не умножается
           if (
             typeof effect.damage === "object" &&
             effect.damage.min &&
             effect.damage.max
           ) {
-            player.damage = { ...effect.damage };
+            player.damage = effect.damage;
           } else {
             player.damage = (player.damage || 0) + effect.damage;
           }
