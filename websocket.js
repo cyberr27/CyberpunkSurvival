@@ -61,18 +61,42 @@ function setupWebSocket(
       water: 100 + (player.waterUpgrade || 0),
       armor: 0,
     };
-
     player.damage = 0;
-
-    Object.values(player.equipment || {}).forEach((item) => {
-      if (item && ITEM_CONFIG[item.type]?.effect) {
+    // Проверка полной коллекции
+    const equippedItems = Object.values(player.equipment || {}).filter(Boolean); // Только надетые
+    const collectionSlots = [
+      "head",
+      "chest",
+      "belt",
+      "pants",
+      "boots",
+      "gloves",
+    ]; // 6 слотов для коллекций
+    const equippedCollections = equippedItems
+      .map((item) => ITEM_CONFIG[item.type]?.collection)
+      .filter((c) => c);
+    const uniqueCollections = new Set(equippedCollections);
+    const isFullCollection =
+      equippedItems.length === 6 && // Все 6 слотов заполнены
+      uniqueCollections.size === 1 && // Все из одной коллекции
+      collectionSlots.every(
+        (slot) =>
+          player.equipment[slot] &&
+          ITEM_CONFIG[player.equipment[slot].type]?.collection ===
+            [...uniqueCollections][0]
+      );
+    const multiplier = isFullCollection ? 2 : 1;
+    // Применяем эффекты с multiplier (только для maxStats, damage отдельно)
+    equippedItems.forEach((item) => {
+      if (item && ITEM_CONFIG[item.type]) {
         const effect = ITEM_CONFIG[item.type].effect;
-        if (effect.armor) baseStats.armor += effect.armor;
-        if (effect.health) baseStats.health += effect.health;
-        if (effect.energy) baseStats.energy += effect.energy;
-        if (effect.food) baseStats.food += effect.food;
-        if (effect.water) baseStats.water += effect.water;
+        if (effect.armor) baseStats.armor += effect.armor * multiplier;
+        if (effect.health) baseStats.health += effect.health * multiplier;
+        if (effect.energy) baseStats.energy += effect.energy * multiplier;
+        if (effect.food) baseStats.food += effect.food * multiplier;
+        if (effect.water) baseStats.water += effect.water * multiplier;
         if (effect.damage) {
+          // Damage не умножается (только оружие)
           if (
             typeof effect.damage === "object" &&
             effect.damage.min &&
@@ -85,7 +109,6 @@ function setupWebSocket(
         }
       }
     });
-
     player.maxStats = { ...baseStats };
     player.health = Math.min(player.health, player.maxStats.health);
     player.energy = Math.min(player.energy, player.maxStats.energy);
@@ -765,7 +788,6 @@ function setupWebSocket(
           );
           return;
         }
-
         const player = players.get(playerId);
         if (!player || !player.equipment || !player.inventory) {
           ws.send(
@@ -776,9 +798,7 @@ function setupWebSocket(
           );
           return;
         }
-
         const { slotName, inventorySlot, itemId } = data;
-
         // Проверяем валидность слота
         const validSlots = [
           "head",
@@ -798,7 +818,6 @@ function setupWebSocket(
           );
           return;
         }
-
         // Проверяем наличие предмета и совпадение itemId
         if (
           !player.equipment[slotName] ||
@@ -812,7 +831,6 @@ function setupWebSocket(
           );
           return;
         }
-
         // Проверяем, свободен ли слот инвентаря
         if (player.inventory[inventorySlot] !== null) {
           ws.send(
@@ -823,7 +841,6 @@ function setupWebSocket(
           );
           return;
         }
-
         // Перемещаем предмет в инвентарь
         player.inventory[inventorySlot] = {
           type: player.equipment[slotName].type,
@@ -831,15 +848,12 @@ function setupWebSocket(
           itemId: player.equipment[slotName].itemId,
         };
         player.equipment[slotName] = null;
-
         // Полностью пересчитываем maxStats и обрезаем текущие статы
         calculateMaxStats(player, ITEM_CONFIG);
-
         // Сохраняем изменения
         players.set(playerId, { ...player });
         userDatabase.set(playerId, { ...player });
         await saveUserDatabase(dbCollection, playerId, player);
-
         // Отправляем подтверждение клиенту
         ws.send(
           JSON.stringify({
@@ -859,7 +873,6 @@ function setupWebSocket(
             },
           })
         );
-
         // Отправляем обновление другим игрокам в том же мире
         wss.clients.forEach((client) => {
           if (client !== ws && client.readyState === WebSocket.OPEN) {
@@ -1124,7 +1137,6 @@ function setupWebSocket(
                 }
               }
               // <-- КОНЕЦ ВСТАВКИ
-
               if (player.equipment[slotName]) {
                 const freeSlot = player.inventory.findIndex(
                   (slot) => slot === null

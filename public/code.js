@@ -105,6 +105,14 @@ const imageSources = {
   medicalCertificateImage: "medical_certificate.png",
   medicalCertificateStampedImage: "medical_certificate_stamped.png",
   thimbleriggerSprite: "thimblerigger.png",
+
+  chameleon_belt: "chameleon_belt.png",
+  chameleon_cap: "chameleon_cap.png",
+  chameleon_gloves: "chameleon_gloves.png",
+  chameleon_pants: "chameleon_pants.png",
+  chameleon_sneakers: "chameleon_sneakers.png",
+  chameleon_t_shirt: "chameleon_t_shirt.png",
+
   // === НОВАЯ ПОРВАННАЯ ЭКИПИРОВКА ===
   torn_baseball_cap_of_health: "torn_baseball_cap_of_health.png",
   torn_health_t_shirt: "torn_health_t_shirt.png",
@@ -554,6 +562,62 @@ const ITEM_CONFIG = {
     description:
       "Порванные кроссовки жажды: +4 к максимальной воде, +5 к броне",
     rarity: 4,
+  },
+
+  // === НОВАЯ КОЛЛЕКЦИЯ "Light Chameleon" ===
+  chameleon_cap: {
+    type: "headgear",
+    effect: { armor: 15, health: 10, energy: 5, food: 5, water: 5 },
+    image: images.chameleon_cap,
+    description:
+      "Хамелеон кепка: +15 брони, +10 здоровья, +5 энергии, +5 еды, +5 воды",
+    rarity: 4,
+    collection: "Light Chameleon",
+  },
+  chameleon_t_shirt: {
+    type: "armor",
+    effect: { armor: 30, health: 20, energy: 10, food: 10, water: 10 },
+    image: images.chameleon_t_shirt,
+    description:
+      "Хамелеон футболка: +30 брони, +20 здоровья, +10 энергии, +10 еды, +10 воды",
+    rarity: 4,
+    collection: "Light Chameleon",
+  },
+  chameleon_gloves: {
+    type: "gloves",
+    effect: { armor: 20, health: 6, energy: 3, food: 3, water: 3 },
+    image: images.chameleon_gloves,
+    description:
+      "Хамелеон перчатки: +20 брони, +6 здоровья, +3 энергии, +3 еды, +3 воды",
+    rarity: 4,
+    collection: "Light Chameleon",
+  },
+  chameleon_belt: {
+    type: "belt",
+    effect: { armor: 18, health: 9, energy: 5, food: 5, water: 5 },
+    image: images.chameleon_belt,
+    description:
+      "Хамелеон пояс: +18 брони, +9 здоровья, +5 энергии, +5 еды, +5 воды",
+    rarity: 4,
+    collection: "Light Chameleon",
+  },
+  chameleon_pants: {
+    type: "pants",
+    effect: { armor: 21, health: 12, energy: 6, food: 6, water: 6 },
+    image: images.chameleon_pants,
+    description:
+      "Хамелеон штаны: +21 брони, +12 здоровья, +6 энергии, +6 еды, +6 воды",
+    rarity: 4,
+    collection: "Light Chameleon",
+  },
+  chameleon_sneakers: {
+    type: "boots",
+    effect: { armor: 15, health: 8, energy: 4, food: 4, water: 4 },
+    image: images.chameleon_sneakers,
+    description:
+      "Хамелеон кроссовки: +15 брони, +8 здоровья, +4 энергии, +4 еды, +4 воды",
+    rarity: 4,
+    collection: "Light Chameleon",
   },
 };
 
@@ -1469,6 +1533,28 @@ function handleGameMessage(event) {
       case "equipItemFail":
         window.equipmentSystem.handleEquipFail(data.error);
         break;
+      case "unequipItemFail":
+        equipmentSystem.handleUnequipFail(data.error);
+        break;
+      case "unequipItemSuccess": {
+        const me = players.get(myId);
+        if (me) {
+          me.inventory = data.inventory;
+          me.equipment = data.equipment;
+          me.maxStats = data.maxStats;
+          me.health = data.stats.health;
+          me.energy = data.stats.energy;
+          me.food = data.stats.food;
+          me.water = data.stats.water;
+          me.armor = data.stats.armor;
+          me.damage = data.stats.damage;
+        }
+        equipmentSystem.pendingUnequip = null; // Очистка pending
+        equipmentSystem.updateEquipmentDisplay();
+        window.inventorySystem.updateInventoryDisplay();
+        updateStatsDisplay();
+        break;
+      }
       case "inventoryFull":
         pendingPickups.delete(data.itemId);
         break;
