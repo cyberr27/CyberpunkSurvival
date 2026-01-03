@@ -379,6 +379,7 @@ const ITEM_CONFIG = {
     description:
       "Порванная кепка здоровья: +5 к максимальному здоровью и броне",
     rarity: 4,
+    collection: "Torn Health",
   },
   torn_health_t_shirt: {
     type: "armor",
@@ -387,6 +388,7 @@ const ITEM_CONFIG = {
     description:
       "Порванная футболка здоровья: +10 к максимальному здоровью, +10 к броне",
     rarity: 4,
+    collection: "Torn Health",
   },
   torn_health_gloves: {
     type: "gloves",
@@ -395,6 +397,7 @@ const ITEM_CONFIG = {
     description:
       "Порванные перчатки здоровья: +3 к максимальному здоровью, +5 к броне",
     rarity: 4,
+    collection: "Torn Health",
   },
   torn_belt_of_health: {
     type: "belt",
@@ -403,6 +406,7 @@ const ITEM_CONFIG = {
     description:
       "Порванный пояс здоровья: +7 к максимальному здоровью, +3 к броне",
     rarity: 4,
+    collection: "Torn Health",
   },
   torn_pants_of_health: {
     type: "pants",
@@ -411,6 +415,7 @@ const ITEM_CONFIG = {
     description:
       "Порванные штаны здоровья: +6 к максимальному здоровью, +7 к броне",
     rarity: 4,
+    collection: "Torn Health",
   },
   torn_health_sneakers: {
     type: "boots",
@@ -419,6 +424,7 @@ const ITEM_CONFIG = {
     description:
       "Порванные кроссовки здоровья: +4 к максимальному здоровью, +5 к броне",
     rarity: 4,
+    collection: "Torn Health",
   },
 
   // ЭНЕРГЕТИЧЕСКАЯ ЛИНИЯ
@@ -429,6 +435,7 @@ const ITEM_CONFIG = {
     description:
       "Порванная кепка энергии: +5 к максимальной энергии, +5 к броне",
     rarity: 4,
+    collection: "Torn Energy",
   },
   torn_energy_t_shirt: {
     type: "armor",
@@ -437,6 +444,7 @@ const ITEM_CONFIG = {
     description:
       "Порванная футболка энергии: +10 к максимальной энергии, +10 к броне",
     rarity: 4,
+    collection: "Torn Energy",
   },
   torn_gloves_of_energy: {
     type: "gloves",
@@ -445,6 +453,7 @@ const ITEM_CONFIG = {
     description:
       "Порванные перчатки энергии: +3 к максимальной энергии, +5 к броне",
     rarity: 4,
+    collection: "Torn Energy",
   },
   torn_energy_belt: {
     type: "belt",
@@ -453,6 +462,7 @@ const ITEM_CONFIG = {
     description:
       "Порванный пояс энергии: +7 к максимальной энергии, +3 к броне",
     rarity: 4,
+    collection: "Torn Energy",
   },
   torn_pants_of_energy: {
     type: "pants",
@@ -461,6 +471,7 @@ const ITEM_CONFIG = {
     description:
       "Порванные штаны энергии: +6 к максимальной энергии, +7 к броне",
     rarity: 4,
+    collection: "Torn Energy",
   },
   torn_sneakers_of_energy: {
     type: "boots",
@@ -469,6 +480,7 @@ const ITEM_CONFIG = {
     description:
       "Порванные кроссовки энергии: +4 к максимальной энергии, +5 к броне",
     rarity: 4,
+    collection: "Torn Energy",
   },
 
   // ОБЖОРСТВО
@@ -478,6 +490,7 @@ const ITEM_CONFIG = {
     image: images.torn_cap_of_gluttony,
     description: "Порванная кепка обжорства: +5 к максимальной еде, +5 к броне",
     rarity: 4,
+    collection: "Torn Gluttony",
   },
   torn_t_shirt_of_gluttony: {
     type: "armor",
@@ -486,6 +499,7 @@ const ITEM_CONFIG = {
     description:
       "Порванная футболка обжорства: +10 к максимальной еде, +10 к броне",
     rarity: 4,
+    collection: "Torn Gluttony",
   },
   torn_gloves_of_gluttony: {
     type: "gloves",
@@ -494,6 +508,7 @@ const ITEM_CONFIG = {
     description:
       "Порванные перчатки обжорства: +3 к максимальной еде, +5 к броне",
     rarity: 4,
+    collection: "Torn Gluttony",
   },
   torn_belt_of_gluttony: {
     type: "belt",
@@ -501,6 +516,7 @@ const ITEM_CONFIG = {
     image: images.torn_belt_of_gluttony,
     description: "Порванный пояс обжорства: +7 к максимальной еде, +3 к броне",
     rarity: 4,
+    collection: "Torn Gluttony",
   },
   torn_pants_of_gluttony: {
     type: "pants",
@@ -508,6 +524,7 @@ const ITEM_CONFIG = {
     image: images.torn_pants_of_gluttony,
     description: "Порванные штаны обжорства: +6 к максимальной еде, +7 к броне",
     rarity: 4,
+    collection: "Torn Gluttony",
   },
   torn_sneakers_of_gluttony: {
     type: "boots",
@@ -516,6 +533,7 @@ const ITEM_CONFIG = {
     description:
       "Порванные кроссовки обжорства: +4 к максимальной еде, +5 к броне",
     rarity: 4,
+    collection: "Torn Gluttony",
   },
 
   // ЖАЖДА
@@ -525,6 +543,7 @@ const ITEM_CONFIG = {
     image: images.torn_cap_of_thirst,
     description: "Порванная кепка жажды: +5 к максимальной воде, +5 к броне",
     rarity: 4,
+    collection: "Torn Thirst",
   },
   torn_t_shirt_of_thirst: {
     type: "armor",
@@ -533,6 +552,7 @@ const ITEM_CONFIG = {
     description:
       "Порванная футболка жажды: +10 к максимальной воде, +10 к броне",
     rarity: 4,
+    collection: "Torn Thirst",
   },
   torn_gloves_of_thirst: {
     type: "gloves",
@@ -540,6 +560,7 @@ const ITEM_CONFIG = {
     image: images.torn_gloves_of_thirst,
     description: "Порванные перчатки жажды: +3 к максимальной воде, +5 к броне",
     rarity: 4,
+    collection: "Torn Thirst",
   },
   torn_belt_of_thirst: {
     type: "belt",
@@ -547,6 +568,7 @@ const ITEM_CONFIG = {
     image: images.torn_belt_of_thirst,
     description: "Порванный пояс жажды: +7 к максимальной воде, +3 к броне",
     rarity: 4,
+    collection: "Torn Thirst",
   },
   torn_pants_of_thirst: {
     type: "pants",
@@ -554,6 +576,7 @@ const ITEM_CONFIG = {
     image: images.torn_pants_of_thirst,
     description: "Порванные штаны жажды: +6 к максимальной воде, +7 к броне",
     rarity: 4,
+    collection: "Torn Thirst",
   },
   torn_sneakers_of_thirst: {
     type: "boots",
@@ -562,6 +585,7 @@ const ITEM_CONFIG = {
     description:
       "Порванные кроссовки жажды: +4 к максимальной воде, +5 к броне",
     rarity: 4,
+    collection: "Torn Thirst",
   },
 
   // === НОВАЯ КОЛЛЕКЦИЯ "Light Chameleon" ===
