@@ -187,6 +187,7 @@ const ITEM_CONFIG = {
     description:
       "Порванная кепка здоровья: +5 к максимальному здоровью и броне",
     rarity: 4,
+    collection: "Torn Health",
   },
   torn_health_t_shirt: {
     type: "armor",
@@ -194,6 +195,7 @@ const ITEM_CONFIG = {
     description:
       "Порванная футболка здоровья: +10 к максимальному здоровью, +10 к броне",
     rarity: 4,
+    collection: "Torn Health",
   },
   torn_health_gloves: {
     type: "gloves",
@@ -201,6 +203,7 @@ const ITEM_CONFIG = {
     description:
       "Порванные перчатки здоровья: +3 к максимальному здоровью, +5 к броне",
     rarity: 4,
+    collection: "Torn Health",
   },
   torn_belt_of_health: {
     type: "belt",
@@ -208,6 +211,7 @@ const ITEM_CONFIG = {
     description:
       "Порванный пояс здоровья: +7 к максимальному здоровью, +3 к броне",
     rarity: 4,
+    collection: "Torn Health",
   },
   torn_pants_of_health: {
     type: "pants",
@@ -215,6 +219,7 @@ const ITEM_CONFIG = {
     description:
       "Порванные штаны здоровья: +6 к максимальному здоровью, +7 к броне",
     rarity: 4,
+    collection: "Torn Health",
   },
   torn_health_sneakers: {
     type: "boots",
@@ -222,6 +227,7 @@ const ITEM_CONFIG = {
     description:
       "Порванные кроссовки здоровья: +4 к максимальному здоровью, +5 к броне",
     rarity: 4,
+    collection: "Torn Health",
   },
 
   torn_energy_cap: {
@@ -230,6 +236,7 @@ const ITEM_CONFIG = {
     description:
       "Порванная кепка энергии: +5 к максимальной энергии, +5 к броне",
     rarity: 4,
+    collection: "Torn Energy",
   },
   torn_energy_t_shirt: {
     type: "armor",
@@ -237,6 +244,7 @@ const ITEM_CONFIG = {
     description:
       "Порванная футболка энергии: +10 к максимальной энергии, +10 к броне",
     rarity: 4,
+    collection: "Torn Energy",
   },
   torn_gloves_of_energy: {
     type: "gloves",
@@ -244,6 +252,7 @@ const ITEM_CONFIG = {
     description:
       "Порванные перчатки энергии: +3 к максимальной энергии, +5 к броне",
     rarity: 4,
+    collection: "Torn Energy",
   },
   torn_energy_belt: {
     type: "belt",
@@ -251,6 +260,7 @@ const ITEM_CONFIG = {
     description:
       "Порванный пояс энергии: +7 к максимальной энергии, +3 к броне",
     rarity: 4,
+    collection: "Torn Energy",
   },
   torn_pants_of_energy: {
     type: "pants",
@@ -258,6 +268,7 @@ const ITEM_CONFIG = {
     description:
       "Порванные штаны энергии: +6 к максимальной энергии, +7 к броне",
     rarity: 4,
+    collection: "Torn Energy",
   },
   torn_sneakers_of_energy: {
     type: "boots",
@@ -265,6 +276,7 @@ const ITEM_CONFIG = {
     description:
       "Порванные кроссовки энергии: +4 к максимальной энергии, +5 к броне",
     rarity: 4,
+    collection: "Torn Energy",
   },
 
   torn_cap_of_gluttony: {
@@ -272,6 +284,7 @@ const ITEM_CONFIG = {
     effect: { armor: 5, food: 5 },
     description: "Порванная кепка обжорства: +5 к максимальной еде, +5 к броне",
     rarity: 4,
+    collection: "Torn Gluttony",
   },
   torn_t_shirt_of_gluttony: {
     type: "armor",
@@ -279,6 +292,7 @@ const ITEM_CONFIG = {
     description:
       "Порванная футболка обжорства: +10 к максимальной еде, +10 к броне",
     rarity: 4,
+    collection: "Torn Gluttony",
   },
   torn_gloves_of_gluttony: {
     type: "gloves",
@@ -286,18 +300,21 @@ const ITEM_CONFIG = {
     description:
       "Порванные перчатки обжорства: +3 к максимальной еде, +5 к броне",
     rarity: 4,
+    collection: "Torn Gluttony",
   },
   torn_belt_of_gluttony: {
     type: "belt",
     effect: { armor: 3, food: 7 },
     description: "Порванный пояс обжорства: +7 к максимальной еде, +3 к броне",
     rarity: 4,
+    collection: "Torn Gluttony",
   },
   torn_pants_of_gluttony: {
     type: "pants",
     effect: { armor: 7, food: 6 },
     description: "Порванные штаны обжорства: +6 к максимальной еде, +7 к броне",
     rarity: 4,
+    collection: "Torn Gluttony",
   },
   torn_sneakers_of_gluttony: {
     type: "boots",
@@ -305,6 +322,7 @@ const ITEM_CONFIG = {
     description:
       "Порванные кроссовки обжорства: +4 к максимальной еде, +5 к броне",
     rarity: 4,
+    collection: "Torn Gluttony",
   },
 
   torn_cap_of_thirst: {
@@ -312,6 +330,7 @@ const ITEM_CONFIG = {
     effect: { armor: 5, water: 5 },
     description: "Порванная кепка жажды: +5 к максимальной воде, +5 к броне",
     rarity: 4,
+    collection: "Torn Thirst",
   },
   torn_t_shirt_of_thirst: {
     type: "armor",
@@ -319,24 +338,28 @@ const ITEM_CONFIG = {
     description:
       "Порванная футболка жажды: +10 к максимальной воде, +10 к броне",
     rarity: 4,
+    collection: "Torn Thirst",
   },
   torn_gloves_of_thirst: {
     type: "gloves",
     effect: { armor: 5, water: 3 },
     description: "Порванные перчатки жажды: +3 к максимальной воде, +5 к броне",
     rarity: 4,
+    collection: "Torn Thirst",
   },
   torn_belt_of_thirst: {
     type: "belt",
     effect: { armor: 3, water: 7 },
     description: "Порванный пояс жажды: +7 к максимальной воде, +3 к броне",
     rarity: 4,
+    collection: "Torn Thirst",
   },
   torn_pants_of_thirst: {
     type: "pants",
     effect: { armor: 7, water: 6 },
     description: "Порванные штаны жажды: +6 к максимальной воде, +7 к броне",
     rarity: 4,
+    collection: "Torn Thirst",
   },
   torn_sneakers_of_thirst: {
     type: "boots",
@@ -344,6 +367,56 @@ const ITEM_CONFIG = {
     description:
       "Порванные кроссовки жажды: +4 к максимальной воде, +5 к броне",
     rarity: 4,
+    collection: "Torn Thirst",
+  },
+  // === НОВАЯ КОЛЛЕКЦИЯ: LIGHT CHAMELEON ===
+  chameleon_cap: {
+    type: "headgear",
+    effect: { armor: 15, health: 10, energy: 5, food: 5, water: 5 },
+    description:
+      "Хамелеон кепка: +15 брони, +10 здоровья, +5 энергии, +5 еды, +5 воды",
+    rarity: 4,
+    collection: "Light Chameleon",
+  },
+  chameleon_t_shirt: {
+    type: "armor",
+    effect: { armor: 30, health: 20, energy: 10, food: 10, water: 10 },
+    description:
+      "Хамелеон футболка: +30 брони, +20 здоровья, +10 энергии, +10 еды, +10 воды",
+    rarity: 4,
+    collection: "Light Chameleon",
+  },
+  chameleon_gloves: {
+    type: "gloves",
+    effect: { armor: 20, health: 6, energy: 3, food: 3, water: 3 },
+    description:
+      "Хамелеон перчатки: +20 брони, +6 здоровья, +3 энергии, +3 еды, +3 воды",
+    rarity: 4,
+    collection: "Light Chameleon",
+  },
+  chameleon_belt: {
+    type: "belt",
+    effect: { armor: 18, health: 10, energy: 5, food: 5, water: 5 },
+    description:
+      "Хамелеон пояс: +18 брони, +10 здоровья, +5 энергии, +5 еды, +5 воды",
+    rarity: 4,
+    collection: "Light Chameleon",
+  },
+  chameleon_pants: {
+    type: "pants",
+    effect: { armor: 21, health: 12, energy: 6, food: 6, water: 6 },
+    description:
+      "Хамелеон штаны: +21 брони, +12 здоровья, +6 энергии, +6 еды, +6 воды",
+    rarity: 4,
+    collection: "Light Chameleon",
+  },
+  chameleon_sneakers: {
+    type: "boots",
+    effect: { armor: 15, health: 8, energy: 4, food: 4, water: 4 },
+    description:
+      "Хамелеон кроссовки: +15 брони, +8 здоровья, +4 энергии, +4 еды, +4 воды",
+    rarity: 4,
+    collection: "Light Chameleon",
   },
 };
 

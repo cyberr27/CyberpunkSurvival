@@ -64,15 +64,42 @@ function setupWebSocket(
 
     player.damage = 0;
 
-    Object.values(player.equipment || {}).forEach((item) => {
-      if (item && ITEM_CONFIG[item.type]?.effect) {
+    // Проверка полной коллекции
+    const equippedItems = Object.values(player.equipment || {}).filter(Boolean); // Только надетые
+    const collectionSlots = [
+      "head",
+      "chest",
+      "belt",
+      "pants",
+      "boots",
+      "gloves",
+    ]; // 6 слотов для коллекций
+    const equippedCollections = equippedItems
+      .map((item) => ITEM_CONFIG[item.type]?.collection)
+      .filter((c) => c);
+    const uniqueCollections = new Set(equippedCollections);
+    const isFullCollection =
+      equippedItems.length === 6 && // Все 6 слотов заполнены
+      uniqueCollections.size === 1 && // Все из одной коллекции
+      collectionSlots.every(
+        (slot) =>
+          player.equipment[slot] &&
+          ITEM_CONFIG[player.equipment[slot].type]?.collection ===
+            [...uniqueCollections][0]
+      );
+    const multiplier = isFullCollection ? 2 : 1;
+
+    // Применяем эффекты с multiplier (только для maxStats, damage отдельно)
+    equippedItems.forEach((item) => {
+      if (item && ITEM_CONFIG[item.type]) {
         const effect = ITEM_CONFIG[item.type].effect;
-        if (effect.armor) baseStats.armor += effect.armor;
-        if (effect.health) baseStats.health += effect.health;
-        if (effect.energy) baseStats.energy += effect.energy;
-        if (effect.food) baseStats.food += effect.food;
-        if (effect.water) baseStats.water += effect.water;
+        if (effect.armor) baseStats.armor += effect.armor * multiplier;
+        if (effect.health) baseStats.health += effect.health * multiplier;
+        if (effect.energy) baseStats.energy += effect.energy * multiplier;
+        if (effect.food) baseStats.food += effect.food * multiplier;
+        if (effect.water) baseStats.water += effect.water * multiplier;
         if (effect.damage) {
+          // Damage не умножается (только оружие)
           if (
             typeof effect.damage === "object" &&
             effect.damage.min &&
