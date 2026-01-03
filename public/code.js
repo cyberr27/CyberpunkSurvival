@@ -22,27 +22,24 @@ let myId;
 const items = new Map();
 
 const GAME_CONFIG = {
-  FRAME_DURATION: 80, // 700 мс на весь цикл (≈100 мс на кадр)
+  FRAME_DURATION: 80,
 };
 
-// Глобальная анимация АТОМА (для поля + инвентаря)
-let atomFrame = 0;
-let atomFrameTime = 0;
-const ATOM_FRAMES = 40; // Количество кадров в спрайте (из вашего кода: % 40, спрайт 70x(40 кадров)? Подтвердите ширину atomImage.png / 50px на кадр)
-const ATOM_FRAME_DURATION = 180; // ms на кадр (8 FPS: плавно, без лагов. Можно протестировать 100-150 для скорости)
-let inventoryAtomTimer = null;
+window.atomFrame = 0;
+window.atomFrameTime = 0;
+const ATOM_FRAMES = 40;
+const ATOM_FRAME_DURATION = 180;
 const pendingPickups = new Set();
 
-// Добавляем переменные для управления анимацией
-let lastTime = 0; // Время последнего кадра для расчета deltaTime
-let lastRender = 0; // Новая для трекинга последнего рендера
-const FPS = 60; // Целевой FPS, можно изменить
+let lastTime = 0;
+let lastRender = 0;
+const FPS = 60;
 
-const PLAYER_FRAME_WIDTH = 70; // Ширина кадра (не меняем)
-const PLAYER_FRAME_HEIGHT = 70; // Высота кадра (не меняем)
-const WALK_FRAME_COUNT = 13; // Новый: 13 кадров для ходьбы (цикл)
-const ATTACK_FRAME_COUNT = 13; // Новый: 13 кадров для атаки (one-shot)
-const WALK_FRAME_DURATION = GAME_CONFIG.FRAME_DURATION / WALK_FRAME_COUNT; // Адаптируем FPS (было /40, теперь /13 для похожей скорости)
+const PLAYER_FRAME_WIDTH = 70;
+const PLAYER_FRAME_HEIGHT = 70;
+const WALK_FRAME_COUNT = 13;
+const ATTACK_FRAME_COUNT = 13;
+const WALK_FRAME_DURATION = GAME_CONFIG.FRAME_DURATION / WALK_FRAME_COUNT;
 const ATTACK_FRAME_DURATION = 500 / ATTACK_FRAME_COUNT;
 
 const SPRITE_ROWS = {
@@ -50,7 +47,7 @@ const SPRITE_ROWS = {
   walk_down: 0,
   walk_right: 140,
   walk_left: 210,
-  attack_up_down: 280, // Строка 4 для атаки вверх/вниз (один ряд для обоих)
+  attack_up_down: 280,
   attack_right: 350,
   attack_left: 420,
 };
@@ -161,10 +158,6 @@ Object.entries(imageSources).forEach(([key, src]) => {
   };
 });
 
-let inventory = Array(20).fill(null);
-
-// Конфигурация эффектов предметов (расширяем ITEM_CONFIG)
-// Обновляем ITEM_CONFIG, чтобы использовать объект images
 const ITEM_CONFIG = {
   // === ЕДА И НАПИТКИ ===
   energy_drink: {
@@ -564,12 +557,6 @@ const ITEM_CONFIG = {
   },
 };
 
-// Состояние инвентаря (открыт или закрыт)
-let isInventoryOpen = false;
-window.isInventoryOpen = false;
-// Выбранный слот инвентаря
-let selectedSlot = null;
-
 let reconnectAttempts = 0;
 const maxReconnectAttempts = 5;
 const reconnectDelay = 2000; // 2 секунды
@@ -827,7 +814,7 @@ function handleAuthMessage(event) {
 
       // Инвентарь и UI
       inventory = me.inventory.map((item) => (item ? { ...item } : null));
-      updateInventoryDisplay();
+      window.inventorySystem.updateInventoryDisplay();
       updateStatsDisplay();
 
       // Другие игроки
@@ -1191,53 +1178,7 @@ function startGame() {
   });
 
   window.chatSystem.initializeChat(ws);
-
-  // Настройка кнопки Inventory
-  const inventoryBtn = document.getElementById("inventoryBtn");
-  inventoryBtn.addEventListener("click", (e) => {
-    e.preventDefault();
-    toggleInventory();
-  });
-
-  // Создаём контейнер для ячеек инвентаря
-  const inventoryContainer = document.getElementById("inventoryContainer");
-  inventoryContainer.style.display = "none";
-
-  const inventoryGrid = document.createElement("div");
-  inventoryGrid.id = "inventoryGrid";
-  inventoryContainer.insertBefore(
-    inventoryGrid,
-    document.getElementById("inventoryActions")
-  );
-
-  for (let i = 0; i < 20; i++) {
-    const slot = document.createElement("div");
-    slot.className = "inventory-slot";
-    inventoryGrid.appendChild(slot);
-  }
-
-  const useBtn = document.getElementById("useBtn");
-  const dropBtn = document.getElementById("dropBtn");
-
-  document.getElementById("useBtn").addEventListener("click", () => {
-    if (selectedSlot !== null) {
-      const item = inventory[selectedSlot];
-      if (item && ITEM_CONFIG[item.type]) {
-        if (ITEM_CONFIG[item.type].type) {
-          // Если предмет экипируемый
-          window.equipmentSystem.equipItem(selectedSlot);
-        } else {
-          // Если предмет используемый (еда, вода, атом и т.д.)
-          useItem(selectedSlot);
-        }
-      }
-    }
-  });
-  dropBtn.addEventListener("click", () => {
-    if (selectedSlot !== null) {
-      dropItem(selectedSlot);
-    }
-  });
+  window.inventorySystem.initialize();
   window.tradeSystem.initialize(ws);
   window.equipmentSystem.initialize();
   const me = players.get(myId);
@@ -1264,310 +1205,6 @@ function handlePlayerClick(worldX, worldY) {
     }
   });
   window.tradeSystem.selectPlayer(selectedPlayerId); // Убрали !!selectedPlayerId
-}
-
-// Функция переключения инвентаря
-function toggleInventory() {
-  isInventoryOpen = !isInventoryOpen;
-  window.isInventoryOpen = isInventoryOpen;
-
-  const me = players.get(myId);
-
-  // НОВОЕ: Проверка на мобильное устройство и закрытие экипировки, если она открыта и мы открываем инвентарь
-  const isMobile = window.innerWidth <= 500;
-  if (isMobile && isInventoryOpen && window.equipmentSystem.isEquipmentOpen) {
-    window.equipmentSystem.toggleEquipment(); // Автоматически закрываем экипировку
-  }
-
-  const inventoryContainer = document.getElementById("inventoryContainer");
-  inventoryContainer.style.display = isInventoryOpen ? "grid" : "none";
-  const inventoryBtn = document.getElementById("inventoryBtn");
-  inventoryBtn.classList.toggle("active", isInventoryOpen);
-
-  if (isInventoryOpen) {
-    if (!inventoryAtomTimer) {
-      inventoryAtomTimer = setInterval(() => {
-        atomFrame = (atomFrame + 1) % ATOM_FRAMES; // Только frame, без time (просто для инвентаря)
-        if (me.state === "attacking") {
-          me.attackFrameTime = (me.attackFrameTime || 0) + deltaTime;
-          if (me.attackFrameTime >= ATTACK_FRAME_DURATION) {
-            me.attackFrameTime -= ATTACK_FRAME_DURATION;
-            me.attackFrame = (me.attackFrame || 0) + 1;
-            if (me.attackFrame >= ATTACK_FRAME_COUNT) {
-              // Завершение анимации атаки
-              me.state = isMoving ? "walking" : "idle"; // Возвращаем к предыдущему состоянию (с проверкой на движение из movement.js)
-              me.attackFrame = 0;
-              me.attackFrameTime = 0;
-            }
-          }
-        }
-        // Обновляем только canvas атомов, без полной перерисовки инвентаря
-        if (window.atomAnimations) {
-          window.atomAnimations.forEach((anim) => {
-            // Проверяем, что слот всё ещё содержит атом
-            if (
-              inventory[anim.slotIndex] &&
-              inventory[anim.slotIndex].type === "atom"
-            ) {
-              anim.ctx.clearRect(0, 0, 40, 40);
-              if (ITEM_CONFIG["atom"]?.image?.complete) {
-                anim.ctx.drawImage(
-                  ITEM_CONFIG["atom"].image,
-                  atomFrame * 50,
-                  0,
-                  50,
-                  50,
-                  0,
-                  0,
-                  40,
-                  40
-                );
-              }
-            }
-          });
-        }
-      }, ATOM_FRAME_DURATION);
-    }
-    updateInventoryDisplay();
-  } else {
-    if (inventoryAtomTimer) {
-      clearInterval(inventoryAtomTimer);
-      inventoryAtomTimer = null;
-    }
-    const screen = document.getElementById("inventoryScreen");
-    screen.innerHTML = "";
-    selectedSlot = null;
-    const useBtn = document.getElementById("useBtn");
-    const dropBtn = document.getElementById("dropBtn");
-    useBtn.disabled = true;
-    dropBtn.disabled = true;
-    // Очищаем массив анимаций при закрытии
-    window.atomAnimations = [];
-  }
-}
-
-// Выбрать слот и показать кнопки
-function selectSlot(slotIndex, slotElement) {
-  if (!inventory[slotIndex]) return;
-  const screen = document.getElementById("inventoryScreen");
-  const useBtn = document.getElementById("useBtn");
-  const dropBtn = document.getElementById("dropBtn");
-
-  if (selectedSlot === slotIndex) {
-    selectedSlot = null;
-    screen.innerHTML = "";
-    useBtn.disabled = true;
-    dropBtn.disabled = true;
-    return;
-  }
-
-  selectedSlot = slotIndex;
-  // Если ранее была форма для stackable, убираем её и показываем описание
-  screen.textContent = ITEM_CONFIG[inventory[slotIndex].type].description;
-  useBtn.disabled = ITEM_CONFIG[inventory[slotIndex].type].balyary; // Отключаем для stackable предметов (balyary и atom)
-  dropBtn.disabled = false;
-}
-
-// Использовать предмет
-function useItem(slotIndex) {
-  const item = inventory[slotIndex];
-  if (!item || !ITEM_CONFIG[item.type]) {
-    return;
-  }
-  const me = players.get(myId);
-  if (!me) {
-    return;
-  }
-
-  // Проверяем, является ли предмет экипировкой
-  if (window.equipmentSystem.EQUIPMENT_CONFIG[item.type]) {
-    window.equipmentSystem.equipItem(slotIndex);
-    selectedSlot = null;
-    document.getElementById("useBtn").disabled = true;
-    document.getElementById("dropBtn").disabled = true;
-    document.getElementById("inventoryScreen").textContent = "";
-    updateStatsDisplay();
-    updateInventoryDisplay();
-    return;
-  }
-
-  // Проверяем, является ли предмет баляром
-  if (item.type === "balyary") {
-    return;
-  } else {
-    // Обработка других предметов (еда, вода, здоровье, энергия)
-    const effect = ITEM_CONFIG[item.type].effect;
-    if (effect.health)
-      me.health = Math.min(
-        me.maxStats.health,
-        Math.max(0, me.health + effect.health)
-      );
-    if (effect.energy)
-      me.energy = Math.min(
-        me.maxStats.energy,
-        Math.max(0, me.energy + effect.energy)
-      );
-    if (effect.food)
-      me.food = Math.min(me.maxStats.food, Math.max(0, me.food + effect.food));
-    if (effect.water)
-      me.water = Math.min(
-        me.maxStats.water,
-        Math.max(0, me.water + effect.water)
-      );
-    if (effect.armor)
-      me.armor = Math.min(
-        me.maxStats.armor,
-        Math.max(0, me.armor + effect.armor)
-      );
-
-    if (ITEM_CONFIG[item.type].stackable) {
-      if (item.quantity > 1) {
-        inventory[slotIndex].quantity -= 1;
-      } else {
-        inventory[slotIndex] = null;
-      }
-    } else {
-      inventory[slotIndex] = null;
-    }
-
-    // Отправляем обновление на сервер
-    if (ws.readyState === WebSocket.OPEN) {
-      sendWhenReady(
-        ws,
-        JSON.stringify({
-          type: "useItem",
-          slotIndex,
-          stats: {
-            health: me.health,
-            energy: me.energy,
-            food: me.food,
-            water: me.water,
-            armor: me.armor,
-          },
-          inventory,
-        })
-      );
-    }
-  }
-
-  // Обновляем интерфейс
-  selectedSlot = null;
-  document.getElementById("useBtn").disabled = true;
-  document.getElementById("dropBtn").disabled = true;
-  document.getElementById("inventoryScreen").textContent = "";
-  updateStatsDisplay();
-  updateInventoryDisplay();
-}
-
-// Выкинуть предмет
-function dropItem(slotIndex) {
-  const item = inventory[slotIndex];
-  if (!item) return;
-  const me = players.get(myId);
-  const screen = document.getElementById("inventoryScreen");
-  const useBtn = document.getElementById("useBtn");
-  const dropBtn = document.getElementById("dropBtn");
-
-  if (ITEM_CONFIG[item.type].stackable) {
-    // Логика для stackable (balyary и atom) с формой ввода количества, стили как раньше
-    screen.innerHTML = `
-      <div class="balyary-drop-form">
-        <p class="cyber-text">Сколько выкинуть?</p>
-        <input type="number" id="stackableAmount" class="cyber-input" min="1" max="${
-          item.quantity || 1
-        }" placeholder="0" value="" autofocus />
-        <p id="stackableError" class="error-text"></p>
-      </div>
-    `;
-    const input = document.getElementById("stackableAmount");
-    const errorEl = document.getElementById("stackableError");
-
-    requestAnimationFrame(() => {
-      input.focus();
-      input.select();
-    });
-
-    input.addEventListener("input", () => {
-      input.value = input.value.replace(/[^0-9]/g, "");
-      if (input.value === "") input.value = "";
-    });
-
-    useBtn.disabled = false;
-    dropBtn.disabled = true;
-
-    input.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        confirmDrop();
-      }
-    });
-
-    useBtn.onclick = (e) => {
-      e.preventDefault();
-      confirmDrop();
-    };
-
-    function confirmDrop() {
-      const amount = parseInt(input.value) || 0;
-      const currentQuantity = item.quantity || 1;
-
-      if (amount <= 0) {
-        errorEl.textContent = "Введи нормальное число, братишка!";
-        return;
-      }
-
-      if (amount > currentQuantity) {
-        errorEl.textContent = "Не хватает " + item.type + "!";
-        return;
-      }
-
-      sendWhenReady(
-        ws,
-        JSON.stringify({
-          type: "dropItem",
-          slotIndex,
-          x: me.x,
-          y: me.y,
-          quantity: amount,
-        })
-      );
-
-      if (amount === currentQuantity) {
-        inventory[slotIndex] = null;
-      } else {
-        inventory[slotIndex].quantity -= amount;
-      }
-
-      useBtn.disabled = true;
-      dropBtn.disabled = true;
-      useBtn.onclick = () => useItem(slotIndex); // Восстанавливаем оригинальный onclick для useBtn (предполагаю, что useItem — функция использования)
-      selectedSlot = null;
-      screen.innerHTML = "";
-      updateInventoryDisplay();
-    }
-  } else {
-    // Логика для остальных предметов: выкидываем один предмет
-    sendWhenReady(
-      ws,
-      JSON.stringify({
-        type: "dropItem",
-        slotIndex,
-        x: me.x,
-        y: me.y,
-        quantity: 1, // Выкидываем ровно один предмет
-      })
-    );
-
-    // Очищаем слот инвентаря
-    inventory[slotIndex] = null;
-
-    // Сбрасываем выбранный слот и кнопки
-    selectedSlot = null;
-    useBtn.disabled = true;
-    dropBtn.disabled = true;
-    screen.innerHTML = "";
-    updateInventoryDisplay();
-  }
 }
 
 // Логика расхода ресурсов
@@ -1673,203 +1310,6 @@ function updateStatsDisplay() {
   } catch (error) {}
 }
 
-function startAtomAnimation(atomAnimations) {
-  let lastTime = null;
-
-  function animate(timestamp) {
-    if (!lastTime) lastTime = timestamp;
-    const deltaTime = timestamp - lastTime;
-    lastTime = timestamp;
-
-    // Продолжаем анимацию, если есть активные атомы
-    if (
-      atomAnimations.length > 0 &&
-      atomAnimations.some(
-        (atom) =>
-          inventory[atom.slotIndex] && inventory[atom.slotIndex].type === "atom"
-      )
-    ) {
-      requestAnimationFrame(animate);
-    }
-  }
-
-  // Запускаем анимацию, если есть атомы
-  if (atomAnimations.length > 0) {
-    requestAnimationFrame(animate);
-  }
-}
-
-function updateInventoryDisplay() {
-  // Проверяем наличие необходимых DOM-элементов
-  const inventoryGrid = document.getElementById("inventoryGrid");
-  const inventoryScreen = document.getElementById("inventoryScreen");
-  const useBtn = document.getElementById("useBtn");
-  const dropBtn = document.getElementById("dropBtn");
-
-  if (!inventoryGrid || !inventoryScreen) {
-    return;
-  }
-
-  // Получаем данные игрока
-  const me = players.get(myId);
-  if (!me || !me.inventory) {
-    return;
-  }
-
-  // Синхронизируем глобальную inventory
-  if (me && me.inventory) {
-    inventory = me.inventory.map((slot) => (slot ? { ...slot } : null));
-  } else {
-    inventory = Array(20).fill(null);
-  }
-
-  // Проверяем, активна ли форма выброса stackable
-  const isStackableFormActive =
-    selectedSlot !== null &&
-    inventory[selectedSlot] &&
-    ITEM_CONFIG[inventory[selectedSlot].type]?.stackable &&
-    inventoryScreen.querySelector(".balyary-drop-form");
-
-  // Обновляем содержимое экрана
-  if (!isStackableFormActive) {
-    inventoryScreen.innerHTML = "";
-    if (selectedSlot !== null && inventory[selectedSlot]) {
-      inventoryScreen.textContent =
-        ITEM_CONFIG[inventory[selectedSlot].type]?.description || "";
-    }
-  }
-
-  // Очищаем слоты
-  inventoryGrid.innerHTML = "";
-
-  if (window.atomAnimations) {
-    window.atomAnimations = [];
-  }
-
-  // Хранилище для анимации атомов (canvas ссылок)
-  window.atomAnimations = []; // Глобальный массив для хранения, чтобы обновлять в interval
-
-  // Заполняем слоты инвентаря
-  inventory.forEach((item, i) => {
-    const slot = document.createElement("div");
-    slot.className = "inventory-slot";
-    slot.dataset.index = i;
-    inventoryGrid.appendChild(slot);
-
-    if (item) {
-      if (item.type === "atom") {
-        // Создаём canvas для анимации атома
-        const canvas = document.createElement("canvas");
-        canvas.width = 40;
-        canvas.height = 40;
-        canvas.style.width = "100%";
-        canvas.style.height = "100%";
-        const ctx = canvas.getContext("2d");
-        slot.appendChild(canvas);
-
-        // Сохраняем для анимации
-        window.atomAnimations.push({
-          ctx: ctx,
-          slotIndex: i,
-        });
-
-        // Начальный рендеринг текущего глобального кадра
-        if (ITEM_CONFIG[item.type]?.image?.complete) {
-          ctx.drawImage(
-            ITEM_CONFIG[item.type].image,
-            atomFrame * 50,
-            0,
-            50,
-            50,
-            0,
-            0,
-            40,
-            40
-          );
-        }
-
-        // Отображение количества
-        if (item.quantity > 1) {
-          const quantityEl = document.createElement("div");
-          quantityEl.textContent = item.quantity;
-          quantityEl.style.position = "absolute";
-          quantityEl.style.top = "0";
-          quantityEl.style.right = "0";
-          quantityEl.style.color = "#00ffff";
-          quantityEl.style.fontSize = "14px";
-          quantityEl.style.textShadow = "0 0 5px rgba(0, 255, 255, 0.7)";
-          slot.appendChild(quantityEl);
-        }
-      } else {
-        // Обрабатываем остальные предметы (stackable и не-stackable)
-        const img = document.createElement("img");
-        img.src = ITEM_CONFIG[item.type]?.image?.src || "";
-        img.style.width = "100%";
-        img.style.height = "100%";
-        img.style.pointerEvents = "none";
-        slot.appendChild(img);
-
-        // Отображение количества для stackable
-        if (ITEM_CONFIG[item.type]?.stackable && item.quantity > 1) {
-          const quantityEl = document.createElement("div");
-          quantityEl.textContent = item.quantity;
-          quantityEl.style.position = "absolute";
-          quantityEl.style.top = "0";
-          quantityEl.style.right = "0";
-          quantityEl.style.color = "#00ffff";
-          quantityEl.style.fontSize = "14px";
-          quantityEl.style.textShadow = "0 0 5px rgba(0, 255, 255, 0.7)";
-          slot.appendChild(quantityEl);
-        }
-      }
-
-      // Обработчики событий
-      slot.onmouseover = () => {
-        if (inventory[i] && selectedSlot !== i) {
-          if (
-            selectedSlot !== null &&
-            ITEM_CONFIG[inventory[selectedSlot].type]?.stackable &&
-            inventoryScreen.querySelector(".balyary-drop-form")
-          ) {
-            return;
-          }
-          inventoryScreen.textContent =
-            ITEM_CONFIG[inventory[i].type]?.description || "";
-        }
-      };
-      slot.onmouseout = () => {
-        if (
-          selectedSlot === null ||
-          (inventory[selectedSlot] &&
-            ITEM_CONFIG[inventory[selectedSlot].type]?.stackable &&
-            inventoryScreen.querySelector(".balyary-drop-form"))
-        ) {
-          return;
-        }
-        inventoryScreen.textContent =
-          selectedSlot !== null && inventory[selectedSlot]
-            ? ITEM_CONFIG[inventory[selectedSlot].type]?.description || ""
-            : "";
-      };
-      slot.onclick = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        selectSlot(i, slot);
-      };
-    } else {
-      slot.onmouseover = null;
-      slot.onmouseout = null;
-      slot.onclick = null;
-    }
-  });
-
-  // Обновляем кнопки действий
-  if (useBtn && dropBtn) {
-    useBtn.disabled = selectedSlot === null || !inventory[selectedSlot];
-    dropBtn.disabled = selectedSlot === null || !inventory[selectedSlot];
-  }
-}
-
 function handleGameMessage(event) {
   try {
     const data = JSON.parse(event.data);
@@ -1908,7 +1348,7 @@ function handleGameMessage(event) {
           window.equipmentSystem.equipmentSlots = data.equipment;
           window.equipmentSystem.applyEquipmentEffects(me);
           window.equipmentSystem.updateEquipmentDisplay();
-          updateInventoryDisplay();
+          window.inventorySystem.updateInventoryDisplay();
           updateStatsDisplay();
         }
         break;
@@ -2014,7 +1454,7 @@ function handleGameMessage(event) {
               inventory[freeSlot] = data.item;
             }
           }
-          updateInventoryDisplay();
+          window.inventorySystem.updateInventoryDisplay();
           levelSystem.handleItemPickup(
             data.item.type,
             data.item.isDroppedByPlayer || false
@@ -2062,7 +1502,7 @@ function handleGameMessage(event) {
 
           if (data.player.inventory) {
             inventory = data.player.inventory;
-            updateInventoryDisplay();
+            window.inventorySystem.updateInventoryDisplay();
           }
           if (data.player.equipment) {
             window.equipmentSystem.syncEquipment(data.player.equipment);
@@ -2163,7 +1603,7 @@ function handleGameMessage(event) {
           if (data.quantity && ITEM_CONFIG[data.type]?.stackable) {
             items.get(data.itemId).quantity = data.quantity;
           }
-          updateInventoryDisplay();
+          window.inventorySystem.updateInventoryDisplay();
         }
         break;
       case "chat":
@@ -2177,7 +1617,7 @@ function handleGameMessage(event) {
             slot ? { ...slot } : null
           );
           updateStatsDisplay();
-          updateInventoryDisplay();
+          window.inventorySystem.updateInventoryDisplay();
           window.vendingMachine.hideVendingMenu();
         } else {
           const errorEl = document.getElementById("vendingError");
@@ -2209,12 +1649,9 @@ function handleGameMessage(event) {
             players.set(myId, me);
           }
 
-          // Закрываем окно торговли и сбрасываем состояние
           window.tradeSystem.closeTradeWindow();
           window.tradeSystem.resetTrade();
-
-          // Перерисовываем инвентарь и статы
-          updateInventoryDisplay();
+          window.inventorySystem.updateInventoryDisplay();
           updateStatsDisplay();
         }
         break;
@@ -2243,7 +1680,7 @@ function handleGameMessage(event) {
 
           // Перерисовываем всё
           updateStatsDisplay();
-          updateInventoryDisplay();
+          window.inventorySystem.updateInventoryDisplay();
 
           // Если был выбран слот с использованным предметом — снимаем выделение
           if (
@@ -2373,7 +1810,7 @@ function handleGameMessage(event) {
           me.inventory = data.inventory.map((slot) =>
             slot ? { ...slot } : null
           );
-          updateInventoryDisplay();
+          window.inventorySystem.updateInventoryDisplay();
         }
         break;
       case "doctorQuestCompleted":
@@ -2386,7 +1823,7 @@ function handleGameMessage(event) {
           if (me) {
             me.medicalCertificate = data.medicalCertificate || true;
             me.inventory = data.inventory.map((i) => (i ? { ...i } : null));
-            updateInventoryDisplay();
+            window.inventorySystem.updateInventoryDisplay();
           }
         }
         break;
@@ -2397,7 +1834,7 @@ function handleGameMessage(event) {
             if (data.health !== undefined) me.health = data.health;
             if (data.inventory) {
               me.inventory = data.inventory.map((i) => (i ? { ...i } : null));
-              updateInventoryDisplay();
+              window.inventorySystem.updateInventoryDisplay();
             }
             updateStatsDisplay();
             showNotification(
@@ -2418,7 +1855,7 @@ function handleGameMessage(event) {
           // Обновляем инвентарь
           const me = players.get(myId);
           me.inventory = data.inventory.map((i) => (i ? { ...i } : null));
-          updateInventoryDisplay();
+          window.inventorySystem.updateInventoryDisplay();
 
           if (me) {
             me.medicalCertificateStamped =
@@ -2459,7 +1896,7 @@ function handleGameMessage(event) {
           // Обновляем инвентарь
           const me = players.get(myId);
           me.inventory = data.inventory;
-          updateInventoryDisplay();
+          window.inventorySystem.updateInventoryDisplay();
 
           // Уведомление
           showNotification(
@@ -2490,7 +1927,7 @@ function handleGameMessage(event) {
         if (data.success) {
           const me = players.get(myId);
           me.inventory = data.inventory.map((i) => (i ? { ...i } : null));
-          updateInventoryDisplay();
+          window.inventorySystem.updateInventoryDisplay();
 
           // Начинаем игру на клиенте (передаём bet)
           startSimpleGame(data.bet);
@@ -2505,7 +1942,7 @@ function handleGameMessage(event) {
         if (data.success) {
           const me = players.get(myId);
           me.inventory = data.inventory.map((i) => (i ? { ...i } : null));
-          updateInventoryDisplay(); // Уже есть: динамика слота баляров
+          window.inventorySystem.updateInventoryDisplay();
 
           if (window.levelSystem) {
             window.levelSystem.setLevelData(
@@ -2542,7 +1979,7 @@ function handleGameMessage(event) {
             me.inventory = [...inventory]; // Синхронизируем с игроком
             players.set(myId, me);
           }
-          updateInventoryDisplay();
+          window.inventorySystem.updateInventoryDisplay();
           updateStatsDisplay();
 
           // Перезагружаем диалог магазина (обновит grid)
@@ -2563,7 +2000,7 @@ function handleGameMessage(event) {
             me.inventory = [...inventory];
             players.set(myId, me);
           }
-          updateInventoryDisplay();
+          window.inventorySystem.updateInventoryDisplay();
           updateStatsDisplay();
 
           // Перезагружаем диалог скупки
@@ -2592,10 +2029,10 @@ function resizeCanvas() {
 
 function update(deltaTime) {
   // Глобальная анимация атома — одна на всю игру
-  atomFrameTime += deltaTime;
-  while (atomFrameTime >= ATOM_FRAME_DURATION) {
-    atomFrameTime -= ATOM_FRAME_DURATION;
-    atomFrame = (atomFrame + 1) % ATOM_FRAMES;
+  window.atomFrameTime += deltaTime;
+  while (window.atomFrameTime >= ATOM_FRAME_DURATION) {
+    window.atomFrameTime -= ATOM_FRAME_DURATION;
+    window.atomFrame = (window.atomFrame + 1) % ATOM_FRAMES;
   }
 
   const me = players.get(myId);
@@ -2788,7 +2225,7 @@ function draw(deltaTime) {
     if (item.type === "atom") {
       ctx.drawImage(
         config.image,
-        atomFrame * 50,
+        window.atomFrame * 50,
         0,
         50,
         50,
