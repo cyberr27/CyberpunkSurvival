@@ -133,7 +133,7 @@ const imageSources = {
   torn_belt_of_thirst: "torn_belt_of_thirst.png",
   torn_pants_of_thirst: "torn_pants_of_thirst.png",
   torn_sneakers_of_thirst: "torn_sneakers_of_thirst.png",
-  
+
   chameleonBeltImage: "chameleon_belt.png",
   chameleonCapImage: "chameleon_cap.png",
   chameleonGlovesImage: "chameleon_gloves.png",
@@ -1425,19 +1425,6 @@ function handleGameMessage(event) {
           });
         }
         break;
-      case "unequipItemSuccess":
-        me = players.get(myId);
-        if (me) {
-          me.inventory = data.inventory;
-          me.equipment = data.equipment;
-          inventory = me.inventory.map((slot) => (slot ? { ...slot } : null));
-          window.equipmentSystem.equipmentSlots = data.equipment;
-          window.equipmentSystem.applyEquipmentEffects(me);
-          window.equipmentSystem.updateEquipmentDisplay();
-          window.inventorySystem.updateInventoryDisplay();
-          updateStatsDisplay();
-        }
-        break;
       case "worldTransitionSuccess":
         {
           const me = players.get(myId);
@@ -1555,6 +1542,31 @@ function handleGameMessage(event) {
       case "equipItemFail":
         window.equipmentSystem.handleEquipFail(data.error);
         break;
+      case "unequipItemFail":
+        window.equipmentSystem.handleUnequipFail(message.error);
+        break;
+      case "unequipItemSuccess": {
+        const me = players.get(myId);
+        if (me) {
+          me.inventory = data.inventory;
+          me.equipment = data.equipment;
+          me.maxStats = data.maxStats;
+          me.health = data.stats.health;
+          me.energy = data.stats.energy;
+          me.food = data.stats.food;
+          me.water = data.stats.water;
+          me.armor = data.stats.armor;
+          me.damage = data.stats.damage;
+          inventory = me.inventory.map((slot) => (slot ? { ...slot } : null));
+          window.equipmentSystem.equipmentSlots = data.equipment;
+          window.equipmentSystem.applyEquipmentEffects(me);
+        }
+        window.equipmentSystem.updateEquipmentDisplay();
+        updateInventoryDisplay();
+        updateStatsDisplay();
+        window.equipmentSystem.pendingUnequip = null;
+        break;
+      }
       case "inventoryFull":
         pendingPickups.delete(data.itemId);
         break;
