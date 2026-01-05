@@ -786,7 +786,6 @@ function setupWebSocket(
           return;
         }
         const { slotName, inventorySlot, itemId } = data;
-        // <-- НАЧАЛО ВСТАВКИ: Добавить offhand в validSlots (оптимизация: Set для быстрой проверки)
         const validSlots = new Set([
           "head",
           "chest",
@@ -806,7 +805,6 @@ function setupWebSocket(
           );
           return;
         }
-        // <-- КОНЕЦ ВСТАВКИ (замени старый массив на Set для экономии CPU на больших проверках)
         // Проверяем наличие предмета и совпадение itemId
         if (
           !player.equipment[slotName] ||
@@ -1109,7 +1107,8 @@ function setupWebSocket(
               gloves: "gloves",
             }[ITEM_CONFIG[item.type].type];
             if (slotName) {
-              // <-- НАЧАЛО ВСТАВКИ: Добавляем проверку уровня для melee оружия
+              const config = ITEM_CONFIG[item.type];
+              // <-- НАЧАЛО ВСТАВКИ: Проверка уровня для melee оружия (до hands, логика сохранена)
               const meleeWeapons = ["knuckles", "knife", "bat"];
               if (slotName === "weapon" && meleeWeapons.includes(item.type)) {
                 if (player.level < 2) {
@@ -1124,12 +1123,11 @@ function setupWebSocket(
                 }
               }
               // <-- КОНЕЦ ВСТАВКИ
-              // <-- НАЧАЛО ВСТАВКИ: Логика для оружия с hands (защита от читов, оптимизация: минимум копий)
-              const config = ITEM_CONFIG[item.type];
+              // Логика для оружия с hands (защита от читов, оптимизация: минимум копий)
               if (config.type === "weapon") {
                 let targetSlot = "weapon"; // По умолчанию weapon
                 if (config.hands === "onehanded") {
-                  // Если onehanded: если weapon свободен — в weapon; если weapon занят onehanded и offhand свободен — в offhand
+                  // Рассчитываем ожидаемый targetSlot
                   if (player.equipment.weapon === null) {
                     targetSlot = "weapon";
                   } else if (
@@ -1140,8 +1138,17 @@ function setupWebSocket(
                   ) {
                     targetSlot = "offhand";
                   } else {
-                    // Если оба заняты или weapon twohanded — заменяем weapon (основной)
-                    targetSlot = "weapon";
+                    targetSlot = "weapon"; // Замена weapon если оба заняты или weapon twohanded
+                  }
+                  // Валидация client's data.slotName (анти-чит: должен match рассчитанному)
+                  if (data.slotName && data.slotName !== targetSlot) {
+                    ws.send(
+                      JSON.stringify({
+                        type: "equipItemFail",
+                        error: "Неверный слот для оружия (анти-чит)",
+                      })
+                    );
+                    return;
                   }
                   // Запрет: если weapon twohanded, нельзя в offhand
                   if (
@@ -1160,8 +1167,18 @@ function setupWebSocket(
                     return;
                   }
                 } else if (config.hands === "twohanded") {
-                  // Для twohanded: только в weapon, очищаем offhand если занят
                   targetSlot = "weapon";
+                  // Валидация: для twohanded только weapon
+                  if (data.slotName && data.slotName !== "weapon") {
+                    ws.send(
+                      JSON.stringify({
+                        type: "equipItemFail",
+                        error:
+                          "Двуручное оружие только в основную руку (анти-чит)",
+                      })
+                    );
+                    return;
+                  }
                   if (player.equipment.offhand !== null) {
                     const freeSlotForOffhand = player.inventory.findIndex(
                       (slot) => slot === null
@@ -1176,13 +1193,13 @@ function setupWebSocket(
                       );
                       return;
                     }
-                    // Перемещаем offhand в инвентарь (оптимизация: без лишних циклов)
+                    // Перемещаем offhand в инвентарь
                     player.inventory[freeSlotForOffhand] =
                       player.equipment.offhand;
                     player.equipment.offhand = null;
                   }
                 } else {
-                  // Неизвестный hands — ошибка (защита)
+                  // Неизвестный hands — ошибка
                   ws.send(
                     JSON.stringify({
                       type: "equipItemFail",
@@ -1191,9 +1208,8 @@ function setupWebSocket(
                   );
                   return;
                 }
-                slotName = targetSlot; // Переопределяем slotName для оружия
+                slotName = targetSlot; // Финальное определение
               }
-              // <-- КОНЕЦ ВСТАВКИ
               if (player.equipment[slotName]) {
                 const freeSlot = player.inventory.findIndex(
                   (slot) => slot === null
@@ -1201,7 +1217,6 @@ function setupWebSocket(
                 if (freeSlot !== -1) {
                   player.inventory[freeSlot] = player.equipment[slotName];
                 } else {
-                  // Если нет места для swap, отменяем (добавил проверку, которой не было)
                   ws.send(
                     JSON.stringify({
                       type: "equipItemFail",
@@ -1216,7 +1231,7 @@ function setupWebSocket(
                 itemId: item.itemId,
               };
               if (config.hands === "twohanded") {
-                player.equipment.offhand = null; // Очищаем offhand для twohanded
+                player.equipment.offhand = null; // Очищаем offhand для twohanded (дубликат, но сохранён для безопасности)
               }
               player.inventory[slotIndex] = null;
               // Полностью пересчитываем maxStats и обрезаем текущие статы
