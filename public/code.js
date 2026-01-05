@@ -1401,6 +1401,20 @@ function updateStatsDisplay() {
   } catch (error) {}
 }
 
+function ensureFullEquipment(equip) {
+  const defaultEquipment = {
+    head: null,
+    chest: null,
+    belt: null,
+    pants: null,
+    boots: null,
+    weapon: null,
+    offhand: null,
+    gloves: null,
+  };
+  return { ...defaultEquipment, ...equip };
+}
+
 function handleGameMessage(event) {
   try {
     const data = JSON.parse(event.data);
@@ -1548,7 +1562,8 @@ function handleGameMessage(event) {
         const me = players.get(myId);
         if (me) {
           me.inventory = data.inventory;
-          me.equipment = data.equipment;
+          const fullEquipment = ensureFullEquipment(data.equipment);
+          me.equipment = fullEquipment;
           me.maxStats = data.maxStats;
           me.health = data.stats.health;
           me.energy = data.stats.energy;
@@ -1576,7 +1591,8 @@ function handleGameMessage(event) {
         const me = players.get(myId);
         if (me) {
           me.inventory = data.inventory;
-          me.equipment = data.equipment;
+          const fullEquipment = ensureFullEquipment(data.equipment);
+          me.equipment = fullEquipment;
           me.maxStats = data.maxStats;
           me.health = data.stats.health;
           me.energy = data.stats.energy;

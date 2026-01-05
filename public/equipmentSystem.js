@@ -778,7 +778,17 @@ const equipmentSystem = {
   },
 
   syncEquipment: function (equipment) {
-    this.equipmentSlots = equipment;
+    const defaultEq = {
+      head: null,
+      chest: null,
+      belt: null,
+      pants: null,
+      boots: null,
+      weapon: null,
+      offhand: null,
+      gloves: null,
+    };
+    this.equipmentSlots = { ...defaultEq, ...equipment };
     const me = players.get(myId);
     if (me) {
       this.applyEquipmentEffects(me);
