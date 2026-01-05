@@ -119,6 +119,7 @@ const equipmentSystem = {
       description: "Плазменная винтовка: +15 урона, дальнобойная",
       rarity: 4,
       image: new Image(),
+      hands: "twohanded",
     },
     knuckles: {
       type: "weapon",
@@ -126,6 +127,7 @@ const equipmentSystem = {
       description: "Кастет: 3-7 урона в ближнем бою",
       rarity: 4,
       image: new Image(),
+      hands: "onehanded",
     },
     knife: {
       type: "weapon",
@@ -133,6 +135,7 @@ const equipmentSystem = {
       description: "Нож: 4-6 урона в ближнем бою",
       rarity: 4,
       image: new Image(),
+      hands: "onehanded",
     },
     bat: {
       type: "weapon",
@@ -140,6 +143,7 @@ const equipmentSystem = {
       description: "Бита: 5-10 урона в ближнем бою",
       rarity: 4,
       image: new Image(),
+      hands: "onehanded",
     },
     torn_baseball_cap_of_health: {
       type: "headgear",

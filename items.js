@@ -160,24 +160,28 @@ const ITEM_CONFIG = {
     effect: { damage: 50, range: 200 },
     description: "Плазменная винтовка: 50 урона, дальность 200px",
     rarity: 4,
+    hands: "twohanded",
   },
   knuckles: {
     type: "weapon",
     effect: { damage: { min: 3, max: 7 } },
     description: "Кастет: 3–7 урона в ближнем бою",
     rarity: 4,
+    hands: "onehanded",
   },
   knife: {
     type: "weapon",
     effect: { damage: { min: 4, max: 6 } },
     description: "Нож: 4–6 урона в ближнем бою",
     rarity: 4,
+    hands: "onehanded",
   },
   bat: {
     type: "weapon",
     effect: { damage: { min: 5, max: 10 } },
     description: "Бита: 5–10 урона в ближнем бою",
     rarity: 4,
+    hands: "onehanded",
   },
 
   // === НОВАЯ ПОРВАННАЯ ЭКИПИРОВКА (СТАРТОВАЯ ===

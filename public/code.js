@@ -348,6 +348,7 @@ const ITEM_CONFIG = {
     image: images.plasmaRifleImage,
     description: "Плазменная винтовка: 50 урона, дальность 200px",
     rarity: 4,
+    hands: "twohanded",
   },
   knuckles: {
     type: "weapon",
@@ -355,6 +356,7 @@ const ITEM_CONFIG = {
     image: images.knucklesImage,
     description: "Кастет: 3–7 урона в ближнем бою",
     rarity: 4,
+    hands: "onehanded",
   },
   knife: {
     type: "weapon",
@@ -362,6 +364,7 @@ const ITEM_CONFIG = {
     image: images.knifeImage,
     description: "Нож: 4–6 урона в ближнем бою",
     rarity: 4,
+    hands: "onehanded",
   },
   bat: {
     type: "weapon",
@@ -369,6 +372,7 @@ const ITEM_CONFIG = {
     image: images.batImage,
     description: "Бита: 5–10 урона в ближнем бою",
     rarity: 4,
+    hands: "onehanded",
   },
   // === ПОРВАННАЯ СТАРТОВАЯ ЭКИПИРОВКА — АКТУАЛЬНЫЕ ЗНАЧЕНИЯ ИЗ items.js ===
   torn_baseball_cap_of_health: {
