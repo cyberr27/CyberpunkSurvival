@@ -567,27 +567,19 @@ const equipmentSystem = {
     // Специальная логика для оружия
     if (config.type === "weapon") {
       let targetSlot = "weapon";
-
-      if (config.hands === "onehanded") {
-        if (this.equipmentSlots.weapon === null) {
-          targetSlot = "weapon";
-        } else if (this.equipmentSlots.offhand === null) {
-          targetSlot = "offhand";
-        } else {
-          targetSlot = "weapon"; // Замена основной
-        }
-      } else if (config.hands === "twohanded") {
-        targetSlot = "weapon";
-        // Очистим offhand локально (сервер тоже очистит)
-        if (this.equipmentSlots.offhand) {
-          const freeSlot = inventory.findIndex((s) => s === null);
-          if (freeSlot !== -1) {
-            inventory[freeSlot] = this.equipmentSlots.offhand;
-          }
-        }
-        this.equipmentSlots.offhand = { type: item.type, itemId: item.itemId }; // ВИЗУАЛЬНО в двух слотах
+      if (
+        config.hands === "onehanded" &&
+        this.equipmentSlots.weapon !== null &&
+        this.equipmentSlots.offhand === null
+      ) {
+        targetSlot = "offhand";
+      } else if (
+        config.hands === "twohanded" &&
+        this.equipmentSlots.offhand !== null
+      ) {
+        alert("Снимите предмет со второй руки для двуручного оружия");
+        return;
       }
-
       slotName = targetSlot;
     }
 

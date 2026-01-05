@@ -1545,15 +1545,9 @@ function handleGameMessage(event) {
         break;
       case "equipItemFail":
         window.equipmentSystem.handleEquipFail(data.error);
-        // <-- НАЧАЛО ВСТАВКИ: Обновить damage после fail (экономия: только если оружие)
-        window.equipmentSystem.updateDamageDisplay();
-        // <-- КОНЕЦ ВСТАВКИ
         break;
       case "unequipItemFail":
         window.equipmentSystem.handleUnequipFail(message.error);
-        // <-- НАЧАЛО ВСТАВКИ: Обновить damage после fail (экономия: только если оружие)
-        window.equipmentSystem.updateDamageDisplay();
-        // <-- КОНЕЦ ВСТАВКИ
         break;
       case "unequipItemSuccess": {
         const me = players.get(myId);
@@ -1575,9 +1569,6 @@ function handleGameMessage(event) {
         updateInventoryDisplay();
         updateStatsDisplay();
         window.equipmentSystem.pendingUnequip = null;
-        // <-- НАЧАЛО ВСТАВКИ: Обновить damage (локально, без сервера)
-        window.equipmentSystem.updateDamageDisplay();
-        // <-- КОНЕЦ ВСТАВКИ
         break;
       }
       case "inventoryFull":
