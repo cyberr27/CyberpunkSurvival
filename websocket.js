@@ -61,7 +61,6 @@ function setupWebSocket(
       water: 100 + (player.waterUpgrade || 0),
       armor: 0,
     };
-    player.damage = 0;
     // Проверка полной коллекции
     const equippedItems = Object.values(player.equipment || {}).filter(Boolean); // Только надетые
     const collectionSlots = [
@@ -77,8 +76,8 @@ function setupWebSocket(
       .filter((c) => c);
     const uniqueCollections = new Set(equippedCollections);
     const isFullCollection =
-      equippedItems.length === 7 && // Все 7 слотов (включая weapon, но коллекция только на 6)
-      uniqueCollections.size === 1 && // Все из одной коллекции
+      equippedItems.length === 7 &&
+      uniqueCollections.size === 1 &&
       collectionSlots.every(
         (slot) =>
           player.equipment[slot] &&
@@ -86,7 +85,7 @@ function setupWebSocket(
             [...uniqueCollections][0]
       );
     const multiplier = isFullCollection ? 2 : 1;
-    // Применяем эффекты с multiplier (только для maxStats, damage отдельно)
+    // Применяем эффекты с multiplier (только для maxStats, без damage)
     equippedItems.forEach((item) => {
       if (item && ITEM_CONFIG[item.type]) {
         const effect = ITEM_CONFIG[item.type].effect;
@@ -95,18 +94,6 @@ function setupWebSocket(
         if (effect.energy) baseStats.energy += effect.energy * multiplier;
         if (effect.food) baseStats.food += effect.food * multiplier;
         if (effect.water) baseStats.water += effect.water * multiplier;
-        if (effect.damage) {
-          // Damage не умножается (только оружие)
-          if (
-            typeof effect.damage === "object" &&
-            effect.damage.min &&
-            effect.damage.max
-          ) {
-            player.damage = { ...effect.damage };
-          } else {
-            player.damage += effect.damage;
-          }
-        }
       }
     });
     player.maxStats = { ...baseStats };
@@ -799,7 +786,7 @@ function setupWebSocket(
           return;
         }
         const { slotName, inventorySlot, itemId } = data;
-        // Проверяем валидность слота
+        // Проверяем валидность слота (добавили offhand)
         const validSlots = [
           "head",
           "chest",
@@ -807,6 +794,7 @@ function setupWebSocket(
           "pants",
           "boots",
           "weapon",
+          "offhand",
           "gloves",
         ];
         if (!validSlots.includes(slotName)) {
@@ -854,7 +842,7 @@ function setupWebSocket(
         players.set(playerId, { ...player });
         userDatabase.set(playerId, { ...player });
         await saveUserDatabase(dbCollection, playerId, player);
-        // Отправляем подтверждение клиенту
+        // Отправляем подтверждение клиенту (убрали damage)
         ws.send(
           JSON.stringify({
             type: "unequipItemSuccess",
@@ -869,7 +857,6 @@ function setupWebSocket(
               food: player.food,
               water: player.water,
               armor: player.armor,
-              damage: player.damage,
             },
           })
         );
@@ -889,7 +876,6 @@ function setupWebSocket(
                     food: player.food,
                     water: player.water,
                     armor: player.armor,
-                    damage: player.damage,
                   },
                 })
               );
@@ -1112,7 +1098,7 @@ function setupWebSocket(
           const slotIndex = data.slotIndex;
           const item = player.inventory[slotIndex];
           if (item && ITEM_CONFIG[item.type] && ITEM_CONFIG[item.type].type) {
-            const slotName = {
+            let slotName = {
               headgear: "head",
               armor: "chest",
               belt: "belt",
@@ -1137,6 +1123,31 @@ function setupWebSocket(
                 }
               }
               // <-- КОНЕЦ ВСТАВКИ
+              // Специальная логика для оружия (аналогично клиенту)
+              const config = ITEM_CONFIG[item.type];
+              if (config.type === "weapon") {
+                let targetSlot = "weapon";
+                if (
+                  config.hands === "onehanded" &&
+                  player.equipment.weapon !== null &&
+                  player.equipment.offhand === null
+                ) {
+                  targetSlot = "offhand";
+                } else if (
+                  config.hands === "twohanded" &&
+                  player.equipment.offhand !== null
+                ) {
+                  ws.send(
+                    JSON.stringify({
+                      type: "equipItemFail",
+                      error:
+                        "Снимите предмет со второй руки для двуручного оружия",
+                    })
+                  );
+                  return;
+                }
+                slotName = targetSlot;
+              }
               if (player.equipment[slotName]) {
                 const freeSlot = player.inventory.findIndex(
                   (slot) => slot === null
@@ -1158,6 +1169,9 @@ function setupWebSocket(
                 type: item.type,
                 itemId: item.itemId,
               };
+              if (config.hands === "twohanded") {
+                player.equipment.offhand = null; // Очищаем offhand для twohanded
+              }
               player.inventory[slotIndex] = null;
               // Полностью пересчитываем maxStats и обрезаем текущие статы
               calculateMaxStats(player, ITEM_CONFIG);
@@ -1165,7 +1179,7 @@ function setupWebSocket(
               players.set(id, { ...player });
               userDatabase.set(id, { ...player });
               await saveUserDatabase(dbCollection, id, player);
-              // Отправляем обновление клиенту (с новыми статами)
+              // Отправляем обновление клиенту (с новыми статами, убрали damage)
               ws.send(
                 JSON.stringify({
                   type: "update",
@@ -1179,7 +1193,6 @@ function setupWebSocket(
                     food: player.food,
                     water: player.water,
                     armor: player.armor,
-                    damage: player.damage,
                   },
                 })
               );
@@ -1199,7 +1212,6 @@ function setupWebSocket(
                           food: player.food,
                           water: player.water,
                           armor: player.armor,
-                          damage: player.damage,
                         },
                       })
                     );
