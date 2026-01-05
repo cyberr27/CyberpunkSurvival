@@ -849,6 +849,7 @@ function handleAuthMessage(event) {
           pants: null,
           boots: null,
           weapon: null,
+          offhand: null,
           gloves: null,
         },
         npcMet: data.npcMet || false,
