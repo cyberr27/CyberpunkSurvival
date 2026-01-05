@@ -1108,7 +1108,7 @@ function setupWebSocket(
               gloves: "gloves",
             }[ITEM_CONFIG[item.type].type];
             if (slotName) {
-              // <-- НАЧАЛО ВСТАВКИ: Добавляем проверку уровня для melee оружия
+              // Проверка уровня для melee
               const meleeWeapons = ["knuckles", "knife", "bat"];
               if (slotName === "weapon" && meleeWeapons.includes(item.type)) {
                 if (player.level < 2) {
@@ -1122,8 +1122,7 @@ function setupWebSocket(
                   return;
                 }
               }
-              // <-- КОНЕЦ ВСТАВКИ
-              // Специальная логика для оружия (аналогично клиенту)
+              // Логика для оружия
               const config = ITEM_CONFIG[item.type];
               if (config.type === "weapon") {
                 let targetSlot = "weapon";
@@ -1148,6 +1147,18 @@ function setupWebSocket(
                 }
                 slotName = targetSlot;
               }
+              // ВАЛИДАЦИЯ: проверяем, совпадает ли клиентский slotName с расчётным (фикс race)
+              if (data.slotName && data.slotName !== slotName) {
+                ws.send(
+                  JSON.stringify({
+                    type: "equipItemFail",
+                    error:
+                      "Неверный слот экипировки (состояние не синхронизировано)",
+                  })
+                );
+                return;
+              }
+              // Swap если занят
               if (player.equipment[slotName]) {
                 const freeSlot = player.inventory.findIndex(
                   (slot) => slot === null
@@ -1155,7 +1166,6 @@ function setupWebSocket(
                 if (freeSlot !== -1) {
                   player.inventory[freeSlot] = player.equipment[slotName];
                 } else {
-                  // Если нет места для swap, отменяем (добавил проверку, которой не было)
                   ws.send(
                     JSON.stringify({
                       type: "equipItemFail",
@@ -1170,16 +1180,16 @@ function setupWebSocket(
                 itemId: item.itemId,
               };
               if (config.hands === "twohanded") {
-                player.equipment.offhand = null; // Очищаем offhand для twohanded
+                player.equipment.offhand = null;
               }
               player.inventory[slotIndex] = null;
-              // Полностью пересчитываем maxStats и обрезаем текущие статы
+              // Пересчёт maxStats
               calculateMaxStats(player, ITEM_CONFIG);
-              // Сохраняем изменения
+              // Сохранение
               players.set(id, { ...player });
               userDatabase.set(id, { ...player });
               await saveUserDatabase(dbCollection, id, player);
-              // Отправляем обновление клиенту (с новыми статами, убрали damage)
+              // Отправка update клиенту
               ws.send(
                 JSON.stringify({
                   type: "update",
@@ -1196,7 +1206,7 @@ function setupWebSocket(
                   },
                 })
               );
-              // Отправляем обновление другим игрокам в том же мире (только статы, если нужно)
+              // Отправка другим
               wss.clients.forEach((client) => {
                 if (client !== ws && client.readyState === WebSocket.OPEN) {
                   const clientPlayer = players.get(clients.get(client));

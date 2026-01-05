@@ -11,7 +11,7 @@ const equipmentSystem = {
     pants: null,
     boots: null,
     weapon: null,
-    offhand: null,
+    offhand: null, // Новый слот для второй руки
     gloves: null,
   },
 
@@ -21,13 +21,12 @@ const equipmentSystem = {
     belt: "belt",
     pants: "pants",
     boots: "boots",
-    weapon: "weapon",
+    weapon: "weapon", // Для offhand тоже "weapon", но логика выбора слота ниже
     gloves: "gloves",
   },
 
   BASE_MELEE_MIN: 5,
   BASE_MELEE_MAX: 10,
-
   getCurrentMeleeDamage: function () {
     const levelBonus = window.levelSystem.meleeDamageBonus || 0;
     let min = this.BASE_MELEE_MIN + levelBonus;
@@ -70,6 +69,7 @@ const equipmentSystem = {
     }
   },
 
+  // Конфигурация предметов экипировки (БЕЗ ИЗМЕНЕНИЙ)
   EQUIPMENT_CONFIG: {
     cyber_helmet: {
       type: "headgear",
@@ -417,46 +417,6 @@ const equipmentSystem = {
     },
   },
 
-  initialize: function () {
-    if (this.isInitialized) return;
-
-    // === ВОССТАНОВЛЕНА СТАРАЯ ЗАГРУЗКА ИЗОБРАЖЕНИЙ ===
-    Object.keys(this.EQUIPMENT_CONFIG).forEach((key) => {
-      this.EQUIPMENT_CONFIG[key].image.src = `${key}.png`;
-    });
-
-    // === СОЗДАНИЕ КНОПКИ ЭКИПИРОВКИ (как было у тебя) ===
-    const equipmentBtn = document.createElement("img");
-    equipmentBtn.id = "equipmentBtn";
-    equipmentBtn.className = "cyber-btn-img";
-    equipmentBtn.src = "images/equipment.png";
-    equipmentBtn.alt = "Equipment";
-    equipmentBtn.style.position = "absolute";
-    equipmentBtn.style.right = "10px";
-    document.getElementById("gameContainer").appendChild(equipmentBtn);
-
-    // === СОЗДАНИЕ КОНТЕЙНЕРА И ГРИДА ===
-    const equipmentContainer = document.createElement("div");
-    equipmentContainer.id = "equipmentContainer";
-    equipmentContainer.style.display = "none";
-    equipmentContainer.innerHTML = `
-      <div id="equipmentGrid"></div>
-      <div id="damageDisplay">Урон: 5-10</div>
-    `;
-    document.getElementById("gameContainer").appendChild(equipmentContainer);
-
-    this.setupEquipmentGrid();
-
-    // Обработчик кнопки
-    equipmentBtn.addEventListener("click", (e) => {
-      e.preventDefault();
-      this.toggleEquipment();
-    });
-
-    this.isInitialized = true;
-    this.updateDamageDisplay();
-  },
-
   setupEquipmentGrid: function () {
     const equipmentGrid = document.getElementById("equipmentGrid");
     equipmentGrid.style.display = "grid";
@@ -484,7 +444,6 @@ const equipmentSystem = {
       slotEl.className = `equipment-slot ${slotInfo.name}-slot`;
       slotEl.style.gridArea = slotInfo.name;
       slotEl.title = slotInfo.label;
-      // Двойной клик / двойной тап для снятия
       slotEl.addEventListener("dblclick", () =>
         this.unequipItem(slotInfo.name)
       );
@@ -506,19 +465,6 @@ const equipmentSystem = {
       });
       equipmentGrid.appendChild(slotEl);
     });
-  },
-
-  toggleEquipment: function () {
-    this.isEquipmentOpen = !this.isEquipmentOpen;
-    const isMobile = window.innerWidth <= 500;
-    if (isMobile && this.isEquipmentOpen && window.isInventoryOpen) {
-      window.inventorySystem.toggleInventory();
-    }
-    const container = document.getElementById("equipmentContainer");
-    container.style.display = this.isEquipmentOpen ? "block" : "none";
-    const btn = document.getElementById("equipmentBtn");
-    btn.classList.toggle("active", this.isEquipmentOpen);
-    if (this.isEquipmentOpen) this.updateEquipmentDisplay();
   },
 
   updateEquipmentDisplay: function () {
@@ -549,9 +495,6 @@ const equipmentSystem = {
     });
     this.updateDamageDisplay();
   },
-
-  pendingEquip: null,
-  pendingUnequip: null,
 
   equipItem: function (slotIndex) {
     if (slotIndex === null || slotIndex === undefined) return;
@@ -630,7 +573,6 @@ const equipmentSystem = {
             food: me.food,
             water: me.water,
             armor: me.armor,
-            damage: me.damage,
           },
         })
       );
@@ -680,7 +622,6 @@ const equipmentSystem = {
             food: me.food,
             water: me.water,
             armor: me.armor,
-            damage: me.damage,
           },
         })
       );
@@ -698,6 +639,10 @@ const equipmentSystem = {
       water: 100 + (player.waterUpgrade || 0),
       armor: 0,
     };
+
+    let damageMin = 0;
+    let damageMax = 0;
+    let rangedDamage = 0;
 
     // Проверка полной коллекции
     const equippedItems = Object.values(this.equipmentSlots).filter(Boolean);
@@ -737,12 +682,15 @@ const equipmentSystem = {
           // Damage не умножается (только оружие)
           if (
             typeof effect.damage === "object" &&
-            effect.damage.min &&
-            effect.damage.max
+            effect.damage.min !== undefined &&
+            effect.damage.max !== undefined
           ) {
-            player.damage = { ...effect.damage };
+            // Суммируем для melee
+            damageMin += effect.damage.min;
+            damageMax += effect.damage.max;
           } else {
-            player.damage += effect.damage;
+            // Добавляем для ranged (но обычно только в weapon)
+            rangedDamage += effect.damage;
           }
         }
       }
@@ -754,6 +702,13 @@ const equipmentSystem = {
     player.food = Math.min(player.food, player.maxStats.food);
     player.water = Math.min(player.water, player.maxStats.water);
     player.armor = Math.min(player.armor, player.maxStats.armor);
+
+    // Устанавливаем player.damage
+    if (damageMin > 0 || damageMax > 0) {
+      player.damage = { min: damageMin, max: damageMax };
+    } else {
+      player.damage = rangedDamage;
+    }
   },
 
   syncEquipment: function (equipment) {
@@ -776,16 +731,14 @@ const equipmentSystem = {
   handleEquipFail: function (error) {
     if (!this.pendingEquip) return; // Нет pending — игнор
 
-    const { slotIndex, item, slotName, oldItem } = this.pendingEquip; // freeSlot уже в pending
+    const { slotIndex, item, slotName, oldItem, freeSlot } = this.pendingEquip;
 
     // Revert: Вернуть item в inventory, очистить slot
     inventory[slotIndex] = item;
     this.equipmentSlots[slotName] = oldItem; // Вернуть oldItem если был
 
-    // Используем сохраненный freeSlot вместо findIndex
-    if (oldItem) {
-      const oldSlot = this.pendingEquip.freeSlot;
-      if (oldSlot !== null) inventory[oldSlot] = null;
+    if (oldItem && freeSlot !== null) {
+      inventory[freeSlot] = null;
     }
 
     // Переприменить эффекты и обновить UI
