@@ -1560,6 +1560,7 @@ function handleGameMessage(event) {
           me.food = data.stats.food;
           me.water = data.stats.water;
           me.armor = data.stats.armor;
+          me.damage = data.stats.damage;
           inventory = me.inventory.map((slot) => (slot ? { ...slot } : null));
           window.equipmentSystem.equipmentSlots = data.equipment;
           window.equipmentSystem.applyEquipmentEffects(me);
