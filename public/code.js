@@ -1543,6 +1543,28 @@ function handleGameMessage(event) {
         items.delete(data.itemId);
         pendingPickups.delete(data.itemId);
         break;
+      case "equipItemSuccess": {
+        const me = players.get(myId);
+        if (me) {
+          me.inventory = data.inventory;
+          me.equipment = data.equipment;
+          me.maxStats = data.maxStats;
+          me.health = data.stats.health;
+          me.energy = data.stats.energy;
+          me.food = data.stats.food;
+          me.water = data.stats.water;
+          me.armor = data.stats.armor;
+
+          inventory = me.inventory.map((s) => (s ? { ...s } : null));
+          window.equipmentSystem.equipmentSlots = { ...data.equipment };
+          window.equipmentSystem.applyEquipmentEffects(me);
+        }
+        window.equipmentSystem.updateEquipmentDisplay();
+        updateInventoryDisplay();
+        updateStatsDisplay();
+        window.equipmentSystem.pendingEquip = null;
+        break;
+      }
       case "equipItemFail":
         window.equipmentSystem.handleEquipFail(data.error);
         break;

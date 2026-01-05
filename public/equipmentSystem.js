@@ -533,8 +533,12 @@ const equipmentSystem = {
           img.style.height = "100%";
           img.title = this.EQUIPMENT_CONFIG[item.type].description;
           slotEl.appendChild(img);
-        } else if (slotName === "offhand" && this.equipmentSlots.weapon) {
-          // Визуально показываем twohanded в offhand
+        }
+        if (
+          slotName === "offhand" &&
+          this.equipmentSlots.weapon &&
+          this.equipmentSlots.offhand === null
+        ) {
           const mainWeapon = this.equipmentSlots.weapon;
           const config = this.EQUIPMENT_CONFIG[mainWeapon.type];
           if (config && config.hands === "twohanded") {
@@ -542,7 +546,9 @@ const equipmentSystem = {
             img.style.width = "100%";
             img.style.height = "100%";
             img.title = config.description + " (занимает обе руки)";
+            slotEl.innerHTML = ""; // очищаем
             slotEl.appendChild(img);
+            return;
           }
         }
       }
@@ -562,26 +568,32 @@ const equipmentSystem = {
     const config = this.EQUIPMENT_CONFIG[item.type];
     if (!config.type) return;
 
-    let slotName = this.EQUIPMENT_TYPES[config.type];
+    let slotName = this.EQUIPMENT_TYPES[config.type] || null;
 
     // Специальная логика для оружия
     if (config.type === "weapon") {
-      let targetSlot = "weapon";
-      if (
-        config.hands === "onehanded" &&
-        this.equipmentSlots.weapon !== null &&
-        this.equipmentSlots.offhand === null
-      ) {
-        targetSlot = "offhand";
-      } else if (
-        config.hands === "twohanded" &&
-        this.equipmentSlots.offhand !== null
-      ) {
-        alert("Снимите предмет со второй руки для двуручного оружия");
-        return;
+      if (config.hands === "twohanded") {
+        if (this.equipmentSlots.offhand !== null) {
+          alert("Снимите предмет со второй руки для двуручного оружия");
+          return;
+        }
+        slotName = "weapon"; // twohanded всегда в weapon, offhand очищается автоматически
+      } else if (config.hands === "onehanded") {
+        // onehanded: сначала weapon, если занят и offhand свободен — туда
+        if (this.equipmentSlots.weapon === null) {
+          slotName = "weapon";
+        } else if (this.equipmentSlots.offhand === null) {
+          slotName = "offhand";
+        } else {
+          // оба заняты — заменяем weapon (стандартное поведение)
+          slotName = "weapon";
+        }
       }
-      slotName = targetSlot;
+    } else {
+      slotName = this.EQUIPMENT_TYPES[config.type];
     }
+
+    if (!slotName) return;
 
     const me = players.get(myId);
     if (!me) return;
@@ -589,7 +601,7 @@ const equipmentSystem = {
     const oldItem = this.equipmentSlots[slotName];
     let freeSlot = null;
     if (oldItem) {
-      freeSlot = inventory.findIndex((slot) => slot === null);
+      freeSlot = inventory.findIndex((s) => s === null);
       if (freeSlot === -1) {
         alert("Инвентарь полон! Освободите место для замены.");
         return;
@@ -608,11 +620,10 @@ const equipmentSystem = {
     // Локально экипируем
     this.equipmentSlots[slotName] = { type: item.type, itemId: item.itemId };
     if (config.hands === "twohanded") {
-      this.equipmentSlots.offhand = null; // Очищаем offhand для twohanded
+      this.equipmentSlots.offhand = null;
     }
     inventory[slotIndex] = null;
     this.updateEquipmentDisplay();
-
     this.applyEquipmentEffects(me);
 
     if (ws.readyState === WebSocket.OPEN) {
@@ -621,7 +632,7 @@ const equipmentSystem = {
         JSON.stringify({
           type: "equipItem",
           slotIndex,
-          slotName, // Добавляем slotName в запрос для сервера
+          slotName, // <-- важно! передаём предлагаемый слот
           equipment: this.equipmentSlots,
           maxStats: { ...me.maxStats },
           stats: {
@@ -630,7 +641,6 @@ const equipmentSystem = {
             food: me.food,
             water: me.water,
             armor: me.armor,
-            damage: me.damage,
           },
         })
       );
@@ -639,16 +649,29 @@ const equipmentSystem = {
     selectedSlot = null;
     document.getElementById("useBtn").disabled = true;
     document.getElementById("dropBtn").disabled = true;
-    document.getElementById("inventoryScreen").textContent = "";
-    updateStatsDisplay();
     updateInventoryDisplay();
+    updateStatsDisplay();
   },
 
   unequipItem: function (slotName) {
+    if (
+      ![
+        "weapon",
+        "offhand",
+        "head",
+        "chest",
+        "belt",
+        "pants",
+        "boots",
+        "gloves",
+      ].includes(slotName)
+    )
+      return;
+
     const me = players.get(myId);
     if (!me || !this.equipmentSlots[slotName]) return;
 
-    const freeSlot = inventory.findIndex((slot) => slot === null);
+    const freeSlot = inventory.findIndex((s) => s === null);
     if (freeSlot === -1) {
       alert("Инвентарь полон! Освободите место для снятия.");
       return;
@@ -661,7 +684,6 @@ const equipmentSystem = {
     this.equipmentSlots[slotName] = null;
     inventory[freeSlot] = { type: item.type, itemId: item.itemId };
     this.updateEquipmentDisplay();
-
     this.applyEquipmentEffects(me);
 
     if (ws.readyState === WebSocket.OPEN) {
@@ -680,14 +702,13 @@ const equipmentSystem = {
             food: me.food,
             water: me.water,
             armor: me.armor,
-            damage: me.damage,
           },
         })
       );
     }
 
-    updateStatsDisplay();
     updateInventoryDisplay();
+    updateStatsDisplay();
   },
 
   applyEquipmentEffects: function (player) {
