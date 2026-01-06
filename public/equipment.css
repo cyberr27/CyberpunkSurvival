@@ -27,7 +27,7 @@
   font-family: "Orbitron", sans-serif;
   font-size: 14px;
   text-align: center;
-  background: rgba(0, 0, 0, 0.8);
+  background: rgba(0, 0, 0);
   border-radius: 6px;
   z-index: 10;
   transition: transform 0.2s ease, font-size 0.2s ease;
@@ -50,81 +50,99 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  position: absolute;
+  position: relative;
   transition: all 0.2s;
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: 10px;
 }
 
 .equipment-slot:hover {
-  border: 2px solid #ff0066;
-  box-shadow: 0 0 15px rgba(255, 0, 102, 0.8),
-    inset 0 0 8px rgba(255, 0, 102, 0.4);
-  transform: scale(1.08);
+  border-color: #ff0066;
+  box-shadow: 0 0 10px rgba(255, 0, 102, 0.7),
+    inset 0 0 5px rgba(255, 0, 102, 0.3);
+  transform: scale(1.05);
 }
 
-/* Позиции слотов */
+/* Индивидуальные стили для каждого слота экипировки */
 .head-slot {
-  top: 15%;
-  left: 50%;
-  transform: translateX(-50%);
+  position: relative;
+  top: -20%;
+  left: -8%;
   width: 80px;
   height: 80px;
+  z-index: 4;
 }
+
 .chest-slot {
-  top: 28%;
-  left: 50%;
-  transform: translateX(-50%);
+  position: relative;
+  top: -10%;
+  left: -10%;
   width: 80px;
   height: 80px;
+  z-index: 3;
 }
-.belt-slot {
-  top: 41%;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 80px;
-  height: 80px;
-}
+
 .pants-slot {
-  top: 54%;
-  left: 50%;
-  transform: translateX(-50%);
+  position: absolute;
+  top: 28%;
+  left: -8%;
   width: 80px;
   height: 80px;
+  z-index: 1;
 }
-.boots-slot {
-  top: 67%;
-  left: 50%;
-  transform: translateX(-50%);
+
+.belt-slot {
+  position: relative;
+  top: 0%;
+  left: -10%;
   width: 80px;
   height: 80px;
+  z-index: 2;
+}
+
+.boots-slot {
+  position: relative;
+  top: 40%;
+  left: -8%;
+  width: 80px;
+  height: 80px;
+  z-index: 0;
 }
 
 .weapon-slot {
-  top: 80%;
-  left: 25%;
+  position: relative;
+  top: 100%;
+  left: 0%;
   width: 80px;
   height: 80px;
-}
-.offhand-slot {
-  top: 80%;
-  left: 75%;
-  width: 80px;
-  height: 80px;
-}
-.gloves-slot {
-  top: 54%;
-  left: 20%;
-  width: 70px;
-  height: 70px;
+  z-index: 0;
 }
 
-/* Тултип */
+.gloves-slot {
+  position: relative;
+  top: 66%;
+  left: -23%;
+  width: 80px;
+  height: 80px;
+  z-index: 4;
+}
+
+.offhand-slot {
+  position: relative;
+  top: 85%; /* Чуть ниже gloves-slot */
+  left: -23%;
+  width: 80px;
+  height: 80px;
+  z-index: 4;
+}
+
+.equipment-slot {
+  position: relative;
+}
+
 .equipment-slot::after {
   content: attr(title);
   position: absolute;
-  top: 110%;
-  left: 50%;
+  top: 80%;
+  left: 120%;
   transform: translateX(-50%);
   background: #0a0a0a;
   border: 1px solid #00ccff;
@@ -132,16 +150,13 @@
   font-size: 12px;
   font-family: "Orbitron", sans-serif;
   text-shadow: 0 0 5px rgba(0, 204, 255, 0.7);
-  padding: 6px 10px;
-  border-radius: 6px;
+  padding: 5px 10px;
+  border-radius: 5px;
   white-space: pre-line;
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.3s, visibility 0.3s;
-  box-shadow: 0 0 12px rgba(0, 204, 255, 0.6);
-  z-index: 100;
-  min-width: 160px;
-  text-align: center;
+  box-shadow: 0 0 10px rgba(0, 204, 255, 0.5);
 }
 
 .equipment-slot:hover::after {
@@ -149,46 +164,95 @@
   visibility: visible;
 }
 
-/* Мобильная адаптация */
+.equipment-slot.show-tooltip::after {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Мобильная адаптация экипировки */
 @media (max-width: 500px) {
   #equipmentContainer {
-    width: 78%;
-    height: 58%;
-    top: 48%;
+    width: 66%;
+    height: 53.5%;
+    top: 46%;
+    padding: 10px;
   }
 
-  .equipment-slot {
-    width: 65px;
-    height: 65px;
+  .equipment-slot::after {
+    left: 115%;
+    top: 70%;
   }
 
-  .head-slot,
-  .chest-slot,
-  .belt-slot,
-  .pants-slot,
-  .boots-slot,
-  .weapon-slot,
-  .offhand-slot {
+  .head-slot {
+    position: relative;
+    top: -20%;
+    left: -13%;
     width: 70px;
     height: 70px;
+    z-index: 4;
   }
 
-  .gloves-slot {
-    width: 60px;
-    height: 60px;
+  .chest-slot {
+    position: relative;
+    top: -10%;
+    left: -13%;
+    width: 70px;
+    height: 70px;
+    z-index: 3;
+  }
+
+  .pants-slot {
+    position: relative;
+    top: 10%;
+    left: -13%;
+    width: 70px;
+    height: 70px;
+    z-index: 1;
+  }
+
+  .belt-slot {
+    position: relative;
+    top: 0%;
+    left: -13%;
+    width: 70px;
+    height: 70px;
+    z-index: 2;
+  }
+
+  .boots-slot {
+    position: relative;
+    top: 20%;
+    left: -13%;
+    width: 70px;
+    height: 70px;
+    z-index: 0;
   }
 
   .weapon-slot {
-    top: 78%;
-    left: 22%;
+    position: relative;
+    top: 155%;
+    left: 0%;
+    width: 70px;
+    height: 70px;
+    z-index: 0;
   }
-  .offhand-slot {
-    top: 78%;
-    left: 78%;
-  }
+
   .gloves-slot {
-    top: 52%;
-    left: 15%;
+    position: relative;
+    top: 40%;
+    left: -23%;
+    width: 70px;
+    height: 70px;
+    z-index: 4;
+  }
+
+  .offhand-slot {
+    position: relative;
+    top: 55%; /* Чуть ниже gloves-slot для мобильных */
+    left: -23%;
+    width: 70px;
+    height: 70px;
+    z-index: 4;
   }
 
   #damageDisplay {

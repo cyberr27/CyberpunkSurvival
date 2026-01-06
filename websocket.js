@@ -70,20 +70,21 @@ function setupWebSocket(
       "pants",
       "boots",
       "gloves",
-    ]; // 6 слотов для коллекций
-    const equippedCollections = equippedItems
-      .map((item) => ITEM_CONFIG[item.type]?.collection)
-      .filter((c) => c);
-    const uniqueCollections = new Set(equippedCollections);
+    ];
+
+    // Проверяем, все ли 6 слотов заполнены и принадлежат одной коллекции
+    const collectionsInSlots = collectionSlots
+      .map((slot) => player.equipment[slot])
+      .filter((item) => item && ITEM_CONFIG[item.type]?.collection)
+      .map((item) => ITEM_CONFIG[item.type].collection);
+
     const isFullCollection =
-      equippedItems.length === 7 &&
-      uniqueCollections.size === 1 &&
       collectionSlots.every(
         (slot) =>
           player.equipment[slot] &&
-          ITEM_CONFIG[player.equipment[slot].type]?.collection ===
-            [...uniqueCollections][0]
-      );
+          ITEM_CONFIG[player.equipment[slot].type]?.collection
+      ) && new Set(collectionsInSlots).size === 1;
+
     const multiplier = isFullCollection ? 2 : 1;
     // Применяем эффекты с multiplier (только для maxStats, без damage)
     equippedItems.forEach((item) => {
