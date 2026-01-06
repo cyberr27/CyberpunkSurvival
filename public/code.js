@@ -849,7 +849,6 @@ function handleAuthMessage(event) {
           pants: null,
           boots: null,
           weapon: null,
-          offhand: null,
           gloves: null,
         },
         npcMet: data.npcMet || false,
@@ -1401,20 +1400,6 @@ function updateStatsDisplay() {
   } catch (error) {}
 }
 
-function ensureFullEquipment(equip) {
-  const defaultEquipment = {
-    head: null,
-    chest: null,
-    belt: null,
-    pants: null,
-    boots: null,
-    weapon: null,
-    offhand: null,
-    gloves: null,
-  };
-  return { ...defaultEquipment, ...equip };
-}
-
 function handleGameMessage(event) {
   try {
     const data = JSON.parse(event.data);
@@ -1558,29 +1543,6 @@ function handleGameMessage(event) {
         items.delete(data.itemId);
         pendingPickups.delete(data.itemId);
         break;
-      case "equipItemSuccess": {
-        const me = players.get(myId);
-        if (me) {
-          me.inventory = data.inventory;
-          const fullEquipment = ensureFullEquipment(data.equipment);
-          me.equipment = fullEquipment;
-          me.maxStats = data.maxStats;
-          me.health = data.stats.health;
-          me.energy = data.stats.energy;
-          me.food = data.stats.food;
-          me.water = data.stats.water;
-          me.armor = data.stats.armor;
-
-          inventory = me.inventory.map((s) => (s ? { ...s } : null));
-          window.equipmentSystem.equipmentSlots = { ...data.equipment };
-          window.equipmentSystem.applyEquipmentEffects(me);
-        }
-        window.equipmentSystem.updateEquipmentDisplay();
-        updateInventoryDisplay();
-        updateStatsDisplay();
-        window.equipmentSystem.pendingEquip = null;
-        break;
-      }
       case "equipItemFail":
         window.equipmentSystem.handleEquipFail(data.error);
         break;
@@ -1591,8 +1553,7 @@ function handleGameMessage(event) {
         const me = players.get(myId);
         if (me) {
           me.inventory = data.inventory;
-          const fullEquipment = ensureFullEquipment(data.equipment);
-          me.equipment = fullEquipment;
+          me.equipment = data.equipment;
           me.maxStats = data.maxStats;
           me.health = data.stats.health;
           me.energy = data.stats.energy;
