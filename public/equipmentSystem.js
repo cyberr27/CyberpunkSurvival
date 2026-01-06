@@ -577,17 +577,21 @@ const equipmentSystem = {
           alert("Снимите предмет со второй руки для двуручного оружия");
           return;
         }
-        slotName = "weapon"; // twohanded всегда в weapon, offhand очищается автоматически
+        slotName = "weapon";
       } else if (config.hands === "onehanded") {
-        // onehanded: сначала weapon, если занят и offhand свободен — туда
         if (this.equipmentSlots.weapon === null) {
           slotName = "weapon";
         } else if (this.equipmentSlots.offhand === null) {
           slotName = "offhand";
+          console.log("[CLIENT] Putting onehanded into offhand (weapon busy)");
         } else {
-          // оба заняты — заменяем weapon (стандартное поведение)
+          // оба заняты — заменяем weapon
           slotName = "weapon";
+          console.log("[CLIENT] Replacing weapon with new onehanded");
         }
+      } else {
+        console.warn(`[CLIENT] Unknown hands type: ${config.hands}`);
+        return;
       }
     } else {
       slotName = this.EQUIPMENT_TYPES[config.type];

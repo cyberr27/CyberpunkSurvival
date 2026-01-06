@@ -1182,9 +1182,9 @@ function setupWebSocket(
         }
 
         // === КРИТИЧНАЯ ПРОВЕРКА: клиент должен был предложить именно этот слот ===
-        if (proposedSlotName !== targetSlot) {
+        if (config.type !== "weapon" && proposedSlotName !== targetSlot) {
           console.log(
-            `Читер? Клиент предложил ${proposedSlotName}, сервер хотел ${targetSlot}`
+            `Читер? ${config.type} предложил ${proposedSlotName}, сервер хотел ${targetSlot}`
           );
           ws.send(
             JSON.stringify({
@@ -1193,6 +1193,13 @@ function setupWebSocket(
             })
           );
           return;
+        }
+        // Для одноручных оружий сервер САМ определяет слот (weapon/offhand) —
+        // клиент может предлагать weapon, но сервер поставит в offhand если свободен
+        if (config.type === "weapon" && config.hands === "onehanded") {
+          console.log(
+            `[DEBUG] Onehanded weapon: client=${proposedSlotName}, server=${targetSlot}`
+          );
         }
 
         // === Swap: если слот занят ===
