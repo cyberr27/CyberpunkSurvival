@@ -569,38 +569,36 @@ const equipmentSystem = {
     let targetSlot = this.EQUIPMENT_TYPES[config.type];
     if (!targetSlot) return;
 
-    // Специальная логика для оружия
+    // === СПЕЦИАЛЬНАЯ ЛОГИКА ДЛЯ ОРУЖИЯ ===
     if (config.type === "weapon") {
-      const hands = config.hands || "onehanded"; // по умолчанию onehanded
+      const hands = config.hands || "onehanded"; // по умолчанию одноручное
 
       if (hands === "twohanded") {
-        // Двуручное: занимаем weapon, очищаем offhand
+        // Двуручное оружие: всегда в weapon, но offhand должен быть свободен
         if (this.equipmentSlots.offhand !== null) {
           alert("Снимите предмет со второй руки для двуручного оружия");
           return;
         }
-        targetSlot = "weapon";
+        targetSlot = "weapon"; // принудительно в основной слот
       } else if (hands === "onehanded") {
-        // Одноручное: если weapon занят, а offhand свободен — идём в offhand
-        if (
-          this.equipmentSlots.weapon !== null &&
-          this.equipmentSlots.offhand === null
-        ) {
-          targetSlot = "offhand";
-        } else if (this.equipmentSlots.weapon === null) {
+        // Одноручное оружие
+        if (this.equipmentSlots.weapon === null) {
+          // Основной слот свободен — идём туда
           targetSlot = "weapon";
+        } else if (this.equipmentSlots.offhand === null) {
+          // Основной занят, но offhand свободен — идём во вторую руку
+          targetSlot = "offhand";
         } else {
-          // Оба слота заняты — нельзя
+          // Оба слота заняты
           alert("Обе руки заняты");
           return;
         }
       }
     }
 
-    // Проверяем, занят ли целевой слот
+    // === ПРОВЕРКА: ЦЕЛЕВОЙ СЛОТ ЗАНЯТ? ===
     const oldItem = this.equipmentSlots[targetSlot];
 
-    // Ищем свободное место в инвентаре для старого предмета (если есть)
     let freeSlot = -1;
     if (oldItem) {
       freeSlot = inventory.findIndex((s) => s === null);
@@ -610,7 +608,7 @@ const equipmentSystem = {
       }
     }
 
-    // Сохраняем pending для возможного отката
+    // === СОХРАНЯЕМ PENDING ДЛЯ ОТКАТА ===
     this.pendingEquip = {
       slotIndex,
       item: { ...item },
@@ -619,14 +617,16 @@ const equipmentSystem = {
       freeSlot,
     };
 
-    // Отправляем на сервер
-    ws.send(
-      JSON.stringify({
-        type: "equipItem",
-        slotIndex,
-        itemId: item.itemId,
-      })
-    );
+    // === ОТПРАВЛЯЕМ НА СЕРВЕР ===
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(
+        JSON.stringify({
+          type: "equipItem",
+          slotIndex,
+          itemId: item.itemId,
+        })
+      );
+    }
   },
 
   unequipItem: function (slotName) {
