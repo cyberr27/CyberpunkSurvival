@@ -116,37 +116,54 @@ function performAttack() {
   if (currentTime - lastAttackTime < ATTACK_COOLDOWN) return;
 
   lastAttackTime = currentTime;
-  // Устанавливаем state атаки и сбрасываем frame
+
+  // Устанавливаем state атаки и сбрасываем кадры
   me.state = "attacking";
   me.attackFrame = 0;
   me.attackFrameTime = 0;
   me.frame = 0; // Сбрасываем walk-frame, чтобы не конфликтовать
 
-  const equippedWeapon = me.equipment && me.equipment.weapon;
   const currentWorldId = window.worldSystem.currentWorldId;
 
-  // НОВОЕ: Получаем бонус от уровня (из levelSystem)
+  // Бонус от уровня
   const levelBonus = window.levelSystem.meleeDamageBonus || 0;
 
-  if (
-    equippedWeapon &&
-    ITEM_CONFIG[equippedWeapon.type] &&
-    ITEM_CONFIG[equippedWeapon.type].type === "weapon"
-  ) {
-    const weaponConfig = ITEM_CONFIG[equippedWeapon.type];
-    const isRanged = !!weaponConfig.effect.range; // Проверяем, дальнобойное ли оружие (presence of range)
+  // Проверяем наличие любого оружия в weapon ИЛИ offhand
+  const weaponItem = me.equipment?.weapon;
+  const offhandItem = me.equipment?.offhand;
+
+  const hasWeapon =
+    weaponItem && ITEM_CONFIG[weaponItem.type]?.type === "weapon";
+  const hasOffhand =
+    offhandItem && ITEM_CONFIG[offhandItem.type]?.type === "weapon";
+
+  const hasAnyWeapon = hasWeapon || hasOffhand;
+
+  if (hasAnyWeapon) {
+    // Проверяем, есть ли хотя бы одно дальнобойное оружие
+    const weaponRanged =
+      hasWeapon && !!ITEM_CONFIG[weaponItem.type]?.effect?.range;
+    const offhandRanged =
+      hasOffhand && !!ITEM_CONFIG[offhandItem.type]?.effect?.range;
+    const isRanged = weaponRanged || offhandRanged;
 
     if (isRanged) {
-      let range = weaponConfig.effect.range || 500;
-      let damage = weaponConfig.effect.damage || 10;
-      if (equippedWeapon.type === "plasma_rifle") {
+      // Стрельба — берём первое найденное ranged оружие (приоритет weapon)
+      const rangedItem = weaponItem && weaponRanged ? weaponItem : offhandItem;
+
+      let range = ITEM_CONFIG[rangedItem.type]?.effect?.range || 500;
+      let damage = ITEM_CONFIG[rangedItem.type]?.effect?.damage || 10;
+
+      if (rangedItem.type === "plasma_rifle") {
         range = 700;
         damage = 50;
       }
+
       const bulletId = `bullet_${Date.now()}_${Math.random()}`;
       const angle = getPlayerAngle(me.direction);
       const startX = me.x + 20;
       const startY = me.y + 20;
+
       const bullet = {
         id: bulletId,
         x: startX,
@@ -163,7 +180,9 @@ function performAttack() {
         hitPlayers: new Set(),
         hitEnemies: new Set(),
       };
+
       bullets.set(bulletId, bullet);
+
       sendWhenReady(
         ws,
         JSON.stringify({
@@ -179,6 +198,7 @@ function performAttack() {
           worldId: currentWorldId,
         })
       );
+
       sendWhenReady(
         ws,
         JSON.stringify({
@@ -195,14 +215,14 @@ function performAttack() {
             distanceTraveled: me.distanceTraveled,
             direction: me.direction,
             state: "attacking",
-            attackFrame: 0, // ← ВОТ ЭТО ГЛАВНОЕ!
+            attackFrame: 0,
             attackFrameTime: 0,
             worldId: currentWorldId,
           },
         })
       );
     } else {
-      // Ближний бой: Используем расчёт из equipmentSystem (суммирует weapon + offhand)
+      // Ближний бой — используем универсальный расчёт из equipmentSystem (учитывает оба слота)
       const dmg = window.equipmentSystem.getCurrentMeleeDamage();
       const damage = Math.floor(
         Math.random() * (dmg.max - dmg.min + 1) + dmg.min
@@ -210,14 +230,16 @@ function performAttack() {
       performMeleeAttack(damage, currentWorldId);
     }
   } else {
-    // Атака без оружия (кулаками): фиксированный базовый 5-10
+    // Кулаки — базовый урон + бонус уровня
     const damage = Math.floor(
       Math.random() *
         (BASE_MELEE_MAX_DAMAGE +
           levelBonus -
-          (BASE_MELEE_MIN_DAMAGE + levelBonus) +
-          1) + // НОВОЕ: + levelBonus к min и max
-        (BASE_MELEE_MIN_DAMAGE + levelBonus)
+          BASE_MELEE_MIN_DAMAGE -
+          levelBonus +
+          1) +
+        BASE_MELEE_MIN_DAMAGE +
+        levelBonus
     );
     performMeleeAttack(damage, currentWorldId);
   }
