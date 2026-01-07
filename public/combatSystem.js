@@ -1,74 +1,113 @@
-// combatSystem.js - ОПТИМИЗИРОВАННАЯ ВЕРСИЯ С ПОДДЕРЖКОЙ ДВУХ ОРУЖИЙ
+// combatSystem.js - ИЗМЕНЁННЫЙ ПОЛНОСТЬЮ
+const BULLET_SPEED = 10; // Скорость пули (пикселей за кадр)
+const BULLET_SIZE = 5; // Размер пули
+const ATTACK_COOLDOWN = 500; // Перезарядка атаки в миллисекундах
+// BULLET_LIFETIME больше не используется напрямую, теперь срок жизни — по расстоянию
+const BULLET_LIFETIME = 10000; // Для совместимости, но не используется для удаления
+const BASE_MELEE_MIN_DAMAGE = 5; // Базовый мин. урон ближнего боя
+const BASE_MELEE_MAX_DAMAGE = 10; // Базовый макс. урон ближнего боя
+const MELEE_ATTACK_RANGE = 50; // Дальность атаки ближнего боя
 
-const BULLET_SPEED = 12;
-const BULLET_SIZE = 6;
-const ATTACK_COOLDOWN = 500; // Кулдаун атаки (ms)
-const MELEE_ATTACK_RANGE = 60; // Увеличил чуть для удобства
+let bullets = new Map(); // Хранилище пуль
+let lastAttackTime = 0; // Время последней атаки
 
-let bullets = new Map();
-let lastAttackTime = 0;
-
-// Инициализация кнопки и управления атакой
+// Инициализация системы боя
 function initializeCombatSystem() {
   const combatBtn = document.getElementById("combatBtn");
-
-  let attackInterval = null;
-
-  const startAttack = () => {
-    performAttack();
-    if (attackInterval === null) {
-      attackInterval = setInterval(performAttack, ATTACK_COOLDOWN);
-    }
-  };
-
-  const stopAttack = () => {
-    if (attackInterval !== null) {
-      clearInterval(attackInterval);
-      attackInterval = null;
-    }
-  };
-
-  // Клик / тач
   combatBtn.addEventListener("click", (e) => {
     e.preventDefault();
-    performAttack();
+    performAttack(); // Запускаем атаку при клике
   });
+
+  let attackInterval = null;
 
   combatBtn.addEventListener(
     "touchstart",
     (e) => {
-      e.preventDefault();
-      startAttack();
+      e.preventDefault(); // Обязательно — чтобы не было скролла и контекстного меню
+      performAttack(); // Первая атака сразу при касании
+
+      // Запускаем повторяющиеся атаки при удержании
+      if (attackInterval === null) {
+        attackInterval = setInterval(() => {
+          performAttack();
+        }, ATTACK_COOLDOWN); // Повтор каждые 500 мс (как кулдаун)
+      }
     },
     { passive: false }
   );
-  combatBtn.addEventListener("touchend", stopAttack);
-  combatBtn.addEventListener("touchcancel", stopAttack);
 
-  // Мышь (удержание)
-  combatBtn.addEventListener("mousedown", (e) => {
-    if (e.button === 0) startAttack();
-  });
-  combatBtn.addEventListener("mouseup", stopAttack);
-  combatBtn.addEventListener("mouseleave", stopAttack);
-
-  // Пробел
-  window.addEventListener("keydown", (e) => {
-    if (e.key === " " && !window.isInventoryOpen && !window.isEquipmentOpen) {
+  combatBtn.addEventListener(
+    "touchend",
+    (e) => {
       e.preventDefault();
+      if (attackInterval !== null) {
+        clearInterval(attackInterval);
+        attackInterval = null;
+      }
+    },
+    { passive: false }
+  );
+
+  combatBtn.addEventListener(
+    "touchcancel",
+    (e) => {
+      e.preventDefault();
+      if (attackInterval !== null) {
+        clearInterval(attackInterval);
+        attackInterval = null;
+      }
+    },
+    { passive: false }
+  );
+
+  // Дополнительно: для мыши тоже можно удерживать (бонус для десктопа)
+  combatBtn.addEventListener("mousedown", (e) => {
+    if (e.button !== 0) return; // Только левая кнопка
+    e.preventDefault();
+    performAttack();
+
+    if (attackInterval === null) {
+      attackInterval = setInterval(() => {
+        performAttack();
+      }, ATTACK_COOLDOWN);
+    }
+  });
+
+  combatBtn.addEventListener("mouseup", (e) => {
+    if (attackInterval !== null) {
+      clearInterval(attackInterval);
+      attackInterval = null;
+    }
+  });
+
+  combatBtn.addEventListener("mouseleave", () => {
+    if (attackInterval !== null) {
+      clearInterval(attackInterval);
+      attackInterval = null;
+    }
+  });
+
+  // Добавлено: обработчик пробела для атаки (глобально)
+  window.addEventListener("keydown", (e) => {
+    if (e.key === " " && !window.isInventoryOpen) {
+      // Игнорируем, если инвентарь открыт, чтобы не мешать кнопкам
+      e.preventDefault(); // Предотвращаем скролл страницы
       performAttack();
     }
   });
 }
 
-// Анимация получения урона
+// Запуск анимации мигания кнопки при атаке на игрока
 function triggerAttackAnimation() {
   const combatBtn = document.getElementById("combatBtn");
   combatBtn.classList.add("under-attack");
-  setTimeout(() => combatBtn.classList.remove("under-attack"), 2000);
+  setTimeout(() => {
+    combatBtn.classList.remove("under-attack");
+  }, 2000); // Анимация длится 2 секунды
 }
 
-// Основная функция атаки
+// Выполнение атаки
 function performAttack() {
   const me = players.get(myId);
   if (!me || me.health <= 0) return;
@@ -77,154 +116,215 @@ function performAttack() {
   if (currentTime - lastAttackTime < ATTACK_COOLDOWN) return;
 
   lastAttackTime = currentTime;
-
-  // Сбрасываем анимацию атаки
+  // Устанавливаем state атаки и сбрасываем frame
   me.state = "attacking";
   me.attackFrame = 0;
   me.attackFrameTime = 0;
+  me.frame = 0; // Сбрасываем walk-frame, чтобы не конфликтовать
 
+  const equippedWeapon = me.equipment && me.equipment.weapon;
   const currentWorldId = window.worldSystem.currentWorldId;
 
-  // Проверяем, есть ли дальнобойное оружие
-  const weaponSlot = me.equipment?.weapon;
-  const offhandSlot = me.equipment?.offhand;
+  // НОВОЕ: Получаем бонус от уровня (из levelSystem)
+  const levelBonus = window.levelSystem.meleeDamageBonus || 0;
 
-  let isRanged = false;
-  let range = 0;
-  let damage = 0;
+  if (
+    equippedWeapon &&
+    ITEM_CONFIG[equippedWeapon.type] &&
+    ITEM_CONFIG[equippedWeapon.type].type === "weapon"
+  ) {
+    const weaponConfig = ITEM_CONFIG[equippedWeapon.type];
+    const isRanged = !!weaponConfig.effect.range; // Проверяем, дальнобойное ли оружие (presence of range)
 
-  // Проверяем основное оружие
-  if (weaponSlot && ITEM_CONFIG[weaponSlot.type]?.effect?.range) {
-    const config = ITEM_CONFIG[weaponSlot.type];
-    isRanged = true;
-    range = config.effect.range || 500;
-    damage = config.effect.damage || 10;
-    if (weaponSlot.type === "plasma_rifle") {
-      range = 700;
-      damage = 50;
-    }
-  }
-
-  // Если дальнобойное — стреляем
-  if (isRanged) {
-    const angle = getPlayerAngle(me.direction);
-    const startX = me.x + 35;
-    const startY = me.y + 35;
-
-    const bulletId = `bullet_${Date.now()}_${Math.random()}`;
-    const bullet = {
-      id: bulletId,
-      x: startX,
-      y: startY,
-      vx: Math.cos(angle) * BULLET_SPEED,
-      vy: Math.sin(angle) * BULLET_SPEED,
-      damage,
-      range,
-      ownerId: myId,
-      worldId: currentWorldId,
-      startX,
-      startY,
-    };
-
-    bullets.set(bulletId, bullet);
-
-    sendWhenReady(
-      ws,
-      JSON.stringify({
-        type: "shoot",
-        bulletId,
+    if (isRanged) {
+      let range = weaponConfig.effect.range || 500;
+      let damage = weaponConfig.effect.damage || 10;
+      if (equippedWeapon.type === "plasma_rifle") {
+        range = 700;
+        damage = 50;
+      }
+      const bulletId = `bullet_${Date.now()}_${Math.random()}`;
+      const angle = getPlayerAngle(me.direction);
+      const startX = me.x + 20;
+      const startY = me.y + 20;
+      const bullet = {
+        id: bulletId,
         x: startX,
         y: startY,
-        vx: bullet.vx,
-        vy: bullet.vy,
-        damage,
-        range,
+        vx: Math.cos(angle) * BULLET_SPEED,
+        vy: Math.sin(angle) * BULLET_SPEED,
+        damage: damage,
+        range: range,
         ownerId: myId,
+        spawnTime: Date.now(),
         worldId: currentWorldId,
-      })
-    );
-  } else {
-    // БЛИЖНИЙ БОЙ — считаем урон из equipmentSystem
-    const meleeDamage = window.equipmentSystem.getCurrentMeleeDamage();
-    const finalDamage =
-      Math.floor(Math.random() * (meleeDamage.max - meleeDamage.min + 1)) +
-      meleeDamage.min;
+        startX,
+        startY,
+        hitPlayers: new Set(),
+        hitEnemies: new Set(),
+      };
+      bullets.set(bulletId, bullet);
+      sendWhenReady(
+        ws,
+        JSON.stringify({
+          type: "shoot",
+          bulletId,
+          x: bullet.x,
+          y: bullet.y,
+          vx: bullet.vx,
+          vy: bullet.vy,
+          damage: bullet.damage,
+          range: bullet.range,
+          ownerId: myId,
+          worldId: currentWorldId,
+        })
+      );
+      sendWhenReady(
+        ws,
+        JSON.stringify({
+          type: "update",
+          player: {
+            id: myId,
+            x: me.x,
+            y: me.y,
+            health: me.health,
+            energy: me.energy,
+            food: me.food,
+            water: me.water,
+            armor: me.armor,
+            distanceTraveled: me.distanceTraveled,
+            direction: me.direction,
+            state: "attacking",
+            attackFrame: 0, // ← ВОТ ЭТО ГЛАВНОЕ!
+            attackFrameTime: 0,
+            worldId: currentWorldId,
+          },
+        })
+      );
+    } else {
+      // Ближний бой: НОВЫЙ РАСЧЁТ УРОНА (базовый 5-10 + оружие)
+      let damage;
+      const weaponDamage = weaponConfig.effect.damage;
+      let minDamage = BASE_MELEE_MIN_DAMAGE + levelBonus; // НОВОЕ: + levelBonus
+      let maxDamage = BASE_MELEE_MAX_DAMAGE + levelBonus; // НОВОЕ: + levelBonus
 
-    // Проверяем попадание по игрокам и врагам в радиусе
-    let hitSomething = false;
-
-    // По игрокам
-    players.forEach((player, id) => {
       if (
-        hitSomething ||
-        id === myId ||
-        player.health <= 0 ||
-        player.worldId !== currentWorldId
-      )
-        return;
+        weaponDamage &&
+        typeof weaponDamage === "object" &&
+        weaponDamage.min !== undefined &&
+        weaponDamage.max !== undefined
+      ) {
+        minDamage += weaponDamage.min;
+        maxDamage += weaponDamage.max;
+      } // Иначе базовый (если оружие без damage или не object)
 
-      const dx = player.x + 35 - (me.x + 35);
-      const dy = player.y + 35 - (me.y + 35);
-      if (Math.sqrt(dx * dx + dy * dy) < MELEE_ATTACK_RANGE) {
+      damage = Math.floor(
+        Math.random() * (maxDamage - minDamage + 1) + minDamage
+      );
+      performMeleeAttack(damage, currentWorldId);
+    }
+  } else {
+    // Атака без оружия (кулаками): фиксированный базовый 5-10
+    const damage = Math.floor(
+      Math.random() *
+        (BASE_MELEE_MAX_DAMAGE +
+          levelBonus -
+          (BASE_MELEE_MIN_DAMAGE + levelBonus) +
+          1) + // НОВОЕ: + levelBonus к min и max
+        (BASE_MELEE_MIN_DAMAGE + levelBonus)
+    );
+    performMeleeAttack(damage, currentWorldId);
+  }
+}
+
+// Выполнение атаки ближнего боя (ДОБАВЛЕНА ПРОВЕРКА ВРАГОВ)
+function performMeleeAttack(damage, worldId) {
+  const me = players.get(myId);
+  let hit = false;
+
+  // Проверка игроков
+  players.forEach((player, id) => {
+    if (id !== myId && player.health > 0 && player.worldId === worldId) {
+      const dx = player.x - me.x;
+      const dy = player.y - me.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      if (distance <= MELEE_ATTACK_RANGE) {
+        hit = true;
+        // Принудительно обновляем локально здоровье (для мгновенного отображения)
+        player.health = Math.max(0, player.health - damage);
+        players.set(id, player);
+
         sendWhenReady(
           ws,
           JSON.stringify({
-            type: "meleeAttackPlayer",
+            type: "attackPlayer",
             targetId: id,
-            damage: finalDamage,
-            worldId: currentWorldId,
+            damage,
+            worldId,
           })
         );
-        if (id === myId) triggerAttackAnimation();
-        hitSomething = true;
-      }
-    });
 
-    // По врагам
-    if (!hitSomething) {
-      enemies.forEach((enemy, id) => {
-        if (
-          hitSomething ||
-          enemy.health <= 0 ||
-          enemy.worldId !== currentWorldId
-        )
-          return;
-
-        const dx = enemy.x + 35 - (me.x + 35);
-        const dy = enemy.y + 35 - (me.y + 35);
-        if (Math.sqrt(dx * dx + dy * dy) < MELEE_ATTACK_RANGE) {
-          sendWhenReady(
-            ws,
-            JSON.stringify({
-              type: "meleeAttackEnemy",
-              targetId: id,
-              damage: finalDamage,
-              worldId: currentWorldId,
-            })
-          );
-          hitSomething = true;
+        // Если попали по текущему игроку — анимация получения урона
+        if (id === myId) {
+          triggerAttackAnimation();
         }
-      });
+      }
     }
+  });
+
+  // Проверка врагов
+  enemies.forEach((enemy, enemyId) => {
+    if (enemy.health > 0 && enemy.worldId === worldId) {
+      const dx = enemy.x - me.x;
+      const dy = enemy.y - me.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      if (distance <= MELEE_ATTACK_RANGE) {
+        hit = true;
+        // Принудительно обновляем здоровье мутанта локально
+        enemy.health = Math.max(0, enemy.health - damage);
+        enemies.set(enemyId, enemy);
+
+        sendWhenReady(
+          ws,
+          JSON.stringify({
+            type: "attackEnemy",
+            targetId: enemyId,
+            damage,
+            worldId,
+          })
+        );
+      }
+    }
+  });
+
+  if (hit) {
+    sendWhenReady(
+      ws,
+      JSON.stringify({
+        type: "update",
+        player: {
+          id: myId,
+          x: me.x,
+          y: me.y,
+          health: me.health,
+          energy: me.energy,
+          food: me.food,
+          water: me.water,
+          armor: me.armor,
+          distanceTraveled: me.distanceTraveled,
+          direction: me.direction,
+          state: me.state,
+          frame: me.frame,
+          worldId,
+        },
+      })
+    );
   }
 
-  // Отправляем состояние атаки другим игрокам
-  sendWhenReady(
-    ws,
-    JSON.stringify({
-      type: "update",
-      player: {
-        id: myId,
-        state: "attacking",
-        attackFrame: 0,
-        attackFrameTime: 0,
-        direction: me.direction,
-      },
-    })
-  );
+  return hit;
 }
 
-// Угол направления
+// Получение угла поворота игрока (БЕЗ ИЗМЕНЕНИЙ)
 function getPlayerAngle(direction) {
   switch (direction) {
     case "up":
@@ -240,163 +340,176 @@ function getPlayerAngle(direction) {
   }
 }
 
-// Обновление пуль
+// Обновление пуль (БЕЗ ИЗМЕНЕНИЙ, но добавлена динамичная проверка врагов)
 function updateBullets(deltaTime) {
+  const currentTime = Date.now();
   const currentWorldId = window.worldSystem.currentWorldId;
 
-  const bulletsToRemove = [];
-
-  bullets.forEach((bullet) => {
+  bullets.forEach((bullet, bulletId) => {
     if (bullet.worldId !== currentWorldId) return;
-
     bullet.x += bullet.vx * (deltaTime / 16.67);
     bullet.y += bullet.vy * (deltaTime / 16.67);
 
+    // Проверка столкновений с игроками
     let hit = false;
-
-    // Попадание по игрокам
     players.forEach((player, id) => {
       if (
-        hit ||
-        id === bullet.ownerId ||
-        player.health <= 0 ||
-        player.worldId !== currentWorldId
-      )
-        return;
-      const dx = bullet.x - (player.x + 35);
-      const dy = bullet.y - (player.y + 35);
-      if (Math.sqrt(dx * dx + dy * dy) < 35) {
-        sendWhenReady(
-          ws,
-          JSON.stringify({
-            type: "bulletHitPlayer",
-            targetId: id,
-            damage: bullet.damage,
-            bulletId: bullet.id,
-            worldId: currentWorldId,
-          })
-        );
-        hit = true;
+        !hit &&
+        id !== bullet.ownerId &&
+        player.health > 0 &&
+        player.worldId === currentWorldId
+      ) {
+        const dx = bullet.x - (player.x + 20);
+        const dy = bullet.y - (player.y + 20);
+        if (Math.sqrt(dx * dx + dy * dy) < 20) {
+          sendWhenReady(
+            ws,
+            JSON.stringify({
+              type: "attackPlayer",
+              targetId: id,
+              damage: bullet.damage,
+              worldId: currentWorldId,
+            })
+          );
+          if (id === myId) triggerAttackAnimation();
+          hit = true;
+        }
       }
     });
-
-    // Попадание по врагам
-    if (!hit) {
-      enemies.forEach((enemy, id) => {
-        if (hit || enemy.health <= 0 || enemy.worldId !== currentWorldId)
-          return;
+    // Проверка столкновений с врагами
+    enemies.forEach((enemy, id) => {
+      if (!hit && enemy.health > 0 && enemy.worldId === currentWorldId) {
         const dx = bullet.x - (enemy.x + 35);
         const dy = bullet.y - (enemy.y + 35);
         if (Math.sqrt(dx * dx + dy * dy) < 35) {
           sendWhenReady(
             ws,
             JSON.stringify({
-              type: "bulletHitEnemy",
+              type: "attackEnemy",
               targetId: id,
               damage: bullet.damage,
-              bulletId: bullet.id,
               worldId: currentWorldId,
             })
           );
           hit = true;
         }
-      });
-    }
-
-    if (hit) {
-      bulletsToRemove.push(bullet.id);
-    } else {
-      // Проверка по дистанции
-      const dist = Math.hypot(
-        bullet.x - bullet.startX,
-        bullet.y - bullet.startY
-      );
-      if (dist > bullet.range) {
-        bulletsToRemove.push(bullet.id);
       }
+    });
+    // Удаляем пулю при первом попадании
+    if (hit) {
+      bullets.delete(bulletId);
+      sendWhenReady(
+        ws,
+        JSON.stringify({
+          type: "removeBullet",
+          bulletId,
+          worldId: currentWorldId,
+        })
+      );
+      return;
     }
-  });
-
-  // Удаляем пули
-  bulletsToRemove.forEach((id) => {
-    bullets.delete(id);
-    sendWhenReady(
-      ws,
-      JSON.stringify({
-        type: "removeBullet",
-        bulletId: id,
-        worldId: currentWorldId,
-      })
-    );
+    // Удаление пули только по расстоянию (жизнь = range)
+    if (bullet.startX === undefined) bullet.startX = bullet.x;
+    if (bullet.startY === undefined) bullet.startY = bullet.y;
+    const dx = bullet.x - bullet.startX;
+    const dy = bullet.y - bullet.startY;
+    const distanceTraveled = Math.sqrt(dx * dx + dy * dy);
+    if (distanceTraveled > bullet.range) {
+      bullets.delete(bulletId);
+      sendWhenReady(
+        ws,
+        JSON.stringify({
+          type: "removeBullet",
+          bulletId,
+          worldId: currentWorldId,
+        })
+      );
+    }
   });
 }
 
-// Отрисовка пуль
+// Отрисовка пуль (БЕЗ ИЗМЕНЕНИЙ)
 function drawBullets() {
   const currentWorldId = window.worldSystem.currentWorldId;
   bullets.forEach((bullet) => {
     if (bullet.worldId !== currentWorldId) return;
-
     const screenX = bullet.x - window.movementSystem.getCamera().x;
     const screenY = bullet.y - window.movementSystem.getCamera().y;
-
-    // Трейл
+    // Красивая анимация: ядро + свечение + хвост
+    // Хвост (трейл)
     ctx.save();
-    ctx.globalAlpha = 0.3;
-    ctx.strokeStyle = bullet.damage >= 50 ? "#00ffff" : "#ff6666";
-    ctx.lineWidth = 3;
+    ctx.globalAlpha = 0.25;
+    ctx.strokeStyle = bullet.damage >= 50 ? "#00eaff" : "#ff4444";
+    ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(screenX, screenY);
-    ctx.lineTo(screenX - bullet.vx * 4, screenY - bullet.vy * 4);
+    ctx.lineTo(screenX - bullet.vx * 3, screenY - bullet.vy * 3);
     ctx.stroke();
     ctx.restore();
-
-    // Свечение
+    // Градиентное ядро
     const grad = ctx.createRadialGradient(
       screenX,
       screenY,
-      1,
+      0.5,
       screenX,
       screenY,
-      BULLET_SIZE * 2
+      BULLET_SIZE * 1.5
     );
-    grad.addColorStop(0, bullet.damage >= 50 ? "#00ffff" : "#ffffff");
-    grad.addColorStop(0.5, bullet.damage >= 50 ? "#00ffffaa" : "#ff6666aa");
-    grad.addColorStop(1, "transparent");
-
-    ctx.fillStyle = grad;
-    ctx.shadowBlur = bullet.damage >= 50 ? 20 : 12;
-    ctx.shadowColor = bullet.damage >= 50 ? "#00ffff" : "#ff6666";
+    grad.addColorStop(0, bullet.damage >= 50 ? "#00eaff" : "#fffbe0");
+    grad.addColorStop(0.5, bullet.damage >= 50 ? "#00eaffcc" : "#ff4444cc");
+    grad.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.save();
+    ctx.globalAlpha = 0.85;
     ctx.beginPath();
-    ctx.arc(screenX, screenY, BULLET_SIZE * 2, 0, Math.PI * 2);
+    ctx.arc(screenX, screenY, BULLET_SIZE * 1.5, 0, Math.PI * 2);
+    ctx.fillStyle = grad;
+    ctx.shadowColor = bullet.damage >= 50 ? "#00eaff" : "#ff4444";
+    ctx.shadowBlur = bullet.damage >= 50 ? 18 : 10;
     ctx.fill();
-
+    ctx.restore();
     // Ядро
-    ctx.fillStyle = bullet.damage >= 50 ? "#00ffff" : "#ffffff";
-    ctx.shadowBlur = 8;
+    ctx.save();
     ctx.beginPath();
     ctx.arc(screenX, screenY, BULLET_SIZE / 2, 0, Math.PI * 2);
+    ctx.fillStyle = bullet.damage >= 50 ? "#00eaff" : "#fffbe0";
+    ctx.shadowColor = bullet.damage >= 50 ? "#00eaff" : "#fffbe0";
+    ctx.shadowBlur = bullet.damage >= 50 ? 8 : 4;
     ctx.fill();
+    ctx.restore();
   });
 }
 
+// Синхронизация пуль с сервером (БЕЗ ИЗМЕНЕНИЙ)
 function syncBullets(serverBullets) {
   bullets.clear();
-  serverBullets.forEach((b) =>
-    bullets.set(b.id, { ...b, startX: b.x, startY: b.y })
-  );
+  serverBullets.forEach((bullet) => {
+    bullets.set(bullet.id, {
+      id: bullet.id,
+      x: bullet.x,
+      y: bullet.y,
+      vx: bullet.vx,
+      vy: bullet.vy,
+      damage: bullet.damage,
+      range: bullet.range,
+      ownerId: bullet.ownerId,
+      spawnTime: bullet.spawnTime,
+      worldId: bullet.worldId,
+    });
+  });
 }
 
+// Экспорт функций
 window.combatSystem = {
   initialize: initializeCombatSystem,
   update: updateBullets,
   draw: drawBullets,
   syncBullets,
-  resetAttackState: () => {
+  resetAttackState: function () {
     const me = players.get(myId);
     if (me) {
       me.state = "idle";
       me.attackFrame = 0;
+      me.attackFrameTime = 0;
     }
   },
 };

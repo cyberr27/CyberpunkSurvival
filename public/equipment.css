@@ -125,15 +125,6 @@
   z-index: 4;
 }
 
-.offhand-slot {
-  position: relative;
-  top: 85%; /* Чуть ниже gloves-slot */
-  left: -23%;
-  width: 80px;
-  height: 80px;
-  z-index: 4;
-}
-
 .equipment-slot {
   position: relative;
 }
@@ -240,15 +231,6 @@
   .gloves-slot {
     position: relative;
     top: 40%;
-    left: -23%;
-    width: 70px;
-    height: 70px;
-    z-index: 4;
-  }
-
-  .offhand-slot {
-    position: relative;
-    top: 55%; /* Чуть ниже gloves-slot для мобильных */
     left: -23%;
     width: 70px;
     height: 70px;

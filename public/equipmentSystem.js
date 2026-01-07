@@ -11,7 +11,6 @@ const equipmentSystem = {
     pants: null,
     boots: null,
     weapon: null,
-    offhand: null,
     gloves: null,
   },
 
@@ -27,33 +26,35 @@ const equipmentSystem = {
 
   BASE_MELEE_MIN: 5,
   BASE_MELEE_MAX: 10,
-
   getCurrentMeleeDamage: function () {
     const levelBonus = window.levelSystem.meleeDamageBonus || 0;
-    let min = this.BASE_MELEE_MIN + levelBonus;
-    let max = this.BASE_MELEE_MAX + levelBonus;
+    const baseMin = this.BASE_MELEE_MIN + levelBonus;
+    const baseMax = this.BASE_MELEE_MAX + levelBonus;
+    const weaponSlot = this.equipmentSlots.weapon;
 
-    // Суммируем от weapon и offhand, если !range (melee)
-    ["weapon", "offhand"].forEach((slotName) => {
-      const weaponSlot = this.equipmentSlots[slotName];
-      if (!weaponSlot || !this.EQUIPMENT_CONFIG[weaponSlot.type]) return;
+    if (!weaponSlot || !this.EQUIPMENT_CONFIG[weaponSlot.type]) {
+      return { min: baseMin, max: baseMax };
+    }
 
-      const config = this.EQUIPMENT_CONFIG[weaponSlot.type];
-      if (config.effect.range) return; // Игнор ranged
+    const config = this.EQUIPMENT_CONFIG[weaponSlot.type];
+    if (config.effect.range) {
+      return { min: baseMin, max: baseMax };
+    }
 
-      const dmgEffect = config.effect.damage;
-      if (
-        dmgEffect &&
-        typeof dmgEffect === "object" &&
-        dmgEffect.min !== undefined &&
-        dmgEffect.max !== undefined
-      ) {
-        min += dmgEffect.min;
-        max += dmgEffect.max;
-      }
-    });
+    const dmgEffect = config.effect.damage;
+    if (
+      dmgEffect &&
+      typeof dmgEffect === "object" &&
+      dmgEffect.min !== undefined &&
+      dmgEffect.max !== undefined
+    ) {
+      return {
+        min: baseMin + dmgEffect.min,
+        max: baseMax + dmgEffect.max,
+      };
+    }
 
-    return { min, max };
+    return { min: baseMin, max: baseMax };
   },
 
   updateDamageDisplay: function () {
@@ -63,13 +64,11 @@ const equipmentSystem = {
     if (displayEl) {
       displayEl.textContent = `Урон: ${currentStr}`;
       displayEl.style.color =
-        this.equipmentSlots.weapon !== null ||
-        this.equipmentSlots.offhand !== null
-          ? "lime"
-          : "#ffaa00";
+        this.equipmentSlots.weapon !== null ? "lime" : "#ffaa00";
     }
   },
 
+  // Конфигурация предметов экипировки (БЕЗ ИЗМЕНЕНИЙ)
   EQUIPMENT_CONFIG: {
     cyber_helmet: {
       type: "headgear",
@@ -119,7 +118,6 @@ const equipmentSystem = {
       description: "Плазменная винтовка: +15 урона, дальнобойная",
       rarity: 4,
       image: new Image(),
-      hands: "twohanded",
     },
     knuckles: {
       type: "weapon",
@@ -127,7 +125,6 @@ const equipmentSystem = {
       description: "Кастет: 3-7 урона в ближнем бою",
       rarity: 4,
       image: new Image(),
-      hands: "onehanded",
     },
     knife: {
       type: "weapon",
@@ -135,7 +132,6 @@ const equipmentSystem = {
       description: "Нож: 4-6 урона в ближнем бою",
       rarity: 4,
       image: new Image(),
-      hands: "onehanded",
     },
     bat: {
       type: "weapon",
@@ -143,7 +139,6 @@ const equipmentSystem = {
       description: "Бита: 5-10 урона в ближнем бою",
       rarity: 4,
       image: new Image(),
-      hands: "onehanded",
     },
     torn_baseball_cap_of_health: {
       type: "headgear",
@@ -463,31 +458,34 @@ const equipmentSystem = {
     equipmentGrid.style.gridTemplateAreas = `
       ". head ."
       "gloves chest weapon"
-      "offhand belt ."
+      ". belt ."
       ". pants ."
       ". boots ."
     `;
     equipmentGrid.style.gap = "8px";
     equipmentGrid.style.padding = "10px";
+
     const slots = [
       { name: "head", label: "Головной убор" },
       { name: "chest", label: "Броня" },
       { name: "belt", label: "Пояс" },
       { name: "pants", label: "Штаны" },
       { name: "boots", label: "Обувь" },
-      { name: "weapon", label: "Оружие (основная рука)" },
-      { name: "offhand", label: "Оружие (вторая рука)" },
+      { name: "weapon", label: "Оружие" },
       { name: "gloves", label: "Перчатки" },
     ];
+
     slots.forEach((slotInfo) => {
       const slotEl = document.createElement("div");
       slotEl.className = `equipment-slot ${slotInfo.name}-slot`;
       slotEl.style.gridArea = slotInfo.name;
       slotEl.title = slotInfo.label;
+
       // Двойной клик / двойной тап для снятия
       slotEl.addEventListener("dblclick", () =>
         this.unequipItem(slotInfo.name)
       );
+
       let lastTouchTime = 0;
       let tooltipTimeout;
       slotEl.addEventListener("touchstart", (e) => {
@@ -504,6 +502,7 @@ const equipmentSystem = {
         }
         lastTouchTime = now;
       });
+
       equipmentGrid.appendChild(slotEl);
     });
   },
@@ -522,37 +521,41 @@ const equipmentSystem = {
   },
 
   updateEquipmentDisplay: function () {
-    Object.keys(this.equipmentSlots).forEach((slotName) => {
-      const slotEl = document.querySelector(`.${slotName}-slot`);
-      if (slotEl) {
-        slotEl.innerHTML = "";
-        let item = this.equipmentSlots[slotName];
-        if (item && this.EQUIPMENT_CONFIG[item.type]) {
-          const img = this.EQUIPMENT_CONFIG[item.type].image.cloneNode();
-          img.style.width = "100%";
-          img.style.height = "100%";
-          img.title = this.EQUIPMENT_CONFIG[item.type].description;
-          slotEl.appendChild(img);
-        }
-        if (
-          slotName === "offhand" &&
-          this.equipmentSlots.weapon &&
-          this.equipmentSlots.offhand === null
-        ) {
-          const mainWeapon = this.equipmentSlots.weapon;
-          const config = this.EQUIPMENT_CONFIG[mainWeapon.type];
-          if (config && config.hands === "twohanded") {
-            const img = config.image.cloneNode();
-            img.style.width = "100%";
-            img.style.height = "100%";
-            img.title = config.description + " (занимает обе руки)";
-            slotEl.innerHTML = ""; // очищаем
-            slotEl.appendChild(img);
-            return;
+    const equipmentGrid = document.getElementById("equipmentGrid");
+    if (!equipmentGrid) return;
+
+    const slots = equipmentGrid.children;
+    for (let i = 0; i < slots.length; i++) {
+      const slot = slots[i];
+      const slotName = slot.style.gridArea;
+      slot.innerHTML = "";
+
+      const item = this.equipmentSlots[slotName];
+      if (item && this.EQUIPMENT_CONFIG[item.type]) {
+        const config = this.EQUIPMENT_CONFIG[item.type];
+        const img = document.createElement("img");
+        img.src = config.image.src;
+        img.style.width = "100%";
+        img.style.height = "100%";
+        slot.appendChild(img);
+
+        let tooltipText = item.type.replace(/_/g, " ").toUpperCase() + "\n";
+        for (let [key, value] of Object.entries(config.effect)) {
+          if (key === "damage" && typeof value === "object") {
+            tooltipText += `Damage: ${value.min}-${value.max}\n`;
+          } else if (key === "range") {
+            tooltipText += `Range: +${value}\n`;
+          } else {
+            tooltipText += `${
+              key.charAt(0).toUpperCase() + key.slice(1)
+            }: +${value}\n`;
           }
         }
+        slot.title = tooltipText.trim();
+      } else {
+        slot.title = `Слот ${slotName} пуст`;
       }
-    });
+    }
     this.updateDamageDisplay();
   },
 
@@ -560,50 +563,30 @@ const equipmentSystem = {
   pendingUnequip: null,
 
   equipItem: function (slotIndex) {
-    if (slotIndex === null || slotIndex === undefined) return;
-
     const item = inventory[slotIndex];
-    if (!item || !this.EQUIPMENT_CONFIG[item.type]) return;
-
-    const config = this.EQUIPMENT_CONFIG[item.type];
-    if (!config.type) return;
-
-    let slotName = this.EQUIPMENT_TYPES[config.type] || null;
-
-    // Специальная логика для оружия
-    if (config.type === "weapon") {
-      if (config.hands === "twohanded") {
-        if (this.equipmentSlots.offhand !== null) {
-          alert("Снимите предмет со второй руки для двуручного оружия");
-          return;
-        }
-        slotName = "weapon"; // twohanded всегда в weapon, offhand очищается автоматически
-      } else if (config.hands === "onehanded") {
-        // onehanded: сначала weapon, если занят и offhand свободен — туда
-        if (this.equipmentSlots.weapon === null) {
-          slotName = "weapon";
-        } else if (this.equipmentSlots.offhand === null) {
-          slotName = "offhand";
-        } else {
-          // оба заняты — заменяем weapon (стандартное поведение)
-          slotName = "weapon";
-        }
-      }
-    } else {
-      slotName = this.EQUIPMENT_TYPES[config.type];
+    if (!item || !this.EQUIPMENT_CONFIG[item.type]) {
+      return;
     }
 
-    if (!slotName) return;
-
     const me = players.get(myId);
-    if (!me) return;
+    if (!me) {
+      return;
+    }
 
-    const oldItem = this.equipmentSlots[slotName];
+    const equipType = this.EQUIPMENT_CONFIG[item.type].type;
+    const slotName = this.EQUIPMENT_TYPES[equipType];
+    if (!slotName) {
+      return;
+    }
+
+    // Проверяем, есть ли уже предмет в слоте
+    let oldItem = null;
     let freeSlot = null;
-    if (oldItem) {
-      freeSlot = inventory.findIndex((s) => s === null);
+    if (this.equipmentSlots[slotName]) {
+      oldItem = this.equipmentSlots[slotName];
+      freeSlot = inventory.findIndex((slot) => slot === null);
       if (freeSlot === -1) {
-        alert("Инвентарь полон! Освободите место для замены.");
+        alert("Инвентарь полон! Освободите место.");
         return;
       }
       inventory[freeSlot] = oldItem;
@@ -617,22 +600,21 @@ const equipmentSystem = {
       freeSlot: oldItem ? freeSlot : null,
     };
 
-    // Локально экипируем
+    // Локально экипируем предмет
     this.equipmentSlots[slotName] = { type: item.type, itemId: item.itemId };
-    if (config.hands === "twohanded") {
-      this.equipmentSlots.offhand = null;
-    }
-    inventory[slotIndex] = null;
-    this.updateEquipmentDisplay();
+    inventory[slotIndex] = null; // Удаляем предмет из инвентаря
+    this.updateEquipmentDisplay(); // Обновит и урон
+
+    // Применяем эффекты экипировки (локально, с коллекциями)
     this.applyEquipmentEffects(me);
 
+    // Отправляем запрос на сервер
     if (ws.readyState === WebSocket.OPEN) {
       sendWhenReady(
         ws,
         JSON.stringify({
           type: "equipItem",
           slotIndex,
-          slotName, // <-- важно! передаём предлагаемый слот
           equipment: this.equipmentSlots,
           maxStats: { ...me.maxStats },
           stats: {
@@ -641,51 +623,49 @@ const equipmentSystem = {
             food: me.food,
             water: me.water,
             armor: me.armor,
+            damage: me.damage,
           },
         })
       );
     }
 
+    // Обновляем интерфейс
     selectedSlot = null;
     document.getElementById("useBtn").disabled = true;
     document.getElementById("dropBtn").disabled = true;
-    updateInventoryDisplay();
+    document.getElementById("inventoryScreen").textContent = "";
     updateStatsDisplay();
+    updateInventoryDisplay();
   },
 
   unequipItem: function (slotName) {
-    if (
-      ![
-        "weapon",
-        "offhand",
-        "head",
-        "chest",
-        "belt",
-        "pants",
-        "boots",
-        "gloves",
-      ].includes(slotName)
-    )
-      return;
+    const item = this.equipmentSlots[slotName];
+    if (!item) return;
 
     const me = players.get(myId);
-    if (!me || !this.equipmentSlots[slotName]) return;
+    if (!me) return;
 
-    const freeSlot = inventory.findIndex((s) => s === null);
+    const freeSlot = inventory.findIndex((slot) => slot === null);
     if (freeSlot === -1) {
-      alert("Инвентарь полон! Освободите место для снятия.");
+      alert("Инвентарь полон! Освободите место.");
       return;
     }
 
-    const item = this.equipmentSlots[slotName];
-    this.pendingUnequip = { slotName, item: { ...item }, freeSlot };
+    this.pendingUnequip = {
+      slotName,
+      item: { ...item },
+      freeSlot,
+    };
 
-    // Локально снимаем
-    this.equipmentSlots[slotName] = null;
+    // Локально снимаем предмет
     inventory[freeSlot] = { type: item.type, itemId: item.itemId };
+    this.equipmentSlots[slotName] = null;
     this.updateEquipmentDisplay();
+
+    // Применяем эффекты (локально, с коллекциями)
     this.applyEquipmentEffects(me);
 
+    // Отправляем запрос на сервер
     if (ws.readyState === WebSocket.OPEN) {
       sendWhenReady(
         ws,
@@ -694,33 +674,20 @@ const equipmentSystem = {
           slotName,
           inventorySlot: freeSlot,
           itemId: item.itemId,
-          equipment: this.equipmentSlots,
-          maxStats: { ...me.maxStats },
-          stats: {
-            health: me.health,
-            energy: me.energy,
-            food: me.food,
-            water: me.water,
-            armor: me.armor,
-          },
         })
       );
     }
 
-    updateInventoryDisplay();
+    // Обновляем UI
     updateStatsDisplay();
+    updateInventoryDisplay();
   },
 
   applyEquipmentEffects: function (player) {
-    const baseStats = {
-      health: 100 + (player.healthUpgrade || 0),
-      energy: 100 + (player.energyUpgrade || 0),
-      food: 100 + (player.foodUpgrade || 0),
-      water: 100 + (player.waterUpgrade || 0),
-      armor: 0,
-    };
+    const baseMaxStats = { ...window.levelSystem.maxStats };
+    player.maxStats = { ...baseMaxStats };
+    player.damage = 0;
 
-    // Проверка полной коллекции
     const equippedItems = Object.values(this.equipmentSlots).filter(Boolean);
     const collectionSlots = [
       "head",
@@ -730,32 +697,32 @@ const equipmentSystem = {
       "boots",
       "gloves",
     ];
-
-    const collectionsInSlots = collectionSlots
-      .map((slot) => this.equipmentSlots[slot])
-      .filter((item) => item && this.EQUIPMENT_CONFIG[item.type]?.collection)
-      .map((item) => this.EQUIPMENT_CONFIG[item.type].collection);
+    const equippedCollections = equippedItems
+      .map((item) => this.EQUIPMENT_CONFIG[item.type]?.collection)
+      .filter((c) => c);
+    const uniqueCollections = new Set(equippedCollections);
 
     const isFullCollection =
+      equippedCollections.length === 6 &&
+      uniqueCollections.size === 1 &&
       collectionSlots.every(
         (slot) =>
           this.equipmentSlots[slot] &&
-          this.EQUIPMENT_CONFIG[this.equipmentSlots[slot].type]?.collection
-      ) && new Set(collectionsInSlots).size === 1;
+          this.EQUIPMENT_CONFIG[this.equipmentSlots[slot].type]?.collection ===
+            [...uniqueCollections][0]
+      );
 
     const multiplier = isFullCollection ? 2 : 1;
 
-    // Применяем эффекты с multiplier (только для maxStats, damage отдельно)
-    equippedItems.forEach((item) => {
+    Object.values(this.equipmentSlots).forEach((item) => {
       if (item && this.EQUIPMENT_CONFIG[item.type]) {
         const effect = this.EQUIPMENT_CONFIG[item.type].effect;
-        if (effect.armor) baseStats.armor += effect.armor * multiplier;
-        if (effect.health) baseStats.health += effect.health * multiplier;
-        if (effect.energy) baseStats.energy += effect.energy * multiplier;
-        if (effect.food) baseStats.food += effect.food * multiplier;
-        if (effect.water) baseStats.water += effect.water * multiplier;
+        if (effect.armor) player.maxStats.armor += effect.armor * multiplier;
+        if (effect.health) player.maxStats.health += effect.health * multiplier;
+        if (effect.energy) player.maxStats.energy += effect.energy * multiplier;
+        if (effect.food) player.maxStats.food += effect.food * multiplier;
+        if (effect.water) player.maxStats.water += effect.water * multiplier;
         if (effect.damage) {
-          // Damage не умножается (только оружие)
           if (
             typeof effect.damage === "object" &&
             effect.damage.min &&
@@ -768,27 +735,10 @@ const equipmentSystem = {
         }
       }
     });
-
-    player.maxStats = { ...baseStats };
-    player.health = Math.min(player.health, player.maxStats.health);
-    player.energy = Math.min(player.energy, player.maxStats.energy);
-    player.food = Math.min(player.food, player.maxStats.food);
-    player.water = Math.min(player.water, player.maxStats.water);
-    player.armor = Math.min(player.armor, player.maxStats.armor);
   },
 
   syncEquipment: function (equipment) {
-    const defaultEq = {
-      head: null,
-      chest: null,
-      belt: null,
-      pants: null,
-      boots: null,
-      weapon: null,
-      offhand: null,
-      gloves: null,
-    };
-    this.equipmentSlots = { ...defaultEq, ...equipment };
+    this.equipmentSlots = equipment;
     const me = players.get(myId);
     if (me) {
       this.applyEquipmentEffects(me);

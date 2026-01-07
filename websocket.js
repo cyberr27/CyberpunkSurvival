@@ -61,6 +61,7 @@ function setupWebSocket(
       water: 100 + (player.waterUpgrade || 0),
       armor: 0,
     };
+    player.damage = 0;
     // Проверка полной коллекции
     const equippedItems = Object.values(player.equipment || {}).filter(Boolean); // Только надетые
     const collectionSlots = [
@@ -70,23 +71,22 @@ function setupWebSocket(
       "pants",
       "boots",
       "gloves",
-    ];
-
-    // Проверяем, все ли 6 слотов заполнены и принадлежат одной коллекции
-    const collectionsInSlots = collectionSlots
-      .map((slot) => player.equipment[slot])
-      .filter((item) => item && ITEM_CONFIG[item.type]?.collection)
-      .map((item) => ITEM_CONFIG[item.type].collection);
-
+    ]; // 6 слотов для коллекций
+    const equippedCollections = equippedItems
+      .map((item) => ITEM_CONFIG[item.type]?.collection)
+      .filter((c) => c);
+    const uniqueCollections = new Set(equippedCollections);
     const isFullCollection =
+      equippedItems.length === 7 && // Все 7 слотов (включая weapon, но коллекция только на 6)
+      uniqueCollections.size === 1 && // Все из одной коллекции
       collectionSlots.every(
         (slot) =>
           player.equipment[slot] &&
-          ITEM_CONFIG[player.equipment[slot].type]?.collection
-      ) && new Set(collectionsInSlots).size === 1;
-
+          ITEM_CONFIG[player.equipment[slot].type]?.collection ===
+            [...uniqueCollections][0]
+      );
     const multiplier = isFullCollection ? 2 : 1;
-    // Применяем эффекты с multiplier (только для maxStats, без damage)
+    // Применяем эффекты с multiplier (только для maxStats, damage отдельно)
     equippedItems.forEach((item) => {
       if (item && ITEM_CONFIG[item.type]) {
         const effect = ITEM_CONFIG[item.type].effect;
@@ -95,6 +95,18 @@ function setupWebSocket(
         if (effect.energy) baseStats.energy += effect.energy * multiplier;
         if (effect.food) baseStats.food += effect.food * multiplier;
         if (effect.water) baseStats.water += effect.water * multiplier;
+        if (effect.damage) {
+          // Damage не умножается (только оружие)
+          if (
+            typeof effect.damage === "object" &&
+            effect.damage.min &&
+            effect.damage.max
+          ) {
+            player.damage = { ...effect.damage };
+          } else {
+            player.damage += effect.damage;
+          }
+        }
       }
     });
     player.maxStats = { ...baseStats };
@@ -214,7 +226,6 @@ function setupWebSocket(
               pants: null,
               boots: null,
               weapon: null,
-              offhand: null,
               gloves: null,
             },
             npcMet: false,
@@ -788,7 +799,7 @@ function setupWebSocket(
           return;
         }
         const { slotName, inventorySlot, itemId } = data;
-        // Проверяем валидность слота (добавили offhand)
+        // Проверяем валидность слота
         const validSlots = [
           "head",
           "chest",
@@ -796,7 +807,6 @@ function setupWebSocket(
           "pants",
           "boots",
           "weapon",
-          "offhand",
           "gloves",
         ];
         if (!validSlots.includes(slotName)) {
@@ -844,7 +854,7 @@ function setupWebSocket(
         players.set(playerId, { ...player });
         userDatabase.set(playerId, { ...player });
         await saveUserDatabase(dbCollection, playerId, player);
-        // Отправляем подтверждение клиенту (убрали damage)
+        // Отправляем подтверждение клиенту
         ws.send(
           JSON.stringify({
             type: "unequipItemSuccess",
@@ -859,6 +869,7 @@ function setupWebSocket(
               food: player.food,
               water: player.water,
               armor: player.armor,
+              damage: player.damage,
             },
           })
         );
@@ -878,6 +889,7 @@ function setupWebSocket(
                     food: player.food,
                     water: player.water,
                     armor: player.armor,
+                    damage: player.damage,
                   },
                 })
               );
@@ -1095,221 +1107,108 @@ function setupWebSocket(
         }
       } else if (data.type === "equipItem") {
         const id = clients.get(ws);
-        if (!id || !players.has(id)) {
-          ws.send(
-            JSON.stringify({ type: "equipItemFail", error: "Игрок не найден" })
-          );
-          return;
-        }
-
-        const player = players.get(id);
-        if (!player.inventory || !player.equipment) {
-          ws.send(
-            JSON.stringify({
-              type: "equipItemFail",
-              error: "Данные игрока повреждены",
-            })
-          );
-          return;
-        }
-
-        const slotIndex = data.slotIndex;
-        if (
-          slotIndex < 0 ||
-          slotIndex >= player.inventory.length ||
-          !player.inventory[slotIndex]
-        ) {
-          ws.send(
-            JSON.stringify({
-              type: "equipItemFail",
-              error: "Неверный слот инвентаря",
-            })
-          );
-          return;
-        }
-
-        const item = player.inventory[slotIndex];
-        const config = ITEM_CONFIG[item.type];
-        if (!config || !config.type) {
-          ws.send(
-            JSON.stringify({
-              type: "equipItemFail",
-              error: "Предмет нельзя экипировать",
-            })
-          );
-          return;
-        }
-
-        // Определяем целевой слот
-        let targetSlot = data.slotName; // Клиент предлагает слот (особенно важен для offhand)
-
-        // Если клиент не передал slotName — вычисляем сами (для совместимости со старыми клиентами)
-        if (!targetSlot) {
-          const typeMap = {
-            headgear: "head",
-            armor: "chest",
-            belt: "belt",
-            pants: "pants",
-            boots: "boots",
-            gloves: "gloves",
-            weapon: "weapon",
-          };
-          targetSlot = typeMap[config.type] || null;
-        }
-
-        // Валидация слота
-        const validSlots = [
-          "head",
-          "chest",
-          "belt",
-          "pants",
-          "boots",
-          "gloves",
-          "weapon",
-          "offhand",
-        ];
-        if (!validSlots.includes(targetSlot)) {
-          ws.send(
-            JSON.stringify({
-              type: "equipItemFail",
-              error: "Недопустимый слот экипировки",
-            })
-          );
-          return;
-        }
-
-        // Специальная логика для оружия
-        if (config.type === "weapon") {
-          if (config.hands === "twohanded") {
-            if (player.equipment.offhand !== null) {
+        if (id) {
+          const player = players.get(id);
+          const slotIndex = data.slotIndex;
+          const item = player.inventory[slotIndex];
+          if (item && ITEM_CONFIG[item.type] && ITEM_CONFIG[item.type].type) {
+            const slotName = {
+              headgear: "head",
+              armor: "chest",
+              belt: "belt",
+              pants: "pants",
+              boots: "boots",
+              weapon: "weapon",
+              gloves: "gloves",
+            }[ITEM_CONFIG[item.type].type];
+            if (slotName) {
+              // <-- НАЧАЛО ВСТАВКИ: Добавляем проверку уровня для melee оружия
+              const meleeWeapons = ["knuckles", "knife", "bat"];
+              if (slotName === "weapon" && meleeWeapons.includes(item.type)) {
+                if (player.level < 2) {
+                  ws.send(
+                    JSON.stringify({
+                      type: "equipItemFail",
+                      error:
+                        "Вы должны быть как минимум 2 уровня для экипировки этого оружия",
+                    })
+                  );
+                  return;
+                }
+              }
+              // <-- КОНЕЦ ВСТАВКИ
+              if (player.equipment[slotName]) {
+                const freeSlot = player.inventory.findIndex(
+                  (slot) => slot === null
+                );
+                if (freeSlot !== -1) {
+                  player.inventory[freeSlot] = player.equipment[slotName];
+                } else {
+                  // Если нет места для swap, отменяем (добавил проверку, которой не было)
+                  ws.send(
+                    JSON.stringify({
+                      type: "equipItemFail",
+                      error: "Нет места в инвентаре для замены",
+                    })
+                  );
+                  return;
+                }
+              }
+              player.equipment[slotName] = {
+                type: item.type,
+                itemId: item.itemId,
+              };
+              player.inventory[slotIndex] = null;
+              // Полностью пересчитываем maxStats и обрезаем текущие статы
+              calculateMaxStats(player, ITEM_CONFIG);
+              // Сохраняем изменения
+              players.set(id, { ...player });
+              userDatabase.set(id, { ...player });
+              await saveUserDatabase(dbCollection, id, player);
+              // Отправляем обновление клиенту (с новыми статами)
               ws.send(
                 JSON.stringify({
-                  type: "equipItemFail",
-                  error: "Снимите предмет со второй руки для двуручного оружия",
+                  type: "update",
+                  player: {
+                    id,
+                    inventory: player.inventory,
+                    equipment: player.equipment,
+                    maxStats: player.maxStats,
+                    health: player.health,
+                    energy: player.energy,
+                    food: player.food,
+                    water: player.water,
+                    armor: player.armor,
+                    damage: player.damage,
+                  },
                 })
               );
-              return;
+              // Отправляем обновление другим игрокам в том же мире (только статы, если нужно)
+              wss.clients.forEach((client) => {
+                if (client !== ws && client.readyState === WebSocket.OPEN) {
+                  const clientPlayer = players.get(clients.get(client));
+                  if (clientPlayer && clientPlayer.worldId === player.worldId) {
+                    client.send(
+                      JSON.stringify({
+                        type: "update",
+                        player: {
+                          id,
+                          maxStats: player.maxStats,
+                          health: player.health,
+                          energy: player.energy,
+                          food: player.food,
+                          water: player.water,
+                          armor: player.armor,
+                          damage: player.damage,
+                        },
+                      })
+                    );
+                  }
+                }
+              });
             }
-            targetSlot = "weapon"; // двуручное всегда только в weapon
-          } else if (config.hands === "onehanded") {
-            // Клиент уже выбрал правильный слот (weapon или offhand) — доверяем ему
-            // Но на всякий случай проверяем, что offhand не заблокирован двуручным
-            if (targetSlot === "offhand") {
-              const mainWeapon = player.equipment.weapon;
-              if (
-                mainWeapon &&
-                ITEM_CONFIG[mainWeapon.type]?.hands === "twohanded"
-              ) {
-                ws.send(
-                  JSON.stringify({
-                    type: "equipItemFail",
-                    error:
-                      "Нельзя экипировать во вторую руку при двуручном оружии",
-                  })
-                );
-                return;
-              }
-            }
-          }
-        } else {
-          // Для брони — слот строго по типу
-          const expectedSlot = {
-            headgear: "head",
-            armor: "chest",
-            belt: "belt",
-            pants: "pants",
-            boots: "boots",
-            gloves: "gloves",
-          }[config.type];
-          if (targetSlot !== expectedSlot) {
-            ws.send(
-              JSON.stringify({
-                type: "equipItemFail",
-                error: "Неверный слот для этого типа предмета",
-              })
-            );
-            return;
           }
         }
-
-        // Проверка на swap: если слот занят — нужен свободный слот в инвентаре
-        if (player.equipment[targetSlot] !== null) {
-          const freeInventorySlot = player.inventory.findIndex(
-            (s) => s === null
-          );
-          if (freeInventorySlot === -1) {
-            ws.send(
-              JSON.stringify({
-                type: "equipItemFail",
-                error: "Нет места в инвентаре для замены",
-              })
-            );
-            return;
-          }
-          // Сохраним старый предмет
-          player.inventory[freeInventorySlot] = {
-            ...player.equipment[targetSlot],
-          };
-        }
-
-        // Экипируем новый предмет
-        player.equipment[targetSlot] = {
-          type: item.type,
-          itemId: item.itemId,
-        };
-
-        // Если экипировали двуручное — очищаем offhand
-        if (config.hands === "twohanded") {
-          player.equipment.offhand = null;
-        }
-
-        // Убираем предмет из инвентаря
-        player.inventory[slotIndex] = null;
-
-        // Пересчитываем статы
-        calculateMaxStats(player, ITEM_CONFIG);
-
-        // Сохраняем
-        players.set(id, { ...player });
-        userDatabase.set(id, { ...player });
-        await saveUserDatabase(dbCollection, id, player);
-
-        // Успешно! Отправляем клиенту обновлённые данные
-        ws.send(
-          JSON.stringify({
-            type: "equipItemSuccess",
-            inventory: player.inventory,
-            equipment: player.equipment,
-            maxStats: player.maxStats,
-            stats: {
-              health: player.health,
-              energy: player.energy,
-              food: player.food,
-              water: player.water,
-              armor: player.armor,
-            },
-          })
-        );
-
-        // Обновляем другим игрокам только статы (не инвентарь и экипировку)
-        broadcastToWorld(
-          wss,
-          clients,
-          players,
-          player.worldId,
-          JSON.stringify({
-            type: "update",
-            player: {
-              id,
-              maxStats: player.maxStats,
-              health: player.health,
-              energy: player.energy,
-              food: player.food,
-              water: player.water,
-              armor: player.armor,
-            },
-          })
-        );
       } else if (data.type === "dropItem") {
         const id = clients.get(ws);
         if (id) {
@@ -1881,118 +1780,64 @@ function setupWebSocket(
             }
           }
         });
-      } else if (
-        data.type === "meleeAttackPlayer" ||
-        data.type === "bulletHitPlayer"
-      ) {
+      } else if (data.type === "attackPlayer") {
         const attackerId = clients.get(ws);
         if (
-          !attackerId ||
-          !players.has(attackerId) ||
-          !players.has(data.targetId)
-        )
-          return;
+          attackerId &&
+          players.has(attackerId) &&
+          players.has(data.targetId)
+        ) {
+          const attacker = players.get(attackerId);
+          const target = players.get(data.targetId);
+          if (
+            attacker.worldId === data.worldId &&
+            target.worldId === data.worldId &&
+            target.health > 0
+          ) {
+            target.health = Math.max(0, target.health - data.damage);
+            players.set(data.targetId, { ...target });
+            userDatabase.set(data.targetId, { ...target });
+            await saveUserDatabase(dbCollection, data.targetId, target);
 
-        const attacker = players.get(attackerId);
-        const target = players.get(data.targetId);
-
-        if (
-          attacker.worldId !== data.worldId ||
-          target.worldId !== data.worldId ||
-          target.health <= 0
-        )
-          return;
-
-        let damage = data.damage;
-
-        if (data.type === "meleeAttackPlayer") {
-          let min = 5 + (attacker.level || 0);
-          let max = 10 + (attacker.level || 0);
-
-          ["weapon", "offhand"].forEach((slot) => {
-            const item = attacker.equipment?.[slot];
-            if (
-              item &&
-              ITEM_CONFIG[item.type]?.effect?.damage &&
-              !ITEM_CONFIG[item.type]?.effect?.range
-            ) {
-              const d = ITEM_CONFIG[item.type].effect.damage;
-              if (
-                d &&
-                typeof d === "object" &&
-                d.min !== undefined &&
-                d.max !== undefined
-              ) {
-                min += d.min;
-                max += d.max;
+            // Broadcast update to all players in the same world
+            wss.clients.forEach((client) => {
+              if (client.readyState === WebSocket.OPEN) {
+                const clientPlayer = players.get(clients.get(client));
+                if (clientPlayer && clientPlayer.worldId === target.worldId) {
+                  client.send(
+                    JSON.stringify({
+                      type: "update",
+                      player: { id: data.targetId, ...target },
+                    })
+                  );
+                }
               }
-            }
-          });
-
-          damage = Math.floor(Math.random() * (max - min + 1)) + min;
+            });
+          }
         }
-
-        target.health = Math.max(0, target.health - damage);
-        players.set(data.targetId, { ...target });
-        userDatabase.set(data.targetId, { ...target });
-        await saveUserDatabase(dbCollection, data.targetId, target);
-
-        broadcastToWorld(
-          wss,
-          clients,
-          players,
-          data.worldId,
-          JSON.stringify({
-            type: "update",
-            player: { id: data.targetId, health: target.health },
-          })
-        );
-      } else if (
-        data.type === "meleeAttackEnemy" ||
-        data.type === "bulletHitEnemy"
-      ) {
+      } else if (data.type === "attackEnemy") {
         const attackerId = clients.get(ws);
-        if (!attackerId || !players.has(attackerId)) return;
+        if (!attackerId) return;
 
         const attacker = players.get(attackerId);
         const enemy = enemies.get(data.targetId);
-        if (!enemy || enemy.worldId !== data.worldId || enemy.health <= 0)
+
+        if (
+          !attacker ||
+          !enemy ||
+          enemy.worldId !== data.worldId ||
+          enemy.health <= 0
+        )
           return;
 
-        let damage = data.damage;
+        // Наносим урон
+        enemy.health = Math.max(0, enemy.health - data.damage);
 
-        if (data.type === "meleeAttackEnemy") {
-          let min = 5 + (attacker.level || 0);
-          let max = 10 + (attacker.level || 0);
-
-          ["weapon", "offhand"].forEach((slot) => {
-            const item = attacker.equipment?.[slot];
-            if (
-              item &&
-              ITEM_CONFIG[item.type]?.effect?.damage &&
-              !ITEM_CONFIG[item.type]?.effect?.range
-            ) {
-              const d = ITEM_CONFIG[item.type].effect.damage;
-              if (
-                d &&
-                typeof d === "object" &&
-                d.min !== undefined &&
-                d.max !== undefined
-              ) {
-                min += d.min;
-                max += d.max;
-              }
-            }
-          });
-
-          damage = Math.floor(Math.random() * (max - min + 1)) + min;
-        }
-
-        enemy.health = Math.max(0, enemy.health - damage);
-
+        // Если умер
         if (enemy.health <= 0) {
           enemies.delete(data.targetId);
 
+          // Уведомляем всех
           broadcastToWorld(
             wss,
             clients,
@@ -2004,7 +1849,7 @@ function setupWebSocket(
             })
           );
 
-          // === ВСЯ СТАРАЯ ЛОГИКА ДРОПА, XP, КВЕСТОВ, РЕСПАВНА (полностью как было) ===
+          // Новый дроп (замена старого)
           const dropChance = Math.random();
           const tornItems = [
             "torn_baseball_cap_of_health",
@@ -2032,11 +1877,12 @@ function setupWebSocket(
             "torn_pants_of_thirst",
             "torn_sneakers_of_thirst",
           ];
-          const newDropItems = [];
+          const newDropItems = []; // Массив для всех дропнутых предметов
 
           if (dropChance < 0.33) {
-            // ничего
+            // 33% - ничего
           } else if (dropChance < 0.45) {
+            // 33% + 12% = 45% - torn + atom + balyary
             const tornType =
               tornItems[Math.floor(Math.random() * tornItems.length)];
             const tornItemId = `${tornType}_${Date.now()}`;
@@ -2073,6 +1919,7 @@ function setupWebSocket(
             items.set(balyaryItemId, balyaryDrop);
             newDropItems.push({ itemId: balyaryItemId, ...balyaryDrop });
           } else if (dropChance < 0.7) {
+            // 45% + 25% = 70% - blood_pack + atom
             const bloodItemId = `blood_pack_${Date.now()}`;
             const bloodDrop = {
               x: enemy.x,
@@ -2095,6 +1942,7 @@ function setupWebSocket(
             items.set(atomItemId, atomDrop);
             newDropItems.push({ itemId: atomItemId, ...atomDrop });
           } else if (dropChance < 0.85) {
+            // 70% + 15% = 85% - torn
             const tornType =
               tornItems[Math.floor(Math.random() * tornItems.length)];
             const tornItemId = `${tornType}_${Date.now()}`;
@@ -2108,6 +1956,7 @@ function setupWebSocket(
             items.set(tornItemId, tornDrop);
             newDropItems.push({ itemId: tornItemId, ...tornDrop });
           } else {
+            // 85% + 15% = 100% - atom
             const atomItemId = `atom_${Date.now()}`;
             const atomDrop = {
               x: enemy.x,
@@ -2120,6 +1969,7 @@ function setupWebSocket(
             newDropItems.push({ itemId: atomItemId, ...atomDrop });
           }
 
+          // Если есть дроп — отправляем один broadcast с массивом
           if (newDropItems.length > 0) {
             broadcastToWorld(
               wss,
@@ -2133,22 +1983,25 @@ function setupWebSocket(
             );
           }
 
+          // XP и level up
           let xpGained = 13;
-          if (enemy.type === "scorpion") xpGained = 20;
-
+          if (enemy.type === "scorpion") {
+            xpGained = 20;
+          }
           attacker.xp = (attacker.xp || 0) + xpGained;
+          let levelUp = false;
           let xpToNext = calculateXPToNextLevel(attacker.level);
           while (attacker.xp >= xpToNext && attacker.level < 100) {
             attacker.level += 1;
             attacker.xp -= xpToNext;
             attacker.upgradePoints = (attacker.upgradePoints || 0) + 10;
+            levelUp = true;
             xpToNext = calculateXPToNextLevel(attacker.level);
           }
-
-          players.set(attackerId, { ...attacker });
-          userDatabase.set(attackerId, { ...attacker });
+          players.set(attackerId, attacker);
+          userDatabase.set(attackerId, attacker);
           await saveUserDatabase(dbCollection, attackerId, attacker);
-
+          // Уведомление атакующего (levelSyncAfterKill)
           ws.send(
             JSON.stringify({
               type: "levelSyncAfterKill",
@@ -2159,7 +2012,6 @@ function setupWebSocket(
               xpGained,
             })
           );
-
           if (enemy.type === "mutant") {
             if (
               attacker.neonQuest &&
@@ -2168,11 +2020,11 @@ function setupWebSocket(
               attacker.neonQuest.progress = attacker.neonQuest.progress || {};
               attacker.neonQuest.progress.killMutants =
                 (attacker.neonQuest.progress.killMutants || 0) + 1;
-
-              players.set(attackerId, { ...attacker });
-              userDatabase.set(attackerId, { ...attacker });
+              // Сохраняем в БД
+              players.set(attackerId, attacker);
+              userDatabase.set(attackerId, attacker);
               await saveUserDatabase(dbCollection, attackerId, attacker);
-
+              // Отправляем игроку обновлённый прогресс
               ws.send(
                 JSON.stringify({
                   type: "neonQuestProgressUpdate",
@@ -2181,15 +2033,14 @@ function setupWebSocket(
               );
             }
           }
-
+          // Респавн через 8-15 сек
           setTimeout(
             () => spawnNewEnemy(data.worldId),
             8000 + Math.random() * 7000
           );
         } else {
-          // Враг жив — отправляем здоровье + позицию (КРИТИЧНО!)
-          enemies.set(data.targetId, { ...enemy });
-
+          // Если жив — просто обновляем здоровье
+          enemies.set(data.targetId, enemy);
           broadcastToWorld(
             wss,
             clients,
@@ -2200,34 +2051,12 @@ function setupWebSocket(
               enemy: {
                 id: data.targetId,
                 health: enemy.health,
-                x: enemy.x, // ← ВЕРНУЛИ ПОЗИЦИЮ!
-                y: enemy.y, // ← ВЕРНУЛИ ПОЗИЦИЮ!
+                x: enemy.x,
+                y: enemy.y,
               },
             })
           );
         }
-      } else if (data.type === "shoot") {
-        broadcastToWorld(
-          wss,
-          clients,
-          players,
-          data.worldId,
-          JSON.stringify({
-            type: "shoot",
-            ...data,
-          })
-        );
-      } else if (data.type === "removeBullet") {
-        broadcastToWorld(
-          wss,
-          clients,
-          players,
-          data.worldId,
-          JSON.stringify({
-            type: "removeBullet",
-            bulletId: data.bulletId,
-          })
-        );
       } else if (data.type === "neonQuestAccept") {
         const id = clients.get(ws);
         if (id && players.has(id)) {

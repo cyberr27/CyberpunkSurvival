@@ -348,7 +348,6 @@ const ITEM_CONFIG = {
     image: images.plasmaRifleImage,
     description: "Плазменная винтовка: 50 урона, дальность 200px",
     rarity: 4,
-    hands: "twohanded",
   },
   knuckles: {
     type: "weapon",
@@ -356,7 +355,6 @@ const ITEM_CONFIG = {
     image: images.knucklesImage,
     description: "Кастет: 3–7 урона в ближнем бою",
     rarity: 4,
-    hands: "onehanded",
   },
   knife: {
     type: "weapon",
@@ -364,7 +362,6 @@ const ITEM_CONFIG = {
     image: images.knifeImage,
     description: "Нож: 4–6 урона в ближнем бою",
     rarity: 4,
-    hands: "onehanded",
   },
   bat: {
     type: "weapon",
@@ -372,7 +369,6 @@ const ITEM_CONFIG = {
     image: images.batImage,
     description: "Бита: 5–10 урона в ближнем бою",
     rarity: 4,
-    hands: "onehanded",
   },
   // === ПОРВАННАЯ СТАРТОВАЯ ЭКИПИРОВКА — АКТУАЛЬНЫЕ ЗНАЧЕНИЯ ИЗ items.js ===
   torn_baseball_cap_of_health: {
@@ -1543,29 +1539,11 @@ function handleGameMessage(event) {
         items.delete(data.itemId);
         pendingPickups.delete(data.itemId);
         break;
-      case "equipItemSuccess": {
-        const me = players.get(myId);
-        if (me) {
-          me.inventory = data.inventory;
-          me.equipment = data.equipment;
-          me.maxStats = data.maxStats;
-          me.health = data.stats.health;
-          me.energy = data.stats.energy;
-          me.food = data.stats.food;
-          me.water = data.stats.water;
-          me.armor = data.stats.armor;
-
-          inventory = me.inventory.map((slot) => (slot ? { ...slot } : null));
-          window.equipmentSystem.equipmentSlots = { ...data.equipment };
-          window.equipmentSystem.syncEquipment(data.equipment); // перерисовка + эффекты
-        }
-        window.equipmentSystem.pendingEquip = null;
-        updateInventoryDisplay();
-        updateStatsDisplay();
-        break;
-      }
       case "equipItemFail":
         window.equipmentSystem.handleEquipFail(data.error);
+        break;
+      case "unequipItemFail":
+        window.equipmentSystem.handleUnequipFail(message.error);
         break;
       case "unequipItemSuccess": {
         const me = players.get(myId);
@@ -1589,9 +1567,6 @@ function handleGameMessage(event) {
         window.equipmentSystem.pendingUnequip = null;
         break;
       }
-      case "unequipItemFail":
-        window.equipmentSystem.handleUnequipFail(message.error);
-        break;
       case "inventoryFull":
         pendingPickups.delete(data.itemId);
         break;
