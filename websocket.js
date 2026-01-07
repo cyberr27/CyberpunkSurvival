@@ -1882,6 +1882,73 @@ function setupWebSocket(
           }
         });
       } else if (
+        data.type === "meleeAttackPlayer" ||
+        data.type === "bulletHitPlayer"
+      ) {
+        const attackerId = clients.get(ws);
+        if (
+          !attackerId ||
+          !players.has(attackerId) ||
+          !players.has(data.targetId)
+        )
+          return;
+
+        const attacker = players.get(attackerId);
+        const target = players.get(data.targetId);
+
+        if (
+          attacker.worldId !== data.worldId ||
+          target.worldId !== data.worldId ||
+          target.health <= 0
+        )
+          return;
+
+        let damage = data.damage;
+
+        // Пересчёт урона для ближнего боя (античит)
+        if (data.type === "meleeAttackPlayer") {
+          let min = 5 + (attacker.level || 0);
+          let max = 10 + (attacker.level || 0);
+
+          ["weapon", "offhand"].forEach((slot) => {
+            const item = attacker.equipment?.[slot];
+            if (
+              item &&
+              ITEM_CONFIG[item.type]?.effect?.damage &&
+              !ITEM_CONFIG[item.type]?.effect?.range
+            ) {
+              const d = ITEM_CONFIG[item.type].effect.damage;
+              if (
+                d &&
+                typeof d === "object" &&
+                d.min !== undefined &&
+                d.max !== undefined
+              ) {
+                min += d.min;
+                max += d.max;
+              }
+            }
+          });
+
+          damage = Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        target.health = Math.max(0, target.health - damage);
+        players.set(data.targetId, { ...target });
+        userDatabase.set(data.targetId, { ...target });
+        await saveUserDatabase(dbCollection, data.targetId, target);
+
+        broadcastToWorld(
+          wss,
+          clients,
+          players,
+          data.worldId,
+          JSON.stringify({
+            type: "update",
+            player: { id: data.targetId, health: target.health },
+          })
+        );
+      } else if (
         data.type === "meleeAttackEnemy" ||
         data.type === "bulletHitEnemy"
       ) {
@@ -1895,7 +1962,7 @@ function setupWebSocket(
 
         let damage = data.damage;
 
-        // Пересчёт урона для ближнего боя на сервере (античит + поддержка двух оружий)
+        // Пересчёт урона для ближнего боя
         if (data.type === "meleeAttackEnemy") {
           let min = 5 + (attacker.level || 0);
           let max = 10 + (attacker.level || 0);
@@ -1922,15 +1989,13 @@ function setupWebSocket(
 
           damage = Math.floor(Math.random() * (max - min + 1)) + min;
         }
-        // Для пуль — доверяем клиенту (плазма и т.д.)
 
         enemy.health = Math.max(0, enemy.health - damage);
 
         if (enemy.health <= 0) {
-          // === СМЕРТЬ ВРАГА ===
           enemies.delete(data.targetId);
 
-          // Уведомляем всех — враг умер (клиент удалит объект полностью)
+          // Полная смерть — уведомляем всех
           broadcastToWorld(
             wss,
             clients,
@@ -1942,7 +2007,7 @@ function setupWebSocket(
             })
           );
 
-          // === ДРОП (полностью как в старом коде) ===
+          // === ВСЯ СТАРАЯ ЛОГИКА ДРОПА, XP, КВЕСТОВ, РЕСПАВНА (без изменений) ===
           const dropChance = Math.random();
           const tornItems = [
             "torn_baseball_cap_of_health",
@@ -2071,7 +2136,7 @@ function setupWebSocket(
             );
           }
 
-          // === XP, левелап, квест ===
+          // XP и левелап
           let xpGained = 13;
           if (enemy.type === "scorpion") xpGained = 20;
 
@@ -2099,6 +2164,7 @@ function setupWebSocket(
             })
           );
 
+          // Квест на мутантов
           if (enemy.type === "mutant") {
             if (
               attacker.neonQuest &&
@@ -2121,13 +2187,13 @@ function setupWebSocket(
             }
           }
 
-          // Респавн нового врага
+          // Респавн
           setTimeout(
             () => spawnNewEnemy(data.worldId),
             8000 + Math.random() * 7000
           );
         } else {
-          // === ВРАГ ЖИВ — ВАЖНО: отправляем x, y и health (как в старом коде!) ===
+          // Враг жив — обновляем здоровье и позицию (КРИТИЧНО!)
           enemies.set(data.targetId, { ...enemy });
 
           broadcastToWorld(
@@ -2140,14 +2206,13 @@ function setupWebSocket(
               enemy: {
                 id: data.targetId,
                 health: enemy.health,
-                x: enemy.x,
-                y: enemy.y,
+                x: enemy.x, // ← ВЕРНУЛИ!
+                y: enemy.y, // ← ВЕРНУЛИ!
               },
             })
           );
         }
       } else if (data.type === "shoot") {
-        // Просто ретранслируем выстрел всем в мире
         broadcastToWorld(
           wss,
           clients,
