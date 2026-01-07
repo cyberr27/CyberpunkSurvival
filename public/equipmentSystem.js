@@ -560,73 +560,97 @@ const equipmentSystem = {
   pendingUnequip: null,
 
   equipItem: function (slotIndex) {
+    if (slotIndex === null || slotIndex === undefined) return;
+
     const item = inventory[slotIndex];
-    if (!item) return;
+    if (!item || !this.EQUIPMENT_CONFIG[item.type]) return;
 
     const config = this.EQUIPMENT_CONFIG[item.type];
-    if (!config || !config.type) return;
+    if (!config.type) return;
 
-    let targetSlot = this.EQUIPMENT_TYPES[config.type];
-    if (!targetSlot) return;
+    let slotName = this.EQUIPMENT_TYPES[config.type] || null;
 
-    // === СПЕЦИАЛЬНАЯ ЛОГИКА ДЛЯ ОРУЖИЯ ===
+    // Специальная логика для оружия
     if (config.type === "weapon") {
-      const hands = config.hands || "onehanded"; // по умолчанию одноручное
-
-      if (hands === "twohanded") {
-        // Двуручное оружие: всегда в weapon, но offhand должен быть свободен
+      if (config.hands === "twohanded") {
         if (this.equipmentSlots.offhand !== null) {
           alert("Снимите предмет со второй руки для двуручного оружия");
           return;
         }
-        targetSlot = "weapon"; // принудительно в основной слот
-      } else if (hands === "onehanded") {
-        // Одноручное оружие
+        slotName = "weapon"; // twohanded всегда в weapon, offhand очищается автоматически
+      } else if (config.hands === "onehanded") {
+        // onehanded: сначала weapon, если занят и offhand свободен — туда
         if (this.equipmentSlots.weapon === null) {
-          // Основной слот свободен — идём туда
-          targetSlot = "weapon";
+          slotName = "weapon";
         } else if (this.equipmentSlots.offhand === null) {
-          // Основной занят, но offhand свободен — идём во вторую руку
-          targetSlot = "offhand";
+          slotName = "offhand";
         } else {
-          // Оба слота заняты
-          alert("Обе руки заняты");
-          return;
+          // оба заняты — заменяем weapon (стандартное поведение)
+          slotName = "weapon";
         }
       }
+    } else {
+      slotName = this.EQUIPMENT_TYPES[config.type];
     }
 
-    // === ПРОВЕРКА: ЦЕЛЕВОЙ СЛОТ ЗАНЯТ? ===
-    const oldItem = this.equipmentSlots[targetSlot];
+    if (!slotName) return;
 
-    let freeSlot = -1;
+    const me = players.get(myId);
+    if (!me) return;
+
+    const oldItem = this.equipmentSlots[slotName];
+    let freeSlot = null;
     if (oldItem) {
       freeSlot = inventory.findIndex((s) => s === null);
       if (freeSlot === -1) {
-        alert("Нет места в инвентаре для замены");
+        alert("Инвентарь полон! Освободите место для замены.");
         return;
       }
+      inventory[freeSlot] = oldItem;
     }
 
-    // === СОХРАНЯЕМ PENDING ДЛЯ ОТКАТА ===
     this.pendingEquip = {
       slotIndex,
       item: { ...item },
-      slotName: targetSlot,
-      oldItem: oldItem ? { ...oldItem } : null,
-      freeSlot,
+      slotName,
+      oldItem,
+      freeSlot: oldItem ? freeSlot : null,
     };
 
-    // === ОТПРАВЛЯЕМ НА СЕРВЕР ===
+    // Локально экипируем
+    this.equipmentSlots[slotName] = { type: item.type, itemId: item.itemId };
+    if (config.hands === "twohanded") {
+      this.equipmentSlots.offhand = null;
+    }
+    inventory[slotIndex] = null;
+    this.updateEquipmentDisplay();
+    this.applyEquipmentEffects(me);
+
     if (ws.readyState === WebSocket.OPEN) {
-      ws.send(
+      sendWhenReady(
+        ws,
         JSON.stringify({
           type: "equipItem",
           slotIndex,
-          itemId: item.itemId,
+          slotName, // <-- важно! передаём предлагаемый слот
+          equipment: this.equipmentSlots,
+          maxStats: { ...me.maxStats },
+          stats: {
+            health: me.health,
+            energy: me.energy,
+            food: me.food,
+            water: me.water,
+            armor: me.armor,
+          },
         })
       );
     }
+
+    selectedSlot = null;
+    document.getElementById("useBtn").disabled = true;
+    document.getElementById("dropBtn").disabled = true;
+    updateInventoryDisplay();
+    updateStatsDisplay();
   },
 
   unequipItem: function (slotName) {
