@@ -202,24 +202,10 @@ function performAttack() {
         })
       );
     } else {
-      // Ближний бой: НОВЫЙ РАСЧЁТ УРОНА (базовый 5-10 + оружие)
-      let damage;
-      const weaponDamage = weaponConfig.effect.damage;
-      let minDamage = BASE_MELEE_MIN_DAMAGE + levelBonus; // НОВОЕ: + levelBonus
-      let maxDamage = BASE_MELEE_MAX_DAMAGE + levelBonus; // НОВОЕ: + levelBonus
-
-      if (
-        weaponDamage &&
-        typeof weaponDamage === "object" &&
-        weaponDamage.min !== undefined &&
-        weaponDamage.max !== undefined
-      ) {
-        minDamage += weaponDamage.min;
-        maxDamage += weaponDamage.max;
-      } // Иначе базовый (если оружие без damage или не object)
-
-      damage = Math.floor(
-        Math.random() * (maxDamage - minDamage + 1) + minDamage
+      // Ближний бой: Используем расчёт из equipmentSystem (суммирует weapon + offhand)
+      const dmg = window.equipmentSystem.getCurrentMeleeDamage();
+      const damage = Math.floor(
+        Math.random() * (dmg.max - dmg.min + 1) + dmg.min
       );
       performMeleeAttack(damage, currentWorldId);
     }

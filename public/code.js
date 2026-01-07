@@ -133,6 +133,13 @@ const imageSources = {
   torn_belt_of_thirst: "torn_belt_of_thirst.png",
   torn_pants_of_thirst: "torn_pants_of_thirst.png",
   torn_sneakers_of_thirst: "torn_sneakers_of_thirst.png",
+
+  chameleonBeltImage: "chameleon_belt.png",
+  chameleonCapImage: "chameleon_cap.png",
+  chameleonGlovesImage: "chameleon_gloves.png",
+  chameleonPantsImage: "chameleon_pants.png",
+  chameleonSneakersImage: "chameleon_sneakers.png",
+  chameleonTShirtImage: "chameleon_t_shirt.png",
 };
 
 const images = {};
@@ -341,6 +348,7 @@ const ITEM_CONFIG = {
     image: images.plasmaRifleImage,
     description: "Плазменная винтовка: 50 урона, дальность 200px",
     rarity: 4,
+    hands: "twohanded",
   },
   knuckles: {
     type: "weapon",
@@ -348,6 +356,7 @@ const ITEM_CONFIG = {
     image: images.knucklesImage,
     description: "Кастет: 3–7 урона в ближнем бою",
     rarity: 4,
+    hands: "onehanded",
   },
   knife: {
     type: "weapon",
@@ -355,6 +364,7 @@ const ITEM_CONFIG = {
     image: images.knifeImage,
     description: "Нож: 4–6 урона в ближнем бою",
     rarity: 4,
+    hands: "onehanded",
   },
   bat: {
     type: "weapon",
@@ -362,6 +372,7 @@ const ITEM_CONFIG = {
     image: images.batImage,
     description: "Бита: 5–10 урона в ближнем бою",
     rarity: 4,
+    hands: "onehanded",
   },
   // === ПОРВАННАЯ СТАРТОВАЯ ЭКИПИРОВКА — АКТУАЛЬНЫЕ ЗНАЧЕНИЯ ИЗ items.js ===
   torn_baseball_cap_of_health: {
@@ -371,6 +382,7 @@ const ITEM_CONFIG = {
     description:
       "Порванная кепка здоровья: +5 к максимальному здоровью и броне",
     rarity: 4,
+    collection: "Torn Health", // Вставлено здесь, после rarity, не меняя порядок
   },
   torn_health_t_shirt: {
     type: "armor",
@@ -379,6 +391,7 @@ const ITEM_CONFIG = {
     description:
       "Порванная футболка здоровья: +10 к максимальному здоровью, +10 к броне",
     rarity: 4,
+    collection: "Torn Health", // Вставлено здесь, после rarity, не меняя порядок
   },
   torn_health_gloves: {
     type: "gloves",
@@ -387,6 +400,7 @@ const ITEM_CONFIG = {
     description:
       "Порванные перчатки здоровья: +3 к максимальному здоровью, +5 к броне",
     rarity: 4,
+    collection: "Torn Health", // Вставлено здесь, после rarity, не меняя порядок
   },
   torn_belt_of_health: {
     type: "belt",
@@ -395,6 +409,7 @@ const ITEM_CONFIG = {
     description:
       "Порванный пояс здоровья: +7 к максимальному здоровью, +3 к броне",
     rarity: 4,
+    collection: "Torn Health", // Вставлено здесь, после rarity, не меняя порядок
   },
   torn_pants_of_health: {
     type: "pants",
@@ -403,6 +418,7 @@ const ITEM_CONFIG = {
     description:
       "Порванные штаны здоровья: +6 к максимальному здоровью, +7 к броне",
     rarity: 4,
+    collection: "Torn Health", // Вставлено здесь, после rarity, не меняя порядок
   },
   torn_health_sneakers: {
     type: "boots",
@@ -411,6 +427,7 @@ const ITEM_CONFIG = {
     description:
       "Порванные кроссовки здоровья: +4 к максимальному здоровью, +5 к броне",
     rarity: 4,
+    collection: "Torn Health", // Вставлено здесь, после rarity, не меняя порядок
   },
 
   // ЭНЕРГЕТИЧЕСКАЯ ЛИНИЯ
@@ -421,6 +438,7 @@ const ITEM_CONFIG = {
     description:
       "Порванная кепка энергии: +5 к максимальной энергии, +5 к броне",
     rarity: 4,
+    collection: "Torn Energy", // Вставлено здесь, после rarity, не меняя порядок
   },
   torn_energy_t_shirt: {
     type: "armor",
@@ -429,6 +447,7 @@ const ITEM_CONFIG = {
     description:
       "Порванная футболка энергии: +10 к максимальной энергии, +10 к броне",
     rarity: 4,
+    collection: "Torn Energy", // Вставлено здесь, после rarity, не меняя порядок
   },
   torn_gloves_of_energy: {
     type: "gloves",
@@ -437,6 +456,7 @@ const ITEM_CONFIG = {
     description:
       "Порванные перчатки энергии: +3 к максимальной энергии, +5 к броне",
     rarity: 4,
+    collection: "Torn Energy", // Вставлено здесь, после rarity, не меняя порядок
   },
   torn_energy_belt: {
     type: "belt",
@@ -445,6 +465,7 @@ const ITEM_CONFIG = {
     description:
       "Порванный пояс энергии: +7 к максимальной энергии, +3 к броне",
     rarity: 4,
+    collection: "Torn Energy", // Вставлено здесь, после rarity, не меняя порядок
   },
   torn_pants_of_energy: {
     type: "pants",
@@ -453,6 +474,7 @@ const ITEM_CONFIG = {
     description:
       "Порванные штаны энергии: +6 к максимальной энергии, +7 к броне",
     rarity: 4,
+    collection: "Torn Energy", // Вставлено здесь, после rarity, не меняя порядок
   },
   torn_sneakers_of_energy: {
     type: "boots",
@@ -461,6 +483,7 @@ const ITEM_CONFIG = {
     description:
       "Порванные кроссовки энергии: +4 к максимальной энергии, +5 к броне",
     rarity: 4,
+    collection: "Torn Energy", // Вставлено здесь, после rarity, не меняя порядок
   },
 
   // ОБЖОРСТВО
@@ -470,6 +493,7 @@ const ITEM_CONFIG = {
     image: images.torn_cap_of_gluttony,
     description: "Порванная кепка обжорства: +5 к максимальной еде, +5 к броне",
     rarity: 4,
+    collection: "Torn Gluttony", // Вставлено здесь, после rarity, не меняя порядок
   },
   torn_t_shirt_of_gluttony: {
     type: "armor",
@@ -478,6 +502,7 @@ const ITEM_CONFIG = {
     description:
       "Порванная футболка обжорства: +10 к максимальной еде, +10 к броне",
     rarity: 4,
+    collection: "Torn Gluttony", // Вставлено здесь, после rarity, не меняя порядок
   },
   torn_gloves_of_gluttony: {
     type: "gloves",
@@ -486,6 +511,7 @@ const ITEM_CONFIG = {
     description:
       "Порванные перчатки обжорства: +3 к максимальной еде, +5 к броне",
     rarity: 4,
+    collection: "Torn Gluttony", // Вставлено здесь, после rarity, не меняя порядок
   },
   torn_belt_of_gluttony: {
     type: "belt",
@@ -493,6 +519,7 @@ const ITEM_CONFIG = {
     image: images.torn_belt_of_gluttony,
     description: "Порванный пояс обжорства: +7 к максимальной еде, +3 к броне",
     rarity: 4,
+    collection: "Torn Gluttony", // Вставлено здесь, после rarity, не меняя порядок
   },
   torn_pants_of_gluttony: {
     type: "pants",
@@ -500,6 +527,7 @@ const ITEM_CONFIG = {
     image: images.torn_pants_of_gluttony,
     description: "Порванные штаны обжорства: +6 к максимальной еде, +7 к броне",
     rarity: 4,
+    collection: "Torn Gluttony", // Вставлено здесь, после rarity, не меняя порядок
   },
   torn_sneakers_of_gluttony: {
     type: "boots",
@@ -508,6 +536,7 @@ const ITEM_CONFIG = {
     description:
       "Порванные кроссовки обжорства: +4 к максимальной еде, +5 к броне",
     rarity: 4,
+    collection: "Torn Gluttony", // Вставлено здесь, после rarity, не меняя порядок
   },
 
   // ЖАЖДА
@@ -517,6 +546,7 @@ const ITEM_CONFIG = {
     image: images.torn_cap_of_thirst,
     description: "Порванная кепка жажды: +5 к максимальной воде, +5 к броне",
     rarity: 4,
+    collection: "Torn Thirst", // Вставлено здесь, после rarity, не меняя порядок
   },
   torn_t_shirt_of_thirst: {
     type: "armor",
@@ -525,6 +555,7 @@ const ITEM_CONFIG = {
     description:
       "Порванная футболка жажды: +10 к максимальной воде, +10 к броне",
     rarity: 4,
+    collection: "Torn Thirst", // Вставлено здесь, после rarity, не меняя порядок
   },
   torn_gloves_of_thirst: {
     type: "gloves",
@@ -532,6 +563,7 @@ const ITEM_CONFIG = {
     image: images.torn_gloves_of_thirst,
     description: "Порванные перчатки жажды: +3 к максимальной воде, +5 к броне",
     rarity: 4,
+    collection: "Torn Thirst", // Вставлено здесь, после rarity, не меняя порядок
   },
   torn_belt_of_thirst: {
     type: "belt",
@@ -539,6 +571,7 @@ const ITEM_CONFIG = {
     image: images.torn_belt_of_thirst,
     description: "Порванный пояс жажды: +7 к максимальной воде, +3 к броне",
     rarity: 4,
+    collection: "Torn Thirst", // Вставлено здесь, после rarity, не меняя порядок
   },
   torn_pants_of_thirst: {
     type: "pants",
@@ -546,6 +579,7 @@ const ITEM_CONFIG = {
     image: images.torn_pants_of_thirst,
     description: "Порванные штаны жажды: +6 к максимальной воде, +7 к броне",
     rarity: 4,
+    collection: "Torn Thirst", // Вставлено здесь, после rarity, не меняя порядок
   },
   torn_sneakers_of_thirst: {
     type: "boots",
@@ -554,6 +588,62 @@ const ITEM_CONFIG = {
     description:
       "Порванные кроссовки жажды: +4 к максимальной воде, +5 к броне",
     rarity: 4,
+    collection: "Torn Thirst", // Вставлено здесь, после rarity, не меняя порядок
+  },
+  // Вставка новых предметов здесь, в конец, после torn_sneakers_of_thirst (не меняя структуру)
+  chameleon_belt: {
+    type: "belt",
+    effect: { armor: 12, health: 14, energy: 7, food: 7, water: 7 },
+    image: images.chameleonBeltImage,
+    description:
+      "Хамелеон пояс: +12 брони, +14 здоровья, +7 энергии, +7 еды, +7 воды",
+    rarity: 4,
+    collection: "Light Chameleon",
+  },
+  chameleon_cap: {
+    type: "headgear",
+    effect: { armor: 15, health: 10, energy: 5, food: 5, water: 5 },
+    image: images.chameleonCapImage,
+    description:
+      "Хамелеон кепка: +15 брони, +10 здоровья, +5 энергии, +5 еды, +5 воды",
+    rarity: 4,
+    collection: "Light Chameleon",
+  },
+  chameleon_gloves: {
+    type: "gloves",
+    effect: { armor: 20, health: 6, energy: 3, food: 3, water: 3 },
+    image: images.chameleonGlovesImage,
+    description:
+      "Хамелеон перчатки: +20 брони, +6 здоровья, +3 энергии, +3 еды, +3 воды",
+    rarity: 4,
+    collection: "Light Chameleon",
+  },
+  chameleon_pants: {
+    type: "pants",
+    effect: { armor: 21, health: 12, energy: 6, food: 6, water: 6 },
+    image: images.chameleonPantsImage,
+    description:
+      "Хамелеон штаны: +21 брони, +12 здоровья, +6 энергии, +6 еды, +6 воды",
+    rarity: 4,
+    collection: "Light Chameleon",
+  },
+  chameleon_sneakers: {
+    type: "boots",
+    effect: { armor: 15, health: 8, energy: 4, food: 4, water: 4 },
+    image: images.chameleonSneakersImage,
+    description:
+      "Хамелеон кроссовки: +15 брони, +8 здоровья, +4 энергии, +4 еды, +4 воды",
+    rarity: 4,
+    collection: "Light Chameleon",
+  },
+  chameleon_t_shirt: {
+    type: "armor",
+    effect: { armor: 30, health: 20, energy: 10, food: 10, water: 10 },
+    image: images.chameleonTShirtImage,
+    description:
+      "Хамелеон футболка: +30 брони, +20 здоровья, +10 энергии, +10 еды, +10 воды",
+    rarity: 4,
+    collection: "Light Chameleon",
   },
 };
 
@@ -1339,19 +1429,6 @@ function handleGameMessage(event) {
           });
         }
         break;
-      case "unequipItemSuccess":
-        me = players.get(myId);
-        if (me) {
-          me.inventory = data.inventory;
-          me.equipment = data.equipment;
-          inventory = me.inventory.map((slot) => (slot ? { ...slot } : null));
-          window.equipmentSystem.equipmentSlots = data.equipment;
-          window.equipmentSystem.applyEquipmentEffects(me);
-          window.equipmentSystem.updateEquipmentDisplay();
-          window.inventorySystem.updateInventoryDisplay();
-          updateStatsDisplay();
-        }
-        break;
       case "worldTransitionSuccess":
         {
           const me = players.get(myId);
@@ -1466,8 +1543,54 @@ function handleGameMessage(event) {
         items.delete(data.itemId);
         pendingPickups.delete(data.itemId);
         break;
+      case "equipItemSuccess": {
+        const me = players.get(myId);
+        if (me) {
+          me.inventory = data.inventory;
+          me.equipment = data.equipment;
+          me.maxStats = data.maxStats;
+          me.health = data.stats.health;
+          me.energy = data.stats.energy;
+          me.food = data.stats.food;
+          me.water = data.stats.water;
+          me.armor = data.stats.armor;
+
+          inventory = me.inventory.map((slot) => (slot ? { ...slot } : null));
+          window.equipmentSystem.equipmentSlots = { ...data.equipment };
+          window.equipmentSystem.syncEquipment(data.equipment); // перерисовка + эффекты
+        }
+        window.equipmentSystem.pendingEquip = null;
+        updateInventoryDisplay();
+        updateStatsDisplay();
+        break;
+      }
       case "equipItemFail":
         window.equipmentSystem.handleEquipFail(data.error);
+        break;
+      case "unequipItemSuccess": {
+        const me = players.get(myId);
+        if (me) {
+          me.inventory = data.inventory;
+          me.equipment = data.equipment;
+          me.maxStats = data.maxStats;
+          me.health = data.stats.health;
+          me.energy = data.stats.energy;
+          me.food = data.stats.food;
+          me.water = data.stats.water;
+          me.armor = data.stats.armor;
+          me.damage = data.stats.damage;
+          inventory = me.inventory.map((slot) => (slot ? { ...slot } : null));
+          window.equipmentSystem.equipmentSlots = data.equipment;
+          window.equipmentSystem.applyEquipmentEffects(me);
+        }
+        window.equipmentSystem.updateEquipmentDisplay();
+        updateInventoryDisplay();
+        updateStatsDisplay();
+        window.equipmentSystem.pendingUnequip = null;
+        break;
+      }
+      case "unequipItemFail":
+        window.equipmentSystem.handleUnequipFail(message.error);
         break;
       case "inventoryFull":
         pendingPickups.delete(data.itemId);
@@ -1700,6 +1823,42 @@ function handleGameMessage(event) {
       case "syncBullets":
         window.combatSystem.syncBullets(data.bullets);
         break;
+      case "enemyUpdate":
+        if (data.enemy && data.enemy.id) {
+          const enemyId = data.enemy.id;
+
+          if (enemies.has(enemyId)) {
+            // Существующий враг — обновляем поля (с сохранением локальных данных, если нужно)
+            const existing = enemies.get(enemyId);
+            enemies.set(enemyId, {
+              ...existing,
+              ...data.enemy,
+              // Для плавной интерполяции движения врагов (если у тебя есть система интерполяции)
+              targetX: data.enemy.x,
+              targetY: data.enemy.y,
+            });
+          } else {
+            // Новый враг (пришёл впервые, например, при входе в мир или спавне)
+            enemies.set(enemyId, {
+              ...data.enemy,
+              targetX: data.enemy.x,
+              targetY: data.enemy.y,
+            });
+          }
+        }
+        break;
+
+      case "enemyDied":
+        const deadId = data.enemyId;
+        if (enemies.has(deadId)) {
+          enemies.delete(deadId);
+        }
+        // Вызываем обработчик смерти (эффекты, звук и т.д.), если он есть
+        if (window.enemySystem && window.enemySystem.handleEnemyDeath) {
+          window.enemySystem.handleEnemyDeath(deadId);
+        }
+        break;
+
       case "newEnemy":
         // Это сообщение приходит при спавне нового врага (у тебя есть spawnNewEnemy на сервере)
         if (data.enemy && data.enemy.id) {
@@ -1744,40 +1903,6 @@ function handleGameMessage(event) {
       }
       case "syncEnemies":
         window.enemySystem.syncEnemies(data.enemies);
-        break;
-      case "enemyUpdate":
-        if (data.enemy && data.enemy.id) {
-          const enemyId = data.enemy.id;
-
-          if (enemies.has(enemyId)) {
-            // Существующий враг — обновляем поля (с сохранением локальных данных, если нужно)
-            const existing = enemies.get(enemyId);
-            enemies.set(enemyId, {
-              ...existing,
-              ...data.enemy,
-              // Для плавной интерполяции движения врагов (если у тебя есть система интерполяции)
-              targetX: data.enemy.x,
-              targetY: data.enemy.y,
-            });
-          } else {
-            // Новый враг (пришёл впервые, например, при входе в мир или спавне)
-            enemies.set(enemyId, {
-              ...data.enemy,
-              targetX: data.enemy.x,
-              targetY: data.enemy.y,
-            });
-          }
-        }
-        break;
-      case "enemyDied":
-        const deadId = data.enemyId;
-        if (enemies.has(deadId)) {
-          enemies.delete(deadId);
-        }
-        // Вызываем обработчик смерти (эффекты, звук и т.д.), если он есть
-        if (window.enemySystem && window.enemySystem.handleEnemyDeath) {
-          window.enemySystem.handleEnemyDeath(deadId);
-        }
         break;
       case "enemyAttack":
         // Визуал атаки на игрока (например, triggerAttackAnimation если targetId === myId)
