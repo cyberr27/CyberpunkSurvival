@@ -1905,7 +1905,6 @@ function setupWebSocket(
 
         let damage = data.damage;
 
-        // Пересчёт урона для ближнего боя (античит)
         if (data.type === "meleeAttackPlayer") {
           let min = 5 + (attacker.level || 0);
           let max = 10 + (attacker.level || 0);
@@ -1962,7 +1961,6 @@ function setupWebSocket(
 
         let damage = data.damage;
 
-        // Пересчёт урона для ближнего боя
         if (data.type === "meleeAttackEnemy") {
           let min = 5 + (attacker.level || 0);
           let max = 10 + (attacker.level || 0);
@@ -1995,7 +1993,6 @@ function setupWebSocket(
         if (enemy.health <= 0) {
           enemies.delete(data.targetId);
 
-          // Полная смерть — уведомляем всех
           broadcastToWorld(
             wss,
             clients,
@@ -2007,7 +2004,7 @@ function setupWebSocket(
             })
           );
 
-          // === ВСЯ СТАРАЯ ЛОГИКА ДРОПА, XP, КВЕСТОВ, РЕСПАВНА (без изменений) ===
+          // === ВСЯ СТАРАЯ ЛОГИКА ДРОПА, XP, КВЕСТОВ, РЕСПАВНА (полностью как было) ===
           const dropChance = Math.random();
           const tornItems = [
             "torn_baseball_cap_of_health",
@@ -2136,7 +2133,6 @@ function setupWebSocket(
             );
           }
 
-          // XP и левелап
           let xpGained = 13;
           if (enemy.type === "scorpion") xpGained = 20;
 
@@ -2164,7 +2160,6 @@ function setupWebSocket(
             })
           );
 
-          // Квест на мутантов
           if (enemy.type === "mutant") {
             if (
               attacker.neonQuest &&
@@ -2187,13 +2182,12 @@ function setupWebSocket(
             }
           }
 
-          // Респавн
           setTimeout(
             () => spawnNewEnemy(data.worldId),
             8000 + Math.random() * 7000
           );
         } else {
-          // Враг жив — обновляем здоровье и позицию (КРИТИЧНО!)
+          // Враг жив — отправляем здоровье + позицию (КРИТИЧНО!)
           enemies.set(data.targetId, { ...enemy });
 
           broadcastToWorld(
@@ -2206,8 +2200,8 @@ function setupWebSocket(
               enemy: {
                 id: data.targetId,
                 health: enemy.health,
-                x: enemy.x, // ← ВЕРНУЛИ!
-                y: enemy.y, // ← ВЕРНУЛИ!
+                x: enemy.x, // ← ВЕРНУЛИ ПОЗИЦИЮ!
+                y: enemy.y, // ← ВЕРНУЛИ ПОЗИЦИЮ!
               },
             })
           );
