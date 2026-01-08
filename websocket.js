@@ -105,6 +105,16 @@ function setupWebSocket(
     player.armor = Math.min(player.armor, player.maxStats.armor);
   }
 
+  const EQUIPMENT_TYPES = {
+    headgear: "head",
+    armor: "chest",
+    belt: "belt",
+    pants: "pants",
+    boots: "boots",
+    weapon: "weapon",
+    gloves: "gloves",
+  };
+
   // === НОВАЯ ФУНКЦИЯ: спавн врага с отправкой newEnemy ===
   function spawnNewEnemy(worldId) {
     const world = worlds.find((w) => w.id === worldId);
@@ -1167,7 +1177,7 @@ function setupWebSocket(
             }
           }
         } else {
-          targetSlot = equipmentSystem.EQUIPMENT_TYPES[config.type];
+          targetSlot = EQUIPMENT_TYPES[config.type];
           if (!targetSlot) {
             ws.send(
               JSON.stringify({
