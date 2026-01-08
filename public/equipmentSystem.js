@@ -77,6 +77,7 @@ const equipmentSystem = {
       description: "Кибершлем: +10 брони, +5 энергии",
       rarity: 4,
       image: new Image(),
+      level: 5,
     },
     nano_armor: {
       type: "armor",
@@ -84,6 +85,7 @@ const equipmentSystem = {
       description: "Нано-броня: +20 брони, +10 здоровья",
       rarity: 4,
       image: new Image(),
+      level: 5,
     },
     tactical_belt: {
       type: "belt",
@@ -91,6 +93,7 @@ const equipmentSystem = {
       description: "Тактический пояс: +5 брони, +5 еды",
       rarity: 4,
       image: new Image(),
+      level: 5,
     },
     cyber_pants: {
       type: "pants",
@@ -98,6 +101,7 @@ const equipmentSystem = {
       description: "Киберштаны: +10 брони, +5 воды",
       rarity: 4,
       image: new Image(),
+      level: 5,
     },
     speed_boots: {
       type: "boots",
@@ -105,6 +109,7 @@ const equipmentSystem = {
       description: "Скоростные ботинки: +5 брони, +10 энергии",
       rarity: 4,
       image: new Image(),
+      level: 5,
     },
     tech_gloves: {
       type: "gloves",
@@ -112,6 +117,7 @@ const equipmentSystem = {
       description: "Технические перчатки: +5 брони, +5 энергии",
       rarity: 4,
       image: new Image(),
+      level: 5,
     },
     plasma_rifle: {
       type: "weapon",
@@ -120,6 +126,7 @@ const equipmentSystem = {
       rarity: 4,
       image: new Image(),
       hands: "twohanded",
+      level: 2,
     },
     knuckles: {
       type: "weapon",
@@ -128,6 +135,7 @@ const equipmentSystem = {
       rarity: 4,
       image: new Image(),
       hands: "onehanded",
+      level: 2,
     },
     knife: {
       type: "weapon",
@@ -136,6 +144,7 @@ const equipmentSystem = {
       rarity: 4,
       image: new Image(),
       hands: "onehanded",
+      level: 3,
     },
     bat: {
       type: "weapon",
@@ -144,6 +153,7 @@ const equipmentSystem = {
       rarity: 4,
       image: new Image(),
       hands: "onehanded",
+      level: 4,
     },
     torn_baseball_cap_of_health: {
       type: "headgear",
@@ -151,8 +161,9 @@ const equipmentSystem = {
       description:
         "Порванная кепка здоровья: +5 к максимальному здоровью и броне",
       rarity: 4,
-      collection: "Torn Health", // Вставлено здесь, после rarity, не меняя порядок
+      collection: "Torn Health",
       image: new Image(),
+      level: 0,
     },
     torn_health_t_shirt: {
       type: "armor",
@@ -160,8 +171,9 @@ const equipmentSystem = {
       description:
         "Порванная футболка здоровья: +10 к максимальному здоровью, +10 к броне",
       rarity: 4,
-      collection: "Torn Health", // Вставлено здесь, после rarity, не меняя порядок
+      collection: "Torn Health",
       image: new Image(),
+      level: 0,
     },
     torn_health_gloves: {
       type: "gloves",
@@ -169,8 +181,9 @@ const equipmentSystem = {
       description:
         "Порванные перчатки здоровья: +3 к максимальному здоровью, +5 к броне",
       rarity: 4,
-      collection: "Torn Health", // Вставлено здесь, после rarity, не меняя порядок
+      collection: "Torn Health",
       image: new Image(),
+      level: 0,
     },
     torn_belt_of_health: {
       type: "belt",
@@ -178,8 +191,9 @@ const equipmentSystem = {
       description:
         "Порванный пояс здоровья: +7 к максимальному здоровью, +3 к броне",
       rarity: 4,
-      collection: "Torn Health", // Вставлено здесь, после rarity, не меняя порядок
+      collection: "Torn Health",
       image: new Image(),
+      level: 0,
     },
     torn_pants_of_health: {
       type: "pants",
@@ -187,8 +201,9 @@ const equipmentSystem = {
       description:
         "Порванные штаны здоровья: +6 к максимальному здоровью, +7 к броне",
       rarity: 4,
-      collection: "Torn Health", // Вставлено здесь, после rarity, не меняя порядок
+      collection: "Torn Health",
       image: new Image(),
+      level: 0,
     },
     torn_health_sneakers: {
       type: "boots",
@@ -196,8 +211,9 @@ const equipmentSystem = {
       description:
         "Порванные кроссовки здоровья: +4 к максимальному здоровью, +5 к броне",
       rarity: 4,
-      collection: "Torn Health", // Вставлено здесь, после rarity, не меняя порядок
+      collection: "Torn Health",
       image: new Image(),
+      level: 0,
     },
 
     torn_energy_cap: {
@@ -206,8 +222,9 @@ const equipmentSystem = {
       description:
         "Порванная кепка энергии: +5 к максимальной энергии, +5 к броне",
       rarity: 4,
-      collection: "Torn Energy", // Вставлено здесь, после rarity, не меняя порядок
+      collection: "Torn Energy",
       image: new Image(),
+      level: 0,
     },
     torn_energy_t_shirt: {
       type: "armor",
@@ -215,8 +232,9 @@ const equipmentSystem = {
       description:
         "Порванная футболка энергии: +10 к максимальной энергии, +10 к броне",
       rarity: 4,
-      collection: "Torn Energy", // Вставлено здесь, после rarity, не меняя порядок
+      collection: "Torn Energy",
       image: new Image(),
+      level: 0,
     },
     torn_gloves_of_energy: {
       type: "gloves",
@@ -224,8 +242,9 @@ const equipmentSystem = {
       description:
         "Порванные перчатки энергии: +3 к максимальной энергии, +5 к броне",
       rarity: 4,
-      collection: "Torn Energy", // Вставлено здесь, после rarity, не меняя порядок
+      collection: "Torn Energy",
       image: new Image(),
+      level: 0,
     },
     torn_energy_belt: {
       type: "belt",
@@ -233,8 +252,9 @@ const equipmentSystem = {
       description:
         "Порванный пояс энергии: +7 к максимальной энергии, +3 к броне",
       rarity: 4,
-      collection: "Torn Energy", // Вставлено здесь, после rarity, не меняя порядок
+      collection: "Torn Energy",
       image: new Image(),
+      level: 0,
     },
     torn_pants_of_energy: {
       type: "pants",
@@ -242,8 +262,9 @@ const equipmentSystem = {
       description:
         "Порванные штаны энергии: +6 к максимальной энергии, +7 к броне",
       rarity: 4,
-      collection: "Torn Energy", // Вставлено здесь, после rarity, не меняя порядок
+      collection: "Torn Energy",
       image: new Image(),
+      level: 0,
     },
     torn_sneakers_of_energy: {
       type: "boots",
@@ -251,8 +272,9 @@ const equipmentSystem = {
       description:
         "Порванные кроссовки энергии: +4 к максимальной энергии, +5 к броне",
       rarity: 4,
-      collection: "Torn Energy", // Вставлено здесь, после rarity, не меняя порядок
+      collection: "Torn Energy",
       image: new Image(),
+      level: 0,
     },
 
     torn_cap_of_gluttony: {
@@ -261,8 +283,9 @@ const equipmentSystem = {
       description:
         "Порванная кепка обжорства: +5 к максимальной еде, +5 к броне",
       rarity: 4,
-      collection: "Torn Gluttony", // Вставлено здесь, после rarity, не меняя порядок
+      collection: "Torn Gluttony",
       image: new Image(),
+      level: 0,
     },
     torn_t_shirt_of_gluttony: {
       type: "armor",
@@ -270,8 +293,9 @@ const equipmentSystem = {
       description:
         "Порванная футболка обжорства: +10 к максимальной еде, +10 к броне",
       rarity: 4,
-      collection: "Torn Gluttony", // Вставлено здесь, после rarity, не меняя порядок
+      collection: "Torn Gluttony",
       image: new Image(),
+      level: 0,
     },
     torn_gloves_of_gluttony: {
       type: "gloves",
@@ -279,8 +303,9 @@ const equipmentSystem = {
       description:
         "Порванные перчатки обжорства: +3 к максимальной еде, +5 к броне",
       rarity: 4,
-      collection: "Torn Gluttony", // Вставлено здесь, после rarity, не меняя порядок
+      collection: "Torn Gluttony",
       image: new Image(),
+      level: 0,
     },
     torn_belt_of_gluttony: {
       type: "belt",
@@ -288,8 +313,9 @@ const equipmentSystem = {
       description:
         "Порванный пояс обжорства: +7 к максимальной еде, +3 к броне",
       rarity: 4,
-      collection: "Torn Gluttony", // Вставлено здесь, после rarity, не меняя порядок
+      collection: "Torn Gluttony",
       image: new Image(),
+      level: 0,
     },
     torn_pants_of_gluttony: {
       type: "pants",
@@ -297,8 +323,9 @@ const equipmentSystem = {
       description:
         "Порванные штаны обжорства: +6 к максимальной еде, +7 к броне",
       rarity: 4,
-      collection: "Torn Gluttony", // Вставлено здесь, после rarity, не меняя порядок
+      collection: "Torn Gluttony",
       image: new Image(),
+      level: 0,
     },
     torn_sneakers_of_gluttony: {
       type: "boots",
@@ -306,8 +333,9 @@ const equipmentSystem = {
       description:
         "Порванные кроссовки обжорства: +4 к максимальной еде, +5 к броне",
       rarity: 4,
-      collection: "Torn Gluttony", // Вставлено здесь, после rarity, не меняя порядок
+      collection: "Torn Gluttony",
       image: new Image(),
+      level: 0,
     },
 
     torn_cap_of_thirst: {
@@ -315,8 +343,9 @@ const equipmentSystem = {
       effect: { armor: 5, water: 5 },
       description: "Порванная кепка жажды: +5 к максимальной воде, +5 к броне",
       rarity: 4,
-      collection: "Torn Thirst", // Вставлено здесь, после rarity, не меняя порядок
+      collection: "Torn Thirst",
       image: new Image(),
+      level: 0,
     },
     torn_t_shirt_of_thirst: {
       type: "armor",
@@ -324,8 +353,9 @@ const equipmentSystem = {
       description:
         "Порванная футболка жажды: +10 к максимальной воде, +10 к броне",
       rarity: 4,
-      collection: "Torn Thirst", // Вставлено здесь, после rarity, не меняя порядок
+      collection: "Torn Thirst",
       image: new Image(),
+      level: 0,
     },
     torn_gloves_of_thirst: {
       type: "gloves",
@@ -333,24 +363,27 @@ const equipmentSystem = {
       description:
         "Порванные перчатки жажды: +3 к максимальной воде, +5 к броне",
       rarity: 4,
-      collection: "Torn Thirst", // Вставлено здесь, после rarity, не меняя порядок
+      collection: "Torn Thirst",
       image: new Image(),
+      level: 0,
     },
     torn_belt_of_thirst: {
       type: "belt",
       effect: { armor: 3, water: 7 },
       description: "Порванный пояс жажды: +7 к максимальной воде, +3 к броне",
       rarity: 4,
-      collection: "Torn Thirst", // Вставлено здесь, после rarity, не меняя порядок
+      collection: "Torn Thirst",
       image: new Image(),
+      level: 0,
     },
     torn_pants_of_thirst: {
       type: "pants",
       effect: { armor: 7, water: 6 },
       description: "Порванные штаны жажды: +6 к максимальной воде, +7 к броне",
       rarity: 4,
-      collection: "Torn Thirst", // Вставлено здесь, после rarity, не меняя порядок
+      collection: "Torn Thirst",
       image: new Image(),
+      level: 0,
     },
     torn_sneakers_of_thirst: {
       type: "boots",
@@ -358,8 +391,9 @@ const equipmentSystem = {
       description:
         "Порванные кроссовки жажды: +4 к максимальной воде, +5 к броне",
       rarity: 4,
-      collection: "Torn Thirst", // Вставлено здесь, после rarity, не меняя порядок
+      collection: "Torn Thirst",
       image: new Image(),
+      level: 0,
     },
     chameleon_belt: {
       type: "belt",
@@ -369,6 +403,7 @@ const equipmentSystem = {
       rarity: 4,
       collection: "Light Chameleon",
       image: new Image(),
+      level: 5,
     },
     chameleon_cap: {
       type: "headgear",
@@ -378,6 +413,7 @@ const equipmentSystem = {
       rarity: 4,
       collection: "Light Chameleon",
       image: new Image(),
+      level: 5,
     },
     chameleon_gloves: {
       type: "gloves",
@@ -387,6 +423,7 @@ const equipmentSystem = {
       rarity: 4,
       collection: "Light Chameleon",
       image: new Image(),
+      level: 5,
     },
     chameleon_pants: {
       type: "pants",
@@ -396,6 +433,7 @@ const equipmentSystem = {
       rarity: 4,
       collection: "Light Chameleon",
       image: new Image(),
+      level: 5,
     },
     chameleon_sneakers: {
       type: "boots",
@@ -405,6 +443,7 @@ const equipmentSystem = {
       rarity: 4,
       collection: "Light Chameleon",
       image: new Image(),
+      level: 5,
     },
     chameleon_t_shirt: {
       type: "armor",
@@ -414,7 +453,14 @@ const equipmentSystem = {
       rarity: 4,
       collection: "Light Chameleon",
       image: new Image(),
+      level: 5,
     },
+  },
+
+  canEquipItem: function (itemType, playerLevel) {
+    const config = this.EQUIPMENT_CONFIG[itemType];
+    if (!config || config.level === undefined) return true; // если нет level — можно
+    return playerLevel >= config.level;
   },
 
   initialize: function () {
@@ -568,24 +614,35 @@ const equipmentSystem = {
     const config = this.EQUIPMENT_CONFIG[item.type];
     if (!config.type) return;
 
+    // === ПРОВЕРКА УРОВНЯ НА КЛИЕНТЕ ===
+    const me = players.get(myId);
+    if (me && !this.canEquipItem(item.type, me.level || 0)) {
+      showNotification(
+        `Требуется уровень ${config.level} для экипировки ${
+          config.description || item.type
+        }`
+      );
+      return;
+    }
+
     let slotName = this.EQUIPMENT_TYPES[config.type] || null;
 
     // Специальная логика для оружия
     if (config.type === "weapon") {
       if (config.hands === "twohanded") {
         if (this.equipmentSlots.offhand !== null) {
-          alert("Снимите предмет со второй руки для двуручного оружия");
+          showNotification(
+            "Снимите предмет со второй руки для двуручного оружия"
+          );
           return;
         }
-        slotName = "weapon"; // twohanded всегда в weapon, offhand очищается автоматически
+        slotName = "weapon";
       } else if (config.hands === "onehanded") {
-        // onehanded: сначала weapon, если занят и offhand свободен — туда
         if (this.equipmentSlots.weapon === null) {
           slotName = "weapon";
         } else if (this.equipmentSlots.offhand === null) {
           slotName = "offhand";
         } else {
-          // оба заняты — заменяем weapon (стандартное поведение)
           slotName = "weapon";
         }
       }
@@ -595,18 +652,14 @@ const equipmentSystem = {
 
     if (!slotName) return;
 
-    const me = players.get(myId);
-    if (!me) return;
-
     const oldItem = this.equipmentSlots[slotName];
     let freeSlot = null;
     if (oldItem) {
       freeSlot = inventory.findIndex((s) => s === null);
       if (freeSlot === -1) {
-        alert("Инвентарь полон! Освободите место для замены.");
+        showNotification("Инвентарь полон! Освободите место для замены.");
         return;
       }
-      inventory[freeSlot] = oldItem;
     }
 
     this.pendingEquip = {
@@ -617,7 +670,7 @@ const equipmentSystem = {
       freeSlot: oldItem ? freeSlot : null,
     };
 
-    // Локально экипируем
+    // Локально экипируем (оптимистично)
     this.equipmentSlots[slotName] = { type: item.type, itemId: item.itemId };
     if (config.hands === "twohanded") {
       this.equipmentSlots.offhand = null;
@@ -632,7 +685,7 @@ const equipmentSystem = {
         JSON.stringify({
           type: "equipItem",
           slotIndex,
-          slotName, // <-- важно! передаём предлагаемый слот
+          slotName,
           equipment: this.equipmentSlots,
           maxStats: { ...me.maxStats },
           stats: {
@@ -673,7 +726,7 @@ const equipmentSystem = {
 
     const freeSlot = inventory.findIndex((s) => s === null);
     if (freeSlot === -1) {
-      alert("Инвентарь полон! Освободите место для снятия.");
+      showNotification("Инвентарь полон! Освободите место для снятия.");
       return;
     }
 
@@ -720,7 +773,6 @@ const equipmentSystem = {
       armor: 0,
     };
 
-    // Проверка полной коллекции
     const equippedItems = Object.values(this.equipmentSlots).filter(Boolean);
     const collectionSlots = [
       "head",
@@ -745,7 +797,6 @@ const equipmentSystem = {
 
     const multiplier = isFullCollection ? 2 : 1;
 
-    // Применяем эффекты с multiplier (только для maxStats, damage отдельно)
     equippedItems.forEach((item) => {
       if (item && this.EQUIPMENT_CONFIG[item.type]) {
         const effect = this.EQUIPMENT_CONFIG[item.type].effect;
@@ -754,18 +805,6 @@ const equipmentSystem = {
         if (effect.energy) baseStats.energy += effect.energy * multiplier;
         if (effect.food) baseStats.food += effect.food * multiplier;
         if (effect.water) baseStats.water += effect.water * multiplier;
-        if (effect.damage) {
-          // Damage не умножается (только оружие)
-          if (
-            typeof effect.damage === "object" &&
-            effect.damage.min &&
-            effect.damage.max
-          ) {
-            player.damage = { ...effect.damage };
-          } else {
-            player.damage += effect.damage;
-          }
-        }
       }
     });
 
@@ -793,9 +832,8 @@ const equipmentSystem = {
     if (me) {
       this.applyEquipmentEffects(me);
     }
-    this.updateEquipmentDisplay(); // Обновит и урон
+    this.updateEquipmentDisplay();
 
-    // Проверяем, инициализирован ли интерфейс
     if (document.getElementById("equipmentGrid")) {
       this.updateEquipmentDisplay();
     } else {
@@ -805,21 +843,18 @@ const equipmentSystem = {
   },
 
   handleEquipFail: function (error) {
-    if (!this.pendingEquip) return; // Нет pending — игнор
+    if (!this.pendingEquip) return;
 
-    const { slotIndex, item, slotName, oldItem } = this.pendingEquip; // freeSlot уже в pending
+    const { slotIndex, item, slotName, oldItem, freeSlot } = this.pendingEquip;
 
-    // Revert: Вернуть item в inventory, очистить slot
+    // Откатываем изменения
     inventory[slotIndex] = item;
-    this.equipmentSlots[slotName] = oldItem; // Вернуть oldItem если был
+    this.equipmentSlots[slotName] = oldItem;
 
-    // Используем сохраненный freeSlot вместо findIndex
-    if (oldItem) {
-      const oldSlot = this.pendingEquip.freeSlot;
-      if (oldSlot !== null) inventory[oldSlot] = null;
+    if (oldItem && freeSlot !== null) {
+      inventory[freeSlot] = null;
     }
 
-    // Переприменить эффекты и обновить UI
     const me = players.get(myId);
     if (me) {
       this.applyEquipmentEffects(me);
@@ -828,10 +863,9 @@ const equipmentSystem = {
     updateInventoryDisplay();
     updateStatsDisplay();
 
-    // Показать ошибку
-    alert(error);
+    // Вместо alert — уведомление
+    showNotification(error);
 
-    // Очистить pending
     this.pendingEquip = null;
   },
 
@@ -840,11 +874,9 @@ const equipmentSystem = {
 
     const { slotName, item, freeSlot } = this.pendingUnequip;
 
-    // Revert: Вернуть item в slot, очистить inventory slot
     this.equipmentSlots[slotName] = item;
     inventory[freeSlot] = null;
 
-    // Переприменить эффекты
     const me = players.get(myId);
     if (me) {
       this.applyEquipmentEffects(me);
@@ -853,7 +885,7 @@ const equipmentSystem = {
     updateInventoryDisplay();
     updateStatsDisplay();
 
-    alert(error);
+    showNotification(error);
 
     this.pendingUnequip = null;
   },
