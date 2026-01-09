@@ -1115,7 +1115,6 @@ function setupWebSocket(
         const player = players.get(playerId);
         const { slotIndex, slotName } = data;
 
-        // Валидация слота инвентаря
         if (
           slotIndex < 0 ||
           slotIndex >= player.inventory.length ||
@@ -1142,7 +1141,6 @@ function setupWebSocket(
           return;
         }
 
-        // === ПРОВЕРКА УРОВНЯ НА СЕРВЕРЕ ===
         if (config.level !== undefined && (player.level || 0) < config.level) {
           ws.send(
             JSON.stringify({
@@ -1153,11 +1151,13 @@ function setupWebSocket(
           return;
         }
 
-        // Определяем целевой слот
         let targetSlot = slotName;
+        let oldTwoHandedToRemove = null;
+        let freeSlotForOldTwoHanded = null;
+
         if (config.type === "weapon") {
           if (config.hands === "twohanded") {
-            if (player.equipment.offhand !== null) {
+            if (player.equipment.offhand !== null && !player.equipment.weapon) {
               ws.send(
                 JSON.stringify({
                   type: "equipItemFail",
@@ -1167,13 +1167,40 @@ function setupWebSocket(
               return;
             }
             targetSlot = "weapon";
+
+            // Если уже есть двуручное — просто заменим
+            if (
+              player.equipment.weapon &&
+              ITEM_CONFIG[player.equipment.weapon.type]?.hands === "twohanded"
+            ) {
+              oldTwoHandedToRemove = player.equipment.weapon;
+            }
           } else if (config.hands === "onehanded") {
+            // Если сейчас двуручное — нужно его снять
+            if (
+              player.equipment.weapon &&
+              ITEM_CONFIG[player.equipment.weapon.type]?.hands === "twohanded"
+            ) {
+              oldTwoHandedToRemove = player.equipment.weapon;
+              const freeSlot = player.inventory.findIndex((s) => s === null);
+              if (freeSlot === -1) {
+                ws.send(
+                  JSON.stringify({
+                    type: "equipItemFail",
+                    error: "Инвентарь полон для снятия двуручного оружия",
+                  })
+                );
+                return;
+              }
+              freeSlotForOldTwoHanded = freeSlot;
+            }
+
             if (player.equipment.weapon === null) {
               targetSlot = "weapon";
             } else if (player.equipment.offhand === null) {
               targetSlot = "offhand";
             } else {
-              targetSlot = "weapon"; // заменяем основной
+              targetSlot = "weapon";
             }
           }
         } else {
@@ -1189,12 +1216,11 @@ function setupWebSocket(
           }
         }
 
-        // Проверка на замену: нужен ли свободный слот?
         const oldItem = player.equipment[targetSlot];
         let freeInventorySlot = null;
-        if (oldItem) {
+        if (oldItem || oldTwoHandedToRemove) {
           freeInventorySlot = player.inventory.findIndex((s) => s === null);
-          if (freeInventorySlot === -1) {
+          if (freeInventorySlot === -1 && (oldItem || oldTwoHandedToRemove)) {
             ws.send(
               JSON.stringify({
                 type: "equipItemFail",
@@ -1205,7 +1231,7 @@ function setupWebSocket(
           }
         }
 
-        // Выполняем экипировку
+        // Основная экипировка
         player.inventory[slotIndex] = null;
         player.equipment[targetSlot] = {
           type: item.type,
@@ -1216,7 +1242,17 @@ function setupWebSocket(
           player.equipment.offhand = null;
         }
 
-        // Перемещаем старый предмет в инвентарь
+        // Снятие старого двуручного (если было)
+        if (oldTwoHandedToRemove && freeSlotForOldTwoHanded !== null) {
+          player.inventory[freeSlotForOldTwoHanded] = {
+            type: oldTwoHandedToRemove.type,
+            itemId: oldTwoHandedToRemove.itemId,
+          };
+          player.equipment.weapon = null;
+          player.equipment.offhand = null;
+        }
+
+        // Старый предмет из целевого слота
         if (oldItem && freeInventorySlot !== null) {
           player.inventory[freeInventorySlot] = {
             type: oldItem.type,
@@ -1224,15 +1260,12 @@ function setupWebSocket(
           };
         }
 
-        // Пересчитываем статы
         calculateMaxStats(player, ITEM_CONFIG);
 
-        // Сохраняем
         players.set(playerId, { ...player });
         userDatabase.set(playerId, { ...player });
         await saveUserDatabase(dbCollection, playerId, player);
 
-        // Успех
         ws.send(
           JSON.stringify({
             type: "equipItemSuccess",
@@ -1249,7 +1282,6 @@ function setupWebSocket(
           })
         );
 
-        // Обновляем других игроков
         broadcastToWorld(
           wss,
           clients,

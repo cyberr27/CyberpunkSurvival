@@ -33,13 +33,12 @@ const equipmentSystem = {
     let min = this.BASE_MELEE_MIN + levelBonus;
     let max = this.BASE_MELEE_MAX + levelBonus;
 
-    // Суммируем от weapon и offhand, если !range (melee)
     ["weapon", "offhand"].forEach((slotName) => {
       const weaponSlot = this.equipmentSlots[slotName];
       if (!weaponSlot || !this.EQUIPMENT_CONFIG[weaponSlot.type]) return;
 
       const config = this.EQUIPMENT_CONFIG[weaponSlot.type];
-      if (config.effect.range) return; // Игнор ranged
+      if (config.effect.range) return;
 
       const dmgEffect = config.effect.damage;
       if (
@@ -459,19 +458,17 @@ const equipmentSystem = {
 
   canEquipItem: function (itemType, playerLevel) {
     const config = this.EQUIPMENT_CONFIG[itemType];
-    if (!config || config.level === undefined) return true; // если нет level — можно
+    if (!config || config.level === undefined) return true;
     return playerLevel >= config.level;
   },
 
   initialize: function () {
     if (this.isInitialized) return;
 
-    // === ВОССТАНОВЛЕНА СТАРАЯ ЗАГРУЗКА ИЗОБРАЖЕНИЙ ===
     Object.keys(this.EQUIPMENT_CONFIG).forEach((key) => {
       this.EQUIPMENT_CONFIG[key].image.src = `${key}.png`;
     });
 
-    // === СОЗДАНИЕ КНОПКИ ЭКИПИРОВКИ (как было у тебя) ===
     const equipmentBtn = document.createElement("img");
     equipmentBtn.id = "equipmentBtn";
     equipmentBtn.className = "cyber-btn-img";
@@ -481,7 +478,6 @@ const equipmentSystem = {
     equipmentBtn.style.right = "10px";
     document.getElementById("gameContainer").appendChild(equipmentBtn);
 
-    // === СОЗДАНИЕ КОНТЕЙНЕРА И ГРИДА ===
     const equipmentContainer = document.createElement("div");
     equipmentContainer.id = "equipmentContainer";
     equipmentContainer.style.display = "none";
@@ -493,7 +489,6 @@ const equipmentSystem = {
 
     this.setupEquipmentGrid();
 
-    // Обработчик кнопки
     equipmentBtn.addEventListener("click", (e) => {
       e.preventDefault();
       this.toggleEquipment();
@@ -530,16 +525,41 @@ const equipmentSystem = {
       slotEl.className = `equipment-slot ${slotInfo.name}-slot`;
       slotEl.style.gridArea = slotInfo.name;
       slotEl.title = slotInfo.label;
-      // Двойной клик / двойной тап для снятия
-      slotEl.addEventListener("dblclick", () =>
-        this.unequipItem(slotInfo.name)
-      );
+
+      // === ИЗМЕНЕНИЕ: снятие по двойному клику ===
+      // Теперь для offhand тоже вызываем unequipItem, но с проверкой на двуручное
+      slotEl.addEventListener("dblclick", () => {
+        // Если это offhand и там двуручное — снимаем из weapon
+        if (slotInfo.name === "offhand") {
+          const mainWeapon = this.equipmentSlots.weapon;
+          if (
+            mainWeapon &&
+            this.EQUIPMENT_CONFIG[mainWeapon.type]?.hands === "twohanded"
+          ) {
+            this.unequipItem("weapon"); // снимаем основное
+            return;
+          }
+        }
+        this.unequipItem(slotInfo.name);
+      });
+
       let lastTouchTime = 0;
       let tooltipTimeout;
       slotEl.addEventListener("touchstart", (e) => {
         e.preventDefault();
         const now = Date.now();
         if (now - lastTouchTime < 300) {
+          if (slotInfo.name === "offhand") {
+            const mainWeapon = this.equipmentSlots.weapon;
+            if (
+              mainWeapon &&
+              this.EQUIPMENT_CONFIG[mainWeapon.type]?.hands === "twohanded"
+            ) {
+              this.unequipItem("weapon");
+              if (tooltipTimeout) clearTimeout(tooltipTimeout);
+              return;
+            }
+          }
           this.unequipItem(slotInfo.name);
           if (tooltipTimeout) clearTimeout(tooltipTimeout);
         } else {
@@ -592,7 +612,7 @@ const equipmentSystem = {
             img.style.width = "100%";
             img.style.height = "100%";
             img.title = config.description + " (занимает обе руки)";
-            slotEl.innerHTML = ""; // очищаем
+            slotEl.innerHTML = "";
             slotEl.appendChild(img);
             return;
           }
@@ -605,6 +625,13 @@ const equipmentSystem = {
   pendingEquip: null,
   pendingUnequip: null,
 
+  isTwoHandedInSlot: function (slotName) {
+    const item = this.equipmentSlots[slotName];
+    if (!item) return false;
+    const config = this.EQUIPMENT_CONFIG[item.type];
+    return config && config.hands === "twohanded";
+  },
+
   equipItem: function (slotIndex) {
     if (slotIndex === null || slotIndex === undefined) return;
 
@@ -614,7 +641,6 @@ const equipmentSystem = {
     const config = this.EQUIPMENT_CONFIG[item.type];
     if (!config.type) return;
 
-    // === ПРОВЕРКА УРОВНЯ НА КЛИЕНТЕ ===
     const me = players.get(myId);
     if (me && !this.canEquipItem(item.type, me.level || 0)) {
       showNotification(
@@ -627,16 +653,20 @@ const equipmentSystem = {
 
     let slotName = this.EQUIPMENT_TYPES[config.type] || null;
 
-    // Специальная логика для оружия
+    // === СПЕЦИАЛЬНАЯ ЛОГИКА ДЛЯ ОРУЖИЯ ===
     if (config.type === "weapon") {
       if (config.hands === "twohanded") {
-        if (this.equipmentSlots.offhand !== null) {
+        // Если уже есть двуручное — просто заменим его
+        if (this.isTwoHandedInSlot("weapon")) {
+          slotName = "weapon";
+        } else if (this.equipmentSlots.offhand !== null) {
           showNotification(
             "Снимите предмет со второй руки для двуручного оружия"
           );
           return;
+        } else {
+          slotName = "weapon";
         }
-        slotName = "weapon";
       } else if (config.hands === "onehanded") {
         if (this.equipmentSlots.weapon === null) {
           slotName = "weapon";
@@ -644,6 +674,22 @@ const equipmentSystem = {
           slotName = "offhand";
         } else {
           slotName = "weapon";
+        }
+
+        // === НОВОЕ: если сейчас двуручное — нужно его снять полностью ===
+        if (this.isTwoHandedInSlot("weapon")) {
+          // Найдём свободное место для старого двуручного
+          const freeSlotForOld = inventory.findIndex((s) => s === null);
+          if (freeSlotForOld === -1) {
+            showNotification("Инвентарь полон! Освободите место.");
+            return;
+          }
+          // Сохраним старое для pending
+          this.pendingEquipOldTwoHanded = {
+            type: this.equipmentSlots.weapon.type,
+            itemId: this.equipmentSlots.weapon.itemId,
+            freeSlot: freeSlotForOld,
+          };
         }
       }
     } else {
@@ -662,20 +708,48 @@ const equipmentSystem = {
       }
     }
 
+    // === ДОПОЛНИТЕЛЬНО: если снимаем двуручное из-за одноручного ===
+    let extraOldItem = null;
+    let extraFreeSlot = null;
+    if (this.pendingEquipOldTwoHanded) {
+      extraOldItem = this.equipmentSlots.weapon;
+      extraFreeSlot = this.pendingEquipOldTwoHanded.freeSlot;
+    }
+
     this.pendingEquip = {
       slotIndex,
       item: { ...item },
       slotName,
       oldItem,
       freeSlot: oldItem ? freeSlot : null,
+      extraOldItem, // может быть двуручное
+      extraFreeSlot,
     };
 
-    // Локально экипируем (оптимистично)
+    // Локально экипируем
     this.equipmentSlots[slotName] = { type: item.type, itemId: item.itemId };
+
     if (config.hands === "twohanded") {
       this.equipmentSlots.offhand = null;
     }
+
+    // Если было двуручное и ставим одноручное — снимаем его
+    if (this.pendingEquipOldTwoHanded) {
+      this.equipmentSlots.weapon = null;
+      this.equipmentSlots.offhand = null;
+      inventory[this.pendingEquipOldTwoHanded.freeSlot] = {
+        type: this.pendingEquipOldTwoHanded.type,
+        itemId: this.pendingEquipOldTwoHanded.itemId,
+      };
+    }
+
     inventory[slotIndex] = null;
+
+    // Старый предмет в инвентарь
+    if (oldItem && freeSlot !== null) {
+      inventory[freeSlot] = { type: oldItem.type, itemId: oldItem.itemId };
+    }
+
     this.updateEquipmentDisplay();
     this.applyEquipmentEffects(me);
 
@@ -704,6 +778,9 @@ const equipmentSystem = {
     document.getElementById("dropBtn").disabled = true;
     updateInventoryDisplay();
     updateStatsDisplay();
+
+    // Очищаем временную переменную
+    this.pendingEquipOldTwoHanded = null;
   },
 
   unequipItem: function (slotName) {
@@ -722,7 +799,14 @@ const equipmentSystem = {
       return;
 
     const me = players.get(myId);
-    if (!me || !this.equipmentSlots[slotName]) return;
+    if (!me) return;
+
+    // === НОВОЕ: если пытаемся снять offhand, а там двуручное — снимаем weapon ===
+    if (slotName === "offhand" && this.isTwoHandedInSlot("weapon")) {
+      slotName = "weapon";
+    }
+
+    if (!this.equipmentSlots[slotName]) return;
 
     const freeSlot = inventory.findIndex((s) => s === null);
     if (freeSlot === -1) {
@@ -733,9 +817,14 @@ const equipmentSystem = {
     const item = this.equipmentSlots[slotName];
     this.pendingUnequip = { slotName, item: { ...item }, freeSlot };
 
-    // Локально снимаем
     this.equipmentSlots[slotName] = null;
+    // Если сняли двуручное — чистим offhand
+    if (this.EQUIPMENT_CONFIG[item.type]?.hands === "twohanded") {
+      this.equipmentSlots.offhand = null;
+    }
+
     inventory[freeSlot] = { type: item.type, itemId: item.itemId };
+
     this.updateEquipmentDisplay();
     this.applyEquipmentEffects(me);
 
@@ -845,14 +934,29 @@ const equipmentSystem = {
   handleEquipFail: function (error) {
     if (!this.pendingEquip) return;
 
-    const { slotIndex, item, slotName, oldItem, freeSlot } = this.pendingEquip;
+    const {
+      slotIndex,
+      item,
+      slotName,
+      oldItem,
+      freeSlot,
+      extraOldItem,
+      extraFreeSlot,
+    } = this.pendingEquip;
 
-    // Откатываем изменения
+    // Откатываем всё
     inventory[slotIndex] = item;
     this.equipmentSlots[slotName] = oldItem;
 
     if (oldItem && freeSlot !== null) {
       inventory[freeSlot] = null;
+    }
+
+    // Если было снято двуручное из-за одноручного — возвращаем его
+    if (extraOldItem && extraFreeSlot !== null) {
+      this.equipmentSlots.weapon = extraOldItem;
+      this.equipmentSlots.offhand = null;
+      inventory[extraFreeSlot] = null;
     }
 
     const me = players.get(myId);
@@ -863,7 +967,6 @@ const equipmentSystem = {
     updateInventoryDisplay();
     updateStatsDisplay();
 
-    // Вместо alert — уведомление
     showNotification(error);
 
     this.pendingEquip = null;
