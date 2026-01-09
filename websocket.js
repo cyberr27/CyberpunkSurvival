@@ -1115,6 +1115,7 @@ function setupWebSocket(
         const player = players.get(playerId);
         const { slotIndex, slotName } = data;
 
+        // Валидация инвентаря
         if (
           slotIndex < 0 ||
           slotIndex >= player.inventory.length ||
@@ -1141,6 +1142,7 @@ function setupWebSocket(
           return;
         }
 
+        // Проверка уровня
         if (config.level !== undefined && (player.level || 0) < config.level) {
           ws.send(
             JSON.stringify({
@@ -1152,12 +1154,18 @@ function setupWebSocket(
         }
 
         let targetSlot = slotName;
-        let oldTwoHandedToRemove = null;
-        let freeSlotForOldTwoHanded = null;
+        let oldTwoHanded = null;
+        let freeSlotForTwoHanded = null;
+        let oldItemInTarget = null;
+        let freeSlotForOldItem = null;
 
         if (config.type === "weapon") {
           if (config.hands === "twohanded") {
-            if (player.equipment.offhand !== null && !player.equipment.weapon) {
+            // Нельзя экипировать двуручное, если offhand занят отдельным предметом
+            if (
+              player.equipment.offhand !== null &&
+              player.equipment.weapon === null
+            ) {
               ws.send(
                 JSON.stringify({
                   type: "equipItemFail",
@@ -1168,31 +1176,20 @@ function setupWebSocket(
             }
             targetSlot = "weapon";
 
-            // Если уже есть двуручное — просто заменим
+            // Если уже есть двуручное — просто заменяем его
             if (
               player.equipment.weapon &&
               ITEM_CONFIG[player.equipment.weapon.type]?.hands === "twohanded"
             ) {
-              oldTwoHandedToRemove = player.equipment.weapon;
+              oldTwoHanded = player.equipment.weapon;
             }
           } else if (config.hands === "onehanded") {
-            // Если сейчас двуручное — нужно его снять
+            // Если сейчас двуручное — нужно его снять полностью
             if (
               player.equipment.weapon &&
               ITEM_CONFIG[player.equipment.weapon.type]?.hands === "twohanded"
             ) {
-              oldTwoHandedToRemove = player.equipment.weapon;
-              const freeSlot = player.inventory.findIndex((s) => s === null);
-              if (freeSlot === -1) {
-                ws.send(
-                  JSON.stringify({
-                    type: "equipItemFail",
-                    error: "Инвентарь полон для снятия двуручного оружия",
-                  })
-                );
-                return;
-              }
-              freeSlotForOldTwoHanded = freeSlot;
+              oldTwoHanded = player.equipment.weapon;
             }
 
             if (player.equipment.weapon === null) {
@@ -1200,7 +1197,7 @@ function setupWebSocket(
             } else if (player.equipment.offhand === null) {
               targetSlot = "offhand";
             } else {
-              targetSlot = "weapon";
+              targetSlot = "weapon"; // заменяем основной
             }
           }
         } else {
@@ -1216,23 +1213,53 @@ function setupWebSocket(
           }
         }
 
-        const oldItem = player.equipment[targetSlot];
-        let freeInventorySlot = null;
-        if (oldItem || oldTwoHandedToRemove) {
-          freeInventorySlot = player.inventory.findIndex((s) => s === null);
-          if (freeInventorySlot === -1 && (oldItem || oldTwoHandedToRemove)) {
+        oldItemInTarget = player.equipment[targetSlot];
+
+        // === НАХОДИМ СВОБОДНЫЕ СЛОТЫ ОТДЕЛЬНО ===
+        // 1. Для старого двуручного (если есть)
+        if (oldTwoHanded) {
+          freeSlotForTwoHanded = player.inventory.findIndex((s) => s === null);
+          if (freeSlotForTwoHanded === -1) {
             ws.send(
               JSON.stringify({
                 type: "equipItemFail",
-                error: "Инвентарь полон",
+                error:
+                  "Инвентарь полон — нет места для старого двуручного оружия",
               })
             );
             return;
           }
         }
 
-        // Основная экипировка
+        // 2. Для старого предмета в целевом слоте (если есть и это не то же самое, что двуручное)
+        if (
+          oldItemInTarget &&
+          (!oldTwoHanded || oldItemInTarget !== oldTwoHanded)
+        ) {
+          freeSlotForOldItem = player.inventory.findIndex((s) => s === null);
+          // Если слот для двуручного уже занят — ищем другой
+          if (
+            freeSlotForOldItem === -1 ||
+            freeSlotForOldItem === freeSlotForTwoHanded
+          ) {
+            freeSlotForOldItem = player.inventory.findIndex(
+              (s, idx) => s === null && idx !== freeSlotForTwoHanded
+            );
+          }
+          if (freeSlotForOldItem === -1) {
+            ws.send(
+              JSON.stringify({
+                type: "equipItemFail",
+                error: "Инвентарь полон — нет места для старого предмета",
+              })
+            );
+            return;
+          }
+        }
+
+        // === ВЫПОЛНЯЕМ ЭКИПИРОВКУ ===
         player.inventory[slotIndex] = null;
+
         player.equipment[targetSlot] = {
           type: item.type,
           itemId: item.itemId,
@@ -1242,30 +1269,33 @@ function setupWebSocket(
           player.equipment.offhand = null;
         }
 
-        // Снятие старого двуручного (если было)
-        if (oldTwoHandedToRemove && freeSlotForOldTwoHanded !== null) {
-          player.inventory[freeSlotForOldTwoHanded] = {
-            type: oldTwoHandedToRemove.type,
-            itemId: oldTwoHandedToRemove.itemId,
+        // Возвращаем старое двуручное в инвентарь
+        if (oldTwoHanded && freeSlotForTwoHanded !== null) {
+          player.inventory[freeSlotForTwoHanded] = {
+            type: oldTwoHanded.type,
+            itemId: oldTwoHanded.itemId,
           };
           player.equipment.weapon = null;
           player.equipment.offhand = null;
         }
 
-        // Старый предмет из целевого слота
-        if (oldItem && freeInventorySlot !== null) {
-          player.inventory[freeInventorySlot] = {
-            type: oldItem.type,
-            itemId: oldItem.itemId,
+        // Возвращаем старый предмет из targetSlot (если был)
+        if (oldItemInTarget && freeSlotForOldItem !== null) {
+          player.inventory[freeSlotForOldItem] = {
+            type: oldItemInTarget.type,
+            itemId: oldItemInTarget.itemId,
           };
         }
 
+        // Пересчитываем статы
         calculateMaxStats(player, ITEM_CONFIG);
 
+        // Сохраняем
         players.set(playerId, { ...player });
         userDatabase.set(playerId, { ...player });
         await saveUserDatabase(dbCollection, playerId, player);
 
+        // Успех
         ws.send(
           JSON.stringify({
             type: "equipItemSuccess",
@@ -1282,6 +1312,7 @@ function setupWebSocket(
           })
         );
 
+        // Обновляем других игроков
         broadcastToWorld(
           wss,
           clients,
