@@ -1111,7 +1111,6 @@ function setupWebSocket(
           );
           return;
         }
-
         const player = players.get(playerId);
         const { slotIndex, slotName } = data;
 
@@ -1159,32 +1158,27 @@ function setupWebSocket(
         let oldItemInTarget = null;
         let freeSlotForOldItem = null;
 
+        // === ОСНОВНАЯ ЛОГИКА ДЛЯ ОРУЖИЯ ===
         if (config.type === "weapon") {
           if (config.hands === "twohanded") {
-            // Нельзя экипировать двуручное, если offhand занят отдельным предметом
+            // Нельзя надеть двуручное, если offhand занят отдельным предметом (но не двуручным)
             if (
               player.equipment.offhand !== null &&
-              player.equipment.weapon === null
+              (!player.equipment.weapon ||
+                ITEM_CONFIG[player.equipment.weapon.type]?.hands !==
+                  "twohanded")
             ) {
               ws.send(
                 JSON.stringify({
                   type: "equipItemFail",
-                  error: "Снимите предмет со второй руки",
+                  error: "Снимите предмет со второй руки для двуручного оружия",
                 })
               );
               return;
             }
             targetSlot = "weapon";
-
-            // Если уже есть двуручное — просто заменяем его
-            if (
-              player.equipment.weapon &&
-              ITEM_CONFIG[player.equipment.weapon.type]?.hands === "twohanded"
-            ) {
-              oldTwoHanded = player.equipment.weapon;
-            }
           } else if (config.hands === "onehanded") {
-            // Если сейчас двуручное — нужно его снять полностью
+            // КЛЮЧЕВОЙ СЛУЧАЙ: если сейчас стоит двуручное — нужно его снять
             if (
               player.equipment.weapon &&
               ITEM_CONFIG[player.equipment.weapon.type]?.hands === "twohanded"
@@ -1192,15 +1186,17 @@ function setupWebSocket(
               oldTwoHanded = player.equipment.weapon;
             }
 
+            // Определяем, куда ставить одноручное
             if (player.equipment.weapon === null) {
               targetSlot = "weapon";
             } else if (player.equipment.offhand === null) {
               targetSlot = "offhand";
             } else {
-              targetSlot = "weapon"; // заменяем основной
+              targetSlot = "weapon"; // заменяем основное
             }
           }
         } else {
+          // Не оружие — обычный слот
           targetSlot = EQUIPMENT_TYPES[config.type];
           if (!targetSlot) {
             ws.send(
@@ -1215,8 +1211,8 @@ function setupWebSocket(
 
         oldItemInTarget = player.equipment[targetSlot];
 
-        // === НАХОДИМ СВОБОДНЫЕ СЛОТЫ ОТДЕЛЬНО ===
-        // 1. Для старого двуручного (если есть)
+        // === ПОИСК СВОБОДНЫХ СЛОТОВ ===
+        // 1. Для старого двуручного (приоритет — если оно есть)
         if (oldTwoHanded) {
           freeSlotForTwoHanded = player.inventory.findIndex((s) => s === null);
           if (freeSlotForTwoHanded === -1) {
@@ -1231,21 +1227,15 @@ function setupWebSocket(
           }
         }
 
-        // 2. Для старого предмета в целевом слоте (если есть и это не то же самое, что двуручное)
+        // 2. Для старого предмета в целевом слоте (если он не является тем же двуручным)
         if (
           oldItemInTarget &&
-          (!oldTwoHanded || oldItemInTarget !== oldTwoHanded)
+          (!oldTwoHanded || oldItemInTarget.itemId !== oldTwoHanded.itemId)
         ) {
-          freeSlotForOldItem = player.inventory.findIndex((s) => s === null);
-          // Если слот для двуручного уже занят — ищем другой
-          if (
-            freeSlotForOldItem === -1 ||
-            freeSlotForOldItem === freeSlotForTwoHanded
-          ) {
-            freeSlotForOldItem = player.inventory.findIndex(
-              (s, idx) => s === null && idx !== freeSlotForTwoHanded
-            );
-          }
+          // Ищем свободный слот, избегая уже зарезервированного под двуручное
+          freeSlotForOldItem = player.inventory.findIndex(
+            (s, idx) => s === null && idx !== freeSlotForTwoHanded
+          );
           if (freeSlotForOldItem === -1) {
             ws.send(
               JSON.stringify({
@@ -1258,13 +1248,16 @@ function setupWebSocket(
         }
 
         // === ВЫПОЛНЯЕМ ЭКИПИРОВКУ ===
+        // Убираем предмет из инвентаря
         player.inventory[slotIndex] = null;
 
+        // Надеваем новый предмет
         player.equipment[targetSlot] = {
           type: item.type,
           itemId: item.itemId,
         };
 
+        // Если двуручное — чистим offhand
         if (config.hands === "twohanded") {
           player.equipment.offhand = null;
         }
@@ -1279,7 +1272,7 @@ function setupWebSocket(
           player.equipment.offhand = null;
         }
 
-        // Возвращаем старый предмет из targetSlot (если был)
+        // Возвращаем старый предмет из targetSlot (если был и не двуручное)
         if (oldItemInTarget && freeSlotForOldItem !== null) {
           player.inventory[freeSlotForOldItem] = {
             type: oldItemInTarget.type,
@@ -1295,7 +1288,7 @@ function setupWebSocket(
         userDatabase.set(playerId, { ...player });
         await saveUserDatabase(dbCollection, playerId, player);
 
-        // Успех
+        // Отправляем успех
         ws.send(
           JSON.stringify({
             type: "equipItemSuccess",
@@ -1312,7 +1305,7 @@ function setupWebSocket(
           })
         );
 
-        // Обновляем других игроков
+        // Рассылаем обновление статов другим игрокам
         broadcastToWorld(
           wss,
           clients,
