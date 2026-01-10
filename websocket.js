@@ -787,8 +787,9 @@ function setupWebSocket(
           );
           return;
         }
+
         const player = players.get(playerId);
-        if (!player || !player.equipment || !player.inventory) {
+        if (!player?.equipment || !player?.inventory) {
           ws.send(
             JSON.stringify({
               type: "unequipItemFail",
@@ -797,8 +798,9 @@ function setupWebSocket(
           );
           return;
         }
+
         const { slotName, inventorySlot, itemId } = data;
-        // Проверяем валидность слота (добавили offhand)
+
         const validSlots = [
           "head",
           "chest",
@@ -818,47 +820,61 @@ function setupWebSocket(
           );
           return;
         }
-        // Проверяем наличие предмета и совпадение itemId
+
+        // Проверяем наличие и совпадение itemId (защита от подмены)
+        const equippedItem = player.equipment[slotName];
+        if (!equippedItem || equippedItem.itemId !== itemId) {
+          ws.send(
+            JSON.stringify({
+              type: "unequipItemFail",
+              error: "Предмет не найден в слоте или неверный itemId",
+            })
+          );
+          return;
+        }
+
+        // Проверяем свободный слот в инвентаре (клиент уже проверил, но перепроверяем)
         if (
-          !player.equipment[slotName] ||
-          player.equipment[slotName].itemId !== itemId
+          inventorySlot < 0 ||
+          inventorySlot >= player.inventory.length ||
+          player.inventory[inventorySlot] !== null
         ) {
           ws.send(
             JSON.stringify({
               type: "unequipItemFail",
-              error: "Предмет не найден или неверный ID",
+              error: "Указанный слот инвентаря недоступен или занят",
             })
           );
           return;
         }
-        // Проверяем, свободен ли слот инвентаря
-        if (player.inventory[inventorySlot] !== null) {
-          ws.send(
-            JSON.stringify({
-              type: "unequipItemFail",
-              error: "Слот инвентаря занят",
-            })
-          );
-          return;
-        }
-        // Перемещаем предмет в инвентарь
+
+        // Всё ок — снимаем
         player.inventory[inventorySlot] = {
-          type: player.equipment[slotName].type,
-          quantity: player.equipment[slotName].quantity || 1,
-          itemId: player.equipment[slotName].itemId,
+          type: equippedItem.type,
+          itemId: equippedItem.itemId,
+          quantity: equippedItem.quantity || 1,
         };
+
         player.equipment[slotName] = null;
-        // Полностью пересчитываем maxStats и обрезаем текущие статы
+
+        // Если снимали двуручное оружие — гарантированно очищаем offhand
+        const config = ITEM_CONFIG[equippedItem.type];
+        if (config?.type === "weapon" && config.hands === "twohanded") {
+          player.equipment.offhand = null;
+        }
+
         calculateMaxStats(player, ITEM_CONFIG);
-        // Сохраняем изменения
+
+        // Сохраняем
         players.set(playerId, { ...player });
         userDatabase.set(playerId, { ...player });
         await saveUserDatabase(dbCollection, playerId, player);
-        // Отправляем подтверждение клиенту (убрали damage)
+
+        // Успех
         ws.send(
           JSON.stringify({
             type: "unequipItemSuccess",
-            slotName,
+            slotName, // тот слот, с которого реально сняли
             inventorySlot,
             inventory: player.inventory,
             equipment: player.equipment,
@@ -872,28 +888,26 @@ function setupWebSocket(
             },
           })
         );
-        // Отправляем обновление другим игрокам в том же мире
-        wss.clients.forEach((client) => {
-          if (client !== ws && client.readyState === WebSocket.OPEN) {
-            const clientPlayer = players.get(clients.get(client));
-            if (clientPlayer && clientPlayer.worldId === player.worldId) {
-              client.send(
-                JSON.stringify({
-                  type: "update",
-                  player: {
-                    id: playerId,
-                    maxStats: player.maxStats,
-                    health: player.health,
-                    energy: player.energy,
-                    food: player.food,
-                    water: player.water,
-                    armor: player.armor,
-                  },
-                })
-              );
-            }
-          }
-        });
+
+        // Рассылка остальным в мире (опционально можно убрать maxStats если не хотите светить)
+        broadcastToWorld(
+          wss,
+          clients,
+          players,
+          player.worldId,
+          JSON.stringify({
+            type: "update",
+            player: {
+              id: playerId,
+              maxStats: player.maxStats,
+              health: player.health,
+              energy: player.energy,
+              food: player.food,
+              water: player.water,
+              armor: player.armor,
+            },
+          })
+        );
       } else if (data.type === "updateQuests") {
         const id = clients.get(ws);
         if (id) {

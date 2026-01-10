@@ -722,7 +722,24 @@ const equipmentSystem = {
       return;
 
     const me = players.get(myId);
-    if (!me || !this.equipmentSlots[slotName]) return;
+    if (!me) return;
+
+    // ── Определяем, какой слот реально содержит оружие ────────
+    let realSlotToUnequip = slotName;
+
+    // Если нажали на offhand, а там визуально двуручное оружие (т.е. null, но weapon — двуручное)
+    if (slotName === "offhand" && this.equipmentSlots.offhand === null) {
+      const mainWeapon = this.equipmentSlots.weapon;
+      if (mainWeapon) {
+        const config = this.EQUIPMENT_CONFIG[mainWeapon.type];
+        if (config && config.hands === "twohanded") {
+          realSlotToUnequip = "weapon"; // будем снимать из weapon!
+        }
+      }
+    }
+
+    const item = this.equipmentSlots[realSlotToUnequip];
+    if (!item) return; // ничего нет → выходим
 
     const freeSlot = inventory.findIndex((s) => s === null);
     if (freeSlot === -1) {
@@ -730,12 +747,23 @@ const equipmentSystem = {
       return;
     }
 
-    const item = this.equipmentSlots[slotName];
-    this.pendingUnequip = { slotName, item: { ...item }, freeSlot };
+    this.pendingUnequip = {
+      slotName: realSlotToUnequip, // !!! важно — настоящий слот
+      visualSlot: slotName, // для удобства отката, если нужно
+      item: { ...item },
+      freeSlot,
+    };
 
     // Локально снимаем
-    this.equipmentSlots[slotName] = null;
+    this.equipmentSlots[realSlotToUnequip] = null;
+
+    // Если снимали двуручное — визуально очищаем и offhand
+    if (this.EQUIPMENT_CONFIG[item.type]?.hands === "twohanded") {
+      this.equipmentSlots.offhand = null;
+    }
+
     inventory[freeSlot] = { type: item.type, itemId: item.itemId };
+
     this.updateEquipmentDisplay();
     this.applyEquipmentEffects(me);
 
@@ -744,10 +772,11 @@ const equipmentSystem = {
         ws,
         JSON.stringify({
           type: "unequipItem",
-          slotName,
+          slotName: realSlotToUnequip, // !!! отправляем настоящий слот
           inventorySlot: freeSlot,
           itemId: item.itemId,
-          equipment: this.equipmentSlots,
+          // equipment отправляем уже обновлённое
+          equipment: { ...this.equipmentSlots },
           maxStats: { ...me.maxStats },
           stats: {
             health: me.health,

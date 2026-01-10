@@ -1618,15 +1618,19 @@ function handleGameMessage(event) {
           me.food = data.stats.food;
           me.water = data.stats.water;
           me.armor = data.stats.armor;
-          me.damage = data.stats.damage;
+
           inventory = me.inventory.map((slot) => (slot ? { ...slot } : null));
-          window.equipmentSystem.equipmentSlots = data.equipment;
+
+          // Синхронизируем визуальные слоты
+          window.equipmentSystem.equipmentSlots = { ...data.equipment };
           window.equipmentSystem.applyEquipmentEffects(me);
+          window.equipmentSystem.updateEquipmentDisplay();
         }
-        window.equipmentSystem.updateEquipmentDisplay();
+
+        window.equipmentSystem.pendingUnequip = null;
         updateInventoryDisplay();
         updateStatsDisplay();
-        window.equipmentSystem.pendingUnequip = null;
+        showNotification("Предмет снят", "#00ff88");
         break;
       }
       case "unequipItemFail":
