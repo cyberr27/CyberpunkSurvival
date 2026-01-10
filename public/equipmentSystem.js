@@ -123,7 +123,7 @@ const equipmentSystem = {
       type: "weapon",
       effect: { damage: 50, range: 200 },
       description: "Плазменная винтовка: +15 урона, дальнобойная",
-      rarity: 4,
+      rarity: 1,
       image: new Image(),
       hands: "twohanded",
       level: 2,

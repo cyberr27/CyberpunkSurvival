@@ -353,7 +353,7 @@ const ITEM_CONFIG = {
     effect: { damage: 50, range: 200 },
     image: images.plasmaRifleImage,
     description: "Плазменная винтовка: 50 урона, дальность 200px",
-    rarity: 4,
+    rarity: 1,
     hands: "twohanded",
     level: 2,
   },
