@@ -826,9 +826,27 @@ function setupWebSocket(
           return;
         }
 
-        // Определяем целевой слот
         let targetSlot = slotName;
-        if (config.type === "weapon") {
+
+        const currentWeapon = player.equipment.weapon;
+        const isReplacingTwoHandedWithOneHanded =
+          config.type === "weapon" &&
+          config.hands === "onehanded" &&
+          currentWeapon &&
+          ITEM_CONFIG[currentWeapon.type]?.hands === "twohanded";
+
+        if (isReplacingTwoHandedWithOneHanded) {
+          // Самый важный случай: снимаем двуручное и ставим новое одноручное в weapon
+          targetSlot = "weapon";
+
+          // Снимаем старое двуручное полностью
+          const oldTwoHanded = player.equipment.weapon;
+          player.equipment.weapon = null;
+          player.equipment.offhand = null; // на всякий случай
+
+          // Старое двуручное вернём в инвентарь ниже (по приоритету returnToSlotIndex)
+          // oldItem будет использоваться позже
+        } else if (config.type === "weapon") {
           if (config.hands === "twohanded") {
             if (player.equipment.offhand !== null) {
               ws.send(
@@ -841,12 +859,13 @@ function setupWebSocket(
             }
             targetSlot = "weapon";
           } else if (config.hands === "onehanded") {
+            // Обычная логика для одноручного
             if (player.equipment.weapon === null) {
               targetSlot = "weapon";
             } else if (player.equipment.offhand === null) {
               targetSlot = "offhand";
             } else {
-              targetSlot = "weapon"; // заменяем основной
+              targetSlot = data.preferredTargetSlot || "weapon"; // уважаем пожелание клиента
             }
           }
         } else {
@@ -862,24 +881,29 @@ function setupWebSocket(
           }
         }
 
-        // Проверка на замену: нужен ли свободный слот?
-        const oldItem = player.equipment[targetSlot];
+        let oldItem = player.equipment[targetSlot];
+
+        // Если мы уже сняли двуручное раньше — используем его как oldItem
+        if (isReplacingTwoHandedWithOneHanded) {
+          oldItem = player.equipment.weapon; // уже снято, но сохранили ранее
+          // player.equipment.weapon уже null
+        }
+
         let returnSlot = null;
 
-        // Клиент может попросить вернуть старый предмет в конкретный слот инвентаря
+        // Клиент может попросить вернуть старый предмет в конкретный слот
         if (data.returnToSlotIndex !== undefined) {
-          const requestedSlot = data.returnToSlotIndex;
-
+          const requested = data.returnToSlotIndex;
           if (
-            requestedSlot >= 0 &&
-            requestedSlot < player.inventory.length &&
-            player.inventory[requestedSlot] === null // должен быть уже освобождён (мы сами его занулили)
+            requested >= 0 &&
+            requested < player.inventory.length &&
+            player.inventory[requested] === null
           ) {
-            returnSlot = requestedSlot;
+            returnSlot = requested;
           }
         }
 
-        // Если не попросили или слот недоступен — ищем любой свободный
+        // Если не указан или недоступен — ищем свободный
         if (returnSlot === null && oldItem) {
           returnSlot = player.inventory.findIndex((s) => s === null);
           if (returnSlot === -1) {

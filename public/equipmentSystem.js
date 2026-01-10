@@ -687,7 +687,7 @@ const equipmentSystem = {
       const payload = {
         type: "equipItem",
         slotIndex, // откуда берём новый предмет
-        slotName, // целевой слот (weapon/offhead)
+        slotName, // слот, на который игрок кликнул (weapon/offhand)
         equipment: { ...this.equipmentSlots },
         maxStats: { ...me.maxStats },
         stats: {
@@ -699,12 +699,22 @@ const equipmentSystem = {
         },
       };
 
+      // Если экипируем одноручное, а в weapon уже двуручное — подсказываем серверу
+      const currentWeapon = this.equipmentSlots.weapon;
+      if (config.hands === "onehanded" && currentWeapon) {
+        const currentConfig = this.EQUIPMENT_CONFIG[currentWeapon.type];
+        if (currentConfig?.hands === "twohanded") {
+          payload.preferredTargetSlot = "weapon";
+          payload.returnToSlotIndex = slotIndex;
+        }
+      }
+
       if (
-        oldItemInTargetSlot &&
-        config.hands === "onehanded" &&
-        (slotName === "weapon" || slotName === "offhand")
+        !payload.preferredTargetSlot &&
+        this.equipmentSlots[slotName] &&
+        config.hands === "onehanded"
       ) {
-        payload.returnToSlotIndex = slotIndex; // просим вернуть старый предмет именно сюда
+        payload.returnToSlotIndex = slotIndex;
       }
 
       sendWhenReady(ws, JSON.stringify(payload));
