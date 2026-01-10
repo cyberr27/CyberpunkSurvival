@@ -835,17 +835,18 @@ function setupWebSocket(
           currentWeapon &&
           ITEM_CONFIG[currentWeapon.type]?.hands === "twohanded";
 
+        // Важно: сохраняем ссылку на снимаемый предмет ДО удаления из слота
+        let oldItemToReturn = null;
+
         if (isReplacingTwoHandedWithOneHanded) {
-          // Самый важный случай: снимаем двуручное и ставим новое одноручное в weapon
           targetSlot = "weapon";
 
-          // Снимаем старое двуручное полностью
-          const oldTwoHanded = player.equipment.weapon;
-          player.equipment.weapon = null;
-          player.equipment.offhand = null; // на всякий случай
+          // Сохраняем ссылку на двуручное оружие, которое будем снимать
+          oldItemToReturn = player.equipment.weapon;
 
-          // Старое двуручное вернём в инвентарь ниже (по приоритету returnToSlotIndex)
-          // oldItem будет использоваться позже
+          // Физически снимаем
+          player.equipment.weapon = null;
+          player.equipment.offhand = null;
         } else if (config.type === "weapon") {
           if (config.hands === "twohanded") {
             if (player.equipment.offhand !== null) {
@@ -865,7 +866,7 @@ function setupWebSocket(
             } else if (player.equipment.offhand === null) {
               targetSlot = "offhand";
             } else {
-              targetSlot = data.preferredTargetSlot || "weapon"; // уважаем пожелание клиента
+              targetSlot = data.preferredTargetSlot || "weapon";
             }
           }
         } else {
@@ -881,12 +882,12 @@ function setupWebSocket(
           }
         }
 
+        // Теперь определяем oldItem для обычных случаев замены
         let oldItem = player.equipment[targetSlot];
 
-        // Если мы уже сняли двуручное раньше — используем его как oldItem
+        // Но если мы заменили двуручное → используем сохранённую копию
         if (isReplacingTwoHandedWithOneHanded) {
-          oldItem = player.equipment.weapon; // уже снято, но сохранили ранее
-          // player.equipment.weapon уже null
+          oldItem = oldItemToReturn;
         }
 
         let returnSlot = null;
