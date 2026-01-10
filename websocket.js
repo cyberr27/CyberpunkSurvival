@@ -776,6 +776,186 @@ function setupWebSocket(
             }
           });
         }
+      } else if (data.type === "equipItem") {
+        const playerId = clients.get(ws);
+        if (!playerId || !players.has(playerId)) {
+          ws.send(
+            JSON.stringify({ type: "equipItemFail", error: "Игрок не найден" })
+          );
+          return;
+        }
+
+        const player = players.get(playerId);
+        const { slotIndex, slotName } = data;
+
+        // Валидация слота инвентаря
+        if (
+          slotIndex < 0 ||
+          slotIndex >= player.inventory.length ||
+          !player.inventory[slotIndex]
+        ) {
+          ws.send(
+            JSON.stringify({
+              type: "equipItemFail",
+              error: "Неверный слот инвентаря",
+            })
+          );
+          return;
+        }
+
+        const item = player.inventory[slotIndex];
+        const config = ITEM_CONFIG[item.type];
+        if (!config || !config.type) {
+          ws.send(
+            JSON.stringify({
+              type: "equipItemFail",
+              error: "Некорректный предмет",
+            })
+          );
+          return;
+        }
+
+        // === ПРОВЕРКА УРОВНЯ НА СЕРВЕРЕ ===
+        if (config.level !== undefined && (player.level || 0) < config.level) {
+          ws.send(
+            JSON.stringify({
+              type: "equipItemFail",
+              error: `Требуется уровень ${config.level} для экипировки этого предмета`,
+            })
+          );
+          return;
+        }
+
+        // Определяем целевой слот
+        let targetSlot = slotName;
+        if (config.type === "weapon") {
+          if (config.hands === "twohanded") {
+            if (player.equipment.offhand !== null) {
+              ws.send(
+                JSON.stringify({
+                  type: "equipItemFail",
+                  error: "Снимите предмет со второй руки",
+                })
+              );
+              return;
+            }
+            targetSlot = "weapon";
+          } else if (config.hands === "onehanded") {
+            if (player.equipment.weapon === null) {
+              targetSlot = "weapon";
+            } else if (player.equipment.offhand === null) {
+              targetSlot = "offhand";
+            } else {
+              targetSlot = "weapon"; // заменяем основной
+            }
+          }
+        } else {
+          targetSlot = EQUIPMENT_TYPES[config.type];
+          if (!targetSlot) {
+            ws.send(
+              JSON.stringify({
+                type: "equipItemFail",
+                error: "Нельзя экипировать в этот слот",
+              })
+            );
+            return;
+          }
+        }
+
+        // Проверка на замену: нужен ли свободный слот?
+        const oldItem = player.equipment[targetSlot];
+        let returnSlot = null;
+
+        // Клиент может попросить вернуть старый предмет в конкретный слот инвентаря
+        if (data.returnToSlotIndex !== undefined) {
+          const requestedSlot = data.returnToSlotIndex;
+
+          if (
+            requestedSlot >= 0 &&
+            requestedSlot < player.inventory.length &&
+            player.inventory[requestedSlot] === null // должен быть уже освобождён (мы сами его занулили)
+          ) {
+            returnSlot = requestedSlot;
+          }
+        }
+
+        // Если не попросили или слот недоступен — ищем любой свободный
+        if (returnSlot === null && oldItem) {
+          returnSlot = player.inventory.findIndex((s) => s === null);
+          if (returnSlot === -1) {
+            ws.send(
+              JSON.stringify({
+                type: "equipItemFail",
+                error: "Инвентарь полон",
+              })
+            );
+            return;
+          }
+        }
+
+        // Выполняем экипировку
+        player.inventory[slotIndex] = null; // откуда брали — очищаем
+
+        player.equipment[targetSlot] = {
+          type: item.type,
+          itemId: item.itemId,
+        };
+
+        if (config.hands === "twohanded") {
+          player.equipment.offhand = null;
+        }
+
+        // Возвращаем старый предмет (если был)
+        if (oldItem && returnSlot !== null) {
+          player.inventory[returnSlot] = {
+            type: oldItem.type,
+            itemId: oldItem.itemId,
+          };
+        }
+
+        // Пересчитываем статы
+        calculateMaxStats(player, ITEM_CONFIG);
+
+        // Сохраняем
+        players.set(playerId, { ...player });
+        userDatabase.set(playerId, { ...player });
+        await saveUserDatabase(dbCollection, playerId, player);
+
+        // Успех
+        ws.send(
+          JSON.stringify({
+            type: "equipItemSuccess",
+            inventory: player.inventory,
+            equipment: player.equipment,
+            maxStats: player.maxStats,
+            stats: {
+              health: player.health,
+              energy: player.energy,
+              food: player.food,
+              water: player.water,
+              armor: player.armor,
+            },
+          })
+        );
+
+        broadcastToWorld(
+          wss,
+          clients,
+          players,
+          player.worldId,
+          JSON.stringify({
+            type: "update",
+            player: {
+              id: playerId,
+              maxStats: player.maxStats,
+              health: player.health,
+              energy: player.energy,
+              food: player.food,
+              water: player.water,
+              armor: player.armor,
+            },
+          })
+        );
       } else if (data.type === "unequipItem") {
         const playerId = clients.get(ws);
         if (!playerId) {
@@ -1117,171 +1297,6 @@ function setupWebSocket(
             })
           );
         }
-      } else if (data.type === "equipItem") {
-        const playerId = clients.get(ws);
-        if (!playerId || !players.has(playerId)) {
-          ws.send(
-            JSON.stringify({ type: "equipItemFail", error: "Игрок не найден" })
-          );
-          return;
-        }
-
-        const player = players.get(playerId);
-        const { slotIndex, slotName } = data;
-
-        // Валидация слота инвентаря
-        if (
-          slotIndex < 0 ||
-          slotIndex >= player.inventory.length ||
-          !player.inventory[slotIndex]
-        ) {
-          ws.send(
-            JSON.stringify({
-              type: "equipItemFail",
-              error: "Неверный слот инвентаря",
-            })
-          );
-          return;
-        }
-
-        const item = player.inventory[slotIndex];
-        const config = ITEM_CONFIG[item.type];
-        if (!config || !config.type) {
-          ws.send(
-            JSON.stringify({
-              type: "equipItemFail",
-              error: "Некорректный предмет",
-            })
-          );
-          return;
-        }
-
-        // === ПРОВЕРКА УРОВНЯ НА СЕРВЕРЕ ===
-        if (config.level !== undefined && (player.level || 0) < config.level) {
-          ws.send(
-            JSON.stringify({
-              type: "equipItemFail",
-              error: `Требуется уровень ${config.level} для экипировки этого предмета`,
-            })
-          );
-          return;
-        }
-
-        // Определяем целевой слот
-        let targetSlot = slotName;
-        if (config.type === "weapon") {
-          if (config.hands === "twohanded") {
-            if (player.equipment.offhand !== null) {
-              ws.send(
-                JSON.stringify({
-                  type: "equipItemFail",
-                  error: "Снимите предмет со второй руки",
-                })
-              );
-              return;
-            }
-            targetSlot = "weapon";
-          } else if (config.hands === "onehanded") {
-            if (player.equipment.weapon === null) {
-              targetSlot = "weapon";
-            } else if (player.equipment.offhand === null) {
-              targetSlot = "offhand";
-            } else {
-              targetSlot = "weapon"; // заменяем основной
-            }
-          }
-        } else {
-          targetSlot = EQUIPMENT_TYPES[config.type];
-          if (!targetSlot) {
-            ws.send(
-              JSON.stringify({
-                type: "equipItemFail",
-                error: "Нельзя экипировать в этот слот",
-              })
-            );
-            return;
-          }
-        }
-
-        // Проверка на замену: нужен ли свободный слот?
-        const oldItem = player.equipment[targetSlot];
-        let freeInventorySlot = null;
-        if (oldItem) {
-          freeInventorySlot = player.inventory.findIndex((s) => s === null);
-          if (freeInventorySlot === -1) {
-            ws.send(
-              JSON.stringify({
-                type: "equipItemFail",
-                error: "Инвентарь полон",
-              })
-            );
-            return;
-          }
-        }
-
-        // Выполняем экипировку
-        player.inventory[slotIndex] = null;
-        player.equipment[targetSlot] = {
-          type: item.type,
-          itemId: item.itemId,
-        };
-
-        if (config.hands === "twohanded") {
-          player.equipment.offhand = null;
-        }
-
-        // Перемещаем старый предмет в инвентарь
-        if (oldItem && freeInventorySlot !== null) {
-          player.inventory[freeInventorySlot] = {
-            type: oldItem.type,
-            itemId: oldItem.itemId,
-          };
-        }
-
-        // Пересчитываем статы
-        calculateMaxStats(player, ITEM_CONFIG);
-
-        // Сохраняем
-        players.set(playerId, { ...player });
-        userDatabase.set(playerId, { ...player });
-        await saveUserDatabase(dbCollection, playerId, player);
-
-        // Успех
-        ws.send(
-          JSON.stringify({
-            type: "equipItemSuccess",
-            inventory: player.inventory,
-            equipment: player.equipment,
-            maxStats: player.maxStats,
-            stats: {
-              health: player.health,
-              energy: player.energy,
-              food: player.food,
-              water: player.water,
-              armor: player.armor,
-            },
-          })
-        );
-
-        // Обновляем других игроков
-        broadcastToWorld(
-          wss,
-          clients,
-          players,
-          player.worldId,
-          JSON.stringify({
-            type: "update",
-            player: {
-              id: playerId,
-              maxStats: player.maxStats,
-              health: player.health,
-              energy: player.energy,
-              food: player.food,
-              water: player.water,
-              armor: player.armor,
-            },
-          })
-        );
       } else if (data.type === "dropItem") {
         const id = clients.get(ws);
         if (id) {

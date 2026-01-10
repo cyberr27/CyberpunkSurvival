@@ -670,33 +670,44 @@ const equipmentSystem = {
       freeSlot: oldItem ? freeSlot : null,
     };
 
-    // Локально экипируем (оптимистично)
+    const oldItemInTargetSlot = this.equipmentSlots[slotName];
+
     this.equipmentSlots[slotName] = { type: item.type, itemId: item.itemId };
+
     if (config.hands === "twohanded") {
       this.equipmentSlots.offhand = null;
     }
+
     inventory[slotIndex] = null;
+
     this.updateEquipmentDisplay();
     this.applyEquipmentEffects(me);
 
     if (ws.readyState === WebSocket.OPEN) {
-      sendWhenReady(
-        ws,
-        JSON.stringify({
-          type: "equipItem",
-          slotIndex,
-          slotName,
-          equipment: this.equipmentSlots,
-          maxStats: { ...me.maxStats },
-          stats: {
-            health: me.health,
-            energy: me.energy,
-            food: me.food,
-            water: me.water,
-            armor: me.armor,
-          },
-        })
-      );
+      const payload = {
+        type: "equipItem",
+        slotIndex, // откуда берём новый предмет
+        slotName, // целевой слот (weapon/offhead)
+        equipment: { ...this.equipmentSlots },
+        maxStats: { ...me.maxStats },
+        stats: {
+          health: me.health,
+          energy: me.energy,
+          food: me.food,
+          water: me.water,
+          armor: me.armor,
+        },
+      };
+
+      if (
+        oldItemInTargetSlot &&
+        config.hands === "onehanded" &&
+        (slotName === "weapon" || slotName === "offhand")
+      ) {
+        payload.returnToSlotIndex = slotIndex; // просим вернуть старый предмет именно сюда
+      }
+
+      sendWhenReady(ws, JSON.stringify(payload));
     }
 
     selectedSlot = null;
