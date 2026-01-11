@@ -5,7 +5,7 @@ let selectedPlayerId = null;
 let allPlayers = new Map(); // все полученные данные игроков
 let onlinePlayers = new Set(); // только онлайн
 
-const SERVER_URL = "ws://localhost:8080"; // ← поменяй на свой адрес сервера
+const SERVER_URL = "ws://127.0.0.1:10000";
 
 function connectAdmin() {
   const password = document.getElementById("adminPassword").value.trim();
