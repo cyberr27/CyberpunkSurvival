@@ -800,6 +800,11 @@ function initializeWebSocket() {
     try {
       handleAuthMessage(event);
       const data = JSON.parse(event.data);
+      console.log(
+        `Получено от клиента ${clients.get(ws) || "аноним"}:`,
+        data.type,
+        data
+      );
       if (data.type === "loginSuccess") {
         ws.onmessage = handleGameMessage;
       }

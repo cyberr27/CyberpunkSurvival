@@ -8,6 +8,19 @@ const { runGameLoop } = require("./gameLogic");
 const { ITEM_CONFIG } = require("./items");
 
 const app = express();
+
+// Отдача статических файлов из папки public
+app.use(express.static(path.join(__dirname, "public")));
+
+// Для удобства — главная страница
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+
+app.get("/admin", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "admin-panel.html"));
+});
+
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server, pingInterval: 30000 });
 const clients = new Map();
@@ -182,7 +195,7 @@ async function initializeServer() {
     enemies // ← ДОБАВЬ enemies и сюда!
   );
 
-  return collection;
+  return fakeCollection;
 }
 
 const PORT = process.env.PORT || 10000;

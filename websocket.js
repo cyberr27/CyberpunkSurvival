@@ -181,6 +181,22 @@ function setupWebSocket(
   wss.on("connection", (ws) => {
     console.log("Client connected");
 
+    // === НОВЫЙ HEARTBEAT (ping/pong) — чтобы соединение НЕ закрывалось сразу ===
+    ws.isAlive = true;
+    ws.on("pong", () => {
+      ws.isAlive = true;
+    });
+
+    const heartbeatInterval = setInterval(() => {
+      if (ws.isAlive === false) {
+        console.log("Terminating inactive connection");
+        return ws.terminate();
+      }
+      ws.isAlive = false;
+      ws.ping();
+    }, 30000); // каждые 30 секунд пинг
+
+    // === ТВОЙ СТАРЫЙ КОД (inactivityTimer и остальное) ===
     let inactivityTimer = setTimeout(() => {
       console.log("Client disconnected due to inactivity");
       ws.close(4000, "Inactivity timeout");
