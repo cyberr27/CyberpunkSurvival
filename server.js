@@ -148,13 +148,17 @@ async function initializeServer() {
     uri ? uri.replace(/:([^:@]+)@/, ":<password>@") : "не определено"
   );
 
-  const collection = await connectToDatabase(uri);
-  await loadUserDatabase(collection, userDatabase);
+  // const collection = await connectToDatabase(uri);
+  // await loadUserDatabase(collection, userDatabase);
+  const fakeCollection = {
+    /* пустая заглушка */
+  }; // или null
+  console.log("Работаем без реальной MongoDB (тестовый режим)");
   console.log("Сервер готов к работе после загрузки базы данных");
 
   setupWebSocket(
     wss,
-    collection,
+    fakeCollection,
     clients,
     players,
     userDatabase,
@@ -168,7 +172,7 @@ async function initializeServer() {
 
   runGameLoop(
     wss,
-    collection,
+    fakeCollection,
     clients,
     players,
     items,
