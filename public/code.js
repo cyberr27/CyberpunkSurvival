@@ -353,7 +353,7 @@ const ITEM_CONFIG = {
     effect: { damage: 50, range: 200 },
     image: images.plasmaRifleImage,
     description: "Плазменная винтовка: 50 урона, дальность 200px",
-    rarity: 1,
+    rarity: 4,
     hands: "twohanded",
     level: 2,
   },
@@ -800,11 +800,6 @@ function initializeWebSocket() {
     try {
       handleAuthMessage(event);
       const data = JSON.parse(event.data);
-      console.log(
-        `Получено от клиента ${clients.get(ws) || "аноним"}:`,
-        data.type,
-        data
-      );
       if (data.type === "loginSuccess") {
         ws.onmessage = handleGameMessage;
       }

@@ -123,7 +123,7 @@ const equipmentSystem = {
       type: "weapon",
       effect: { damage: 50, range: 200 },
       description: "Плазменная винтовка: +15 урона, дальнобойная",
-      rarity: 1,
+      rarity: 4,
       image: new Image(),
       hands: "twohanded",
       level: 2,
@@ -670,54 +670,33 @@ const equipmentSystem = {
       freeSlot: oldItem ? freeSlot : null,
     };
 
-    const oldItemInTargetSlot = this.equipmentSlots[slotName];
-
+    // Локально экипируем (оптимистично)
     this.equipmentSlots[slotName] = { type: item.type, itemId: item.itemId };
-
     if (config.hands === "twohanded") {
       this.equipmentSlots.offhand = null;
     }
-
     inventory[slotIndex] = null;
-
     this.updateEquipmentDisplay();
     this.applyEquipmentEffects(me);
 
     if (ws.readyState === WebSocket.OPEN) {
-      const payload = {
-        type: "equipItem",
-        slotIndex, // откуда берём новый предмет
-        slotName, // слот, на который игрок кликнул (weapon/offhand)
-        equipment: { ...this.equipmentSlots },
-        maxStats: { ...me.maxStats },
-        stats: {
-          health: me.health,
-          energy: me.energy,
-          food: me.food,
-          water: me.water,
-          armor: me.armor,
-        },
-      };
-
-      // Если экипируем одноручное, а в weapon уже двуручное — подсказываем серверу
-      const currentWeapon = this.equipmentSlots.weapon;
-      if (config.hands === "onehanded" && currentWeapon) {
-        const currentConfig = this.EQUIPMENT_CONFIG[currentWeapon.type];
-        if (currentConfig?.hands === "twohanded") {
-          payload.preferredTargetSlot = "weapon";
-          payload.returnToSlotIndex = slotIndex;
-        }
-      }
-
-      if (
-        !payload.preferredTargetSlot &&
-        this.equipmentSlots[slotName] &&
-        config.hands === "onehanded"
-      ) {
-        payload.returnToSlotIndex = slotIndex;
-      }
-
-      sendWhenReady(ws, JSON.stringify(payload));
+      sendWhenReady(
+        ws,
+        JSON.stringify({
+          type: "equipItem",
+          slotIndex,
+          slotName,
+          equipment: this.equipmentSlots,
+          maxStats: { ...me.maxStats },
+          stats: {
+            health: me.health,
+            energy: me.energy,
+            food: me.food,
+            water: me.water,
+            armor: me.armor,
+          },
+        })
+      );
     }
 
     selectedSlot = null;

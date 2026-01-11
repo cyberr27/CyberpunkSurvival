@@ -8,19 +8,6 @@ const { runGameLoop } = require("./gameLogic");
 const { ITEM_CONFIG } = require("./items");
 
 const app = express();
-
-// Отдача статических файлов из папки public
-app.use(express.static(path.join(__dirname, "public")));
-
-// Для удобства — главная страница
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
-});
-
-app.get("/admin", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "admin-panel.html"));
-});
-
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server, pingInterval: 30000 });
 const clients = new Map();
@@ -161,17 +148,13 @@ async function initializeServer() {
     uri ? uri.replace(/:([^:@]+)@/, ":<password>@") : "не определено"
   );
 
-  // const collection = await connectToDatabase(uri);
-  // await loadUserDatabase(collection, userDatabase);
-  const fakeCollection = {
-    /* пустая заглушка */
-  }; // или null
-  console.log("Работаем без реальной MongoDB (тестовый режим)");
+  const collection = await connectToDatabase(uri);
+  await loadUserDatabase(collection, userDatabase);
   console.log("Сервер готов к работе после загрузки базы данных");
 
   setupWebSocket(
     wss,
-    fakeCollection,
+    collection,
     clients,
     players,
     userDatabase,
@@ -185,7 +168,7 @@ async function initializeServer() {
 
   runGameLoop(
     wss,
-    fakeCollection,
+    collection,
     clients,
     players,
     items,
@@ -195,7 +178,7 @@ async function initializeServer() {
     enemies // ← ДОБАВЬ enemies и сюда!
   );
 
-  return fakeCollection;
+  return collection;
 }
 
 const PORT = process.env.PORT || 10000;

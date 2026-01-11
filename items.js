@@ -165,7 +165,7 @@ const ITEM_CONFIG = {
     type: "weapon",
     effect: { damage: 50, range: 200 },
     description: "Плазменная винтовка: 50 урона, дальность 200px",
-    rarity: 1,
+    rarity: 4,
     hands: "twohanded",
     level: 2,
   },
