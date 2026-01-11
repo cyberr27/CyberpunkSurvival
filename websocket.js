@@ -179,24 +179,37 @@ function setupWebSocket(
   }
 
   wss.on("connection", (ws) => {
-    console.log("Client connected");
+    console.log("Client connected (heartbeat added)");
 
-    // === НОВЫЙ HEARTBEAT (ping/pong) — чтобы соединение НЕ закрывалось сразу ===
     ws.isAlive = true;
+
+    // Клиент отвечает pong автоматически (ws библиотека делает это)
     ws.on("pong", () => {
       ws.isAlive = true;
     });
 
-    const heartbeatInterval = setInterval(() => {
+    // Сервер пингует клиента каждые 30 сек
+    const heartbeat = setInterval(() => {
       if (ws.isAlive === false) {
-        console.log("Terminating inactive connection");
+        console.log("Terminating inactive WS");
         return ws.terminate();
       }
       ws.isAlive = false;
-      ws.ping();
-    }, 30000); // каждые 30 секунд пинг
+      ws.ping(); // ← отправляем ping
+    }, 30000);
 
-    // === ТВОЙ СТАРЫЙ КОД (inactivityTimer и остальное) ===
+    // Останавливаем heartbeat при закрытии
+    ws.on("close", () => {
+      clearInterval(heartbeat);
+      console.log("WebSocket closed, heartbeat stopped");
+    });
+
+    ws.on("error", (err) => {
+      console.error("WS error:", err);
+      clearInterval(heartbeat);
+    });
+
+    // === ТВОЙ ОРИГИНАЛЬНЫЙ КОД СЮДА (inactivityTimer и ws.on("message")) ===
     let inactivityTimer = setTimeout(() => {
       console.log("Client disconnected due to inactivity");
       ws.close(4000, "Inactivity timeout");
