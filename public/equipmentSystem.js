@@ -630,6 +630,7 @@ const equipmentSystem = {
     // Специальная логика для оружия
     if (config.type === "weapon") {
       if (config.hands === "twohanded") {
+        // Двуручное — только в weapon, и offhand должен быть свободен
         if (this.equipmentSlots.offhand !== null) {
           showNotification(
             "Снимите предмет со второй руки для двуручного оружия"
@@ -638,11 +639,24 @@ const equipmentSystem = {
         }
         slotName = "weapon";
       } else if (config.hands === "onehanded") {
-        if (this.equipmentSlots.weapon === null) {
-          slotName = "weapon";
-        } else if (this.equipmentSlots.offhand === null) {
-          slotName = "offhand";
+        const currentWeapon = this.equipmentSlots.weapon;
+
+        // Самое важное изменение ↓
+        if (currentWeapon) {
+          const currentConfig = this.EQUIPMENT_CONFIG[currentWeapon.type];
+          if (currentConfig?.hands === "twohanded") {
+            // Если сейчас двуручное → заменяем именно в weapon
+            slotName = "weapon";
+          } else {
+            // Обычная логика для одноручных
+            if (this.equipmentSlots.offhand === null) {
+              slotName = "offhand"; // свободна вторая рука → ставим туда
+            } else {
+              slotName = "weapon"; // вторая занята → заменяем основное
+            }
+          }
         } else {
+          // Нет оружия вообще → в основную руку
           slotName = "weapon";
         }
       }
@@ -672,6 +686,14 @@ const equipmentSystem = {
 
     // Локально экипируем (оптимистично)
     this.equipmentSlots[slotName] = { type: item.type, itemId: item.itemId };
+
+    if (oldItem) {
+      const oldConfig = this.EQUIPMENT_CONFIG[oldItem.type];
+      if (oldConfig?.hands === "twohanded") {
+        this.equipmentSlots.offhand = null;
+      }
+    }
+
     if (config.hands === "twohanded") {
       this.equipmentSlots.offhand = null;
     }
