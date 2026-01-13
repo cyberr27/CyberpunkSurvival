@@ -1913,7 +1913,7 @@ function setupWebSocket(
         if (enemy.health <= 0) {
           enemies.delete(data.targetId);
 
-          // Уведомляем всех
+          // Уведомляем всех о смерти
           broadcastToWorld(
             wss,
             clients,
@@ -1925,128 +1925,30 @@ function setupWebSocket(
             })
           );
 
-          // Новый дроп (замена старого)
-          const dropChance = Math.random();
-          const tornItems = [
-            "torn_baseball_cap_of_health",
-            "torn_health_t_shirt",
-            "torn_health_gloves",
-            "torn_belt_of_health",
-            "torn_pants_of_health",
-            "torn_health_sneakers",
-            "torn_energy_cap",
-            "torn_energy_t_shirt",
-            "torn_gloves_of_energy",
-            "torn_energy_belt",
-            "torn_pants_of_energy",
-            "torn_sneakers_of_energy",
-            "torn_cap_of_gluttony",
-            "torn_t_shirt_of_gluttony",
-            "torn_gloves_of_gluttony",
-            "torn_belt_of_gluttony",
-            "torn_pants_of_gluttony",
-            "torn_sneakers_of_gluttony",
-            "torn_cap_of_thirst",
-            "torn_t_shirt_of_thirst",
-            "torn_gloves_of_thirst",
-            "torn_belt_of_thirst",
-            "torn_pants_of_thirst",
-            "torn_sneakers_of_thirst",
-          ];
-          const newDropItems = []; // Массив для всех дропнутых предметов
+          // ───────────────────── НОВАЯ СИСТЕМА ДРОПА ─────────────────────
+          const now = Date.now();
+          const dropItems = generateEnemyDrop(
+            enemy.type,
+            enemy.x,
+            enemy.y,
+            data.worldId,
+            now
+          );
 
-          if (dropChance < 0.33) {
-            // 33% - ничего
-          } else if (dropChance < 0.45) {
-            // 33% + 12% = 45% - torn + atom + balyary
-            const tornType =
-              tornItems[Math.floor(Math.random() * tornItems.length)];
-            const tornItemId = `${tornType}_${Date.now()}`;
-            const tornDrop = {
-              x: enemy.x,
-              y: enemy.y,
-              type: tornType,
-              spawnTime: Date.now(),
-              worldId: data.worldId,
-            };
-            items.set(tornItemId, tornDrop);
-            newDropItems.push({ itemId: tornItemId, ...tornDrop });
+          if (dropItems.length > 0) {
+            // Добавляем все дропнутые предметы в глобальную карту items
+            for (const drop of dropItems) {
+              items.set(drop.itemId, {
+                x: drop.x,
+                y: drop.y,
+                type: drop.type,
+                quantity: drop.quantity || 1,
+                spawnTime: drop.spawnTime,
+                worldId: drop.worldId,
+              });
+            }
 
-            const atomItemId = `atom_${Date.now()}`;
-            const atomDrop = {
-              x: enemy.x,
-              y: enemy.y,
-              type: "atom",
-              spawnTime: Date.now(),
-              worldId: data.worldId,
-            };
-            items.set(atomItemId, atomDrop);
-            newDropItems.push({ itemId: atomItemId, ...atomDrop });
-
-            const balyaryItemId = `balyary_${Date.now()}`;
-            const balyaryDrop = {
-              x: enemy.x,
-              y: enemy.y,
-              type: "balyary",
-              quantity: 1,
-              spawnTime: Date.now(),
-              worldId: data.worldId,
-            };
-            items.set(balyaryItemId, balyaryDrop);
-            newDropItems.push({ itemId: balyaryItemId, ...balyaryDrop });
-          } else if (dropChance < 0.7) {
-            // 45% + 25% = 70% - blood_pack + atom
-            const bloodItemId = `blood_pack_${Date.now()}`;
-            const bloodDrop = {
-              x: enemy.x,
-              y: enemy.y,
-              type: "blood_pack",
-              spawnTime: Date.now(),
-              worldId: data.worldId,
-            };
-            items.set(bloodItemId, bloodDrop);
-            newDropItems.push({ itemId: bloodItemId, ...bloodDrop });
-
-            const atomItemId = `atom_${Date.now()}`;
-            const atomDrop = {
-              x: enemy.x,
-              y: enemy.y,
-              type: "atom",
-              spawnTime: Date.now(),
-              worldId: data.worldId,
-            };
-            items.set(atomItemId, atomDrop);
-            newDropItems.push({ itemId: atomItemId, ...atomDrop });
-          } else if (dropChance < 0.85) {
-            // 70% + 15% = 85% - torn
-            const tornType =
-              tornItems[Math.floor(Math.random() * tornItems.length)];
-            const tornItemId = `${tornType}_${Date.now()}`;
-            const tornDrop = {
-              x: enemy.x,
-              y: enemy.y,
-              type: tornType,
-              spawnTime: Date.now(),
-              worldId: data.worldId,
-            };
-            items.set(tornItemId, tornDrop);
-            newDropItems.push({ itemId: tornItemId, ...tornDrop });
-          } else {
-            // 85% + 15% = 100% - atom
-            const atomItemId = `atom_${Date.now()}`;
-            const atomDrop = {
-              x: enemy.x,
-              y: enemy.y,
-              type: "atom",
-              spawnTime: Date.now(),
-              worldId: data.worldId,
-            };
-            items.set(atomItemId, atomDrop);
-            newDropItems.push({ itemId: atomItemId, ...atomDrop });
-          }
-
-          // Если есть дроп — отправляем один broadcast с массивом
-          if (newDropItems.length > 0) {
+            // Отправляем одним сообщением весь дроп
             broadcastToWorld(
               wss,
               clients,
@@ -2054,10 +1956,11 @@ function setupWebSocket(
               data.worldId,
               JSON.stringify({
                 type: "newItem",
-                items: newDropItems,
+                items: dropItems,
               })
             );
           }
+          // ──────────────────────────────────────────────────────────────
 
           // XP и level up
           let xpGained = 13;
@@ -2065,8 +1968,10 @@ function setupWebSocket(
             xpGained = 20;
           }
           attacker.xp = (attacker.xp || 0) + xpGained;
+
           let levelUp = false;
           let xpToNext = calculateXPToNextLevel(attacker.level);
+
           while (attacker.xp >= xpToNext && attacker.level < 100) {
             attacker.level += 1;
             attacker.xp -= xpToNext;
@@ -2074,9 +1979,11 @@ function setupWebSocket(
             levelUp = true;
             xpToNext = calculateXPToNextLevel(attacker.level);
           }
+
           players.set(attackerId, attacker);
           userDatabase.set(attackerId, attacker);
           await saveUserDatabase(dbCollection, attackerId, attacker);
+
           // Уведомление атакующего (levelSyncAfterKill)
           ws.send(
             JSON.stringify({
@@ -2088,6 +1995,8 @@ function setupWebSocket(
               xpGained,
             })
           );
+
+          // Прогресс квеста (только для мутантов)
           if (enemy.type === "mutant") {
             if (
               attacker.neonQuest &&
@@ -2096,11 +2005,11 @@ function setupWebSocket(
               attacker.neonQuest.progress = attacker.neonQuest.progress || {};
               attacker.neonQuest.progress.killMutants =
                 (attacker.neonQuest.progress.killMutants || 0) + 1;
-              // Сохраняем в БД
+
               players.set(attackerId, attacker);
               userDatabase.set(attackerId, attacker);
               await saveUserDatabase(dbCollection, attackerId, attacker);
-              // Отправляем игроку обновлённый прогресс
+
               ws.send(
                 JSON.stringify({
                   type: "neonQuestProgressUpdate",
@@ -2109,14 +2018,16 @@ function setupWebSocket(
               );
             }
           }
-          // Респавн через 8-15 сек
+
+          // Респавн через 8–15 секунд
           setTimeout(
             () => spawnNewEnemy(data.worldId),
             8000 + Math.random() * 7000
           );
         } else {
-          // Если жив — просто обновляем здоровье
+          // Если враг ещё жив — просто обновляем здоровье
           enemies.set(data.targetId, enemy);
+
           broadcastToWorld(
             wss,
             clients,
