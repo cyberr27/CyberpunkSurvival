@@ -667,13 +667,14 @@ const equipmentSystem = {
     if (!slotName) return;
 
     const oldItem = this.equipmentSlots[slotName];
-    let freeSlot = null;
+
     if (oldItem) {
-      freeSlot = inventory.findIndex((s) => s === null);
-      if (freeSlot === -1) {
-        showNotification("Инвентарь полон! Освободите место для замены.");
-        return;
-      }
+      inventory[slotIndex] = {
+        type: oldItem.type,
+        itemId: oldItem.itemId,
+      };
+    } else {
+      inventory[slotIndex] = null;
     }
 
     this.pendingEquip = {
@@ -681,7 +682,6 @@ const equipmentSystem = {
       item: { ...item },
       slotName,
       oldItem,
-      freeSlot: oldItem ? freeSlot : null,
     };
 
     // Локально экипируем (оптимистично)
@@ -706,7 +706,7 @@ const equipmentSystem = {
         ws,
         JSON.stringify({
           type: "equipItem",
-          slotIndex,
+          slotIndex, 
           slotName,
           equipment: this.equipmentSlots,
           maxStats: { ...me.maxStats },
