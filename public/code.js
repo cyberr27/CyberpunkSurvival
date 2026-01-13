@@ -140,6 +140,13 @@ const imageSources = {
   chameleonPantsImage: "chameleon_pants.png",
   chameleonSneakersImage: "chameleon_sneakers.png",
   chameleonTShirtImage: "chameleon_t_shirt.png",
+
+  white_void_cap: "white_void_cap.png",
+  white_void_t_shirt: "white_void_t_shirt.png",
+  white_void_gloves: "white_void_gloves.png",
+  white_void_belt: "white_void_belt.png",
+  white_void_pants: "white_void_pants.png",
+  white_void_sneakers: "white_void_sneakers.png",
 };
 
 const images = {};
@@ -684,6 +691,61 @@ const ITEM_CONFIG = {
     rarity: 4,
     collection: "Light Chameleon",
     level: 5,
+  },
+
+  white_void_cap: {
+    type: "headgear",
+    effect: {},
+    image: images.white_void_cap,
+    description: "Белая кепка Пустоты — чистый лист для будущих улучшений",
+    rarity: 4,
+    collection: "White Void",
+    level: 0,
+  },
+  white_void_t_shirt: {
+    type: "armor",
+    effect: {},
+    image: images.white_void_t_shirt,
+    description: "Белая футболка Пустоты — чистый лист для будущих улучшений",
+    rarity: 4,
+    collection: "White Void",
+    level: 0,
+  },
+  white_void_gloves: {
+    type: "gloves",
+    effect: {},
+    image: images.white_void_gloves,
+    description: "Белые перчатки Пустоты — чистый лист для будущих улучшений",
+    rarity: 4,
+    collection: "White Void",
+    level: 0,
+  },
+  white_void_belt: {
+    type: "belt",
+    effect: {},
+    image: images.white_void_belt,
+    description: "Белый пояс Пустоты — чистый лист для будущих улучшений",
+    rarity: 4,
+    collection: "White Void",
+    level: 0,
+  },
+  white_void_pants: {
+    type: "pants",
+    effect: {},
+    image: images.white_void_pants,
+    description: "Белые штаны Пустоты — чистый лист для будущих улучшений",
+    rarity: 4,
+    collection: "White Void",
+    level: 0,
+  },
+  white_void_sneakers: {
+    type: "boots",
+    effect: {},
+    image: images.white_void_sneakers,
+    description: "Белые кроссовки Пустоты — чистый лист для будущих улучшений",
+    rarity: 4,
+    collection: "White Void",
+    level: 0,
   },
 };
 

@@ -462,6 +462,55 @@ const ITEM_CONFIG = {
     collection: "Light Chameleon",
     level: 5,
   },
+
+  white_void_cap: {
+    type: "headgear",
+    effect: {},
+    description: "Белая кепка Пустоты — чистый лист для будущих улучшений",
+    rarity: 4,
+    collection: "White Void",
+    level: 0,
+  },
+  white_void_t_shirt: {
+    type: "armor",
+    effect: {},
+    description: "Белая футболка Пустоты — чистый лист для будущих улучшений",
+    rarity: 4,
+    collection: "White Void",
+    level: 0,
+  },
+  white_void_gloves: {
+    type: "gloves",
+    effect: {},
+    description: "Белые перчатки Пустоты — чистый лист для будущих улучшений",
+    rarity: 4,
+    collection: "White Void",
+    level: 0,
+  },
+  white_void_belt: {
+    type: "belt",
+    effect: {},
+    description: "Белый пояс Пустоты — чистый лист для будущих улучшений",
+    rarity: 4,
+    collection: "White Void",
+    level: 0,
+  },
+  white_void_pants: {
+    type: "pants",
+    effect: {},
+    description: "Белые штаны Пустоты — чистый лист для будущих улучшений",
+    rarity: 4,
+    collection: "White Void",
+    level: 0,
+  },
+  white_void_sneakers: {
+    type: "boots",
+    effect: {},
+    description: "Белые кроссовки Пустоты — чистый лист для будущих улучшений",
+    rarity: 4,
+    collection: "White Void",
+    level: 0,
+  },
 };
 
 module.exports = { ITEM_CONFIG };
