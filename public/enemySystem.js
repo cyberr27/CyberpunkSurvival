@@ -32,9 +32,9 @@ const ENEMY_TYPES = {
     maxHealth: 300,
     spriteKey: "bloodEyeSprite",
     speed: 3.2, // медленнее скорпиона
-    aggroRange: 420,
+    aggroRange: 300,
     attackCooldown: 2000,
-    projectileSpeed: 200, // px/s
+    projectileSpeed: 2, // px/s
     minDamage: 12,
     maxDamage: 18,
     attackType: "projectile",
