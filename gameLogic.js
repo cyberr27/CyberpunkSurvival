@@ -401,8 +401,9 @@ function runGameLoop(
         }
       }
 
-      if (worldId !== 0 && worldId !== 2 && playerCount > 0) {
-        const desiredBloodEyes = 7;
+      if (worldId !== 0 && worldId !== 3 && playerCount > 0) {
+        const desiredBloodEyes = 10;
+        const worldEnemiesMap = worldEnemyCache.get(worldId) || new Map();
         const currentBloodEyes = Array.from(worldEnemiesMap.values()).filter(
           (e) => e.type === "blood_eye"
         ).length;
