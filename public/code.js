@@ -107,6 +107,7 @@ const imageSources = {
   atomImage: "atom.png",
   mutantSprite: "mutantSprite.png",
   scorpionSprite: "scorpionSprite.png",
+  bloodEyeSprite: "blood_eye.png",
   alexNeonSprite: "alexNeonSprite.png",
   alexNeonFoto: "alexNeonFoto.png",
   vacuumRobotSprite: "vacuum_robot.png",

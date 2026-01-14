@@ -31,6 +31,12 @@ const ENEMY_SPEED = 2;
 const AGGRO_RANGE = 300;
 const ATTACK_RANGE = 50;
 const ENEMY_ATTACK_COOLDOWN = 1000;
+const BLOOD_EYE_SPEED = 3.2;
+const BLOOD_EYE_AGGRO = 420;
+const BLOOD_EYE_COOLDOWN = 2000;
+const BLOOD_EYE_PROJ_SPEED = 200; // px/s
+const BLOOD_EYE_DAMAGE_MIN = 12;
+const BLOOD_EYE_DAMAGE_MAX = 18;
 
 function calculateXPToNextLevel(level) {
   if (level >= 100) return 0;
@@ -1972,6 +1978,9 @@ function setupWebSocket(
           if (enemy.type === "scorpion") {
             xpGained = 20;
           }
+          if (enemy.type === "blood_eye") {
+            xpGained = 50;
+          }
           attacker.xp = (attacker.xp || 0) + xpGained;
 
           let levelUp = false;
@@ -2901,16 +2910,46 @@ function setupWebSocket(
     });
 
     const enemyUpdateInterval = setInterval(() => {
+      const now = Date.now();
+
       enemies.forEach((enemy, enemyId) => {
         if (enemy.health <= 0) return;
 
+        // Определяем конфиг в зависимости от типа врага
+        let speed = ENEMY_SPEED;
+        let aggroRange = AGGRO_RANGE;
+        let attackRange = ATTACK_RANGE;
+        let attackCooldown = ENEMY_ATTACK_COOLDOWN;
+        let minDamage = 10;
+        let maxDamage = 15;
+        let isRanged = false;
+        let projectileSpeed = 0;
+
+        if (enemy.type === "scorpion") {
+          speed = 4;
+          attackCooldown = 1000;
+          minDamage = 5;
+          maxDamage = 10;
+        } else if (enemy.type === "blood_eye") {
+          speed = 3.2;
+          aggroRange = 420;
+          attackCooldown = 2000;
+          minDamage = 12;
+          maxDamage = 18;
+          isRanged = true;
+          projectileSpeed = 200; // пикселей в секунду
+        }
+
+        // Поиск ближайшего игрока
         let closestPlayer = null;
-        let minDist = AGGRO_RANGE;
+        let minDist = aggroRange;
+
         players.forEach((player) => {
           if (player.worldId === enemy.worldId && player.health > 0) {
             const dx = player.x - enemy.x;
             const dy = player.y - enemy.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
+            const dist = Math.hypot(dx, dy); // более современный и читаемый вариант
+
             if (dist < minDist) {
               minDist = dist;
               closestPlayer = player;
@@ -2921,79 +2960,151 @@ function setupWebSocket(
         if (closestPlayer) {
           const dx = closestPlayer.x - enemy.x;
           const dy = closestPlayer.y - enemy.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist > ATTACK_RANGE) {
-            const moveDist = ENEMY_SPEED;
-            if (dist > 0) {
-              enemy.x += (dx / dist) * moveDist;
-              enemy.y += (dy / dist) * moveDist;
-            }
-            enemy.state = "walking";
-            if (Math.abs(dx) > Math.abs(dy)) {
-              enemy.direction = dx > 0 ? "right" : "left";
-            } else {
-              enemy.direction = dy > 0 ? "down" : "up";
-            }
-          } else {
-            const currentTime = Date.now();
-            if (currentTime - enemy.lastAttackTime >= ENEMY_ATTACK_COOLDOWN) {
-              enemy.lastAttackTime = currentTime;
+          const dist = Math.hypot(dx, dy);
+
+          if (isRanged) {
+            // ------------------- Логика дальнобойного врага (blood_eye) -------------------
+            if (now - (enemy.lastAttackTime || 0) >= attackCooldown) {
+              enemy.lastAttackTime = now;
               enemy.state = "attacking";
-              const damage = Math.floor(Math.random() * 6) + 10; // 10-15
-              closestPlayer.health = Math.max(0, closestPlayer.health - damage);
-              players.set(closestPlayer.id, { ...closestPlayer });
-              userDatabase.set(closestPlayer.id, { ...closestPlayer });
-              saveUserDatabase(dbCollection, closestPlayer.id, closestPlayer);
 
-              wss.clients.forEach((client) => {
-                if (client.readyState === WebSocket.OPEN) {
-                  const clientPlayer = players.get(clients.get(client));
-                  if (clientPlayer && clientPlayer.worldId === enemy.worldId) {
-                    client.send(
-                      JSON.stringify({
-                        type: "enemyAttack",
-                        targetId: closestPlayer.id,
-                        damage: damage,
-                      })
-                    );
-                    client.send(
-                      JSON.stringify({
-                        type: "update",
-                        player: { id: closestPlayer.id, ...closestPlayer },
-                      })
-                    );
-                  }
-                }
-              });
-            } else {
-              enemy.state = "idle";
-            }
-          }
-        } else {
-          enemy.state = "idle";
-          // Anti-зависание: random wander
-          if (Math.random() < 0.1) {
-            const wanderAngle = Math.random() * Math.PI * 2;
-            enemy.x += Math.cos(wanderAngle) * ENEMY_SPEED * 0.5;
-            enemy.y += Math.sin(wanderAngle) * ENEMY_SPEED * 0.5;
-          }
-        }
+              const angle = Math.atan2(dy, dx);
+              const bulletId = `proj_${enemyId}_${Date.now()}`;
 
-        wss.clients.forEach((client) => {
-          if (client.readyState === WebSocket.OPEN) {
-            const clientPlayer = players.get(clients.get(client));
-            if (clientPlayer && clientPlayer.worldId === enemy.worldId) {
-              client.send(
+              // Сообщение о выстреле — клиент сам будет двигать и отрисовывать пулю
+              broadcastToWorld(
+                wss,
+                clients,
+                players,
+                enemy.worldId,
                 JSON.stringify({
-                  type: "enemyUpdate",
-                  enemy: { id: enemyId, ...enemy },
+                  type: "enemyShoot",
+                  enemyId: enemyId,
+                  bulletId: bulletId,
+                  x: enemy.x,
+                  y: enemy.y,
+                  angle: angle,
+                  speed: projectileSpeed,
+                  damage:
+                    Math.floor(Math.random() * (maxDamage - minDamage + 1)) +
+                    minDamage,
+                  worldId: enemy.worldId,
+                  spawnTime: now,
                 })
               );
             }
+
+            // Движение к игроку, но с большей дистанцией (чтобы не подходить слишком близко)
+            if (dist > attackRange * 2.5) {
+              // держит дистанцию ~125–150 пикселей
+              enemy.x += (dx / dist) * speed;
+              enemy.y += (dy / dist) * speed;
+              enemy.state = "walking";
+            } else {
+              enemy.state = "attacking"; // стойка атаки, когда на дистанции
+            }
+          } else {
+            // ------------------- Ближний бой (mutant, scorpion) -------------------
+            if (dist > attackRange) {
+              enemy.x += (dx / dist) * speed;
+              enemy.y += (dy / dist) * speed;
+              enemy.state = "walking";
+
+              if (Math.abs(dx) > Math.abs(dy)) {
+                enemy.direction = dx > 0 ? "right" : "left";
+              } else {
+                enemy.direction = dy > 0 ? "down" : "up";
+              }
+            } else {
+              if (now - (enemy.lastAttackTime || 0) >= attackCooldown) {
+                enemy.lastAttackTime = now;
+                enemy.state = "attacking";
+
+                const damage =
+                  Math.floor(Math.random() * (maxDamage - minDamage + 1)) +
+                  minDamage;
+
+                closestPlayer.health = Math.max(
+                  0,
+                  closestPlayer.health - damage
+                );
+
+                players.set(closestPlayer.id, { ...closestPlayer });
+                userDatabase.set(closestPlayer.id, { ...closestPlayer });
+                saveUserDatabase(dbCollection, closestPlayer.id, closestPlayer);
+
+                broadcastToWorld(
+                  wss,
+                  clients,
+                  players,
+                  enemy.worldId,
+                  JSON.stringify({
+                    type: "enemyAttack",
+                    targetId: closestPlayer.id,
+                    damage: damage,
+                    enemyId: enemyId,
+                  })
+                );
+
+                broadcastToWorld(
+                  wss,
+                  clients,
+                  players,
+                  enemy.worldId,
+                  JSON.stringify({
+                    type: "update",
+                    player: { id: closestPlayer.id, ...closestPlayer },
+                  })
+                );
+              } else {
+                enemy.state = "attacking"; // держим анимацию атаки
+              }
+            }
           }
-        });
+        } else {
+          // Нет цели — idle + редкий случайный wander
+          enemy.state = "idle";
+
+          if (Math.random() < 0.08) {
+            const wanderAngle = Math.random() * Math.PI * 2;
+            enemy.x += Math.cos(wanderAngle) * speed * 0.5;
+            enemy.y += Math.sin(wanderAngle) * speed * 0.5;
+          }
+        }
+
+        // Направление при движении (для всех типов)
+        if (enemy.state === "walking" && closestPlayer) {
+          const dx = closestPlayer.x - enemy.x;
+          const dy = closestPlayer.y - enemy.y;
+
+          if (Math.abs(dx) > Math.abs(dy)) {
+            enemy.direction = dx > 0 ? "right" : "left";
+          } else {
+            enemy.direction = dy > 0 ? "down" : "up";
+          }
+        }
+
+        // Отправляем обновление всем игрокам в мире
+        broadcastToWorld(
+          wss,
+          clients,
+          players,
+          enemy.worldId,
+          JSON.stringify({
+            type: "enemyUpdate",
+            enemy: {
+              id: enemyId,
+              x: enemy.x,
+              y: enemy.y,
+              state: enemy.state,
+              direction: enemy.direction,
+              health: enemy.health,
+              lastAttackTime: enemy.lastAttackTime,
+            },
+          })
+        );
       });
-    }, 200); // 200ms оптимизация
+    }, 200); // 200 мс — хороший баланс между плавностью и нагрузкой
 
     // Очистка интервала при disconnect (в ws.on("close"))
     clearInterval(enemyUpdateInterval);

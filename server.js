@@ -163,7 +163,7 @@ async function initializeServer() {
     worlds,
     ITEM_CONFIG,
     INACTIVITY_TIMEOUT,
-    enemies // ← Теперь enemies существует!
+    enemies 
   );
 
   runGameLoop(
@@ -175,7 +175,7 @@ async function initializeServer() {
     worlds,
     ITEM_CONFIG,
     userDatabase,
-    enemies // ← ДОБАВЬ enemies и сюда!
+    enemies 
   );
 
   return collection;

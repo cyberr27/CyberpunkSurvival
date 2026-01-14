@@ -401,6 +401,65 @@ function runGameLoop(
         }
       }
 
+      if (worldId !== 0 && worldId !== 2 && playerCount > 0) {
+        const desiredBloodEyes = 7;
+        const currentBloodEyes = Array.from(worldEnemiesMap.values()).filter(
+          (e) => e.type === "blood_eye"
+        ).length;
+
+        if (currentBloodEyes < desiredBloodEyes) {
+          const toSpawn = desiredBloodEyes - currentBloodEyes;
+          const newBloodEyes = [];
+
+          for (let i = 0; i < toSpawn; i++) {
+            // тот же алгоритм поиска координат что и у остальных
+            let x,
+              y,
+              attempts = 0;
+            const maxAttempts = 10;
+            do {
+              x = Math.random() * world.width;
+              y = Math.random() * world.height;
+              attempts++;
+            } while (checkCollisionServer(x, y) && attempts < maxAttempts);
+
+            if (attempts < maxAttempts) {
+              const enemyId = `blood_eye_${Date.now()}_${i}`;
+              const newEnemy = {
+                id: enemyId,
+                x,
+                y,
+                health: 300,
+                maxHealth: 300,
+                direction: "down",
+                state: "idle",
+                frame: 0,
+                worldId,
+                targetId: null,
+                lastAttackTime: 0,
+                type: "blood_eye",
+              };
+              enemies.set(enemyId, newEnemy);
+              worldEnemiesMap.set(enemyId, newEnemy);
+              newBloodEyes.push({ ...newEnemy });
+            }
+          }
+
+          if (newBloodEyes.length > 0) {
+            broadcastToWorld(
+              wss,
+              clients,
+              players,
+              worldId,
+              JSON.stringify({
+                type: "newEnemies",
+                enemies: newBloodEyes,
+              })
+            );
+          }
+        }
+      }
+
       const allItems = Array.from(worldItemsMap.entries()).map(
         ([itemId, item]) => ({
           itemId,
