@@ -32,9 +32,9 @@ const AGGRO_RANGE = 300;
 const ATTACK_RANGE = 50;
 const ENEMY_ATTACK_COOLDOWN = 1000;
 const BLOOD_EYE_SPEED = 3.2;
-const BLOOD_EYE_AGGRO = 420;
+const BLOOD_EYE_AGGRO = 300;
 const BLOOD_EYE_COOLDOWN = 2000;
-const BLOOD_EYE_PROJ_SPEED = 200; // px/s
+const BLOOD_EYE_PROJ_SPEED = 20; // px/s
 const BLOOD_EYE_DAMAGE_MIN = 12;
 const BLOOD_EYE_DAMAGE_MAX = 18;
 
@@ -2909,13 +2909,14 @@ function setupWebSocket(
       }
     });
 
+    // ================== ИНТЕРВАЛ ОБНОВЛЕНИЯ ВРАГОВ ==================
     const enemyUpdateInterval = setInterval(() => {
       const now = Date.now();
 
       enemies.forEach((enemy, enemyId) => {
         if (enemy.health <= 0) return;
 
-        // Определяем конфиг в зависимости от типа врага
+        // === Определяем параметры в зависимости от типа врага ===
         let speed = ENEMY_SPEED;
         let aggroRange = AGGRO_RANGE;
         let attackRange = ATTACK_RANGE;
@@ -2931,16 +2932,16 @@ function setupWebSocket(
           minDamage = 5;
           maxDamage = 10;
         } else if (enemy.type === "blood_eye") {
-          speed = 3.2;
-          aggroRange = 420;
-          attackCooldown = 2000;
-          minDamage = 12;
-          maxDamage = 18;
+          speed = BLOOD_EYE_SPEED; // 3.2
+          aggroRange = BLOOD_EYE_AGGRO; // 400
+          attackCooldown = BLOOD_EYE_COOLDOWN; // 2000
+          minDamage = BLOOD_EYE_DAMAGE_MIN; // 12
+          maxDamage = BLOOD_EYE_DAMAGE_MAX; // 18
           isRanged = true;
-          projectileSpeed = 200; // пикселей в секунду
+          projectileSpeed = BLOOD_EYE_PROJ_SPEED; // 200 px/s
         }
 
-        // Поиск ближайшего игрока
+        // === Поиск ближайшего живого игрока в радиусе аггро ===
         let closestPlayer = null;
         let minDist = aggroRange;
 
@@ -2948,7 +2949,7 @@ function setupWebSocket(
           if (player.worldId === enemy.worldId && player.health > 0) {
             const dx = player.x - enemy.x;
             const dy = player.y - enemy.y;
-            const dist = Math.hypot(dx, dy); // более современный и читаемый вариант
+            const dist = Math.hypot(dx, dy);
 
             if (dist < minDist) {
               minDist = dist;
@@ -2957,21 +2958,23 @@ function setupWebSocket(
           }
         });
 
+        // === Если есть цель ===
         if (closestPlayer) {
           const dx = closestPlayer.x - enemy.x;
           const dy = closestPlayer.y - enemy.y;
           const dist = Math.hypot(dx, dy);
 
           if (isRanged) {
-            // ------------------- Логика дальнобойного врага (blood_eye) -------------------
+            // ────────────────────── ЛОГИКА ДАЛЬНОБОЙНОГО ВРАГА (blood_eye) ──────────────────────
+            // Стреляет раз в 2000 мс
             if (now - (enemy.lastAttackTime || 0) >= attackCooldown) {
               enemy.lastAttackTime = now;
               enemy.state = "attacking";
 
               const angle = Math.atan2(dy, dx);
-              const bulletId = `proj_${enemyId}_${Date.now()}`;
+              const bulletId = `blood_proj_${enemyId}_${Date.now()}`;
 
-              // Сообщение о выстреле — клиент сам будет двигать и отрисовывать пулю
+              // Отправляем событие выстрела ВСЕМ в мире
               broadcastToWorld(
                 wss,
                 clients,
@@ -2994,28 +2997,38 @@ function setupWebSocket(
               );
             }
 
-            // Движение к игроку, но с большей дистанцией (чтобы не подходить слишком близко)
-            if (dist > attackRange * 2.5) {
-              // держит дистанцию ~125–150 пикселей
+            // Движение: держим дистанцию ~150–200 пикселей
+            const desiredDistance = 180; // можно подкрутить
+            if (dist > desiredDistance + 30) {
+              // Идём ближе
               enemy.x += (dx / dist) * speed;
               enemy.y += (dy / dist) * speed;
               enemy.state = "walking";
+            } else if (dist < desiredDistance - 30) {
+              // Отходим назад
+              enemy.x -= (dx / dist) * speed * 0.8;
+              enemy.y -= (dy / dist) * speed * 0.8;
+              enemy.state = "walking";
             } else {
-              enemy.state = "attacking"; // стойка атаки, когда на дистанции
+              // Стоим на месте и атакуем
+              enemy.state = "attacking";
             }
           } else {
-            // ------------------- Ближний бой (mutant, scorpion) -------------------
+            // ────────────────────── ЛОГИКА БЛИЖНЕГО БОЯ (mutant, scorpion) ──────────────────────
             if (dist > attackRange) {
+              // Идём к игроку
               enemy.x += (dx / dist) * speed;
               enemy.y += (dy / dist) * speed;
               enemy.state = "walking";
 
+              // Направление движения
               if (Math.abs(dx) > Math.abs(dy)) {
                 enemy.direction = dx > 0 ? "right" : "left";
               } else {
                 enemy.direction = dy > 0 ? "down" : "up";
               }
             } else {
+              // Атакуем в ближнем бою
               if (now - (enemy.lastAttackTime || 0) >= attackCooldown) {
                 enemy.lastAttackTime = now;
                 enemy.state = "attacking";
@@ -3033,6 +3046,7 @@ function setupWebSocket(
                 userDatabase.set(closestPlayer.id, { ...closestPlayer });
                 saveUserDatabase(dbCollection, closestPlayer.id, closestPlayer);
 
+                // Уведомляем всех о попадании
                 broadcastToWorld(
                   wss,
                   clients,
@@ -3057,22 +3071,22 @@ function setupWebSocket(
                   })
                 );
               } else {
-                enemy.state = "attacking"; // держим анимацию атаки
+                enemy.state = "attacking"; // держим анимацию
               }
             }
           }
         } else {
-          // Нет цели — idle + редкий случайный wander
+          // Нет цели — idle + лёгкий wander
           enemy.state = "idle";
-
           if (Math.random() < 0.08) {
+            // ~8% шанс каждый тик
             const wanderAngle = Math.random() * Math.PI * 2;
             enemy.x += Math.cos(wanderAngle) * speed * 0.5;
             enemy.y += Math.sin(wanderAngle) * speed * 0.5;
           }
         }
 
-        // Направление при движении (для всех типов)
+        // === Обновляем направление при движении (для всех типов) ===
         if (enemy.state === "walking" && closestPlayer) {
           const dx = closestPlayer.x - enemy.x;
           const dy = closestPlayer.y - enemy.y;
@@ -3084,7 +3098,7 @@ function setupWebSocket(
           }
         }
 
-        // Отправляем обновление всем игрокам в мире
+        // === Отправляем обновление врага ВСЕМ в мире ===
         broadcastToWorld(
           wss,
           clients,
@@ -3099,12 +3113,12 @@ function setupWebSocket(
               state: enemy.state,
               direction: enemy.direction,
               health: enemy.health,
-              lastAttackTime: enemy.lastAttackTime,
+              lastAttackTime: enemy.lastAttackTime || 0,
             },
           })
         );
       });
-    }, 200); // 200 мс — хороший баланс между плавностью и нагрузкой
+    }, 200); // 200 мс — оптимально
 
     // Очистка интервала при disconnect (в ws.on("close"))
     clearInterval(enemyUpdateInterval);
