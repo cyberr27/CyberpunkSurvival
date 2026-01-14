@@ -47,8 +47,7 @@ window.chatSystem.initializeChat = function (webSocket) {
   // Отправка по Enter
   chatInput.addEventListener("keypress", (e) => {
     if (e.key === "Enter" && chatInput.value.length > 0) {
-      // ← изменили условие
-      // Самое важное изменение — убираем .trim()
+      
       sendWhenReady(
         webSocket,
         JSON.stringify({ type: "chat", message: chatInput.value })

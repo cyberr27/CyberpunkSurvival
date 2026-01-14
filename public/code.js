@@ -2633,17 +2633,17 @@ function draw(deltaTime) {
     if (player.chatBubble) {
       const now = Date.now();
       if (now - player.chatBubble.time <= CHAT_BUBBLE_LIFETIME) {
-        const fullText = player.chatBubble.text;
+        const fullText = player.chatBubble.text + "...";
         const bubbleY = screenY + CHAT_BUBBLE_OFFSET_Y;
 
         ctx.font = `${CHAT_BUBBLE_FONT_SIZE}px 'Courier New', monospace`;
-        ctx.textAlign = "center";
+        ctx.textAlign = "left";
         ctx.fillStyle = "white";
         ctx.strokeStyle = "rgba(0,0,0,0.8)";
         ctx.lineWidth = 3;
 
         const words = fullText.split(/(\s+)/);
-        let currentX = screenX + 35;
+        let currentX = screenX + 0;
         let lineY = bubbleY;
 
         words.forEach((part) => {
