@@ -1,7 +1,3 @@
-// corporateRobot.js
-// Робот «Воспитатель Корпорации» — production build
-// Оптимизировано по CPU / памяти
-// ЛОГИКА, ДИАЛОГИ И ПОВЕДЕНИЕ НЕ ИЗМЕНЕНЫ
 
 window.corporateRobotSystem = (() => {
   "use strict";

@@ -27,6 +27,21 @@ const TORN_ITEMS = [
   "torn_sneakers_of_thirst",
 ];
 
+const LOW_RARITY_FOOD = [
+  "canned_meat",
+  "mushroom",
+  "energy_drink",
+  "sausage",
+  "bread",
+  "vodka_bottle",
+  "meat_chunk",
+  "blood_syringe",
+  "milk",
+  "condensed_milk",
+  "dried_fish",
+  // можно добавить остальные rarity 1-3, если нужно
+];
+
 const MELEE_WEAPONS = ["knuckles", "knife", "bat"];
 
 const CHAMELEON_ITEMS = [
@@ -64,34 +79,74 @@ function generateEnemyDrop(enemyType, x, y, worldId, now = Date.now()) {
     };
   };
 
-  if (roll < 0.15) {
-    // ничего
-  } else if (roll < 0.3) {
+  // 10% — ничего
+  if (roll < 0.1) {
+    return drops; // пусто
+  }
+
+  // 10% — только пакет крови
+  if (roll < 0.2) {
+    drops.push(createDrop("blood_pack"));
+    return drops;
+  }
+
+  // 10% — 1 баляр + пакет крови
+  if (roll < 0.3) {
     drops.push(createDrop("balyary", 1));
     drops.push(createDrop("blood_pack"));
-  } else if (roll < 0.45) {
-    drops.push(createDrop("atom"));
+    return drops;
+  }
+
+  // 10% — 1 атом + пакет крови
+  if (roll < 0.4) {
+    drops.push(createDrop("atom", 1));
     drops.push(createDrop("blood_pack"));
-  } else if (roll < 0.6) {
+    return drops;
+  }
+
+  // 10% — 1 атом + 1 баляр   (без крови!)
+  if (roll < 0.5) {
+    drops.push(createDrop("atom", 1));
+    drops.push(createDrop("balyary", 1));
+    return drops;
+  }
+
+  // 35% — любой предмет rarity 1-3 + пакет крови
+  if (roll < 0.85) {
+    const type =
+      LOW_RARITY_FOOD[Math.floor(Math.random() * LOW_RARITY_FOOD.length)];
+    drops.push(createDrop(type));
+    drops.push(createDrop("blood_pack"));
+    return drops;
+  }
+
+  // 8% — одна порванная вещь
+  if (roll < 0.93) {
     const type = TORN_ITEMS[Math.floor(Math.random() * TORN_ITEMS.length)];
     drops.push(createDrop(type));
-  } else if (roll < 0.75) {
+    return drops;
+  }
+
+  // 3% — оружие ближнего боя
+  if (roll < 0.96) {
     const type =
       MELEE_WEAPONS[Math.floor(Math.random() * MELEE_WEAPONS.length)];
     drops.push(createDrop(type));
-  } else if (roll < 0.9) {
-    const type = TORN_ITEMS[Math.floor(Math.random() * TORN_ITEMS.length)];
-    drops.push(createDrop(type));
-    drops.push(createDrop("atom"));
-  } else if (roll < 0.97) {
-    const type =
-      CHAMELEON_ITEMS[Math.floor(Math.random() * CHAMELEON_ITEMS.length)];
-    drops.push(createDrop(type));
-  } else {
+    return drops;
+  }
+
+  // 2% — White Void
+  if (roll < 0.98) {
     const type =
       WHITE_VOID_ITEMS[Math.floor(Math.random() * WHITE_VOID_ITEMS.length)];
     drops.push(createDrop(type));
+    return drops;
   }
+
+  // 2% — Chameleon
+  const type =
+    CHAMELEON_ITEMS[Math.floor(Math.random() * CHAMELEON_ITEMS.length)];
+  drops.push(createDrop(type));
 
   return drops;
 }
