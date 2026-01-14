@@ -46,10 +46,12 @@ window.chatSystem.initializeChat = function (webSocket) {
 
   // Отправка по Enter
   chatInput.addEventListener("keypress", (e) => {
-    if (e.key === "Enter" && chatInput.value.trim()) {
+    if (e.key === "Enter" && chatInput.value.length > 0) {
+      // ← изменили условие
+      // Самое важное изменение — убираем .trim()
       sendWhenReady(
         webSocket,
-        JSON.stringify({ type: "chat", message: chatInput.value.trim() })
+        JSON.stringify({ type: "chat", message: chatInput.value })
       );
       chatInput.value = "";
     }
@@ -78,14 +80,16 @@ function sendWhenReady(ws, message) {
   }
 }
 
-// Добавление сообщения
 window.chatSystem.handleChatMessage = function (data) {
   const messageEl = document.createElement("div");
   messageEl.classList.add("chat-message");
   if (data.id === "Система") {
-    messageEl.classList.add("system-message"); // Добавляем класс для системных сообщений (для стиля)
+    messageEl.classList.add("system-message");
   }
-  messageEl.textContent = `${data.id}: ${data.message}`;
+
+  const displayMessage = data.message;
+
+  messageEl.textContent = `${data.id}: ${displayMessage}`;
 
   chatMessages.appendChild(messageEl);
   chatMessages.scrollTop = chatMessages.scrollHeight;

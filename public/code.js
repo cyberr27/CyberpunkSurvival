@@ -42,6 +42,23 @@ const ATTACK_FRAME_COUNT = 13;
 const WALK_FRAME_DURATION = GAME_CONFIG.FRAME_DURATION / WALK_FRAME_COUNT;
 const ATTACK_FRAME_DURATION = 500 / ATTACK_FRAME_COUNT;
 
+const CHAT_BUBBLE_LIFETIME = 6000;
+const CHAT_BUBBLE_MAX_LENGTH = 15;
+const CHAT_BUBBLE_FONT_SIZE = 12;
+const CHAT_BUBBLE_OFFSET_Y = -65;
+
+function cleanupOldChatBubbles() {
+  const now = Date.now();
+  players.forEach((player) => {
+    if (
+      player.chatBubble &&
+      now - player.chatBubble.time > CHAT_BUBBLE_LIFETIME
+    ) {
+      player.chatBubble = null;
+    }
+  });
+}
+
 const SPRITE_ROWS = {
   walk_up: 70,
   walk_down: 0,
@@ -965,17 +982,21 @@ function handleAuthMessage(event) {
         worldId: data.worldId || 0,
         worldPositions: data.worldPositions || { 0: { x: 222, y: 3205 } },
 
-        // Апгрейды
         healthUpgrade: data.healthUpgrade || 0,
         energyUpgrade: data.energyUpgrade || 0,
         foodUpgrade: data.foodUpgrade || 0,
         waterUpgrade: data.waterUpgrade || 0,
-
-        // === МЕДСПРАВКИ ===
+        neonQuest: data.neonQuest || {
+          currentQuestId: null,
+          progress: {},
+          completed: [],
+        },
         medicalCertificate: data.medicalCertificate || false,
         medicalCertificateStamped: data.medicalCertificateStamped || false,
         corporateDocumentsSubmitted: data.corporateDocumentsSubmitted || false,
-        thimbleriggerMet: data.thimbleriggerMet || false,
+
+        // Добавляем поле для баббла чата
+        chatBubble: null,
       };
 
       // === ДОПОЛНИТЕЛЬНО: если сервер вдруг пришлёт maxStats — сохраняем ===
@@ -1837,6 +1858,15 @@ function handleGameMessage(event) {
         break;
       case "chat":
         window.chatSystem.handleChatMessage(data);
+
+        const player = players.get(data.id);
+        if (player && player.worldId === window.worldSystem.currentWorldId) {
+          const shortText = data.message.substring(0, CHAT_BUBBLE_MAX_LENGTH);
+          player.chatBubble = {
+            text: shortText,
+            time: Date.now(),
+          };
+        }
         break;
       case "buyWaterResult":
         if (data.success) {
@@ -2525,11 +2555,10 @@ function draw(deltaTime) {
     )
       return;
 
+    // ─── Отрисовка спрайта игрока (без изменений) ───
     let spriteX, spriteY;
-
     let effectiveState = player.state;
 
-    // Если здоровье <= 0 — принудительно рисуем как idle
     if (player.health <= 0) {
       effectiveState = "idle";
     }
@@ -2545,7 +2574,6 @@ function draw(deltaTime) {
           ? SPRITE_ROWS.attack_right
           : SPRITE_ROWS.attack_left;
     } else {
-      // Для idle и walking используем кадр 0 при idle, или текущий при ходьбе
       const frame = effectiveState === "walking" ? player.frame : 0;
       spriteX = frame * PLAYER_FRAME_WIDTH;
       spriteY =
@@ -2574,14 +2602,13 @@ function draw(deltaTime) {
       ctx.fillRect(screenX, screenY, 70, 70);
     }
 
-    // Оптимизированный неоновый текст (меньше слоёв, но всё ещё красиво)
+    // ─── Имя и здоровье (без изменений) ───
     const nameY = screenY - 45;
     const healthY = screenY - 25;
 
     ctx.font = "20px 'Courier New', monospace";
     ctx.textAlign = "center";
 
-    // Имя
     ctx.strokeStyle = "black";
     ctx.lineWidth = 4;
     ctx.strokeText(player.id, screenX + 35, nameY);
@@ -2590,7 +2617,6 @@ function draw(deltaTime) {
     ctx.shadowBlur = 10;
     ctx.fillText(player.id, screenX + 35, nameY);
 
-    // Здоровье
     const healthText = `${Math.floor(player.health ?? 0)} / ${
       player.maxStats?.health ?? 100
     }`;
@@ -2602,6 +2628,38 @@ function draw(deltaTime) {
     ctx.shadowColor = "#ff0066";
     ctx.shadowBlur = 10;
     ctx.fillText(healthText, screenX + 35, healthY);
+
+    // ─── НОВОЕ: баббл чата над головой ───
+    if (player.chatBubble) {
+      const now = Date.now();
+      if (now - player.chatBubble.time <= CHAT_BUBBLE_LIFETIME) {
+        const fullText = player.chatBubble.text;
+        const bubbleY = screenY + CHAT_BUBBLE_OFFSET_Y;
+
+        ctx.font = `${CHAT_BUBBLE_FONT_SIZE}px 'Courier New', monospace`;
+        ctx.textAlign = "center";
+        ctx.fillStyle = "white";
+        ctx.strokeStyle = "rgba(0,0,0,0.8)";
+        ctx.lineWidth = 3;
+
+        const words = fullText.split(/(\s+)/);
+        let currentX = screenX + 35;
+        let lineY = bubbleY;
+
+        words.forEach((part) => {
+          if (part.trim() === "") {
+            currentX += ctx.measureText(part).width;
+          } else {
+            // Слово — рисуем с обводкой
+            ctx.strokeText(part, currentX, lineY);
+            ctx.fillText(part, currentX, lineY);
+            currentX += ctx.measureText(part).width;
+          }
+        });
+      } else {
+        player.chatBubble = null;
+      }
+    }
 
     ctx.shadowBlur = 0;
   });

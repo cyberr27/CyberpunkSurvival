@@ -106,6 +106,13 @@
   border-radius: 6px;
   box-shadow: 0 0 15px rgba(0, 255, 255, 0.4);
   transition: all 0.3s;
+  text-transform: none !important;
+  white-space: pre;
+  letter-spacing: normal;
+  font-variant: normal;
+  direction: ltr;
+  text-align: left;
+  padding: 12px 16px;
 }
 
 #chatInput:focus {

@@ -212,7 +212,7 @@ function setupWebSocket(
             energy: 100,
             food: 100,
             water: 100,
-            armor: 0, // Current armor: 0
+            armor: 0,
             distanceTraveled: 0,
             direction: "down",
             state: "idle",
@@ -241,7 +241,6 @@ function setupWebSocket(
             hasSeenWelcomeGuide: false,
             worldPositions: { 0: { x: 222, y: 3205 } },
 
-            // ДОБАВЬ ЭТИ ПОЛЯ (базово 0)
             healthUpgrade: 0,
             energyUpgrade: 0,
             foodUpgrade: 0,
@@ -254,6 +253,9 @@ function setupWebSocket(
             medicalCertificate: false,
             medicalCertificateStamped: false,
             corporateDocumentsSubmitted: false,
+
+            // Добавляем поле для баббла чата
+            chatBubble: null,
           };
 
           userDatabase.set(data.username, newPlayer);
@@ -389,7 +391,6 @@ function setupWebSocket(
               0: { x: player.x, y: player.y },
             },
 
-            // ДОБАВЬ ЭТИ ПОЛЯ
             healthUpgrade: player.healthUpgrade || 0,
             energyUpgrade: player.energyUpgrade || 0,
             foodUpgrade: player.foodUpgrade || 0,
@@ -404,6 +405,9 @@ function setupWebSocket(
               player.medicalCertificateStamped || false,
             corporateDocumentsSubmitted:
               player.corporateDocumentsSubmitted || false,
+
+            // Добавляем поле (даже если null — серверу не отправляем, но на клиенте важно)
+            chatBubble: player.chatBubble || null,
           };
 
           players.set(data.username, playerData);
