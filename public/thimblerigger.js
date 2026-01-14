@@ -255,7 +255,7 @@ function openThimbleriggerGreeting() {
     </div>
     <div class="npc-dialog-content">
       <p class="npc-text">Эй, сталкер! Я Напёрсточник в этом Неоновом городе.</p>
-      <p class="npc-text">Хочешь рискнуть в напёрстки? Угадаешь — удвою ставку!</p>
+      <p class="npc-text">Хочешь рискнуть в напёрстки? Угадаешь — удвою ставку + Опыт!</p>
     </div>
     <button class="neon-btn" onclick="window.thimbleriggerSystem.meetAndCloseGreeting()">Хорошо</button>
   `;
@@ -427,8 +427,16 @@ function drawThimblerigger(deltaTime) {
     animationCycleTime += deltaTime;
 
     // While для пропуска фаз при большом deltaTime
-    while (animationCycleTime >= (currentPhase === "attract" ? ATTRACT_PHASE_DURATION : IDLE_PHASE_DURATION)) {
-      animationCycleTime -= (currentPhase === "attract" ? ATTRACT_PHASE_DURATION : IDLE_PHASE_DURATION);
+    while (
+      animationCycleTime >=
+      (currentPhase === "attract"
+        ? ATTRACT_PHASE_DURATION
+        : IDLE_PHASE_DURATION)
+    ) {
+      animationCycleTime -=
+        currentPhase === "attract"
+          ? ATTRACT_PHASE_DURATION
+          : IDLE_PHASE_DURATION;
       currentPhase = currentPhase === "attract" ? "idle" : "attract";
       thimbleriggerFrame = 0;
       thimbleriggerFrameTime = 0;

@@ -9,7 +9,7 @@ window.corporateRobotSystem = (() => {
   /* ================== CONSTANTS ================== */
 
   const POINT_A = { x: 2654, y: 2314 };
-  const POINT_B = { x: 421, y: 2914 };
+  const POINT_B = { x: 666, y: 2888 };
 
   const PAUSE_TIME = 30000;
   const MOVE_SPEED = 33;

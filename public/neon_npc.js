@@ -161,7 +161,7 @@ function openRejectionDialog() {
     </div>
     <div class="npc-dialog-content">
       <div class="npc-text">
-        Слабак... Возвращайся, когда прокачаешься хотя бы до 5 уровня.
+        Мне нужен тот кто хотя бы может держать кастеты в руках...
       </div>
     </div>
     <button class="neon-btn" onclick="closeActiveDialog()">Уйти</button>
