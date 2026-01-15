@@ -31,7 +31,7 @@ const ENEMY_TYPES = {
     frameDuration: 90, // чуть быстрее анимация
     maxHealth: 300,
     spriteKey: "bloodEyeSprite",
-    speed: 3.2, // медленнее скорпиона
+    speed: 3.2,
     aggroRange: 300,
     attackCooldown: 2000,
     projectileSpeed: 20, // px/s
@@ -71,7 +71,7 @@ function syncEnemies(serverEnemies) {
       e.worldId = srv.worldId;
       e.type = type;
       e.maxHealth = config.maxHealth;
-      // frame с сервера игнорируем для анимации ходьбы — у нас своя
+      // frame с сервера игнорируем — у нас своя локальная анимация
     } else {
       enemies.set(id, {
         id,
@@ -124,12 +124,33 @@ function updateEnemies(deltaTime) {
 
     const config = ENEMY_TYPES[enemy.type] || ENEMY_TYPES.mutant;
 
+    // ─── Специальная постоянная анимация для blood_eye ────────────────────────
+    if (enemy.type === "blood_eye") {
+      // Всегда анимируем, даже в idle и attacking
+      enemy.walkFrameTime = (enemy.walkFrameTime || 0) + deltaTime;
+      if (enemy.walkFrameTime >= config.frameDuration) {
+        enemy.walkFrame = (enemy.walkFrame + 1) % config.frames;
+        enemy.walkFrameTime -= config.frameDuration;
+      }
+    }
+    // Обычные враги анимируются только при ходьбе
+    else if (enemy.state === "walking") {
+      enemy.walkFrameTime = (enemy.walkFrameTime || 0) + deltaTime;
+      if (enemy.walkFrameTime >= config.frameDuration) {
+        enemy.walkFrame = (enemy.walkFrame + 1) % config.frames;
+        enemy.walkFrameTime -= config.frameDuration;
+      }
+    } else {
+      enemy.walkFrame = 0;
+      enemy.walkFrameTime = 0;
+    }
+
     // ─── Логика стрельбы только для blood_eye ────────────────────────
     if (enemy.type === "blood_eye") {
       if (!enemy.lastAttackTime) enemy.lastAttackTime = 0;
 
       if (now - enemy.lastAttackTime >= config.attackCooldown) {
-        // Ищем ближайшего игрока (аналогично серверу)
+        // Ищем ближайшего игрока
         let closest = null;
         let minDistSq = Infinity;
 
@@ -149,9 +170,9 @@ function updateEnemies(deltaTime) {
 
           const bulletId = `eproj_${enemy.id}_${now}`;
           const vx =
-            ((Math.cos(angle) * config.projectileSpeed) / 1000) * 16.666; // ~60fps
+            ((Math.cos(angle) * config.projectileSpeed) / 5000) * 16.666; // ~60fps
           const vy =
-            ((Math.sin(angle) * config.projectileSpeed) / 1000) * 16.666;
+            ((Math.sin(angle) * config.projectileSpeed) / 5000) * 16.666;
 
           enemyProjectiles.set(bulletId, {
             id: bulletId,
@@ -169,21 +190,9 @@ function updateEnemies(deltaTime) {
           });
 
           enemy.lastAttackTime = now;
-          enemy.state = "attacking"; // для красивой анимации
+          enemy.state = "attacking"; // всё ещё может быть полезно для других эффектов
         }
       }
-    }
-
-    // ─── Обычная анимация ходьбы (остаётся как было) ────────
-    if (enemy.state === "walking") {
-      enemy.walkFrameTime = (enemy.walkFrameTime || 0) + deltaTime;
-      if (enemy.walkFrameTime >= config.frameDuration) {
-        enemy.walkFrame = (enemy.walkFrame + 1) % config.frames;
-        enemy.walkFrameTime -= config.frameDuration;
-      }
-    } else {
-      enemy.walkFrame = 0;
-      enemy.walkFrameTime = 0;
     }
   }
 
@@ -194,7 +203,6 @@ function updateEnemies(deltaTime) {
     proj.x += proj.vx * deltaTime;
     proj.y += proj.vy * deltaTime;
 
-    // Удаляем старые пули (8 секунд жизни например)
     if (now - proj.spawnTime > 8000) {
       enemyProjectiles.delete(id);
       continue;
@@ -206,12 +214,9 @@ function updateEnemies(deltaTime) {
       const dx = me.x + 35 - proj.x;
       const dy = me.y + 35 - proj.y;
       if (dx * dx + dy * dy < 40 * 40) {
-        // хитбокс ~40px
         me.health = Math.max(0, me.health - proj.damage);
         updateStatsDisplay();
         enemyProjectiles.delete(id);
-
-        // Визуальный эффект попадания можно добавить позже
       }
     }
   }
@@ -251,14 +256,8 @@ function drawEnemies() {
 
     const sprite = images[config.spriteKey];
 
-    // Определяем текущий кадр
-    let sourceX = 0;
-    if (enemy.state === "walking") {
-      sourceX = enemy.walkFrame * 70;
-    } else if (enemy.state === "attacking") {
-      sourceX = 12 * 70; // атака начинается с 12-го кадра
-    }
-    // idle — sourceX = 0
+    // Кадр берём из локальной анимации walkFrame (теперь и blood_eye всегда анимирован)
+    const sourceX = enemy.walkFrame * 70;
 
     // Рисуем спрайт или заглушку
     if (sprite?.complete && sprite.width >= 910) {
@@ -301,11 +300,14 @@ function drawEnemies() {
 
     // Дебаг: тип врага
     ctx.font = "10px Arial";
-    ctx.fillStyle = enemy.type === "scorpion" ? "#00eaff" : "#ffff00";
+    if (enemy.type === "mutant") ctx.fillStyle = "#fbff00";
+    if (enemy.type === "scorpion") ctx.fillStyle = "#00eaff";
+    if (enemy.type === "blood_eye") ctx.fillStyle = "#ff0000";
     ctx.fillText(enemy.type, screenX + 35, screenY + 80);
   }
 
-  ctx.fillStyle = "#ff0044"; // ярко-красный
+  // Прорисовка пуль
+  ctx.fillStyle = "#ff0044";
   ctx.shadowColor = "#ff0044";
   ctx.shadowBlur = 12;
 
@@ -324,10 +326,8 @@ function drawEnemies() {
       continue;
 
     ctx.beginPath();
-    ctx.arc(sx, sy, 10, 0, Math.PI * 2);
+    ctx.arc(sx, sy, 3, 0, Math.PI * 2);
     ctx.fill();
-
-    // Можно добавить "хвост" или свечение — по желанию
   }
   ctx.shadowBlur = 0;
 }
