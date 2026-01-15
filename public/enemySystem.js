@@ -1,8 +1,8 @@
 let enemies = new Map();
 let enemyProjectiles = new Map();
 
-// Конфиг типов врагов
-const ENEMY_TYPES = {
+// Конфиг типов врагов (заморожен для лучшей оптимизации)
+const ENEMY_TYPES = Object.freeze({
   mutant: {
     size: 70,
     frames: 13,
@@ -10,6 +10,7 @@ const ENEMY_TYPES = {
     maxHealth: 200,
     spriteKey: "mutantSprite",
     speed: 2,
+    color: "#fbff00", // жёлто-зелёный для имени/типа
   },
   scorpion: {
     size: 70,
@@ -24,55 +25,65 @@ const ENEMY_TYPES = {
     maxDamage: 10,
     minEnergy: 1,
     maxEnergy: 2,
+    color: "#00eaff", // голубой
   },
   blood_eye: {
     size: 70,
     frames: 13,
-    frameDuration: 90, // чуть быстрее анимация
+    frameDuration: 90,
     maxHealth: 300,
     spriteKey: "bloodEyeSprite",
     speed: 3.2,
     aggroRange: 300,
     attackCooldown: 2000,
-    projectileSpeed: 20, // px/s
+    projectileSpeed: 20,
     minDamage: 12,
     maxDamage: 18,
     attackType: "projectile",
+    color: "#ff0000", 
   },
-};
+});
 
-function initializeEnemySystem() {
-  // Спавн только с сервера
-}
+// Цвета для полоски здоровья (низкий/нормальный)
+const HP_COLORS = Object.freeze({
+  low: "#8B0000",
+  normal: "#ff0000",
+  scorpion_low: "#005577",
+  scorpion_normal: "#00eaff",
+});
 
-// === Синхронизация с сервера ===
+// ─── Вспомогательные константы ───────────────────────────────────────
+const CULLING_MARGIN = 120;
+const PROJECTILE_LIFETIME = 8000;
+const HITBOX_RADIUS_SQ = 40 * 40;
+
+// ─── Инициализация (пустая, спавн только с сервера) ──────────────────
+function initializeEnemySystem() {}
+
+// ─── Синхронизация врагов с сервера ──────────────────────────────────
 function syncEnemies(serverEnemies) {
   const currentIds = new Set(enemies.keys());
 
-  serverEnemies.forEach((srv) => {
+  for (const srv of serverEnemies) {
     const id = srv.id;
     currentIds.delete(id);
 
-    if (srv.health <= 0) {
-      enemies.delete(id);
-      return;
-    }
+    if (srv.health <= 0) continue;
 
     const type = srv.type || "mutant";
     const config = ENEMY_TYPES[type] || ENEMY_TYPES.mutant;
 
-    if (enemies.has(id)) {
-      const e = enemies.get(id);
-      e.x = srv.x;
-      e.y = srv.y;
-      e.health = srv.health;
-      e.direction = srv.direction || "down";
-      e.state = srv.state || "idle";
-      e.worldId = srv.worldId;
-      e.type = type;
-      e.maxHealth = config.maxHealth;
-      // frame с сервера игнорируем — у нас своя локальная анимация
+    let enemy = enemies.get(id);
+    if (enemy) {
+      // Обновляем только необходимые поля
+      enemy.x = srv.x;
+      enemy.y = srv.y;
+      enemy.health = srv.health;
+      enemy.direction = srv.direction || "down";
+      enemy.state = srv.state || "idle";
+      enemy.worldId = srv.worldId;
     } else {
+      // Новый враг
       enemies.set(id, {
         id,
         x: srv.x,
@@ -83,15 +94,16 @@ function syncEnemies(serverEnemies) {
         state: srv.state || "idle",
         worldId: srv.worldId,
         type,
-        // Локальные поля для плавной анимации
         walkFrame: 0,
         walkFrameTime: 0,
       });
     }
-  });
+  }
 
-  // Удаляем исчезнувших
-  currentIds.forEach((id) => enemies.delete(id));
+  // Удаляем пропавшие враги (один проход)
+  for (const id of currentIds) {
+    enemies.delete(id);
+  }
 }
 
 function handleEnemyDeath(enemyId) {
@@ -113,49 +125,27 @@ function handleNewEnemy(enemyData) {
   });
 }
 
+// ─── Обновление (анимация + логика пуль) ─────────────────────────────
 function updateEnemies(deltaTime) {
-  const currentWorldId = window.worldSystem.currentWorldId;
+  const currentWorldId = window.worldSystem?.currentWorldId;
   if (currentWorldId === undefined) return;
 
   const now = performance.now();
 
+  // Обновление анимации и логики blood_eye
   for (const enemy of enemies.values()) {
     if (enemy.worldId !== currentWorldId || enemy.health <= 0) continue;
 
     const config = ENEMY_TYPES[enemy.type] || ENEMY_TYPES.mutant;
 
-    // ─── Специальная постоянная анимация для blood_eye ────────────────────────
-    if (enemy.type === "blood_eye") {
-      // Всегда анимируем, даже в idle и attacking
-      enemy.walkFrameTime = (enemy.walkFrameTime || 0) + deltaTime;
-      if (enemy.walkFrameTime >= config.frameDuration) {
-        enemy.walkFrame = (enemy.walkFrame + 1) % config.frames;
-        enemy.walkFrameTime -= config.frameDuration;
-      }
-    }
-    // Обычные враги анимируются только при ходьбе
-    else if (enemy.state === "walking") {
-      enemy.walkFrameTime = (enemy.walkFrameTime || 0) + deltaTime;
-      if (enemy.walkFrameTime >= config.frameDuration) {
-        enemy.walkFrame = (enemy.walkFrame + 1) % config.frames;
-        enemy.walkFrameTime -= config.frameDuration;
-      }
-    } else {
-      enemy.walkFrame = 0;
-      enemy.walkFrameTime = 0;
-    }
-
-    // ─── Логика стрельбы только для blood_eye ────────────────────────
-    if (enemy.type === "blood_eye") {
-      if (!enemy.lastAttackTime) enemy.lastAttackTime = 0;
-
+    // ─── Логика стрельбы только blood_eye ───────────────────────────
+    if (enemy.type === "blood_eye" && enemy.lastAttackTime !== undefined) {
       if (now - enemy.lastAttackTime >= config.attackCooldown) {
-        // Ищем ближайшего игрока
         let closest = null;
         let minDistSq = Infinity;
 
-        players.forEach((p) => {
-          if (p.worldId !== currentWorldId || p.health <= 0) return;
+        for (const p of players.values()) {
+          if (p.worldId !== currentWorldId || p.health <= 0) continue;
           const dx = p.x - enemy.x;
           const dy = p.y - enemy.y;
           const dSq = dx * dx + dy * dy;
@@ -163,23 +153,20 @@ function updateEnemies(deltaTime) {
             minDistSq = dSq;
             closest = p;
           }
-        });
+        }
 
         if (closest && minDistSq < config.aggroRange ** 2) {
           const angle = Math.atan2(closest.y - enemy.y, closest.x - enemy.x);
 
-          const bulletId = `eproj_${enemy.id}_${now}`;
-          const vx =
-            ((Math.cos(angle) * config.projectileSpeed) / 5000) * 16.666; // ~60fps
-          const vy =
-            ((Math.sin(angle) * config.projectileSpeed) / 5000) * 16.666;
+          const bulletId = `eproj_${enemy.id}_${now | 0}`;
+          const speedFactor = (config.projectileSpeed * 16.666) / 5000;
 
           enemyProjectiles.set(bulletId, {
             id: bulletId,
             x: enemy.x,
             y: enemy.y,
-            vx,
-            vy,
+            vx: Math.cos(angle) * speedFactor,
+            vy: Math.sin(angle) * speedFactor,
             damage:
               Math.floor(
                 Math.random() * (config.maxDamage - config.minDamage + 1)
@@ -190,76 +177,87 @@ function updateEnemies(deltaTime) {
           });
 
           enemy.lastAttackTime = now;
-          enemy.state = "attacking"; // всё ещё может быть полезно для других эффектов
+          enemy.state = "attacking";
         }
       }
     }
+
+    // ─── Плавная анимация ходьбы для всех ─────────────────────────────
+    if (enemy.state === "walking" || enemy.state === "attacking") {
+      enemy.walkFrameTime += deltaTime;
+      if (enemy.walkFrameTime >= config.frameDuration) {
+        enemy.walkFrame = (enemy.walkFrame + 1) % config.frames;
+        enemy.walkFrameTime -= config.frameDuration;
+      }
+    } else {
+      enemy.walkFrame = 0;
+      enemy.walkFrameTime = 0;
+    }
   }
 
-  // Двигаем и чистим пули врагов
+  // ─── Обновление и чистка пуль ─────────────────────────────────────
   for (const [id, proj] of enemyProjectiles) {
     if (proj.worldId !== currentWorldId) continue;
 
     proj.x += proj.vx * deltaTime;
     proj.y += proj.vy * deltaTime;
 
-    if (now - proj.spawnTime > 8000) {
+    if (now - proj.spawnTime > PROJECTILE_LIFETIME) {
       enemyProjectiles.delete(id);
       continue;
     }
 
-    // Проверка попадания по игроку (мой персонаж)
     const me = players.get(myId);
     if (me && me.health > 0) {
       const dx = me.x + 35 - proj.x;
       const dy = me.y + 35 - proj.y;
-      if (dx * dx + dy * dy < 40 * 40) {
+      if (dx * dx + dy * dy < HITBOX_RADIUS_SQ) {
         me.health = Math.max(0, me.health - proj.damage);
-        updateStatsDisplay();
+        updateStatsDisplay?.();
         enemyProjectiles.delete(id);
       }
     }
   }
 }
 
-// === Отрисовка ===
+// ─── Отрисовка ───────────────────────────────────────────────────────
 function drawEnemies() {
-  const currentWorldId = window.worldSystem.currentWorldId;
+  const currentWorldId = window.worldSystem?.currentWorldId;
   if (currentWorldId === undefined) return;
 
-  const camera = window.movementSystem.getCamera();
+  const camera = window.movementSystem?.getCamera?.();
   if (!camera) return;
 
-  const camX = camera.x;
-  const camY = camera.y;
-  const canvasW = canvas.width;
-  const canvasH = canvas.height;
+  const { x: camX, y: camY } = camera;
+  const { width: canvasW, height: canvasH } = canvas;
+
+  ctx.save();
 
   for (const enemy of enemies.values()) {
     if (enemy.worldId !== currentWorldId || enemy.health <= 0) continue;
 
     const config = ENEMY_TYPES[enemy.type] || ENEMY_TYPES.mutant;
-    const size = config.size;
+    const { size } = config;
 
     const screenX = enemy.x - camX;
     const screenY = enemy.y - camY - 20;
 
-    // Куллинг
+    // Быстрый куллинг
     if (
-      screenX < -size - 100 ||
-      screenX > canvasW + size + 100 ||
-      screenY < -size - 100 ||
-      screenY > canvasH + size + 100
+      screenX < -size - CULLING_MARGIN ||
+      screenX > canvasW + size + CULLING_MARGIN ||
+      screenY < -size - CULLING_MARGIN ||
+      screenY > canvasH + size + CULLING_MARGIN
     ) {
       continue;
     }
 
     const sprite = images[config.spriteKey];
 
-    // Кадр берём из локальной анимации walkFrame (теперь и blood_eye всегда анимирован)
-    const sourceX = enemy.walkFrame * 70;
+    // Кадр анимации
+    const sourceX = (enemy.walkFrame * 70) | 0;
 
-    // Рисуем спрайт или заглушку
+    // Рисуем спрайт / заглушка
     if (sprite?.complete && sprite.width >= 910) {
       ctx.drawImage(sprite, sourceX, 0, 70, 70, screenX, screenY, 70, 70);
     } else {
@@ -267,77 +265,82 @@ function drawEnemies() {
       ctx.fillRect(screenX, screenY, 70, 70);
       ctx.fillStyle = enemy.type === "scorpion" ? "#003344" : "red";
       ctx.font = "30px Arial";
+      ctx.textAlign = "center";
       ctx.fillText(
         enemy.type === "scorpion" ? "S" : "M",
-        screenX + 20,
+        screenX + 35,
         screenY + 50
       );
     }
 
-    // Полоска здоровья
-    const hpPercent = enemy.health / enemy.maxHealth;
-    ctx.fillStyle = "rgba(0,0,0,0.7)";
+    // Полоска здоровья — исправленная логика цвета
+    const hpPercent = Math.max(0, enemy.health / enemy.maxHealth);
+    ctx.fillStyle = "rgba(0,0,0,0.65)";
     ctx.fillRect(screenX + 5, screenY - 15, 60, 10);
 
-    ctx.fillStyle =
-      enemy.type === "scorpion"
-        ? hpPercent > 0.3
-          ? "#00eaff"
-          : "#005577"
-        : hpPercent > 0.3
-        ? "#ff0000"
-        : "#8B0000";
+    const isScorpion = enemy.type === "scorpion";
+    const hpColor =
+      hpPercent > 0.3
+        ? isScorpion
+          ? HP_COLORS.scorpion_normal
+          : HP_COLORS.normal
+        : isScorpion
+        ? HP_COLORS.scorpion_low
+        : HP_COLORS.low;
+
+    ctx.fillStyle = hpColor;
     ctx.fillRect(screenX + 5, screenY - 15, 60 * hpPercent, 10);
 
-    // Текст здоровья
+    // Текст здоровья + тип врага
     ctx.font = "bold 12px Arial";
     ctx.textAlign = "center";
     ctx.strokeStyle = "black";
     ctx.lineWidth = 3;
-    ctx.strokeText(`${Math.floor(enemy.health)}`, screenX + 35, screenY - 7);
-    ctx.fillStyle = "white";
-    ctx.fillText(`${Math.floor(enemy.health)}`, screenX + 35, screenY - 7);
 
-    // Дебаг: тип врага
+    // Здоровье
+    const hpText = Math.floor(enemy.health);
+    ctx.strokeText(hpText, screenX + 35, screenY - 7);
+    ctx.fillStyle = "white";
+    ctx.fillText(hpText, screenX + 35, screenY - 7);
+
+    // Тип врага (цвет теперь из конфига)
     ctx.font = "10px Arial";
-    if (enemy.type === "mutant") ctx.fillStyle = "#fbff00";
-    if (enemy.type === "scorpion") ctx.fillStyle = "#00eaff";
-    if (enemy.type === "blood_eye") ctx.fillStyle = "#ff0000";
+    ctx.fillStyle = config.color;
     ctx.fillText(enemy.type, screenX + 35, screenY + 80);
   }
 
-  // Прорисовка пуль
-  ctx.fillStyle = "#ff0044";
-  ctx.shadowColor = "#ff0044";
-  ctx.shadowBlur = 12;
+  // ─── Проектили ─────────────────────────────────────────────────────
+  if (enemyProjectiles.size > 0) {
+    ctx.fillStyle = "#ff0044";
+    ctx.shadowColor = "#ff0044";
+    ctx.shadowBlur = 12;
 
-  for (const proj of enemyProjectiles.values()) {
-    if (proj.worldId !== currentWorldId) continue;
+    for (const proj of enemyProjectiles.values()) {
+      if (proj.worldId !== currentWorldId) continue;
 
-    const sx = proj.x - camX;
-    const sy = proj.y - camY;
+      const sx = proj.x - camX;
+      const sy = proj.y - camY;
 
-    if (
-      sx < -50 ||
-      sx > canvas.width + 50 ||
-      sy < -50 ||
-      sy > canvas.height + 50
-    )
-      continue;
+      if (sx < -50 || sx > canvasW + 50 || sy < -50 || sy > canvasH + 50)
+        continue;
 
-    ctx.beginPath();
-    ctx.arc(sx, sy, 3, 0, Math.PI * 2);
-    ctx.fill();
+      ctx.beginPath();
+      ctx.arc(sx, sy, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.shadowBlur = 0;
   }
-  ctx.shadowBlur = 0;
+
+  ctx.restore();
 }
 
 // Экспорт
-window.enemySystem = {
+window.enemySystem = Object.freeze({
   initialize: initializeEnemySystem,
   syncEnemies,
   handleEnemyDeath,
   handleNewEnemy,
   update: updateEnemies,
   draw: drawEnemies,
-};
+});
