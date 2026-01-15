@@ -34,7 +34,7 @@ const ENEMY_TYPES = {
     speed: 3.2, // медленнее скорпиона
     aggroRange: 300,
     attackCooldown: 2000,
-    projectileSpeed: 2, // px/s
+    projectileSpeed: 20, // px/s
     minDamage: 12,
     maxDamage: 18,
     attackType: "projectile",
