@@ -1,6 +1,5 @@
 const { saveUserDatabase } = require("./database");
 const { generateEnemyDrop } = require("./dropGenerator");
-const { playTwister, getCurrentState } = require("./misterTwisterServer");
 
 function broadcastToWorld(wss, clients, players, worldId, message) {
   wss.clients.forEach((client) => {
@@ -2846,83 +2845,8 @@ function setupWebSocket(
             inventory: player.inventory,
           })
         );
-      } else if (data.type === "twisterPlay") {
-        const id = clients.get(ws);
-        if (!id) return;
-
-        const player = players.get(id);
-        if (!player) return;
-
-        // Проверка мира — обязательно на сервере (источник правды)
-        if (player.worldId !== MISTER_TWISTER.worldId) {
-          // можно захардкодить 0, но лучше через константу
-          ws.send(
-            JSON.stringify({
-              type: "twisterError",
-              error: "Игровой автомат доступен только в Стартовом мире",
-            })
-          );
-          return;
-        }
-
-        const result = playTwister(player, () => {
-          // Сохраняем изменения инвентаря и состояния игрока
-          userDatabase.set(id, { ...player });
-          saveUserDatabase(dbCollection, id, player);
-        });
-
-        if (!result.success) {
-          ws.send(
-            JSON.stringify({ type: "twisterError", error: result.error })
-          );
-          return;
-        }
-
-        // Отправляем результат только этому игроку
-        ws.send(
-          JSON.stringify({
-            type: "twisterResult",
-            reels: result.reels,
-            win: result.win,
-            message: result.message,
-            jackpot: result.jackpot,
-            bonusSteps: result.bonusSteps,
-            jackpotWon: result.jackpotWon,
-          })
-        );
-
-        // Бродкастим обновлённое состояние джекпота и ступеней всем в мире 0
-        const state = getCurrentState();
-        broadcastToWorld(
-          wss,
-          clients,
-          players,
-          0,
-          JSON.stringify({
-            type: "twisterStateUpdate",
-            jackpot: state.jackpot,
-            bonusSteps: state.bonusSteps,
-          })
-        );
-      } else if (data.type === "requestTwisterState") {
-        const id = clients.get(ws);
-        if (!id) return;
-
-        const player = players.get(id);
-        if (!player) return;
-
-        // Проверяем мир — чтобы не спамили состоянием из другого мира
-        if (player.worldId !== 0) return;
-
-        const state = getCurrentState();
-        ws.send(
-          JSON.stringify({
-            type: "twisterState",
-            jackpot: state.jackpot,
-            bonusSteps: state.bonusSteps,
-          })
-        );
-      } else if (data.type === "update" || data.type === "move") {
+      }
+      if (data.type === "update" || data.type === "move") {
         const playerId = clients.get(ws);
         if (!playerId || !players.has(playerId)) return;
 

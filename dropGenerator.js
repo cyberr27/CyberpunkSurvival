@@ -121,7 +121,7 @@ function generateEnemyDrop(enemyType, x, y, worldId, now = Date.now()) {
   }
 
   // 8% — одна порванная вещь
-  if (roll < 0.3) {
+  if (roll < 0.93) {
     const type = TORN_ITEMS[Math.floor(Math.random() * TORN_ITEMS.length)];
     drops.push(createDrop(type));
     return drops;
