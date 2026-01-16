@@ -2849,11 +2849,24 @@ function setupWebSocket(
       } else if (data.type === "twisterPlay") {
         const id = clients.get(ws);
         if (!id) return;
+
         const player = players.get(id);
-        if (!player || player.worldId !== 0) return; // Только в мире 0
+        if (!player) return;
+
+        // Проверка мира — обязательно на сервере (источник правды)
+        if (player.worldId !== MISTER_TWISTER.worldId) {
+          // можно захардкодить 0, но лучше через константу
+          ws.send(
+            JSON.stringify({
+              type: "twisterError",
+              error: "Игровой автомат доступен только в Стартовом мире",
+            })
+          );
+          return;
+        }
 
         const result = playTwister(player, () => {
-          // Коллбэк для сохранения игрока после изменения инвентаря
+          // Сохраняем изменения инвентаря и состояния игрока
           userDatabase.set(id, { ...player });
           saveUserDatabase(dbCollection, id, player);
         });
@@ -2865,7 +2878,7 @@ function setupWebSocket(
           return;
         }
 
-        // Отправляем результат игроку
+        // Отправляем результат только этому игроку
         ws.send(
           JSON.stringify({
             type: "twisterResult",
@@ -2878,7 +2891,7 @@ function setupWebSocket(
           })
         );
 
-        // Бродкастим новое состояние всем в мире 0
+        // Бродкастим обновлённое состояние джекпота и ступеней всем в мире 0
         const state = getCurrentState();
         broadcastToWorld(
           wss,
@@ -2891,13 +2904,15 @@ function setupWebSocket(
             bonusSteps: state.bonusSteps,
           })
         );
-      }
-
-      if (data.type === "requestTwisterState") {
+      } else if (data.type === "requestTwisterState") {
         const id = clients.get(ws);
         if (!id) return;
+
         const player = players.get(id);
-        if (!player || player.worldId !== 0) return;
+        if (!player) return;
+
+        // Проверяем мир — чтобы не спамили состоянием из другого мира
+        if (player.worldId !== 0) return;
 
         const state = getCurrentState();
         ws.send(

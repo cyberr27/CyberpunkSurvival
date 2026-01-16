@@ -1,25 +1,29 @@
-// misterTwister.js — полностью исправленная версия (готов к копипасте)
+// misterTwister.js — версия как у Напёрсточника (один автомат, мир 0)
 
-const MISTER_TWISTER_POSITIONS = [
-  { x: 210, y: 2713 },
-  { x: 410, y: 2913 },
-  { x: 610, y: 2213 },
-];
+const MISTER_TWISTER = {
+  x: 210, // ← можешь поменять на удобные координаты
+  y: 2713,
+  width: 70,
+  height: 100,
+  interactionRadiusSq: 50 * 50, // 50 пикселей квадрат расстояния
+  name: "Мистер Твистер",
+  worldId: 0,
+};
 
-const INTERACTION_DISTANCE_SQ = 50 * 50;
 const ANIMATION_FPS = 13;
 const ANIMATION_DURATION_MS = 5000;
 const PAUSE_DURATION_MS = 10000;
 const FULL_CYCLE_MS = ANIMATION_DURATION_MS + PAUSE_DURATION_MS;
 
-// Кэшируем часто используемые значения для draw (были удалены по ошибке — возвращаем)
+// Кэшируем для draw
 const frameWidth = 70;
 const halfWidth = frameWidth / 2;
 const spriteHeight = 100;
 const yOffset = 80;
 
 let misterTwisterDialog = null;
-let currentClosestTwister = null;
+let isPlayerNearMisterTwister = false;
+let isMisterTwisterDialogOpen = false;
 let lastAnimationTime = 0;
 let isSpinning = false;
 
@@ -74,7 +78,6 @@ window.misterTwisterSystem = {
 
     misterTwisterDialog = dialog;
 
-    // Устанавливаем фон после загрузки изображения
     const bgImg = images.misterTwisterBg;
     if (bgImg && bgImg.complete) {
       document.getElementById(
@@ -92,7 +95,6 @@ window.misterTwisterSystem = {
   startSpin() {
     if (isSpinning) return;
     sendWhenReady(ws, JSON.stringify({ type: "twisterPlay" }));
-    // Клиент сразу начинает анимацию (результат придёт позже)
     this.spinReels([null, null, null]);
   },
 
@@ -114,7 +116,6 @@ window.misterTwisterSystem = {
 
       reels.forEach((reel, i) => {
         if (finalReels && finalReels[i] !== null && progress > 0.6 + i * 0.2) {
-          // Финальное значение с задержкой по барабанам
           reel.textContent = String(finalReels[i]).padStart(2, "0");
           reel.style.filter = "blur(0px)";
         } else {
@@ -150,58 +151,39 @@ window.misterTwisterSystem = {
     const me = players.get(myId);
     if (!me) return;
 
-    // Оптимизация: считаем только если мы в нужном мире
-    if (me.worldId !== 0) {
-      if (currentClosestTwister) this.closeDialog();
-      return;
-    }
+    // Проверяем только расстояние, мир проверяется на сервере при игре
+    const dx = me.x + 35 - (MISTER_TWISTER.x + 35);
+    const dy = me.y + 35 - (MISTER_TWISTER.y + 35);
+    const distSq = dx * dx + dy * dy;
+    const nowNear = distSq <= MISTER_TWISTER.interactionRadiusSq;
 
-    let closest = null;
-    let minDistSq = Infinity;
+    if (nowNear && !isPlayerNearMisterTwister) {
+      isPlayerNearMisterTwister = true;
+      this.openDialog();
+      showNotification("Подошёл к Мистеру Твистеру", "#ff00aa");
 
-    for (const pos of MISTER_TWISTER_POSITIONS) {
-      const dx = me.x - pos.x;
-      const dy = me.y - pos.y;
-      const distSq = dx * dx + dy * dy;
-
-      if (distSq < minDistSq) {
-        minDistSq = distSq;
-        closest = pos;
-      }
-    }
-
-    const nowInRange = minDistSq <= INTERACTION_DISTANCE_SQ;
-
-    if (nowInRange !== !!currentClosestTwister) {
-      if (nowInRange) {
-        this.openDialog();
-        currentClosestTwister = closest;
-      } else {
-        this.closeDialog();
-      }
+      // Запрашиваем состояние джекпота
+      sendWhenReady(ws, JSON.stringify({ type: "requestTwisterState" }));
+    } else if (!nowNear && isPlayerNearMisterTwister) {
+      isPlayerNearMisterTwister = false;
+      this.closeDialog();
     }
   },
 
   openDialog() {
-    if (!misterTwisterDialog || misterTwisterDialog.style.display === "block")
-      return;
+    if (!misterTwisterDialog || isMisterTwisterDialogOpen) return;
     misterTwisterDialog.style.display = "block";
-    showNotification("Подошёл к Мистеру Твистеру", "#ff00aa");
-
-    // Запрашиваем текущее состояние
-    sendWhenReady(ws, JSON.stringify({ type: "requestTwisterState" }));
+    isMisterTwisterDialogOpen = true;
   },
 
   closeDialog() {
-    if (!misterTwisterDialog || misterTwisterDialog.style.display === "none")
-      return;
+    if (!misterTwisterDialog || !isMisterTwisterDialogOpen) return;
     misterTwisterDialog.style.display = "none";
-    currentClosestTwister = null;
+    isMisterTwisterDialogOpen = false;
     document.getElementById("twisterMessage").textContent = "";
   },
 
   draw() {
-    // Самый дешёвый способ получить текущее время
     const now = performance.now();
     const cycleTime = now % FULL_CYCLE_MS;
 
@@ -210,42 +192,36 @@ window.misterTwisterSystem = {
 
     const camera = window.movementSystem.getCamera();
 
-    for (const pos of MISTER_TWISTER_POSITIONS) {
-      const screenX = pos.x - camera.x;
-      const screenY = pos.y - camera.y;
+    const screenX = MISTER_TWISTER.x - camera.x;
+    const screenY = MISTER_TWISTER.y - camera.y;
 
-      // Очень быстрая отсечка по экрану
-      if (
-        screenX < -80 ||
-        screenX > canvas.width + 80 ||
-        screenY < -180 ||
-        screenY > canvas.height + 50
-      )
-        continue;
+    if (
+      screenX < -80 ||
+      screenX > canvas.width + 80 ||
+      screenY < -180 ||
+      screenY > canvas.height + 50
+    )
+      return;
 
-      let frame = 0;
-
-      if (cycleTime < ANIMATION_DURATION_MS) {
-        const progress = cycleTime / ANIMATION_DURATION_MS;
-        frame = Math.floor(progress * ANIMATION_FPS);
-      }
-      // else → frame = 0 (пауза на первом кадре)
-
-      ctx.drawImage(
-        img,
-        frame * frameWidth,
-        0,
-        frameWidth,
-        spriteHeight,
-        screenX - halfWidth,
-        screenY - yOffset,
-        frameWidth,
-        spriteHeight
-      );
+    let frame = 0;
+    if (cycleTime < ANIMATION_DURATION_MS) {
+      const progress = cycleTime / ANIMATION_DURATION_MS;
+      frame = Math.floor(progress * ANIMATION_FPS);
     }
+
+    ctx.drawImage(
+      img,
+      frame * frameWidth,
+      0,
+      frameWidth,
+      spriteHeight,
+      screenX - halfWidth,
+      screenY - yOffset,
+      frameWidth,
+      spriteHeight
+    );
   },
 
-  // Вызывается при сворачивании/разворачивании вкладки для коррекции времени
   syncTimeAfterPause() {
     lastAnimationTime = performance.now();
   },
