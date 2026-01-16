@@ -2991,6 +2991,7 @@ function setupWebSocket(
                   damage:
                     Math.floor(Math.random() * (maxDamage - minDamage + 1)) +
                     minDamage,
+                  foodDamage: Math.floor(Math.random() * 3) + 2, // 2..4
                   worldId: enemy.worldId,
                   spawnTime: now,
                 })

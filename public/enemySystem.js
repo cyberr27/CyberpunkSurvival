@@ -40,7 +40,7 @@ const ENEMY_TYPES = Object.freeze({
     minDamage: 12,
     maxDamage: 18,
     attackType: "projectile",
-    color: "#ff0000", 
+    color: "#ff0000",
   },
 });
 
@@ -212,7 +212,24 @@ function updateEnemies(deltaTime) {
       const dx = me.x + 35 - proj.x;
       const dy = me.y + 35 - proj.y;
       if (dx * dx + dy * dy < HITBOX_RADIUS_SQ) {
-        me.health = Math.max(0, me.health - proj.damage);
+        me.health = Math.max(0, me.health - (proj.damage || 0));
+
+        // ─── Новый урон по еде от blood_eye ────────────────────────────────
+        if (proj.foodDamage > 0) {
+          const me = players.get(myId);
+          if (me) {
+            me.food = Math.max(0, me.food - proj.foodDamage);
+
+            showNotification?.(
+              `-${proj.foodDamage} 🍗`,
+              me.x + 35,
+              me.y + 10,
+              "#ff6600",
+              1400
+            );
+          }
+        }
+
         updateStatsDisplay?.();
         enemyProjectiles.delete(id);
       }
