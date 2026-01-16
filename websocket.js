@@ -1,5 +1,6 @@
 const { saveUserDatabase } = require("./database");
 const { generateEnemyDrop } = require("./dropGenerator");
+const { playTwister, getCurrentState } = require("./misterTwisterServer");
 
 function broadcastToWorld(wss, clients, players, worldId, message) {
   wss.clients.forEach((client) => {
@@ -2845,8 +2846,68 @@ function setupWebSocket(
             inventory: player.inventory,
           })
         );
+      } else if (data.type === "twisterPlay") {
+        const id = clients.get(ws);
+        if (!id) return;
+        const player = players.get(id);
+        if (!player || player.worldId !== 0) return; // Только в мире 0
+
+        const result = playTwister(player, () => {
+          // Коллбэк для сохранения игрока после изменения инвентаря
+          userDatabase.set(id, { ...player });
+          saveUserDatabase(dbCollection, id, player);
+        });
+
+        if (!result.success) {
+          ws.send(
+            JSON.stringify({ type: "twisterError", error: result.error })
+          );
+          return;
+        }
+
+        // Отправляем результат игроку
+        ws.send(
+          JSON.stringify({
+            type: "twisterResult",
+            reels: result.reels,
+            win: result.win,
+            message: result.message,
+            jackpot: result.jackpot,
+            bonusSteps: result.bonusSteps,
+            jackpotWon: result.jackpotWon,
+          })
+        );
+
+        // Бродкастим новое состояние всем в мире 0
+        const state = getCurrentState();
+        broadcastToWorld(
+          wss,
+          clients,
+          players,
+          0,
+          JSON.stringify({
+            type: "twisterStateUpdate",
+            jackpot: state.jackpot,
+            bonusSteps: state.bonusSteps,
+          })
+        );
       }
-      if (data.type === "update" || data.type === "move") {
+
+      if (data.type === "requestTwisterState") {
+        const id = clients.get(ws);
+        if (!id) return;
+        const player = players.get(id);
+        if (!player || player.worldId !== 0) return;
+
+        const state = getCurrentState();
+        ws.send(
+          JSON.stringify({
+            type: "twisterState",
+            jackpot: state.jackpot,
+            bonusSteps: state.bonusSteps,
+          })
+        );
+      } else if (data.type === "update" || data.type === "move") {
         const playerId = clients.get(ws);
         if (!playerId || !players.has(playerId)) return;
 

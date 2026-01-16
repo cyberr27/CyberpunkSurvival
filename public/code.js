@@ -116,6 +116,8 @@ const imageSources = {
   droneSprite: "dronSprite.png",
   bonfireImage: "bonfire.png",
   oclocSprite: "oclocSprite.png",
+  misterTwister: "mister_twister.png",
+  misterTwisterBg: "mister_twister_bg.png",
   corporateRobotSprite: "corporate_robot.png",
   corporateRobotFoto: "corporate_robot_foto.png",
   robotDoctorSprite: "robotDoctorSprite.png",
@@ -183,6 +185,8 @@ Object.entries(imageSources).forEach(([key, src]) => {
       window.droneSystem.initialize(images.droneSprite);
       window.bonfireSystem.initialize(images.bonfireImage);
       window.clockSystem.initialize(images.oclocSprite);
+      window.misterTwisterSystem.initialize();
+      update(deltaTime);
       window.corporateRobotSystem.initialize(images.corporateRobotSprite);
       window.robotDoctorSystem.initialize(images.robotDoctorSprite);
       window.thimbleriggerSystem.initialize(images.thimbleriggerSprite);
@@ -2286,6 +2290,39 @@ function handleGameMessage(event) {
       case "sellToJackFail":
         alert(data.error || "Ошибка продажи");
         break;
+      case "twisterState":
+      case "twisterStateUpdate":
+        if (
+          window.misterTwisterSystem &&
+          misterTwisterDialog?.style.display === "block"
+        ) {
+          window.misterTwisterSystem.updateState(data.jackpot, data.bonusSteps);
+        }
+        break;
+
+      case "twisterResult":
+        if (window.misterTwisterSystem) {
+          window.misterTwisterSystem.spinReels(data.reels);
+          window.misterTwisterSystem.updateState(data.jackpot, data.bonusSteps);
+          window.misterTwisterSystem.showResult(data.message);
+          if (data.win > 0) {
+            showNotification(`Выигрыш: ${data.win} баляров!`, "#00ff00");
+            if (data.jackpotWon) {
+              showNotification("★★★ ДЖЕКПОТ ★★★", "#ffff00");
+            }
+          }
+        }
+        // Обновляем инвентарь (баляры могли измениться)
+        window.inventorySystem.updateInventoryDisplay();
+        updateStatsDisplay();
+        break;
+
+      case "twisterError":
+        showNotification(data.error || "Ошибка игры", "#ff0066");
+        if (window.misterTwisterSystem) {
+          window.misterTwisterSystem.showResult(data.error);
+        }
+        break;
     }
   } catch (error) {
     console.error("Ошибка в handleGameMessage:", error);
@@ -2416,6 +2453,7 @@ function update(deltaTime) {
   window.droneSystem.update(deltaTime);
   window.bonfireSystem.update(deltaTime);
   clockSystem.update(deltaTime);
+  window.misterTwisterSystem.update(deltaTime);
   if (window.corporateRobotSystem)
     window.corporateRobotSystem.update(deltaTime);
   if (window.robotDoctorSystem) window.robotDoctorSystem.update(deltaTime);
@@ -2687,6 +2725,7 @@ function draw(deltaTime) {
   window.thimbleriggerSystem.drawThimblerigger(deltaTime);
   window.outpostCaptainSystem.drawCaptain(ctx, cameraX, cameraY);
   clockSystem.draw();
+  window.misterTwisterSystem.draw();
   window.droneSystem.draw();
 
   if (currentWorld.clouds.complete) {
