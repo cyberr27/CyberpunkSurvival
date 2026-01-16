@@ -1,13 +1,10 @@
-// misterTwister.js — версия как у Напёрсточника (один автомат, мир 0)
+// misterTwister.js — версия как у vendingMachine: открывается/закрывается строго по расстоянию
 
 const MISTER_TWISTER = {
-  x: 210, // ← можешь поменять на удобные координаты
+  x: 210, // ← поменяй координаты под свою карту
   y: 2713,
-  width: 70,
-  height: 100,
-  interactionRadiusSq: 50 * 50, // 50 пикселей квадрат расстояния
+  interactionRadius: 50, // радиус взаимодействия в пикселях
   name: "Мистер Твистер",
-  worldId: 0,
 };
 
 const ANIMATION_FPS = 13;
@@ -15,15 +12,12 @@ const ANIMATION_DURATION_MS = 5000;
 const PAUSE_DURATION_MS = 10000;
 const FULL_CYCLE_MS = ANIMATION_DURATION_MS + PAUSE_DURATION_MS;
 
-// Кэшируем для draw
 const frameWidth = 70;
 const halfWidth = frameWidth / 2;
 const spriteHeight = 100;
 const yOffset = 80;
 
 let misterTwisterDialog = null;
-let isPlayerNearMisterTwister = false;
-let isMisterTwisterDialogOpen = false;
 let lastAnimationTime = 0;
 let isSpinning = false;
 
@@ -37,11 +31,11 @@ window.misterTwisterSystem = {
     if (!imageSources.misterTwisterBg) {
       imageSources.misterTwisterBg = "mister_twister_bg.png";
     }
-    this.createDialogElementOnce();
+    this.createDialog();
     lastAnimationTime = performance.now();
   },
 
-  createDialogElementOnce() {
+  createDialog() {
     if (document.getElementById("misterTwisterDialog")) return;
 
     const dialog = document.createElement("div");
@@ -73,13 +67,21 @@ window.misterTwisterSystem = {
 
     document.body.appendChild(dialog);
 
-    dialog.querySelector(".close-btn").onclick = () => this.closeDialog();
-    document.getElementById("playTwisterBtn").onclick = () => this.startSpin();
+    dialog.querySelector(".close-btn").onclick = () => {
+      dialog.style.display = "none";
+    };
+
+    document.getElementById("playTwisterBtn").onclick = () => {
+      if (isSpinning) return;
+      sendWhenReady(ws, JSON.stringify({ type: "twisterPlay" }));
+      this.spinReels([null, null, null]);
+    };
 
     misterTwisterDialog = dialog;
 
+    // Фон автомата
     const bgImg = images.misterTwisterBg;
-    if (bgImg && bgImg.complete) {
+    if (bgImg?.complete) {
       document.getElementById(
         "twisterMachineView"
       ).style.backgroundImage = `url(${bgImg.src})`;
@@ -92,16 +94,13 @@ window.misterTwisterSystem = {
     }
   },
 
-  startSpin() {
-    if (isSpinning) return;
-    sendWhenReady(ws, JSON.stringify({ type: "twisterPlay" }));
-    this.spinReels([null, null, null]);
-  },
-
   spinReels(finalReels) {
     isSpinning = true;
-    document.getElementById("playTwisterBtn").disabled = true;
-    document.getElementById("twisterMessage").textContent = "КРУТИТСЯ...";
+    const btn = document.getElementById("playTwisterBtn");
+    if (btn) btn.disabled = true;
+
+    const msg = document.getElementById("twisterMessage");
+    if (msg) msg.textContent = "КРУТИТСЯ...";
 
     const reels = [
       document.getElementById("reel1"),
@@ -109,78 +108,66 @@ window.misterTwisterSystem = {
       document.getElementById("reel3"),
     ];
 
-    const startTime = Date.now();
-    const spinInterval = setInterval(() => {
-      const elapsed = Date.now() - startTime;
+    const start = Date.now();
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - start;
       const progress = elapsed / REEL_SPIN_DURATION;
 
       reels.forEach((reel, i) => {
-        if (finalReels && finalReels[i] !== null && progress > 0.6 + i * 0.2) {
+        if (finalReels?.[i] != null && progress > 0.6 + i * 0.2) {
           reel.textContent = String(finalReels[i]).padStart(2, "0");
           reel.style.filter = "blur(0px)";
         } else {
-          const randomNum = Math.floor(Math.random() * 40);
-          reel.textContent = String(randomNum).padStart(2, "0");
+          const num = Math.floor(Math.random() * 40);
+          reel.textContent = String(num).padStart(2, "0");
           reel.style.filter = "blur(4px)";
         }
       });
 
       if (elapsed >= REEL_SPIN_DURATION + 1000) {
-        clearInterval(spinInterval);
-        reels.forEach((reel) => (reel.style.filter = "blur(0px)"));
+        clearInterval(interval);
+        reels.forEach((r) => (r.style.filter = "blur(0px)"));
         isSpinning = false;
-        document.getElementById("playTwisterBtn").disabled = false;
+        if (btn) btn.disabled = false;
       }
     }, 80);
   },
 
   updateState(jackpot, bonusSteps) {
-    document.getElementById(
-      "jackpotDisplay"
-    ).textContent = `Джекпот: ${jackpot} баляров`;
-    document.getElementById(
-      "stepsDisplay"
-    ).textContent = `Бонус: ${bonusSteps}/11`;
+    const j = document.getElementById("jackpotDisplay");
+    const s = document.getElementById("stepsDisplay");
+    if (j) j.textContent = `Джекпот: ${jackpot} баляров`;
+    if (s) s.textContent = `Бонус: ${bonusSteps}/11`;
   },
 
   showResult(message) {
-    document.getElementById("twisterMessage").textContent = message;
+    const el = document.getElementById("twisterMessage");
+    if (el) el.textContent = message;
   },
 
-  update(deltaTime) {
+  checkProximity() {
     const me = players.get(myId);
-    if (!me) return;
+    if (!me || !misterTwisterDialog) return;
 
-    // Проверяем только расстояние, мир проверяется на сервере при игре
-    const dx = me.x + 35 - (MISTER_TWISTER.x + 35);
-    const dy = me.y + 35 - (MISTER_TWISTER.y + 35);
-    const distSq = dx * dx + dy * dy;
-    const nowNear = distSq <= MISTER_TWISTER.interactionRadiusSq;
+    const dx = me.x - MISTER_TWISTER.x;
+    const dy = me.y - MISTER_TWISTER.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
 
-    if (nowNear && !isPlayerNearMisterTwister) {
-      isPlayerNearMisterTwister = true;
-      this.openDialog();
-      showNotification("Подошёл к Мистеру Твистеру", "#ff00aa");
-
-      // Запрашиваем состояние джекпота
-      sendWhenReady(ws, JSON.stringify({ type: "requestTwisterState" }));
-    } else if (!nowNear && isPlayerNearMisterTwister) {
-      isPlayerNearMisterTwister = false;
-      this.closeDialog();
+    if (distance <= MISTER_TWISTER.interactionRadius) {
+      if (misterTwisterDialog.style.display !== "block") {
+        misterTwisterDialog.style.display = "block";
+        showNotification("Подошёл к Мистеру Твистеру", "#ff00aa");
+        sendWhenReady(ws, JSON.stringify({ type: "requestTwisterState" }));
+      }
+    } else {
+      if (misterTwisterDialog.style.display !== "none") {
+        misterTwisterDialog.style.display = "none";
+      }
     }
   },
 
-  openDialog() {
-    if (!misterTwisterDialog || isMisterTwisterDialogOpen) return;
-    misterTwisterDialog.style.display = "block";
-    isMisterTwisterDialogOpen = true;
-  },
-
-  closeDialog() {
-    if (!misterTwisterDialog || !isMisterTwisterDialogOpen) return;
-    misterTwisterDialog.style.display = "none";
-    isMisterTwisterDialogOpen = false;
-    document.getElementById("twisterMessage").textContent = "";
+  update(deltaTime) {
+    this.checkProximity();
   },
 
   draw() {
@@ -188,25 +175,23 @@ window.misterTwisterSystem = {
     const cycleTime = now % FULL_CYCLE_MS;
 
     const img = images.misterTwister;
-    if (!img || !img.complete || img.naturalWidth === 0) return;
+    if (!img || !img.complete) return;
 
-    const camera = window.movementSystem.getCamera();
-
-    const screenX = MISTER_TWISTER.x - camera.x;
-    const screenY = MISTER_TWISTER.y - camera.y;
+    const cam = window.movementSystem.getCamera();
+    const sx = MISTER_TWISTER.x - cam.x;
+    const sy = MISTER_TWISTER.y - cam.y;
 
     if (
-      screenX < -80 ||
-      screenX > canvas.width + 80 ||
-      screenY < -180 ||
-      screenY > canvas.height + 50
+      sx < -80 ||
+      sx > canvas.width + 80 ||
+      sy < -180 ||
+      sy > canvas.height + 50
     )
       return;
 
     let frame = 0;
     if (cycleTime < ANIMATION_DURATION_MS) {
-      const progress = cycleTime / ANIMATION_DURATION_MS;
-      frame = Math.floor(progress * ANIMATION_FPS);
+      frame = Math.floor((cycleTime / ANIMATION_DURATION_MS) * ANIMATION_FPS);
     }
 
     ctx.drawImage(
@@ -215,8 +200,8 @@ window.misterTwisterSystem = {
       0,
       frameWidth,
       spriteHeight,
-      screenX - halfWidth,
-      screenY - yOffset,
+      sx - halfWidth,
+      sy - yOffset,
       frameWidth,
       spriteHeight
     );
