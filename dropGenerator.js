@@ -66,62 +66,89 @@ function generateEnemyDrop(enemyType, x, y, worldId, now = Date.now()) {
   const roll = Math.random();
   const drops = [];
 
-  const createDrop = (type, quantity = 1) => ({
-    itemId: `${type}_${now}_${Math.random().toString(36).slice(2, 8)}`,
-    x,
-    y,
-    type,
-    quantity,
-    spawnTime: now,
-    worldId,
-  });
+  const createDrop = (type, quantity = 1) => {
+    const itemId = `${type}_${now}_${Math.random().toString(36).slice(2, 8)}`;
+    return {
+      itemId,
+      x,
+      y,
+      type,
+      quantity,
+      spawnTime: now,
+      worldId,
+    };
+  };
 
   // 10% — ничего
-  if (roll < 0.1) return drops;
+  if (roll < 0.1) {
+    return drops; // пусто
+  }
 
-  // 10% — только кровь
-  if (roll < 0.2) return [createDrop("blood_pack")];
+  // 10% — только пакет крови
+  if (roll < 0.2) {
+    drops.push(createDrop("blood_pack"));
+    return drops;
+  }
 
-  // 10% — баляр + кровь
-  if (roll < 0.3) return [createDrop("balyary"), createDrop("blood_pack")];
+  // 10% — 1 баляр + пакет крови
+  if (roll < 0.3) {
+    drops.push(createDrop("balyary", 1));
+    drops.push(createDrop("blood_pack"));
+    return drops;
+  }
 
-  // 10% — атом + кровь
-  if (roll < 0.4) return [createDrop("atom"), createDrop("blood_pack")];
+  // 10% — 1 атом + пакет крови
+  if (roll < 0.4) {
+    drops.push(createDrop("atom", 1));
+    drops.push(createDrop("blood_pack"));
+    return drops;
+  }
 
-  // 10% — атом + баляр (без крови)
-  if (roll < 0.5) return [createDrop("atom"), createDrop("balyary")];
+  // 10% — 1 атом + 1 баляр   (без крови!)
+  if (roll < 0.5) {
+    drops.push(createDrop("atom", 1));
+    drops.push(createDrop("balyary", 1));
+    return drops;
+  }
 
-  // 35% — еда/предмет 1-3 редкости + кровь
+  // 35% — любой предмет rarity 1-3 + пакет крови
   if (roll < 0.85) {
     const type =
       LOW_RARITY_FOOD[Math.floor(Math.random() * LOW_RARITY_FOOD.length)];
-    return [createDrop(type), createDrop("blood_pack")];
+    drops.push(createDrop(type));
+    drops.push(createDrop("blood_pack"));
+    return drops;
   }
 
-  // 8% — порванная часть сета
-  if (roll < 0.1) {
+  // 8% — одна порванная вещь
+  if (roll < 0.3) {
     const type = TORN_ITEMS[Math.floor(Math.random() * TORN_ITEMS.length)];
-    return [createDrop(type)];
+    drops.push(createDrop(type));
+    return drops;
   }
 
   // 3% — оружие ближнего боя
   if (roll < 0.96) {
     const type =
       MELEE_WEAPONS[Math.floor(Math.random() * MELEE_WEAPONS.length)];
-    return [createDrop(type)];
+    drops.push(createDrop(type));
+    return drops;
   }
 
   // 2% — White Void
   if (roll < 0.98) {
     const type =
       WHITE_VOID_ITEMS[Math.floor(Math.random() * WHITE_VOID_ITEMS.length)];
-    return [createDrop(type)];
+    drops.push(createDrop(type));
+    return drops;
   }
 
-  // 2% — Chameleon (последний шанс)
+  // 2% — Chameleon
   const type =
     CHAMELEON_ITEMS[Math.floor(Math.random() * CHAMELEON_ITEMS.length)];
-  return [createDrop(type)];
+  drops.push(createDrop(type));
+
+  return drops;
 }
 
 module.exports = { generateEnemyDrop };
