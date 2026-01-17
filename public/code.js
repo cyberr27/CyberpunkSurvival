@@ -72,6 +72,7 @@ const SPRITE_ROWS = {
 // Загрузка изображений
 const imageSources = {
   playerSprite: "playerSprite.png",
+  misterTwisterSprite: "mister_twister.png",
   energyDrinkImage: "energy_drink.png",
   nutImage: "nut.png",
   waterBottleImage: "water_bottle.png",
@@ -92,8 +93,8 @@ const imageSources = {
   carrotImage: "carrot.png",
   johnSprite: "JohnSprite.png",
   npcPhotoImage: "fotoQuestNPC.png",
-  jackSprite: "jackSprite.png", // Создай файл спрайта (аналог johnSprite.png, 70x(40 кадров))
-  jackPhotoImage: "jackPhoto.png", // Фото для диалога (аналог fotoQuestNPC.png)
+  jackSprite: "jackSprite.png",
+  jackPhotoImage: "jackPhoto.png",
   cyberHelmetImage: "cyber_helmet.png",
   nanoArmorImage: "nano_armor.png",
   tacticalBeltImage: "tactical_belt.png",
@@ -123,7 +124,7 @@ const imageSources = {
   medicalCertificateImage: "medical_certificate.png",
   medicalCertificateStampedImage: "medical_certificate_stamped.png",
   thimbleriggerSprite: "thimblerigger.png",
-  // === НОВАЯ ПОРВАННАЯ ЭКИПИРОВКА ===
+  misterTwisterSprite: "mister_twister.png",
   torn_baseball_cap_of_health: "torn_baseball_cap_of_health.png",
   torn_health_t_shirt: "torn_health_t_shirt.png",
   torn_health_gloves: "torn_health_gloves.png",
@@ -175,6 +176,7 @@ Object.entries(imageSources).forEach(([key, src]) => {
   images[key] = new Image();
   images[key].src = src;
   images[key].onload = () => {
+    console.log(`Изображение успешно загружено: ${key} → ${src}`);
     imagesLoaded++;
     if (imagesLoaded === totalImages) {
       window.addEventListener("resize", resizeCanvas);
@@ -186,6 +188,7 @@ Object.entries(imageSources).forEach(([key, src]) => {
       window.corporateRobotSystem.initialize(images.corporateRobotSprite);
       window.robotDoctorSystem.initialize(images.robotDoctorSprite);
       window.thimbleriggerSystem.initialize(images.thimbleriggerSprite);
+      window.misterTwisterSystem.initialize(images.misterTwisterSprite);
     }
   };
 });
@@ -793,80 +796,83 @@ function reconnectWebSocket() {
     document.getElementById("gameContainer").style.display = "none";
     return;
   }
-  setTimeout(() => {
-    // Проверяем доступность сервера перед переподключением
-    fetch("https://cyberpunksurvival.onrender.com/health")
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error("Сервер недоступен");
-        }
-        ws = new WebSocket("wss://cyberpunksurvival.onrender.com");
-        ws.onopen = () => {
-          reconnectAttempts = 0;
-          if (myId) {
-            const lastUsername = document
-              .getElementById("loginUsername")
-              .value.trim();
-            const lastPassword = document
-              .getElementById("loginPassword")
-              .value.trim();
-            if (lastUsername && lastPassword) {
-              sendWhenReady(
-                ws,
-                JSON.stringify({
-                  type: "login",
-                  username: lastUsername,
-                  password: lastPassword,
-                })
-              );
-            } else {
-              authContainer.style.display = "flex";
-              document.getElementById("gameContainer").style.display = "none";
-            }
+  setTimeout(
+    () => {
+      // Проверяем доступность сервера перед переподключением
+      fetch("https://cyberpunksurvival.onrender.com/health")
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error("Сервер недоступен");
           }
-        };
-        ws.onerror = (error) => {
-          reconnectAttempts++;
-          reconnectWebSocket();
-        };
-        ws.onclose = (event) => {
-          if (event.code === 4000) {
-            authContainer.style.display = "flex";
-            document.getElementById("gameContainer").style.display = "none";
-            return;
-          }
-          reconnectAttempts++;
-          reconnectWebSocket();
-        };
-        ws.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data);
-            if (data.type === "loginSuccess") {
-              ws.onmessage = handleGameMessage;
-              tradeSystem.initialize(ws);
-              // Синхронизируем игрока с сервером
-              const me = players.get(myId);
-              if (me) {
+          ws = new WebSocket("wss://cyberpunksurvival.onrender.com");
+          ws.onopen = () => {
+            reconnectAttempts = 0;
+            if (myId) {
+              const lastUsername = document
+                .getElementById("loginUsername")
+                .value.trim();
+              const lastPassword = document
+                .getElementById("loginPassword")
+                .value.trim();
+              if (lastUsername && lastPassword) {
                 sendWhenReady(
                   ws,
                   JSON.stringify({
-                    type: "syncPlayers",
-                    worldId: me.worldId,
-                  })
+                    type: "login",
+                    username: lastUsername,
+                    password: lastPassword,
+                  }),
                 );
+              } else {
+                authContainer.style.display = "flex";
+                document.getElementById("gameContainer").style.display = "none";
               }
             }
-          } catch (error) {
-            console.error("Ошибка при обработке сообщения:", error);
-          }
-        };
-      })
-      .catch((error) => {
-        console.error("Сервер недоступен, повторная попытка:", error);
-        reconnectAttempts++;
-        reconnectWebSocket();
-      });
-  }, reconnectDelay * (reconnectAttempts + 1) * 1.5); // Увеличиваем задержку
+          };
+          ws.onerror = (error) => {
+            reconnectAttempts++;
+            reconnectWebSocket();
+          };
+          ws.onclose = (event) => {
+            if (event.code === 4000) {
+              authContainer.style.display = "flex";
+              document.getElementById("gameContainer").style.display = "none";
+              return;
+            }
+            reconnectAttempts++;
+            reconnectWebSocket();
+          };
+          ws.onmessage = (event) => {
+            try {
+              const data = JSON.parse(event.data);
+              if (data.type === "loginSuccess") {
+                ws.onmessage = handleGameMessage;
+                tradeSystem.initialize(ws);
+                // Синхронизируем игрока с сервером
+                const me = players.get(myId);
+                if (me) {
+                  sendWhenReady(
+                    ws,
+                    JSON.stringify({
+                      type: "syncPlayers",
+                      worldId: me.worldId,
+                    }),
+                  );
+                }
+              }
+            } catch (error) {
+              console.error("Ошибка при обработке сообщения:", error);
+            }
+          };
+        })
+        .catch((error) => {
+          console.error("Сервер недоступен, повторная попытка:", error);
+          reconnectAttempts++;
+          reconnectWebSocket();
+        });
+    },
+    reconnectDelay * (reconnectAttempts + 1) * 1.5,
+  ); // Увеличиваем задержку
 }
 
 // Инициализация WebSocket
@@ -1056,7 +1062,7 @@ function handleAuthMessage(event) {
             type: item.type,
             spawnTime: item.spawnTime,
             worldId: item.worldId,
-          })
+          }),
         );
       }
 
@@ -1068,7 +1074,7 @@ function handleAuthMessage(event) {
             ...light,
             baseRadius: light.radius,
             pulseSpeed: 0.001,
-          })
+          }),
         );
       }
 
@@ -1100,7 +1106,7 @@ function handleAuthMessage(event) {
         data.level || 0,
         data.xp || 0,
         data.maxStats,
-        data.upgradePoints || 0
+        data.upgradePoints || 0,
       );
 
       window.equipmentSystem.syncEquipment(data.equipment);
@@ -1386,7 +1392,7 @@ function startGame() {
           direction: me.direction,
           state: me.state,
           frame: me.frame,
-        })
+        }),
       );
     }
   });
@@ -1481,7 +1487,7 @@ function updateResources() {
         frame: me.frame,
         worldId: window.worldSystem.currentWorldId,
       },
-    })
+    }),
   );
 }
 
@@ -1498,28 +1504,28 @@ function updateStatsDisplay() {
     statsEl.innerHTML = `
   <span class="health">Здоровье: ${Math.min(
     me.health ?? 0,
-    me.maxStats?.health ?? 100
+    me.maxStats?.health ?? 100,
   )}/${me.maxStats?.health ?? 100}</span><br>
   <span class="energy">Энергия: ${Math.min(
     me.energy ?? 0,
-    me.maxStats?.energy ?? 100
+    me.maxStats?.energy ?? 100,
   )}/${me.maxStats?.energy ?? 100}</span><br>
   <span class="food">Еда: ${Math.min(me.food ?? 0, me.maxStats?.food ?? 100)}/${
-      me.maxStats?.food ?? 100
-    }</span><br>
+    me.maxStats?.food ?? 100
+  }</span><br>
   <span class="water">Вода: ${Math.min(
     me.water ?? 0,
-    me.maxStats?.water ?? 100
+    me.maxStats?.water ?? 100,
   )}/${me.maxStats?.water ?? 100}</span><br>
   <span class="armor">Броня: ${Math.min(
     me.armor ?? 0,
-    me.maxStats?.armor ?? 0
+    me.maxStats?.armor ?? 0,
   )}/${me.maxStats?.armor ?? 0}</span>
 `;
     updateUpgradeButtons();
 
     document.getElementById("coords").innerHTML = `X: ${Math.floor(
-      me.x
+      me.x,
     )}<br>Y: ${Math.floor(me.y)}`;
   } catch (error) {}
 }
@@ -1572,7 +1578,7 @@ function handleGameMessage(event) {
                   ...light,
                   baseRadius: light.radius,
                   pulseSpeed: 0.001,
-                })
+                }),
               );
             }
           }
@@ -1585,7 +1591,7 @@ function handleGameMessage(event) {
               JSON.stringify({
                 type: "syncPlayers",
                 worldId: data.worldId,
-              })
+              }),
             );
           }
         }, 1000); // Задержка 1 секунда
@@ -1634,7 +1640,7 @@ function handleGameMessage(event) {
         if (me && data.playerId === myId && data.item) {
           if (data.item.type === "balyary") {
             const balyarySlot = inventory.findIndex(
-              (slot) => slot && slot.type === "balyary"
+              (slot) => slot && slot.type === "balyary",
             );
             if (balyarySlot !== -1) {
               inventory[balyarySlot].quantity =
@@ -1658,7 +1664,7 @@ function handleGameMessage(event) {
           window.inventorySystem.updateInventoryDisplay();
           levelSystem.handleItemPickup(
             data.item.type,
-            data.item.isDroppedByPlayer || false
+            data.item.isDroppedByPlayer || false,
           );
         }
         updateStatsDisplay();
@@ -1874,7 +1880,7 @@ function handleGameMessage(event) {
           const me = players.get(myId);
           me.water = data.water;
           me.inventory = data.inventory.map((slot) =>
-            slot ? { ...slot } : null
+            slot ? { ...slot } : null,
           );
           updateStatsDisplay();
           window.inventorySystem.updateInventoryDisplay();
@@ -1899,7 +1905,7 @@ function handleGameMessage(event) {
         if (data.newInventory) {
           // КРИТИЧНО: обновляем локальный инвентарь
           inventory = data.newInventory.map((slot) =>
-            slot ? { ...slot } : null
+            slot ? { ...slot } : null,
           );
 
           // Также обновляем инвентарь в объекте игрока (для других систем)
@@ -1931,7 +1937,7 @@ function handleGameMessage(event) {
 
             // КРИТИЧНО: полностью синхронизируем инвентарь игрока с серверным
             me.inventory = data.inventory.map((slot) =>
-              slot ? { ...slot } : null
+              slot ? { ...slot } : null,
             );
           }
 
@@ -2020,7 +2026,7 @@ function handleGameMessage(event) {
               data.level,
               data.xp,
               null,
-              data.upgradePoints
+              data.upgradePoints,
             );
           }
           if (typeof window.levelSystem.showXPEffect === "function") {
@@ -2069,20 +2075,20 @@ function handleGameMessage(event) {
         {
           showNotification(
             `Заказ сдан! +${data.reward.xp} XP | +${data.reward.balyary} баляров!`,
-            "#00ffff"
+            "#00ffff",
           );
           if (window.levelSystem) {
             window.levelSystem.setLevelData(
               data.level,
               data.xp,
               data.xpToNextLevel,
-              data.upgradePoints
+              data.upgradePoints,
             );
             window.levelSystem.showXPEffect(data.reward.xp);
           }
           const me = players.get(myId);
           me.inventory = data.inventory.map((slot) =>
-            slot ? { ...slot } : null
+            slot ? { ...slot } : null,
           );
           window.inventorySystem.updateInventoryDisplay();
         }
@@ -2091,7 +2097,7 @@ function handleGameMessage(event) {
         {
           showNotification(
             "Мед. справка получена! Форма МД-07 в инвентаре.",
-            "#00ff44"
+            "#00ff44",
           );
           const me = players.get(myId);
           if (me) {
@@ -2115,9 +2121,9 @@ function handleGameMessage(event) {
               data.action === "freeHeal"
                 ? "Осмотр пройден. Здоровье восстановлено!"
                 : data.action === "heal20"
-                ? "+20 HP за 1 баляр"
-                : `Полное восстановление за ${data.cost} баляров!`,
-              "#00ff44"
+                  ? "+20 HP за 1 баляр"
+                  : `Полное восстановление за ${data.cost} баляров!`,
+              "#00ff44",
             );
           }
         } else {
@@ -2140,7 +2146,7 @@ function handleGameMessage(event) {
           // Уведомление
           showNotification(
             "Печать получена! Допуск в Неоновый Город выдан.",
-            "#00ff44"
+            "#00ff44",
           );
 
           // Автоматически закрываем диалог капитана
@@ -2153,7 +2159,7 @@ function handleGameMessage(event) {
         } else {
           showNotification(
             data.error || "Капитан отказался ставить печать.",
-            "#ff0066"
+            "#ff0066",
           );
         }
         break;
@@ -2164,7 +2170,7 @@ function handleGameMessage(event) {
             data.level,
             data.xp,
             null,
-            data.upgradePoints
+            data.upgradePoints,
           );
 
           // Обновляем инвентарь
@@ -2175,11 +2181,11 @@ function handleGameMessage(event) {
           // Уведомление
           showNotification(
             "Документы приняты. Добро пожаловать в Корпорацию!",
-            "#00ffff"
+            "#00ffff",
           );
           showNotification(
             "Получен стартовый комплект снаряжения и кастет",
-            "#ffff00"
+            "#ffff00",
           );
 
           // Закрываем диалог
@@ -2190,7 +2196,7 @@ function handleGameMessage(event) {
         } else {
           showNotification(
             data.error || "Ошибка при сдаче документов",
-            "#ff0000"
+            "#ff0000",
           );
         }
         break;
@@ -2208,7 +2214,7 @@ function handleGameMessage(event) {
         } else {
           showNotification(
             data.error || "Недостаточно баляров для ставки!",
-            "#ff0066"
+            "#ff0066",
           );
         }
         break;
@@ -2223,7 +2229,7 @@ function handleGameMessage(event) {
               data.level,
               data.xp,
               null, // maxStats не меняем
-              data.upgradePoints
+              data.upgradePoints,
             );
             window.levelSystem.showXPEffect(data.xpGained || 0);
 
@@ -2235,12 +2241,12 @@ function handleGameMessage(event) {
 
           showNotification(
             data.won ? "Выигрыш зачислен! +XP" : "Проигрыш подтверждён.",
-            data.won ? "#00ff00" : "#ff0000"
+            data.won ? "#00ff00" : "#ff0000",
           );
         } else {
           showNotification(
             data.error || "Ошибка в результате игры.",
-            "#ff0066"
+            "#ff0066",
           );
         }
         break;
@@ -2422,7 +2428,8 @@ function update(deltaTime) {
   if (window.outpostCaptainSystem)
     window.outpostCaptainSystem.update(deltaTime);
   window.thimbleriggerSystem.checkThimbleriggerProximity();
-
+  if (window.misterTwisterSystem) window.misterTwisterSystem.update(deltaTime);
+  window.misterTwisterSystem.checkProximity();
   window.worldSystem.checkTransitionZones(me.x, me.y);
 }
 
@@ -2450,7 +2457,7 @@ function draw(deltaTime) {
     ctx.translate(
       -(groundOffsetX % currentWorld.bg.width),
       -(window.movementSystem.getCamera().y * groundSpeed) %
-        currentWorld.bg.height
+        currentWorld.bg.height,
     );
     ctx.fillRect(
       (groundOffsetX % currentWorld.bg.width) - currentWorld.bg.width,
@@ -2458,7 +2465,7 @@ function draw(deltaTime) {
         currentWorld.bg.height) -
         currentWorld.bg.height,
       currentWorld.w + currentWorld.bg.width,
-      currentWorld.h + currentWorld.bg.height
+      currentWorld.h + currentWorld.bg.height,
     );
     ctx.restore();
   } else {
@@ -2506,7 +2513,7 @@ function draw(deltaTime) {
         screenX,
         screenY,
         50,
-        50
+        50,
       );
     } else {
       ctx.drawImage(config.image, screenX, screenY, 20, 20);
@@ -2524,7 +2531,7 @@ function draw(deltaTime) {
       0,
       0,
       canvas.width,
-      canvas.height
+      canvas.height,
     );
   }
 
@@ -2539,6 +2546,7 @@ function draw(deltaTime) {
   window.bonfireSystem.draw();
   window.jackSystem.drawJack(deltaTime);
   window.vendingMachine.draw();
+  if (window.misterTwisterSystem) window.misterTwisterSystem.draw();
   window.combatSystem.draw();
   window.enemySystem.draw();
   window.corporateRobotSystem.draw();
@@ -2572,8 +2580,8 @@ function draw(deltaTime) {
         player.direction === "up" || player.direction === "down"
           ? SPRITE_ROWS.attack_up_down
           : player.direction === "right"
-          ? SPRITE_ROWS.attack_right
-          : SPRITE_ROWS.attack_left;
+            ? SPRITE_ROWS.attack_right
+            : SPRITE_ROWS.attack_left;
     } else {
       const frame = effectiveState === "walking" ? player.frame : 0;
       spriteX = frame * PLAYER_FRAME_WIDTH;
@@ -2596,7 +2604,7 @@ function draw(deltaTime) {
         screenX,
         screenY,
         70,
-        70
+        70,
       );
     } else {
       ctx.fillStyle = "blue";
@@ -2674,7 +2682,7 @@ function draw(deltaTime) {
       0,
       0,
       canvas.width,
-      canvas.height
+      canvas.height,
     );
   }
 
@@ -2699,7 +2707,7 @@ function draw(deltaTime) {
       0,
       0,
       canvas.width,
-      canvas.height
+      canvas.height,
     );
   }
 
