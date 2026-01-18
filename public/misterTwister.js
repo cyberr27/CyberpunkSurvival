@@ -13,7 +13,7 @@ const CONFIG = {
   frameHeight: 100,
   animationDuration: 5000,
   pauseDuration: 10000,
-  interactionRadiusSq: 4900,
+  interactionRadiusSq: 4900, // ~70px радиус
 };
 
 let sprite = null;
@@ -65,22 +65,34 @@ function checkMisterTwisterProximity() {
   wasInRangeLastFrame = nowInRange;
 }
 
+function updateLocalBalanceDisplay() {
+  if (!isMenuOpen) return;
+
+  const balyarySlot = window.inventory.findIndex(
+    (slot) => slot && slot.type === "balyary",
+  );
+  const count =
+    balyarySlot !== -1 ? window.inventory[balyarySlot]?.quantity || 1 : 0;
+
+  const el = document.getElementById("twister-balance");
+  if (el) {
+    el.textContent = count;
+    el.dataset.count = count; // для моментальной проверки перед спином
+  }
+}
+
 function showTwisterMenu() {
   if (isMenuOpen) return;
   isMenuOpen = true;
 
   menuElement = document.createElement("div");
-  menuElement.className = "npc-dialog open twister-full-window"; // добавили класс для стилизации фона
+  menuElement.className = "npc-dialog open twister-full-window";
 
   menuElement.innerHTML = `
-    <div class="npc-dialog-header">
-      <h2 class="npc-title">MISTER TWISTER</h2>
-    </div>
-    
     <div class="npc-dialog-content">
       <p class="npc-text" style="text-align:center; margin: 12px 0;">
         Стоимость спина — <strong>1 баляр</strong><br>
-        Баланс: <span id="twister-balance">?</span>
+        Баланс: <span id="twister-balance">загружается...</span>
       </p>
 
       <div class="slot-reels">
@@ -101,11 +113,21 @@ function showTwisterMenu() {
 
   document.body.appendChild(menuElement);
 
+  // Перехватываем обновление инвентаря чтобы показывать актуальный баланс
+  const originalUpdate = window.inventorySystem.updateInventoryDisplay;
+  window.inventorySystem.updateInventoryDisplay = function (...args) {
+    originalUpdate.apply(this, args);
+    if (isMenuOpen) updateLocalBalanceDisplay();
+  };
+
+  // Первичное обновление баланса из локального инвентаря
+  updateLocalBalanceDisplay();
+
   document
     .getElementById("twister-spin-btn")
     ?.addEventListener("click", handleTwisterSpin);
 
-  // Запрос актуального состояния при открытии
+  // Запрашиваем состояние бонусной шкалы и флаг myBonusPointGiven
   if (ws?.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({ type: "twister", subtype: "getState" }));
   }
@@ -124,38 +146,47 @@ function hideTwisterMenu() {
 function handleTwisterSpin() {
   if (isSpinning) return;
 
-  if (balance < 1) {
-    document.getElementById("twister-result").textContent =
-      "Недостаточно баляров!";
-    document.getElementById("twister-result").style.color = "#ff6666";
+  const balanceEl = document.getElementById("twister-balance");
+  const currentBalance = Number(balanceEl?.dataset.count) || 0;
+
+  if (currentBalance < 1) {
+    const resultEl = document.getElementById("twister-result");
+    resultEl.textContent = "Недостаточно баляров!";
+    resultEl.style.color = "#ff6666";
     return;
   }
 
   isSpinning = true;
-  const spinBtn = document.getElementById("twister-spin-btn");
-  if (spinBtn) spinBtn.disabled = true;
-  document.getElementById("twister-result").textContent = "Крутим...";
+  const btn = document.getElementById("twister-spin-btn");
+  if (btn) btn.disabled = true;
 
   if (ws?.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({ type: "twister", subtype: "spin" }));
+  } else {
+    const resultEl = document.getElementById("twister-result");
+    resultEl.textContent = "Ошибка соединения...";
+    resultEl.style.color = "#ff6666";
+    isSpinning = false;
+    if (btn) btn.disabled = false;
   }
 }
 
 function animateReels() {
-  if (!isMenuOpen || !document.getElementById("reel1")) return;
+  const reels = [
+    document.getElementById("reel1"),
+    document.getElementById("reel2"),
+    document.getElementById("reel3"),
+  ];
 
-  const symbols = "0123456789".split("");
-  const reelHeight = 138 * 10;
+  if (!reels[0]) return;
 
-  const reels = [1, 2, 3].map((n) => document.getElementById(`reel${n}`));
-
+  // Создаём символы для анимации (простой вариант)
   reels.forEach((reel) => {
     reel.innerHTML = "";
     for (let i = 0; i < 40; i++) {
-      const sym = symbols[Math.floor(Math.random() * 10)];
       const div = document.createElement("div");
-      div.className = `reel-symbol ${sym === "7" ? "seven" : sym === "3" ? "three" : ""}`;
-      div.textContent = sym;
+      div.className = "reel-symbol";
+      div.textContent = Math.floor(Math.random() * 10);
       reel.appendChild(div);
     }
   });
@@ -175,7 +206,7 @@ function animateReels() {
 
     const offset = (progress / 1000) * 1200;
     reels.forEach((r) => {
-      r.style.transform = `translateY(-${offset % reelHeight}px)`;
+      r.style.transform = `translateY(-${offset % (150 * 10)}px)`;
     });
   }, 16);
 }
@@ -183,12 +214,17 @@ function animateReels() {
 function updateTwisterState(data) {
   if (!isMenuOpen) return;
 
-  balance = data.balance ?? 0;
+  if (data.balance !== undefined) {
+    balance = data.balance;
+    const el = document.getElementById("twister-balance");
+    if (el) {
+      el.textContent = balance;
+      el.dataset.count = balance;
+    }
+  }
+
   bonusPoints = Math.min(11, data.bonusPoints ?? 0);
   myBonusPointGiven = data.myBonusPointGiven ?? false;
-
-  const balanceEl = document.getElementById("twister-balance");
-  if (balanceEl) balanceEl.textContent = balance;
 
   const lights = document.querySelectorAll(".bonus-light");
   lights.forEach((el, i) => {
@@ -215,18 +251,18 @@ function handleTwisterMessage(data) {
     case "spinResult":
       updateTwisterState(data);
       break;
-    case "jackpot":
-      showNotification("ДЖЕКПОТ! 7-7-7 ×100!", "#ffff00", 5000);
-      updateTwisterState(data);
-      break;
+
     case "bonusWin":
-      showNotification("БОНУСНЫЙ ВЫИГРЫШ! ×3 к комбинации!", "#ffaa00", 5000);
+      showNotification("БОЛЬШОЙ БОНУС! 75 баляров!", "#ffff00", 6000);
       updateTwisterState(data);
       break;
+
+    default:
+      updateTwisterState(data);
   }
 }
 
-// Отрисовка автомата на карте (не трогаем)
+// Отрисовка автомата на карте
 function drawMisterTwister() {
   if (window.worldSystem.currentWorldId !== 0) return;
   if (!spriteReady || !sprite?.complete) return;

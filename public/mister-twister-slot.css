@@ -2,20 +2,12 @@
 
 .npc-dialog.open.twister-full-window {
   background: url("mister_twister_slot_bg.png") center/cover no-repeat;
-  background-color: rgba(0, 0, 0, 0.35); /* лёгкое затемнение для читаемости */
   min-height: 520px;
-}
-
-.npc-dialog-header {
-  background: rgba(0, 0, 0, 0.65);
-  padding: 12px;
-  border-bottom: 2px solid #00d4ff;
+  overflow: none;
 }
 
 .npc-dialog-content {
   padding: 16px;
-  background: rgba(0, 0, 0, 0.45);
-  border-radius: 10px;
   margin: 12px;
 }
 
