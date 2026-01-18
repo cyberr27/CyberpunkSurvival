@@ -1,6 +1,5 @@
 const { saveUserDatabase } = require("./database");
 const { generateEnemyDrop } = require("./dropGenerator");
-const { handleTwisterMessage } = require("./misterTwisterServer");
 
 function broadcastToWorld(wss, clients, players, worldId, message) {
   wss.clients.forEach((client) => {
@@ -55,7 +54,7 @@ function setupWebSocket(
   worlds,
   ITEM_CONFIG,
   INACTIVITY_TIMEOUT,
-  enemies,
+  enemies
 ) {
   function checkCollisionServer(x, y) {
     return false;
@@ -90,7 +89,7 @@ function setupWebSocket(
       collectionSlots.every(
         (slot) =>
           player.equipment[slot] &&
-          ITEM_CONFIG[player.equipment[slot].type]?.collection,
+          ITEM_CONFIG[player.equipment[slot].type]?.collection
       ) && new Set(collectionsInSlots).size === 1;
 
     const multiplier = isFullCollection ? 2 : 1;
@@ -179,7 +178,7 @@ function setupWebSocket(
       JSON.stringify({
         type: "newEnemy",
         enemy: newEnemy,
-      }),
+      })
     );
   }
 
@@ -299,7 +298,7 @@ function setupWebSocket(
           });
 
           const worldPlayers = Array.from(players.values()).filter(
-            (p) => p.id !== id && p.worldId === targetWorldId,
+            (p) => p.id !== id && p.worldId === targetWorldId
           );
 
           wss.clients.forEach((client) => {
@@ -344,7 +343,7 @@ function setupWebSocket(
               players: worldPlayers,
               items: worldItems,
               enemies: worldEnemies,
-            }),
+            })
           );
         }
       } else if (data.type === "syncPlayers") {
@@ -356,14 +355,14 @@ function setupWebSocket(
             return;
           }
           const worldPlayers = Array.from(players.values()).filter(
-            (p) => p.id !== id && p.worldId === worldId,
+            (p) => p.id !== id && p.worldId === worldId
           );
           ws.send(
             JSON.stringify({
               type: "syncPlayers",
               players: worldPlayers,
               worldId,
-            }),
+            })
           );
         }
       } else if (data.type === "login") {
@@ -460,7 +459,7 @@ function setupWebSocket(
                 playerData.corporateDocumentsSubmitted || false,
               players: Array.from(players.values()).filter(
                 (p) =>
-                  p.id !== data.username && p.worldId === playerData.worldId,
+                  p.id !== data.username && p.worldId === playerData.worldId
               ),
               items: Array.from(items.entries())
                 .filter(([_, item]) => item.worldId === playerData.worldId)
@@ -473,7 +472,7 @@ function setupWebSocket(
                   worldId: item.worldId,
                   enemies: Array.from(enemies.entries())
                     .filter(
-                      ([_, enemy]) => enemy.worldId === playerData.worldId,
+                      ([_, enemy]) => enemy.worldId === playerData.worldId
                     )
                     .map(([enemyId, enemy]) => ({
                       enemyId,
@@ -493,7 +492,7 @@ function setupWebSocket(
               lights: lights
                 .get(playerData.worldId)
                 .map(({ id, ...rest }) => rest),
-            }),
+            })
           );
           wss.clients.forEach((client) => {
             if (client !== ws && client.readyState === WebSocket.OPEN) {
@@ -503,7 +502,7 @@ function setupWebSocket(
                   JSON.stringify({
                     type: "newPlayer",
                     player: players.get(data.username),
-                  }),
+                  })
                 );
               }
             }
@@ -519,7 +518,7 @@ function setupWebSocket(
         if (!player || !player.inventory) return;
 
         const balyarySlot = player.inventory.findIndex(
-          (slot) => slot && slot.type === "balyary",
+          (slot) => slot && slot.type === "balyary"
         );
         const balyaryCount =
           balyarySlot !== -1 ? player.inventory[balyarySlot].quantity || 1 : 0;
@@ -530,7 +529,7 @@ function setupWebSocket(
               type: "buyWaterResult",
               success: false,
               error: "Not enough balyary!",
-            }),
+            })
           );
           return;
         }
@@ -543,7 +542,7 @@ function setupWebSocket(
 
         player.water = Math.min(
           player.maxStats.water,
-          player.water + data.waterGain,
+          player.water + data.waterGain
         );
 
         players.set(id, { ...player });
@@ -561,7 +560,7 @@ function setupWebSocket(
               balyarySlot !== -1
                 ? player.inventory[balyarySlot]?.quantity || 0
                 : 0,
-          }),
+          })
         );
       } else if (data.type === "meetNPC") {
         const id = clients.get(ws);
@@ -605,7 +604,7 @@ function setupWebSocket(
                 id: player.id,
                 alexNeonMet: true,
               },
-            }),
+            })
           );
         }
       } else if (data.type === "meetCaptain") {
@@ -641,7 +640,7 @@ function setupWebSocket(
               completed: [],
             },
             isMet: player.alexNeonMet || false,
-          }),
+          })
         );
       } else if (data.type === "neonQuestProgress") {
         const id = clients.get(ws);
@@ -718,7 +717,7 @@ function setupWebSocket(
             xpToNextLevel: xpToNext,
             upgradePoints: player.upgradePoints,
             inventory: player.inventory,
-          }),
+          })
         );
       } else if (data.type === "updateLevel") {
         const id = clients.get(ws);
@@ -736,7 +735,7 @@ function setupWebSocket(
               clients.get(client) === id
             ) {
               client.send(
-                JSON.stringify({ type: "update", player: { id, ...player } }),
+                JSON.stringify({ type: "update", player: { id, ...player } })
               );
             }
           });
@@ -762,7 +761,7 @@ function setupWebSocket(
               clients.get(client) === id
             ) {
               client.send(
-                JSON.stringify({ type: "update", player: { id, ...player } }),
+                JSON.stringify({ type: "update", player: { id, ...player } })
               );
             }
           });
@@ -783,7 +782,7 @@ function setupWebSocket(
               clients.get(client) === id
             ) {
               client.send(
-                JSON.stringify({ type: "update", player: { id, ...player } }),
+                JSON.stringify({ type: "update", player: { id, ...player } })
               );
             }
           });
@@ -804,7 +803,7 @@ function setupWebSocket(
 
         if (!items.has(data.itemId)) {
           ws.send(
-            JSON.stringify({ type: "itemNotFound", itemId: data.itemId }),
+            JSON.stringify({ type: "itemNotFound", itemId: data.itemId })
           );
           return;
         }
@@ -823,14 +822,14 @@ function setupWebSocket(
           const quantityToAdd = item.quantity || 1;
           // ИЗМЕНЕНО: Ищем слот с соответствующим типом (balyary или atom)
           const stackSlot = player.inventory.findIndex(
-            (slot) => slot && slot.type === item.type, // Теперь проверяем item.type, чтобы работало для atom
+            (slot) => slot && slot.type === item.type // Теперь проверяем item.type, чтобы работало для atom
           );
           if (stackSlot !== -1) {
             player.inventory[stackSlot].quantity =
               (player.inventory[stackSlot].quantity || 1) + quantityToAdd;
           } else {
             const freeSlot = player.inventory.findIndex(
-              (slot) => slot === null,
+              (slot) => slot === null
             );
             if (freeSlot !== -1) {
               player.inventory[freeSlot] = {
@@ -840,7 +839,7 @@ function setupWebSocket(
               };
             } else {
               ws.send(
-                JSON.stringify({ type: "inventoryFull", itemId: data.itemId }),
+                JSON.stringify({ type: "inventoryFull", itemId: data.itemId })
               );
               return;
             }
@@ -854,7 +853,7 @@ function setupWebSocket(
             };
           } else {
             ws.send(
-              JSON.stringify({ type: "inventoryFull", itemId: data.itemId }),
+              JSON.stringify({ type: "inventoryFull", itemId: data.itemId })
             );
             return;
           }
@@ -880,60 +879,55 @@ function setupWebSocket(
                     quantity: item.quantity || 1,
                     isDroppedByPlayer: item.isDroppedByPlayer || false,
                   },
-                }),
+                })
               );
               if (clients.get(client) === id) {
                 client.send(
-                  JSON.stringify({ type: "update", player: { id, ...player } }),
+                  JSON.stringify({ type: "update", player: { id, ...player } })
                 );
               }
             }
           }
         });
 
-        setTimeout(
-          () => {
-            const worldWidth = worlds.find((w) => w.id === item.worldId).width;
-            const worldHeight = worlds.find(
-              (w) => w.id === item.worldId,
-            ).height;
-            const newItemId = `${item.type}_${Date.now()}`;
-            const newItem = {
-              x: Math.random() * worldWidth,
-              y: Math.random() * worldHeight,
-              type: item.type,
-              spawnTime: Date.now(),
-              worldId: item.worldId,
-            };
-            items.set(newItemId, newItem);
-            wss.clients.forEach((client) => {
-              if (client.readyState === WebSocket.OPEN) {
-                const clientPlayer = players.get(clients.get(client));
-                if (clientPlayer && clientPlayer.worldId === item.worldId) {
-                  client.send(
-                    JSON.stringify({
-                      type: "newItem",
-                      itemId: newItemId,
-                      x: newItem.x,
-                      y: newItem.y,
-                      type: newItem.type,
-                      spawnTime: newItem.spawnTime,
-                      worldId: newItem.worldId,
-                    }),
-                  );
-                }
+        setTimeout(() => {
+          const worldWidth = worlds.find((w) => w.id === item.worldId).width;
+          const worldHeight = worlds.find((w) => w.id === item.worldId).height;
+          const newItemId = `${item.type}_${Date.now()}`;
+          const newItem = {
+            x: Math.random() * worldWidth,
+            y: Math.random() * worldHeight,
+            type: item.type,
+            spawnTime: Date.now(),
+            worldId: item.worldId,
+          };
+          items.set(newItemId, newItem);
+          wss.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+              const clientPlayer = players.get(clients.get(client));
+              if (clientPlayer && clientPlayer.worldId === item.worldId) {
+                client.send(
+                  JSON.stringify({
+                    type: "newItem",
+                    itemId: newItemId,
+                    x: newItem.x,
+                    y: newItem.y,
+                    type: newItem.type,
+                    spawnTime: newItem.spawnTime,
+                    worldId: newItem.worldId,
+                  })
+                );
               }
-            });
-          },
-          10 * 60 * 1000,
-        );
+            }
+          });
+        }, 10 * 60 * 1000);
       } else if (data.type === "chat") {
         const id = clients.get(ws);
         if (id) {
           wss.clients.forEach((client) => {
             if (client.readyState === WebSocket.OPEN) {
               client.send(
-                JSON.stringify({ type: "chat", id, message: data.message }),
+                JSON.stringify({ type: "chat", id, message: data.message })
               );
             }
           });
@@ -950,27 +944,27 @@ function setupWebSocket(
           if (effect.health)
             player.health = Math.min(
               player.health + effect.health,
-              player.maxStats.health,
+              player.maxStats.health
             );
           if (effect.energy)
             player.energy = Math.min(
               player.energy + effect.energy,
-              player.maxStats.energy,
+              player.maxStats.energy
             );
           if (effect.food)
             player.food = Math.min(
               player.food + effect.food,
-              player.maxStats.food,
+              player.maxStats.food
             );
           if (effect.water)
             player.water = Math.min(
               player.water + effect.water,
-              player.maxStats.water,
+              player.maxStats.water
             );
           if (effect.armor)
             player.armor = Math.min(
               player.armor + effect.armor,
-              player.maxStats.armor,
+              player.maxStats.armor
             );
           if (ITEM_CONFIG[item.type].stackable) {
             if (item.quantity > 1) {
@@ -999,14 +993,14 @@ function setupWebSocket(
                 armor: player.armor,
               },
               inventory: player.inventory,
-            }),
+            })
           );
         }
       } else if (data.type === "equipItem") {
         const playerId = clients.get(ws);
         if (!playerId || !players.has(playerId)) {
           ws.send(
-            JSON.stringify({ type: "equipItemFail", error: "Игрок не найден" }),
+            JSON.stringify({ type: "equipItemFail", error: "Игрок не найден" })
           );
           return;
         }
@@ -1024,7 +1018,7 @@ function setupWebSocket(
             JSON.stringify({
               type: "equipItemFail",
               error: "Неверный слот инвентаря",
-            }),
+            })
           );
           return;
         }
@@ -1037,7 +1031,7 @@ function setupWebSocket(
             JSON.stringify({
               type: "equipItemFail",
               error: "Некорректный предмет",
-            }),
+            })
           );
           return;
         }
@@ -1048,7 +1042,7 @@ function setupWebSocket(
             JSON.stringify({
               type: "equipItemFail",
               error: `Требуется уровень ${config.level} для экипировки этого предмета`,
-            }),
+            })
           );
           return;
         }
@@ -1063,7 +1057,7 @@ function setupWebSocket(
                 JSON.stringify({
                   type: "equipItemFail",
                   error: "Снимите предмет со второй руки для двуручного оружия",
-                }),
+                })
               );
               return;
             }
@@ -1095,7 +1089,7 @@ function setupWebSocket(
               JSON.stringify({
                 type: "equipItemFail",
                 error: "Нельзя экипировать в этот слот",
-              }),
+              })
             );
             return;
           }
@@ -1147,7 +1141,7 @@ function setupWebSocket(
               water: player.water,
               armor: player.armor,
             },
-          }),
+          })
         );
 
         broadcastToWorld(
@@ -1166,7 +1160,7 @@ function setupWebSocket(
               water: player.water,
               armor: player.armor,
             },
-          }),
+          })
         );
       } else if (data.type === "unequipItem") {
         const playerId = clients.get(ws);
@@ -1175,7 +1169,7 @@ function setupWebSocket(
             JSON.stringify({
               type: "unequipItemFail",
               error: "Игрок не найден",
-            }),
+            })
           );
           return;
         }
@@ -1186,7 +1180,7 @@ function setupWebSocket(
             JSON.stringify({
               type: "unequipItemFail",
               error: "Данные игрока недоступны",
-            }),
+            })
           );
           return;
         }
@@ -1209,7 +1203,7 @@ function setupWebSocket(
             JSON.stringify({
               type: "unequipItemFail",
               error: "Недопустимый слот",
-            }),
+            })
           );
           return;
         }
@@ -1221,7 +1215,7 @@ function setupWebSocket(
             JSON.stringify({
               type: "unequipItemFail",
               error: "Предмет не найден в слоте или неверный itemId",
-            }),
+            })
           );
           return;
         }
@@ -1236,7 +1230,7 @@ function setupWebSocket(
             JSON.stringify({
               type: "unequipItemFail",
               error: "Указанный слот инвентаря недоступен или занят",
-            }),
+            })
           );
           return;
         }
@@ -1280,7 +1274,7 @@ function setupWebSocket(
               water: player.water,
               armor: player.armor,
             },
-          }),
+          })
         );
 
         // Рассылка обновления другим игрокам в мире
@@ -1300,7 +1294,7 @@ function setupWebSocket(
               water: player.water,
               armor: player.armor,
             },
-          }),
+          })
         );
       } else if (data.type === "dropItem") {
         const id = clients.get(ws);
@@ -1380,14 +1374,14 @@ function setupWebSocket(
                           : undefined,
                         isDroppedByPlayer: true,
                         worldId: player.worldId,
-                      }),
+                      })
                     );
                     if (clients.get(client) === id) {
                       client.send(
                         JSON.stringify({
                           type: "update",
                           player: { id, ...player },
-                        }),
+                        })
                       );
                     }
                   }
@@ -1427,7 +1421,7 @@ function setupWebSocket(
                       ownerId: data.ownerId,
                       spawnTime: data.spawnTime,
                       worldId: data.worldId,
-                    }),
+                    })
                   );
                 }
               }
@@ -1445,7 +1439,7 @@ function setupWebSocket(
                     type: "bulletCollision",
                     bulletIds: data.bulletIds,
                     worldId: data.worldId,
-                  }),
+                  })
                 );
               }
             }
@@ -1462,7 +1456,7 @@ function setupWebSocket(
                     type: "removeBullet",
                     bulletId: data.bulletId,
                     worldId: data.worldId,
-                  }),
+                  })
                 );
               }
             }
@@ -1521,7 +1515,7 @@ function setupWebSocket(
                   type: "tradeAccepted",
                   fromId: toId,
                   toId: fromId,
-                }),
+                })
               ); // fromId = initiator for both
             }
           }
@@ -1552,7 +1546,7 @@ function setupWebSocket(
             clients.get(client) === toId
           ) {
             client.send(
-              JSON.stringify({ type: "tradeOffer", fromId, offer: data.offer }),
+              JSON.stringify({ type: "tradeOffer", fromId, offer: data.offer })
             );
           }
         });
@@ -1651,7 +1645,7 @@ function setupWebSocket(
             if (isStackable) {
               // Проверяем, есть ли уже стек этого типа в инвентаре
               const hasExistingStack = player.inventory.some(
-                (slot) => slot && slot.type === type,
+                (slot) => slot && slot.type === type
               );
               if (!hasExistingStack) {
                 requiredSlots += 1; // Нужен новый слот только если нет стака
@@ -1814,14 +1808,14 @@ function setupWebSocket(
               JSON.stringify({
                 type: "tradeCompleted",
                 newInventory: playerA.inventory,
-              }),
+              })
             );
           } else if (clientId === playerBId) {
             client.send(
               JSON.stringify({
                 type: "tradeCompleted",
                 newInventory: playerB.inventory,
-              }),
+              })
             );
           }
         });
@@ -1901,7 +1895,7 @@ function setupWebSocket(
                     JSON.stringify({
                       type: "update",
                       player: { id: data.targetId, ...target },
-                    }),
+                    })
                   );
                 }
               }
@@ -1939,7 +1933,7 @@ function setupWebSocket(
             JSON.stringify({
               type: "enemyDied",
               enemyId: data.targetId,
-            }),
+            })
           );
 
           // ───────────────────── НОВАЯ СИСТЕМА ДРОПА ─────────────────────
@@ -1949,7 +1943,7 @@ function setupWebSocket(
             enemy.x,
             enemy.y,
             data.worldId,
-            now,
+            now
           );
 
           if (dropItems.length > 0) {
@@ -1974,7 +1968,7 @@ function setupWebSocket(
               JSON.stringify({
                 type: "newItem",
                 items: dropItems,
-              }),
+              })
             );
           }
           // ──────────────────────────────────────────────────────────────
@@ -2013,7 +2007,7 @@ function setupWebSocket(
               xpToNextLevel: xpToNext,
               upgradePoints: attacker.upgradePoints,
               xpGained,
-            }),
+            })
           );
 
           // Прогресс квеста (только для мутантов)
@@ -2034,7 +2028,7 @@ function setupWebSocket(
                 JSON.stringify({
                   type: "neonQuestProgressUpdate",
                   progress: attacker.neonQuest.progress,
-                }),
+                })
               );
             }
           }
@@ -2042,7 +2036,7 @@ function setupWebSocket(
           // Респавн через 8–15 секунд
           setTimeout(
             () => spawnNewEnemy(data.worldId),
-            8000 + Math.random() * 7000,
+            8000 + Math.random() * 7000
           );
         } else {
           // Если враг ещё жив — просто обновляем здоровье
@@ -2061,7 +2055,7 @@ function setupWebSocket(
                 x: enemy.x,
                 y: enemy.y,
               },
-            }),
+            })
           );
         }
       } else if (data.type === "neonQuestAccept") {
@@ -2110,7 +2104,7 @@ function setupWebSocket(
           JSON.stringify({
             type: "useItemSuccess",
             inventory: player.inventory,
-          }),
+          })
         );
       } else if (data.type === "welcomeGuideSeen") {
         const id = clients.get(ws);
@@ -2163,7 +2157,7 @@ function setupWebSocket(
             type: "doctorQuestCompleted",
             inventory: player.inventory,
             medicalCertificate: true, // отправляем клиенту
-          }),
+          })
         );
       } else if (data.type === "robotDoctorFreeHeal") {
         const playerId = clients.get(ws);
@@ -2176,7 +2170,7 @@ function setupWebSocket(
               type: "robotDoctorResult",
               success: false,
               error: "Условия не выполнены",
-            }),
+            })
           );
           return;
         }
@@ -2193,7 +2187,7 @@ function setupWebSocket(
             success: true,
             action: "freeHeal",
             health: player.health,
-          }),
+          })
         );
       } else if (data.type === "robotDoctorHeal20") {
         const playerId = clients.get(ws);
@@ -2203,7 +2197,7 @@ function setupWebSocket(
 
         // Ищем баляры
         const balyarySlot = player.inventory.findIndex(
-          (s) => s && s.type === "balyary",
+          (s) => s && s.type === "balyary"
         );
         if (
           balyarySlot === -1 ||
@@ -2214,7 +2208,7 @@ function setupWebSocket(
               type: "robotDoctorResult",
               success: false,
               error: "Нет баляров",
-            }),
+            })
           );
           return;
         }
@@ -2240,7 +2234,7 @@ function setupWebSocket(
             action: "heal20",
             health: player.health,
             inventory: player.inventory,
-          }),
+          })
         );
       } else if (data.type === "robotDoctorFullHeal") {
         const playerId = clients.get(ws);
@@ -2254,14 +2248,14 @@ function setupWebSocket(
               type: "robotDoctorResult",
               success: false,
               error: "Здоровье уже полное",
-            }),
+            })
           );
           return;
         }
 
         const cost = Math.floor(missingHP / 20);
         const balyarySlot = player.inventory.findIndex(
-          (s) => s && s.type === "balyary",
+          (s) => s && s.type === "balyary"
         );
         const balyaryCount =
           balyarySlot !== -1 ? player.inventory[balyarySlot].quantity || 0 : 0;
@@ -2272,7 +2266,7 @@ function setupWebSocket(
               type: "robotDoctorResult",
               success: false,
               error: "Недостаточно баляров",
-            }),
+            })
           );
           return;
         }
@@ -2298,7 +2292,7 @@ function setupWebSocket(
             health: player.health,
             cost: cost,
             inventory: player.inventory,
-          }),
+          })
         );
       } else if (data.type === "requestCaptainStamp") {
         const playerId = clients.get(ws);
@@ -2308,7 +2302,7 @@ function setupWebSocket(
 
         // Проверяем наличие обычной справки + флаг
         const certSlot = player.inventory.findIndex(
-          (item) => item && item.type === "medical_certificate",
+          (item) => item && item.type === "medical_certificate"
         );
 
         if (certSlot === -1 || !player.medicalCertificate) {
@@ -2317,7 +2311,7 @@ function setupWebSocket(
               type: "captainStampResult",
               success: false,
               error: "У вас нет медицинской справки МД-07!",
-            }),
+            })
           );
           return;
         }
@@ -2343,7 +2337,7 @@ function setupWebSocket(
             success: true,
             inventory: player.inventory,
             medicalCertificateStamped: true, // ← важно!
-          }),
+          })
         );
 
         // Уведомляем всех в мире (опционально — звук/эффект)
@@ -2355,7 +2349,7 @@ function setupWebSocket(
           JSON.stringify({
             type: "playerGotStamp",
             playerId: playerId,
-          }),
+          })
         );
       } else if (data.type === "submitCorporateDocuments") {
         const playerId = clients.get(ws);
@@ -2368,7 +2362,7 @@ function setupWebSocket(
           !player.medicalCertificate ||
           !player.medicalCertificateStamped ||
           !player.inventory.some(
-            (item) => item && item.type === "medical_certificate_stamped",
+            (item) => item && item.type === "medical_certificate_stamped"
           )
         ) {
           ws.send(
@@ -2376,7 +2370,7 @@ function setupWebSocket(
               type: "corporateDocumentsResult",
               success: false,
               error: "Документы не соответствуют требованиям корпорации.",
-            }),
+            })
           );
           return;
         }
@@ -2388,14 +2382,14 @@ function setupWebSocket(
               type: "corporateDocumentsResult",
               success: false,
               error: "Вы уже сдали документы ранее.",
-            }),
+            })
           );
           return;
         }
 
         // === УДАЛЯЕМ СПРАВКУ С ПЕЧАТЬЮ ИЗ ИНВЕНТАРЯ ===
         const certIndex = player.inventory.findIndex(
-          (item) => item && item.type === "medical_certificate_stamped",
+          (item) => item && item.type === "medical_certificate_stamped"
         );
         if (certIndex !== -1) {
           player.inventory[certIndex] = null;
@@ -2456,7 +2450,7 @@ function setupWebSocket(
         ];
 
         const freeSlots = player.inventory.filter(
-          (slot) => slot === null,
+          (slot) => slot === null
         ).length;
 
         if (freeSlots >= itemsToGive.length) {
@@ -2506,7 +2500,7 @@ function setupWebSocket(
                     isQuestItem: true,
                   },
                 ],
-              }),
+              })
             );
           });
         }
@@ -2532,7 +2526,7 @@ function setupWebSocket(
             upgradePoints: player.upgradePoints,
             inventory: player.inventory,
             corporateDocumentsSubmitted: true,
-          }),
+          })
         );
       } else if (data.type === "thimbleriggerBet") {
         const playerId = clients.get(ws);
@@ -2543,7 +2537,7 @@ function setupWebSocket(
 
         // Находим слот с балярами
         let balyarySlot = player.inventory.findIndex(
-          (item) => item && item.type === "balyary",
+          (item) => item && item.type === "balyary"
         );
         if (
           balyarySlot === -1 ||
@@ -2554,7 +2548,7 @@ function setupWebSocket(
               type: "thimbleriggerBetResult",
               success: false,
               error: "Недостаточно баляров!",
-            }),
+            })
           );
           return;
         }
@@ -2577,7 +2571,7 @@ function setupWebSocket(
             success: true,
             bet,
             inventory: player.inventory,
-          }),
+          })
         );
       } else if (data.type === "thimbleriggerGameResult") {
         const playerId = clients.get(ws);
@@ -2596,7 +2590,7 @@ function setupWebSocket(
               type: "thimbleriggerGameResultSync",
               success: false,
               error: "Неверный результат! Игра отменена.",
-            }),
+            })
           );
           return;
         }
@@ -2605,7 +2599,7 @@ function setupWebSocket(
         if (won) {
           // Добавляем выигрыш bet*2 баляров
           let balyarySlot = player.inventory.findIndex(
-            (item) => item && item.type === "balyary",
+            (item) => item && item.type === "balyary"
           );
           const winAmount = bet * 2;
           if (balyarySlot !== -1) {
@@ -2651,7 +2645,7 @@ function setupWebSocket(
             upgradePoints: player.upgradePoints,
             xpToNext: xpToNext,
             xpGained,
-          }),
+          })
         );
       } else if (data.type === "buyFromJack") {
         const playerId = clients.get(ws);
@@ -2660,7 +2654,7 @@ function setupWebSocket(
             JSON.stringify({
               type: "buyFromJackFail",
               error: "Игрок не найден",
-            }),
+            })
           );
           return;
         }
@@ -2673,7 +2667,7 @@ function setupWebSocket(
             JSON.stringify({
               type: "buyFromJackFail",
               error: "Неверный тип предмета",
-            }),
+            })
           );
           return;
         }
@@ -2690,7 +2684,7 @@ function setupWebSocket(
             JSON.stringify({
               type: "buyFromJackFail",
               error: "Этот предмет нельзя купить у Джека",
-            }),
+            })
           );
           return;
         }
@@ -2698,14 +2692,14 @@ function setupWebSocket(
         const price = cfg.rarity; // Цена = rarity
         if (data.price !== price) {
           ws.send(
-            JSON.stringify({ type: "buyFromJackFail", error: "Неверная цена" }),
+            JSON.stringify({ type: "buyFromJackFail", error: "Неверная цена" })
           );
           return;
         }
 
         // Находим баляры
         const balyarySlot = player.inventory.findIndex(
-          (s) => s && s.type === "balyary",
+          (s) => s && s.type === "balyary"
         );
         const balyaryQty =
           balyarySlot !== -1 ? player.inventory[balyarySlot].quantity || 0 : 0;
@@ -2714,7 +2708,7 @@ function setupWebSocket(
             JSON.stringify({
               type: "buyFromJackFail",
               error: "Не хватает баляров",
-            }),
+            })
           );
           return;
         }
@@ -2733,7 +2727,7 @@ function setupWebSocket(
             JSON.stringify({
               type: "buyFromJackFail",
               error: "Инвентарь полон",
-            }),
+            })
           );
           return;
         }
@@ -2755,16 +2749,13 @@ function setupWebSocket(
           JSON.stringify({
             type: "buyFromJackSuccess",
             inventory: player.inventory,
-          }),
+          })
         );
       } else if (data.type === "sellToJack") {
         const playerId = clients.get(ws);
         if (!playerId || !players.has(playerId)) {
           ws.send(
-            JSON.stringify({
-              type: "sellToJackFail",
-              error: "Игрок не найден",
-            }),
+            JSON.stringify({ type: "sellToJackFail", error: "Игрок не найден" })
           );
           return;
         }
@@ -2773,7 +2764,7 @@ function setupWebSocket(
         const slotIndex = data.slotIndex;
         if (slotIndex < 0 || slotIndex >= player.inventory.length) {
           ws.send(
-            JSON.stringify({ type: "sellToJackFail", error: "Неверный слот" }),
+            JSON.stringify({ type: "sellToJackFail", error: "Неверный слот" })
           );
           return;
         }
@@ -2781,7 +2772,7 @@ function setupWebSocket(
         const item = player.inventory[slotIndex];
         if (!item) {
           ws.send(
-            JSON.stringify({ type: "sellToJackFail", error: "Слот пустой" }),
+            JSON.stringify({ type: "sellToJackFail", error: "Слот пустой" })
           );
           return;
         }
@@ -2793,7 +2784,7 @@ function setupWebSocket(
             JSON.stringify({
               type: "sellToJackFail",
               error: "Неверный тип предмета",
-            }),
+            })
           );
           return;
         }
@@ -2809,7 +2800,7 @@ function setupWebSocket(
             JSON.stringify({
               type: "sellToJackFail",
               error: "Джек покупает только продукты питания",
-            }),
+            })
           );
           return;
         }
@@ -2817,7 +2808,7 @@ function setupWebSocket(
         player.inventory[slotIndex] = null;
 
         let balyarySlot = player.inventory.findIndex(
-          (s) => s && s.type === "balyary",
+          (s) => s && s.type === "balyary"
         );
         if (balyarySlot !== -1) {
           player.inventory[balyarySlot].quantity =
@@ -2836,7 +2827,7 @@ function setupWebSocket(
               JSON.stringify({
                 type: "sellToJackFail",
                 error: "Нет места для баляра",
-              }),
+              })
             );
             return;
           }
@@ -2852,28 +2843,10 @@ function setupWebSocket(
           JSON.stringify({
             type: "sellToJackSuccess",
             inventory: player.inventory,
-          }),
+          })
         );
-      } else if (data.type === "twister") {
-        const playerId = clients.get(ws);
-        if (!playerId) {
-          console.warn("Twister сообщение без playerId");
-          return;
-        }
-
-        handleTwisterMessage(
-          ws,
-          data,
-          players,
-          clients,
-          wss,
-          playerId,
-          saveUserDatabase,
-          dbCollection,
-          broadcastToWorld,
-        );
-        return;
-      } else if (data.type === "update" || data.type === "move") {
+      }
+      if (data.type === "update" || data.type === "move") {
         const playerId = clients.get(ws);
         if (!playerId || !players.has(playerId)) return;
 
@@ -2931,7 +2904,7 @@ function setupWebSocket(
           JSON.stringify({
             type: "update",
             player: updateData,
-          }),
+          })
         );
       }
     });
@@ -3020,7 +2993,7 @@ function setupWebSocket(
                     minDamage,
                   worldId: enemy.worldId,
                   spawnTime: now,
-                }),
+                })
               );
             }
 
@@ -3066,7 +3039,7 @@ function setupWebSocket(
 
                 closestPlayer.health = Math.max(
                   0,
-                  closestPlayer.health - damage,
+                  closestPlayer.health - damage
                 );
 
                 players.set(closestPlayer.id, { ...closestPlayer });
@@ -3084,7 +3057,7 @@ function setupWebSocket(
                     targetId: closestPlayer.id,
                     damage: damage,
                     enemyId: enemyId,
-                  }),
+                  })
                 );
 
                 broadcastToWorld(
@@ -3095,7 +3068,7 @@ function setupWebSocket(
                   JSON.stringify({
                     type: "update",
                     player: { id: closestPlayer.id, ...closestPlayer },
-                  }),
+                  })
                 );
               } else {
                 enemy.state = "attacking"; // держим анимацию
@@ -3142,7 +3115,7 @@ function setupWebSocket(
               health: enemy.health,
               lastAttackTime: enemy.lastAttackTime || 0,
             },
-          }),
+          })
         );
       });
     }, 200); // 200 мс — оптимально
