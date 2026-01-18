@@ -1,4 +1,4 @@
-// misterTwister.js — версия без кнопки ЗАКРЫТЬ и с фоном на всё окно
+// misterTwister.js — цифровые табло с перебором и замедлением
 
 const MISTER_TWISTER = {
   x: 500,
@@ -77,7 +77,7 @@ function updateLocalBalanceDisplay() {
   const el = document.getElementById("twister-balance");
   if (el) {
     el.textContent = count;
-    el.dataset.count = count; // для моментальной проверки перед спином
+    el.dataset.count = count;
   }
 }
 
@@ -95,10 +95,10 @@ function showTwisterMenu() {
         Баланс: <span id="twister-balance">загружается...</span>
       </p>
 
-      <div class="slot-reels">
-        <div class="reel"><div class="reel-strip" id="reel1"></div></div>
-        <div class="reel"><div class="reel-strip" id="reel2"></div></div>
-        <div class="reel"><div class="reel-strip" id="reel3"></div></div>
+      <div class="slot-displays">
+        <div class="digital-display" id="display1">?</div>
+        <div class="digital-display" id="display2">?</div>
+        <div class="digital-display" id="display3">?</div>
       </div>
 
       <button class="spin-button" id="twister-spin-btn">КРУТИТЬ!</button>
@@ -113,102 +113,103 @@ function showTwisterMenu() {
 
   document.body.appendChild(menuElement);
 
-  // Перехватываем обновление инвентаря чтобы показывать актуальный баланс
+  // Перехват обновления инвентаря
   const originalUpdate = window.inventorySystem.updateInventoryDisplay;
   window.inventorySystem.updateInventoryDisplay = function (...args) {
     originalUpdate.apply(this, args);
     if (isMenuOpen) updateLocalBalanceDisplay();
   };
 
-  // Первичное обновление баланса из локального инвентаря
+  // Кнопка спина
+  const spinBtn = document.getElementById("twister-spin-btn");
+  spinBtn.addEventListener("click", () => {
+    if (isSpinning) return;
+
+    const currentBalance = Number(
+      document.getElementById("twister-balance")?.dataset.count || 0,
+    );
+    if (currentBalance < 1) {
+      document.getElementById("twister-result").textContent =
+        "Недостаточно баляров!";
+      return;
+    }
+
+    isSpinning = true;
+    spinBtn.disabled = true;
+    document.getElementById("twister-result").textContent = "";
+
+    // Отправляем запрос на сервер
+    if (window.ws?.readyState === WebSocket.OPEN) {
+      window.ws.send(
+        JSON.stringify({
+          type: "twister",
+          subtype: "spin",
+        }),
+      );
+    }
+  });
+
+  // Первичное обновление баланса
   updateLocalBalanceDisplay();
-
-  document
-    .getElementById("twister-spin-btn")
-    ?.addEventListener("click", handleTwisterSpin);
-
-  // Запрашиваем состояние бонусной шкалы и флаг myBonusPointGiven
-  if (ws?.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ type: "twister", subtype: "getState" }));
-  }
 }
 
 function hideTwisterMenu() {
-  if (!isMenuOpen) return;
-  isMenuOpen = false;
   if (menuElement) {
     menuElement.remove();
     menuElement = null;
   }
+  isMenuOpen = false;
   isSpinning = false;
 }
 
-function handleTwisterSpin() {
-  if (isSpinning) return;
-
-  const balanceEl = document.getElementById("twister-balance");
-  const currentBalance = Number(balanceEl?.dataset.count) || 0;
-
-  if (currentBalance < 1) {
-    const resultEl = document.getElementById("twister-result");
-    resultEl.textContent = "Недостаточно баляров!";
-    resultEl.style.color = "#ff6666";
-    return;
-  }
-
-  isSpinning = true;
-  const btn = document.getElementById("twister-spin-btn");
-  if (btn) btn.disabled = true;
-
-  if (ws?.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ type: "twister", subtype: "spin" }));
-  } else {
-    const resultEl = document.getElementById("twister-result");
-    resultEl.textContent = "Ошибка соединения...";
-    resultEl.style.color = "#ff6666";
-    isSpinning = false;
-    if (btn) btn.disabled = false;
-  }
-}
-
-function animateReels() {
-  const reels = [
-    document.getElementById("reel1"),
-    document.getElementById("reel2"),
-    document.getElementById("reel3"),
+function animateDigitalDisplays(finalSymbols) {
+  const displays = [
+    document.getElementById("display1"),
+    document.getElementById("display2"),
+    document.getElementById("display3"),
   ];
 
-  if (!reels[0]) return;
+  if (!displays[0]) return;
 
-  // Создаём символы для анимации (простой вариант)
-  reels.forEach((reel) => {
-    reel.innerHTML = "";
-    for (let i = 0; i < 40; i++) {
-      const div = document.createElement("div");
-      div.className = "reel-symbol";
-      div.textContent = Math.floor(Math.random() * 10);
-      reel.appendChild(div);
-    }
+  // Разные длительности и задержки остановки для каждого табло
+  const timings = [
+    { totalDuration: 3200 + Math.random() * 400, stopAfter: 0 },
+    { totalDuration: 3600 + Math.random() * 500, stopAfter: 500 },
+    { totalDuration: 4100 + Math.random() * 600, stopAfter: 1100 },
+  ];
+
+  displays.forEach((el, index) => {
+    if (!el) return;
+
+    el.classList.add("running");
+    el.textContent = "?";
+
+    let start = performance.now();
+    let current = 0;
+
+    const timer = setInterval(() => {
+      const elapsed = performance.now() - start;
+      const config = timings[index];
+
+      if (elapsed >= config.totalDuration + config.stopAfter) {
+        clearInterval(timer);
+        el.textContent = finalSymbols[index];
+        el.classList.remove("running");
+        el.classList.add("stopped");
+        return;
+      }
+
+      // Плавное замедление (cubic ease-out)
+      const progress = Math.min(1, elapsed / config.totalDuration);
+      const eased = 1 - Math.pow(1 - progress, 3);
+
+      // Скорость от очень быстрой → почти остановка
+      const speed = 18 * (1 - eased) + 1.2;
+
+      current = (current + Math.floor(Math.random() * 4 + speed)) % 10;
+      el.textContent = current;
+    }, 55); // ~18 fps — достаточно плавно и не нагружает
   });
-
-  let progress = 0;
-  const duration = 2800 + Math.random() * 800;
-
-  const anim = setInterval(() => {
-    progress += 16;
-    if (progress >= duration) {
-      clearInterval(anim);
-      isSpinning = false;
-      const btn = document.getElementById("twister-spin-btn");
-      if (btn) btn.disabled = false;
-      return;
-    }
-
-    const offset = (progress / 1000) * 1200;
-    reels.forEach((r) => {
-      r.style.transform = `translateY(-${offset % (150 * 10)}px)`;
-    });
-  }, 16);
 }
 
 function updateTwisterState(data) {
@@ -240,8 +241,9 @@ function updateTwisterState(data) {
     resultEl.style.color = "#ff6666";
   }
 
-  if (data.shouldAnimate) {
-    animateReels();
+  if (data.shouldAnimate && data.symbols?.length === 3) {
+    // Запускаем красивую анимацию цифрового перебора
+    animateDigitalDisplays(data.symbols.map(String));
   }
 }
 
@@ -250,6 +252,16 @@ function handleTwisterMessage(data) {
     case "state":
     case "spinResult":
       updateTwisterState(data);
+      if (data.shouldAnimate) {
+        // Кнопку возвращаем в активное состояние после завершения анимации
+        setTimeout(() => {
+          const btn = document.getElementById("twister-spin-btn");
+          if (btn) {
+            btn.disabled = false;
+            isSpinning = false;
+          }
+        }, 5200); // чуть больше максимальной длительности анимации
+      }
       break;
 
     case "bonusWin":
@@ -262,7 +274,7 @@ function handleTwisterMessage(data) {
   }
 }
 
-// Отрисовка автомата на карте
+// Отрисовка автомата на карте (без изменений)
 function drawMisterTwister() {
   if (window.worldSystem.currentWorldId !== 0) return;
   if (!spriteReady || !sprite?.complete) return;

@@ -31,6 +31,7 @@ function handleTwisterMessage(
   playerId,
   saveUserDatabase,
   dbCollection,
+  broadcastToWorld, // ← добавлен параметр
 ) {
   const player = players.get(playerId);
   if (!player) return;
@@ -203,6 +204,7 @@ function handleTwisterMessage(
           result: resultText,
           won: winAmount > 0,
           shouldAnimate: true,
+          symbols: [s1, s2, s3], // ← очень важно! передаём чистые цифры клиенту
         }),
       );
 

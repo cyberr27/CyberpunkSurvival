@@ -2870,6 +2870,7 @@ function setupWebSocket(
           playerId,
           saveUserDatabase,
           dbCollection,
+          broadcastToWorld,
         );
         return;
       } else if (data.type === "update" || data.type === "move") {
