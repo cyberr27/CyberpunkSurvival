@@ -2861,7 +2861,7 @@ function setupWebSocket(
           players,
           clients,
           wss,
-          id,
+          playerId, 
           saveUserDatabase,
           dbCollection,
         );

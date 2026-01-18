@@ -1,4 +1,4 @@
-// misterTwister.js — версия с полноценным слот-автоматом
+// misterTwister.js — версия без кнопки ЗАКРЫТЬ и с фоном на всё окно
 
 const MISTER_TWISTER = {
   x: 500,
@@ -27,46 +27,6 @@ let isSpinning = false;
 let balance = 0;
 let bonusPoints = 0;
 let myBonusPointGiven = false;
-
-// Функция отрисовки автомата на карте (старая, не трогаем)
-function drawMisterTwister() {
-  if (window.worldSystem.currentWorldId !== 0) return;
-  if (!spriteReady || !sprite?.complete) return;
-
-  const camera = window.movementSystem.getCamera();
-  const sx = MISTER_TWISTER.x - camera.x;
-  const sy = MISTER_TWISTER.y - camera.y;
-
-  if (
-    sx + 90 < 0 ||
-    sx > canvas.width + 30 ||
-    sy + 130 < 0 ||
-    sy > canvas.height + 30
-  ) {
-    return;
-  }
-
-  const now = performance.now();
-  const cycleTime = CONFIG.animationDuration + CONFIG.pauseDuration;
-  const t = (now - animationStart) % cycleTime;
-
-  let frame = 0;
-  if (t < CONFIG.animationDuration) {
-    frame = Math.floor((t * CONFIG.frameCount) / CONFIG.animationDuration);
-  }
-
-  ctx.drawImage(
-    sprite,
-    frame * CONFIG.frameWidth,
-    0,
-    CONFIG.frameWidth,
-    CONFIG.frameHeight,
-    sx,
-    sy,
-    MISTER_TWISTER.width,
-    MISTER_TWISTER.height,
-  );
-}
 
 function initializeMisterTwister() {
   sprite = new Image();
@@ -110,7 +70,7 @@ function showTwisterMenu() {
   isMenuOpen = true;
 
   menuElement = document.createElement("div");
-  menuElement.className = "npc-dialog open";
+  menuElement.className = "npc-dialog open twister-full-window"; // добавили класс для стилизации фона
 
   menuElement.innerHTML = `
     <div class="npc-dialog-header">
@@ -118,45 +78,36 @@ function showTwisterMenu() {
     </div>
     
     <div class="npc-dialog-content">
-      <p class="npc-text" style="text-align:center; margin-bottom:8px;">
+      <p class="npc-text" style="text-align:center; margin: 12px 0;">
         Стоимость спина — <strong>1 баляр</strong><br>
         Баланс: <span id="twister-balance">?</span>
       </p>
 
-      <div class="twister-machine-container">
-        <div class="bonus-lights" id="bonus-lights">
-          ${Array(11).fill('<div class="bonus-light"></div>').join("")}
-        </div>
-
-        <div class="slot-reels">
-          <div class="reel"><div class="reel-strip" id="reel1"></div></div>
-          <div class="reel"><div class="reel-strip" id="reel2"></div></div>
-          <div class="reel"><div class="reel-strip" id="reel3"></div></div>
-        </div>
-
-        <button class="spin-button" id="twister-spin-btn">КРУТИТЬ!</button>
+      <div class="slot-reels">
+        <div class="reel"><div class="reel-strip" id="reel1"></div></div>
+        <div class="reel"><div class="reel-strip" id="reel2"></div></div>
+        <div class="reel"><div class="reel-strip" id="reel3"></div></div>
       </div>
 
-      <p id="twister-result" style="text-align:center; min-height:2.2em; margin-top:12px;"></p>
+      <button class="spin-button" id="twister-spin-btn">КРУТИТЬ!</button>
+
+      <p id="twister-result" style="text-align:center; min-height:2.2em; margin-top:16px;"></p>
     </div>
 
-    <button class="neon-btn">ЗАКРЫТЬ</button>
+    <div class="bonus-lights" id="bonus-lights">
+      ${Array(11).fill('<div class="bonus-light"></div>').join("")}
+    </div>
   `;
 
   document.body.appendChild(menuElement);
 
-  // События
   document
     .getElementById("twister-spin-btn")
     ?.addEventListener("click", handleTwisterSpin);
 
-  menuElement
-    .querySelector(".neon-btn")
-    .addEventListener("click", hideTwisterMenu, { once: true });
-
-  // Запрашиваем текущее состояние
+  // Запрос актуального состояния при открытии
   if (ws?.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ type: "twisterGetState" }));
+    ws.send(JSON.stringify({ type: "twister", subtype: "getState" }));
   }
 }
 
@@ -172,35 +123,35 @@ function hideTwisterMenu() {
 
 function handleTwisterSpin() {
   if (isSpinning) return;
+
   if (balance < 1) {
     document.getElementById("twister-result").textContent =
       "Недостаточно баляров!";
+    document.getElementById("twister-result").style.color = "#ff6666";
     return;
   }
 
   isSpinning = true;
-  document.getElementById("twister-spin-btn").disabled = true;
+  const spinBtn = document.getElementById("twister-spin-btn");
+  if (spinBtn) spinBtn.disabled = true;
   document.getElementById("twister-result").textContent = "Крутим...";
 
   if (ws?.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ type: "twisterSpin" }));
+    ws.send(JSON.stringify({ type: "twister", subtype: "spin" }));
   }
 }
 
-// Анимация вращения (визуальная)
 function animateReels() {
   if (!isMenuOpen || !document.getElementById("reel1")) return;
 
   const symbols = "0123456789".split("");
-  const reelHeight = 138 * 10; // высота одной ленты из 10 символов
+  const reelHeight = 138 * 10;
 
   const reels = [1, 2, 3].map((n) => document.getElementById(`reel${n}`));
 
-  // Заполняем длинную ленту для эффекта прокрутки
   reels.forEach((reel) => {
     reel.innerHTML = "";
     for (let i = 0; i < 40; i++) {
-      // достаточно для плавной анимации
       const sym = symbols[Math.floor(Math.random() * 10)];
       const div = document.createElement("div");
       div.className = `reel-symbol ${sym === "7" ? "seven" : sym === "3" ? "three" : ""}`;
@@ -210,7 +161,7 @@ function animateReels() {
   });
 
   let progress = 0;
-  const duration = 2800 + Math.random() * 800; // 2.8–3.6 сек
+  const duration = 2800 + Math.random() * 800;
 
   const anim = setInterval(() => {
     progress += 16;
@@ -222,14 +173,13 @@ function animateReels() {
       return;
     }
 
-    const offset = (progress / 1000) * 1200; // скорость прокрутки
+    const offset = (progress / 1000) * 1200;
     reels.forEach((r) => {
       r.style.transform = `translateY(-${offset % reelHeight}px)`;
     });
   }, 16);
 }
 
-// Обновляем состояние после ответа сервера
 function updateTwisterState(data) {
   if (!isMenuOpen) return;
 
@@ -237,24 +187,23 @@ function updateTwisterState(data) {
   bonusPoints = Math.min(11, data.bonusPoints ?? 0);
   myBonusPointGiven = data.myBonusPointGiven ?? false;
 
-  document.getElementById("twister-balance").textContent = balance;
+  const balanceEl = document.getElementById("twister-balance");
+  if (balanceEl) balanceEl.textContent = balance;
 
-  // Обновляем огоньки бонуса
   const lights = document.querySelectorAll(".bonus-light");
   lights.forEach((el, i) => {
     el.classList.toggle("active", i < bonusPoints);
   });
 
+  const resultEl = document.getElementById("twister-result");
   if (data.result) {
-    document.getElementById("twister-result").innerHTML = data.result;
-    if (data.won) {
-      document.getElementById("twister-result").style.color = "#00ff88";
-    } else {
-      document.getElementById("twister-result").style.color = "#ff6666";
-    }
+    resultEl.innerHTML = data.result;
+    resultEl.style.color = data.won ? "#00ff88" : "#ff6666";
+  } else if (data.error) {
+    resultEl.textContent = data.error;
+    resultEl.style.color = "#ff6666";
   }
 
-  // Запускаем красивую анимацию вращения
   if (data.shouldAnimate) {
     animateReels();
   }
@@ -263,8 +212,6 @@ function updateTwisterState(data) {
 function handleTwisterMessage(data) {
   switch (data.subtype) {
     case "state":
-      updateTwisterState(data);
-      break;
     case "spinResult":
       updateTwisterState(data);
       break;
@@ -279,10 +226,49 @@ function handleTwisterMessage(data) {
   }
 }
 
+// Отрисовка автомата на карте (не трогаем)
+function drawMisterTwister() {
+  if (window.worldSystem.currentWorldId !== 0) return;
+  if (!spriteReady || !sprite?.complete) return;
+
+  const camera = window.movementSystem.getCamera();
+  const sx = MISTER_TWISTER.x - camera.x;
+  const sy = MISTER_TWISTER.y - camera.y;
+
+  if (
+    sx + 90 < 0 ||
+    sx > canvas.width + 30 ||
+    sy + 130 < 0 ||
+    sy > canvas.height + 30
+  )
+    return;
+
+  const now = performance.now();
+  const cycleTime = CONFIG.animationDuration + CONFIG.pauseDuration;
+  const t = (now - animationStart) % cycleTime;
+
+  let frame = 0;
+  if (t < CONFIG.animationDuration) {
+    frame = Math.floor((t * CONFIG.frameCount) / CONFIG.animationDuration);
+  }
+
+  ctx.drawImage(
+    sprite,
+    frame * CONFIG.frameWidth,
+    0,
+    CONFIG.frameWidth,
+    CONFIG.frameHeight,
+    sx,
+    sy,
+    MISTER_TWISTER.width,
+    MISTER_TWISTER.height,
+  );
+}
+
 window.misterTwister = {
   initialize: initializeMisterTwister,
   checkProximity: checkMisterTwisterProximity,
-  draw: drawMisterTwister, // ← важно! это для карты
+  draw: drawMisterTwister,
   hideMenu: hideTwisterMenu,
   handleMessage: handleTwisterMessage,
   updateState: updateTwisterState,
