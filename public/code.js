@@ -2292,6 +2292,11 @@ function handleGameMessage(event) {
       case "sellToJackFail":
         alert(data.error || "Ошибка продажи");
         break;
+      case "twister":
+        if (window.misterTwister?.handleMessage) {
+          window.misterTwister.handleMessage(data);
+        }
+        break;
     }
   } catch (error) {
     console.error("Ошибка в handleGameMessage:", error);
