@@ -1,10 +1,5 @@
 // misterTwisterServer.js
 
-// ────────────────────────────────────────────────────────────────
-// Очень важно: правильный импорт broadcastToWorld
-const { broadcastToWorld } = require("./websocket");
-// ────────────────────────────────────────────────────────────────
-
 const REEL_STRIP = [
   0, 1, 2, 3, 3, 4, 5, 6, 7, 8, 9, 1, 2, 4, 5, 6, 8, 9, 0, 3, 3, 7,
 ];
@@ -27,7 +22,7 @@ function getSymbolAt(position) {
   return REEL_STRIP[position];
 }
 
-async function handleTwisterMessage(
+function handleTwisterMessage(
   ws,
   message,
   players,
@@ -87,7 +82,7 @@ async function handleTwisterMessage(
         return;
       }
 
-      // Снимаем 1 баляр
+      // снимаем 1 баляр
       if (balyaryCount === 1) {
         player.inventory[balyarySlotIndex] = null;
       } else {
@@ -131,7 +126,7 @@ async function handleTwisterMessage(
       ) {
         winAmount = 75;
         bonusWon = true;
-        resultText = `БОЛЬШОЙ БОНУС! ${comboStr} → 75 баляров!`;
+        resultText = `БОЛЬШОЙ БОНУС! ${s1} ${s2} ${s3} → 75 баляров!`;
         twisterState.bonusPoints = 0;
         twisterState.playersWhoGavePointThisCycle.clear();
         twisterState.lastBonusWinner = playerId;
@@ -183,13 +178,16 @@ async function handleTwisterMessage(
         }
       }
 
-      await saveUserDatabase(dbCollection, playerId, player);
+      saveUserDatabase(dbCollection, playerId, player);
 
       ws.send(
         JSON.stringify({
           type: "twister",
           subtype: bonusWon ? "bonusWin" : "spinResult",
-          balance: player.inventory[balyarySlotIndex]?.quantity || 0,
+          balance:
+            winAmount > 0
+              ? player.inventory[balyarySlotIndex]?.quantity || 0
+              : undefined,
           bonusPoints: twisterState.bonusPoints,
           myBonusPointGiven:
             twisterState.playersWhoGavePointThisCycle.has(playerId),

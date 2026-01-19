@@ -3,91 +3,87 @@
 .npc-dialog.open.twister-full-window {
   background: url("mister_twister_slot_bg.png") center/cover no-repeat;
   min-height: 520px;
-  overflow: none;
+  overflow: hidden;
+  position: relative;
 }
 
 .npc-dialog-content {
   padding: 16px;
   margin: 12px;
-}
-
-.slot-reels {
   position: relative;
-  display: flex;
-  justify-content: center;
-  gap: 14px;
-  margin: 20px 0 40px;
+  z-index: 2;
 }
 
-.reel {
-  width: 100px;
-  height: 150px;
-  background: rgba(0, 0, 0, 0.85);
-  border: 3px solid #ff00aa;
-  border-radius: 12px;
+.digital-slots {
+  display: flex;
+  justify-content: center;
+  gap: 24px; /* расстояние между табло — настраивай здесь */
+  margin: 32px 0 40px;
+  perspective: 800px; /* для лёгкого 3D-эффекта при желании */
+}
+
+.digital-reel {
+  width: 90px;
+  height: 110px;
+  position: relative;
+  border: 4px solid #ff00aa;
+  border-radius: 16px;
   overflow: hidden;
-  box-shadow: inset 0 0 24px #000;
+  background: rgba(0, 0, 0, 0.75);
+  box-shadow:
+    inset 0 0 30px #000,
+    0 0 30px rgba(255, 0, 170, 0.4);
 }
 
-.reel-symbol {
-  width: 100px;
-  height: 150px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 5.2rem;
-  font-weight: bold;
-  color: #00ffea;
-  text-shadow:
-    0 0 14px currentColor,
-    0 0 28px #000;
-  background: linear-gradient(180deg, #001122 0%, #000814 100%);
-}
-
-.reel-symbol.seven {
-  color: #ff0044;
-  text-shadow: 0 0 18px #ff0044;
-}
-.reel-symbol.three {
-  color: #00ff44;
-  text-shadow: 0 0 18px #00ff44;
+.digital-reel canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
 }
 
 .spin-button {
   display: block;
   margin: 0 auto 20px;
-  padding: 16px 64px;
-  font-size: 1.5rem;
+  padding: 16px 80px;
+  font-size: 1.6rem;
   font-weight: bold;
   color: white;
   background: linear-gradient(45deg, #ff0066, #ff00aa);
   border: none;
-  border-radius: 14px;
-  box-shadow: 0 0 35px rgba(255, 0, 102, 0.8);
+  border-radius: 16px;
+  box-shadow: 0 0 40px rgba(255, 0, 102, 0.9);
   cursor: pointer;
+  transition: all 0.15s;
+}
+
+.spin-button:hover:not(:disabled) {
+  transform: scale(1.06);
+  box-shadow: 0 0 60px rgba(255, 0, 102, 0.7);
 }
 
 .spin-button:disabled {
   background: #444;
   box-shadow: none;
-  opacity: 0.6;
+  opacity: 0.55;
   cursor: not-allowed;
 }
 
 .bonus-lights {
   display: flex;
   justify-content: center;
-  gap: 12px;
-  margin: 16px 0;
+  gap: 14px;
+  margin: 20px 0;
+  flex-wrap: wrap;
 }
 
 .bonus-light {
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
-  background: #330022;
+  background: #220011;
   border: 2px solid #660044;
-  box-shadow: inset 0 0 10px #000;
+  box-shadow: inset 0 0 12px #000;
   transition: all 0.4s;
 }
 
@@ -95,13 +91,15 @@
   background: #ff0066;
   border-color: #ff88cc;
   box-shadow:
-    0 0 28px #ff0066,
-    inset 0 0 14px white;
+    0 0 32px #ff0066,
+    inset 0 0 16px white;
 }
 
-/* Увеличиваем читаемость текста */
-.npc-text,
 #twister-result {
   color: #e0ffff;
-  text-shadow: 0 0 6px #00ffff80;
+  text-shadow: 0 0 8px #00ffff90;
+  font-size: 1.4rem;
+  text-align: center;
+  min-height: 3em;
+  margin-top: 12px;
 }
