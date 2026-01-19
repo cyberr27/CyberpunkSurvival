@@ -1,4 +1,6 @@
-// misterTwisterServer.js — без изменений в основной логике
+// misterTwisterServer.js
+
+const { broadcastToWorld } = require("./websocket"); // ← ІМПОРТ ДОДАНО!
 
 const REEL_STRIP = [
   0, 1, 2, 3, 3, 4, 5, 6, 7, 8, 9, 1, 2, 4, 5, 6, 8, 9, 0, 3, 3, 7,
@@ -82,7 +84,7 @@ function handleTwisterMessage(
         return;
       }
 
-      // снимаем 1 баляр
+      // Знімаємо 1 баляр
       if (balyaryCount === 1) {
         player.inventory[balyarySlotIndex] = null;
       } else {
@@ -184,10 +186,7 @@ function handleTwisterMessage(
         JSON.stringify({
           type: "twister",
           subtype: bonusWon ? "bonusWin" : "spinResult",
-          balance:
-            winAmount > 0
-              ? player.inventory[balyarySlotIndex]?.quantity || 0
-              : undefined,
+          balance: player.inventory[balyarySlotIndex]?.quantity || 0,
           bonusPoints: twisterState.bonusPoints,
           myBonusPointGiven:
             twisterState.playersWhoGavePointThisCycle.has(playerId),
