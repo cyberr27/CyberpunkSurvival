@@ -91,8 +91,8 @@ function showTwisterMenu() {
   menuElement.className = "npc-dialog open twister-full-window";
 
   menuElement.innerHTML = `
-    <div class="npc-dialog-content">
-      <p class="npc-text" style="text-align:center; margin:16px 0;">
+    <div class="npc-dialog-content" style="overflow: hidden;">
+      <p class="npc-text" style="text-align:center;">
         Стоимость спина — <strong>1 баляр</strong><br>
         Баланс: <span id="twister-balance">…</span>
       </p>
@@ -103,14 +103,24 @@ function showTwisterMenu() {
         <div class="digital-reel" id="reel3"><canvas width="70" height="70"></canvas></div>
       </div>
 
-      <button class="spin-button" id="twister-spin-btn">КРУТИТЬ!</button>
+      <button class="spin-button" id="twister-spin-btn">1$</button>
 
       <p id="twister-result"></p>
     </div>
 
     <div class="bonus-lights" id="bonus-lights">
-      ${Array(11).fill('<div class="bonus-light"></div>').join("")}
-    </div>
+  <div class="bonus-light bonus-light-0"></div>
+  <div class="bonus-light bonus-light-1"></div>
+  <div class="bonus-light bonus-light-2"></div>
+  <div class="bonus-light bonus-light-3"></div>
+  <div class="bonus-light bonus-light-4"></div>
+  <div class="bonus-light bonus-light-5"></div>
+  <div class="bonus-light bonus-light-6"></div>
+  <div class="bonus-light bonus-light-7"></div>
+  <div class="bonus-light bonus-light-8"></div>
+  <div class="bonus-light bonus-light-9"></div>
+  <div class="bonus-light bonus-light-10"></div>
+</div>
   `;
 
   document.body.appendChild(menuElement);

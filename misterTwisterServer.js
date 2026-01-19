@@ -31,6 +31,7 @@ function handleTwisterMessage(
   playerId,
   saveUserDatabase,
   dbCollection,
+  broadcastToWorld, // ← добавили сюда
 ) {
   const player = players.get(playerId);
   if (!player) return;
@@ -180,14 +181,20 @@ function handleTwisterMessage(
 
       saveUserDatabase(dbCollection, playerId, player);
 
+      // пересчитываем актуальный баланс
+      const currentBalyarySlot = player.inventory.findIndex(
+        (s) => s?.type === "balyary",
+      );
+      const currentBalance =
+        currentBalyarySlot !== -1
+          ? player.inventory[currentBalyarySlot]?.quantity || 0
+          : 0;
+
       ws.send(
         JSON.stringify({
           type: "twister",
           subtype: bonusWon ? "bonusWin" : "spinResult",
-          balance:
-            winAmount > 0
-              ? player.inventory[balyarySlotIndex]?.quantity || 0
-              : undefined,
+          balance: currentBalance,
           bonusPoints: twisterState.bonusPoints,
           myBonusPointGiven:
             twisterState.playersWhoGavePointThisCycle.has(playerId),

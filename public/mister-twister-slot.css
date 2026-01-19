@@ -12,27 +12,21 @@
   margin: 12px;
   position: relative;
   z-index: 2;
+  overflow: hidden;
 }
 
 .digital-slots {
   display: flex;
-  justify-content: center;
-  gap: 24px; /* расстояние между табло — настраивай здесь */
+  justify-content: center; /* расстояние между табло — настраивай здесь */
   margin: 32px 0 40px;
   perspective: 800px; /* для лёгкого 3D-эффекта при желании */
 }
 
 .digital-reel {
-  width: 90px;
-  height: 110px;
-  position: relative;
-  border: 4px solid #ff00aa;
-  border-radius: 16px;
+  width: 95px;
+  height: 75px;
   overflow: hidden;
   background: rgba(0, 0, 0, 0.75);
-  box-shadow:
-    inset 0 0 30px #000,
-    0 0 30px rgba(255, 0, 170, 0.4);
 }
 
 .digital-reel canvas {
@@ -42,24 +36,27 @@
   height: 100%;
 }
 
-.spin-button {
-  display: block;
-  margin: 0 auto 20px;
-  padding: 16px 80px;
-  font-size: 1.6rem;
-  font-weight: bold;
-  color: white;
-  background: linear-gradient(45deg, #ff0066, #ff00aa);
-  border: none;
-  border-radius: 16px;
-  box-shadow: 0 0 40px rgba(255, 0, 102, 0.9);
-  cursor: pointer;
-  transition: all 0.15s;
+#reel1 {
+  transform: translateY(45px) translateX(-45px);
+}
+#reel2 {
+  transform: translateY(45px) translateX(-40px);
+}
+#reel3 {
+  transform: translateY(45px) rotate(1deg) translateX(-35px);
 }
 
-.spin-button:hover:not(:disabled) {
-  transform: scale(1.06);
-  box-shadow: 0 0 60px rgba(255, 0, 102, 0.7);
+.spin-button {
+  position: relative;
+  left: 48%;
+  top: 4%;
+  width: 30%;
+  height: 13%;
+  text-align: left;
+  background: none;
+  color: yellow;
+  font-size: 25px;
+  font-weight: bold;
 }
 
 .spin-button:disabled {
@@ -93,6 +90,61 @@
   box-shadow:
     0 0 32px #ff0066,
     inset 0 0 16px white;
+}
+
+/* Бонусные огоньки — теперь каждый со своим классом */
+.bonus-lights {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+  max-width: 420px;
+  position: relative;
+}
+
+.bonus-light {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #222;
+  box-shadow: inset 0 0 8px #111;
+  transition: all 0.4s ease;
+}
+
+/* Индивидуальные классы для позиционирования */
+.bonus-light-0 {
+  /* первый */
+  /* transform: translate(0, 0); */ /* пример */
+}
+.bonus-light-1 {
+}
+.bonus-light-2 {
+}
+.bonus-light-3 {
+}
+.bonus-light-4 {
+}
+.bonus-light-5 {
+}
+.bonus-light-6 {
+}
+.bonus-light-7 {
+}
+.bonus-light-8 {
+}
+.bonus-light-9 {
+}
+.bonus-light-10 {
+  /* последний */
+
+  /* transform: translate(20px, -10px); */ /* пример смещения */
+}
+
+.bonus-light.active {
+  background: #ffaa00;
+  box-shadow:
+    0 0 20px #ffaa00,
+    inset 0 0 12px #ff8800;
 }
 
 #twister-result {
