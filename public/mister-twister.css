@@ -1,120 +1,111 @@
-/* mister-twister.css */
-/* Стили специально для Mister Twister и его диалогового окна */
+/* mister-twister.css — цифровий автомат, горизонтальні 70×70 екрани */
 
-.npc-dialog.open {
+.npc-dialog.open.twister-full-window {
   position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 1500;
-
-  width: min(90vw, 460px);
-  min-height: 220px;
-
-  background: rgba(15, 15, 35, 0.92);
-  border: 2px solid #00f0ff;
-  border-radius: 12px;
-  box-shadow:
-    0 0 40px rgba(0, 240, 255, 0.45),
-    inset 0 0 25px rgba(0, 240, 255, 0.18);
-
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: rgba(4, 8, 22, 0.96);
+  backdrop-filter: blur(3px);
+  z-index: 1600;
   font-family: "Courier New", Courier, monospace;
-  color: #e0f0ff;
+  color: #d0f0ff;
   overflow: hidden;
-
-  animation: dialogAppear 0.4s ease-out;
 }
 
-@keyframes dialogAppear {
-  from {
-    opacity: 0;
-    transform: translate(-50%, -60%) scale(0.92);
-  }
-  to {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
-  }
-}
-
-/* Заголовок */
-.npc-dialog-header {
-  padding: 14px 20px;
-  background: linear-gradient(180deg, #001f33 0%, #000814 100%);
-  border-bottom: 2px solid #00d4ff;
-  text-align: center;
-}
-
-.npc-title {
-  margin: 0;
-  font-size: 1.8rem;
-  font-weight: bold;
-  color: #00f0ff;
-  text-shadow:
-    0 0 10px #00f0ff,
-    0 0 20px #00b7eb;
-  letter-spacing: 2px;
-}
-
-/* Основное содержимое */
 .npc-dialog-content {
-  padding: 20px 24px;
-  line-height: 1.45;
-  font-size: 1.05rem;
+  position: relative;
+  z-index: 2;
+  padding: 20px;
+  max-width: 520px;
+  margin: 0 auto;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 24px;
 }
 
-.npc-text {
-  margin: 0;
-  color: #d0e8ff;
+.digital-slots {
+  display: flex;
+  flex-direction: row;
+  gap: 16px;
+  justify-content: center;
+  margin: 20px 0;
 }
 
-.npc-text strong {
-  color: #ff00aa;
-  text-shadow: 0 0 8px #ff00aa80;
+.digital-reel {
+  width: 70px;
+  height: 70px;
+  border: 3px solid #00d4ff;
+  border-radius: 10px;
+  background: #000814;
+  box-shadow:
+    inset 0 0 18px #001f33,
+    0 0 28px rgba(0, 212, 255, 0.4);
+  overflow: hidden;
 }
 
-/* Кнопка закрытия */
-.neon-btn {
-  display: block;
-  margin: 20px auto 24px;
-  padding: 12px 42px;
+.digital-reel canvas {
+  image-rendering: pixelated; /* чіткі пікселі, якщо потрібно */
+}
 
-  font-family: "Courier New", monospace;
-  font-size: 1.1rem;
+.spin-button {
+  padding: 16px 72px;
+  font-size: 1.6rem;
   font-weight: bold;
   color: #00f0ff;
-  text-shadow: 0 0 10px currentColor;
-
+  text-shadow: 0 0 12px currentColor;
   background: transparent;
-  border: 2px solid #00f0ff;
-  border-radius: 8px;
-
+  border: 3px solid #00f0ff;
+  border-radius: 12px;
   cursor: pointer;
-  transition: all 0.18s ease;
+  transition: all 0.2s ease;
 }
 
-.neon-btn:hover {
-  background: rgba(0, 240, 255, 0.14);
-  box-shadow: 0 0 25px rgba(0, 240, 255, 0.6);
-  transform: translateY(-2px);
+.spin-button:hover:not(:disabled) {
+  background: rgba(0, 240, 255, 0.18);
+  box-shadow: 0 0 40px rgba(0, 240, 255, 0.7);
+  transform: scale(1.06);
 }
 
-.neon-btn:active {
-  transform: translateY(1px);
-  box-shadow: 0 0 15px rgba(0, 240, 255, 0.4);
+.spin-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
-/* Адаптивность для очень маленьких экранов */
-@media (max-width: 380px) {
-  .npc-dialog.open {
-    width: 94vw;
-  }
+.bonus-lights {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+  max-width: 420px;
+}
 
-  .npc-title {
-    font-size: 1.55rem;
-  }
+.bonus-light {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #222;
+  box-shadow: inset 0 0 8px #111;
+  transition: all 0.4s ease;
+}
 
-  .npc-dialog-content {
-    font-size: 0.98rem;
-    padding: 16px 18px;
-  }
+.bonus-light.active {
+  background: #ffaa00;
+  box-shadow:
+    0 0 20px #ffaa00,
+    inset 0 0 12px #ff8800;
+}
+
+#twister-result {
+  font-size: 1.4rem;
+  min-height: 3em;
+  text-align: center;
+  text-shadow: 0 0 10px rgba(0, 255, 180, 0.6);
 }

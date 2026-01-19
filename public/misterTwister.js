@@ -1,4 +1,4 @@
-// misterTwister.js — версия без кнопки ЗАКРЫТЬ и с фоном на всё окно
+// misterTwister.js — цифровий автомат, горизонтальні 70x70 екрани, вертикальна анімація
 
 const MISTER_TWISTER = {
   x: 500,
@@ -13,11 +13,20 @@ const CONFIG = {
   frameHeight: 100,
   animationDuration: 5000,
   pauseDuration: 10000,
-  interactionRadiusSq: 4900, // ~70px радиус
+  interactionRadiusSq: 4900, // ~70px радіус
 };
 
-let sprite = null;
+const SLOT_SPRITE = {
+  src: "mister_twister_slot_sprite.png",
+  frameWidth: 70,
+  frameHeight: 70,
+  frameCount: 10, // 0..9 зверху вниз
+};
+
+let sprite = null; // спрайт самого Містер Твістера
+let slotSprite = null; // спрайт цифр (вертикальна стрічка)
 let spriteReady = false;
+let slotSpriteReady = false;
 let animationStart = 0;
 let isMenuOpen = false;
 let menuElement = null;
@@ -31,9 +40,14 @@ let myBonusPointGiven = false;
 function initializeMisterTwister() {
   sprite = new Image();
   sprite.src = "mister_twister.png";
-
   sprite.onload = () => {
     spriteReady = true;
+  };
+
+  slotSprite = new Image();
+  slotSprite.src = SLOT_SPRITE.src;
+  slotSprite.onload = () => {
+    slotSpriteReady = true;
   };
 
   animationStart = performance.now();
@@ -54,12 +68,8 @@ function checkMisterTwisterProximity() {
 
   const nowInRange = dx * dx + dy * dy < CONFIG.interactionRadiusSq;
 
-  if (!nowInRange && !wasInRangeLastFrame) return;
-
-  if (nowInRange && !wasInRangeLastFrame) {
-    showTwisterMenu();
-  } else if (!nowInRange && wasInRangeLastFrame) {
-    hideTwisterMenu();
+  if (nowInRange !== wasInRangeLastFrame) {
+    nowInRange ? showTwisterMenu() : hideTwisterMenu();
   }
 
   wasInRangeLastFrame = nowInRange;
@@ -68,16 +78,14 @@ function checkMisterTwisterProximity() {
 function updateLocalBalanceDisplay() {
   if (!isMenuOpen) return;
 
-  const balyarySlot = window.inventory.findIndex(
-    (slot) => slot && slot.type === "balyary",
-  );
+  const balyarySlot = window.inventory.findIndex((s) => s?.type === "balyary");
   const count =
     balyarySlot !== -1 ? window.inventory[balyarySlot]?.quantity || 1 : 0;
 
   const el = document.getElementById("twister-balance");
   if (el) {
     el.textContent = count;
-    el.dataset.count = count; // для моментальной проверки перед спином
+    el.dataset.count = count;
   }
 }
 
@@ -90,18 +98,18 @@ function showTwisterMenu() {
 
   menuElement.innerHTML = `
     <div class="npc-dialog-content">
-      <p class="npc-text" style="text-align:center; margin: 12px 0;">
-        Стоимость спина — <strong>1 баляр</strong><br>
-        Баланс: <span id="twister-balance">загружается...</span>
+      <p class="npc-text" style="text-align:center; margin:12px 0;">
+        Вартість спіна — <strong>1 баляр</strong><br>
+        Баланс: <span id="twister-balance">завантажується...</span>
       </p>
 
-      <div class="slot-reels">
-        <div class="reel"><div class="reel-strip" id="reel1"></div></div>
-        <div class="reel"><div class="reel-strip" id="reel2"></div></div>
-        <div class="reel"><div class="reel-strip" id="reel3"></div></div>
+      <div class="digital-slots">
+        <div class="digital-reel" id="reel1"><canvas width="70" height="70"></canvas></div>
+        <div class="digital-reel" id="reel2"><canvas width="70" height="70"></canvas></div>
+        <div class="digital-reel" id="reel3"><canvas width="70" height="70"></canvas></div>
       </div>
 
-      <button class="spin-button" id="twister-spin-btn">КРУТИТЬ!</button>
+      <button class="spin-button" id="twister-spin-btn">КРУТИТИ!</button>
 
       <p id="twister-result" style="text-align:center; min-height:2.2em; margin-top:16px;"></p>
     </div>
@@ -113,24 +121,17 @@ function showTwisterMenu() {
 
   document.body.appendChild(menuElement);
 
-  // Перехватываем обновление инвентаря чтобы показывать актуальный баланс
   const originalUpdate = window.inventorySystem.updateInventoryDisplay;
   window.inventorySystem.updateInventoryDisplay = function (...args) {
     originalUpdate.apply(this, args);
     if (isMenuOpen) updateLocalBalanceDisplay();
   };
 
-  // Первичное обновление баланса из локального инвентаря
   updateLocalBalanceDisplay();
 
   document
     .getElementById("twister-spin-btn")
     ?.addEventListener("click", handleTwisterSpin);
-
-  // Запрашиваем состояние бонусной шкалы и флаг myBonusPointGiven
-  if (ws?.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ type: "twister", subtype: "getState" }));
-  }
 }
 
 function hideTwisterMenu() {
@@ -151,7 +152,7 @@ function handleTwisterSpin() {
 
   if (currentBalance < 1) {
     const resultEl = document.getElementById("twister-result");
-    resultEl.textContent = "Недостаточно баляров!";
+    resultEl.textContent = "Недостатньо балярів!";
     resultEl.style.color = "#ff6666";
     return;
   }
@@ -162,53 +163,85 @@ function handleTwisterSpin() {
 
   if (ws?.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({ type: "twister", subtype: "spin" }));
-  } else {
-    const resultEl = document.getElementById("twister-result");
-    resultEl.textContent = "Ошибка соединения...";
-    resultEl.style.color = "#ff6666";
-    isSpinning = false;
-    if (btn) btn.disabled = false;
   }
 }
 
-function animateReels() {
-  const reels = [
-    document.getElementById("reel1"),
-    document.getElementById("reel2"),
-    document.getElementById("reel3"),
+function animateDigitalReels(finalSymbols) {
+  if (!slotSpriteReady) return;
+
+  const canvases = [
+    document.querySelector("#reel1 canvas"),
+    document.querySelector("#reel2 canvas"),
+    document.querySelector("#reel3 canvas"),
   ];
 
-  if (!reels[0]) return;
+  if (!canvases[0]) return;
 
-  // Создаём символы для анимации (простой вариант)
-  reels.forEach((reel) => {
-    reel.innerHTML = "";
-    for (let i = 0; i < 40; i++) {
-      const div = document.createElement("div");
-      div.className = "reel-symbol";
-      div.textContent = Math.floor(Math.random() * 10);
-      reel.appendChild(div);
+  const ctxs = canvases.map((c) => c.getContext("2d"));
+
+  const TOTAL_DURATION = 5000;
+  const SLOWDOWN_START = 3200;
+  const BASE_SPEED = 0.32; // трохи швидше на початку
+
+  let startTime = performance.now();
+
+  function drawReel(ctx, progress, finalFrame) {
+    ctx.clearRect(0, 0, 70, 70);
+
+    let currentSpeed = BASE_SPEED;
+    if (progress > SLOWDOWN_START) {
+      const t = (progress - SLOWDOWN_START) / (TOTAL_DURATION - SLOWDOWN_START);
+      currentSpeed *= 1 - t * 0.94; // майже до 0
     }
-  });
 
-  let progress = 0;
-  const duration = 2800 + Math.random() * 800;
+    const virtualPos = (progress * currentSpeed) % SLOT_SPRITE.frameCount;
+    const frame = Math.floor(virtualPos);
 
-  const anim = setInterval(() => {
-    progress += 16;
-    if (progress >= duration) {
-      clearInterval(anim);
+    ctx.drawImage(
+      slotSprite,
+      0,
+      frame * SLOT_SPRITE.frameHeight,
+      SLOT_SPRITE.frameWidth,
+      SLOT_SPRITE.frameHeight,
+      0,
+      0,
+      70,
+      70,
+    );
+  }
+
+  function anim() {
+    const now = performance.now();
+    const elapsed = now - startTime;
+
+    ctxs.forEach((ctx, i) => drawReel(ctx, elapsed, finalSymbols[i]));
+
+    if (elapsed < TOTAL_DURATION) {
+      requestAnimationFrame(anim);
+    } else {
+      // фінальна зупинка
+      ctxs.forEach((ctx, i) => {
+        ctx.clearRect(0, 0, 70, 70);
+        ctx.drawImage(
+          slotSprite,
+          0,
+          finalSymbols[i] * SLOT_SPRITE.frameHeight,
+          SLOT_SPRITE.frameWidth,
+          SLOT_SPRITE.frameHeight,
+          0,
+          0,
+          70,
+          70,
+        );
+      });
+
       isSpinning = false;
       const btn = document.getElementById("twister-spin-btn");
       if (btn) btn.disabled = false;
-      return;
     }
+  }
 
-    const offset = (progress / 1000) * 1200;
-    reels.forEach((r) => {
-      r.style.transform = `translateY(-${offset % (150 * 10)}px)`;
-    });
-  }, 16);
+  requestAnimationFrame(anim);
 }
 
 function updateTwisterState(data) {
@@ -226,22 +259,46 @@ function updateTwisterState(data) {
   bonusPoints = Math.min(11, data.bonusPoints ?? 0);
   myBonusPointGiven = data.myBonusPointGiven ?? false;
 
-  const lights = document.querySelectorAll(".bonus-light");
-  lights.forEach((el, i) => {
-    el.classList.toggle("active", i < bonusPoints);
-  });
+  document
+    .querySelectorAll(".bonus-light")
+    .forEach((el, i) => el.classList.toggle("active", i < bonusPoints));
 
   const resultEl = document.getElementById("twister-result");
-  if (data.result) {
-    resultEl.innerHTML = data.result;
-    resultEl.style.color = data.won ? "#00ff88" : "#ff6666";
-  } else if (data.error) {
+
+  if (data.error) {
     resultEl.textContent = data.error;
     resultEl.style.color = "#ff6666";
   }
 
-  if (data.shouldAnimate) {
-    animateReels();
+  if (data.shouldAnimate && data.result) {
+    const match = data.result.match(/(\d)\s+(\d)\s+(\d)/);
+    let notificationText = "";
+    let color = "#e0e0e0";
+
+    if (match) {
+      const symbols = [+match[1], +match[2], +match[3]];
+      animateDigitalReels(symbols);
+
+      notificationText = `Випало: ${symbols.join(" ")}`;
+
+      if (data.won) {
+        const winText = data.result.includes("БОЛЬШОЙ БОНУС")
+          ? "75 балярів! ДЖЕКПОТ!"
+          : `+${data.balance ? data.balance : "?"} балярів`;
+        notificationText += ` — ВИГРАШ! ${winText}`;
+        color = "#00ff88";
+      }
+
+      showNotification(notificationText, color, 5000);
+
+      resultEl.innerHTML = data.result;
+      resultEl.style.color = data.won ? "#00ff88" : "#e0e0e0";
+    } else {
+      // джекпот або інший текст
+      resultEl.innerHTML = data.result;
+      resultEl.style.color = "#ffff00";
+      showNotification(data.result, "#ffff00", 6000);
+    }
   }
 }
 
@@ -249,20 +306,14 @@ function handleTwisterMessage(data) {
   switch (data.subtype) {
     case "state":
     case "spinResult":
-      updateTwisterState(data);
-      break;
-
     case "bonusWin":
-      showNotification("БОЛЬШОЙ БОНУС! 75 баляров!", "#ffff00", 6000);
       updateTwisterState(data);
       break;
-
     default:
-      updateTwisterState(data);
+      console.warn("Невідомий підтип twister:", data.subtype);
   }
 }
 
-// Отрисовка автомата на карте
 function drawMisterTwister() {
   if (window.worldSystem.currentWorldId !== 0) return;
   if (!spriteReady || !sprite?.complete) return;
@@ -307,5 +358,4 @@ window.misterTwister = {
   draw: drawMisterTwister,
   hideMenu: hideTwisterMenu,
   handleMessage: handleTwisterMessage,
-  updateState: updateTwisterState,
 };
