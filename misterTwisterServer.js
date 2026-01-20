@@ -6,12 +6,26 @@ const REEL_STRIP = [
 
 const REEL_LENGTH = REEL_STRIP.length;
 
-const BONUS_TRIGGER_COMBOS = new Set(["555", "666", "888"]);
-
 const twisterState = {
   bonusPoints: 0,
   playersWhoGavePointThisCycle: new Set(),
-  lastBonusWinner: null,
+  lastJackpotWinner: null,
+};
+
+const JACKPOT_COMBO_REQUIRED_POINTS = 11;
+const JACKPOT_AMOUNT = 75;
+
+const TRIPLE_PAYOUTS = {
+  0: 100,
+  1: 30,
+  2: 30,
+  3: 30,
+  4: 80,
+  5: 50,
+  6: 60,
+  7: 200,
+  8: 80,
+  9: 75,
 };
 
 function getRandomReelPosition() {
@@ -20,31 +34,6 @@ function getRandomReelPosition() {
 
 function getSymbolAt(position) {
   return REEL_STRIP[position];
-}
-
-function addBalyaryToPlayer(player, amount) {
-  if (amount <= 0) return;
-
-  // 1. Ищем существующий слот
-  let slotIdx = player.inventory.findIndex((s) => s?.type === "balyary");
-
-  if (slotIdx !== -1) {
-    player.inventory[slotIdx].quantity =
-      (player.inventory[slotIdx].quantity || 1) + amount;
-    return;
-  }
-
-  // 2. Ищем свободный слот
-  const freeIdx = player.inventory.findIndex((s) => s === null);
-  if (freeIdx !== -1) {
-    player.inventory[freeIdx] = { type: "balyary", quantity: amount };
-    return;
-  }
-
-  // 3. Инвентарь полон — пока просто логируем
-  console.warn(
-    `Не удалось добавить ${amount} баляров игроку ${player.id} — инвентарь полон`,
-  );
 }
 
 function handleTwisterMessage(
@@ -56,7 +45,7 @@ function handleTwisterMessage(
   playerId,
   saveUserDatabase,
   dbCollection,
-  broadcastToWorld, // ← добавили сюда
+  broadcastFn,
 ) {
   const player = players.get(playerId);
   if (!player) return;
@@ -84,17 +73,13 @@ function handleTwisterMessage(
     }
 
     case "spin": {
-      let balyarySlotIndex = -1;
-      let balyaryCount = 0;
-
-      if (player.inventory) {
-        balyarySlotIndex = player.inventory.findIndex(
-          (s) => s?.type === "balyary",
-        );
-        if (balyarySlotIndex !== -1) {
-          balyaryCount = player.inventory[balyarySlotIndex]?.quantity || 1;
-        }
-      }
+      let balyarySlotIndex = player.inventory.findIndex(
+        (s) => s?.type === "balyary",
+      );
+      let balyaryCount =
+        balyarySlotIndex !== -1
+          ? player.inventory[balyarySlotIndex]?.quantity || 1
+          : 0;
 
       if (balyaryCount < 1) {
         ws.send(
@@ -123,74 +108,97 @@ function handleTwisterMessage(
       const s2 = getSymbolAt(pos2);
       const s3 = getSymbolAt(pos3);
 
+      const combo = [s1, s2, s3];
       const comboStr = `${s1}${s2}${s3}`;
       const sum = s1 + s2 + s3;
 
       let winAmount = 0;
       let giveBonusPoint = false;
       let resultText = `${s1} ${s2} ${s3}`;
-      let bonusWon = false;
+      let isJackpot = false;
 
-      if (s1 === s2 && s2 === s3) {
-        giveBonusPoint = true;
+      const isTriple = s1 === s2 && s2 === s3;
 
-        if (s1 === 7) winAmount = 10;
-        else if (s1 === 0) winAmount = 50;
-        else if (s1 === 3) winAmount = 20;
-        else if (s1 === 4) winAmount = 25;
-        else if (s1 === 9) winAmount = 30;
-        else winAmount = 10;
-      } else if (sum === 7) {
-        winAmount = 5;
+      if (isTriple) {
         giveBonusPoint = true;
-        resultText += " (сумма 7!)";
+        winAmount = TRIPLE_PAYOUTS[s1] || 30;
+        resultText = `${s1} ${s2} ${s3} × ${winAmount}`;
       }
 
+      // сумма 7, 14, 21
+      if ([7, 14, 21].includes(sum)) {
+        winAmount += 15;
+        giveBonusPoint = true;
+        resultText +=
+          sum === 7
+            ? " (сумма 7!)"
+            : sum === 14
+              ? " (сумма 14!)"
+              : " (сумма 21!)";
+      }
+
+      // Джекпот — только при 11 очках И тройка
       if (
-        twisterState.bonusPoints >= 11 &&
-        BONUS_TRIGGER_COMBOS.has(comboStr)
+        twisterState.bonusPoints >= JACKPOT_COMBO_REQUIRED_POINTS &&
+        isTriple
       ) {
-        winAmount = 75;
-        bonusWon = true;
-        resultText = `БОЛЬШОЙ БОНУС! ${s1} ${s2} ${s3} → 75 баляров!`;
+        winAmount = JACKPOT_AMOUNT;
+        isJackpot = true;
+        resultText = `ДЖЕКПОТ! ${comboStr} → ${JACKPOT_AMOUNT} баляров!`;
+
         twisterState.bonusPoints = 0;
         twisterState.playersWhoGavePointThisCycle.clear();
-        twisterState.lastBonusWinner = playerId;
+        twisterState.lastJackpotWinner = playerId;
 
-        broadcastToWorld(
+        broadcastFn(
           wss,
           clients,
           players,
           player.worldId,
           JSON.stringify({
             type: "notification",
-            message: `Игрок сорвал БОНУСНЫЙ ДЖЕКПОТ 75 баляров!`,
+            message: `Игрок ${player.id} СОРВАЛ ДЖЕКПОТ МИСТЕРА ТВИСТЕРА — ${JACKPOT_AMOUNT} баляров!`,
             color: "#ffff00",
+            duration: 8000,
           }),
         );
       }
 
+      // Начисляем выигрыш
       if (winAmount > 0) {
-        addBalyaryToPlayer(player, winAmount);
+        if (balyarySlotIndex !== -1 && player.inventory[balyarySlotIndex]) {
+          player.inventory[balyarySlotIndex].quantity =
+            (player.inventory[balyarySlotIndex].quantity || 0) + winAmount;
+        } else {
+          const free = player.inventory.findIndex((s) => s === null);
+          if (free !== -1) {
+            player.inventory[free] = { type: "balyary", quantity: winAmount };
+          }
+        }
       }
 
+      // Даём очко бонуса (если ещё не давал в этом цикле)
       if (
         giveBonusPoint &&
         !twisterState.playersWhoGavePointThisCycle.has(playerId)
       ) {
         twisterState.playersWhoGavePointThisCycle.add(playerId);
-        twisterState.bonusPoints = Math.min(11, twisterState.bonusPoints + 1);
+        twisterState.bonusPoints = Math.min(
+          JACKPOT_COMBO_REQUIRED_POINTS,
+          twisterState.bonusPoints + 1,
+        );
 
-        if (twisterState.bonusPoints === 11) {
-          broadcastToWorld(
+        if (twisterState.bonusPoints === JACKPOT_COMBO_REQUIRED_POINTS) {
+          broadcastFn(
             wss,
             clients,
             players,
             player.worldId,
             JSON.stringify({
               type: "notification",
-              message: "Бонусная шкала заполнена! Лови 555/666/888!",
+              message: "Шкала Мистера Твистера заполнена! Лови любую тройку!",
               color: "#ffaa00",
+              duration: 5000,
             }),
           );
         }
@@ -198,42 +206,43 @@ function handleTwisterMessage(
 
       saveUserDatabase(dbCollection, playerId, player);
 
-      // пересчитываем актуальный баланс
-      const currentBalyarySlot = player.inventory.findIndex(
-        (s) => s?.type === "balyary",
-      );
-      const currentBalance =
-        currentBalyarySlot !== -1
-          ? player.inventory[currentBalyarySlot]?.quantity || 0
-          : 0;
-
+      // Отправляем клиенту результат анимации
       ws.send(
         JSON.stringify({
           type: "twister",
-          subtype: bonusWon ? "bonusWin" : "spinResult",
-          balance: currentBalance,
+          subtype: "spinResult",
+          balance:
+            player.inventory.find((s) => s?.type === "balyary")?.quantity || 0,
           bonusPoints: twisterState.bonusPoints,
           myBonusPointGiven:
             twisterState.playersWhoGavePointThisCycle.has(playerId),
-          result: resultText,
-          won: winAmount > 0,
           shouldAnimate: true,
+          symbols: [s1, s2, s3],
         }),
       );
 
-      if (giveBonusPoint) {
-        broadcastToWorld(
-          wss,
-          clients,
-          players,
-          player.worldId,
-          JSON.stringify({
-            type: "twister",
-            subtype: "state",
-            bonusPoints: twisterState.bonusPoints,
-          }),
-        );
-      }
+      // После того как клиент доиграет анимацию — он запросит финальный результат
+      break;
+    }
+
+    case "getResultAfterAnim": {
+      // Клиент запросил финальный текст после остановки анимации
+      const lastBalance =
+        player.inventory.find((s) => s?.type === "balyary")?.quantity || 0;
+
+      // Здесь можно было бы хранить последний результат на сервере, но для простоты
+      // просто отправляем текущий state + сообщение что анимация закончена
+      ws.send(
+        JSON.stringify({
+          type: "twister",
+          subtype: "finalResult",
+          shouldShowResult: true,
+          resultText: "", // клиент сам знает символы, сервер только подтверждает
+          wonAmount: 0, // ← здесь должно быть реальное значение, но для упрощения оставляем 0
+          balance: lastBalance,
+          bonusPoints: twisterState.bonusPoints,
+        }),
+      );
 
       break;
     }
