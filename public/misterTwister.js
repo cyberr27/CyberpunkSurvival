@@ -1,6 +1,6 @@
-// misterTwister.js — цифровая версия с тремя табло и замедлением
+// misterTwister.js — цифровой слот с тремя независимыми табло
 
-const MISTER_TWISTER = {
+const MISTER_TWISTER_POS = {
   x: 500,
   y: 2800,
   width: 70,
@@ -13,18 +13,18 @@ const CONFIG = {
   frameHeight: 100,
   animationDuration: 5000,
   pauseDuration: 10000,
-  interactionRadiusSq: 4900, // ~70px радиус
+  interactionRadiusSq: 4900,
 };
 
 const SLOT_SPRITE = {
   src: "mister_twister_slot_sprite.png",
-  frameWidth: 80,
-  frameHeight: 100,
+  frameWidth: 70,
+  frameHeight: 70,
   frameCount: 10, // 0..9
 };
 
-let sprite = null;
-let slotSprite = null;
+let sprite = null; // сам мистер твистер
+let slotSprite = null; // цифры 0-9
 let spriteReady = false;
 let slotSpriteReady = false;
 let animationStart = 0;
@@ -33,9 +33,6 @@ let menuElement = null;
 let wasInRangeLastFrame = false;
 
 let isSpinning = false;
-let balance = 0;
-let bonusPoints = 0;
-let myBonusPointGiven = false;
 
 function initializeMisterTwister() {
   sprite = new Image();
@@ -63,8 +60,8 @@ function checkMisterTwisterProximity() {
   const me = players.get(myId);
   if (!me) return;
 
-  const dx = me.x + 35 - (MISTER_TWISTER.x + 35);
-  const dy = me.y + 50 - (MISTER_TWISTER.y + 50);
+  const dx = me.x + 35 - (MISTER_TWISTER_POS.x + 35);
+  const dy = me.y + 50 - (MISTER_TWISTER_POS.y + 50);
 
   const nowInRange = dx * dx + dy * dy < CONFIG.interactionRadiusSq;
 
@@ -77,11 +74,8 @@ function checkMisterTwisterProximity() {
 
 function updateLocalBalanceDisplay() {
   if (!isMenuOpen) return;
-
-  const balyarySlot = window.inventory.findIndex((s) => s?.type === "balyary");
   const count =
-    balyarySlot !== -1 ? window.inventory[balyarySlot]?.quantity || 0 : 0;
-
+    window.inventory?.find((s) => s?.type === "balyary")?.quantity || 0;
   const el = document.getElementById("twister-balance");
   if (el) {
     el.textContent = count;
@@ -97,21 +91,21 @@ function showTwisterMenu() {
   menuElement.className = "npc-dialog open twister-full-window";
 
   menuElement.innerHTML = `
-    <div class="npc-dialog-content">
-      <p class="npc-text" style="text-align:center; margin:12px 0;">
+    <div class="npc-dialog-content" style="overflow: hidden;">
+      <p class="npc-text" style="text-align:center;">
         Стоимость спина — <strong>1 баляр</strong><br>
-        Баланс: <span id="twister-balance">загружается...</span>
+        Баланс: <span id="twister-balance">…</span>
       </p>
 
       <div class="digital-slots">
-        <div class="digital-reel" id="reel1"><canvas width="80" height="100"></canvas></div>
-        <div class="digital-reel" id="reel2"><canvas width="80" height="100"></canvas></div>
-        <div class="digital-reel" id="reel3"><canvas width="80" height="100"></canvas></div>
+        <div class="digital-reel" id="reel1"><canvas width="70" height="70"></canvas></div>
+        <div class="digital-reel" id="reel2"><canvas width="70" height="70"></canvas></div>
+        <div class="digital-reel" id="reel3"><canvas width="70" height="70"></canvas></div>
       </div>
 
-      <button class="spin-button" id="twister-spin-btn">КРУТИТЬ!</button>
+      <button class="spin-button" id="twister-spin-btn">1$</button>
 
-      <p id="twister-result" style="text-align:center; min-height:2.2em; margin-top:16px;"></p>
+      <p id="twister-result"></p>
     </div>
 
     <div class="bonus-lights" id="bonus-lights">
@@ -131,9 +125,10 @@ function showTwisterMenu() {
 
   document.body.appendChild(menuElement);
 
-  const originalUpdate = window.inventorySystem.updateInventoryDisplay;
+  // Перехватываем обновление инвентаря, чтобы баланс обновлялся
+  const original = window.inventorySystem.updateInventoryDisplay;
   window.inventorySystem.updateInventoryDisplay = function (...args) {
-    originalUpdate.apply(this, args);
+    original.apply(this, args);
     if (isMenuOpen) updateLocalBalanceDisplay();
   };
 
@@ -151,20 +146,17 @@ function showTwisterMenu() {
 function hideTwisterMenu() {
   if (!isMenuOpen) return;
   isMenuOpen = false;
-  if (menuElement) {
-    menuElement.remove();
-    menuElement = null;
-  }
+  menuElement?.remove();
+  menuElement = null;
   isSpinning = false;
 }
 
 function handleTwisterSpin() {
   if (isSpinning) return;
 
-  const balanceEl = document.getElementById("twister-balance");
-  const currentBalance = Number(balanceEl?.dataset.count) || 0;
-
-  if (currentBalance < 1) {
+  const balance =
+    Number(document.getElementById("twister-balance")?.dataset.count) || 0;
+  if (balance < 1) {
     const resultEl = document.getElementById("twister-result");
     resultEl.textContent = "Недостаточно баляров!";
     resultEl.style.color = "#ff6666";
@@ -177,25 +169,15 @@ function handleTwisterSpin() {
 
   if (ws?.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({ type: "twister", subtype: "spin" }));
-  } else {
-    showError("Ошибка соединения...");
   }
 }
 
-function showError(msg) {
-  const resultEl = document.getElementById("twister-result");
-  if (resultEl) {
-    resultEl.textContent = msg;
-    resultEl.style.color = "#ff6666";
-  }
-  isSpinning = false;
-  const btn = document.getElementById("twister-spin-btn");
-  if (btn) btn.disabled = false;
-}
-
-function animateDigitalReels(finalSymbols) {
-  if (!slotSpriteReady) {
-    showError("Спрайт цифр не загрузился...");
+function animateReels(finalFrames) {
+  if (!slotSpriteReady || !slotSprite?.complete) {
+    document.getElementById("twister-result").textContent =
+      "Ошибка загрузки спрайта...";
+    isSpinning = false;
+    document.getElementById("twister-spin-btn")?.removeAttribute("disabled");
     return;
   }
 
@@ -205,27 +187,25 @@ function animateDigitalReels(finalSymbols) {
     document.querySelector("#reel3 canvas"),
   ];
 
-  if (!canvases[0]) return;
-
   const ctxs = canvases.map((c) => c.getContext("2d"));
 
   const TOTAL_DURATION = 5000;
-  const SLOWDOWN_START = 3200;
-  const BASE_SPEED = 0.28;
+  const SLOWDOWN_FROM = 3200;
+  const BASE_SPEED = 0.32; // начальная скорость прокрутки (кадров в мс)
 
-  let startTime = performance.now();
+  let start = performance.now();
 
-  function drawReel(ctx, progress, finalFrame) {
-    ctx.clearRect(0, 0, 80, 100);
+  function drawOneReel(ctx, elapsed, finalFrame) {
+    ctx.clearRect(0, 0, 70, 70);
 
-    let currentSpeed = BASE_SPEED;
-    if (progress > SLOWDOWN_START) {
-      const t = (progress - SLOWDOWN_START) / (TOTAL_DURATION - SLOWDOWN_START);
-      currentSpeed = BASE_SPEED * (1 - t * 0.92);
+    let speed = BASE_SPEED;
+    if (elapsed > SLOWDOWN_FROM) {
+      const t = (elapsed - SLOWDOWN_FROM) / (TOTAL_DURATION - SLOWDOWN_FROM);
+      speed *= 1 - t * 0.94; // почти до нуля
     }
 
-    const virtualPosition = (progress * currentSpeed) % SLOT_SPRITE.frameCount;
-    const frame = Math.floor(virtualPosition);
+    const pos = (elapsed * speed) % SLOT_SPRITE.frameCount;
+    const frame = Math.floor(pos);
 
     ctx.drawImage(
       slotSprite,
@@ -235,63 +215,60 @@ function animateDigitalReels(finalSymbols) {
       SLOT_SPRITE.frameHeight,
       0,
       0,
-      80,
-      100,
+      70,
+      70,
     );
   }
 
-  function anim() {
-    const now = performance.now();
-    const elapsed = now - startTime;
+  function loop() {
+    const elapsed = performance.now() - start;
 
-    ctxs.forEach((ctx, i) => drawReel(ctx, elapsed, finalSymbols[i]));
+    ctxs.forEach((ctx, i) => drawOneReel(ctx, elapsed, finalFrames[i]));
 
     if (elapsed < TOTAL_DURATION) {
-      requestAnimationFrame(anim);
+      requestAnimationFrame(loop);
     } else {
-      // Финальная остановка
+      // Финальная отрисовка
       ctxs.forEach((ctx, i) => {
-        ctx.clearRect(0, 0, 80, 100);
+        ctx.clearRect(0, 0, 70, 70);
         ctx.drawImage(
           slotSprite,
-          finalSymbols[i] * SLOT_SPRITE.frameWidth,
+          finalFrames[i] * SLOT_SPRITE.frameWidth,
           0,
           SLOT_SPRITE.frameWidth,
           SLOT_SPRITE.frameHeight,
           0,
           0,
-          80,
-          100,
+          70,
+          70,
         );
       });
 
       isSpinning = false;
-      const btn = document.getElementById("twister-spin-btn");
-      if (btn) btn.disabled = false;
+      document.getElementById("twister-spin-btn")?.removeAttribute("disabled");
     }
   }
 
-  requestAnimationFrame(anim);
+  requestAnimationFrame(loop);
 }
 
 function updateTwisterState(data) {
   if (!isMenuOpen) return;
 
+  // Баланс
   if (data.balance !== undefined) {
-    balance = data.balance;
     const el = document.getElementById("twister-balance");
     if (el) {
-      el.textContent = balance;
-      el.dataset.count = balance;
+      el.textContent = data.balance;
+      el.dataset.count = data.balance;
     }
   }
 
-  bonusPoints = Math.min(11, data.bonusPoints ?? 0);
-  myBonusPointGiven = data.myBonusPointGiven ?? false;
-
+  // Бонусные очки
+  const points = Math.min(11, data.bonusPoints ?? 0);
   document
     .querySelectorAll(".bonus-light")
-    .forEach((el, i) => el.classList.toggle("active", i < bonusPoints));
+    .forEach((el, i) => el.classList.toggle("active", i < points));
 
   const resultEl = document.getElementById("twister-result");
 
@@ -301,29 +278,17 @@ function updateTwisterState(data) {
   }
 
   if (data.shouldAnimate && data.result) {
-    const match = data.result.match(/(\d)\s+(\d)\s+(\d)/);
+    const match = data.result.match(/^(\d)\s+(\d)\s+(\d)$/);
     if (match) {
-      const symbols = [+match[1], +match[2], +match[3]];
-      animateDigitalReels(symbols);
+      const frames = [Number(match[1]), Number(match[2]), Number(match[3])];
+      animateReels(frames);
 
-      // Сервер теперь присылает уже готовый текст результата
-      resultEl.innerHTML = data.displayResult || data.result;
+      resultEl.textContent = data.result;
       resultEl.style.color = data.won ? "#00ff88" : "#e0e0e0";
-
-      // Показываем уведомление только если есть выигрыш
-      if (data.won && data.displayResult?.includes("+")) {
-        if (typeof showNotification === "function") {
-          showNotification(data.displayResult, "#ffff00");
-        }
-      }
     } else {
-      // джекпот или ошибка
+      // джекпот / бонусный текст
       resultEl.innerHTML = data.result;
-      resultEl.style.color = data.won ? "#ffff00" : "#ff6666";
-
-      if (data.won && typeof showNotification === "function") {
-        showNotification(data.result, "#ffaa00");
-      }
+      resultEl.style.color = "#ffff00";
     }
   }
 }
@@ -344,21 +309,21 @@ function drawMisterTwister() {
   if (window.worldSystem.currentWorldId !== 0) return;
   if (!spriteReady || !sprite?.complete) return;
 
-  const camera = window.movementSystem.getCamera();
-  const sx = MISTER_TWISTER.x - camera.x;
-  const sy = MISTER_TWISTER.y - camera.y;
+  const cam = window.movementSystem.getCamera();
+  const sx = MISTER_TWISTER_POS.x - cam.x;
+  const sy = MISTER_TWISTER_POS.y - cam.y;
 
   if (
-    sx + 90 < 0 ||
-    sx > canvas.width + 30 ||
-    sy + 130 < 0 ||
-    sy > canvas.height + 30
+    sx + 100 < 0 ||
+    sx > canvas.width + 40 ||
+    sy + 140 < 0 ||
+    sy > canvas.height + 40
   )
     return;
 
   const now = performance.now();
-  const cycleTime = CONFIG.animationDuration + CONFIG.pauseDuration;
-  const t = (now - animationStart) % cycleTime;
+  const cycle = CONFIG.animationDuration + CONFIG.pauseDuration;
+  const t = (now - animationStart) % cycle;
 
   let frame = 0;
   if (t < CONFIG.animationDuration) {
@@ -373,8 +338,8 @@ function drawMisterTwister() {
     CONFIG.frameHeight,
     sx,
     sy,
-    MISTER_TWISTER.width,
-    MISTER_TWISTER.height,
+    MISTER_TWISTER_POS.width,
+    MISTER_TWISTER_POS.height,
   );
 }
 
