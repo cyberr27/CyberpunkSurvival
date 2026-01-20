@@ -239,22 +239,6 @@ function handleTwisterMessage(
           shouldAnimate: true,
         }),
       );
-
-      // Если пункт добавлен — обновляем шкалу всем
-      if (giveBonusPoint && !isBigJackpot) {
-        broadcastToWorld(
-          wss,
-          clients,
-          players,
-          player.worldId,
-          JSON.stringify({
-            type: "twister",
-            subtype: "state",
-            bonusPoints: twisterState.bonusPoints,
-          }),
-        );
-      }
-
       break;
     }
 

@@ -262,10 +262,10 @@ function updateTwisterState(data) {
     }
   }
 
-  // Бонус-шкала — усиленная версия с отладкой
+  // Бонус-шкала
   const points = Math.min(11, data.bonusPoints ?? 0);
 
-  // 1. Снимаем active со ВСЕХ лампочек
+  // 1. Полностью очищаем active со всех лампочек
   for (let i = 0; i < 11; i++) {
     const el = document.querySelector(`.bonus-light-${i}`);
     if (el) {
@@ -273,7 +273,7 @@ function updateTwisterState(data) {
     }
   }
 
-  // 2. Ставим active нужным
+  // 2. Ставим active ровно points штук (0..points-1)
   for (let i = 0; i < points; i++) {
     const el = document.querySelector(`.bonus-light-${i}`);
     if (el) {
@@ -281,17 +281,13 @@ function updateTwisterState(data) {
     }
   }
 
-  // 3. Отладка — посмотри в консоль, сколько должно быть active
+  // Отладка — обязательно посмотри в консоль!
   console.log(
-    "[Twister] bonusPoints:",
-    points,
-    "активных лампочек должно быть:",
+    "[Twister DEBUG] Получено bonusPoints:",
+    data.bonusPoints,
+    "→ Активных лампочек должно быть:",
     points,
   );
-
-  // Опционально: если хочешь увидеть все элементы
-  // const lights = document.querySelectorAll(".bonus-light");
-  // console.log("[Twister] Всего лампочек:", lights.length);
 
   const resultEl = document.getElementById("twister-result");
 
