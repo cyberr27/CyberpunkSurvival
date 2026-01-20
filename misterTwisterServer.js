@@ -21,7 +21,7 @@ const JACKPOT_TRIGGERS = new Set([
 
 const JACKPOT_MULTIPLIERS = {
   777: 200,
-  000: 100,
+  0o0: 100,
   555: 50,
   444: 80,
   666: 60,

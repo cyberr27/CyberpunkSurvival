@@ -37,13 +37,13 @@
 }
 
 #reel1 {
-  transform: translateY(45px) translateX(-45px);
+  transform: translateY(49px) translateX(-40px);
 }
 #reel2 {
-  transform: translateY(45px) translateX(-40px);
+  transform: translateY(49px) translateX(-38px);
 }
 #reel3 {
-  transform: translateY(45px) rotate(1deg) translateX(-35px);
+  transform: translateY(49px) rotate(0.5deg) translateX(-35px);
 }
 
 .spin-button {

@@ -1,4 +1,4 @@
-// misterTwister.js — с привязкой анимации к реальным символам
+// misterTwister.js — исправленная версия с кнопкой и лампочками
 
 const MISTER_TWISTER_POS = {
   x: 500,
@@ -20,7 +20,7 @@ const SLOT_SPRITE = {
   src: "mister_twister_slot_sprite.png",
   frameWidth: 70,
   frameHeight: 70,
-  frameCount: 10, // 0..9
+  frameCount: 10,
 };
 
 let sprite = null;
@@ -105,11 +105,21 @@ function showTwisterMenu() {
 
       <button class="spin-button" id="twister-spin-btn">КРУТИТЬ!</button>
 
-      <p id="twister-result" style="font-size:2.2rem; font-weight:bold; min-height:3em;"></p>
+      <p id="twister-result" style="font-size:2.4rem; font-weight:bold; min-height:3em;"></p>
     </div>
 
     <div class="bonus-lights" id="bonus-lights">
-      ${Array(11).fill('<div class="bonus-light"></div>').join("")}
+      <div class="bonus-light bonus-light-0"></div>
+      <div class="bonus-light bonus-light-1"></div>
+      <div class="bonus-light bonus-light-2"></div>
+      <div class="bonus-light bonus-light-3"></div>
+      <div class="bonus-light bonus-light-4"></div>
+      <div class="bonus-light bonus-light-5"></div>
+      <div class="bonus-light bonus-light-6"></div>
+      <div class="bonus-light bonus-light-7"></div>
+      <div class="bonus-light bonus-light-8"></div>
+      <div class="bonus-light bonus-light-9"></div>
+      <div class="bonus-light bonus-light-10"></div>
     </div>
   `;
 
@@ -146,15 +156,15 @@ function handleTwisterSpin() {
   const balance =
     Number(document.getElementById("twister-balance")?.dataset.count) || 0;
   if (balance < 1) {
-    document.getElementById("twister-result").textContent =
-      "Недостаточно баляров!";
-    document.getElementById("twister-result").style.color = "#ff6666";
+    const resultEl = document.getElementById("twister-result");
+    resultEl.textContent = "Недостаточно баляров!";
+    resultEl.style.color = "#ff6666";
     return;
   }
 
   isSpinning = true;
   const btn = document.getElementById("twister-spin-btn");
-  if (btn) btn.disabled = true;
+  btn.disabled = true;
 
   if (ws?.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({ type: "twister", subtype: "spin" }));
@@ -165,7 +175,7 @@ function animateReels(finalFrames) {
   if (!slotSpriteReady || !slotSprite?.complete) {
     document.getElementById("twister-result").textContent = "Ошибка спрайта...";
     isSpinning = false;
-    document.getElementById("twister-spin-btn")?.removeAttribute("disabled");
+    document.getElementById("twister-spin-btn").disabled = false;
     return;
   }
 
@@ -183,7 +193,7 @@ function animateReels(finalFrames) {
 
   let start = performance.now();
 
-  function drawOneReel(ctx, elapsed, finalFrame) {
+  function drawOneReel(ctx, elapsed) {
     ctx.clearRect(0, 0, 70, 70);
 
     let speed = BASE_SPEED;
@@ -211,12 +221,12 @@ function animateReels(finalFrames) {
   function loop() {
     const elapsed = performance.now() - start;
 
-    ctxs.forEach((ctx, i) => drawOneReel(ctx, elapsed, finalFrames[i]));
+    ctxs.forEach((ctx) => drawOneReel(ctx, elapsed));
 
     if (elapsed < TOTAL_DURATION) {
       requestAnimationFrame(loop);
     } else {
-      // Остановка на точных символах
+      // Остановка на нужных символах
       ctxs.forEach((ctx, i) => {
         ctx.clearRect(0, 0, 70, 70);
         ctx.drawImage(
@@ -233,7 +243,7 @@ function animateReels(finalFrames) {
       });
 
       isSpinning = false;
-      document.getElementById("twister-spin-btn")?.removeAttribute("disabled");
+      document.getElementById("twister-spin-btn").disabled = false;
     }
   }
 
@@ -252,11 +262,18 @@ function updateTwisterState(data) {
     }
   }
 
-  // Бонус-шкала
+  // Бонус-лампочки
   const points = Math.min(11, data.bonusPoints ?? 0);
-  document
-    .querySelectorAll(".bonus-light")
-    .forEach((el, i) => el.classList.toggle("active", i < points));
+  for (let i = 0; i < 11; i++) {
+    const el = document.querySelector(`.bonus-light-${i}`);
+    if (el) {
+      if (i < points) {
+        el.classList.add("active");
+      } else {
+        el.classList.remove("active");
+      }
+    }
+  }
 
   const resultEl = document.getElementById("twister-result");
 
@@ -264,7 +281,8 @@ function updateTwisterState(data) {
     resultEl.textContent = data.error;
     resultEl.style.color = "#ff6666";
     isSpinning = false;
-    document.getElementById("twister-spin-btn")?.removeAttribute("disabled");
+    const btn = document.getElementById("twister-spin-btn");
+    if (btn) btn.disabled = false;
     return;
   }
 
@@ -277,12 +295,10 @@ function updateTwisterState(data) {
       }
     }
 
-    // Показываем только сумму выигрыша
     const win = Number(data.winAmount) || 0;
     resultEl.textContent = win;
     resultEl.style.color = win > 0 ? "#00ff88" : "#e0e0e0";
 
-    // Уведомление при выигрыше
     if (win > 0) {
       let msg = `+${win} баляров!`;
       if (data.subtype === "bonusWin") {
@@ -292,9 +308,6 @@ function updateTwisterState(data) {
         window.showNotification(msg, "#ffff00");
       }
     }
-
-    isSpinning = false;
-    document.getElementById("twister-spin-btn")?.removeAttribute("disabled");
   }
 }
 
