@@ -2856,7 +2856,10 @@ function setupWebSocket(
         );
       } else if (data.type === "twister") {
         const playerId = clients.get(ws);
-        if (!playerId) return;
+        if (!playerId) {
+          console.warn("Twister сообщение без playerId");
+          return;
+        }
 
         handleTwisterMessage(
           ws,

@@ -1,4 +1,4 @@
-
+// misterTwisterServer.js
 
 const REEL_STRIP = [
   0, 1, 2, 3, 3, 4, 5, 6, 7, 8, 9, 1, 2, 4, 5, 6, 8, 9, 0, 3, 3, 7,
@@ -6,10 +6,12 @@ const REEL_STRIP = [
 
 const REEL_LENGTH = REEL_STRIP.length;
 
+const BONUS_TRIGGER_COMBOS = new Set(["555", "666", "888"]);
+
 const twisterState = {
   bonusPoints: 0,
   playersWhoGavePointThisCycle: new Set(),
-  lastJackpotWinner: null,
+  lastBonusWinner: null,
 };
 
 function getRandomReelPosition() {
@@ -17,21 +19,8 @@ function getRandomReelPosition() {
 }
 
 function getSymbolAt(position) {
-  return REEL_STRIP[position % REEL_LENGTH];
+  return REEL_STRIP[position];
 }
-
-const JACKPOT_TRIGGERS = new Set([
-  "000",
-  "111",
-  "222",
-  "333",
-  "444",
-  "555",
-  "666",
-  "777",
-  "888",
-  "999",
-]);
 
 function handleTwisterMessage(
   ws,
@@ -42,7 +31,7 @@ function handleTwisterMessage(
   playerId,
   saveUserDatabase,
   dbCollection,
-  broadcastToWorld,
+  broadcastToWorld, // ← добавили сюда
 ) {
   const player = players.get(playerId);
   if (!player) return;
@@ -52,7 +41,7 @@ function handleTwisterMessage(
       let balyaryCount = 0;
       if (player.inventory) {
         const slot = player.inventory.find((s) => s?.type === "balyary");
-        balyaryCount = slot ? slot.quantity || 0 : 0;
+        balyaryCount = slot ? slot.quantity || 1 : 0;
       }
 
       ws.send(
@@ -78,7 +67,7 @@ function handleTwisterMessage(
           (s) => s?.type === "balyary",
         );
         if (balyarySlotIndex !== -1) {
-          balyaryCount = player.inventory[balyarySlotIndex]?.quantity || 0;
+          balyaryCount = player.inventory[balyarySlotIndex]?.quantity || 1;
         }
       }
 
@@ -94,7 +83,7 @@ function handleTwisterMessage(
         return;
       }
 
-      // Снимаем 1 баляр
+      // снимаем 1 баляр
       if (balyaryCount === 1) {
         player.inventory[balyarySlotIndex] = null;
       } else {
@@ -115,50 +104,33 @@ function handleTwisterMessage(
       let winAmount = 0;
       let giveBonusPoint = false;
       let resultText = `${s1} ${s2} ${s3}`;
-      let isJackpot = false;
+      let bonusWon = false;
 
-      // ─── ТРОЙКИ ───────────────────────────────────────
       if (s1 === s2 && s2 === s3) {
         giveBonusPoint = true;
 
-        const payouts = {
-          0: 100,
-          1: 30,
-          2: 30,
-          3: 30,
-          4: 80,
-          5: 50,
-          6: 60,
-          7: 200,
-          8: 80,
-          9: 75,
-        };
-
-        winAmount += payouts[s1] || 30;
-        resultText = `${s1}${s1}${s1} × ${payouts[s1] || 30}`;
-      }
-
-      // ─── Сумма 7, 14, 21 ───────────────────────────────
-      if ([7, 14, 21].includes(sum)) {
-        winAmount += 15;
+        if (s1 === 7) winAmount = 10;
+        else if (s1 === 0) winAmount = 50;
+        else if (s1 === 3) winAmount = 20;
+        else if (s1 === 4) winAmount = 25;
+        else if (s1 === 9) winAmount = 30;
+        else winAmount = 10;
+      } else if (sum === 7) {
+        winAmount = 5;
         giveBonusPoint = true;
-
-        if (resultText.includes("×")) {
-          resultText += ` + сумма ${sum} → +15`;
-        } else {
-          resultText += ` (сумма ${sum} → +15)`;
-        }
+        resultText += " (сумма 7!)";
       }
 
-      // ─── ДЖЕКПОТ ───────────────────────────────────────
-      if (twisterState.bonusPoints >= 11 && JACKPOT_TRIGGERS.has(comboStr)) {
-        isJackpot = true;
+      if (
+        twisterState.bonusPoints >= 11 &&
+        BONUS_TRIGGER_COMBOS.has(comboStr)
+      ) {
         winAmount = 75;
-        resultText = `ДЖЕКПОТ! ${comboStr} → 75 баляров!`;
-
+        bonusWon = true;
+        resultText = `БОЛЬШОЙ БОНУС! ${s1} ${s2} ${s3} → 75 баляров!`;
         twisterState.bonusPoints = 0;
         twisterState.playersWhoGavePointThisCycle.clear();
-        twisterState.lastJackpotWinner = playerId;
+        twisterState.lastBonusWinner = playerId;
 
         broadcastToWorld(
           wss,
@@ -167,17 +139,16 @@ function handleTwisterMessage(
           player.worldId,
           JSON.stringify({
             type: "notification",
-            message: `Игрок ${player.id} сорвал ДЖЕКПОТ 75 баляров!`,
+            message: `Игрок сорвал БОНУСНЫЙ ДЖЕКПОТ 75 баляров!`,
             color: "#ffff00",
           }),
         );
       }
 
-      // Добавляем выигранные баляры
       if (winAmount > 0) {
         if (balyarySlotIndex !== -1) {
           player.inventory[balyarySlotIndex].quantity =
-            (player.inventory[balyarySlotIndex].quantity || 0) + winAmount;
+            (player.inventory[balyarySlotIndex].quantity || 1) + winAmount;
         } else {
           const free = player.inventory.findIndex((s) => s === null);
           if (free !== -1) {
@@ -186,7 +157,6 @@ function handleTwisterMessage(
         }
       }
 
-      // ─── Бонусное очко ─────────────────────────────────
       if (
         giveBonusPoint &&
         !twisterState.playersWhoGavePointThisCycle.has(playerId)
@@ -202,7 +172,7 @@ function handleTwisterMessage(
             player.worldId,
             JSON.stringify({
               type: "notification",
-              message: "Бонусная шкала заполнена! Лови любую тройку!",
+              message: "Бонусная шкала заполнена! Лови 555/666/888!",
               color: "#ffaa00",
             }),
           );
@@ -211,26 +181,29 @@ function handleTwisterMessage(
 
       saveUserDatabase(dbCollection, playerId, player);
 
+      // пересчитываем актуальный баланс
+      const currentBalyarySlot = player.inventory.findIndex(
+        (s) => s?.type === "balyary",
+      );
+      const currentBalance =
+        currentBalyarySlot !== -1
+          ? player.inventory[currentBalyarySlot]?.quantity || 0
+          : 0;
+
       ws.send(
         JSON.stringify({
           type: "twister",
-          subtype: isJackpot ? "bonusWin" : "spinResult",
-          balance:
-            winAmount > 0
-              ? player.inventory[balyarySlotIndex]?.quantity || 0
-              : undefined,
+          subtype: bonusWon ? "bonusWin" : "spinResult",
+          balance: currentBalance,
           bonusPoints: twisterState.bonusPoints,
           myBonusPointGiven:
             twisterState.playersWhoGavePointThisCycle.has(playerId),
           result: resultText,
-          winAmount,
-          finalSymbols: [s1, s2, s3],
+          won: winAmount > 0,
           shouldAnimate: true,
-          jackpot: isJackpot,
         }),
       );
 
-      // Если давали очко — рассылаем всем обновление шкалы
       if (giveBonusPoint) {
         broadcastToWorld(
           wss,
