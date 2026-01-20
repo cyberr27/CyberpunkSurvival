@@ -131,6 +131,10 @@ function handleTwisterMessage(
 
       const isTriple = s1 === s2 && s2 === s3;
 
+      if (twisterState.bonusPoints < 11) {
+        twisterState.playersWhoGavePointThisCycle.clear();
+      }
+
       // 1. Три одинаковые
       if (isTriple) {
         giveBonusPoint = true;
