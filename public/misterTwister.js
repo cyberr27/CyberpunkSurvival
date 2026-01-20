@@ -103,7 +103,7 @@ function showTwisterMenu() {
         <div class="digital-reel" id="reel3"><canvas width="70" height="70"></canvas></div>
       </div>
 
-      <button class="spin-button" id="twister-spin-btn">КРУТИТЬ!</button>
+      <button class="spin-button" id="twister-spin-btn">1$</button>
 
       <p id="twister-result" style="font-size:2.4rem; font-weight:bold; min-height:3em;"></p>
     </div>

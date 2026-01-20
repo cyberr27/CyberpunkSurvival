@@ -47,11 +47,11 @@
 }
 
 .spin-button {
-  position: relative;
-  left: 48%;
-  top: 4%;
-  width: 30%;
-  height: 13%;
+  position: absolute;
+  left: 83%;
+  top: 62.5%;
+  width: 17%;
+  height: 8%;
   text-align: left;
   background: none;
   color: yellow;
