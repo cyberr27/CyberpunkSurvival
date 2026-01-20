@@ -23,8 +23,8 @@
 }
 
 .digital-reel {
-  width: 95px;
-  height: 75px;
+  width: 85px;
+  height: 76px;
   overflow: hidden;
   background: rgba(0, 0, 0, 0.8);
 }
@@ -37,13 +37,19 @@
 }
 
 #reel1 {
-  transform: translateY(45px) translateX(-45px);
+  transform: translateY(50px) translateX(-42px);
+  width: 90px;
+  height: 76px;
 }
 #reel2 {
-  transform: translateY(45px) translateX(-40px);
+  transform: translateY(50px) translateX(-40px);
+  width: 93px;
+  height: 76px;
 }
 #reel3 {
-  transform: translateY(45px) rotate(1deg) translateX(-35px);
+  transform: translateY(50px) rotate(1deg) translateX(-35px);
+  width: 90px;
+  height: 76px;
 }
 
 .spin-button {
@@ -134,17 +140,30 @@
   background: rgb(255, 230, 0);
 }
 .bonus-light-6 {
+  width: 7%;
+  height: 33%;
+  transform: translate(-147px, -53px) rotate(6deg);
+  background: rgb(255, 230, 0);
 }
 .bonus-light-7 {
+  width: 7%;
+  height: 33%;
+  transform: translate(-188px, -63px) rotate(6deg);
+  background: rgb(255, 230, 0);
 }
 .bonus-light-8 {
+  width: 7%;
+  height: 33%;
+  transform: translate(-228px, -76px);
+  background: rgb(255, 230, 0);
 }
 .bonus-light-9 {
+  width: 6%;
+  height: 34%;
+  transform: translate(-265px, -94px) rotate(-6deg);
+  background: rgb(255, 230, 0);
 }
 .bonus-light-10 {
-  /* последний */
-
-  /* transform: translate(20px, -10px); */ /* пример смещения */
 }
 
 .bonus-light.active {

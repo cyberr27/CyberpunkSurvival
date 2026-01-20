@@ -22,6 +22,31 @@ function getSymbolAt(position) {
   return REEL_STRIP[position];
 }
 
+function addBalyaryToPlayer(player, amount) {
+  if (amount <= 0) return;
+
+  // 1. Ищем существующий слот
+  let slotIdx = player.inventory.findIndex((s) => s?.type === "balyary");
+
+  if (slotIdx !== -1) {
+    player.inventory[slotIdx].quantity =
+      (player.inventory[slotIdx].quantity || 1) + amount;
+    return;
+  }
+
+  // 2. Ищем свободный слот
+  const freeIdx = player.inventory.findIndex((s) => s === null);
+  if (freeIdx !== -1) {
+    player.inventory[freeIdx] = { type: "balyary", quantity: amount };
+    return;
+  }
+
+  // 3. Инвентарь полон — пока просто логируем
+  console.warn(
+    `Не удалось добавить ${amount} баляров игроку ${player.id} — инвентарь полон`,
+  );
+}
+
 function handleTwisterMessage(
   ws,
   message,
@@ -146,15 +171,7 @@ function handleTwisterMessage(
       }
 
       if (winAmount > 0) {
-        if (balyarySlotIndex !== -1) {
-          player.inventory[balyarySlotIndex].quantity =
-            (player.inventory[balyarySlotIndex].quantity || 1) + winAmount;
-        } else {
-          const free = player.inventory.findIndex((s) => s === null);
-          if (free !== -1) {
-            player.inventory[free] = { type: "balyary", quantity: winAmount };
-          }
-        }
+        addBalyaryToPlayer(player, winAmount);
       }
 
       if (
