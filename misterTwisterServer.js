@@ -1,4 +1,4 @@
-// misterTwisterServer.js
+// misterTwisterServer.js — финальная версия с гарантированным broadcast
 
 const REEL_STRIP = [
   0, 1, 2, 3, 3, 4, 5, 6, 7, 8, 9, 1, 2, 4, 5, 6, 8, 9, 0, 3, 3, 7,
@@ -21,7 +21,7 @@ const JACKPOT_TRIGGERS = new Set([
 
 const JACKPOT_MULTIPLIERS = {
   777: 200,
-  0o0: 100,
+  "000": 100,
   555: 50,
   444: 80,
   666: 60,
@@ -107,7 +107,7 @@ function handleTwisterMessage(
         return;
       }
 
-      // снимаем 1 баляр
+      // Снимаем 1 баляр
       if (balyaryCount === 1) {
         player.inventory[balyarySlotIndex] = null;
       } else {
@@ -137,7 +137,6 @@ function handleTwisterMessage(
         if (comboStr in JACKPOT_MULTIPLIERS) {
           winAmount += JACKPOT_MULTIPLIERS[comboStr];
         }
-        // 777 даёт ещё +15 от суммы
         if (comboStr === "777") {
           winAmount += 15;
         }
@@ -148,7 +147,7 @@ function handleTwisterMessage(
         giveBonusPoint = true;
       }
 
-      // Большой джекпот (80) — любая тройка при 11/11
+      // Большой джекпот
       if (twisterState.bonusPoints >= 11 && JACKPOT_TRIGGERS.has(comboStr)) {
         winAmount = 80;
         isBigJackpot = true;
@@ -182,13 +181,17 @@ function handleTwisterMessage(
         }
       }
 
-      // Даём пункт в шкалу (если не джекпот)
+      // Самое важное: +1 в бонус-шкалу
       if (giveBonusPoint && !isBigJackpot) {
         if (!twisterState.playersWhoGavePointThisCycle.has(playerId)) {
           twisterState.playersWhoGavePointThisCycle.add(playerId);
           twisterState.bonusPoints = Math.min(11, twisterState.bonusPoints + 1);
 
-          // Один broadcast — всегда после +1
+          console.log(
+            `[Twister SERVER] +1 bonusPoints → ${twisterState.bonusPoints} (игрок ${playerId})`,
+          );
+
+          // РАССЫЛКА ВСЕМ В МИРЕ — КАЖДЫЙ РАЗ
           broadcastToWorld(
             wss,
             clients,
@@ -219,7 +222,6 @@ function handleTwisterMessage(
 
       saveUserDatabase(dbCollection, playerId, player);
 
-      // Ответ клиенту: символы для анимации + чистая сумма
       const resultSymbols = `${s1} ${s2} ${s3}`;
 
       ws.send(
@@ -233,12 +235,13 @@ function handleTwisterMessage(
           bonusPoints: twisterState.bonusPoints,
           myBonusPointGiven:
             twisterState.playersWhoGavePointThisCycle.has(playerId),
-          symbols: resultSymbols, // ← для анимации
-          winAmount: winAmount, // ← чистое число
+          symbols: resultSymbols,
+          winAmount: winAmount,
           won: winAmount > 0,
           shouldAnimate: true,
         }),
       );
+
       break;
     }
 

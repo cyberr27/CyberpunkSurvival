@@ -226,7 +226,6 @@ function animateReels(finalFrames) {
     if (elapsed < TOTAL_DURATION) {
       requestAnimationFrame(loop);
     } else {
-      // Остановка на нужных символах
       ctxs.forEach((ctx, i) => {
         ctx.clearRect(0, 0, 70, 70);
         ctx.drawImage(
@@ -245,8 +244,10 @@ function animateReels(finalFrames) {
       isSpinning = false;
       const btn = document.getElementById("twister-spin-btn");
       if (btn) {
-        // ← защита от null
+        // ← защита
         btn.disabled = false;
+      } else {
+        console.warn("[Twister] Кнопка spin-btn не найдена при остановке");
       }
     }
   }
@@ -256,6 +257,8 @@ function animateReels(finalFrames) {
 
 function updateTwisterState(data) {
   if (!isMenuOpen) return;
+
+  console.log("[Twister CLIENT] Получен state:", data); // ← смотри сюда!
 
   // Баланс
   if (data.balance !== undefined) {
@@ -268,30 +271,24 @@ function updateTwisterState(data) {
 
   // Бонус-шкала
   const points = Math.min(11, data.bonusPoints ?? 0);
+  console.log("[Twister CLIENT] points:", points);
 
-  // 1. Полностью очищаем active со всех лампочек
+  // Очистка
   for (let i = 0; i < 11; i++) {
     const el = document.querySelector(`.bonus-light-${i}`);
-    if (el) {
-      el.classList.remove("active");
-    }
+    if (el) el.classList.remove("active");
   }
 
-  // 2. Ставим active ровно points штук (0..points-1)
+  // Установка
   for (let i = 0; i < points; i++) {
     const el = document.querySelector(`.bonus-light-${i}`);
     if (el) {
       el.classList.add("active");
+      console.log(`[Twister] Активна лампочка ${i}`);
+    } else {
+      console.warn(`[Twister] Лампочка ${i} не найдена`);
     }
   }
-
-  // Отладка — обязательно посмотри в консоль!
-  console.log(
-    "[Twister DEBUG] Получено bonusPoints:",
-    data.bonusPoints,
-    "→ Активных лампочек должно быть:",
-    points,
-  );
 
   const resultEl = document.getElementById("twister-result");
 
@@ -319,9 +316,8 @@ function updateTwisterState(data) {
 
     if (win > 0) {
       let msg = `+${win} баляров!`;
-      if (data.subtype === "bonusWin") {
+      if (data.subtype === "bonusWin")
         msg = `БОЛЬШОЙ ДЖЕКПОТ! +${win} баляров!`;
-      }
       if (typeof window.showNotification === "function") {
         window.showNotification(msg, "#ffff00");
       }
