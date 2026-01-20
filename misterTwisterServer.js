@@ -21,7 +21,7 @@ const JACKPOT_TRIGGERS = new Set([
 
 const JACKPOT_MULTIPLIERS = {
   777: 200,
-  0o0: 100,
+  000: 100,
   555: 50,
   444: 80,
   666: 60,
@@ -55,7 +55,7 @@ function handleTwisterMessage(
   playerId,
   saveUserDatabase,
   dbCollection,
-  broadcastToWorld, // добавляем как аргумент
+  broadcastToWorld,
 ) {
   const player = players.get(playerId);
   if (!player) return;
@@ -128,34 +128,30 @@ function handleTwisterMessage(
       let winAmount = 0;
       let giveBonusPoint = false;
       let isBigJackpot = false;
-      let resultTextForClient = ""; // только для лога на сервере, клиенту пошлём чистое число
 
       const isTriple = s1 === s2 && s2 === s3;
 
-      // ─── 1. Три одинаковые ───
+      // 1. Три одинаковые
       if (isTriple) {
         giveBonusPoint = true;
-
         if (comboStr in JACKPOT_MULTIPLIERS) {
           winAmount += JACKPOT_MULTIPLIERS[comboStr];
         }
-
-        // Особый случай 777 — ещё +15 от суммы
+        // 777 даёт ещё +15 от суммы
         if (comboStr === "777") {
           winAmount += 15;
         }
       }
-      // ─── 2. НЕ тройка, но сумма 7 / 14 / 21 ───
+      // 2. НЕ тройка, но сумма 7/14/21
       else if (sum === 7 || sum === 14 || sum === 21) {
         winAmount += 15;
         giveBonusPoint = true;
       }
 
-      // ─── Большой джекпот (80) ───
+      // Большой джекпот (80) — любая тройка при 11/11
       if (twisterState.bonusPoints >= 11 && JACKPOT_TRIGGERS.has(comboStr)) {
         winAmount = 80;
         isBigJackpot = true;
-        resultTextForClient = "БОЛЬШОЙ ДЖЕКПОТ 80!";
         twisterState.bonusPoints = 0;
         twisterState.playersWhoGavePointThisCycle.clear();
         twisterState.lastBonusWinner = playerId;
@@ -167,13 +163,13 @@ function handleTwisterMessage(
           player.worldId,
           JSON.stringify({
             type: "notification",
-            message: `Игрок ${player.id} сорвал БОЛЬШОЙ ДЖЕКПОТ 80 баляров!`,
+            message: `Игрок ${player.id || playerId} сорвал БОЛЬШОЙ ДЖЕКПОТ 80 баляров!`,
             color: "#ffff00",
           }),
         );
       }
 
-      // ─── Добавляем выигрыш в инвентарь ───
+      // Добавляем выигрыш
       if (winAmount > 0) {
         if (balyarySlotIndex !== -1) {
           player.inventory[balyarySlotIndex].quantity =
@@ -186,7 +182,7 @@ function handleTwisterMessage(
         }
       }
 
-      // ─── Даём пункт в бонус-шкалу (если не большой джекпот) ───
+      // Даём пункт в шкалу (если не джекпот)
       if (giveBonusPoint && !isBigJackpot) {
         if (!twisterState.playersWhoGavePointThisCycle.has(playerId)) {
           twisterState.playersWhoGavePointThisCycle.add(playerId);
@@ -210,7 +206,9 @@ function handleTwisterMessage(
 
       saveUserDatabase(dbCollection, playerId, player);
 
-      // ─── Ответ клиенту ───
+      // Ответ клиенту: символы для анимации + чистая сумма
+      const resultSymbols = `${s1} ${s2} ${s3}`;
+
       ws.send(
         JSON.stringify({
           type: "twister",
@@ -222,14 +220,14 @@ function handleTwisterMessage(
           bonusPoints: twisterState.bonusPoints,
           myBonusPointGiven:
             twisterState.playersWhoGavePointThisCycle.has(playerId),
-          result: winAmount.toString(), // ← только число!
+          symbols: resultSymbols, // ← для анимации
+          winAmount: winAmount, // ← чистое число
           won: winAmount > 0,
-          winAmount: winAmount, // для показа в уведомлении
           shouldAnimate: true,
         }),
       );
 
-      // Если давали пункт → рассылаем обновление шкалы всем
+      // Если пункт добавлен — обновляем шкалу всем
       if (giveBonusPoint && !isBigJackpot) {
         broadcastToWorld(
           wss,

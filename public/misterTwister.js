@@ -1,4 +1,4 @@
-// misterTwister.js — цифровой слот с тремя независимыми табло
+// misterTwister.js — с привязкой анимации к реальным символам
 
 const MISTER_TWISTER_POS = {
   x: 500,
@@ -23,8 +23,8 @@ const SLOT_SPRITE = {
   frameCount: 10, // 0..9
 };
 
-let sprite = null; // сам мистер твистер
-let slotSprite = null; // цифры 0-9
+let sprite = null;
+let slotSprite = null;
 let spriteReady = false;
 let slotSpriteReady = false;
 let animationStart = 0;
@@ -103,29 +103,18 @@ function showTwisterMenu() {
         <div class="digital-reel" id="reel3"><canvas width="70" height="70"></canvas></div>
       </div>
 
-      <button class="spin-button" id="twister-spin-btn">1$</button>
+      <button class="spin-button" id="twister-spin-btn">КРУТИТЬ!</button>
 
-      <p id="twister-result"></p>
+      <p id="twister-result" style="font-size:2.2rem; font-weight:bold; min-height:3em;"></p>
     </div>
 
     <div class="bonus-lights" id="bonus-lights">
-  <div class="bonus-light bonus-light-0"></div>
-  <div class="bonus-light bonus-light-1"></div>
-  <div class="bonus-light bonus-light-2"></div>
-  <div class="bonus-light bonus-light-3"></div>
-  <div class="bonus-light bonus-light-4"></div>
-  <div class="bonus-light bonus-light-5"></div>
-  <div class="bonus-light bonus-light-6"></div>
-  <div class="bonus-light bonus-light-7"></div>
-  <div class="bonus-light bonus-light-8"></div>
-  <div class="bonus-light bonus-light-9"></div>
-  <div class="bonus-light bonus-light-10"></div>
-</div>
+      ${Array(11).fill('<div class="bonus-light"></div>').join("")}
+    </div>
   `;
 
   document.body.appendChild(menuElement);
 
-  // Перехватываем обновление инвентаря, чтобы баланс обновлялся
   const original = window.inventorySystem.updateInventoryDisplay;
   window.inventorySystem.updateInventoryDisplay = function (...args) {
     original.apply(this, args);
@@ -157,9 +146,9 @@ function handleTwisterSpin() {
   const balance =
     Number(document.getElementById("twister-balance")?.dataset.count) || 0;
   if (balance < 1) {
-    const resultEl = document.getElementById("twister-result");
-    resultEl.textContent = "Недостаточно баляров!";
-    resultEl.style.color = "#ff6666";
+    document.getElementById("twister-result").textContent =
+      "Недостаточно баляров!";
+    document.getElementById("twister-result").style.color = "#ff6666";
     return;
   }
 
@@ -174,8 +163,7 @@ function handleTwisterSpin() {
 
 function animateReels(finalFrames) {
   if (!slotSpriteReady || !slotSprite?.complete) {
-    document.getElementById("twister-result").textContent =
-      "Ошибка загрузки спрайта...";
+    document.getElementById("twister-result").textContent = "Ошибка спрайта...";
     isSpinning = false;
     document.getElementById("twister-spin-btn")?.removeAttribute("disabled");
     return;
@@ -191,7 +179,7 @@ function animateReels(finalFrames) {
 
   const TOTAL_DURATION = 5000;
   const SLOWDOWN_FROM = 3200;
-  const BASE_SPEED = 0.32; // начальная скорость прокрутки (кадров в мс)
+  const BASE_SPEED = 0.32;
 
   let start = performance.now();
 
@@ -201,7 +189,7 @@ function animateReels(finalFrames) {
     let speed = BASE_SPEED;
     if (elapsed > SLOWDOWN_FROM) {
       const t = (elapsed - SLOWDOWN_FROM) / (TOTAL_DURATION - SLOWDOWN_FROM);
-      speed *= 1 - t * 0.94; // почти до нуля
+      speed *= 1 - t * 0.94;
     }
 
     const pos = (elapsed * speed) % SLOT_SPRITE.frameCount;
@@ -228,7 +216,7 @@ function animateReels(finalFrames) {
     if (elapsed < TOTAL_DURATION) {
       requestAnimationFrame(loop);
     } else {
-      // Финальная отрисовка
+      // Остановка на точных символах
       ctxs.forEach((ctx, i) => {
         ctx.clearRect(0, 0, 70, 70);
         ctx.drawImage(
@@ -255,21 +243,20 @@ function animateReels(finalFrames) {
 function updateTwisterState(data) {
   if (!isMenuOpen) return;
 
+  // Баланс
   if (data.balance !== undefined) {
-    balance = data.balance;
     const el = document.getElementById("twister-balance");
     if (el) {
-      el.textContent = balance;
-      el.dataset.count = balance;
+      el.textContent = data.balance;
+      el.dataset.count = data.balance;
     }
   }
 
-  bonusPoints = Math.min(11, data.bonusPoints ?? 0);
-  myBonusPointGiven = data.myBonusPointGiven ?? false;
-
+  // Бонус-шкала
+  const points = Math.min(11, data.bonusPoints ?? 0);
   document
     .querySelectorAll(".bonus-light")
-    .forEach((el, i) => el.classList.toggle("active", i < bonusPoints));
+    .forEach((el, i) => el.classList.toggle("active", i < points));
 
   const resultEl = document.getElementById("twister-result");
 
@@ -277,43 +264,37 @@ function updateTwisterState(data) {
     resultEl.textContent = data.error;
     resultEl.style.color = "#ff6666";
     isSpinning = false;
-    const btn = document.getElementById("twister-spin-btn");
-    if (btn) btn.disabled = false;
+    document.getElementById("twister-spin-btn")?.removeAttribute("disabled");
     return;
   }
 
-  if (data.shouldAnimate && data.result !== undefined) {
-    // Сервер теперь присылает чистое число строкой
-    const win = parseInt(data.result, 10) || 0;
+  if (data.shouldAnimate) {
+    if (data.symbols) {
+      const match = data.symbols.match(/^(\d)\s+(\d)\s+(\d)$/);
+      if (match) {
+        const frames = [Number(match[1]), Number(match[2]), Number(match[3])];
+        animateReels(frames);
+      }
+    }
 
-    // Анимируем барабаны (как и раньше — но без привязки к конкретным символам)
-    // Если хочешь — можно оставить старую анимацию случайного кручения
-    // Здесь просто имитируем остановку на любых символах (или можно передать символы с сервера позже)
-    animateDigitalReels([7, 7, 7]); // ← заглушка, можешь рандомить или оставить как есть
-
-    // Показываем только число
+    // Показываем только сумму выигрыша
+    const win = Number(data.winAmount) || 0;
     resultEl.textContent = win;
     resultEl.style.color = win > 0 ? "#00ff88" : "#e0e0e0";
-    resultEl.style.fontSize = win > 0 ? "2.4rem" : "1.8rem";
-    resultEl.style.fontWeight = win > 0 ? "bold" : "normal";
 
-    // Уведомление при любом выигрыше
+    // Уведомление при выигрыше
     if (win > 0) {
       let msg = `+${win} баляров!`;
       if (data.subtype === "bonusWin") {
         msg = `БОЛЬШОЙ ДЖЕКПОТ! +${win} баляров!`;
       }
-      // предполагается, что у тебя есть глобальная функция showNotification
-      if (window.showNotification) {
+      if (typeof window.showNotification === "function") {
         window.showNotification(msg, "#ffff00");
-      } else {
-        console.log("[Twister]", msg);
       }
     }
 
     isSpinning = false;
-    const btn = document.getElementById("twister-spin-btn");
-    if (btn) btn.disabled = false;
+    document.getElementById("twister-spin-btn")?.removeAttribute("disabled");
   }
 }
 
