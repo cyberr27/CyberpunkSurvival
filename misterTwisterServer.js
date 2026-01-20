@@ -188,7 +188,7 @@ function handleTwisterMessage(
           twisterState.playersWhoGavePointThisCycle.add(playerId);
           twisterState.bonusPoints = Math.min(11, twisterState.bonusPoints + 1);
 
-          // ← ИСПРАВЛЕНИЕ: рассылаем ВСЕГДА после +1
+          // Один broadcast — всегда после +1
           broadcastToWorld(
             wss,
             clients,

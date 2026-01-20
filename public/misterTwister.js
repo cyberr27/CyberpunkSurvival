@@ -243,7 +243,11 @@ function animateReels(finalFrames) {
       });
 
       isSpinning = false;
-      document.getElementById("twister-spin-btn").disabled = false;
+      const btn = document.getElementById("twister-spin-btn");
+      if (btn) {
+        // ← защита от null
+        btn.disabled = false;
+      }
     }
   }
 
