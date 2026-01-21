@@ -1,4 +1,4 @@
-// misterTwister.js — исправленная версия с кнопкой и лампочками
+// misterTwister.js — без звука, с отложенным показом выигрыша после остановки
 
 const MISTER_TWISTER_POS = {
   x: 500,
@@ -166,12 +166,17 @@ function handleTwisterSpin() {
   const btn = document.getElementById("twister-spin-btn");
   btn.disabled = true;
 
+  // Очищаем результат перед спином
+  const resultEl = document.getElementById("twister-result");
+  resultEl.textContent = "";
+  resultEl.style.color = "#e0e0e0";
+
   if (ws?.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({ type: "twister", subtype: "spin" }));
   }
 }
 
-function animateReels(finalFrames) {
+function animateReels(finalFrames, winAmount = 0, isBonusWin = false) {
   if (!slotSpriteReady || !slotSprite?.complete) {
     document.getElementById("twister-result").textContent = "Ошибка спрайта...";
     isSpinning = false;
@@ -226,6 +231,7 @@ function animateReels(finalFrames) {
     if (elapsed < TOTAL_DURATION) {
       requestAnimationFrame(loop);
     } else {
+      // Окончательная отрисовка символов
       ctxs.forEach((ctx, i) => {
         ctx.clearRect(0, 0, 70, 70);
         ctx.drawImage(
@@ -241,14 +247,28 @@ function animateReels(finalFrames) {
         );
       });
 
+      // Показываем результат только после полной остановки
+      const resultEl = document.getElementById("twister-result");
+
+      if (winAmount > 0) {
+        let msg = winAmount;
+        if (isBonusWin) {
+          msg = `БОЛЬШОЙ ДЖЕКПОТ! +${winAmount}`;
+        }
+        resultEl.textContent = msg;
+        resultEl.style.color = "#ff0000";
+
+        if (typeof window.showNotification === "function") {
+          window.showNotification(msg + " баляров!", "#ffff00");
+        }
+      } else {
+        resultEl.textContent = "0";
+        resultEl.style.color = "#ff0000";
+      }
+
       isSpinning = false;
       const btn = document.getElementById("twister-spin-btn");
-      if (btn) {
-        // ← защита
-        btn.disabled = false;
-      } else {
-        console.warn("[Twister] Кнопка spin-btn не найдена при остановке");
-      }
+      if (btn) btn.disabled = false;
     }
   }
 
@@ -258,7 +278,7 @@ function animateReels(finalFrames) {
 function updateTwisterState(data) {
   if (!isMenuOpen) return;
 
-  console.log("[Twister CLIENT] Получен state:", data); // ← смотри сюда!
+  console.log("[Twister CLIENT] Получен state:", data);
 
   // Баланс
   if (data.balance !== undefined) {
@@ -271,23 +291,17 @@ function updateTwisterState(data) {
 
   // Бонус-шкала
   const points = Math.min(11, data.bonusPoints ?? 0);
-  console.log("[Twister CLIENT] points:", points);
 
-  // Очистка
+  // Очистка лампочек
   for (let i = 0; i < 11; i++) {
     const el = document.querySelector(`.bonus-light-${i}`);
     if (el) el.classList.remove("active");
   }
 
-  // Установка
+  // Зажигаем активные
   for (let i = 0; i < points; i++) {
     const el = document.querySelector(`.bonus-light-${i}`);
-    if (el) {
-      el.classList.add("active");
-      console.log(`[Twister] Активна лампочка ${i}`);
-    } else {
-      console.warn(`[Twister] Лампочка ${i} не найдена`);
-    }
+    if (el) el.classList.add("active");
   }
 
   const resultEl = document.getElementById("twister-result");
@@ -301,27 +315,16 @@ function updateTwisterState(data) {
     return;
   }
 
-  if (data.shouldAnimate) {
-    if (data.symbols) {
-      const match = data.symbols.match(/^(\d)\s+(\d)\s+(\d)$/);
-      if (match) {
-        const frames = [Number(match[1]), Number(match[2]), Number(match[3])];
-        animateReels(frames);
-      }
+  if (data.shouldAnimate && data.symbols) {
+    const match = data.symbols.match(/^(\d)\s+(\d)\s+(\d)$/);
+    if (match) {
+      const frames = [Number(match[1]), Number(match[2]), Number(match[3])];
+      const win = Number(data.winAmount) || 0;
+      const isBonus = data.subtype === "bonusWin";
+      animateReels(frames, win, isBonus);
     }
-
-    const win = Number(data.winAmount) || 0;
-    resultEl.textContent = win;
-    resultEl.style.color = win > 0 ? "#00ff88" : "#e0e0e0";
-
-    if (win > 0) {
-      let msg = `+${win} баляров!`;
-      if (data.subtype === "bonusWin")
-        msg = `БОЛЬШОЙ ДЖЕКПОТ! +${win} баляров!`;
-      if (typeof window.showNotification === "function") {
-        window.showNotification(msg, "#ffff00");
-      }
-    }
+  } else if (!data.shouldAnimate) {
+    resultEl.textContent = "";
   }
 }
 
