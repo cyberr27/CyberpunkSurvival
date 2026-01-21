@@ -105,7 +105,7 @@ function showTwisterMenu() {
 
       <button class="spin-button" id="twister-spin-btn">1$</button>
 
-      <p id="twister-result" style="font-size:2.4rem; font-weight:bold; min-height:3em;"></p>
+      <p id="twister-result"></p>
     </div>
 
     <div class="bonus-lights" id="bonus-lights">

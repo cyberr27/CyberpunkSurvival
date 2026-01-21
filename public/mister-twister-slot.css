@@ -4,7 +4,7 @@
   background: url("mister_twister_slot_bg.png") center/cover no-repeat;
   min-height: 520px;
   overflow: hidden;
-  position: relative;
+  position: absolute;
 }
 
 .npc-dialog-content {
@@ -48,7 +48,7 @@
 
 .spin-button {
   position: absolute;
-  left: 83%;
+  left: 82.5%;
   top: 62.5%;
   width: 17%;
   height: 8%;
@@ -83,23 +83,26 @@
 
 /* Бонусные огоньки — теперь каждый со своим классом */
 .bonus-lights {
-  display: flex;
-  gap: 10px;
+  border-radius: 15%;
   justify-content: center;
   flex-wrap: wrap;
   max-width: 420px;
-  position: relative;
+  position: absolute;
+  top: 80%;
 }
 
 /* Индивидуальные классы для позиционирования */
 .bonus-light-0 {
-  width: 5%;
-  height: 25%;
-  transform: translate(57px, 7px) rotate(13deg);
+  position: absolute;
+  top: 41%;
+  left: 27.5%;
+  width: 7.5%;
+  height: 12%;
+  transform: rotate(13deg);
 }
 .bonus-light-1 {
-  width: 5%;
-  height: 30%;
+  width: 25%;
+  height: 20%;
   transform: translate(40px, -5px) rotate(10deg);
 }
 .bonus-light-2 {
@@ -146,8 +149,10 @@
 #twister-result {
   color: #ff0000;
   text-shadow: 0 0 8px #ff0000;
-  font-size: 1.4rem;
+  font-size: 24px;
+  font-weight: bold;
   text-align: center;
-  min-height: 3em;
-  margin-top: 12px;
+  position: absolute;
+  top: 67.5%;
+  left: 49.5%;
 }
