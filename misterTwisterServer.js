@@ -145,9 +145,15 @@ function handleTwisterMessage(
           winAmount += 15;
         }
       }
-      // 2. НЕ тройка, но сумма 7/14/21
-      else if (sum === 7 || sum === 14 || sum === 21) {
-        winAmount += 15;
+
+      if (sum === 7) {
+        winAmount += 7;
+        giveBonusPoint = true;
+      } else if (sum === 14) {
+        winAmount += 14;
+        giveBonusPoint = true;
+      } else if (sum === 21) {
+        winAmount += 21;
         giveBonusPoint = true;
       }
 
