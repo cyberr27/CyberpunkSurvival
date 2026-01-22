@@ -185,28 +185,24 @@ async function handleTwisterMessage(
         twisterState.playersWhoGavePointThisCycle.clear();
       }
 
-      // ─── 1. Правила с 7-ками (самый высокий приоритет, кроме 777) ───
-      if (isTriple && comboStr === "777") {
+      const countOfSevens = [s1, s2, s3].filter((x) => x === 7).length;
+
+      // ─── 1. Специальные правила только для 1 или 2 семёрок (кроме 777) ───
+      if (countOfSevens === 2 && !isTriple) {
+        winAmount = 2;
+        giveBonusPoint = false;
+      } else if (countOfSevens === 1) {
+        winAmount = 1;
+        giveBonusPoint = false;
+      }
+
+      // ─── 2. 777 — всегда особый случай ───
+      else if (isTriple && comboStr === "777") {
         winAmount = 200;
         giveBonusPoint = true;
-      } else if (hasTwoSevens(s1, s2, s3)) {
-        if (sum === 14) {
-          winAmount = 6;
-          giveBonusPoint = true;
-        } else {
-          winAmount = 2;
-          giveBonusPoint = false;
-        }
-      } else if (hasSeven(s1, s2, s3)) {
-        if (sum === 7) {
-          winAmount = 3;
-          giveBonusPoint = true;
-        } else {
-          winAmount = 1;
-          giveBonusPoint = false;
-        }
       }
-      // ─── 2. Большой джекпот при полной шкале ───
+
+      // ─── 3. Большой джекпот при полной шкале ───
       else if (
         twisterState.bonusPoints >= 11 &&
         JACKPOT_TRIGGERS.has(comboStr)
@@ -230,13 +226,13 @@ async function handleTwisterMessage(
         );
       }
 
-      // ─── 3. Обычные тройки (если не перекрыты правилами выше) ───
+      // ─── 4. Обычные тройки (кроме 777, уже обработано выше) ───
       else if (isTriple && comboStr in JACKPOT_MULTIPLIERS) {
         winAmount = JACKPOT_MULTIPLIERS[comboStr];
         giveBonusPoint = true;
       }
 
-      // ─── 4. Правила по сумме (если ничего выше не сработало) ───
+      // ─── 5. Правила по сумме — только если ничего выше не сработало ───
       else if (sum === 7) {
         winAmount = 3;
         giveBonusPoint = true;
