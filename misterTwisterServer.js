@@ -193,9 +193,10 @@ async function handleTwisterMessage(
         if (sum === 14) {
           winAmount = 6;
           giveBonusPoint = true;
+        } else {
+          winAmount = 2;
+          giveBonusPoint = false;
         }
-        winAmount = 2;
-        giveBonusPoint = false;
       } else if (hasSeven(s1, s2, s3)) {
         if (sum === 7) {
           winAmount = 3;
