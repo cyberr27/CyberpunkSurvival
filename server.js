@@ -6,6 +6,7 @@ const { connectToDatabase, loadUserDatabase } = require("./database");
 const { setupWebSocket } = require("./websocket");
 const { runGameLoop } = require("./gameLogic");
 const { ITEM_CONFIG } = require("./items");
+const { loadTwisterState } = require("./misterTwisterServer");
 
 const app = express();
 const server = http.createServer(app);
@@ -134,7 +135,7 @@ app.use(
         res.setHeader("Content-Type", "image/png");
       }
     },
-  })
+  }),
 );
 
 app.get("/health", (req, res) => {
@@ -145,12 +146,13 @@ async function initializeServer() {
   const uri = process.env.MONGO_URI;
   console.log(
     "Значение MONGO_URI из окружения:",
-    uri ? uri.replace(/:([^:@]+)@/, ":<password>@") : "не определено"
+    uri ? uri.replace(/:([^:@]+)@/, ":<password>@") : "не определено",
   );
 
   const collection = await connectToDatabase(uri);
   await loadUserDatabase(collection, userDatabase);
   console.log("Сервер готов к работе после загрузки базы данных");
+  await loadTwisterState(collection);
 
   setupWebSocket(
     wss,
@@ -163,7 +165,7 @@ async function initializeServer() {
     worlds,
     ITEM_CONFIG,
     INACTIVITY_TIMEOUT,
-    enemies 
+    enemies,
   );
 
   runGameLoop(
@@ -175,7 +177,7 @@ async function initializeServer() {
     worlds,
     ITEM_CONFIG,
     userDatabase,
-    enemies 
+    enemies,
   );
 
   return collection;
