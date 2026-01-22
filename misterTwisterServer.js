@@ -190,11 +190,23 @@ async function handleTwisterMessage(
         winAmount = 200;
         giveBonusPoint = true;
       } else if (hasTwoSevens(s1, s2, s3)) {
+        if (sum === 14) {
+          winAmount = 6;
+          giveBonusPoint = true;
+        }
         winAmount = 2;
         giveBonusPoint = false;
       } else if (hasSeven(s1, s2, s3)) {
-        winAmount = 1;
-        giveBonusPoint = false;
+        if (sum === 7) {
+          winAmount = 3;
+          giveBonusPoint = true;
+        } else {
+          winAmount = 1;
+          giveBonusPoint = false;
+        }
+      } else if (sum === 21) {
+        winAmount = 9;
+        giveBonusPoint = true;
       }
 
       // ─── 2. Большой джекпот при полной шкале ───
@@ -224,18 +236,6 @@ async function handleTwisterMessage(
       // ─── 3. Обычные тройки (если не перекрыты правилами выше) ───
       else if (isTriple && comboStr in JACKPOT_MULTIPLIERS) {
         winAmount = JACKPOT_MULTIPLIERS[comboStr];
-        giveBonusPoint = true;
-      }
-
-      // ─── 4. Правила по сумме (если ничего выше не сработало) ───
-      else if (sum === 7) {
-        winAmount = 3;
-        giveBonusPoint = true;
-      } else if (sum === 14) {
-        winAmount = 6;
-        giveBonusPoint = true;
-      } else if (sum === 21) {
-        winAmount = 9;
         giveBonusPoint = true;
       }
 
