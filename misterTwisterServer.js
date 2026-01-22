@@ -205,11 +205,7 @@ async function handleTwisterMessage(
           winAmount = 1;
           giveBonusPoint = false;
         }
-      } else if (sum === 21) {
-        winAmount = 9;
-        giveBonusPoint = true;
       }
-
       // ─── 2. Большой джекпот при полной шкале ───
       else if (
         twisterState.bonusPoints >= 11 &&
@@ -237,6 +233,18 @@ async function handleTwisterMessage(
       // ─── 3. Обычные тройки (если не перекрыты правилами выше) ───
       else if (isTriple && comboStr in JACKPOT_MULTIPLIERS) {
         winAmount = JACKPOT_MULTIPLIERS[comboStr];
+        giveBonusPoint = true;
+      }
+
+      // ─── 4. Правила по сумме (если ничего выше не сработало) ───
+      else if (sum === 7) {
+        winAmount = 3;
+        giveBonusPoint = true;
+      } else if (sum === 14) {
+        winAmount = 6;
+        giveBonusPoint = true;
+      } else if (sum === 21) {
+        winAmount = 9;
         giveBonusPoint = true;
       }
 
