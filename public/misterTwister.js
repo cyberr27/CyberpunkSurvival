@@ -1,4 +1,4 @@
-// misterTwister.js — без звука, с отложенным показом выигрыша после остановки
+// misterTwister.js — улучшено обновление баланса в реальном времени
 
 const MISTER_TWISTER_POS = {
   x: 500,
@@ -72,14 +72,20 @@ function checkMisterTwisterProximity() {
   wasInRangeLastFrame = nowInRange;
 }
 
-function updateLocalBalanceDisplay() {
+function updateLocalBalanceDisplay(count = null) {
   if (!isMenuOpen) return;
-  const count =
-    window.inventory?.find((s) => s?.type === "balyary")?.quantity || 0;
+
   const el = document.getElementById("twister-balance");
-  if (el) {
+  if (!el) return;
+
+  if (count !== null) {
     el.textContent = count;
     el.dataset.count = count;
+  } else {
+    const invCount =
+      window.inventory?.find((s) => s?.type === "balyary")?.quantity || 0;
+    el.textContent = invCount;
+    el.dataset.count = invCount;
   }
 }
 
@@ -125,6 +131,7 @@ function showTwisterMenu() {
 
   document.body.appendChild(menuElement);
 
+  // Перехватываем обновление инвентаря глобально
   const original = window.inventorySystem.updateInventoryDisplay;
   window.inventorySystem.updateInventoryDisplay = function (...args) {
     original.apply(this, args);
@@ -166,7 +173,6 @@ function handleTwisterSpin() {
   const btn = document.getElementById("twister-spin-btn");
   btn.disabled = true;
 
-  // Очищаем результат перед спином
   const resultEl = document.getElementById("twister-result");
   resultEl.textContent = "";
   resultEl.style.color = "#e0e0e0";
@@ -231,7 +237,7 @@ function animateReels(finalFrames, winAmount = 0, isBonusWin = false) {
     if (elapsed < TOTAL_DURATION) {
       requestAnimationFrame(loop);
     } else {
-      // Окончательная отрисовка символов
+      // Финальная отрисовка
       ctxs.forEach((ctx, i) => {
         ctx.clearRect(0, 0, 70, 70);
         ctx.drawImage(
@@ -247,7 +253,6 @@ function animateReels(finalFrames, winAmount = 0, isBonusWin = false) {
         );
       });
 
-      // Показываем результат только после полной остановки
       const resultEl = document.getElementById("twister-result");
 
       if (winAmount > 0) {
@@ -269,6 +274,9 @@ function animateReels(finalFrames, winAmount = 0, isBonusWin = false) {
       isSpinning = false;
       const btn = document.getElementById("twister-spin-btn");
       if (btn) btn.disabled = false;
+
+      // Обновляем баланс сразу после остановки барабанов
+      updateLocalBalanceDisplay();
     }
   }
 
@@ -280,7 +288,7 @@ function updateTwisterState(data) {
 
   console.log("[Twister CLIENT] Получен state:", data);
 
-  // Баланс
+  // Баланс — всегда обновляем, если пришёл
   if (data.balance !== undefined) {
     const el = document.getElementById("twister-balance");
     if (el) {
@@ -289,16 +297,14 @@ function updateTwisterState(data) {
     }
   }
 
-  // Бонус-шкала
+  // Бонус-лампочки
   const points = Math.min(11, data.bonusPoints ?? 0);
 
-  // Очистка лампочек
   for (let i = 0; i < 11; i++) {
     const el = document.querySelector(`.bonus-light-${i}`);
     if (el) el.classList.remove("active");
   }
 
-  // Зажигаем активные
   for (let i = 0; i < points; i++) {
     const el = document.querySelector(`.bonus-light-${i}`);
     if (el) el.classList.add("active");

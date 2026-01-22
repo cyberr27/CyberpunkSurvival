@@ -1,4 +1,4 @@
-// misterTwisterServer.js — финальная версия с гарантированным broadcast
+// misterTwisterServer.js — с сохранением bonusPoints + новые правила 7-ок
 
 const REEL_STRIP = [
   0, 1, 2, 3, 3, 4, 5, 6, 7, 8, 9, 1, 2, 4, 5, 6, 8, 9, 0, 3, 3, 7,
@@ -32,11 +32,51 @@ const JACKPOT_MULTIPLIERS = {
   333: 30,
 };
 
-const twisterState = {
+// Глобальное состояние (должно сохраняться между рестартами)
+let twisterState = {
   bonusPoints: 0,
   playersWhoGavePointThisCycle: new Set(),
   lastBonusWinner: null,
 };
+
+// ───────────────────────────────────────────────
+// Функция загрузки состояния из базы при старте сервера
+// Вызывается один раз при запуске сервера (добавьте вызов в основной файл)
+// ───────────────────────────────────────────────
+async function loadTwisterState(dbCollection) {
+  try {
+    const doc = await dbCollection.findOne({ _id: "twister_global_state" });
+    if (doc) {
+      twisterState.bonusPoints = doc.bonusPoints || 0;
+      // playersWhoGavePointThisCycle НЕ сохраняем — это цикл до 11
+      console.log(
+        `[Twister] Загружено bonusPoints = ${twisterState.bonusPoints}`,
+      );
+    }
+  } catch (err) {
+    console.error("[Twister] Ошибка загрузки состояния:", err);
+  }
+}
+
+// ───────────────────────────────────────────────
+// Функция сохранения состояния (вызывается после каждого изменения)
+// ───────────────────────────────────────────────
+async function saveTwisterState(dbCollection) {
+  try {
+    await dbCollection.updateOne(
+      { _id: "twister_global_state" },
+      {
+        $set: {
+          bonusPoints: twisterState.bonusPoints,
+          lastUpdate: new Date(),
+        },
+      },
+      { upsert: true },
+    );
+  } catch (err) {
+    console.error("[Twister] Ошибка сохранения состояния:", err);
+  }
+}
 
 function getRandomReelPosition() {
   return Math.floor(Math.random() * REEL_LENGTH);
@@ -46,7 +86,16 @@ function getSymbolAt(position) {
   return REEL_STRIP[position];
 }
 
-function handleTwisterMessage(
+function hasSeven(s1, s2, s3) {
+  return s1 === 7 || s2 === 7 || s3 === 7;
+}
+
+function hasTwoSevens(s1, s2, s3) {
+  const count = [s1, s2, s3].filter((x) => x === 7).length;
+  return count === 2;
+}
+
+async function handleTwisterMessage(
   ws,
   message,
   players,
@@ -131,35 +180,29 @@ function handleTwisterMessage(
 
       const isTriple = s1 === s2 && s2 === s3;
 
-      if (twisterState.bonusPoints < 11) {
+      // Сбрасываем множество, если шкала была полной
+      if (twisterState.bonusPoints >= 11) {
         twisterState.playersWhoGavePointThisCycle.clear();
       }
 
-      // 1. Три одинаковые
-      if (isTriple) {
+      // ─── 1. Правила с 7-ками (самый высокий приоритет, кроме 777) ───
+      if (isTriple && comboStr === "777") {
+        winAmount = 200;
         giveBonusPoint = true;
-        if (comboStr in JACKPOT_MULTIPLIERS) {
-          winAmount += JACKPOT_MULTIPLIERS[comboStr];
-        }
-        if (comboStr === "777") {
-          winAmount += 15;
-        }
+      } else if (hasTwoSevens(s1, s2, s3)) {
+        winAmount = 2;
+        giveBonusPoint = false;
+      } else if (hasSeven(s1, s2, s3)) {
+        winAmount = 1;
+        giveBonusPoint = false;
       }
 
-      if (sum === 7) {
-        winAmount += 7;
-        giveBonusPoint = true;
-      } else if (sum === 14) {
-        winAmount += 14;
-        giveBonusPoint = true;
-      } else if (sum === 21) {
-        winAmount += 21;
-        giveBonusPoint = true;
-      }
-
-      // Большой джекпот
-      if (twisterState.bonusPoints >= 11 && JACKPOT_TRIGGERS.has(comboStr)) {
-        winAmount = 80;
+      // ─── 2. Большой джекпот при полной шкале ───
+      else if (
+        twisterState.bonusPoints >= 11 &&
+        JACKPOT_TRIGGERS.has(comboStr)
+      ) {
+        winAmount = JACKPOT_MULTIPLIERS[comboStr] || 80;
         isBigJackpot = true;
         twisterState.bonusPoints = 0;
         twisterState.playersWhoGavePointThisCycle.clear();
@@ -172,17 +215,35 @@ function handleTwisterMessage(
           player.worldId,
           JSON.stringify({
             type: "notification",
-            message: `Игрок ${player.id || playerId} сорвал БОЛЬШОЙ ДЖЕКПОТ 80 баляров!`,
+            message: `Игрок ${player.id || playerId} сорвал БОЛЬШОЙ ДЖЕКПОТ ${winAmount} баляров!`,
             color: "#ffff00",
           }),
         );
       }
 
-      // Добавляем выигрыш
+      // ─── 3. Обычные тройки (если не перекрыты правилами выше) ───
+      else if (isTriple && comboStr in JACKPOT_MULTIPLIERS) {
+        winAmount = JACKPOT_MULTIPLIERS[comboStr];
+        giveBonusPoint = true;
+      }
+
+      // ─── 4. Правила по сумме (если ничего выше не сработало) ───
+      else if (sum === 7) {
+        winAmount = 1;
+        giveBonusPoint = true;
+      } else if (sum === 14) {
+        winAmount = 6;
+        giveBonusPoint = true;
+      } else if (sum === 21) {
+        winAmount = 9;
+        giveBonusPoint = true;
+      }
+
+      // Добавляем выигрыш в инвентарь
       if (winAmount > 0) {
-        if (balyarySlotIndex !== -1) {
+        if (balyarySlotIndex !== -1 && player.inventory[balyarySlotIndex]) {
           player.inventory[balyarySlotIndex].quantity =
-            (player.inventory[balyarySlotIndex].quantity || 1) + winAmount;
+            (player.inventory[balyarySlotIndex].quantity || 0) + winAmount;
         } else {
           const free = player.inventory.findIndex((s) => s === null);
           if (free !== -1) {
@@ -191,17 +252,16 @@ function handleTwisterMessage(
         }
       }
 
-      // Самое важное: +1 в бонус-шкалу
+      // ─── Добавляем очко в бонус-шкалу ───
       if (giveBonusPoint && !isBigJackpot) {
         if (!twisterState.playersWhoGavePointThisCycle.has(playerId)) {
           twisterState.playersWhoGavePointThisCycle.add(playerId);
           twisterState.bonusPoints = Math.min(11, twisterState.bonusPoints + 1);
 
-          console.log(
-            `[Twister SERVER] +1 bonusPoints → ${twisterState.bonusPoints} (игрок ${playerId})`,
-          );
+          // Сохраняем в базу
+          await saveTwisterState(dbCollection);
 
-          // РАССЫЛКА ВСЕМ В МИРЕ — КАЖДЫЙ РАЗ
+          // Рассылка всем в мире
           broadcastToWorld(
             wss,
             clients,
@@ -230,23 +290,23 @@ function handleTwisterMessage(
         }
       }
 
-      saveUserDatabase(dbCollection, playerId, player);
+      // Сохраняем игрока
+      await saveUserDatabase(dbCollection, playerId, player);
 
       const resultSymbols = `${s1} ${s2} ${s3}`;
 
+      // Отправляем результат + актуальный баланс
       ws.send(
         JSON.stringify({
           type: "twister",
           subtype: isBigJackpot ? "bonusWin" : "spinResult",
           balance:
-            winAmount > 0
-              ? player.inventory[balyarySlotIndex]?.quantity || 0
-              : undefined,
+            player.inventory.find((s) => s?.type === "balyary")?.quantity || 0,
           bonusPoints: twisterState.bonusPoints,
           myBonusPointGiven:
             twisterState.playersWhoGavePointThisCycle.has(playerId),
           symbols: resultSymbols,
-          winAmount: winAmount,
+          winAmount,
           won: winAmount > 0,
           shouldAnimate: true,
         }),
@@ -260,4 +320,8 @@ function handleTwisterMessage(
   }
 }
 
-module.exports = { handleTwisterMessage };
+module.exports = {
+  handleTwisterMessage,
+  loadTwisterState, // ← добавьте вызов в основной файл сервера
+  saveTwisterState,
+};

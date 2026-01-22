@@ -1,6 +1,8 @@
 const { saveUserDatabase } = require("./database");
 const { generateEnemyDrop } = require("./dropGenerator");
 const { handleTwisterMessage } = require("./misterTwisterServer");
+const { loadTwisterState } = require("./misterTwisterServer");
+loadTwisterState(dbCollection);
 
 function broadcastToWorld(wss, clients, players, worldId, message) {
   wss.clients.forEach((client) => {
