@@ -192,13 +192,13 @@
   }
 
   #reel1 {
-    transform: translateY(70px) translateX(-40px);
+    transform: translateY(68px) translateX(-41px);
   }
   #reel2 {
-    transform: translateY(70px) translateX(-35px);
+    transform: translateY(68px) translateX(-38px);
   }
   #reel3 {
-    transform: translateY(70px) rotate(0.5deg) translateX(-32px);
+    transform: translateY(68px) rotate(0.5deg) translateX(-35px);
   }
 
   .bonus-light-0 {
