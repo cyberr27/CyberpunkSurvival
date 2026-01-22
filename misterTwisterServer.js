@@ -229,7 +229,7 @@ async function handleTwisterMessage(
 
       // ─── 4. Правила по сумме (если ничего выше не сработало) ───
       else if (sum === 7) {
-        winAmount = 1;
+        winAmount = 3;
         giveBonusPoint = true;
       } else if (sum === 14) {
         winAmount = 6;
