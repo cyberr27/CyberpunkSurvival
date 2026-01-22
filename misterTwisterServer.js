@@ -257,41 +257,36 @@ async function handleTwisterMessage(
         }
       }
 
-      // ─── Добавляем очко в бонус-шкалу ───
       if (giveBonusPoint && !isBigJackpot) {
-        if (!twisterState.playersWhoGavePointThisCycle.has(playerId)) {
-          twisterState.playersWhoGavePointThisCycle.add(playerId);
-          twisterState.bonusPoints = Math.min(11, twisterState.bonusPoints + 1);
+        twisterState.bonusPoints = Math.min(11, twisterState.bonusPoints + 1);
+        // Сохраняем в базу после каждого добавления
+        await saveTwisterState(dbCollection);
+        // Рассылка всем в мире (обновление шкалы)
+        broadcastToWorld(
+          wss,
+          clients,
+          players,
+          player.worldId,
+          JSON.stringify({
+            type: "twister",
+            subtype: "state",
+            bonusPoints: twisterState.bonusPoints,
+          }),
+        );
 
-          // Сохраняем в базу
-          await saveTwisterState(dbCollection);
-
-          // Рассылка всем в мире
+        // Уведомление, когда шкала заполнена
+        if (twisterState.bonusPoints === 11) {
           broadcastToWorld(
             wss,
             clients,
             players,
             player.worldId,
             JSON.stringify({
-              type: "twister",
-              subtype: "state",
-              bonusPoints: twisterState.bonusPoints,
+              type: "notification",
+              message: "Бонусная шкала заполнена! Лови любую тройку!",
+              color: "#ffaa00",
             }),
           );
-
-          if (twisterState.bonusPoints === 11) {
-            broadcastToWorld(
-              wss,
-              clients,
-              players,
-              player.worldId,
-              JSON.stringify({
-                type: "notification",
-                message: "Бонусная шкала заполнена! Лови любую тройку!",
-                color: "#ffaa00",
-              }),
-            );
-          }
         }
       }
 
