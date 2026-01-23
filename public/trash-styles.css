@@ -1,0 +1,149 @@
+/* trash-styles.css */
+
+.trash-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 420px;
+  max-width: 92vw;
+  height: 380px;
+  max-height: 88vh;
+  background: linear-gradient(
+    135deg,
+    rgba(10, 10, 10, 0.95),
+    rgba(20, 20, 20, 0.9)
+  );
+  border: 2px solid #44ff44;
+  border-radius: 10px;
+  padding: 20px;
+  color: #44ff44;
+  font-family: "Courier New", monospace;
+  text-align: center;
+  z-index: 1001;
+  display: none;
+  flex-direction: column;
+  box-shadow:
+    0 0 20px rgba(68, 255, 68, 0.5),
+    0 0 30px rgba(0, 255, 0, 0.3);
+  animation: trashPulse 2.2s infinite alternate;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.trash-dialog.open {
+  display: flex !important;
+}
+
+body.trash-dialog-active {
+  overflow: hidden;
+  touch-action: none;
+}
+
+.trash-dialog-content {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 10px;
+  margin-top: 10px;
+  scrollbar-width: thin;
+  scrollbar-color: #88ff88 rgba(0, 0, 0, 0.5);
+}
+
+.trash-dialog-content::-webkit-scrollbar {
+  width: 8px;
+}
+.trash-dialog-content::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 4px;
+}
+.trash-dialog-content::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #44ff44, #88ff88);
+  border-radius: 4px;
+  box-shadow: 0 0 10px rgba(68, 255, 68, 0.7);
+}
+
+.trash-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+  flex-shrink: 0;
+  gap: 15px;
+}
+
+.trash-photo {
+  width: 70px;
+  height: 70px;
+  background: url("trash.png") center / contain no-repeat;
+  border: 2px solid #88ff88;
+  border-radius: 12px;
+  box-shadow: 0 0 15px rgba(68, 255, 68, 0.7);
+}
+
+.trash-title {
+  color: #88ff88;
+  font-size: 24px;
+  text-shadow:
+    0 0 8px #44ff44,
+    0 0 15px #88ff88;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.trash-text {
+  margin: 12px 0;
+  font-size: 16px;
+  text-shadow: 0 0 6px rgba(68, 255, 68, 0.8);
+  line-height: 1.6;
+}
+
+.trash-close-btn {
+  padding: 14px 28px;
+  font-size: 17px;
+  background: linear-gradient(135deg, #44ff44, #88ff88);
+  border: none;
+  color: #000;
+  border-radius: 6px;
+  cursor: pointer;
+  box-shadow: 0 0 15px rgba(68, 255, 68, 0.8);
+  transition: all 0.3s;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin-top: 12px;
+}
+
+.trash-close-btn:hover {
+  box-shadow:
+    0 0 25px #44ff44,
+    0 0 40px #88ff88;
+  transform: scale(1.05);
+}
+
+@keyframes trashPulse {
+  0% {
+    box-shadow:
+      0 0 10px rgba(68, 255, 68, 0.5),
+      0 0 20px rgba(0, 255, 0, 0.3);
+  }
+  100% {
+    box-shadow:
+      0 0 20px rgba(68, 255, 68, 0.9),
+      0 0 35px rgba(0, 255, 0, 0.6);
+  }
+}
+
+/* адаптив */
+@media (max-width: 768px) {
+  .trash-dialog {
+    width: 92vw;
+    height: 420px;
+    padding: 15px;
+  }
+  .trash-photo {
+    width: 60px;
+    height: 60px;
+  }
+  .trash-title {
+    font-size: 21px;
+  }
+}

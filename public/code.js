@@ -124,6 +124,7 @@ const imageSources = {
   medicalCertificateStampedImage: "medical_certificate_stamped.png",
   thimbleriggerSprite: "thimblerigger.png",
   misterTwisterSprite: "mister_twister.png",
+  trashImage: "trash.png",
   // === НОВАЯ ПОРВАННАЯ ЭКИПИРОВКА ===
   torn_baseball_cap_of_health: "torn_baseball_cap_of_health.png",
   torn_health_t_shirt: "torn_health_t_shirt.png",
@@ -188,6 +189,7 @@ Object.entries(imageSources).forEach(([key, src]) => {
       window.corporateRobotSystem.initialize(images.corporateRobotSprite);
       window.robotDoctorSystem.initialize(images.robotDoctorSprite);
       window.thimbleriggerSystem.initialize(images.thimbleriggerSprite);
+      window.trashCansSystem.initialize(images.trashImage);
     }
   };
 });
@@ -1218,6 +1220,7 @@ function startGame() {
   window.corporateRobotSystem.initialize(images.corporateRobotSprite);
   window.robotDoctorSystem.initialize(images.robotDoctorSprite);
   window.thimbleriggerSystem.initialize(images.thimbleriggerSprite);
+  window.trashCansSystem.initialize(images.trashImage);
   window.combatSystem.initialize();
 
   document.addEventListener("keydown", (e) => {
@@ -2434,7 +2437,9 @@ function update(deltaTime) {
     window.outpostCaptainSystem.update(deltaTime);
   window.thimbleriggerSystem.checkThimbleriggerProximity();
   window.misterTwister.checkProximity();
-
+  if (window.trashCansSystem) {
+    window.trashCansSystem.update(deltaTime);
+  }
   window.worldSystem.checkTransitionZones(me.x, me.y);
 }
 
@@ -2700,6 +2705,9 @@ function draw(deltaTime) {
   window.thimbleriggerSystem.drawThimblerigger(deltaTime);
   window.outpostCaptainSystem.drawCaptain(ctx, cameraX, cameraY);
   clockSystem.draw();
+  if (window.trashCansSystem) {
+    window.trashCansSystem.draw(ctx);
+  }
   window.droneSystem.draw();
 
   if (currentWorld.clouds.complete) {
