@@ -2296,34 +2296,6 @@ function handleGameMessage(event) {
         if (window.misterTwister?.handleMessage) {
           window.misterTwister.handleMessage(data);
         }
-
-        // Дополнительно обновляем глобальный инвентарь и уровень
-        if (data.balance !== undefined) {
-          const me = players.get(myId);
-          if (me) {
-            const slot = me.inventory?.find((s) => s?.type === "balyary");
-            if (slot) {
-              slot.quantity = data.balance;
-            } else if (data.balance > 0) {
-              const free = me.inventory?.findIndex((s) => s === null);
-              if (free !== -1) {
-                me.inventory[free] = {
-                  type: "balyary",
-                  quantity: data.balance,
-                };
-              }
-            }
-            window.inventorySystem.updateInventoryDisplay();
-          }
-        }
-
-        // Обновление уровня и XP после выигрыша
-        if (data.xpGained > 0 && window.levelSystem) {
-          window.levelSystem.currentXP += data.xpGained;
-          window.levelSystem.checkLevelUp();
-          window.levelSystem.updateLevelDisplay();
-          window.levelSystem.updateStatsDisplay();
-        }
         break;
     }
   } catch (error) {
