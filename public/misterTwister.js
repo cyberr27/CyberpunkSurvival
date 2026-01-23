@@ -288,7 +288,7 @@ function updateTwisterState(data) {
 
   console.log("[Twister CLIENT] Получен state:", data);
 
-  // Баланс — всегда обновляем, если пришёл
+  // ── Всегда обновляем баланс, если пришёл ──
   if (data.balance !== undefined) {
     const el = document.getElementById("twister-balance");
     if (el) {
@@ -299,12 +299,10 @@ function updateTwisterState(data) {
 
   // Бонус-лампочки
   const points = Math.min(11, data.bonusPoints ?? 0);
-
   for (let i = 0; i < 11; i++) {
     const el = document.querySelector(`.bonus-light-${i}`);
     if (el) el.classList.remove("active");
   }
-
   for (let i = 0; i < points; i++) {
     const el = document.querySelector(`.bonus-light-${i}`);
     if (el) el.classList.add("active");
@@ -316,8 +314,7 @@ function updateTwisterState(data) {
     resultEl.textContent = data.error;
     resultEl.style.color = "#ff6666";
     isSpinning = false;
-    const btn = document.getElementById("twister-spin-btn");
-    if (btn) btn.disabled = false;
+    document.getElementById("twister-spin-btn").disabled = false;
     return;
   }
 
@@ -327,7 +324,21 @@ function updateTwisterState(data) {
       const frames = [Number(match[1]), Number(match[2]), Number(match[3])];
       const win = Number(data.winAmount) || 0;
       const isBonus = data.subtype === "bonusWin";
+
       animateReels(frames, win, isBonus);
+
+      // ── Обновляем баланс сразу после получения результата ──
+      if (data.balance !== undefined) {
+        updateLocalBalanceDisplay(data.balance);
+      }
+
+      // ── Начисляем XP на клиенте (визуально) ──
+      if (data.xpGained > 0 && window.levelSystem) {
+        const prevXP = window.levelSystem.currentXP || 0;
+        window.levelSystem.currentXP = prevXP + data.xpGained;
+        window.levelSystem.checkLevelUp();
+        window.levelSystem.updateLevelDisplay();
+      }
     }
   } else if (!data.shouldAnimate) {
     resultEl.textContent = "";
