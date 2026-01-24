@@ -2301,19 +2301,19 @@ function handleGameMessage(event) {
         }
         break;
       case "trashGuessResult":
-        // Результат попытки угадать масть
         const msgEl = document.getElementById("trashMessage");
         const cardEl = document.getElementById("cardBack");
 
-        if (!msgEl || !cardEl) break; // диалог закрыт или ещё не открыт
+        if (!msgEl || !cardEl) break;
 
         if (data.success) {
-          msgEl.textContent = data.message || "Угадал! Забирай лут!";
+          // Успех — красивый текст + уведомление
+          msgEl.textContent = "Угадал! Забирай лут!";
           msgEl.style.color = "#00ff44";
 
-          // Показываем правильную масть
+          showNotification("Мусорный бак открыт! +лут и XP", "#44ff44");
+
           if (data.loot) {
-            // Можно красиво показать, что выпало (опционально)
             let lootText = "Получено: ";
             data.loot.forEach((it) => {
               lootText += `${it.type} ×${it.quantity || 1}, `;
@@ -2321,38 +2321,41 @@ function handleGameMessage(event) {
             msgEl.textContent += "\n" + lootText.slice(0, -2);
           }
 
-          // Показываем масть (если сервер её вернул)
           if (data.correctSuit && SUIT_EMOJI[data.correctSuit]) {
             cardEl.textContent = SUIT_EMOJI[data.correctSuit];
             cardEl.className = `card-back revealed ${data.correctSuit}`;
           }
 
-          // Обновляем инвентарь и статы, если пришли изменения
           if (data.xpGained) {
-            // можно показать +XP эффект, если есть levelSystem
             if (window.levelSystem?.showXPEffect) {
               window.levelSystem.showXPEffect(data.xpGained);
             }
+            showNotification(`+${data.xpGained} XP`, "#ffff44");
           }
+
           window.inventorySystem?.updateInventoryDisplay();
           updateStatsDisplay();
         } else {
-          msgEl.textContent = data.error || data.message || "Не угадал...";
+          // Неудача
+          msgEl.textContent = data.message || data.error || "Не угадал...";
           msgEl.style.color = "#ff4444";
+
+          showNotification(
+            data.message || "Не та масть... подожди 3 минуты",
+            "#ff4444",
+          );
 
           if (data.waitUntil) {
             const remainSec = Math.ceil((data.waitUntil - Date.now()) / 1000);
             msgEl.textContent += ` (ещё ~${remainSec} сек)`;
           }
 
-          // Показываем правильную масть при проигрыше (чтобы игрок видел)
           if (data.correctSuit && SUIT_EMOJI[data.correctSuit]) {
             cardEl.textContent = SUIT_EMOJI[data.correctSuit];
             cardEl.className = `card-back revealed ${data.correctSuit}`;
           }
         }
         break;
-
       case "trashCanOpened":
         // Кто-то другой открыл бак → показываем его пустым локально
         if (data.trashIndex >= 0 && data.trashIndex < 5) {

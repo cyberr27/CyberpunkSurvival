@@ -1,6 +1,11 @@
 const { saveUserDatabase } = require("./database");
 const { generateEnemyDrop } = require("./dropGenerator");
 const { handleTwisterMessage } = require("./misterTwisterServer");
+const {
+  initializeTrashCans,
+  handleTrashGuess,
+  trashCansState,
+} = require("./trashCansServer");
 
 function broadcastToWorld(wss, clients, players, worldId, message) {
   wss.clients.forEach((client) => {
@@ -2885,16 +2890,16 @@ function setupWebSocket(
           broadcastToWorld,
         );
       } else if (data.type === "getTrashState") {
-        // можно отправить текущее состояние бака (для переподключения)
         const idx = data.trashIndex;
         if (idx >= 0 && idx < trashCansState.length) {
+          // ← теперь trashCansState видно
           const st = trashCansState[idx];
           ws.send(
             JSON.stringify({
               type: "trashState",
               index: idx,
               isOpened: st.guessed,
-              secretSuit: st.guessed ? st.secretSuit : null,
+              secretSuit: st.guessed ? st.secretSuit : null, // ← можно отправлять, если хочешь показывать масть
               nextAttemptAfter: st.nextAttemptAfter,
             }),
           );
