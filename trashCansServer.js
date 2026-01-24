@@ -17,12 +17,6 @@ const trashCansState = Array(TRASH_CAN_COUNT)
   }));
 
 const SUITS = ["spades", "hearts", "diamonds", "clubs"];
-const SUIT_EMOJI = {
-  spades: "♠",
-  hearts: "♥",
-  diamonds: "♦",
-  clubs: "♣",
-};
 
 function getRandomLoot(playerCount = 1) {
   const items = [];
@@ -225,7 +219,7 @@ function handleTrashGuess(
       JSON.stringify({
         type: "trashGuessResult",
         success: false,
-        message: `Не-а, это ${SUIT_EMOJI[state.secretSuit]}. Следующая попытка через 3 минуты.`,
+        message: `Не-а, это нет братан. Следующая попытка через 3 минуты.`,
       }),
     );
   }
@@ -236,5 +230,4 @@ module.exports = {
   handleTrashGuess,
   trashCansState,
   SUITS,
-  SUIT_EMOJI,
 };

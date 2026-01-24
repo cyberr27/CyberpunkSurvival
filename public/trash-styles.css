@@ -93,16 +93,16 @@
 }
 
 .suit-btn.spades {
-  color: #000;
+  background: url("spades.png") center/cover no-repeat;
 }
 .suit-btn.hearts {
-  color: #c00;
+  background: url("hearts.png") center/cover no-repeat;
 }
 .suit-btn.diamonds {
-  color: #c00;
+  background: url("diamonds.png") center/cover no-repeat;
 }
 .suit-btn.clubs {
-  color: #000;
+  background: url("clubs.png") center/cover no-repeat;
 }
 
 .suit-btn:hover {

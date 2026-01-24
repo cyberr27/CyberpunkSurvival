@@ -27,9 +27,6 @@ window.trashCansState = Array(5)
   .fill(null)
   .map(() => ({ guessed: false }));
 
-// Эмодзи мастей — чтобы не было ReferenceError
-window.SUIT_EMOJI = { spades: "♠", hearts: "♥", diamonds: "♦", clubs: "♣" };
-
 function initializeTrashCans(sprite) {
   trashSprite = sprite;
   trashSpriteReady = sprite?.complete;
