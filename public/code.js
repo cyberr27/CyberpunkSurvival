@@ -2300,6 +2300,107 @@ function handleGameMessage(event) {
           window.misterTwister.handleMessage(data);
         }
         break;
+      case "trashGuessResult":
+        // Результат попытки угадать масть
+        const msgEl = document.getElementById("trashMessage");
+        const cardEl = document.getElementById("cardBack");
+
+        if (!msgEl || !cardEl) break; // диалог закрыт или ещё не открыт
+
+        if (data.success) {
+          msgEl.textContent = data.message || "Угадал! Забирай лут!";
+          msgEl.style.color = "#00ff44";
+
+          // Показываем правильную масть
+          if (data.loot) {
+            // Можно красиво показать, что выпало (опционально)
+            let lootText = "Получено: ";
+            data.loot.forEach((it) => {
+              lootText += `${it.type} ×${it.quantity || 1}, `;
+            });
+            msgEl.textContent += "\n" + lootText.slice(0, -2);
+          }
+
+          // Показываем масть (если сервер её вернул)
+          if (data.correctSuit && SUIT_EMOJI[data.correctSuit]) {
+            cardEl.textContent = SUIT_EMOJI[data.correctSuit];
+            cardEl.className = `card-back revealed ${data.correctSuit}`;
+          }
+
+          // Обновляем инвентарь и статы, если пришли изменения
+          if (data.xpGained) {
+            // можно показать +XP эффект, если есть levelSystem
+            if (window.levelSystem?.showXPEffect) {
+              window.levelSystem.showXPEffect(data.xpGained);
+            }
+          }
+          window.inventorySystem?.updateInventoryDisplay();
+          updateStatsDisplay();
+        } else {
+          msgEl.textContent = data.error || data.message || "Не угадал...";
+          msgEl.style.color = "#ff4444";
+
+          if (data.waitUntil) {
+            const remainSec = Math.ceil((data.waitUntil - Date.now()) / 1000);
+            msgEl.textContent += ` (ещё ~${remainSec} сек)`;
+          }
+
+          // Показываем правильную масть при проигрыше (чтобы игрок видел)
+          if (data.correctSuit && SUIT_EMOJI[data.correctSuit]) {
+            cardEl.textContent = SUIT_EMOJI[data.correctSuit];
+            cardEl.className = `card-back revealed ${data.correctSuit}`;
+          }
+        }
+        break;
+
+      case "trashCanOpened":
+        // Кто-то другой открыл бак → показываем его пустым локально
+        if (data.trashIndex >= 0 && data.trashIndex < 5) {
+          // Можно сохранить флаг в глобальной переменной, если она есть
+          if (window.trashCansState) {
+            window.trashCansState[data.trashIndex] =
+              window.trashCansState[data.trashIndex] || {};
+            window.trashCansState[data.trashIndex].guessed = true;
+          }
+
+          // Если диалог открыт именно на этом баке — обновляем сообщение
+          if (currentTrashIndex === data.trashIndex) {
+            const msgEl = document.getElementById("trashMessage");
+            if (msgEl) {
+              msgEl.textContent = "Этот бак уже кто-то открыл...";
+              msgEl.style.color = "#ffaa00";
+            }
+            // Отключаем кнопки
+            document.querySelectorAll(".suit-btn").forEach((btn) => {
+              btn.disabled = true;
+              btn.style.opacity = "0.4";
+            });
+          }
+        }
+        break;
+
+      case "trashState":
+        // Ответ на запрос getTrashState (например после переподключения)
+        if (data.index === currentTrashIndex) {
+          if (data.isOpened) {
+            const msgEl = document.getElementById("trashMessage");
+            if (msgEl) {
+              msgEl.textContent = "Бак пуст... подожди респавна";
+              msgEl.style.color = "#888888";
+            }
+            document
+              .querySelectorAll(".suit-btn")
+              .forEach((btn) => (btn.disabled = true));
+          }
+          if (data.nextAttemptAfter && Date.now() < data.nextAttemptAfter) {
+            const remain = Math.ceil(
+              (data.nextAttemptAfter - Date.now()) / 1000,
+            );
+            const msgEl = document.getElementById("trashMessage");
+            if (msgEl) msgEl.textContent = `Подожди ещё ~${remain} сек`;
+          }
+        }
+        break;
     }
   } catch (error) {
     console.error("Ошибка в handleGameMessage:", error);

@@ -2873,6 +2873,32 @@ function setupWebSocket(
           broadcastToWorld,
         );
         return;
+      } else if (data.type === "trashGuess") {
+        handleTrashGuess(
+          ws,
+          data,
+          players,
+          clients,
+          wss,
+          userDatabase,
+          dbCollection,
+          broadcastToWorld,
+        );
+      } else if (data.type === "getTrashState") {
+        // можно отправить текущее состояние бака (для переподключения)
+        const idx = data.trashIndex;
+        if (idx >= 0 && idx < trashCansState.length) {
+          const st = trashCansState[idx];
+          ws.send(
+            JSON.stringify({
+              type: "trashState",
+              index: idx,
+              isOpened: st.guessed,
+              secretSuit: st.guessed ? st.secretSuit : null,
+              nextAttemptAfter: st.nextAttemptAfter,
+            }),
+          );
+        }
       } else if (data.type === "update" || data.type === "move") {
         const playerId = clients.get(ws);
         if (!playerId || !players.has(playerId)) return;

@@ -1,4 +1,4 @@
-// trashCans.js — ультра-лёгкая версия, как bonfire
+// trashCans.js — ИСПРАВЛЕНО + доработано под сервер
 
 const TRASH_POSITIONS = [
   { x: 30, y: 3265 },
@@ -11,141 +11,153 @@ const TRASH_POSITIONS = [
 const TRASH_CONFIG = {
   FRAME_COUNT: 13,
   FRAME_SIZE: 70,
-  FRAME_DURATION: 250, // ms на кадр — плавно и не нагружает
-  INTERACTION_RADIUS_SQ: 2500, // 50²
+  FRAME_DURATION: 250,
+  INTERACTION_RADIUS_SQ: 3000,
 };
 
 let trashSprite = null;
 let trashSpriteReady = false;
-
-// Один глобальный таймер
 let globalTrashTime = 0;
 
-let currentOpenTrashIndex = -1;
+let currentTrashIndex = -1;
+let trashDialog = null;
+
+// Глобальное состояние баков (приходит с сервера, обновляется через trashState/trashCanOpened)
+window.trashCansState = Array(5)
+  .fill(null)
+  .map(() => ({ guessed: false }));
+
+// Эмодзи мастей — чтобы не было ReferenceError
+window.SUIT_EMOJI = { spades: "♠", hearts: "♥", diamonds: "♦", clubs: "♣" };
 
 function initializeTrashCans(sprite) {
   trashSprite = sprite;
-  trashSpriteReady = !!sprite?.complete;
-  if (trashSpriteReady) {
-    console.log(
-      "[Trash] спрайт готов, размер:",
-      trashSprite.width,
-      "×",
-      trashSprite.height,
-    );
-  } else {
-    console.warn("[Trash] спрайт ещё не готов при инициализации");
-  }
+  trashSpriteReady = sprite?.complete;
 }
 
 function updateTrashCans(deltaTime) {
-  if (!trashSpriteReady) return;
-
   globalTrashTime += deltaTime;
 
   const me = players.get(myId);
   if (!me || window.worldSystem.currentWorldId !== 0) {
-    if (currentOpenTrashIndex !== -1) closeTrashDialog();
+    closeTrashDialog();
     return;
   }
 
-  let anyNearby = false;
-  let closestDistSq = Infinity;
-  let closestIdx = -1;
+  let nearest = -1;
+  let minDistSq = Infinity;
 
   TRASH_POSITIONS.forEach((pos, idx) => {
     const dx = me.x - pos.x;
     const dy = me.y - pos.y;
-    const distSq = dx * dx + dy * dy;
+    const d2 = dx * dx + dy * dy;
 
-    if (distSq < closestDistSq) {
-      closestDistSq = distSq;
-      closestIdx = idx;
+    if (d2 < minDistSq) {
+      minDistSq = d2;
+      nearest = idx;
     }
 
-    if (distSq <= TRASH_CONFIG.INTERACTION_RADIUS_SQ) {
-      anyNearby = true;
-      if (currentOpenTrashIndex === -1) {
+    if (d2 <= TRASH_CONFIG.INTERACTION_RADIUS_SQ) {
+      if (currentTrashIndex !== idx) {
         openTrashDialog(idx);
       }
     }
   });
 
-  // Если отошли от всех — закрываем
-  if (!anyNearby && currentOpenTrashIndex !== -1) {
+  if (minDistSq > TRASH_CONFIG.INTERACTION_RADIUS_SQ) {
     closeTrashDialog();
   }
 }
 
 function openTrashDialog(index) {
-  if (currentOpenTrashIndex !== -1) return;
-  currentOpenTrashIndex = index;
+  if (currentTrashIndex === index && trashDialog) return;
+  closeTrashDialog();
 
-  const dialog = document.createElement("div");
-  dialog.id = "trashCanDialog";
-  dialog.className = "trash-dialog open";
+  currentTrashIndex = index;
 
-  dialog.innerHTML = `
-    <div class="trash-dialog-header">
-      <div class="trash-photo"></div>
-      <h2 class="trash-title">Мусорный бак #${index + 1}</h2>
+  trashDialog = document.createElement("div");
+  trashDialog.id = "trashCanDialog";
+  trashDialog.className = "trash-dialog open";
+
+  trashDialog.innerHTML = `
+    <div class="trash-header">Мусорный бак #${index + 1}</div>
+    
+    <div class="trash-card-area">
+      <div class="card-back" id="cardBack">?</div>
     </div>
-    <div class="trash-dialog-content">
-      <p class="trash-text">
-        Пока тут пусто...<br>
-        Может кто-то выбросит что-то ценное позже?
-      </p>
+
+    <div class="trash-suits">
+      <button class="suit-btn spades"   data-suit="spades">♠</button>
+      <button class="suit-btn hearts"   data-suit="hearts">♥</button>
+      <button class="suit-btn diamonds" data-suit="diamonds">♦</button>
+      <button class="suit-btn clubs"    data-suit="clubs">♣</button>
     </div>
-    <button class="trash-close-btn neon-btn">Закрыть</button>
+
+    <div class="trash-message" id="trashMessage">Угадай масть, чтобы открыть!</div>
   `;
 
-  document.body.appendChild(dialog);
-
-  dialog.querySelector(".trash-close-btn").onclick = closeTrashDialog;
-
+  document.body.appendChild(trashDialog);
   document.body.classList.add("trash-dialog-active");
+
+  // Кнопки мастей
+  trashDialog.querySelectorAll(".suit-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const suit = btn.dataset.suit;
+      if (ws?.readyState === WebSocket.OPEN) {
+        ws.send(
+          JSON.stringify({
+            type: "trashGuess",
+            trashIndex: currentTrashIndex,
+            suit,
+          }),
+        );
+      }
+    });
+  });
+
+  // Запрашиваем состояние бака у сервера
+  if (ws?.readyState === WebSocket.OPEN) {
+    ws.send(
+      JSON.stringify({
+        type: "getTrashState",
+        trashIndex: currentTrashIndex, // ← ИСПРАВЛЕНО: было trashIndex
+      }),
+    );
+  }
 }
 
 function closeTrashDialog() {
-  const d = document.getElementById("trashCanDialog");
-  if (d) {
-    d.remove();
-    document.body.classList.remove("trash-dialog-active");
+  if (trashDialog) {
+    trashDialog.remove();
+    trashDialog = null;
   }
-  currentOpenTrashIndex = -1;
+  document.body.classList.remove("trash-dialog-active");
+  currentTrashIndex = -1;
 }
 
 function drawTrashCans(ctx) {
   if (!trashSpriteReady || !trashSprite?.complete) return;
 
   const cam = window.movementSystem.getCamera();
-  const camX = cam.x;
-  const camY = cam.y;
-  const cw = canvas.width;
-  const ch = canvas.height;
+  const left = cam.x - 100;
+  const right = cam.x + canvas.width + 100;
+  const top = cam.y - 100;
+  const bottom = cam.y + canvas.height + 100;
 
-  // Быстрая отсечка по всему полю + буфер
-  const left = camX - 100;
-  const right = camX + cw + 100;
-  const top = camY - 100;
-  const bottom = camY + ch + 100;
-
-  const time = globalTrashTime;
+  const t = globalTrashTime;
 
   TRASH_POSITIONS.forEach((pos, i) => {
-    const x = pos.x;
-    const y = pos.y;
-
-    // Быстрый отсев
+    const { x, y } = pos;
     if (x < left || x > right || y < top || y > bottom) return;
 
-    const screenX = (x - camX) | 0;
-    const screenY = (y - camY) | 0;
+    const sx = (x - cam.x) | 0;
+    const sy = (y - cam.y) | 0;
 
-    // Фазовый сдвиг — красиво и почти бесплатно
-    const frame =
-      Math.floor((time + i * 987.654) / TRASH_CONFIG.FRAME_DURATION) %
-      TRASH_CONFIG.FRAME_COUNT;
+    const isOpened = window.trashCansState[i]?.guessed === true;
+    const frame = isOpened
+      ? 0
+      : Math.floor((t + i * 987) / TRASH_CONFIG.FRAME_DURATION) %
+        TRASH_CONFIG.FRAME_COUNT;
 
     ctx.drawImage(
       trashSprite,
@@ -153,8 +165,8 @@ function drawTrashCans(ctx) {
       0,
       TRASH_CONFIG.FRAME_SIZE,
       TRASH_CONFIG.FRAME_SIZE,
-      screenX - 35,
-      screenY - 35,
+      sx - 35,
+      sy - 35,
       TRASH_CONFIG.FRAME_SIZE,
       TRASH_CONFIG.FRAME_SIZE,
     );
