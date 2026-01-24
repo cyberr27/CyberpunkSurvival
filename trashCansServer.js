@@ -1,4 +1,4 @@
-// trashCansServer.js
+const { saveUserDatabase } = require("./database");
 
 const TRASH_CAN_COUNT = 5;
 const FILL_COOLDOWN = 5 * 60 * 1000; // 5 минут
@@ -233,7 +233,7 @@ function handleTrashGuess(
 module.exports = {
   initializeTrashCans,
   handleTrashGuess,
-  trashCansState, 
+  trashCansState,
   SUITS,
   SUIT_EMOJI,
 };
