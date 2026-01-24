@@ -39,8 +39,8 @@
 }
 
 .card-back {
-  width: 120px;
-  height: 160px;
+  width: 100px;
+  height: 140px;
   background: #111 linear-gradient(135deg, #222, #000);
   border: 3px solid #444;
   border-radius: 12px;
@@ -53,6 +53,8 @@
     0 0 20px #000 inset,
     0 0 20px #44ff4480;
   transition: all 0.4s;
+  position: absolute;
+  top: 35%;
 }
 
 .card-back.revealed.spades {
@@ -93,15 +95,26 @@
 }
 
 .suit-btn.spades {
+  position: absolute;
+  top: 19%;
   background: url("spades.png") center/cover no-repeat;
 }
 .suit-btn.hearts {
+  position: absolute;
+  top: 42%;
+  left: 16%;
   background: url("hearts.png") center/cover no-repeat;
 }
 .suit-btn.diamonds {
+  position: absolute;
+  top: 42%;
+  left: 69%;
   background: url("diamonds.png") center/cover no-repeat;
 }
 .suit-btn.clubs {
+  position: absolute;
+  top: 65.5%;
+  left: 42.5%;
   background: url("clubs.png") center/cover no-repeat;
 }
 
@@ -111,6 +124,9 @@
 }
 
 .trash-message {
+  position: absolute;
+  top: 87%;
+  left: 25%;
   font-size: 18px;
   min-height: 60px;
   line-height: 1.4;

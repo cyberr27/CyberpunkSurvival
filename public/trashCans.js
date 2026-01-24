@@ -84,10 +84,10 @@ function openTrashDialog(index) {
     </div>
 
     <div class="trash-suits">
-      <button class="suit-btn spades"   data-suit="spades">♠</button>
-      <button class="suit-btn hearts"   data-suit="hearts">♥</button>
-      <button class="suit-btn diamonds" data-suit="diamonds">♦</button>
-      <button class="suit-btn clubs"    data-suit="clubs">♣</button>
+      <button class="suit-btn spades"   data-suit="spades"></button>
+      <button class="suit-btn hearts"   data-suit="hearts"></button>
+      <button class="suit-btn diamonds" data-suit="diamonds"></button>
+      <button class="suit-btn clubs"    data-suit="clubs"></button>
     </div>
 
     <div class="trash-message" id="trashMessage">Угадай масть, чтобы открыть!</div>
@@ -162,10 +162,10 @@ function drawTrashCans(ctx) {
       0,
       TRASH_CONFIG.FRAME_SIZE,
       TRASH_CONFIG.FRAME_SIZE,
-      sx - 35,
-      sy - 35,
-      TRASH_CONFIG.FRAME_SIZE,
-      TRASH_CONFIG.FRAME_SIZE,
+      sx - 20, // было -35
+      sy - 25, // было -35
+      40, // было TRASH_CONFIG.FRAME_SIZE (70)
+      50, // было TRASH_CONFIG.FRAME_SIZE (70)
     );
   });
 }
