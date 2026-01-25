@@ -20,7 +20,7 @@ let torestosButtonsContainer = null;
 // Анимация
 let torestosFrame = 0;
 let torestosFrameTime = 0;
-const FRAME_DURATION_TORESTOS = 150;
+const FRAME_DURATION_TORESTOS = 200;
 const TOTAL_FRAMES_TORESTOS = 13;
 const MAX_DELTA_TIME_TORESTOS = 1000;
 
@@ -244,14 +244,10 @@ function drawTorestos(deltaTime) {
     ctx.fillRect(screenX, screenY, 70, 70);
   }
 
-  ctx.fillStyle = isTorestosMet ? "#00aaff" : "#ffffff";
+  ctx.fillStyle = isTorestosMet ? "#00ff2f" : "#ffffff";
   ctx.font = "13px Arial";
   ctx.textAlign = "center";
-  ctx.fillText(
-    isTorestosMet ? TORESTOS.name : "???",
-    screenX + 35,
-    screenY - 12,
-  );
+  ctx.fillText(isTorestosMet ? TORESTOS.name : "?", screenX + 35, screenY - 12);
 
   updateTorestosButtonsPosition(camera.x, camera.y);
 }

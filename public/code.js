@@ -1099,13 +1099,11 @@ function handleAuthMessage(event) {
       if (window.thimbleriggerSystem && data.thimbleriggerMet !== undefined) {
         window.thimbleriggerSystem.setThimbleriggerMet(!!data.thimbleriggerMet);
       }
-
-      // Квесты
+      window.torestosSystem.setTorestosMet(data.torestosMet === true);
       window.npcSystem.setSelectedQuest(data.selectedQuestId || null);
       window.npcSystem.checkQuestCompletion();
       window.npcSystem.setAvailableQuests(data.availableQuests || []);
 
-      // Уровень и статы
       window.levelSystem.setLevelData(
         data.level || 0,
         data.xp || 0,
