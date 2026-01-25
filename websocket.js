@@ -2931,7 +2931,7 @@ function setupWebSocket(
             players,
             player.worldId,
             JSON.stringify({
-              type: "playerUpdate",
+              type: "update",
               player: { id: player.id, torestosMet: true },
             }),
           );
