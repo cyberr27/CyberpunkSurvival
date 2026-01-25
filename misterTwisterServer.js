@@ -1,4 +1,4 @@
-// misterTwisterServer.js — обновлённые выплаты по новым правилам 23.01.2026
+// misterTwisterServer.js — поддержка нескольких независимых Twister-автоматов
 
 const REEL_STRIP = [
   0, 1, 2, 3, 3, 4, 5, 6, 7, 8, 9, 1, 2, 4, 5, 6, 8, 9, 0, 3, 3, 7,
@@ -19,7 +19,6 @@ const JACKPOT_TRIGGERS = new Set([
   "999",
 ]);
 
-// Новые базовые выплаты для любых троек (когда шкала НЕ полная)
 const BASE_TRIPLE_PAYOUTS = {
   "000": 100,
   111: 30,
@@ -33,43 +32,57 @@ const BASE_TRIPLE_PAYOUTS = {
   999: 75,
 };
 
-// Дополнительные 80 баляров при полной шкале + тройка
 const BIG_JACKPOT_BONUS = 80;
 
-let twisterState = {
-  bonusPoints: 0,
-  playersWhoGavePointThisCycle: new Set(),
-  lastBonusWinner: null,
-};
+// ---------------------- МНОЖЕСТВЕННЫЕ АВТОМАТЫ ----------------------
+const TWISTER_LOCATIONS = [
+  { id: "twister_0", name: "Главный", x: 219, y: 2656 },
+  { id: "twister_1", name: "Верхний", x: 391, y: 159 },
+  { id: "twister_2", name: "Нижний", x: 1684, y: 421 },
+];
 
-async function loadTwisterState(dbCollection) {
-  try {
-    const doc = await dbCollection.findOne({ _id: "twister_global_state" });
-    if (doc) {
-      twisterState.bonusPoints = doc.bonusPoints || 0;
-      console.log(
-        `[Twister] Загружено bonusPoints = ${twisterState.bonusPoints}`,
-      );
+const twisterStates = {};
+
+TWISTER_LOCATIONS.forEach((loc) => {
+  twisterStates[loc.id] = {
+    bonusPoints: 0,
+    playersWhoGavePointThisCycle: new Set(),
+    lastBonusWinner: null,
+  };
+});
+
+async function loadTwisterStates(dbCollection) {
+  for (const loc of TWISTER_LOCATIONS) {
+    try {
+      const doc = await dbCollection.findOne({
+        _id: `twister_state_${loc.id}`,
+      });
+      if (doc) {
+        twisterStates[loc.id].bonusPoints = doc.bonusPoints || 0;
+        console.log(
+          `[Twister ${loc.id}] Загружено bonusPoints = ${twisterStates[loc.id].bonusPoints}`,
+        );
+      }
+    } catch (err) {
+      console.error(`[Twister ${loc.id}] Ошибка загрузки:`, err);
     }
-  } catch (err) {
-    console.error("[Twister] Ошибка загрузки состояния:", err);
   }
 }
 
-async function saveTwisterState(dbCollection) {
+async function saveTwisterState(dbCollection, twisterId) {
   try {
     await dbCollection.updateOne(
-      { _id: "twister_global_state" },
+      { _id: `twister_state_${twisterId}` },
       {
         $set: {
-          bonusPoints: twisterState.bonusPoints,
+          bonusPoints: twisterStates[twisterId].bonusPoints,
           lastUpdate: new Date(),
         },
       },
       { upsert: true },
     );
   } catch (err) {
-    console.error("[Twister] Ошибка сохранения состояния:", err);
+    console.error(`[Twister ${twisterId}] Ошибка сохранения:`, err);
   }
 }
 
@@ -95,6 +108,20 @@ async function handleTwisterMessage(
   const player = players.get(playerId);
   if (!player) return;
 
+  const twisterId = message.twisterId || "twister_0"; // по умолчанию главный
+  if (!twisterStates[twisterId]) {
+    ws.send(
+      JSON.stringify({
+        type: "twister",
+        subtype: "error",
+        error: "Неизвестный автомат",
+      }),
+    );
+    return;
+  }
+
+  const state = twisterStates[twisterId];
+
   switch (message.subtype) {
     case "getState": {
       let balyaryCount = 0;
@@ -107,10 +134,10 @@ async function handleTwisterMessage(
         JSON.stringify({
           type: "twister",
           subtype: "state",
+          twisterId,
           balance: balyaryCount,
-          bonusPoints: twisterState.bonusPoints,
-          myBonusPointGiven:
-            twisterState.playersWhoGavePointThisCycle.has(playerId),
+          bonusPoints: state.bonusPoints,
+          myBonusPointGiven: state.playersWhoGavePointThisCycle.has(playerId),
           shouldAnimate: false,
         }),
       );
@@ -135,6 +162,7 @@ async function handleTwisterMessage(
           JSON.stringify({
             type: "twister",
             subtype: "spinResult",
+            twisterId,
             error: "Недостаточно баляров",
             balance: balyaryCount,
           }),
@@ -166,38 +194,27 @@ async function handleTwisterMessage(
 
       const isTriple = s1 === s2 && s2 === s3;
 
-      // Сбрасываем множество, если шкала была полной (на всякий случай)
-      if (twisterState.bonusPoints >= 11) {
-        twisterState.playersWhoGavePointThisCycle.clear();
+      if (state.bonusPoints >= 11) {
+        state.playersWhoGavePointThisCycle.clear();
       }
 
       const countOfSevens = [s1, s2, s3].filter((x) => x === 7).length;
 
-      // ─── Старые правила для 1 и 2 семёрок (остаются без изменений) ───
       if (countOfSevens === 2 && !isTriple) {
         winAmount = 2;
-        giveBonusPoint = false;
       } else if (countOfSevens === 1) {
         winAmount = 1;
-        giveBonusPoint = false;
-      }
-
-      // ─── НОВАЯ ЛОГИКА ТРОЕК ────────────────────────────────────────────────
-      else if (isTriple && JACKPOT_TRIGGERS.has(comboStr)) {
-        // Базовая выплата по таблице
+      } else if (isTriple && JACKPOT_TRIGGERS.has(comboStr)) {
         winAmount = BASE_TRIPLE_PAYOUTS[comboStr];
-
-        // Даём +1 очко бонуса (если НЕ большой джекпот)
         giveBonusPoint = true;
 
-        // Если шкала полная → большой джекпот +80
-        if (twisterState.bonusPoints >= 11) {
+        if (state.bonusPoints >= 11) {
           winAmount += BIG_JACKPOT_BONUS;
           isBigJackpot = true;
-          giveBonusPoint = false; // не даём лишнее очко при большом джекпоте
-          twisterState.bonusPoints = 0;
-          twisterState.playersWhoGavePointThisCycle.clear();
-          twisterState.lastBonusWinner = playerId;
+          giveBonusPoint = false;
+          state.bonusPoints = 0;
+          state.playersWhoGavePointThisCycle.clear();
+          state.lastBonusWinner = playerId;
 
           broadcastToWorld(
             wss,
@@ -206,15 +223,12 @@ async function handleTwisterMessage(
             player.worldId,
             JSON.stringify({
               type: "notification",
-              message: `Игрок ${player.id || playerId} сорвал БОЛЬШОЙ ДЖЕКПОТ ${winAmount} баляров!`,
+              message: `Игрок ${player.id || playerId} сорвал БОЛЬШОЙ ДЖЕКПОТ ${winAmount} баляров на ${TWISTER_LOCATIONS.find((l) => l.id === twisterId)?.name || twisterId}!`,
               color: "#ffff00",
             }),
           );
         }
-      }
-
-      // ─── Правила по сумме (остаются как были) ──────────────────────────────
-      else if (sum === 7) {
+      } else if (sum === 7) {
         winAmount = 3;
         giveBonusPoint = true;
       } else if (sum === 14) {
@@ -225,7 +239,6 @@ async function handleTwisterMessage(
         giveBonusPoint = true;
       }
 
-      // Добавляем выигрыш в инвентарь
       if (winAmount > 0) {
         let balyarySlot = player.inventory.find((s) => s?.type === "balyary");
         if (balyarySlot) {
@@ -236,18 +249,12 @@ async function handleTwisterMessage(
             player.inventory[free] = { type: "balyary", quantity: winAmount };
           }
         }
-
-        // ─── +XP равный выигрышу в балярах ───────────────────────────────
         player.xp = (player.xp || 0) + winAmount;
-
-        // Здесь можно добавить вызов level-up проверки, если она есть
-        // (но по твоим инструкциям — не трогаем лишнего)
       }
 
-      // Добавляем бонус-очко, если положено
       if (giveBonusPoint && !isBigJackpot) {
-        twisterState.bonusPoints = Math.min(11, twisterState.bonusPoints + 1);
-        await saveTwisterState(dbCollection);
+        state.bonusPoints = Math.min(11, state.bonusPoints + 1);
+        await saveTwisterState(dbCollection, twisterId);
 
         broadcastToWorld(
           wss,
@@ -257,11 +264,12 @@ async function handleTwisterMessage(
           JSON.stringify({
             type: "twister",
             subtype: "state",
-            bonusPoints: twisterState.bonusPoints,
+            twisterId,
+            bonusPoints: state.bonusPoints,
           }),
         );
 
-        if (twisterState.bonusPoints === 11) {
+        if (state.bonusPoints === 11) {
           broadcastToWorld(
             wss,
             clients,
@@ -269,19 +277,16 @@ async function handleTwisterMessage(
             player.worldId,
             JSON.stringify({
               type: "notification",
-              message: "Бонусная шкала заполнена! Лови любую тройку!",
+              message: `Бонусная шкала заполнена на автомате ${TWISTER_LOCATIONS.find((l) => l.id === twisterId)?.name || twisterId}! Лови любую тройку!`,
               color: "#ffaa00",
             }),
           );
         }
       }
 
-      // Сохраняем игрока (включая новый xp и баляры)
       await saveUserDatabase(dbCollection, playerId, player);
 
       const resultSymbols = `${s1} ${s2} ${s3}`;
-
-      // Формируем ответ
       const balanceAfter =
         player.inventory.find((s) => s?.type === "balyary")?.quantity || 0;
 
@@ -289,15 +294,15 @@ async function handleTwisterMessage(
         JSON.stringify({
           type: "twister",
           subtype: isBigJackpot ? "bonusWin" : "spinResult",
+          twisterId,
           balance: balanceAfter,
-          bonusPoints: twisterState.bonusPoints,
-          myBonusPointGiven:
-            twisterState.playersWhoGavePointThisCycle.has(playerId),
+          bonusPoints: state.bonusPoints,
+          myBonusPointGiven: state.playersWhoGavePointThisCycle.has(playerId),
           symbols: resultSymbols,
           winAmount,
           won: winAmount > 0,
           shouldAnimate: true,
-          xpGained: winAmount > 0 ? winAmount : 0, // ← для клиента
+          xpGained: winAmount > 0 ? winAmount : 0,
         }),
       );
 
@@ -305,12 +310,16 @@ async function handleTwisterMessage(
     }
 
     default:
-      console.log("Неизвестный подтип twister:", message.subtype);
+      console.log(
+        `Неизвестный подтип twister (${twisterId}):`,
+        message.subtype,
+      );
   }
 }
 
 module.exports = {
   handleTwisterMessage,
-  loadTwisterState,
-  saveTwisterState,
+  loadTwisterStates,
+  saveTwisterState, // если где-то вызывается — можно оставить
+  TWISTER_LOCATIONS, // для удобства на клиенте
 };

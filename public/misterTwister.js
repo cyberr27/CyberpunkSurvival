@@ -1,11 +1,10 @@
-// misterTwister.js — улучшено обновление баланса в реальном времени
+// misterTwister.js — поддержка нескольких автоматов
 
-const MISTER_TWISTER_POS = {
-  x: 219,
-  y: 2656,
-  width: 70,
-  height: 100,
-};
+const TWISTER_LOCATIONS = [
+  { id: "twister_0", x: 219, y: 2656, width: 70, height: 100 },
+  { id: "twister_1", x: 391, y: 159, width: 70, height: 100 },
+  { id: "twister_2", x: 1684, y: 421, width: 70, height: 100 },
+];
 
 const CONFIG = {
   frameCount: 13,
@@ -13,7 +12,7 @@ const CONFIG = {
   frameHeight: 100,
   animationDuration: 5000,
   pauseDuration: 10000,
-  interactionRadiusSq: 4900,
+  interactionRadiusSq: 4900, // ~70 px радиус
 };
 
 const SLOT_SPRITE = {
@@ -23,59 +22,62 @@ const SLOT_SPRITE = {
   frameCount: 10,
 };
 
-let sprite = null;
+let sprites = {};
 let slotSprite = null;
-let spriteReady = false;
 let slotSpriteReady = false;
-let animationStart = 0;
-let isMenuOpen = false;
-let menuElement = null;
-let wasInRangeLastFrame = false;
 
-let isSpinning = false;
+const state = {}; // { "twister_0": { menuOpen: false, menuEl: null, ... }, ... }
 
 function initializeMisterTwister() {
-  sprite = new Image();
-  sprite.src = "mister_twister.png";
-  sprite.onload = () => {
-    spriteReady = true;
-  };
-
   slotSprite = new Image();
   slotSprite.src = SLOT_SPRITE.src;
   slotSprite.onload = () => {
     slotSpriteReady = true;
   };
 
-  animationStart = performance.now();
+  TWISTER_LOCATIONS.forEach((loc) => {
+    const img = new Image();
+    img.src = "mister_twister.png";
+    img.onload = () => {
+      sprites[loc.id] = img;
+    };
+    state[loc.id] = {
+      animationStart: performance.now(),
+      isMenuOpen: false,
+      menuElement: null,
+      wasInRangeLastFrame: false,
+      isSpinning: false,
+    };
+  });
 }
 
 function checkMisterTwisterProximity() {
-  if (window.worldSystem.currentWorldId !== 0) {
-    if (isMenuOpen) hideTwisterMenu();
-    wasInRangeLastFrame = false;
+  const me = players.get(myId);
+  if (!me || window.worldSystem.currentWorldId !== 0) {
+    Object.values(state).forEach((s) => {
+      if (s.isMenuOpen) hideTwisterMenu(s);
+    });
     return;
   }
 
-  const me = players.get(myId);
-  if (!me) return;
+  TWISTER_LOCATIONS.forEach((loc) => {
+    const s = state[loc.id];
+    const dx = me.x + 35 - (loc.x + 35);
+    const dy = me.y + 50 - (loc.y + 50);
+    const nowInRange = dx * dx + dy * dy < CONFIG.interactionRadiusSq;
 
-  const dx = me.x + 35 - (MISTER_TWISTER_POS.x + 35);
-  const dy = me.y + 50 - (MISTER_TWISTER_POS.y + 50);
-
-  const nowInRange = dx * dx + dy * dy < CONFIG.interactionRadiusSq;
-
-  if (nowInRange !== wasInRangeLastFrame) {
-    nowInRange ? showTwisterMenu() : hideTwisterMenu();
-  }
-
-  wasInRangeLastFrame = nowInRange;
+    if (nowInRange !== s.wasInRangeLastFrame) {
+      nowInRange ? showTwisterMenu(loc.id) : hideTwisterMenu(s);
+    }
+    s.wasInRangeLastFrame = nowInRange;
+  });
 }
 
-function updateLocalBalanceDisplay(count = null) {
-  if (!isMenuOpen) return;
+function updateLocalBalanceDisplay(twisterId, count = null) {
+  const s = state[twisterId];
+  if (!s.isMenuOpen || !s.menuElement) return;
 
-  const el = document.getElementById("twister-balance");
+  const el = s.menuElement.querySelector("#twister-balance");
   if (!el) return;
 
   if (count !== null) {
@@ -89,16 +91,22 @@ function updateLocalBalanceDisplay(count = null) {
   }
 }
 
-function showTwisterMenu() {
-  if (isMenuOpen) return;
-  isMenuOpen = true;
+function showTwisterMenu(twisterId) {
+  const s = state[twisterId];
+  if (s.isMenuOpen) return;
+  s.isMenuOpen = true;
 
-  menuElement = document.createElement("div");
-  menuElement.className = "npc-dialog open twister-full-window";
+  const loc = TWISTER_LOCATIONS.find((l) => l.id === twisterId);
+  const title = loc ? loc.name : "Mister Twister";
 
-  menuElement.innerHTML = `
+  s.menuElement = document.createElement("div");
+  s.menuElement.className = "npc-dialog open twister-full-window";
+  s.menuElement.dataset.twisterId = twisterId;
+
+  s.menuElement.innerHTML = `
     <div class="npc-dialog-content-mt" style="overflow: hidden;">
       <p class="npc-text-mt" style="text-align:center;">
+        ${title}<br>
         Стоимость спина — <strong>1 баляр</strong><br>
         Баланс: <span id="twister-balance">…</span>
       </p>
@@ -115,88 +123,91 @@ function showTwisterMenu() {
     </div>
 
     <div class="bonus-lights" id="bonus-lights">
-      <div class="bonus-light bonus-light-0"></div>
-      <div class="bonus-light bonus-light-1"></div>
-      <div class="bonus-light bonus-light-2"></div>
-      <div class="bonus-light bonus-light-3"></div>
-      <div class="bonus-light bonus-light-4"></div>
-      <div class="bonus-light bonus-light-5"></div>
-      <div class="bonus-light bonus-light-6"></div>
-      <div class="bonus-light bonus-light-7"></div>
-      <div class="bonus-light bonus-light-8"></div>
-      <div class="bonus-light bonus-light-9"></div>
-      <div class="bonus-light bonus-light-10"></div>
+      ${Array.from({ length: 11 }, (_, i) => `<div class="bonus-light bonus-light-${i}"></div>`).join("")}
     </div>
   `;
 
-  document.body.appendChild(menuElement);
+  document.body.appendChild(s.menuElement);
 
-  // Перехватываем обновление инвентаря глобально
   const original = window.inventorySystem.updateInventoryDisplay;
   window.inventorySystem.updateInventoryDisplay = function (...args) {
     original.apply(this, args);
-    if (isMenuOpen) updateLocalBalanceDisplay();
+    if (s.isMenuOpen) updateLocalBalanceDisplay(twisterId);
   };
 
-  updateLocalBalanceDisplay();
+  updateLocalBalanceDisplay(twisterId);
 
-  document
-    .getElementById("twister-spin-btn")
-    ?.addEventListener("click", handleTwisterSpin);
+  s.menuElement
+    .querySelector("#twister-spin-btn")
+    ?.addEventListener("click", () => handleTwisterSpin(twisterId));
 
   if (ws?.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ type: "twister", subtype: "getState" }));
+    ws.send(
+      JSON.stringify({
+        type: "twister",
+        subtype: "getState",
+        twisterId,
+      }),
+    );
   }
 }
 
-function hideTwisterMenu() {
-  if (!isMenuOpen) return;
-  isMenuOpen = false;
-  menuElement?.remove();
-  menuElement = null;
-  isSpinning = false;
+function hideTwisterMenu(s) {
+  if (!s.isMenuOpen) return;
+  s.isMenuOpen = false;
+  s.menuElement?.remove();
+  s.menuElement = null;
+  s.isSpinning = false;
 }
 
-function handleTwisterSpin() {
-  if (isSpinning) return;
+function handleTwisterSpin(twisterId) {
+  const s = state[twisterId];
+  if (s.isSpinning) return;
 
   const balance =
-    Number(document.getElementById("twister-balance")?.dataset.count) || 0;
+    Number(s.menuElement?.querySelector("#twister-balance")?.dataset.count) ||
+    0;
   if (balance < 1) {
-    const resultEl = document.getElementById("twister-result");
+    const resultEl = s.menuElement.querySelector("#twister-result");
     resultEl.textContent = "Недостаточно баляров!";
     resultEl.style.color = "#ff6666";
     return;
   }
 
-  isSpinning = true;
-  const btn = document.getElementById("twister-spin-btn");
+  s.isSpinning = true;
+  const btn = s.menuElement.querySelector("#twister-spin-btn");
   btn.disabled = true;
 
-  const resultEl = document.getElementById("twister-result");
+  const resultEl = s.menuElement.querySelector("#twister-result");
   resultEl.textContent = "";
   resultEl.style.color = "#e0e0e0";
 
   if (ws?.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ type: "twister", subtype: "spin" }));
+    ws.send(
+      JSON.stringify({
+        type: "twister",
+        subtype: "spin",
+        twisterId,
+      }),
+    );
   }
 }
 
-function animateReels(finalFrames, winAmount = 0, isBonusWin = false) {
-  if (!slotSpriteReady || !slotSprite?.complete) {
-    document.getElementById("twister-result").textContent = "Ошибка спрайта...";
-    isSpinning = false;
-    document.getElementById("twister-spin-btn").disabled = false;
+function animateReels(
+  twisterId,
+  finalFrames,
+  winAmount = 0,
+  isBonusWin = false,
+) {
+  const s = state[twisterId];
+  if (!slotSpriteReady || !s.menuElement) {
+    s.isSpinning = false;
+    s.menuElement.querySelector("#twister-spin-btn").disabled = false;
     return;
   }
 
-  const canvases = [
-    document.querySelector("#reel1 canvas"),
-    document.querySelector("#reel2 canvas"),
-    document.querySelector("#reel3 canvas"),
-  ];
-
-  const ctxs = canvases.map((c) => c.getContext("2d"));
+  const canvases = s.menuElement.querySelectorAll(".digital-reel canvas");
+  const ctxs = Array.from(canvases).map((c) => c.getContext("2d"));
 
   const TOTAL_DURATION = 5000;
   const SLOWDOWN_FROM = 3200;
@@ -206,77 +217,43 @@ function animateReels(finalFrames, winAmount = 0, isBonusWin = false) {
 
   function drawOneReel(ctx, elapsed) {
     ctx.clearRect(0, 0, 70, 70);
-
     let speed = BASE_SPEED;
     if (elapsed > SLOWDOWN_FROM) {
       const t = (elapsed - SLOWDOWN_FROM) / (TOTAL_DURATION - SLOWDOWN_FROM);
       speed *= 1 - t * 0.94;
     }
-
     const pos = (elapsed * speed) % SLOT_SPRITE.frameCount;
     const frame = Math.floor(pos);
-
-    ctx.drawImage(
-      slotSprite,
-      frame * SLOT_SPRITE.frameWidth,
-      0,
-      SLOT_SPRITE.frameWidth,
-      SLOT_SPRITE.frameHeight,
-      0,
-      0,
-      70,
-      70,
-    );
+    ctx.drawImage(slotSprite, frame * 70, 0, 70, 70, 0, 0, 70, 70);
   }
 
   function loop() {
     const elapsed = performance.now() - start;
-
     ctxs.forEach((ctx) => drawOneReel(ctx, elapsed));
 
     if (elapsed < TOTAL_DURATION) {
       requestAnimationFrame(loop);
     } else {
-      // Финальная отрисовка
       ctxs.forEach((ctx, i) => {
         ctx.clearRect(0, 0, 70, 70);
-        ctx.drawImage(
-          slotSprite,
-          finalFrames[i] * SLOT_SPRITE.frameWidth,
-          0,
-          SLOT_SPRITE.frameWidth,
-          SLOT_SPRITE.frameHeight,
-          0,
-          0,
-          70,
-          70,
-        );
+        ctx.drawImage(slotSprite, finalFrames[i] * 70, 0, 70, 70, 0, 0, 70, 70);
       });
 
-      const resultEl = document.getElementById("twister-result");
-
+      const resultEl = s.menuElement.querySelector("#twister-result");
       if (winAmount > 0) {
         let msg = winAmount;
-        if (isBonusWin) {
-          msg = `БОЛЬШОЙ ДЖЕКПОТ! +${winAmount}`;
-        }
+        if (isBonusWin) msg = `БОЛЬШОЙ ДЖЕКПОТ! +${winAmount}`;
         resultEl.textContent = msg;
         resultEl.style.color = "#ff0000";
-
-        if (typeof window.showNotification === "function") {
-          window.showNotification(msg + " баляров!", "#ffff00");
-        }
+        window.showNotification?.(msg + " баляров!", "#ffff00");
       } else {
         resultEl.textContent = "0";
         resultEl.style.color = "#ff0000";
       }
 
-      isSpinning = false;
-      const btn = document.getElementById("twister-spin-btn");
-      if (btn) btn.disabled = false;
-
-      // Обновляем баланс сразу после остановки барабанов
-      updateLocalBalanceDisplay();
+      s.isSpinning = false;
+      s.menuElement.querySelector("#twister-spin-btn").disabled = false;
+      updateLocalBalanceDisplay(twisterId);
     }
   }
 
@@ -284,40 +261,32 @@ function animateReels(finalFrames, winAmount = 0, isBonusWin = false) {
 }
 
 function updateTwisterState(data) {
-  if (!isMenuOpen) return;
+  const twisterId = data.twisterId;
+  const s = state[twisterId];
+  if (!s?.isMenuOpen || !s.menuElement) return;
 
-  console.log("[Twister CLIENT] Получен state:", data);
-
-  // Баланс — всегда обновляем, если пришёл
   if (data.balance !== undefined) {
-    const el = document.getElementById("twister-balance");
+    const el = s.menuElement.querySelector("#twister-balance");
     if (el) {
       el.textContent = data.balance;
       el.dataset.count = data.balance;
     }
   }
 
-  // Бонус-лампочки
+  // Лампочки
   const points = Math.min(11, data.bonusPoints ?? 0);
-
   for (let i = 0; i < 11; i++) {
-    const el = document.querySelector(`.bonus-light-${i}`);
-    if (el) el.classList.remove("active");
+    const el = s.menuElement.querySelector(`.bonus-light-${i}`);
+    el?.classList.toggle("active", i < points);
   }
 
-  for (let i = 0; i < points; i++) {
-    const el = document.querySelector(`.bonus-light-${i}`);
-    if (el) el.classList.add("active");
-  }
-
-  const resultEl = document.getElementById("twister-result");
+  const resultEl = s.menuElement.querySelector("#twister-result");
 
   if (data.error) {
     resultEl.textContent = data.error;
     resultEl.style.color = "#ff6666";
-    isSpinning = false;
-    const btn = document.getElementById("twister-spin-btn");
-    if (btn) btn.disabled = false;
+    s.isSpinning = false;
+    s.menuElement.querySelector("#twister-spin-btn").disabled = false;
     return;
   }
 
@@ -327,7 +296,7 @@ function updateTwisterState(data) {
       const frames = [Number(match[1]), Number(match[2]), Number(match[3])];
       const win = Number(data.winAmount) || 0;
       const isBonus = data.subtype === "bonusWin";
-      animateReels(frames, win, isBonus);
+      animateReels(twisterId, frames, win, isBonus);
     }
   } else if (!data.shouldAnimate) {
     resultEl.textContent = "";
@@ -335,59 +304,58 @@ function updateTwisterState(data) {
 }
 
 function handleTwisterMessage(data) {
-  switch (data.subtype) {
-    case "state":
-    case "spinResult":
-    case "bonusWin":
-      updateTwisterState(data);
-      break;
-    default:
-      console.warn("Неизвестный подтип twister:", data.subtype);
+  if (["state", "spinResult", "bonusWin"].includes(data.subtype)) {
+    updateTwisterState(data);
   }
 }
 
 function drawMisterTwister() {
   if (window.worldSystem.currentWorldId !== 0) return;
-  if (!spriteReady || !sprite?.complete) return;
 
   const cam = window.movementSystem.getCamera();
-  const sx = MISTER_TWISTER_POS.x - cam.x;
-  const sy = MISTER_TWISTER_POS.y - cam.y;
 
-  if (
-    sx + 100 < 0 ||
-    sx > canvas.width + 40 ||
-    sy + 140 < 0 ||
-    sy > canvas.height + 40
-  )
-    return;
+  TWISTER_LOCATIONS.forEach((loc) => {
+    const img = sprites[loc.id];
+    if (!img?.complete) return;
 
-  const now = performance.now();
-  const cycle = CONFIG.animationDuration + CONFIG.pauseDuration;
-  const t = (now - animationStart) % cycle;
+    const s = state[loc.id];
+    const sx = loc.x - cam.x;
+    const sy = loc.y - cam.y;
 
-  let frame = 0;
-  if (t < CONFIG.animationDuration) {
-    frame = Math.floor((t * CONFIG.frameCount) / CONFIG.animationDuration);
-  }
+    if (
+      sx + 100 < 0 ||
+      sx > canvas.width + 40 ||
+      sy + 140 < 0 ||
+      sy > canvas.height + 40
+    )
+      return;
 
-  ctx.drawImage(
-    sprite,
-    frame * CONFIG.frameWidth,
-    0,
-    CONFIG.frameWidth,
-    CONFIG.frameHeight,
-    sx,
-    sy,
-    MISTER_TWISTER_POS.width,
-    MISTER_TWISTER_POS.height,
-  );
+    const now = performance.now();
+    const cycle = CONFIG.animationDuration + CONFIG.pauseDuration;
+    const t = (now - s.animationStart) % cycle;
+
+    let frame = 0;
+    if (t < CONFIG.animationDuration) {
+      frame = Math.floor((t * CONFIG.frameCount) / CONFIG.animationDuration);
+    }
+
+    ctx.drawImage(
+      img,
+      frame * CONFIG.frameWidth,
+      0,
+      CONFIG.frameWidth,
+      CONFIG.frameHeight,
+      sx,
+      sy,
+      loc.width,
+      loc.height,
+    );
+  });
 }
 
 window.misterTwister = {
   initialize: initializeMisterTwister,
   checkProximity: checkMisterTwisterProximity,
   draw: drawMisterTwister,
-  hideMenu: hideTwisterMenu,
   handleMessage: handleTwisterMessage,
 };
