@@ -1,0 +1,265 @@
+/* torestosStyle.css — стили ТОЛЬКО для Торестоса */
+
+.torestos-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(
+    135deg,
+    rgba(10, 10, 10, 0.95),
+    rgba(20, 20, 20, 0.9)
+  );
+  border: 2px solid #00aaff;
+  border-radius: 10px;
+  padding: 20px;
+  color: #00aaff;
+  font-family: "Courier New", monospace;
+  text-align: center;
+  z-index: 1001;
+  width: 420px;
+  max-width: 92vw;
+  height: 380px;
+  max-height: 88vh;
+  display: none;
+  flex-direction: column;
+  box-shadow:
+    0 0 20px rgba(0, 170, 255, 0.5),
+    0 0 30px rgba(255, 0, 170, 0.3);
+  animation: neonPulseT 2s infinite alternate;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.torestos-dialog.open {
+  display: flex !important;
+}
+
+.torestos-dialog-content {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 10px;
+  margin-top: 10px;
+  scrollbar-width: thin;
+  scrollbar-color: #ff00aa rgba(0, 0, 0, 0.5);
+}
+
+.torestos-dialog-content::-webkit-scrollbar {
+  width: 8px;
+}
+.torestos-dialog-content::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 4px;
+}
+.torestos-dialog-content::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #00aaff, #ff00aa);
+  border-radius: 4px;
+  box-shadow: 0 0 10px rgba(255, 0, 170, 0.7);
+}
+
+.torestos-buttons-container {
+  position: fixed;
+  z-index: 1000;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  transition: all 0.2s ease;
+}
+
+.torestos-button {
+  pointer-events: all;
+  padding: 12px 24px;
+  font-size: 15px;
+  font-family: "Courier New", monospace;
+  font-weight: bold;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  text-shadow: 0 0 8px rgba(0, 170, 255, 0.9);
+  transition: all 0.3s ease;
+  box-shadow: 0 0 12px rgba(0, 170, 255, 0.5);
+  min-width: 130px;
+  text-align: center;
+  user-select: none;
+  backdrop-filter: blur(4px);
+}
+
+.torestos-talk-btn {
+  background: linear-gradient(
+    135deg,
+    rgba(0, 170, 255, 0.25),
+    rgba(0, 100, 150, 0.35)
+  );
+  color: #00aaff;
+  border-color: #00aaff;
+}
+.torestos-upgrade-btn {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 170, 0, 0.25),
+    rgba(180, 120, 0, 0.35)
+  );
+  color: #ffaa00;
+  border-color: #ffaa00;
+}
+.torestos-collection-btn {
+  background: linear-gradient(
+    135deg,
+    rgba(170, 0, 255, 0.25),
+    rgba(120, 0, 180, 0.35)
+  );
+  color: #aa00ff;
+  border-color: #aa00ff;
+}
+
+.torestos-talk-btn:hover,
+.torestos-upgrade-btn:hover,
+.torestos-collection-btn:hover {
+  box-shadow: 0 0 25px currentColor;
+  transform: scale(1.07);
+}
+
+.torestos-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+  flex-shrink: 0;
+}
+
+.torestos-title {
+  color: #00aaff;
+  font-size: 24px;
+  text-shadow:
+    0 0 8px #00aaff,
+    0 0 15px #ff00aa;
+  animation: flickerT 1.8s infinite alternate;
+  margin: 0;
+}
+
+.torestos-text {
+  margin: 12px 0;
+  font-size: 16px;
+  text-shadow: 0 0 6px rgba(0, 170, 255, 0.8);
+  line-height: 1.6;
+}
+
+.torestos-topics {
+  max-height: 260px;
+  overflow-y: auto;
+  background: rgba(10, 10, 10, 0.92);
+  border: 1px solid #00aaff;
+  border-radius: 6px;
+  padding: 12px;
+  box-shadow: inset 0 0 12px rgba(0, 170, 255, 0.3);
+}
+
+.torestos-topic {
+  padding: 10px;
+  margin: 6px 0;
+  background: rgba(0, 170, 255, 0.12);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.torestos-topic:hover {
+  background: rgba(0, 170, 255, 0.3);
+}
+
+.torestos-neon-btn {
+  padding: 14px 28px;
+  font-size: 17px;
+  font-family: "Courier New", monospace;
+  background: linear-gradient(135deg, #00aaff, #ff00aa);
+  border: none;
+  color: #000;
+  border-radius: 6px;
+  cursor: pointer;
+  box-shadow:
+    0 0 15px rgba(0, 170, 255, 0.8),
+    0 0 25px rgba(255, 0, 170, 0.6);
+  transition: all 0.3s;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  flex-shrink: 0;
+  margin-top: 12px;
+}
+
+.torestos-neon-btn:hover {
+  box-shadow:
+    0 0 25px rgba(0, 170, 255, 1),
+    0 0 40px rgba(255, 0, 170, 0.8);
+  transform: scale(1.06);
+}
+
+@keyframes neonPulseT {
+  0% {
+    box-shadow:
+      0 0 10px rgba(0, 170, 255, 0.5),
+      0 0 20px rgba(255, 0, 170, 0.3);
+  }
+  100% {
+    box-shadow:
+      0 0 20px rgba(0, 170, 255, 0.9),
+      0 0 35px rgba(255, 0, 170, 0.6);
+  }
+}
+
+@keyframes flickerT {
+  0%,
+  19%,
+  21%,
+  23%,
+  25%,
+  54%,
+  56%,
+  100% {
+    opacity: 1;
+    text-shadow:
+      0 0 8px #00aaff,
+      0 0 15px #ff00aa;
+  }
+  20%,
+  24%,
+  55% {
+    opacity: 0.6;
+    text-shadow: 0 0 3px #00aaff;
+  }
+}
+
+/* Адаптив — такой же как у остальных */
+@media (max-width: 768px) {
+  .torestos-dialog {
+    width: 92vw;
+    height: 420px;
+    padding: 15px;
+  }
+  .torestos-title {
+    font-size: 21px;
+  }
+}
+
+@media (max-width: 480px) {
+  .torestos-dialog {
+    width: 95vw;
+    height: 440px;
+    padding: 12px;
+  }
+  .torestos-title {
+    font-size: 19px;
+  }
+  .torestos-text {
+    font-size: 15px;
+  }
+  .torestos-neon-btn {
+    padding: 12px 22px;
+    font-size: 16px;
+  }
+}

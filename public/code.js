@@ -125,6 +125,7 @@ const imageSources = {
   thimbleriggerSprite: "thimblerigger.png",
   misterTwisterSprite: "mister_twister.png",
   trashImage: "trash.png",
+  torestosSprite: "torestosSprite.png",
   // === НОВАЯ ПОРВАННАЯ ЭКИПИРОВКА ===
   torn_baseball_cap_of_health: "torn_baseball_cap_of_health.png",
   torn_health_t_shirt: "torn_health_t_shirt.png",
@@ -190,6 +191,7 @@ Object.entries(imageSources).forEach(([key, src]) => {
       window.robotDoctorSystem.initialize(images.robotDoctorSprite);
       window.thimbleriggerSystem.initialize(images.thimbleriggerSprite);
       window.trashCansSystem.initialize(images.trashImage);
+      window.torestosSystem.initialize(images.torestosSprite);
     }
   };
 });
@@ -983,6 +985,7 @@ function handleAuthMessage(event) {
         alexNeonMet: data.alexNeonMet || false,
         captainMet: data.captainMet || false,
         thimbleriggerMet: data.thimbleriggerMet || false,
+        torestosMet: data.torestosMet || false,
         selectedQuestId: data.selectedQuestId || null,
         level: data.level || 0,
         xp: data.xp || 99,
@@ -1221,6 +1224,7 @@ function startGame() {
   window.robotDoctorSystem.initialize(images.robotDoctorSprite);
   window.thimbleriggerSystem.initialize(images.thimbleriggerSprite);
   window.trashCansSystem.initialize(images.trashImage);
+  window.torestosSystem.initialize(images.torestosSprite);
   window.combatSystem.initialize();
 
   document.addEventListener("keydown", (e) => {
@@ -2404,6 +2408,9 @@ function handleGameMessage(event) {
           }
         }
         break;
+      case "torestosMet":
+        window.torestosSystem.setTorestosMet(data.met);
+        break;
     }
   } catch (error) {
     console.error("Ошибка в handleGameMessage:", error);
@@ -2540,6 +2547,7 @@ function update(deltaTime) {
   if (window.outpostCaptainSystem)
     window.outpostCaptainSystem.update(deltaTime);
   window.thimbleriggerSystem.checkThimbleriggerProximity();
+  window.torestosSystem.checkTorestosProximity();
   window.misterTwister.checkProximity();
   if (window.trashCansSystem) {
     window.trashCansSystem.update(deltaTime);
@@ -2812,6 +2820,7 @@ function draw(deltaTime) {
   if (window.trashCansSystem) {
     window.trashCansSystem.draw(ctx);
   }
+  window.torestosSystem.drawTorestos(deltaTime);
   window.droneSystem.draw();
 
   if (currentWorld.clouds.complete) {

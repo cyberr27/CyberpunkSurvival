@@ -245,6 +245,7 @@ function setupWebSocket(
             alexNeonMet: false,
             captainMet: false,
             thimbleriggerMet: false,
+            torestosMet: false,
             level: 0,
             xp: 0,
             upgradePoints: 0,
@@ -445,6 +446,7 @@ function setupWebSocket(
               alexNeonMet: playerData.alexNeonMet,
               captainMet: playerData.captainMet,
               thimbleriggerMet: playerData.thimbleriggerMet,
+              torestosMet: playerData.torestosMet || false,
               selectedQuestId: playerData.selectedQuestId,
               level: playerData.level,
               xp: playerData.xp,
@@ -2901,6 +2903,35 @@ function setupWebSocket(
               isOpened: st.guessed,
               secretSuit: st.guessed ? st.secretSuit : null, // ← можно отправлять, если хочешь показывать масть
               nextAttemptAfter: st.nextAttemptAfter,
+            }),
+          );
+        }
+      } else if (data.type === "meetTorestos") {
+        const player = players.get(clients.get(ws));
+        if (!player) return;
+
+        if (!player.torestosMet) {
+          player.torestosMet = true;
+          userDatabase.set(player.id, { ...player });
+          await saveUserDatabase(dbCollection, player.id, player);
+
+          // Отправляем клиенту обновление флага
+          ws.send(
+            JSON.stringify({
+              type: "torestosMet",
+              met: true,
+            }),
+          );
+
+          // Можно сразу уведомить всех в мире (опционально)
+          broadcastToWorld(
+            wss,
+            clients,
+            players,
+            player.worldId,
+            JSON.stringify({
+              type: "playerUpdate",
+              player: { id: player.id, torestosMet: true },
             }),
           );
         }
