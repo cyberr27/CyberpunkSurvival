@@ -393,6 +393,7 @@ function setupWebSocket(
             alexNeonMet: player.alexNeonMet || false,
             captainMet: player.captainMet || false,
             thimbleriggerMet: player.thimbleriggerMet || false,
+            torestosMet: player.torestosMet || false,
             selectedQuestId: player.selectedQuestId || null,
             level: player.level || 0,
             xp: player.xp || 0,
