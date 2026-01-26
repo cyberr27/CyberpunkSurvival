@@ -1,4 +1,4 @@
-// torestos.js — NPC Торестос в Неоновом городе
+// torestos.js — NPC Торестос в Неоновом городе (оптимизированная версия)
 
 const TORESTOS = {
   x: 229,
@@ -6,30 +6,28 @@ const TORESTOS = {
   width: 70,
   height: 70,
   interactionRadius: 50,
-  name: "Торестос",
+  name: "Мастер:Торестос",
   worldId: 0,
 };
 
-let isTorestosMet = false;
-let isTorestosDialogOpen = false;
-let isPlayerNearTorestos = false;
-
-let torestosSprite = null;
-let torestosButtonsContainer = null;
-
-// Анимация
-let torestosFrame = 0;
-let torestosFrameTime = 0;
-const FRAME_DURATION_TORESTOS = 200;
+const MAIN_PHASE_DURATION = 15000; // 15 сек основная анимация
+const ACTIVE_PHASE_DURATION = 5000; // 5 сек активная анимация
+const FRAME_DURATION_TORESTOS = 200; // 200 мс на кадр (по твоему запросу)
 const TOTAL_FRAMES_TORESTOS = 13;
-const MAX_DELTA_TIME_TORESTOS = 1000;
+const MAX_DELTA = 1000; // ограничение deltaTime
 
-let animationCycleTimeTorestos = 0;
-const MAIN_PHASE_DURATION = 15000; // 15 сек — основная строка
-const ACTIVE_PHASE_DURATION = 5000; // 5 сек — активная строка
-let currentPhaseTorestos = "main";
+let isMet = false;
+let isDialogOpen = false;
+let isNear = false;
 
+let spriteTorestos = null;
+let buttonsContainer = null;
 let dialogElement = null;
+
+let frame = 0;
+let frameTime = 0;
+let cycleTime = 0;
+let currentPhaseTorestos = "main"; // "main" или "active"
 
 (() => {
   const link = document.createElement("link");
@@ -38,14 +36,13 @@ let dialogElement = null;
   document.head.appendChild(link);
 })();
 
-function openTorestosGreeting() {
-  if (isTorestosDialogOpen) return;
-  isTorestosDialogOpen = true;
+function openGreeting() {
+  if (isDialogOpen) return;
+  isDialogOpen = true;
   document.body.classList.add("npc-dialog-active");
 
   dialogElement = document.createElement("div");
   dialogElement.className = "torestos-dialog open";
-
   dialogElement.innerHTML = `
     <div class="torestos-dialog-header">
       <h2 class="torestos-title">Торестос</h2>
@@ -61,29 +58,20 @@ function openTorestosGreeting() {
   `;
   document.body.appendChild(dialogElement);
 
-  document
-    .getElementById("torestos-greeting-continue")
-    ?.addEventListener("click", () => {
+  const continueBtn = document.getElementById("torestos-greeting-continue");
+  if (continueBtn) {
+    continueBtn.onclick = () => {
       if (ws?.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: "meetTorestos" }));
       }
-      closeTorestosDialog();
-    });
-}
-
-function closeTorestosDialog() {
-  if (!isTorestosDialogOpen) return;
-  isTorestosDialogOpen = false;
-  document.body.classList.remove("npc-dialog-active");
-  if (dialogElement) {
-    dialogElement.remove();
-    dialogElement = null;
+      closeDialog();
+    };
   }
 }
 
-function openTorestosMainDialog() {
-  if (isTorestosDialogOpen) return;
-  isTorestosDialogOpen = true;
+function openMainDialog() {
+  if (isDialogOpen) return;
+  isDialogOpen = true;
   document.body.classList.add("npc-dialog-active");
 
   dialogElement = document.createElement("div");
@@ -109,7 +97,7 @@ function openTorestosMainDialog() {
       action: () => {
         topicsContainer.innerHTML = `<p class="torestos-text">Пока я мало что знаю о тебе... Расскажи, что тебя сюда занесло?</p>`;
         closeBtn.textContent = "НАЗАД";
-        closeBtn.onclick = openTorestosMainDialog;
+        closeBtn.onclick = openMainDialog;
       },
     },
     {
@@ -117,7 +105,7 @@ function openTorestosMainDialog() {
       action: () => {
         topicsContainer.innerHTML = `<p class="torestos-text">Здесь можно было бы улучшать статы или экипировку... Но пока это только заготовка.</p>`;
         closeBtn.textContent = "НАЗАД";
-        closeBtn.onclick = openTorestosMainDialog;
+        closeBtn.onclick = openMainDialog;
       },
     },
     {
@@ -125,7 +113,7 @@ function openTorestosMainDialog() {
       action: () => {
         topicsContainer.innerHTML = `<p class="torestos-text">Коллекции пока нет, но скоро будет — держи ушки на макушке.</p>`;
         closeBtn.textContent = "НАЗАД";
-        closeBtn.onclick = openTorestosMainDialog;
+        closeBtn.onclick = openMainDialog;
       },
     },
   ];
@@ -134,67 +122,67 @@ function openTorestosMainDialog() {
     const div = document.createElement("div");
     div.className = "torestos-topic";
     div.innerHTML = `<strong>${topic.title}</strong>`;
-    div.addEventListener("click", topic.action);
+    div.onclick = topic.action;
     topicsContainer.appendChild(div);
   });
 
-  closeBtn.onclick = closeTorestosDialog;
+  closeBtn.onclick = closeDialog;
 }
 
-function createTorestosButtons() {
-  if (torestosButtonsContainer) return;
-  torestosButtonsContainer = document.createElement("div");
-  torestosButtonsContainer.className = "torestos-buttons-container";
-
-  const talkBtn = document.createElement("div");
-  talkBtn.className = "torestos-button torestos-talk-btn";
-  talkBtn.textContent = "ГОВОРИТЬ";
-  talkBtn.onclick = (e) => {
-    e.stopPropagation();
-    openTorestosMainDialog();
-  };
-
-  const upgradeBtn = document.createElement("div");
-  upgradeBtn.className = "torestos-button torestos-upgrade-btn";
-  upgradeBtn.textContent = "УЛУЧШИТЬ";
-  upgradeBtn.onclick = (e) => {
-    e.stopPropagation();
-    openTorestosMainDialog();
-  };
-
-  const collectionBtn = document.createElement("div");
-  collectionBtn.className = "torestos-button torestos-collection-btn";
-  collectionBtn.textContent = "КОЛЛЕКЦИЯ";
-  collectionBtn.onclick = (e) => {
-    e.stopPropagation();
-    openTorestosMainDialog();
-  };
-
-  torestosButtonsContainer.appendChild(talkBtn);
-  torestosButtonsContainer.appendChild(upgradeBtn);
-  torestosButtonsContainer.appendChild(collectionBtn);
-  document.body.appendChild(torestosButtonsContainer);
-}
-
-function removeTorestosButtons() {
-  if (torestosButtonsContainer) {
-    torestosButtonsContainer.remove();
-    torestosButtonsContainer = null;
+function closeDialog() {
+  if (!isDialogOpen) return;
+  isDialogOpen = false;
+  document.body.classList.remove("npc-dialog-active");
+  if (dialogElement) {
+    dialogElement.remove();
+    dialogElement = null;
   }
 }
 
-function updateTorestosButtonsPosition(cameraX, cameraY) {
-  if (!torestosButtonsContainer || !isPlayerNearTorestos) return;
+function createButtons() {
+  if (buttonsContainer) return;
+  buttonsContainer = document.createElement("div");
+  buttonsContainer.className = "torestos-buttons-container";
+
+  ["ГОВОРИТЬ", "УЛУЧШИТЬ", "КОЛЛЕКЦИЯ"].forEach((text) => {
+    const btn = document.createElement("div");
+    btn.className =
+      "torestos-button " +
+      (text === "ГОВОРИТЬ"
+        ? "torestos-talk-btn"
+        : text === "УЛУЧШИТЬ"
+          ? "torestos-upgrade-btn"
+          : "torestos-collection-btn");
+    btn.textContent = text;
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      openMainDialog();
+    };
+    buttonsContainer.appendChild(btn);
+  });
+
+  document.body.appendChild(buttonsContainer);
+}
+
+function removeButtons() {
+  if (buttonsContainer) {
+    buttonsContainer.remove();
+    buttonsContainer = null;
+  }
+}
+
+function updateButtonsPosition(cameraX, cameraY) {
+  if (!buttonsContainer || !isNear) return;
   const screenX = TORESTOS.x - cameraX + 35;
   const screenY = TORESTOS.y - cameraY - 110;
-  torestosButtonsContainer.style.left = `${screenX}px`;
-  torestosButtonsContainer.style.top = `${screenY}px`;
+  buttonsContainer.style.left = `${screenX}px`;
+  buttonsContainer.style.top = `${screenY}px`;
 }
 
 function drawTorestos(deltaTime) {
   if (window.worldSystem.currentWorldId !== TORESTOS.worldId) return;
 
-  deltaTime = Math.min(deltaTime, MAX_DELTA_TIME_TORESTOS);
+  deltaTime = Math.min(deltaTime, MAX_DELTA);
 
   const camera = window.movementSystem.getCamera();
   const screenX = TORESTOS.x - camera.x;
@@ -202,68 +190,73 @@ function drawTorestos(deltaTime) {
 
   let sx, sy;
 
-  if (isPlayerNearTorestos) {
+  if (isNear) {
+    // Игрок рядом — статичный кадр
     sx = 0;
     sy = 0;
-    torestosFrame = 0;
-    torestosFrameTime = 0;
-    animationCycleTimeTorestos = 0;
+    frame = 0;
+    frameTime = 0;
+    cycleTime = 0;
     currentPhaseTorestos = "main";
   } else {
-    animationCycleTimeTorestos += deltaTime;
+    // Анимация вдали
+    cycleTime += deltaTime;
     while (
-      animationCycleTimeTorestos >=
+      cycleTime >=
       (currentPhaseTorestos === "main"
         ? MAIN_PHASE_DURATION
         : ACTIVE_PHASE_DURATION)
     ) {
-      animationCycleTimeTorestos -=
+      cycleTime -=
         currentPhaseTorestos === "main"
           ? MAIN_PHASE_DURATION
           : ACTIVE_PHASE_DURATION;
       currentPhaseTorestos =
         currentPhaseTorestos === "main" ? "active" : "main";
-      torestosFrame = 0;
-      torestosFrameTime = 0;
+      frame = 0;
+      frameTime = 0;
     }
 
-    torestosFrameTime += deltaTime;
-    while (torestosFrameTime >= FRAME_DURATION_TORESTOS) {
-      torestosFrameTime -= FRAME_DURATION_TORESTOS;
-      torestosFrame = (torestosFrame + 1) % TOTAL_FRAMES_TORESTOS;
+    frameTime += deltaTime;
+    while (frameTime >= FRAME_DURATION_TORESTOS) {
+      frameTime -= FRAME_DURATION_TORESTOS;
+      frame = (frame + 1) % TOTAL_FRAMES_TORESTOS;
     }
 
     sy = currentPhaseTorestos === "main" ? 0 : 70;
-    sx = torestosFrame * 70;
+    sx = frame * 70;
   }
 
-  if (torestosSprite?.complete) {
-    ctx.drawImage(torestosSprite, sx, sy, 70, 70, screenX, screenY, 70, 70);
+  if (spriteTorestos?.complete) {
+    ctx.drawImage(spriteTorestos, sx, sy, 70, 70, screenX, screenY, 70, 70);
   } else {
     ctx.fillStyle = "#ff00aa";
     ctx.fillRect(screenX, screenY, 70, 70);
   }
 
-  ctx.fillStyle = isTorestosMet ? "#00ff2f" : "#ffffff";
+  // Имя
+  ctx.fillStyle = isMet ? "#00ff2f" : "#ffffff";
   ctx.font = "13px Arial";
   ctx.textAlign = "center";
-  ctx.fillText(isTorestosMet ? TORESTOS.name : "?", screenX + 35, screenY - 12);
+  ctx.fillText(isMet ? TORESTOS.name : "?", screenX + 35, screenY - 12);
 
-  updateTorestosButtonsPosition(camera.x, camera.y);
+  updateButtonsPosition(camera.x, camera.y);
 }
 
-function checkTorestosProximity() {
+function checkProximity() {
   const me = players.get(myId);
+  const currentWorldId = window.worldSystem.currentWorldId;
+
   if (
     !me ||
     me.worldId !== TORESTOS.worldId ||
     me.health <= 0 ||
-    window.worldSystem.currentWorldId !== TORESTOS.worldId
+    currentWorldId !== TORESTOS.worldId
   ) {
-    if (isPlayerNearTorestos) {
-      isPlayerNearTorestos = false;
-      removeTorestosButtons();
-      closeTorestosDialog();
+    if (isNear) {
+      isNear = false;
+      removeButtons();
+      closeDialog();
     }
     return;
   }
@@ -273,39 +266,43 @@ function checkTorestosProximity() {
   const dist = Math.hypot(dx, dy);
   const nowNear = dist < TORESTOS.interactionRadius;
 
-  if (nowNear && !isPlayerNearTorestos) {
-    isPlayerNearTorestos = true;
-    if (isTorestosMet) {
-      createTorestosButtons();
+  if (nowNear && !isNear) {
+    isNear = true;
+    if (isMet) {
+      createButtons();
     } else {
-      openTorestosGreeting();
+      openGreeting();
     }
-  } else if (!nowNear && isPlayerNearTorestos) {
-    isPlayerNearTorestos = false;
-    removeTorestosButtons();
-    closeTorestosDialog();
+  } else if (!nowNear && isNear) {
+    isNear = false;
+    removeButtons();
+    closeDialog();
+    // Сброс анимации при уходе
     currentPhaseTorestos = "main";
-    animationCycleTimeTorestos = 0;
-    torestosFrame = 0;
-    torestosFrameTime = 0;
+    cycleTime = 0;
+    frame = 0;
+    frameTime = 0;
   }
 }
 
-function setTorestosMet(met) {
-  isTorestosMet = met;
-  if (!met && isPlayerNearTorestos) removeTorestosButtons();
-  if (met && isPlayerNearTorestos) createTorestosButtons();
+function setMet(met) {
+  isMet = met;
+  if (isNear) {
+    if (met) createButtons();
+    else removeButtons();
+  }
 }
 
 window.torestosSystem = {
   drawTorestos,
-  checkTorestosProximity,
-  setTorestosMet,
-  initialize: (sprite) => {
-    torestosSprite = sprite;
+  checkTorestosProximity: checkProximity,
+  setTorestosMet: setMet,
+  initialize: (s) => {
+    spriteTorestos = s;
+    // Сброс состояния при инициализации
     currentPhaseTorestos = "main";
-    animationCycleTimeTorestos = 0;
-    torestosFrame = 0;
-    torestosFrameTime = 0;
+    cycleTime = 0;
+    frame = 0;
+    frameTime = 0;
   },
 };
