@@ -1,12 +1,10 @@
-// torestos.js — NPC Торестос в Неоновом городе (обновлённая версия: прямой доступ к разделам)
-
 const TORESTOS = {
   x: 229,
   y: 2411,
   width: 70,
   height: 70,
   interactionRadius: 50,
-  name: "Мастер:Торестос",
+  name: "Мастер Торестос",
   worldId: 0,
 };
 
@@ -69,41 +67,57 @@ function openGreeting() {
   }
 }
 
-// === НОВАЯ ОСНОВНАЯ ФУНКЦИЯ ОТКРЫТИЯ ДИАЛОГА (прямой доступ к разделу) ===
 function openTorestosDialog(section = "talk") {
   if (isDialogOpen) return;
   isDialogOpen = true;
   document.body.classList.add("npc-dialog-active");
 
-  // Общий контейнер (меньше для обычных секций, большой для upgrade)
-  const isUpgrade = section === "upgrade";
   dialogElement = document.createElement("div");
+
+  const isTalk = section === "talk";
+  const isUpgrade = section === "upgrade";
+
   dialogElement.className = isUpgrade
     ? "torestos-upgrade-dialog open"
-    : "torestos-dialog open";
+    : isTalk
+      ? "npc-dialog open"
+      : "torestos-dialog open";
+
   document.body.appendChild(dialogElement);
 
-  const closeBtn = document.createElement("button");
-  closeBtn.className = "torestos-neon-btn";
-  closeBtn.style.position = "absolute";
-  closeBtn.style.top = "10px";
-  closeBtn.style.right = "10px";
-  closeBtn.textContent = "ОТМЕНА";
-  closeBtn.onclick = closeDialog;
-  dialogElement.appendChild(closeBtn);
+  let closeBtn = null;
+
+  // Absolute кнопка закрытия для НЕ-talk разделов
+  if (!isTalk) {
+    closeBtn = document.createElement("button");
+    closeBtn.className = "torestos-neon-btn";
+    closeBtn.style.position = "absolute";
+    closeBtn.style.top = "10px";
+    closeBtn.style.right = "10px";
+    closeBtn.textContent = "ОТМЕНА";
+    closeBtn.onclick = closeDialog;
+    dialogElement.appendChild(closeBtn);
+  }
 
   const contentContainer = document.createElement("div");
   contentContainer.id = "torestosContent";
   dialogElement.appendChild(contentContainer);
 
-  // === РАЗДЕЛ "ГОВОРИТЬ" (без изменений, одна прокрутка) ===
-  if (section === "talk") {
-    dialogElement.classList.add("torestos-dialog"); // обычный размер
+  // === РАЗДЕЛ "ГОВОРИТЬ" — универсальные стили NPC ===
+  if (isTalk) {
+    // Header
+    const headerDiv = document.createElement("div");
+    headerDiv.className = "npc-dialog-header";
+    const title = document.createElement("h2");
+    title.className = "npc-title";
+    title.textContent = "Торестос";
+    headerDiv.appendChild(title);
+    dialogElement.insertBefore(headerDiv, contentContainer);
 
-    const header = document.createElement("h2");
-    header.className = "torestos-title";
-    header.textContent = "Торестос";
-    contentContainer.appendChild(header);
+    // Кнопка закрытия внизу
+    closeBtn = document.createElement("button");
+    closeBtn.className = "neon-btn";
+    dialogElement.appendChild(closeBtn);
 
     const talkTopics = [
       {
@@ -151,34 +165,35 @@ function openTorestosDialog(section = "talk") {
     const showTalkList = () => {
       contentContainer.innerHTML = "";
 
-      const p = document.createElement("p");
-      p.className = "torestos-text";
-      p.textContent = "О чём хочешь поговорить?";
-      contentContainer.appendChild(p);
+      const intro = document.createElement("p");
+      intro.className = "npc-text";
+      intro.textContent = "О чём хочешь поговорить?";
+      contentContainer.appendChild(intro);
 
       const wrapper = document.createElement("div");
-      wrapper.className = "torestos-topics";
+      wrapper.className = "talk-topics";
       contentContainer.appendChild(wrapper);
 
       talkTopics.forEach((topic) => {
         const div = document.createElement("div");
-        div.className = "torestos-topic";
+        div.className = "talk-topic";
         div.innerHTML = `<strong>${topic.title}</strong>`;
         div.onclick = () => showTalkText(topic);
         wrapper.appendChild(div);
       });
 
       closeBtn.textContent = "ЗАКРЫТЬ";
+      closeBtn.onclick = closeDialog;
     };
 
     const showTalkText = (topic) => {
       contentContainer.innerHTML = "";
 
       const wrapper = document.createElement("div");
-      wrapper.className = "torestos-topics";
+      wrapper.className = "talk-topics";
 
       const p = document.createElement("p");
-      p.className = "torestos-text";
+      p.className = "npc-text";
       p.textContent = topic.text;
 
       wrapper.appendChild(p);
@@ -467,7 +482,6 @@ function createButtons() {
   document.body.appendChild(buttonsContainer);
 }
 
-// Остальные функции без изменений (removeButtons, updateButtonsPosition, drawTorestos, checkProximity, setMet, window.torestosSystem)
 function removeButtons() {
   if (buttonsContainer) {
     buttonsContainer.remove();

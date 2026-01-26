@@ -249,11 +249,16 @@
 }
 
 .upgrade-inventory-slot {
-  background: rgba(0, 0, 0, 0.6);
-  border: 2px solid #00aaff;
+  width: 100px;
+  height: 100px;
+  min-width: 100px;
+  min-height: 100px;
+  max-width: 100px;
+  max-height: 100px;
+  background: rgba(0, 0, 0, 0.7);
+  border: 2px dashed #002fff;
   border-radius: 6px;
-  position: relative;
-  cursor: pointer;
+  box-sizing: border-box;
 }
 
 .upgrade-inventory-slot.selected {
@@ -285,11 +290,17 @@
 }
 
 .upgrade-central-slot {
-  width: 120px;
-  height: 120px;
+  width: 200px;
+  height: 200px;
+  min-width: 200px;
+  min-height: 200px;
+  max-width: 200px;
+  max-height: 200px;
+
   background: rgba(0, 0, 0, 0.7);
-  border: 4px dashed #ff00aa;
-  border-radius: 10px;
+  border: 2px dashed #ff00aa;
+  border-radius: 6px;
+  box-sizing: border-box;
 }
 
 .upgrade-material-grid {
@@ -301,6 +312,13 @@
 }
 
 .upgrade-material-slot {
+  width: 50px;
+  height: 50px;
+  min-width: 50px;
+  min-height: 50px;
+  max-width: 50px;
+  max-height: 50px;
+  box-sizing: border-box;
   background: rgba(0, 0, 0, 0.6);
   border: 2px solid #00aaff;
   border-radius: 6px;
