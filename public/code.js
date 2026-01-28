@@ -168,6 +168,9 @@ const imageSources = {
   white_void_belt: "white_void_belt.png",
   white_void_pants: "white_void_pants.png",
   white_void_sneakers: "white_void_sneakers.png",
+
+  recipeTornEquipmentImage: "recipe_torn_equipment.png",
+  recipeChameleonEquipmentImage: "recipe_chameleon_equipment.png",
 };
 
 const images = {};
@@ -770,6 +773,24 @@ const ITEM_CONFIG = {
     rarity: 4,
     collection: "White Void",
     level: 0,
+  },
+
+  recipe_torn_equipment: {
+    effect: {},
+    image: "recipe_torn_equipment.png",
+    description:
+      "Рецепт порванной экипировки — материал для улучшений у Торестоса",
+    rarity: 1,
+    stackable: true,
+  },
+
+  recipe_chameleon_equipment: {
+    effect: {},
+    image: "recipe_chameleon_equipment.png",
+    description:
+      "Рецепт хамелеон-экипировки — материал для улучшений у Торестоса",
+    rarity: 1,
+    stackable: true,
   },
 };
 

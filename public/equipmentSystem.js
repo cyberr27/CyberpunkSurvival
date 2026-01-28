@@ -588,7 +588,7 @@ const equipmentSystem = {
       slotEl.title = slotInfo.label;
       // Двойной клик / двойной тап для снятия
       slotEl.addEventListener("dblclick", () =>
-        this.unequipItem(slotInfo.name)
+        this.unequipItem(slotInfo.name),
       );
       let lastTouchTime = 0;
       let tooltipTimeout;
@@ -676,7 +676,7 @@ const equipmentSystem = {
       showNotification(
         `Требуется уровень ${config.level} для экипировки ${
           config.description || item.type
-        }`
+        }`,
       );
       return;
     }
@@ -689,7 +689,7 @@ const equipmentSystem = {
         // Двуручное — только в weapon, и offhand должен быть свободен
         if (this.equipmentSlots.offhand !== null) {
           showNotification(
-            "Снимите предмет со второй руки для двуручного оружия"
+            "Снимите предмет со второй руки для двуручного оружия",
           );
           return;
         }
@@ -773,7 +773,7 @@ const equipmentSystem = {
             water: me.water,
             armor: me.armor,
           },
-        })
+        }),
       );
     }
 
@@ -863,7 +863,7 @@ const equipmentSystem = {
             water: me.water,
             armor: me.armor,
           },
-        })
+        }),
       );
     }
 
@@ -899,7 +899,7 @@ const equipmentSystem = {
       collectionSlots.every(
         (slot) =>
           this.equipmentSlots[slot] &&
-          this.EQUIPMENT_CONFIG[this.equipmentSlots[slot].type]?.collection
+          this.EQUIPMENT_CONFIG[this.equipmentSlots[slot].type]?.collection,
       ) && new Set(collectionsInSlots).size === 1;
 
     const multiplier = isFullCollection ? 2 : 1;

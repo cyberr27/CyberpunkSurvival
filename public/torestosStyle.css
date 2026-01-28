@@ -1,62 +1,94 @@
-/* torestosStyle.css — стили ТОЛЬКО для Торестоса */
+/* torestosStyle.css — стили ТОЛЬКО для Торестоса (2025 оптимизация) */
 
-.torestos-dialog {
+.torestos-dialog,
+.torestos-upgrade-dialog {
   position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
   background: linear-gradient(
     135deg,
-    rgba(10, 10, 10, 0.95),
-    rgba(20, 20, 20, 0.9)
+    rgba(10, 10, 10, 0.97),
+    rgba(20, 20, 20, 0.95)
   );
-  border: 2px solid #00aaff;
   border-radius: 10px;
-  padding: 20px;
   color: #00aaff;
   font-family: "Courier New", monospace;
   text-align: center;
   z-index: 1001;
+  box-shadow:
+    0 0 20px rgba(0, 170, 255, 0.5),
+    0 0 30px rgba(255, 170, 0, 0.3);
+  animation: neonPulseT 2s infinite alternate;
+  box-sizing: border-box;
+}
+
+/* Обычные диалоги (talk + collection) */
+.torestos-dialog {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border: 2px solid #00aaff;
+  padding: 20px;
   width: 420px;
   max-width: 92vw;
   height: 380px;
   max-height: 88vh;
   display: none;
   flex-direction: column;
-  box-shadow:
-    0 0 20px rgba(0, 170, 255, 0.5),
-    0 0 30px rgba(255, 0, 170, 0.3);
-  animation: neonPulseT 2s infinite alternate;
-  overflow: hidden;
-  box-sizing: border-box;
+  overflow: auto;
 }
 
 .torestos-dialog.open {
   display: flex !important;
 }
 
-.torestos-dialog-content {
+/* Большое окно улучшений */
+.torestos-upgrade-dialog {
+  top: 5vh;
+  left: 1vw;
+  width: 98vw;
+  height: 90vh;
+  border: 3px solid #00aaff;
+  box-shadow:
+    0 0 40px rgba(0, 170, 255, 0.8),
+    inset 0 0 30px rgba(255, 170, 0, 0.4);
+  padding: 20px;
+  display: none;
+  flex-direction: column;
+  z-index: 1002;
+}
+
+.torestos-upgrade-dialog.open {
+  display: flex !important;
+}
+
+/* Общие внутренние контейнеры */
+.torestos-dialog-content,
+#upgradeContent {
+  /* если переименуешь id — подставь */
   flex: 1;
   overflow-y: auto;
   padding-right: 10px;
   margin-top: 10px;
   scrollbar-width: thin;
-  scrollbar-color: #ff00aa rgba(0, 0, 0, 0.5);
+  scrollbar-color: #ffaa00 rgba(0, 0, 0, 0.5);
 }
 
-.torestos-dialog-content::-webkit-scrollbar {
+.torestos-dialog-content::-webkit-scrollbar,
+#upgradeContent::-webkit-scrollbar {
   width: 8px;
 }
-.torestos-dialog-content::-webkit-scrollbar-track {
+.torestos-dialog-content::-webkit-scrollbar-track,
+#upgradeContent::-webkit-scrollbar-track {
   background: rgba(0, 0, 0, 0.7);
   border-radius: 4px;
 }
-.torestos-dialog-content::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #00aaff, #ff00aa);
+.torestos-dialog-content::-webkit-scrollbar-thumb,
+#upgradeContent::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #00aaff, #ffaa00);
   border-radius: 4px;
-  box-shadow: 0 0 10px rgba(255, 0, 170, 0.7);
+  box-shadow: 0 0 10px rgba(255, 170, 0, 0.7);
 }
 
+/* Кнопки над NPC */
 .torestos-buttons-container {
   position: fixed;
   z-index: 1000;
@@ -74,7 +106,6 @@
   pointer-events: all;
   padding: 12px 24px;
   font-size: 15px;
-  font-family: "Courier New", monospace;
   font-weight: bold;
   border: 2px solid transparent;
   border-radius: 8px;
@@ -125,6 +156,7 @@
   transform: scale(1.07);
 }
 
+/* Заголовки и текст */
 .torestos-dialog-header {
   display: flex;
   align-items: center;
@@ -138,7 +170,7 @@
   font-size: 24px;
   text-shadow:
     0 0 8px #00aaff,
-    0 0 15px #ff00aa;
+    0 0 15px #ffaa00;
   animation: flickerT 1.8s infinite alternate;
   margin: 0;
 }
@@ -150,6 +182,7 @@
   line-height: 1.6;
 }
 
+/* Темы разговора */
 .torestos-topics {
   background: rgba(10, 10, 10, 0.92);
   border: 1px solid #00aaff;
@@ -171,18 +204,18 @@
   background: rgba(0, 170, 255, 0.3);
 }
 
+/* Кнопки действий */
 .torestos-neon-btn {
   padding: 14px 28px;
   font-size: 17px;
-  font-family: "Courier New", monospace;
-  background: linear-gradient(135deg, #00aaff, #ff00aa);
+  background: linear-gradient(135deg, #00aaff, #ffaa00);
   border: none;
   color: #000;
   border-radius: 6px;
   cursor: pointer;
   box-shadow:
     0 0 15px rgba(0, 170, 255, 0.8),
-    0 0 25px rgba(255, 0, 170, 0.6);
+    0 0 25px rgba(255, 170, 0, 0.6);
   transition: all 0.3s;
   text-transform: uppercase;
   letter-spacing: 1.5px;
@@ -193,39 +226,13 @@
 .torestos-neon-btn:hover {
   box-shadow:
     0 0 25px rgba(0, 170, 255, 1),
-    0 0 40px rgba(255, 0, 170, 0.8);
+    0 0 40px rgba(255, 170, 0, 0.8);
   transform: scale(1.06);
 }
 
-/* === БОЛЬШОЕ ОКНО УЛУЧШЕНИЙ (почти full-screen как чат) === */
-.torestos-upgrade-dialog {
-  position: fixed;
-  top: 5vh;
-  left: 5vw;
-  width: 90vw;
-  height: 90vh;
-  max-width: none;
-  max-height: none;
-  padding: 20px;
-  display: none;
-  flex-direction: column;
-  background: linear-gradient(
-    135deg,
-    rgba(10, 10, 10, 0.97),
-    rgba(20, 20, 20, 0.95)
-  );
-  border: 3px solid #00aaff;
-  box-shadow:
-    0 0 40px rgba(0, 170, 255, 0.8),
-    inset 0 0 30px rgba(255, 0, 170, 0.4);
-  animation: neonPulseT 2s infinite alternate;
-  z-index: 1002;
-  overflow: hidden;
-}
-
-.torestos-upgrade-dialog.open {
-  display: flex !important;
-}
+/* ────────────────────────────────────────────────
+   Стили окна УЛУЧШЕНИЙ (оставляем почти без изменений)
+───────────────────────────────────────────────── */
 
 .upgrade-content {
   display: flex;
@@ -251,10 +258,6 @@
 .upgrade-inventory-slot {
   width: 100px;
   height: 100px;
-  min-width: 100px;
-  min-height: 100px;
-  max-width: 100px;
-  max-height: 100px;
   background: rgba(0, 0, 0, 0.7);
   border: 2px dashed #002fff;
   border-radius: 6px;
@@ -262,8 +265,8 @@
 }
 
 .upgrade-inventory-slot.selected {
-  border-color: #ff00aa;
-  box-shadow: 0 0 15px #ff00aa;
+  border-color: #ffaa00;
+  box-shadow: 0 0 15px #ffaa00;
 }
 
 .upgrade-use-container {
@@ -292,15 +295,11 @@
 .upgrade-central-slot {
   width: 200px;
   height: 200px;
-  min-width: 200px;
-  min-height: 200px;
-  max-width: 200px;
-  max-height: 200px;
-
   background: rgba(0, 0, 0, 0.7);
-  border: 2px dashed #ff00aa;
+  border: 2px dashed #ffaa00;
   border-radius: 6px;
   box-sizing: border-box;
+  align-content: center;
 }
 
 .upgrade-material-grid {
@@ -314,11 +313,6 @@
 .upgrade-material-slot {
   width: 50px;
   height: 50px;
-  min-width: 50px;
-  min-height: 50px;
-  max-width: 50px;
-  max-height: 50px;
-  box-sizing: border-box;
   background: rgba(0, 0, 0, 0.6);
   border: 2px solid #00aaff;
   border-radius: 6px;
@@ -333,16 +327,24 @@
 
 .quantity-label {
   position: absolute;
-  top: 2px;
-  right: 4px;
-  color: #00ffff;
-  font-size: 14px;
+  top: 62%;
+  left: 40%;
+  color: #0d0051;
+  font-size: 16px;
   font-weight: bold;
   text-shadow: 0 0 6px #00ffff;
 }
 
-/* Адаптив для мобильных */
+/* Адаптив */
 @media (max-width: 768px) {
+  .torestos-dialog {
+    width: 92vw;
+    height: 420px;
+    padding: 15px;
+  }
+  .torestos-title {
+    font-size: 21px;
+  }
   .upgrade-content {
     flex-direction: column;
   }
@@ -354,53 +356,6 @@
     left: 2vw;
     width: 96vw;
     height: 96vh;
-  }
-}
-
-@keyframes neonPulseT {
-  0% {
-    box-shadow:
-      0 0 10px rgba(0, 170, 255, 0.5),
-      0 0 20px rgba(255, 0, 170, 0.3);
-  }
-  100% {
-    box-shadow:
-      0 0 20px rgba(0, 170, 255, 0.9),
-      0 0 35px rgba(255, 0, 170, 0.6);
-  }
-}
-
-@keyframes flickerT {
-  0%,
-  19%,
-  21%,
-  23%,
-  25%,
-  54%,
-  56%,
-  100% {
-    opacity: 1;
-    text-shadow:
-      0 0 8px #00aaff,
-      0 0 15px #ff00aa;
-  }
-  20%,
-  24%,
-  55% {
-    opacity: 0.6;
-    text-shadow: 0 0 3px #00aaff;
-  }
-}
-
-/* Адаптив — такой же как у остальных */
-@media (max-width: 768px) {
-  .torestos-dialog {
-    width: 92vw;
-    height: 420px;
-    padding: 15px;
-  }
-  .torestos-title {
-    font-size: 21px;
   }
 }
 
@@ -419,5 +374,41 @@
   .torestos-neon-btn {
     padding: 12px 22px;
     font-size: 16px;
+  }
+}
+
+/* Анимации */
+@keyframes neonPulseT {
+  0% {
+    box-shadow:
+      0 0 10px rgba(0, 170, 255, 0.5),
+      0 0 20px rgba(255, 170, 0, 0.3);
+  }
+  100% {
+    box-shadow:
+      0 0 20px rgba(0, 170, 255, 0.9),
+      0 0 35px rgba(255, 170, 0, 0.6);
+  }
+}
+
+@keyframes flickerT {
+  0%,
+  19%,
+  21%,
+  23%,
+  25%,
+  54%,
+  56%,
+  100% {
+    opacity: 1;
+    text-shadow:
+      0 0 8px #00aaff,
+      0 0 15px #ffaa00;
+  }
+  20%,
+  24%,
+  55% {
+    opacity: 0.6;
+    text-shadow: 0 0 3px #00aaff;
   }
 }

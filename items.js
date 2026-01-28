@@ -511,6 +511,22 @@ const ITEM_CONFIG = {
     collection: "White Void",
     level: 0,
   },
+
+  recipe_torn_equipment: {
+    effect: {},
+    description:
+      "Рецепт порванной экипировки — материал для улучшений у Торестоса",
+    rarity: 1,
+    stackable: true,
+  },
+
+  recipe_chameleon_equipment: {
+    effect: {},
+    description:
+      "Рецепт хамелеон-экипировки — материал для улучшений у Торестоса",
+    rarity: 1,
+    stackable: true,
+  },
 };
 
 module.exports = { ITEM_CONFIG };
