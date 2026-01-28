@@ -166,10 +166,7 @@ function useItem(slotIndex) {
   if (item.type.startsWith("recipe_") && item.type.includes("_equipment")) {
     showRecipeDialog(item.type);
     return; // ничего больше не делаем
-  }
-
-  // ─── Обычная логика использования (еда, напитки, медикаменты и т.д.) ───
-  if (window.equipmentSystem.EQUIPMENT_CONFIG[item.type]) {
+  } else if (window.equipmentSystem.EQUIPMENT_CONFIG[item.type]) {
     window.equipmentSystem.equipItem(slotIndex);
     selectedSlot = null;
     document.getElementById("useBtn").disabled = true;
@@ -237,13 +234,16 @@ function dropItem(slotIndex) {
   const useBtn = document.getElementById("useBtn");
   const dropBtn = document.getElementById("dropBtn");
 
-  if (ITEM_CONFIG[item.type]?.stackable) {
+  // ─── Эти две строки должны быть ПЕРЕД if ───
+  const config = ITEM_CONFIG[item.type];
+  const isStackable = config?.stackable === true;
+
+  if (isStackable) {
+    // Форма для всех стэкаемых (включая рецепты)
     screen.innerHTML = `
-      <div class="balyary-drop-form">
+      <div class="stackable-drop-form">  
         <p class="cyber-text">Сколько выкинуть?</p>
-        <input type="number" id="stackableAmount" class="cyber-input" min="1" max="${
-          item.quantity || 1
-        }" placeholder="0" value="" autofocus />
+        <input type="number" id="stackableAmount" class="cyber-input" min="1" max="${item.quantity || 1}" placeholder="0" value="" autofocus />
         <p id="stackableError" class="error-text"></p>
       </div>
     `;
@@ -251,6 +251,7 @@ function dropItem(slotIndex) {
     const input = document.getElementById("stackableAmount");
     const errorEl = document.getElementById("stackableError");
 
+    // Фокус + выделение
     requestAnimationFrame(() => {
       input.focus();
       input.select();
@@ -272,7 +273,7 @@ function dropItem(slotIndex) {
         return;
       }
       if (amount > currentQuantity) {
-        errorEl.textContent = "Не хватает " + item.type + "!";
+        errorEl.textContent = "Не хватает!";
         return;
       }
 
@@ -287,15 +288,15 @@ function dropItem(slotIndex) {
         }),
       );
 
-      if (amount === currentQuantity) {
+      if (amount >= currentQuantity) {
         window.inventory[slotIndex] = null;
       } else {
-        window.inventory[slotIndex].quantity -= amount;
+        window.inventory[slotIndex].quantity = currentQuantity - amount;
       }
 
       useBtn.disabled = true;
       dropBtn.disabled = true;
-      useBtn.onclick = () => useItem(slotIndex);
+      useBtn.onclick = () => useItem(slotIndex); // восстанавливаем оригинальный обработчик
       selectedSlot = null;
       screen.innerHTML = "";
       updateInventoryDisplay();
@@ -313,6 +314,7 @@ function dropItem(slotIndex) {
       confirmDrop();
     };
   } else {
+    // Обычный (нестэкаемый) предмет
     sendWhenReady(
       ws,
       JSON.stringify({
