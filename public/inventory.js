@@ -166,10 +166,8 @@ function useItem(slotIndex) {
   if (item.type.startsWith("recipe_") && item.type.includes("_equipment")) {
     showRecipeDialog(item.type);
     return; // ничего больше не делаем
-  }
-
-  // ─── Обычная логика использования (еда, напитки, медикаменты и т.д.) ───
-  if (window.equipmentSystem.EQUIPMENT_CONFIG[item.type]) {
+  } else if (window.equipmentSystem.EQUIPMENT_CONFIG[item.type]) {
+    // ─── Обычная логика использования (еда, напитки, медикаменты и т.д.) ───
     window.equipmentSystem.equipItem(slotIndex);
     selectedSlot = null;
     document.getElementById("useBtn").disabled = true;
