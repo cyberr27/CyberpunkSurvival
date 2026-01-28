@@ -163,10 +163,7 @@ function useItem(slotIndex) {
   if (!me) return;
 
   // ─── НОВОЕ: если это рецепт → показываем диалог ───
-  if (item.type.startsWith("recipe_") && item.type.includes("_equipment")) {
-    showRecipeDialog(item.type);
-    return; // ничего больше не делаем
-  } else if (window.equipmentSystem.EQUIPMENT_CONFIG[item.type]) {
+  if (window.equipmentSystem.EQUIPMENT_CONFIG[item.type]) {
     window.equipmentSystem.equipItem(slotIndex);
     selectedSlot = null;
     document.getElementById("useBtn").disabled = true;
