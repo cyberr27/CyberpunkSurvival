@@ -20,7 +20,7 @@ function initializeInventory() {
   inventoryGrid.id = "inventoryGrid";
   inventoryContainer.insertBefore(
     inventoryGrid,
-    document.getElementById("inventoryActions")
+    document.getElementById("inventoryActions"),
   );
 
   // Создаём 20 слотов
@@ -124,7 +124,7 @@ function updateAtomAnimationsInInventory() {
           0,
           0,
           40,
-          40
+          40,
         );
       }
     }
@@ -162,6 +162,13 @@ function useItem(slotIndex) {
   const me = players.get(myId);
   if (!me) return;
 
+  // ─── НОВОЕ: если это рецепт → показываем диалог ───
+  if (item.type.startsWith("recipe_") && item.type.includes("_equipment")) {
+    showRecipeDialog(item.type);
+    return; // ничего больше не делаем
+  }
+
+  // ─── Обычная логика использования (еда, напитки, медикаменты и т.д.) ───
   if (window.equipmentSystem.EQUIPMENT_CONFIG[item.type]) {
     window.equipmentSystem.equipItem(slotIndex);
     selectedSlot = null;
@@ -209,7 +216,7 @@ function useItem(slotIndex) {
         armor: me.armor,
       },
       inventory: window.inventory,
-    })
+    }),
   );
 
   selectedSlot = null;
@@ -277,7 +284,7 @@ function dropItem(slotIndex) {
           x: me.x,
           y: me.y,
           quantity: amount,
-        })
+        }),
       );
 
       if (amount === currentQuantity) {
@@ -314,7 +321,7 @@ function dropItem(slotIndex) {
         x: me.x,
         y: me.y,
         quantity: 1,
-      })
+      }),
     );
 
     window.inventory[slotIndex] = null;
@@ -385,7 +392,7 @@ function updateInventoryDisplay() {
             0,
             0,
             40,
-            40
+            40,
           );
         }
 

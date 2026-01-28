@@ -1,0 +1,106 @@
+/* recipeViewerStyle.css — автономные стили для просмотра рецептов (2025) */
+/* Полностью скопированы и адаптированы из npc-styles.css */
+
+.recipe-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: url(recipe_bg.jpg) center/cover no-repeat;
+  padding: 20px;
+  font-family: "Courier New", monospace;
+  text-align: center;
+  z-index: 1003;
+
+  width: 420px;
+  max-width: 92vw;
+  height: 380px;
+  max-height: 88vh;
+  border-radius: 10%;
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.recipe-dialog.open {
+  display: flex !important;
+}
+
+/* Блокируем скролл body только когда рецепт открыт */
+body.recipe-dialog-active {
+  overflow: hidden;
+  touch-action: none;
+}
+
+/* Зона с кнопкой закрытия — поверх фона */
+.recipe-close-area {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+}
+
+.recipe-neon-btn {
+  padding: 14px 40px;
+  font-size: 20px;
+  font-family: "Courier New", monospace;
+  color: #ff0000;
+  cursor: pointer;
+  text-transform: uppercase;
+  background: none;
+  border-radius: 50%;;
+}
+
+.recipe-neon-btn:hover {
+  box-shadow:
+    0 0 25px rgba(0, 255, 255, 1),
+    0 0 40px rgba(255, 0, 255, 0.8);
+  transform: scale(1.06);
+}
+
+/* Анимации — те же, что у NPC */
+@keyframes neonPulse {
+  0% {
+    box-shadow:
+      0 0 10px rgba(0, 255, 255, 0.5),
+      0 0 20px rgba(255, 0, 255, 0.3);
+  }
+  100% {
+    box-shadow:
+      0 0 20px rgba(0, 255, 255, 0.9),
+      0 0 35px rgba(255, 0, 255, 0.6);
+  }
+}
+
+/* Адаптив — почти как у NPC */
+@media (max-width: 768px) {
+  .recipe-dialog {
+    width: 92vw;
+    height: 420px;
+    padding: 15px;
+  }
+  .recipe-neon-btn {
+    padding: 12px 32px;
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .recipe-dialog {
+    width: 95vw;
+    height: 440px;
+    padding: 12px;
+  }
+  .recipe-neon-btn {
+    padding: 12px 28px;
+    font-size: 15px;
+  }
+}
+
+@media (max-height: 600px) {
+  .recipe-dialog {
+    height: 92vh;
+  }
+}
