@@ -831,7 +831,7 @@ function setupWebSocket(
         if (
           item.type === "balyary" ||
           item.type === "atom" ||
-          (item.type.startsWith("recipe_") && item.type.includes("_equipment")
+          (item.type.startsWith("recipe_") && item.type.includes("_equipment"))
         ) {
           const quantityToAdd = item.quantity || 1;
           // ИЗМЕНЕНО: Ищем слот с соответствующим типом (balyary или atom)
