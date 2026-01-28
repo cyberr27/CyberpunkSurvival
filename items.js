@@ -513,6 +513,7 @@ const ITEM_CONFIG = {
   },
 
   recipe_torn_equipment: {
+    effect: {},
     description:
       "Рецепт порванной экипировки — материал для улучшений у Торестоса",
     rarity: 1,
@@ -521,6 +522,7 @@ const ITEM_CONFIG = {
   },
 
   recipe_chameleon_equipment: {
+    effect: {},
     description:
       "Рецепт хамелеон-экипировки — материал для улучшений у Торестоса",
     rarity: 1,
