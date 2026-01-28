@@ -2943,10 +2943,16 @@ function setupWebSocket(
 
         const player = players.get(playerId);
 
-        // Проверяем, что игрок рядом с Торестосом (опционально, но желательно)
-        const dx = player.x - TORESTOS_POSITION_X;
-        const dy = player.y - TORESTOS_POSITION_Y;
-        if (Math.hypot(dx, dy) > 120) {
+        // Координаты Торестоса — те же, что и на клиенте
+        const TORESTOS_X = 229;
+        const TORESTOS_Y = 2411;
+        const INTERACTION_RADIUS = 120; // чуть больше, чем на клиенте (50), чтобы был запас
+
+        const dx = player.x - TORESTOS_X;
+        const dy = player.y - TORESTOS_Y;
+        const distance = Math.hypot(dx, dy);
+
+        if (distance > INTERACTION_RADIUS) {
           ws.send(
             JSON.stringify({
               type: "torestosUpgradeResult",
