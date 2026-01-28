@@ -828,11 +828,7 @@ function setupWebSocket(
         if (!player.inventory) player.inventory = Array(20).fill(null);
 
         // НОВОЕ: Расширили условие на atom, чтобы он тоже стекался как balyary
-        if (
-          item.type === "balyary" ||
-          item.type === "atom" ||
-          item.type === "recipe_torn_equipment"
-        ) {
+        if (item.type === "balyary" || item.type === "atom") {
           const quantityToAdd = item.quantity || 1;
           // ИЗМЕНЕНО: Ищем слот с соответствующим типом (balyary или atom)
           const stackSlot = player.inventory.findIndex(
