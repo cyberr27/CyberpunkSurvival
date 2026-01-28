@@ -169,8 +169,8 @@ const imageSources = {
   white_void_pants: "white_void_pants.png",
   white_void_sneakers: "white_void_sneakers.png",
 
-  recipeTornEquipmentImage: "recipe_torn_equipment.png",
-  recipeChameleonEquipmentImage: "recipe_chameleon_equipment.png",
+  recipe_torn_equipment: "recipe_torn_equipment.png",
+  recipe_chameleon_equipment: "recipe_chameleon_equipment.png",
 };
 
 const images = {};
@@ -777,7 +777,7 @@ const ITEM_CONFIG = {
 
   recipe_torn_equipment: {
     effect: {},
-    image: "recipe_torn_equipment.png",
+    image: images.recipe_torn_equipment,
     description:
       "Рецепт порванной экипировки — материал для улучшений у Торестоса",
     rarity: 1,
@@ -786,7 +786,7 @@ const ITEM_CONFIG = {
 
   recipe_chameleon_equipment: {
     effect: {},
-    image: "recipe_chameleon_equipment.png",
+    image: images.recipe_chameleon_equipment,
     description:
       "Рецепт хамелеон-экипировки — материал для улучшений у Торестоса",
     rarity: 1,
@@ -2429,6 +2429,36 @@ function handleGameMessage(event) {
         break;
       case "torestosMet":
         window.torestosSystem.setTorestosMet(data.met);
+        break;
+      case "torestosUpgradeResult":
+        const upgradeBtn = document.querySelector(
+          ".upgrade-buttons .torestos-neon-btn",
+        );
+
+        if (data.success) {
+          window.inventory = data.newInventory.map((i) =>
+            i ? { ...i } : null,
+          );
+          window.inventorySystem.updateInventoryDisplay();
+          updateStatsDisplay();
+
+          showNotification(
+            data.message || "Предмет успешно улучшен!",
+            "#00ff88",
+          );
+
+          // Перерисовываем интерфейс Торестоса
+          if (isDialogOpen) {
+            renderUpgradeUI(); // ← вызови свою функцию renderUpgradeUI()
+          }
+        } else {
+          showNotification(data.error || "Не удалось улучшить", "#ff4444");
+        }
+
+        if (upgradeBtn) {
+          upgradeBtn.disabled = false;
+          upgradeBtn.textContent = "УЛУЧШИТЬ";
+        }
         break;
     }
   } catch (error) {

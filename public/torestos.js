@@ -116,7 +116,7 @@ function openTorestosDialog(section = "talk") {
   // ────────────────────────────────────────────────
   if (isTalk) {
     const headerDiv = document.createElement("div");
-    headerDiv.className = "torestos-dialog-header"; // ← лучше torestos-, а не npc-
+    headerDiv.className = "torestos-dialog-header";
     const title = document.createElement("h2");
     title.className = "torestos-title";
     title.textContent = "Торестос";
@@ -229,7 +229,7 @@ function openTorestosDialog(section = "talk") {
   // УЛУЧШИТЬ — основная логика
   // ────────────────────────────────────────────────
   else if (section === "upgrade") {
-    // Бэкап перед открытием
+    // Бэкап перед открытием (для отката при отмене)
     backupInventoryBeforeUpgrade = window.inventory.map((slot) =>
       slot ? { ...slot } : null,
     );
@@ -291,10 +291,35 @@ function openTorestosDialog(section = "talk") {
     upgradeBtn.className = "torestos-neon-btn";
     upgradeBtn.textContent = "УЛУЧШИТЬ";
     upgradeBtn.disabled = true;
+
     upgradeBtn.onclick = () => {
-      alert("Улучшение пока не реализовано — будет отправка на сервер позже");
-      closeDialog();
+      // Отправляем текущее состояние инвентаря на сервер
+      if (ws?.readyState !== WebSocket.OPEN) {
+        showNotification("Нет соединения с сервером", "#ff4444");
+        return;
+      }
+
+      upgradeBtn.disabled = true;
+      upgradeBtn.textContent = "ОБРАБОТКА...";
+
+      ws.send(
+        JSON.stringify({
+          type: "torestosUpgrade",
+          inventory: window.inventory.map((item) =>
+            item ? { ...item } : null,
+          ),
+        }),
+      );
+
+      // Через 12 секунд (на всякий случай таймаут) разблокируем кнопку
+      setTimeout(() => {
+        if (upgradeBtn.textContent === "ОБРАБОТКА...") {
+          upgradeBtn.disabled = false;
+          upgradeBtn.textContent = "УЛУЧШИТЬ";
+        }
+      }, 12000);
     };
+
     upgradeButtons.appendChild(upgradeBtn);
 
     const cancelBtn = document.createElement("button");
@@ -356,7 +381,7 @@ function openTorestosDialog(section = "talk") {
         img.style.height = "160px";
         centralSlotEl.appendChild(img);
 
-        // Новый обработчик двойного клика для центрального слота
+        // Двойной клик — вернуть в инвентарь
         centralSlotEl.ondblclick = () => {
           const idx = window.inventory.findIndex((s) => s === centerItem);
           if (idx !== -1) {
@@ -369,6 +394,7 @@ function openTorestosDialog(section = "talk") {
             selectedPlayerSlot = null;
             useBtn.disabled = true;
             renderUpgradeUI();
+            upgradeBtn.disabled = true;
           }
         };
 

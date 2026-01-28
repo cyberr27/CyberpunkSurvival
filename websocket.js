@@ -6,6 +6,7 @@ const {
   handleTrashGuess,
   trashCansState,
 } = require("./trashCansServer");
+const { handleTorestosUpgrade } = require("./torestosServer");
 
 function broadcastToWorld(wss, clients, players, worldId, message) {
   wss.clients.forEach((client) => {
@@ -2936,6 +2937,35 @@ function setupWebSocket(
             }),
           );
         }
+      } else if (data.type === "torestosUpgrade") {
+        const playerId = clients.get(ws);
+        if (!playerId || !players.has(playerId)) return;
+
+        const player = players.get(playerId);
+
+        // Проверяем, что игрок рядом с Торестосом (опционально, но желательно)
+        const dx = player.x - TORESTOS_POSITION_X;
+        const dy = player.y - TORESTOS_POSITION_Y;
+        if (Math.hypot(dx, dy) > 120) {
+          ws.send(
+            JSON.stringify({
+              type: "torestosUpgradeResult",
+              success: false,
+              error: "Подойди ближе к Торестосу",
+            }),
+          );
+          return;
+        }
+
+        handleTorestosUpgrade(
+          ws,
+          data,
+          player,
+          players,
+          userDatabase,
+          dbCollection,
+          saveUserDatabase,
+        );
       } else if (data.type === "update" || data.type === "move") {
         const playerId = clients.get(ws);
         if (!playerId || !players.has(playerId)) return;
