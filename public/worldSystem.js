@@ -1,7 +1,7 @@
 const worldSystem = {
   // Миры (с кэшированием изображений)
   worlds: [
-    { id: 0, w: 3135, h: 3300, name: "Неоновый Город" },
+    { id: 0, w: 3135, h: 2800, name: "Неоновый Город" },
     { id: 1, w: 3135, h: 3300, name: "Пустоши" },
     { id: 2, w: 3135, h: 3300, name: "Токсичные Джунгли" },
   ].map((w) => ({
@@ -100,7 +100,7 @@ const worldSystem = {
             targetWorldId: z.targetWorldId,
             x: px,
             y: py,
-          })
+          }),
         );
         return; // Выходим после первого срабатывания
       }
@@ -176,7 +176,7 @@ const worldSystem = {
         JSON.stringify({
           type: "syncPlayers",
           worldId: this.currentWorldId,
-        })
+        }),
       );
     }
   },

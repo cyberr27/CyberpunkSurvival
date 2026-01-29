@@ -126,6 +126,7 @@ const imageSources = {
   misterTwisterSprite: "mister_twister.png",
   trashImage: "trash.png",
   torestosSprite: "torestosSprite.png",
+  homelessSprite: "homeless.png",
   // === НОВАЯ ПОРВАННАЯ ЭКИПИРОВКА ===
   torn_baseball_cap_of_health: "torn_baseball_cap_of_health.png",
   torn_health_t_shirt: "torn_health_t_shirt.png",
@@ -195,6 +196,7 @@ Object.entries(imageSources).forEach(([key, src]) => {
       window.thimbleriggerSystem.initialize(images.thimbleriggerSprite);
       window.trashCansSystem.initialize(images.trashImage);
       window.torestosSystem.initialize(images.torestosSprite);
+      window.homelessSystem?.initialize?.(images.homelessSprite);
     }
   };
 });
@@ -1244,6 +1246,7 @@ function startGame() {
   window.thimbleriggerSystem.initialize(images.thimbleriggerSprite);
   window.trashCansSystem.initialize(images.trashImage);
   window.torestosSystem.initialize(images.torestosSprite);
+  window.homelessSystem?.initialize?.(images.homelessSprite);
   window.combatSystem.initialize();
 
   document.addEventListener("keydown", (e) => {
@@ -2597,6 +2600,8 @@ function update(deltaTime) {
     window.outpostCaptainSystem.update(deltaTime);
   window.thimbleriggerSystem.checkThimbleriggerProximity();
   window.torestosSystem.checkTorestosProximity();
+  window.homelessSystem?.checkProximity?.();
+  window.homelessSystem?.update?.(deltaTime);
   window.misterTwister.checkProximity();
   if (window.trashCansSystem) {
     window.trashCansSystem.update(deltaTime);
@@ -2612,7 +2617,7 @@ function draw(deltaTime) {
   const currentWorld = window.worldSystem.getCurrentWorld();
   const currentWorldId = window.worldSystem.currentWorldId;
   const groundSpeed = 1.0,
-    vegetationSpeed = 0.8,
+    vegetationSpeed = 1.0,
     rocksSpeed = 0.6,
     cloudsSpeed = 0.3;
   const groundOffsetX = window.movementSystem.getCamera().x * groundSpeed;
@@ -2870,6 +2875,7 @@ function draw(deltaTime) {
     window.trashCansSystem.draw(ctx);
   }
   window.torestosSystem.drawTorestos(deltaTime);
+  window.homelessSystem?.draw?.();
   window.droneSystem.draw();
 
   if (currentWorld.clouds.complete) {

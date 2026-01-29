@@ -1,0 +1,136 @@
+/* homeless.css — полностью независимые стили для Homeless NPC */
+
+.homeless-buttons {
+  /* те же координаты и поведение, что у других NPC-кнопок */
+  position: fixed;
+  z-index: 1000;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.homeless-talk-btn {
+  background: linear-gradient(
+    135deg,
+    rgba(180, 120, 60, 0.25),
+    rgba(120, 70, 30, 0.35)
+  );
+  color: #ffb366;
+  border: 2px solid #ffb366;
+  pointer-events: all;
+}
+
+.homeless-quests-btn {
+  background: linear-gradient(
+    135deg,
+    rgba(100, 180, 100, 0.25),
+    rgba(60, 120, 60, 0.35)
+  );
+  color: #88ff88;
+  border: 2px solid #88ff88;
+  pointer-events: all;
+}
+
+.homeless-storage-btn {
+  background: linear-gradient(
+    135deg,
+    rgba(120, 120, 180, 0.25),
+    rgba(70, 70, 140, 0.35)
+  );
+  color: #ccccff;
+  border: 2px solid #ccccff;
+  pointer-events: all;
+}
+
+/* Диалоговое окно — почти копия npc-dialog, но с префиксом */
+.homeless-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 420px;
+  max-width: 92vw;
+  height: 380px;
+  max-height: 88vh;
+  background: linear-gradient(
+    135deg,
+    rgba(18, 12, 8, 0.96),
+    rgba(28, 18, 12, 0.92)
+  );
+  border: 2px solid #ffb366;
+  border-radius: 10px;
+  color: #ffb366;
+  font-family: "Courier New", monospace;
+  padding: 20px;
+  box-shadow:
+    0 0 20px rgba(255, 140, 0, 0.5),
+    0 0 30px rgba(180, 100, 0, 0.4);
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 1002;
+  animation: neonPulseHomeless 2.4s infinite alternate;
+}
+
+.homeless-dialog.open {
+  display: flex;
+}
+
+.homeless-dialog .npc-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+  margin-bottom: 12px;
+  flex-shrink: 0;
+}
+
+.homeless-dialog .npc-photo {
+  width: 70px;
+  height: 70px;
+  border: 2px solid #ff8800;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 0 15px rgba(255, 140, 0, 0.7);
+}
+
+.homeless-dialog .npc-title {
+  color: #ffb366;
+  font-size: 24px;
+  text-shadow:
+    0 0 8px #ffb366,
+    0 0 15px #ff5500;
+  animation: flicker 2s infinite alternate;
+}
+
+.homeless-dialog .npc-dialog-content {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 8px;
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.homeless-dialog .neon-btn {
+  background: linear-gradient(135deg, #ffb366, #ff5500);
+  color: #0a0503;
+  margin-top: 12px;
+  flex-shrink: 0;
+}
+
+@keyframes neonPulseHomeless {
+  0% {
+    box-shadow:
+      0 0 10px rgba(255, 140, 0, 0.5),
+      0 0 20px rgba(180, 100, 0, 0.3);
+  }
+  100% {
+    box-shadow:
+      0 0 20px rgba(255, 140, 0, 0.9),
+      0 0 35px rgba(180, 100, 0, 0.7);
+  }
+}
