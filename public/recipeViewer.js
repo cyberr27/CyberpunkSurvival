@@ -1,60 +1,75 @@
-// recipeViewer.js — просмотр рецептов улучшения экипировки
+// recipeViewer.js — просмотр рецептов (оптимизировано 2025)
+
+const RECIPE_DIALOG_CLASS = "recipe-dialog";
+const RECIPE_ACTIVE_CLASS = "recipe-dialog-active";
+
+const RECIPE_BACKGROUNDS = {
+  recipe_torn_equipment: "recipe_torn_equipment.png",
+  recipe_chameleon_equipment: "recipe_chameleon_equipment.png",
+  // дефолтный фон задаётся ниже
+};
 
 function showRecipeDialog(itemType) {
-  if (!ITEM_CONFIG[itemType] || !ITEM_CONFIG[itemType].description) {
+  if (!ITEM_CONFIG[itemType]?.description) {
     showNotification("Рецепт повреждён...", "#ff4444");
     return;
   }
 
-  // Закрываем предыдущее, если открыто
-  const existing = document.querySelector(".recipe-dialog");
-  if (existing) existing.remove();
+  // Удаляем старый диалог, если открыт
+  document.querySelector(`.${RECIPE_DIALOG_CLASS}`)?.remove();
+
+  const bg = RECIPE_BACKGROUNDS[itemType] || "recipe_bg.png";
 
   const dialog = document.createElement("div");
-  dialog.className = "recipe-dialog";
+  dialog.className = RECIPE_DIALOG_CLASS;
+  dialog.style.backgroundImage = `url(${bg})`;
 
-  dialog.innerHTML = `
-      <div class="recipe-close-area">
-        <button class="recipe-neon-btn">x</button>
-      </div>
-  `;
+  // Кнопка закрытия
+  const closeBtn = document.createElement("button");
+  closeBtn.className = "recipe-neon-btn";
+  closeBtn.textContent = "x";
+
+  const closeArea = document.createElement("div");
+  closeArea.className = "recipe-close-area";
+  closeArea.appendChild(closeBtn);
+
+  dialog.appendChild(closeArea);
 
   document.body.appendChild(dialog);
 
-  // Запускаем открытие с анимацией
-  setTimeout(() => dialog.classList.add("open"), 10);
+  // Открываем
+  requestAnimationFrame(() => dialog.classList.add("open"));
 
-  // Блокируем скролл
-  document.body.classList.add("recipe-dialog-active");
+  // Блокируем прокрутку
+  document.body.classList.add(RECIPE_ACTIVE_CLASS);
 
-  // Закрытие
-  const closeBtn = dialog.querySelector(".recipe-neon-btn");
-  const closeDialog = () => {
+  // ─── Закрытие ───────────────────────────────────────
+  const close = () => {
     dialog.classList.remove("open");
     setTimeout(() => {
       dialog.remove();
-      document.body.classList.remove("recipe-dialog-active");
-    }, 300); // ждём окончания анимации
+      document.body.classList.remove(RECIPE_ACTIVE_CLASS);
+    }, 320);
   };
 
-  closeBtn.onclick = closeDialog;
+  closeBtn.onclick = close;
 
-  // Закрытие по клику вне контента
+  // Клик вне контента
   dialog.onclick = (e) => {
-    if (e.target === dialog) closeDialog();
+    if (e.target === dialog) close();
   };
 
-  // Закрытие по Esc (удобно)
-  const escHandler = (e) => {
+  // Esc
+  const onEsc = (e) => {
     if (e.key === "Escape") {
-      closeDialog();
-      document.removeEventListener("keydown", escHandler);
+      close();
+      document.removeEventListener("keydown", onEsc);
     }
   };
-  document.addEventListener("keydown", escHandler);
+  document.addEventListener("keydown", onEsc);
 }
 
-// Подключаем стили автоматически (если ещё не подключены)
+// Подключаем стили один раз
 if (!document.querySelector('link[href="recipeViewerStyle.css"]')) {
   const link = document.createElement("link");
   link.rel = "stylesheet";
