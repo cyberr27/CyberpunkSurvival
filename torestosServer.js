@@ -32,6 +32,18 @@ function getTornHealthVariant(originalType) {
   return mapping[originalType] || null;
 }
 
+function getChameleonVariant(originalType) {
+  const mapping = {
+    white_void_cap: "chameleon_cap",
+    white_void_t_shirt: "chameleon_t_shirt",
+    white_void_gloves: "chameleon_gloves",
+    white_void_belt: "chameleon_belt",
+    white_void_pants: "chameleon_pants",
+    white_void_sneakers: "chameleon_sneakers",
+  };
+  return mapping[originalType] || null;
+}
+
 // ------------------------------------------------------------------------
 // Основная функция обработки апгрейда
 // ------------------------------------------------------------------------
@@ -84,47 +96,68 @@ function handleTorestosUpgrade(
     return;
   }
 
-  // 2. Ищем материалы
+  // 2. Ищем материалы и определяем рецепт
   const materials = findMaterialItems(inv);
-  if (materials.length < 2) {
+
+  let upgradeType = null; // "torn" или "chameleon"
+  let requiredMaterials = [];
+
+  // Проверяем рецепт Torn Health (нужно два предмета)
+  let hasBlood = false;
+  let hasTornRecipe = false;
+
+  materials.forEach((m) => {
+    if (m.item.type === "blood_pack") hasBlood = true;
+    if (m.item.type === "recipe_torn_equipment") hasTornRecipe = true;
+  });
+
+  if (hasBlood && hasTornRecipe && materials.length >= 2) {
+    upgradeType = "torn";
+    requiredMaterials = ["blood_pack", "recipe_torn_equipment"];
+  }
+  // Если не подошёл Torn — проверяем Chameleon (нужен только один рецепт)
+  else if (materials.length >= 1) {
+    const hasChameleonRecipe = materials.some(
+      (m) => m.item.type === "recipe_chameleon_equipment",
+    );
+
+    if (hasChameleonRecipe) {
+      upgradeType = "chameleon";
+      requiredMaterials = ["recipe_chameleon_equipment"];
+    }
+  }
+
+  if (!upgradeType) {
     ws.send(
       JSON.stringify({
         type: "torestosUpgradeResult",
         success: false,
         error:
-          "Недостаточно материалов (нужен blood_pack + recipe_torn_equipment)",
-      }),
-    );
-    return;
-  }
-
-  let hasBloodPack = false;
-  let hasRecipe = false;
-
-  materials.forEach((m) => {
-    if (m.item.type === "blood_pack") hasBloodPack = true;
-    if (m.item.type === "recipe_torn_equipment") hasRecipe = true;
-  });
-
-  if (!hasBloodPack || !hasRecipe) {
-    ws.send(
-      JSON.stringify({
-        type: "torestosUpgradeResult",
-        success: false,
-        error: "Требуются blood_pack и recipe_torn_equipment",
+          "Неправильные или недостаточные материалы. Требуется:\n" +
+          "• blood_pack + recipe_torn_equipment\n" +
+          "или\n" +
+          "• recipe_chameleon_equipment",
       }),
     );
     return;
   }
 
   // 3. Определяем, что получим
-  const newType = getTornHealthVariant(centerItem.type);
+  let newType = null;
+
+  if (upgradeType === "torn") {
+    newType = getTornHealthVariant(centerItem.type);
+  } else if (upgradeType === "chameleon") {
+    newType = getChameleonVariant(centerItem.type);
+  }
+
   if (!newType) {
     ws.send(
       JSON.stringify({
         type: "torestosUpgradeResult",
         success: false,
-        error: "Неизвестный тип White Void предмета",
+        error:
+          "Неизвестный / неподдерживаемый тип White Void предмета для этого рецепта",
       }),
     );
     return;
@@ -139,22 +172,35 @@ function handleTorestosUpgrade(
   // 5. Удаляем использованные предметы
   inv[centerIdx] = null;
 
-  // Удаляем по одному blood_pack и recipe_torn_equipment
-  let bloodRemoved = false;
-  let recipeRemoved = false;
+  if (upgradeType === "torn") {
+    let bloodRemoved = false;
+    let recipeRemoved = false;
 
-  for (let i = 0; i < inv.length; i++) {
-    if (!inv[i]) continue;
+    for (let i = 0; i < inv.length; i++) {
+      if (!inv[i]) continue;
 
-    if (!bloodRemoved && inv[i].type === "blood_pack") {
-      inv[i] = null;
-      bloodRemoved = true;
-      continue;
+      if (!bloodRemoved && inv[i].type === "blood_pack") {
+        inv[i] = null;
+        bloodRemoved = true;
+      }
+      if (!recipeRemoved && inv[i].type === "recipe_torn_equipment") {
+        inv[i] = null;
+        recipeRemoved = true;
+      }
+
+      if (bloodRemoved && recipeRemoved) break;
     }
-    if (!recipeRemoved && inv[i].type === "recipe_torn_equipment") {
-      inv[i] = null;
-      recipeRemoved = true;
-      continue;
+  } else if (upgradeType === "chameleon") {
+    let recipeRemoved = false;
+
+    for (let i = 0; i < inv.length; i++) {
+      if (!inv[i]) continue;
+
+      if (!recipeRemoved && inv[i].type === "recipe_chameleon_equipment") {
+        inv[i] = null;
+        recipeRemoved = true;
+        break;
+      }
     }
   }
 
