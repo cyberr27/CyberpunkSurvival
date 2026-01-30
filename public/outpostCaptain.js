@@ -3,8 +3,8 @@
 // ===============================================
 
 const OUTPOST_CAPTAIN = {
-  x: 675,
-  y: 1593,
+  x: 2161,
+  y: 1226,
   width: 70,
   height: 70,
   interactionRadius: 50,
@@ -101,7 +101,7 @@ function drawCaptain(ctx, cameraX, cameraY) {
       screenX,
       screenY,
       70,
-      70
+      70,
     );
   } else {
     ctx.fillStyle = "#00ffff";
@@ -119,12 +119,12 @@ function drawCaptain(ctx, cameraX, cameraY) {
   ctx.strokeText(
     isCaptainMet ? OUTPOST_CAPTAIN.name : "?",
     screenX + 35,
-    screenY - 10
+    screenY - 10,
   );
   ctx.fillText(
     isCaptainMet ? OUTPOST_CAPTAIN.name : "?",
     screenX + 35,
-    screenY - 10
+    screenY - 10,
   );
 
   const me = players.get(myId);
@@ -180,7 +180,7 @@ function showCaptainGreeting() {
     hasCaptainGreetingShown = true;
     sendWhenReady(
       ws,
-      JSON.stringify({ type: "meetCaptain", captainMet: true })
+      JSON.stringify({ type: "meetCaptain", captainMet: true }),
     );
   };
 }
