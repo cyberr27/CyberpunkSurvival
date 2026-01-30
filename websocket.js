@@ -212,19 +212,6 @@ function setupWebSocket(
         return;
       }
 
-      if (data.type === "hello" || data.type === "requestBarriers") {
-        const worldId = players.get(clients.get(ws))?.worldId ?? 0;
-
-        ws.send(
-          JSON.stringify({
-            type: "barriersSync",
-            worldId,
-            barriers: require("./barriers").getBarriersForWorld(worldId),
-          }),
-        );
-        return;
-      }
-
       if (data.type === "register") {
         if (userDatabase.has(data.username)) {
           ws.send(JSON.stringify({ type: "registerFail" }));
@@ -2996,35 +2983,9 @@ function setupWebSocket(
         const player = players.get(playerId);
         const currentWorldId = player.worldId;
 
-        // Сохраняем старую позицию ПЕРЕД изменением
-        const prevX = player.x;
-        const prevY = player.y;
-
         // Принимаем только безопасные поля
         if (data.x !== undefined) player.x = data.x;
         if (data.y !== undefined) player.y = data.y;
-
-        const newX = player.x;
-        const newY = player.y;
-
-        // ПРОВЕРКА ПЕРЕСЕЧЕНИЯ БАРЬЕРА
-        const barriers = require("./barriers");
-        if (
-          barriers.wouldCrossBarrier(currentWorldId, prevX, prevY, newX, newY)
-        ) {
-          // Попытка пройти сквозь барьер → откатываем координаты
-          player.x = prevX;
-          player.y = prevY;
-
-          // Опционально: можно отправить клиенту сообщение об ошибке
-          // ws.send(JSON.stringify({ type: "movementRejected", reason: "barrier" }));
-
-          // Или сразу закрыть соединение при подозрении на читы (раскомментировать при необходимости)
-          // ws.close(4001, "Invalid movement - barrier crossing");
-          // return;
-        }
-
-        // Продолжаем обновлять остальные поля (направление, статы и т.д.)
         if (data.direction) player.direction = data.direction;
         if (data.state) player.state = data.state;
         if (data.attackFrame !== undefined)
@@ -3043,7 +3004,7 @@ function setupWebSocket(
         // Обновляем в мапе
         players.set(playerId, { ...player });
 
-        // Рассылаем ВСЕМ в этом мире обновление
+        // Рассылаем ВСЕМ в этом мире обновление с attackFrame
         const updateData = {
           id: playerId,
           x: player.x,
@@ -3059,7 +3020,7 @@ function setupWebSocket(
           distanceTraveled: player.distanceTraveled,
         };
 
-        // Добавляем attackFrame и attackFrameTime, если игрок атакует
+        // Всегда включаем attackFrame и attackFrameTime, если игрок атакует
         if (player.state === "attacking") {
           updateData.attackFrame = player.attackFrame ?? 0;
           updateData.attackFrameTime = player.attackFrameTime ?? 0;

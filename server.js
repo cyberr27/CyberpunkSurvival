@@ -7,7 +7,6 @@ const { setupWebSocket } = require("./websocket");
 const { runGameLoop } = require("./gameLogic");
 const { ITEM_CONFIG } = require("./items");
 const { loadTwisterState } = require("./misterTwisterServer");
-const { addBarrier } = require("./barriers");
 
 const app = express();
 const server = http.createServer(app);
@@ -127,11 +126,6 @@ worlds.forEach((world) => {
     lights.set(world.id, []);
   }
 });
-
-addBarrier(0, 800, 1400, 2000, 1400, {
-  comment: "горизонтальная стена посередине",
-});
-addBarrier(0, 1500, 600, 1500, 2200, { comment: "вертикальная стена" });
 
 app.use(
   express.static(path.join(__dirname, "public"), {

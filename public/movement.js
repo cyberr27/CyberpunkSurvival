@@ -121,75 +121,47 @@
     isMoving = false;
   }
 
-  // ────────────────────────────────────────────────
-  //           ПРОВЕРКА КОЛЛИЗИЙ И БАРЬЕРОВ
-  // ────────────────────────────────────────────────
-
-  function checkCollision(x, y) {
-    // Старая серверная заглушка — можно расширить позже
-    return false;
-  }
-
-  function wouldCrossBarrier(prevX, prevY, newX, newY) {
-    // Клиентская проверка барьеров (для плавности движения)
-    // Если barriersSystem не загружен — считаем, что барьеров нет
-    return (
-      window.barriersSystem?.wouldCrossBarrier?.(prevX, prevY, newX, newY) ||
-      false
-    );
-  }
-
   // Универсальная функция движения
   function movePlayer(dx, dy, deltaTime, me, currentTime, tolerance = 0) {
     const distance = Math.hypot(dx, dy);
     if (distance <= tolerance) return false;
 
     const moveSpeed = baseSpeed * (deltaTime / 1000);
-    let moveX = (dx / distance) * moveSpeed;
-    let moveY = (dy / distance) * moveSpeed;
+    const moveX = (dx / distance) * moveSpeed;
+    const moveY = (dy / distance) * moveSpeed;
 
     const prevX = me.x;
     const prevY = me.y;
 
-    let newX = me.x + moveX;
-    let newY = me.y + moveY;
+    me.x += moveX;
+    me.y += moveY;
 
-    // Проверка пересечения барьера (самая важная защита на клиенте)
-    if (wouldCrossBarrier(prevX, prevY, newX, newY)) {
-      // Можно здесь добавить визуальный откат или лёгкий эффект "столкновения"
-      // Пока просто отменяем движение на этот кадр
-      return false;
-    }
-
-    // Применяем движение
-    me.x = newX;
-    me.y = newY;
-
-    // Ограничение по границам карты
+    // Границы мира
     me.x = Math.max(0, Math.min(worldMaxX, me.x));
     me.y = Math.max(0, Math.min(worldMaxY, me.y));
 
-    // Дополнительная проверка (на будущее — статические препятствия и т.д.)
     if (checkCollision(me.x, me.y)) {
       me.x = prevX;
       me.y = prevY;
       return false;
     }
 
-    // Обновляем направление и состояние
-    const normX = dx / distance;
-    const normY = dy / distance;
-    me.direction = getDirection(normX, normY, me);
-    me.state = "walking";
-
-    // Анимация ходьбы
-    me.frameTime += deltaTime;
-    if (me.frameTime >= ANIMATION_FRAME_DURATION) {
-      me.frame = (me.frame + 1) % WALK_FRAME_COUNT;
-      me.frameTime -= ANIMATION_FRAME_DURATION;
+    if (me.state !== "attacking" && me.state !== "dying") {
+      me.state = "walking";
     }
+    me.direction = getDirection(dx / distance, dy / distance, me);
 
-    // Отправка позиции на сервер (с ограничением частоты)
+    const traveled = Math.hypot(me.x - prevX, me.y - prevY);
+    me.distanceTraveled = (me.distanceTraveled || 0) + traveled;
+
+    // Проверки взаимодействия (один раз за тик движения)
+    window.npcSystem.checkNPCProximity();
+    window.jackSystem.checkJackProximity();
+    window.npcSystem.checkQuestCompletion();
+    window.vendingMachine.checkProximity();
+    updateResources();
+    checkCollisions();
+
     if (currentTime - lastSendTime >= sendInterval) {
       sendMovementUpdate(me);
       lastSendTime = currentTime;
@@ -199,34 +171,119 @@
   }
 
   function updateMovement(deltaTime) {
-    const currentTime = Date.now();
     const me = players.get(myId);
-    if (!me || me.health <= 0) return;
+    if (!me) return;
 
-    let dx = 0;
-    let dy = 0;
+    const currentTime = Date.now();
 
-    if (isMoving) {
-      dx = targetX - me.x;
-      dy = targetY - me.y;
+    // === Смерть ===
+    if (me.health <= 0) {
+      me.state = "idle";
+      me.frame = 0;
+      me.frameTime = 0;
 
-      const distanceToTarget = Math.hypot(dx, dy);
+      // Отправляем состояние на сервер (чтобы другие видели idle)
+      if (currentTime - lastSendTime >= sendInterval) {
+        sendMovementUpdate(me);
+        lastSendTime = currentTime;
+      }
+      updateCamera(me);
+    }
 
-      if (distanceToTarget < 10) {
-        // Достигли цели — останавливаемся
-        stopMovement();
+    let isCurrentlyMoving = false;
+
+    // Движение разрешено только если жив
+    if (me.health > 0) {
+      // 1. Клик по карте
+      if (isMoving) {
+        const dx = targetX - me.x;
+        const dy = targetY - me.y;
+        if (movePlayer(dx, dy, deltaTime, me, currentTime, 5)) {
+          isCurrentlyMoving = true;
+        } else {
+          isMoving = false;
+        }
+      }
+
+      // 2. Клавиатура
+      if (!isCurrentlyMoving) {
+        let dx = 0,
+          dy = 0;
+        if (keys["w"]) dy -= 1;
+        if (keys["s"]) dy += 1;
+        if (keys["a"]) dx -= 1;
+        if (keys["d"]) dx += 1;
+
+        if (dx !== 0 || dy !== 0) {
+          if (movePlayer(dx, dy, deltaTime, me, currentTime, 0)) {
+            isCurrentlyMoving = true;
+          }
+        }
+      }
+
+      // 3. Джойстик (мобильные)
+      if (isMobile && window.joystickSystem && !isCurrentlyMoving) {
+        const joy = window.joystickSystem.getDirection();
+        if (
+          joy.active &&
+          (Math.abs(joy.dx) > 0.05 || Math.abs(joy.dy) > 0.05)
+        ) {
+          if (movePlayer(joy.dx, joy.dy, deltaTime, me, currentTime, 0)) {
+            isCurrentlyMoving = true;
+          }
+        }
+      }
+    }
+
+    if (me.state === "attacking" && me.health > 0) {
+      me.attackFrameTime = (me.attackFrameTime || 0) + deltaTime;
+      while (me.attackFrameTime >= ATTACK_FRAME_DURATION) {
+        me.attackFrameTime -= ATTACK_FRAME_DURATION;
+        me.attackFrame = (me.attackFrame || 0) + 1;
+        if (me.attackFrame >= ATTACK_FRAME_COUNT) {
+          me.attackFrame = 0;
+          me.attackFrameTime = 0;
+          me.state = isCurrentlyMoving ? "walking" : "idle";
+          me.frame = 0;
+          sendMovementUpdate(me);
+          lastSendTime = currentTime;
+        }
+      }
+    } else if (me.health <= 0) {
+      // Принудительно сбрасываем атаку, если умер во время неё
+      me.state = "idle";
+      me.attackFrame = 0;
+      me.attackFrameTime = 0;
+    } else {
+      if (isCurrentlyMoving && me.state !== "dying") {
+        // === СТАБИЛИЗАЦИЯ НАПРАВЛЕНИЯ И СБРОС КАДРА ПРИ СМЕНЕ ===
+        const prevDirection = me.direction;
+
+        // direction уже обновлён в movePlayer() — используем его
+        if (me.direction !== prevDirection) {
+          // При смене направления сбрасываем кадр анимации
+          me.frame = 0;
+          me.frameTime = 0; // чтобы не было задержки перед первым кадром
+        }
+
+        // Продолжаем анимацию ходьбы
+        me.frameTime = (me.frameTime || 0) + deltaTime;
+        while (me.frameTime >= ANIMATION_FRAME_DURATION) {
+          me.frameTime -= ANIMATION_FRAME_DURATION;
+          me.frame = (me.frame + 1) % WALK_FRAME_COUNT;
+        }
+      } else if (me.state === "walking") {
+        // Переход в idle
         me.state = "idle";
         me.frame = 0;
         me.frameTime = 0;
         sendMovementUpdate(me);
         lastSendTime = currentTime;
-      } else {
-        movePlayer(dx, dy, deltaTime, me, currentTime);
       }
     }
 
     if (me.state === "attacking") {
-      // Отправляем каждые 100 мс прогресс атаки
+      // Отправляем каждые 100 мс прогресс атаки (attackFrame и attackFrameTime)
       if (currentTime - lastSendTime >= 100) {
         sendMovementUpdate(me);
         lastSendTime = currentTime;
@@ -239,7 +296,8 @@
   function getDirection(normX, normY, currentPlayer) {
     const angle = Math.atan2(normY, normX) * (180 / Math.PI);
 
-    const currentDir = currentPlayer.direction || "down";
+    // Гистерезис: используем текущее направление игрока
+    const currentDir = currentPlayer.direction || "down"; // фоллбек на down
 
     const prevAngleMap = {
       right: 0,
@@ -255,13 +313,16 @@
     const prevAngle = prevAngleMap[currentDir] || 0;
 
     let diff = angle - prevAngle;
+    // Нормализуем угол
     while (diff > 180) diff -= 360;
     while (diff <= -180) diff += 360;
 
+    // Если отклонение меньше 20° — сохраняем старое направление
     if (Math.abs(diff) < 20) {
       return currentDir;
     }
 
+    // Стандартное определение направления
     if (angle > -22.5 && angle <= 22.5) return "right";
     if (angle > 22.5 && angle <= 67.5) return "down-right";
     if (angle > 67.5 && angle <= 112.5) return "up";
@@ -270,9 +331,10 @@
     if (angle > -157.5 && angle <= -112.5) return "down-left";
     if (angle > -112.5 && angle <= -67.5) return "down";
     if (angle > -67.5 && angle <= -22.5) return "down-right";
-    return "up";
+    return "up"; // фоллбек
   }
 
+  // Вспомогательная функция нормализации угла
   function normalizeAngle(angle) {
     while (angle > 180) angle -= 360;
     while (angle <= -180) angle += 360;
