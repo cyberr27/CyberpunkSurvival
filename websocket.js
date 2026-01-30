@@ -48,10 +48,10 @@ const BLOOD_EYE_DAMAGE_MAX = 18;
 const obstacles = [
   {
     worldId: 0,
-    x1: 808,
-    y1: 371,
-    x2: 122,
-    y2: 289,
+    x1: 631,
+    y1: 208,
+    x2: 1525,
+    y2: 657,
   },
 ];
 
