@@ -1,10 +1,10 @@
 // homeless.js
 
 const HOMELESS = {
-  x: 100,
-  y: 3190,
+  x: 156,
+  y: 2598,
   interactionRadius: 50,
-  name: "Homeless",
+  name: "Бездомный",
   worldId: 0,
 };
 
@@ -14,21 +14,22 @@ let isDialogOpenHomeless = false;
 
 let animationStartTime = 0;
 let currentRow = 0; // 0 = основная (10 сек), 1 = короткая
-let frameHomeless = 0;
+let frame = 0;
 
 const FRAME_COUNT = 13;
 const FRAME_W = 70;
 const FRAME_H = 70;
 const LONG_ROW_DURATION = 10000;
-const SHORT_ROW_DURATION = 2000; // чуть дольше, чтобы было видно всю анимацию
+const SHORT_ROW_DURATION = 2000;
 
 let buttonsContainerHomeless = null;
 let dialogElementHomeless = null;
 
 function showHomelessButtons() {
   if (buttonsContainerHomeless) return;
+
   buttonsContainerHomeless = document.createElement("div");
-  buttonsContainerHomeless.className = "npc-buttons-container homeless-buttons";
+  buttonsContainerHomeless.className = "homeless-buttons-container";
 
   const btns = [
     { text: "ГОВОРИТЬ", cls: "homeless-talk-btn", action: "talk" },
@@ -38,7 +39,7 @@ function showHomelessButtons() {
 
   btns.forEach((b) => {
     const btn = document.createElement("button");
-    btn.className = `npc-button ${b.cls}`;
+    btn.className = `homeless-button ${b.cls}`;
     btn.textContent = b.text;
     btn.dataset.action = b.action;
     btn.addEventListener("click", () => openHomelessDialog(b.action));
@@ -56,33 +57,33 @@ function removeButtons() {
 }
 
 function openHomelessDialog(section) {
-  closeDialog();
+  closeHomelessDialog();
 
   isDialogOpenHomeless = true;
   document.body.classList.add("npc-dialog-active");
 
   dialogElementHomeless = document.createElement("div");
-  dialogElementHomeless.className = "homeless-dialog open";
+  dialogElementHomeless.className = "homeless-main-dialog open";
 
   dialogElementHomeless.innerHTML = `
-    <div class="npc-dialog-header">
-      <img src="homeless_foto.png" class="npc-photo" alt="Бездомный">
-      <h2 class="npc-title">Бездомный</h2>
+    <div class="homeless-dialog-header">
+      <img src="homeless_foto.png" class="homeless-photo" alt="Бездомный">
+      <h2 class="homeless-title">Бездомный</h2>
     </div>
-    <div class="npc-dialog-content">
-      <p class="npc-text">[ЗАГЛУШКА] ${section.toUpperCase()} — скоро здесь будет нормальный диалог...</p>
+    <div class="homeless-dialog-content">
+      <p class="homeless-text">[ЗАГЛУШКА] ${section.toUpperCase()} — скоро здесь будет нормальный диалог...</p>
     </div>
-    <button class="neon-btn close-homeless-dialog">ЗАКРЫТЬ</button>
+    <button class="homeless-close-btn">ЗАКРЫТЬ</button>
   `;
 
   document.body.appendChild(dialogElementHomeless);
 
   dialogElementHomeless
-    .querySelector(".close-homeless-dialog")
-    .addEventListener("click", closeDialog);
+    .querySelector(".homeless-close-btn")
+    .addEventListener("click", closeHomelessDialog);
 }
 
-function closeDialog() {
+function closeHomelessDialog() {
   if (!isDialogOpenHomeless) return;
   isDialogOpenHomeless = false;
   document.body.classList.remove("npc-dialog-active");
@@ -99,7 +100,7 @@ function checkProximity() {
     if (isNearHomeless) {
       isNearHomeless = false;
       removeButtons();
-      closeDialog();
+      closeHomelessDialog();
     }
     return;
   }
@@ -108,7 +109,7 @@ function checkProximity() {
     if (isNearHomeless) {
       isNearHomeless = false;
       removeButtons();
-      closeDialog();
+      closeHomelessDialog();
     }
     return;
   }
@@ -125,7 +126,7 @@ function checkProximity() {
   } else if (!nowNear && isNearHomeless) {
     isNearHomeless = false;
     removeButtons();
-    closeDialog();
+    closeHomelessDialog();
   }
 }
 
@@ -135,26 +136,23 @@ function updateHomelessAnimation(deltaTime) {
   const elapsed = performance.now() - animationStartTime;
 
   if (currentRow === 0) {
-    // основная анимация — 10 секунд
     const progress = elapsed % LONG_ROW_DURATION;
-    frameHomeless =
+    frame =
       Math.floor((progress / LONG_ROW_DURATION) * FRAME_COUNT) % FRAME_COUNT;
 
     if (elapsed >= LONG_ROW_DURATION && !isNearHomeless) {
-      // переключаемся на короткую только если НЕ взаимодействуем
       currentRow = 1;
       animationStartTime = performance.now();
-      frameHomeless = 0;
+      frame = 0;
     }
   } else {
-    // короткая — один проход
     const progress = elapsed / SHORT_ROW_DURATION;
-    frameHomeless = Math.floor(progress * FRAME_COUNT);
+    frame = Math.floor(progress * FRAME_COUNT);
 
-    if (frameHomeless >= FRAME_COUNT) {
+    if (frame >= FRAME_COUNT) {
       currentRow = 0;
       animationStartTime = performance.now();
-      frameHomeless = 0;
+      frame = 0;
     }
   }
 }
@@ -175,10 +173,9 @@ function drawHomeless() {
   )
     return;
 
-  let drawFrame = frameHomeless;
+  let drawFrame = frame;
   let rowY = currentRow * FRAME_H;
 
-  // при взаимодействии — фиксированный кадр (первый из основной строки)
   if (isNearHomeless) {
     drawFrame = 0;
     rowY = 0;
@@ -202,7 +199,7 @@ window.homelessSystem = {
     homelessSprite = sprite;
     animationStartTime = performance.now();
     currentRow = 0;
-    frameHomeless = 0;
+    frame = 0;
     console.log("[Homeless] initialized");
   },
 

@@ -2,8 +2,8 @@
 
 const clockSystem = {
   clocks: [
-    { x: 594, y: 2793, worldId: 0 },
-    { x: 1200, y: 3100, worldId: 0 },
+    { x: 775, y: 1869, worldId: 0 },
+    { x: 1385, y: 460, worldId: 0 },
   ],
 
   sprite: null,
@@ -65,10 +65,10 @@ const clockSystem = {
     const futureYear = d.getFullYear() + 200;
 
     const timeStr = `${String(d.getHours()).padStart(2, "0")}:${String(
-      d.getMinutes()
+      d.getMinutes(),
     ).padStart(2, "0")}`;
     const dateStr = `${String(d.getDate()).padStart(2, "0")}.${String(
-      d.getMonth() + 1
+      d.getMonth() + 1,
     ).padStart(2, "0")}.${futureYear}`;
 
     this.timeEl.textContent = timeStr;
@@ -102,7 +102,7 @@ const clockSystem = {
     const near = this._isNearClock(
       me.x,
       me.y,
-      window.worldSystem?.currentWorldId ?? 0
+      window.worldSystem?.currentWorldId ?? 0,
     );
 
     if (near && !this.isOpen) this.open();

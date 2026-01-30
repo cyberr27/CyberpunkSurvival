@@ -4,8 +4,8 @@
   let targetY = 0;
 
   const baseSpeed = 65;
-  const worldWidth = 3135;
-  const worldHeight = 3300;
+  const worldWidth = 2800;
+  const worldHeight = 2800;
   const worldMaxX = worldWidth - 40;
   const worldMaxY = worldHeight - 40;
 
@@ -46,11 +46,11 @@
     // Клавиатура
     window.addEventListener(
       "keydown",
-      (e) => (keys[e.key.toLowerCase()] = true)
+      (e) => (keys[e.key.toLowerCase()] = true),
     );
     window.addEventListener(
       "keyup",
-      (e) => (keys[e.key.toLowerCase()] = false)
+      (e) => (keys[e.key.toLowerCase()] = false),
     );
   }
 
@@ -359,7 +359,7 @@
         frame: player.frame,
         attackFrame: player.attackFrame || 0,
         attackFrameTime: player.attackFrameTime || 0,
-      })
+      }),
     );
   }
 

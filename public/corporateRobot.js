@@ -1,11 +1,10 @@
-
 window.corporateRobotSystem = (() => {
   "use strict";
 
   /* ================== CONSTANTS ================== */
 
-  const POINT_A = { x: 2654, y: 2314 };
-  const POINT_B = { x: 666, y: 2888 };
+  const POINT_A = { x: 2371, y: 1887 };
+  const POINT_B = { x: 590, y: 2483 };
 
   const PAUSE_TIME = 30000;
   const MOVE_SPEED = 33;
@@ -136,7 +135,7 @@ window.corporateRobotSystem = (() => {
       (i) =>
         i &&
         (i.type === "medical_certificate" ||
-          i.type === "medical_certificate_stamped")
+          i.type === "medical_certificate_stamped"),
     );
 
   const hasStampedCertificate = () =>
@@ -226,7 +225,7 @@ window.corporateRobotSystem = (() => {
       ui.acceptBtn.onclick = submitDocuments;
       ui.dialogWindow.insertBefore(
         ui.acceptBtn,
-        ui.dialogWindow.lastElementChild
+        ui.dialogWindow.lastElementChild,
       );
     } else {
       ui.acceptBtn.textContent = "Сдать документы";
@@ -360,7 +359,7 @@ window.corporateRobotSystem = (() => {
         sx,
         sy,
         FRAME_SIZE,
-        FRAME_SIZE
+        FRAME_SIZE,
       );
 
       ctx.font = "12px Courier New";

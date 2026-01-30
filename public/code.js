@@ -2727,6 +2727,20 @@ function draw(deltaTime) {
   window.enemySystem.draw();
   window.corporateRobotSystem.draw();
 
+  if (currentWorld.veg.complete) {
+    ctx.drawImage(
+      currentWorld.veg,
+      vegetationOffsetX,
+      window.movementSystem.getCamera().y * vegetationSpeed,
+      canvas.width,
+      canvas.height,
+      0,
+      0,
+      canvas.width,
+      canvas.height,
+    );
+  }
+
   players.forEach((player) => {
     if (player.worldId !== currentWorldId) return;
 
@@ -2848,19 +2862,6 @@ function draw(deltaTime) {
 
     ctx.shadowBlur = 0;
   });
-  if (currentWorld.veg.complete) {
-    ctx.drawImage(
-      currentWorld.veg,
-      vegetationOffsetX,
-      window.movementSystem.getCamera().y * vegetationSpeed,
-      canvas.width,
-      canvas.height,
-      0,
-      0,
-      canvas.width,
-      canvas.height,
-    );
-  }
 
   if (window.neonNpcSystem) {
     window.neonNpcSystem.draw();

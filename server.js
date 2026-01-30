@@ -22,9 +22,9 @@ const lastSaved = new Map();
 const INACTIVITY_TIMEOUT = 45 * 60 * 1000;
 
 const worlds = [
-  { id: 0, width: 3135, height: 2800, name: "Неоновый Город" },
-  { id: 1, width: 3135, height: 3300, name: "Пустоши" },
-  { id: 2, width: 3135, height: 3300, name: "Токсичные Джунгли" },
+  { id: 0, width: 2800, height: 2800, name: "Неоновый Город" },
+  { id: 1, width: 2800, height: 2800, name: "Пустоши" },
+  { id: 2, width: 2800, height: 2800, name: "Токсичные Джунгли" },
 ];
 
 worlds.forEach((world) => {
