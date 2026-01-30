@@ -2894,6 +2894,9 @@ function draw(deltaTime) {
   }
 
   window.worldSystem.drawTransitionZones();
+  if (window.barriersSystem) {
+    window.barriersSystem.draw();
+  }
 }
 
 function checkCollisions() {
