@@ -70,11 +70,16 @@ const obstacles = [
 ];
 
 function segmentsIntersect(x1, y1, x2, y2, x3, y3, x4, y4) {
-  const denom = (y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1);
-  if (denom === 0) return false;
+  const dx1 = x2 - x1;
+  const dy1 = y2 - y1;
+  const dx2 = x4 - x3;
+  const dy2 = y4 - y3;
 
-  const ua = ((x4 - x3) * (y1 - y3) - (y4 - y3) * (x1 - x3)) / denom;
-  const ub = ((x2 - x1) * (y1 - y3) - (y2 - y1) * (x1 - x3)) / denom;
+  const denom = dy2 * dx1 - dx2 * dy1;
+  if (Math.abs(denom) < 1e-9) return false; // почти параллельны
+
+  const ua = (dx2 * (y1 - y3) - dy2 * (x1 - x3)) / denom;
+  const ub = (dx1 * (y1 - y3) - dy1 * (x1 - x3)) / denom;
 
   return ua >= 0 && ua <= 1 && ub >= 0 && ub <= 1;
 }
