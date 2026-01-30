@@ -45,6 +45,26 @@ const BLOOD_EYE_PROJ_SPEED = 5; // px/s
 const BLOOD_EYE_DAMAGE_MIN = 12;
 const BLOOD_EYE_DAMAGE_MAX = 18;
 
+const obstacles = [
+  {
+    worldId: 0,
+    x1: 808,
+    y1: 371,
+    x2: 122,
+    y2: 289,
+  },
+];
+
+function segmentsIntersect(x1, y1, x2, y2, x3, y3, x4, y4) {
+  const denom = (y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1);
+  if (denom === 0) return false;
+
+  const ua = ((x4 - x3) * (y1 - y3) - (y4 - y3) * (x1 - x3)) / denom;
+  const ub = ((x2 - x1) * (y1 - y3) - (y2 - y1) * (x1 - x3)) / denom;
+
+  return ua >= 0 && ua <= 1 && ub >= 0 && ub <= 1;
+}
+
 function calculateXPToNextLevel(level) {
   if (level >= 100) return 0;
   return 100 * Math.pow(2, level);
@@ -2976,35 +2996,94 @@ function setupWebSocket(
           dbCollection,
           saveUserDatabase,
         );
-      } else if (data.type === "update" || data.type === "move") {
-        const playerId = clients.get(ws);
-        if (!playerId || !players.has(playerId)) return;
-
-        const player = players.get(playerId);
+      }
+      if (data.type === "update" || data.type === "move") {
         const currentWorldId = player.worldId;
 
-        // Принимаем только безопасные поля
-        if (data.x !== undefined) player.x = data.x;
-        if (data.y !== undefined) player.y = data.y;
+        // Сохраняем старую позицию для проверки
+        const oldX = player.x;
+        const oldY = player.y;
+
+        // Принимаем только разрешённые поля
+        if (data.x !== undefined) player.x = Number(data.x);
+        if (data.y !== undefined) player.y = Number(data.y);
         if (data.direction) player.direction = data.direction;
         if (data.state) player.state = data.state;
         if (data.attackFrame !== undefined)
-          player.attackFrame = data.attackFrame;
+          player.attackFrame = Number(data.attackFrame);
         if (data.attackFrameTime !== undefined)
-          player.attackFrameTime = data.attackFrameTime;
-        if (data.frame !== undefined) player.frame = data.frame;
-        if (data.health !== undefined) player.health = data.health;
-        if (data.energy !== undefined) player.energy = data.energy;
-        if (data.food !== undefined) player.food = data.food;
-        if (data.water !== undefined) player.water = data.water;
-        if (data.armor !== undefined) player.armor = data.armor;
+          player.attackFrameTime = Number(data.attackFrameTime);
+        if (data.frame !== undefined) player.frame = Number(data.frame);
+        if (data.health !== undefined)
+          player.health = Math.max(
+            0,
+            Math.min(player.maxStats?.health || 100, Number(data.health)),
+          );
+        if (data.energy !== undefined)
+          player.energy = Math.max(
+            0,
+            Math.min(player.maxStats?.energy || 100, Number(data.energy)),
+          );
+        if (data.food !== undefined)
+          player.food = Math.max(
+            0,
+            Math.min(player.maxStats?.food || 100, Number(data.food)),
+          );
+        if (data.water !== undefined)
+          player.water = Math.max(
+            0,
+            Math.min(player.maxStats?.water || 100, Number(data.water)),
+          );
+        if (data.armor !== undefined) player.armor = Number(data.armor);
         if (data.distanceTraveled !== undefined)
-          player.distanceTraveled = data.distanceTraveled;
+          player.distanceTraveled = Number(data.distanceTraveled);
 
-        // Обновляем в мапе
+        // ─── ПРОВЕРКА ПРЕПЯТСТВИЙ (сервер — авторитет) ─────────────────────
+        let positionValid = true;
+
+        if (data.x !== undefined || data.y !== undefined) {
+          // Проверяем, не пересёк ли игрок ни одну линию препятствий
+          for (const obs of obstacles) {
+            if (obs.worldId !== currentWorldId) continue;
+
+            if (
+              segmentsIntersect(
+                oldX,
+                oldY,
+                player.x,
+                player.y,
+                obs.x1,
+                obs.y1,
+                obs.x2,
+                obs.y2,
+              )
+            ) {
+              positionValid = false;
+              break;
+            }
+          }
+        }
+
+        if (!positionValid) {
+          // Откатываем координаты
+          player.x = oldX;
+          player.y = oldY;
+
+          // Сообщаем клиенту, что позиция была откорректирована сервером
+          ws.send(
+            JSON.stringify({
+              type: "forcePosition",
+              x: oldX,
+              y: oldY,
+              reason: "collision",
+            }),
+          );
+        }
+
+        // Сохраняем обновлённого игрока
         players.set(playerId, { ...player });
 
-        // Рассылаем ВСЕМ в этом мире обновление с attackFrame
+        // Готовим данные для рассылки всем в мире
         const updateData = {
           id: playerId,
           x: player.x,
@@ -3020,12 +3099,13 @@ function setupWebSocket(
           distanceTraveled: player.distanceTraveled,
         };
 
-        // Всегда включаем attackFrame и attackFrameTime, если игрок атакует
+        // Добавляем поля атаки, если игрок в состоянии attacking
         if (player.state === "attacking") {
           updateData.attackFrame = player.attackFrame ?? 0;
           updateData.attackFrameTime = player.attackFrameTime ?? 0;
         }
 
+        // Рассылаем обновление всем в мире
         broadcastToWorld(
           wss,
           clients,

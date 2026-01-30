@@ -133,6 +133,40 @@
     const prevX = me.x;
     const prevY = me.y;
 
+    const newX = prevX + moveX;
+    const newY = prevY + moveY;
+
+    let blocked = false;
+
+    for (const obs of window.obstacles) {
+      if (obs.worldId !== me.worldId) continue;
+
+      if (
+        segmentsIntersect(
+          prevX,
+          prevY,
+          newX,
+          newY,
+          obs.x1,
+          obs.y1,
+          obs.x2,
+          obs.y2,
+        )
+      ) {
+        blocked = true;
+        break;
+      }
+    }
+
+    if (blocked) {
+      // Можно добавить лёгкое отталкивание или просто не двигаться
+      return false; // ← не двигаемся
+    }
+
+    // Если не заблокировано — продолжаем как было
+    me.x = newX;
+    me.y = newY;
+
     me.x += moveX;
     me.y += moveY;
 

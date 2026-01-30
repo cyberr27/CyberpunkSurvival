@@ -2463,6 +2463,16 @@ function handleGameMessage(event) {
           upgradeBtn.textContent = "УЛУЧШИТЬ";
         }
         break;
+      case "forcePosition": {
+        const me = players.get(myId);
+        if (me) {
+          me.x = data.x;
+          me.y = data.y;
+          // можно сбросить target, чтобы не пыталась снова идти туда же
+          window.movementSystem.stopMovement?.();
+        }
+        break;
+      }
     }
   } catch (error) {
     console.error("Ошибка в handleGameMessage:", error);
@@ -2889,6 +2899,15 @@ function draw(deltaTime) {
       0,
       canvas.width,
       canvas.height,
+    );
+  }
+
+  if (window.obstaclesSystem) {
+    window.obstaclesSystem.draw(
+      ctx,
+      window.movementSystem.getCamera().x,
+      window.movementSystem.getCamera().y,
+      window.worldSystem.currentWorldId,
     );
   }
 
