@@ -1,44 +1,151 @@
 // obstacles.js
 
-const obstacles = [
-  { worldId: 0, x1: 640, y1: 190, x2: 1525, y2: 657 },
-  { worldId: 0, x1: 1525, y1: 657, x2: 2065, y2: 196 },
-  { worldId: 0, x1: 640, y1: 190, x2: 2065, y2: 196 },
+// Формат: { worldId: number, x1, y1, x2, y2 }
+window.obstacles = [
+  // Первая тестовая линия в Неоновом Городе (мир 0)
+  {
+    worldId: 0,
+    x1: 640,
+    y1: 190,
+    x2: 1525,
+    y2: 657,
+  },
+  {
+    worldId: 0,
+    x1: 1525,
+    y1: 657,
+    x2: 2065,
+    y2: 196,
+  },
+  {
+    worldId: 0,
+    x1: 640,
+    y1: 190,
+    x2: 2065,
+    y2: 196,
+  },
+  {
+    worldId: 0,
+    x1: 507,
+    y1: 348,
+    x2: 640,
+    y2: 299,
+  },
+  {
+    worldId: 0,
+    x1: 640,
+    y1: 299,
+    x2: 550,
+    y2: 250,
+  },
+  {
+    worldId: 0,
+    x1: 550,
+    y1: 250,
+    x2: 534,
+    y2: 178,
+  },
+  {
+    worldId: 0,
+    x1: 534,
+    y1: 178,
+    x2: 220,
+    y2: 100,
+  },
+  {
+    worldId: 0,
+    x1: 220,
+    y1: 100,
+    x2: 0,
+    y2: 206,
+  },
+  {
+    worldId: 0,
+    x1: 0,
+    y1: 206,
+    x2: 31,
+    y2: 272,
+  },
+  {
+    worldId: 0,
+    x1: 31,
+    y1: 272,
+    x2: 186,
+    y2: 310,
+  },
+  {
+    worldId: 0,
+    x1: 186,
+    y1: 310,
+    x2: 381,
+    y2: 308,
+  },
+  {
+    worldId: 0,
+    x1: 381,
+    y1: 308,
+    x2: 507,
+    y2: 348,
+  },
+
+  {
+    worldId: 0,
+    x1: 2800,
+    y1: 1257,
+    x2: 2262,
+    y2: 1289,
+  },
+  {
+    worldId: 0,
+    x1: 2262,
+    y1: 1289,
+    x2: 2205,
+    y2: 1178,
+  },
+  {
+    worldId: 0,
+    x1: 2205,
+    y1: 1178,
+    x2: 2047,
+    y2: 1123,
+  },
+  {
+    worldId: 0,
+    x1: 2047,
+    y1: 1123,
+    x2: 2096,
+    y2: 904,
+  },
+  {
+    worldId: 0,
+    x1: 2096,
+    y1: 904,
+    x2: 2800,
+    y2: 904,
+  },
 ];
 
-// Очень лёгкая проверка пересечения двух отрезков
+// Очень простая функция проверки пересечения двух отрезков
+// (используется и на клиенте, и на сервере — копия будет в двух местах)
 function segmentsIntersect(x1, y1, x2, y2, x3, y3, x4, y4) {
-  const dx1 = x2 - x1;
-  const dy1 = y2 - y1;
-  const dx2 = x4 - x3;
-  const dy2 = y4 - y3;
+  const denom = (y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1);
+  if (denom === 0) return false; // параллельны
 
-  const denom = dy2 * dx1 - dx2 * dy1;
-  if (Math.abs(denom) < 1e-9) return false; // почти параллельны
-
-  const ua = (dx2 * (y1 - y3) - dy2 * (x1 - x3)) / denom;
-  const ub = (dx1 * (y1 - y3) - dy1 * (x1 - x3)) / denom;
+  const ua = ((x4 - x3) * (y1 - y3) - (y4 - y3) * (x1 - x3)) / denom;
+  const ub = ((x2 - x1) * (y1 - y3) - (y2 - y1) * (x1 - x3)) / denom;
 
   return ua >= 0 && ua <= 1 && ub >= 0 && ub <= 1;
 }
 
-// Для отладки — рисуем красные линии препятствий
+// Для отладки на клиенте — рисуем красные линии
 function drawObstacles(ctx, cameraX, cameraY, worldId) {
-  // Предварительный фильтр — сколько препятствий вообще в этом мире
-  let count = 0;
-  for (let i = 0; i < obstacles.length; i++) {
-    if (obstacles[i].worldId === worldId) count++;
-  }
-  if (count === 0) return;
-
   ctx.save();
   ctx.strokeStyle = "red";
   ctx.lineWidth = 5;
   ctx.globalAlpha = 0.7;
 
-  for (let i = 0; i < obstacles.length; i++) {
-    const obs = obstacles[i];
-    if (obs.worldId !== worldId) continue;
+  window.obstacles.forEach((obs) => {
+    if (obs.worldId !== worldId) return;
 
     const sx1 = obs.x1 - cameraX;
     const sy1 = obs.y1 - cameraY;
@@ -49,20 +156,12 @@ function drawObstacles(ctx, cameraX, cameraY, worldId) {
     ctx.moveTo(sx1, sy1);
     ctx.lineTo(sx2, sy2);
     ctx.stroke();
-  }
+  });
 
   ctx.restore();
 }
 
-const obstaclesSystem = {
+window.obstaclesSystem = {
   draw: drawObstacles,
-  // getObstaclesForWorld(worldId) можно добавить позже, если понадобится
+  // Позже можно добавить getObstaclesForWorld(worldId) и т.д.
 };
-
-// Экспорт, если используешь модули (если нет — просто оставь window)
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = { obstacles, segmentsIntersect, obstaclesSystem };
-} else {
-  window.obstaclesSystem = obstaclesSystem;
-  // window.obstacles и window.segmentsIntersect — по желанию, сейчас не вешаем
-}

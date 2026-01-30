@@ -4,8 +4,8 @@
   let targetY = 0;
 
   const baseSpeed = 65;
-  const worldWidth = 3135;
-  const worldHeight = 3300;
+  const worldWidth = 2800;
+  const worldHeight = 2800;
   const worldMaxX = worldWidth - 40;
   const worldMaxY = worldHeight - 40;
 
