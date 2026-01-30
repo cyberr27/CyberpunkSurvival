@@ -2998,9 +2998,26 @@ function setupWebSocket(
         );
       }
       if (data.type === "update" || data.type === "move") {
+        const playerId = clients.get(ws);
+
+        // Очень важная защита
+        if (!playerId || !players.has(playerId)) {
+          // Игрок ещё не авторизован или уже отключился
+          ws.send(
+            JSON.stringify({
+              type: "error",
+              message: "Not authenticated or session expired",
+            }),
+          );
+          return;
+        }
+
+        const player = players.get(playerId);
+
+        // Теперь player точно существует
         const currentWorldId = player.worldId;
 
-        // Сохраняем старую позицию для проверки
+        // Сохраняем старую позицию для проверки препятствий
         const oldX = player.x;
         const oldY = player.y;
 
@@ -3014,6 +3031,8 @@ function setupWebSocket(
         if (data.attackFrameTime !== undefined)
           player.attackFrameTime = Number(data.attackFrameTime);
         if (data.frame !== undefined) player.frame = Number(data.frame);
+
+        // Ограничиваем статы безопасными значениями
         if (data.health !== undefined)
           player.health = Math.max(
             0,
@@ -3038,11 +3057,11 @@ function setupWebSocket(
         if (data.distanceTraveled !== undefined)
           player.distanceTraveled = Number(data.distanceTraveled);
 
-        // ─── ПРОВЕРКА ПРЕПЯТСТВИЙ (сервер — авторитет) ─────────────────────
+        // ─── ПРОВЕРКА ПРЕПЯТСТВИЙ ───────────────────────────────────────
         let positionValid = true;
 
+        // Проверяем только если пришли новые координаты
         if (data.x !== undefined || data.y !== undefined) {
-          // Проверяем, не пересёк ли игрок ни одну линию препятствий
           for (const obs of obstacles) {
             if (obs.worldId !== currentWorldId) continue;
 
@@ -3065,11 +3084,9 @@ function setupWebSocket(
         }
 
         if (!positionValid) {
-          // Откатываем координаты
           player.x = oldX;
           player.y = oldY;
 
-          // Сообщаем клиенту, что позиция была откорректирована сервером
           ws.send(
             JSON.stringify({
               type: "forcePosition",
@@ -3080,10 +3097,10 @@ function setupWebSocket(
           );
         }
 
-        // Сохраняем обновлённого игрока
+        // Сохраняем изменения
         players.set(playerId, { ...player });
 
-        // Готовим данные для рассылки всем в мире
+        // Готовим данные для рассылки
         const updateData = {
           id: playerId,
           x: player.x,
@@ -3099,13 +3116,11 @@ function setupWebSocket(
           distanceTraveled: player.distanceTraveled,
         };
 
-        // Добавляем поля атаки, если игрок в состоянии attacking
         if (player.state === "attacking") {
           updateData.attackFrame = player.attackFrame ?? 0;
           updateData.attackFrameTime = player.attackFrameTime ?? 0;
         }
 
-        // Рассылаем обновление всем в мире
         broadcastToWorld(
           wss,
           clients,
