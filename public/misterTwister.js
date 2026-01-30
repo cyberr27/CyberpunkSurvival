@@ -1,8 +1,8 @@
 // misterTwister.js — улучшено обновление баланса в реальном времени
 
 const MISTER_TWISTER_POS = {
-  x: 440,
-  y: 2449,
+  x: 190,
+  y: 2350,
   width: 70,
   height: 100,
 };

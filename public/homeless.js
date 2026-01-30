@@ -1,8 +1,8 @@
 // homeless.js
 
 const HOMELESS = {
-  x: 156,
-  y: 2598,
+  x: 912,
+  y: 2332,
   interactionRadius: 50,
   name: "Бездомный",
   worldId: 0,
@@ -14,7 +14,7 @@ let isDialogOpenHomeless = false;
 
 let animationStartTime = 0;
 let currentRow = 0; // 0 = основная (10 сек), 1 = короткая
-let frame = 0;
+let frameHomeless = 0;
 
 const FRAME_COUNT = 13;
 const FRAME_W = 70;
@@ -137,19 +137,19 @@ function updateHomelessAnimation(deltaTime) {
 
   if (currentRow === 0) {
     const progress = elapsed % LONG_ROW_DURATION;
-    frame =
+    frameHomeless =
       Math.floor((progress / LONG_ROW_DURATION) * FRAME_COUNT) % FRAME_COUNT;
 
     if (elapsed >= LONG_ROW_DURATION && !isNearHomeless) {
       currentRow = 1;
       animationStartTime = performance.now();
-      frame = 0;
+      frameHomeless = 0;
     }
   } else {
     const progress = elapsed / SHORT_ROW_DURATION;
-    frame = Math.floor(progress * FRAME_COUNT);
+    frameHomeless = Math.floor(progress * FRAME_COUNT);
 
-    if (frame >= FRAME_COUNT) {
+    if (frameHomeless >= FRAME_COUNT) {
       currentRow = 0;
       animationStartTime = performance.now();
       frame = 0;
@@ -173,7 +173,7 @@ function drawHomeless() {
   )
     return;
 
-  let drawFrame = frame;
+  let drawFrame = frameHomeless;
   let rowY = currentRow * FRAME_H;
 
   if (isNearHomeless) {
@@ -199,7 +199,7 @@ window.homelessSystem = {
     homelessSprite = sprite;
     animationStartTime = performance.now();
     currentRow = 0;
-    frame = 0;
+    frameHomeless = 0;
     console.log("[Homeless] initialized");
   },
 

@@ -2,7 +2,7 @@
 
 const clockSystem = {
   clocks: [
-    { x: 775, y: 1869, worldId: 0 },
+    { x: 870, y: 2050, worldId: 0 },
     { x: 1385, y: 460, worldId: 0 },
   ],
 

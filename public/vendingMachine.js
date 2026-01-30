@@ -7,8 +7,8 @@ vendingMachineImage.src = "vending_machine.png"; // Укажи путь к тв�
 
 // Координаты автомата на карте (выбери место, где он не пересекается с препятствиями)
 const VENDING_MACHINE = {
-  x: 645,
-  y: 2540,
+  x: 600,
+  y: 2350,
   width: 110,
   height: 90,
 };
@@ -124,7 +124,7 @@ function showVendingMenu() {
   const items = vendingMenu.querySelectorAll(".vending-item");
   items.forEach((item) => {
     item.addEventListener("click", () =>
-      handleVendingOption(item.dataset.option)
+      handleVendingOption(item.dataset.option),
     );
   });
 }
@@ -156,7 +156,7 @@ function handleVendingOption(option) {
 
   // Проверяем наличие баляр
   const balyarySlot = inventory.findIndex(
-    (slot) => slot && slot.type === "balyary"
+    (slot) => slot && slot.type === "balyary",
   );
   const balyaryCount =
     balyarySlot !== -1 ? inventory[balyarySlot].quantity || 1 : 0;
@@ -175,7 +175,7 @@ function handleVendingOption(option) {
       option,
       cost,
       waterGain,
-    })
+    }),
   );
 }
 
@@ -197,7 +197,7 @@ function drawVendingMachine() {
         screenX,
         screenY,
         VENDING_MACHINE.width,
-        VENDING_MACHINE.height
+        VENDING_MACHINE.height,
       );
     }
   }

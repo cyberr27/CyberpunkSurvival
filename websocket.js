@@ -253,8 +253,8 @@ function setupWebSocket(
           const newPlayer = {
             id: data.username,
             password: data.password,
-            x: 605,
-            y: 3177,
+            x: 414,
+            y: 2741,
             health: 100,
             energy: 100,
             food: 100,
