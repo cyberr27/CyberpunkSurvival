@@ -1,6 +1,6 @@
 const TORESTOS = {
-  x: 208,
-  y: 1932,
+  x: 816,
+  y: 1258,
   width: 70,
   height: 70,
   interactionRadius: 50,

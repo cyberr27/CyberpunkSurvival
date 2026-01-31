@@ -6,7 +6,7 @@ const TRASH_POSITIONS = [
   { x: 760, y: 252 },
   { x: 1400, y: 581 },
   { x: 2550, y: 2640 },
-  { x: 1526, y: 1600 },
+  { x: 1450, y: 1600 },
 ];
 
 const TRASH_CONFIG = {
