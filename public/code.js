@@ -2628,7 +2628,7 @@ function draw(deltaTime) {
   const currentWorldId = window.worldSystem.currentWorldId;
   const groundSpeed = 1.0,
     vegetationSpeed = 1.0,
-    rocksSpeed = 0.6,
+    rocksSpeed = 0.5,
     cloudsSpeed = 0.3;
   const groundOffsetX = window.movementSystem.getCamera().x * groundSpeed;
   const vegetationOffsetX =
