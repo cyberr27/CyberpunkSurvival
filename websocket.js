@@ -557,8 +557,8 @@ function setupWebSocket(
           const newPlayer = {
             id: data.username,
             password: data.password,
-            x: 414,
-            y: 2741,
+            x: 474,
+            y: 2474,
             health: 100,
             energy: 100,
             food: 100,

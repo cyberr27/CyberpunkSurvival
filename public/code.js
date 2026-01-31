@@ -981,8 +981,8 @@ function handleAuthMessage(event) {
 
       const me = {
         id: data.id,
-        x: data.x || 222,
-        y: data.y || 3205,
+        x: data.x || 474,
+        y: data.y || 2474,
         health: data.health,
         energy: data.energy,
         food: data.food,
