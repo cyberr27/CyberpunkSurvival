@@ -2903,15 +2903,6 @@ function draw(deltaTime) {
     );
   }
 
-  if (window.obstaclesSystem) {
-    window.obstaclesSystem.draw(
-      ctx,
-      window.movementSystem.getCamera().x,
-      window.movementSystem.getCamera().y,
-      window.worldSystem.currentWorldId,
-    );
-  }
-
   window.worldSystem.drawTransitionZones();
 }
 

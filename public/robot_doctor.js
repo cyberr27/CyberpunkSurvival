@@ -7,8 +7,8 @@ window.robotDoctorSystem = (() => {
 
   /* ================== CONSTANTS ================== */
 
-  const X = 2480;
-  const Y = 1950;
+  const X = 1717;
+  const Y = 1717;
   const RADIUS_SQ = 2500;
 
   const FRAME = 70;

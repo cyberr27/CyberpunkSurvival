@@ -1,8 +1,8 @@
 // thimblerigger.js — Напёрсточник в Неоновом городе (ПРОСТАЯ РАБОЧАЯ ИГРА)
 
 const THIMBLERIGGER = {
-  x: 228,
-  y: 2882,
+  x: 750,
+  y: 2380,
   width: 70,
   height: 70,
   interactionRadius: 50,
@@ -182,7 +182,7 @@ function chooseCup(selected, bet) {
 
     if (won) {
       const balyarySlot = inventory.findIndex(
-        (slot) => slot && slot.type === "balyary"
+        (slot) => slot && slot.type === "balyary",
       );
       const winAmount = bet * 2;
       msgEl.textContent = `ВЫИГРЫШ!${winAmount}баляров! ${bet}XP!`;
@@ -214,7 +214,7 @@ function chooseCup(selected, bet) {
           bet,
           selectedCup: selected,
           correctCup,
-        })
+        }),
       );
     }
 
@@ -463,7 +463,7 @@ function drawThimblerigger(deltaTime) {
       screenX,
       screenY,
       70,
-      70
+      70,
     );
   } else {
     ctx.fillStyle = "#ff00ff";
@@ -476,7 +476,7 @@ function drawThimblerigger(deltaTime) {
   ctx.fillText(
     isThimbleriggerMet ? THIMBLERIGGER.name : "?",
     screenX + THIMBLERIGGER.width / 2,
-    screenY - 10
+    screenY - 10,
   );
 
   updateThimbleriggerButtonsPosition(cameraX, cameraY);
