@@ -3,8 +3,8 @@
 // ===============================================
 
 const OUTPOST_CAPTAIN = {
-  x: 2161,
-  y: 1226,
+  x: 2295,
+  y: 1073,
   width: 70,
   height: 70,
   interactionRadius: 50,
