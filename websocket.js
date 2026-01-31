@@ -45,9 +45,7 @@ const BLOOD_EYE_PROJ_SPEED = 5; // px/s
 const BLOOD_EYE_DAMAGE_MIN = 12;
 const BLOOD_EYE_DAMAGE_MAX = 18;
 
-// Формат: { worldId: number, x1, y1, x2, y2 }
-window.obstacles = [
-  // Первая тестовая линия в Неоновом Городе (мир 0)
+obstacles = [
   {
     worldId: 0,
     x1: 640,
