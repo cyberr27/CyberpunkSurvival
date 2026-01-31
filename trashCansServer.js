@@ -1,7 +1,7 @@
 const { saveUserDatabase } = require("./database");
 const { ITEM_CONFIG } = require("./items");
 
-const TRASH_CAN_COUNT = 5;
+const TRASH_CAN_COUNT = 6;
 const FILL_COOLDOWN = 5 * 60 * 1000; // 5 минут
 const WRONG_GUESS_COOLDOWN = 3 * 60 * 1000; // 3 минуты
 

@@ -1,11 +1,12 @@
 // trashCans.js — ИСПРАВЛЕНО + доработано под сервер
 
 const TRASH_POSITIONS = [
-  { x: 30, y: 3265 },
-  { x: 4, y: 544 },
+  { x: 950, y: 2200 },
+  { x: 50, y: 2400 },
   { x: 760, y: 252 },
-  { x: 1989, y: 1531 },
-  { x: 2928, y: 3083 },
+  { x: 1400, y: 581 },
+  { x: 2550, y: 2640 },
+  { x: 1526, y: 1600 },
 ];
 
 const TRASH_CONFIG = {
@@ -23,7 +24,7 @@ let currentTrashIndex = -1;
 let trashDialog = null;
 
 // Глобальное состояние баков (приходит с сервера, обновляется через trashState/trashCanOpened)
-window.trashCansState = Array(5)
+window.trashCansState = Array(6)
   .fill(null)
   .map(() => ({ guessed: false }));
 
