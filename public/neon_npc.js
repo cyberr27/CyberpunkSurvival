@@ -4,15 +4,15 @@ const NEON_NPC = {
   name: "Neon",
   spriteKey: "alexNeonSprite",
   photoKey: "alexNeonFoto",
-  x: 502,
-  y: 2771,
+  x: 100,
+  y: 2555,
   width: 70,
   height: 70,
   interactionRadius: 50,
 
   speed: 0.02,
-  targetA: { x: 502, y: 2771 },
-  targetB: { x: 1368, y: 1657 },
+  targetA: { x: 100, y: 2555 },
+  targetB: { x: 2222, y: 2174 },
   movingToB: true,
   isWaiting: true,
   waitDuration: 10000,
@@ -403,8 +403,8 @@ function updateNeonNpc(deltaTime) {
               ? "right"
               : "left"
             : tdy > 0
-            ? "down"
-            : "up";
+              ? "down"
+              : "up";
       } else {
         NEON_NPC.isWaiting = true;
         NEON_NPC.state = "idle";
@@ -454,7 +454,7 @@ function drawNeonNpc() {
       screenX,
       screenY,
       70,
-      70
+      70,
     );
   } else {
     ctx.fillStyle = "#00ffff";
@@ -470,7 +470,7 @@ function drawNeonNpc() {
   ctx.fillText(
     NEON_NPC.isMet ? NEON_NPC.name : "?",
     screenX + 35,
-    screenY - 35
+    screenY - 35,
   );
 
   const player = players.get(myId);
@@ -573,7 +573,7 @@ if (typeof ws !== "undefined") {
             data.level,
             data.xp,
             data.xpToNextLevel,
-            data.upgradePoints
+            data.upgradePoints,
           );
           window.levelSystem.showXPEffect(150);
         }

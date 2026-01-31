@@ -1,7 +1,7 @@
 // Определяем константы и переменные
 const NPC = {
-  x: 432,
-  y: 2750,
+  x: 200,
+  y: 2600,
   width: 70,
   height: 70,
   interactionRadius: 50,

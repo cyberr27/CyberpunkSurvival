@@ -15,7 +15,7 @@ window.droneSystem = (function () {
   let initialized = false;
 
   // Кэшируем размер мира 0
-  let worldSize = { w: 5000, h: 5000 };
+  let worldSize = { w: 3500, h: 3500 };
 
   const updateWorldSize = () => {
     try {
@@ -60,9 +60,9 @@ window.droneSystem = (function () {
     updateWorldSize();
 
     drones = [
-      createDrone(847, 3009),
-      createDrone(1083, 1349),
-      createDrone(2742, 1112),
+      createDrone(1740, 568),
+      createDrone(800, 1100),
+      createDrone(800, 2600),
     ];
 
     initialized = true;
@@ -146,7 +146,7 @@ window.droneSystem = (function () {
         sx | 0,
         sy | 0,
         SPRITE_W,
-        SPRITE_H
+        SPRITE_H,
       );
     }
   };

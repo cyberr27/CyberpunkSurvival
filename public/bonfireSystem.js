@@ -5,11 +5,11 @@ window.bonfireSystem = (function () {
 
   // Позиции костров (x, y) — центр костра = +35/+35
   const BONFIRES = [
-    { x: 473, y: 3193 },
-    { x: 862, y: 108 },
-    { x: 3057, y: 510 },
-    { x: 1892, y: 3176 },
+    { x: 650, y: 40 },
+    { x: 1900, y: 287 },
     { x: 30, y: 1628 },
+    { x: 2020, y: 2730 },
+    { x: 2720, y: 340 },
   ];
 
   const FRAME_W = 70;
@@ -95,7 +95,7 @@ window.bonfireSystem = (function () {
         screenX | 0, // округление через побитовое И — быстрее Math.round
         screenY | 0,
         FRAME_W,
-        FRAME_H
+        FRAME_H,
       );
     });
   }

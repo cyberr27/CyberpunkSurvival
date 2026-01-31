@@ -2728,7 +2728,6 @@ function draw(deltaTime) {
     window.vacuumRobotSystem.draw();
   }
 
-  window.npcSystem.drawNPC(deltaTime);
   window.bonfireSystem.draw();
   window.jackSystem.drawJack(deltaTime);
   window.combatSystem.draw();
@@ -2809,6 +2808,8 @@ function draw(deltaTime) {
       );
     }
 
+    window.bonfireSystem.draw();
+
     // ─── Имя и здоровье (без изменений) ───
     const nameY = screenY - 45;
     const healthY = screenY - 25;
@@ -2873,13 +2874,11 @@ function draw(deltaTime) {
 
   window.misterTwister.draw();
   window.vendingMachine.draw();
-  if (window.neonNpcSystem) {
-    window.neonNpcSystem.draw();
-  }
   if (window.robotDoctorSystem) {
     window.robotDoctorSystem.draw();
   }
   window.thimbleriggerSystem.drawThimblerigger(deltaTime);
+  window.npcSystem.drawNPC(deltaTime);
   window.outpostCaptainSystem.drawCaptain(ctx, cameraX, cameraY);
   clockSystem.draw();
   if (window.trashCansSystem) {
@@ -2887,7 +2886,11 @@ function draw(deltaTime) {
   }
   window.torestosSystem.drawTorestos(deltaTime);
   window.homelessSystem?.draw?.();
+  if (window.neonNpcSystem) {
+    window.neonNpcSystem.draw();
+  }
   window.droneSystem.draw();
+  window.corporateRobotSystem.draw();
 
   if (currentWorld.clouds.complete) {
     ctx.drawImage(
