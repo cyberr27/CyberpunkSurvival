@@ -3286,9 +3286,9 @@ function setupWebSocket(
         const player = players.get(playerId);
 
         // Координаты Торестоса — те же, что и на клиенте
-        const TORESTOS_X = 229;
-        const TORESTOS_Y = 2411;
-        const INTERACTION_RADIUS = 120; // чуть больше, чем на клиенте (50), чтобы был запас
+        const TORESTOS_X = 816;
+        const TORESTOS_Y = 1258;
+        const INTERACTION_RADIUS = 50; // чуть больше, чем на клиенте (50), чтобы был запас
 
         const dx = player.x - TORESTOS_X;
         const dy = player.y - TORESTOS_Y;

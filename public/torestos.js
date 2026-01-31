@@ -22,7 +22,7 @@ let spriteTorestos = null;
 let buttonsContainer = null;
 let dialogElement = null;
 
-let frame = 0;
+let frameTorestos = 0;
 let frameTime = 0;
 let cycleTime = 0;
 let currentPhaseTorestos = "main";
@@ -623,7 +623,7 @@ function drawTorestos(deltaTime) {
   if (isNear) {
     sx = 0;
     sy = 0;
-    frame = 0;
+    frameTorestos = 0;
     frameTime = 0;
     cycleTime = 0;
     currentPhaseTorestos = "main";
@@ -641,18 +641,18 @@ function drawTorestos(deltaTime) {
           : ACTIVE_PHASE_DURATION;
       currentPhaseTorestos =
         currentPhaseTorestos === "main" ? "active" : "main";
-      frame = 0;
+      frameTorestos = 0;
       frameTime = 0;
     }
 
     frameTime += deltaTime;
     while (frameTime >= FRAME_DURATION_TORESTOS) {
       frameTime -= FRAME_DURATION_TORESTOS;
-      frame = (frame + 1) % TOTAL_FRAMES_TORESTOS;
+      frameTorestos = (frameTorestos + 1) % TOTAL_FRAMES_TORESTOS;
     }
 
     sy = currentPhaseTorestos === "main" ? 0 : 70;
-    sx = frame * 70;
+    sx = frameTorestos * 70;
   }
 
   if (spriteTorestos?.complete) {
@@ -706,7 +706,7 @@ function checkProximity() {
     closeDialog();
     currentPhaseTorestos = "main";
     cycleTime = 0;
-    frame = 0;
+    frameTorestos = 0;
     frameTime = 0;
   }
 }
@@ -727,7 +727,7 @@ window.torestosSystem = {
     spriteTorestos = s;
     currentPhaseTorestos = "main";
     cycleTime = 0;
-    frame = 0;
+    frameTorestos = 0;
     frameTime = 0;
   },
 };
