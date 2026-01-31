@@ -2886,6 +2886,7 @@ function draw(deltaTime) {
   }
   window.torestosSystem.drawTorestos(deltaTime);
   window.homelessSystem?.draw?.();
+  window.jackSystem.drawJack(deltaTime);
   if (window.neonNpcSystem) {
     window.neonNpcSystem.draw();
   }

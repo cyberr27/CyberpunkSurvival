@@ -2,8 +2,8 @@
 
 // Константы и переменные
 const JACK = {
-  x: 1030,
-  y: 610,
+  x: 1150,
+  y: 437,
   width: 70,
   height: 70,
   interactionRadius: 50,
@@ -138,7 +138,7 @@ function drawJack(deltaTime) {
       screenX,
       screenY,
       70,
-      70
+      70,
     );
   } else {
     ctx.fillStyle = "purple";
@@ -152,7 +152,7 @@ function drawJack(deltaTime) {
   ctx.fillText(
     isJackMet ? JACK.name : "?",
     screenX + JACK.width / 2,
-    screenY - 10
+    screenY - 10,
   );
 
   // Обновляем позицию кнопок
@@ -410,7 +410,7 @@ function buyItem(type, price) {
   if (ws.readyState === WebSocket.OPEN) {
     sendWhenReady(
       ws,
-      JSON.stringify({ type: "buyFromJack", itemType: type, price })
+      JSON.stringify({ type: "buyFromJack", itemType: type, price }),
     ); // Отправляем тип и цену (сервер проверит)
   } else {
     alert("Соединение потеряно. Попробуйте позже.");
