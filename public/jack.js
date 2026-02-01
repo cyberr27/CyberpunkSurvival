@@ -18,7 +18,7 @@ let jackSprite = null;
 // Анимация
 let jackFrame = 0;
 let jackFrameTime = 0;
-const JACK_FRAME_DURATION = 100;
+const JACK_FRAME_DURATION = 180;
 const JACK_TOTAL_FRAMES = 40;
 
 let jackIsAnimating = false;
