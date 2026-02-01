@@ -1,6 +1,6 @@
 const TORESTOS = {
-  x: 816,
-  y: 1258,
+  x: 775,
+  y: 1140,
   width: 70,
   height: 70,
   interactionRadius: 50,
@@ -594,7 +594,7 @@ function createButtons() {
   document.body.appendChild(buttonsContainer);
 }
 
-function removeButtons() {
+function removeButtonsTorestos() {
   if (buttonsContainer) {
     buttonsContainer.remove();
     buttonsContainer = null;
@@ -602,7 +602,7 @@ function removeButtons() {
 }
 
 function updateButtonsPosition(cameraX, cameraY) {
-  if (!buttonsContainer) return;
+  if (!buttonsContainer || !isNear) return;
   const screenX = TORESTOS.x - cameraX + 35;
   const screenY = TORESTOS.y - cameraY - 110;
   buttonsContainer.style.left = `${screenX}px`;
@@ -618,31 +618,42 @@ function drawTorestos(deltaTime) {
   const screenX = TORESTOS.x - camera.x;
   const screenY = TORESTOS.y - camera.y;
 
-  // Анимация идёт всегда, независимо от близости
-  cycleTime += deltaTime;
-  while (
-    cycleTime >=
-    (currentPhaseTorestos === "main"
-      ? MAIN_PHASE_DURATION
-      : ACTIVE_PHASE_DURATION)
-  ) {
-    cycleTime -=
-      currentPhaseTorestos === "main"
-        ? MAIN_PHASE_DURATION
-        : ACTIVE_PHASE_DURATION;
-    currentPhaseTorestos = currentPhaseTorestos === "main" ? "active" : "main";
+  let sx, sy;
+
+  if (isNear) {
+    sx = 0;
+    sy = 0;
     frame = 0;
     frameTime = 0;
-  }
+    cycleTime = 0;
+    currentPhaseTorestos = "main";
+  } else {
+    cycleTime += deltaTime;
+    while (
+      cycleTime >=
+      (currentPhaseTorestos === "main"
+        ? MAIN_PHASE_DURATION
+        : ACTIVE_PHASE_DURATION)
+    ) {
+      cycleTime -=
+        currentPhaseTorestos === "main"
+          ? MAIN_PHASE_DURATION
+          : ACTIVE_PHASE_DURATION;
+      currentPhaseTorestos =
+        currentPhaseTorestos === "main" ? "active" : "main";
+      frame = 0;
+      frameTime = 0;
+    }
 
-  frameTime += deltaTime;
-  while (frameTime >= FRAME_DURATION_TORESTOS) {
-    frameTime -= FRAME_DURATION_TORESTOS;
-    frame = (frame + 1) % TOTAL_FRAMES_TORESTOS;
-  }
+    frameTime += deltaTime;
+    while (frameTime >= FRAME_DURATION_TORESTOS) {
+      frameTime -= FRAME_DURATION_TORESTOS;
+      frame = (frame + 1) % TOTAL_FRAMES_TORESTOS;
+    }
 
-  const sy = currentPhaseTorestos === "main" ? 0 : 70;
-  const sx = frame * 70;
+    sy = currentPhaseTorestos === "main" ? 0 : 70;
+    sx = frame * 70;
+  }
 
   if (spriteTorestos?.complete) {
     ctx.drawImage(spriteTorestos, sx, sy, 70, 70, screenX, screenY, 70, 70);
@@ -669,8 +680,9 @@ function checkProximity() {
     me.health <= 0 ||
     currentWorldId !== TORESTOS.worldId
   ) {
-    if (isDialogOpen || buttonsContainer) {
-      removeButtons();
+    if (isNear) {
+      isNear = false;
+      removeButtonsTorestos();
       closeDialog();
     }
     return;
@@ -679,21 +691,19 @@ function checkProximity() {
   const dx = me.x + 35 - (TORESTOS.x + 35);
   const dy = me.y + 35 - (TORESTOS.y + 35);
   const dist = Math.hypot(dx, dy);
-
   const nowNear = dist < TORESTOS.interactionRadius;
 
-  if (nowNear && !isDialogOpen && !buttonsContainer) {
-    // Только что вошли в зону
+  if (nowNear && !isNear) {
+    isNear = true;
     if (isMet) {
       createButtons();
     } else {
       openGreeting();
     }
-  } else if (!nowNear && (isDialogOpen || buttonsContainer)) {
-    // Вышли из зоны — закрываем всё
-    removeButtons();
+  } else if (!nowNear && isNear) {
+    isNear = false;
+    removeButtonsTorestos();
     closeDialog();
-    // Можно (но необязательно) сбросить анимацию в main-фазу
     currentPhaseTorestos = "main";
     cycleTime = 0;
     frame = 0;
@@ -705,7 +715,7 @@ function setMet(met) {
   isMet = met;
   if (isNear) {
     if (met) createButtons();
-    else removeButtons();
+    else removeButtonsTorestos();
   }
 }
 

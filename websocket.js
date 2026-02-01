@@ -3285,6 +3285,26 @@ function setupWebSocket(
 
         const player = players.get(playerId);
 
+        // Координаты Торестоса — те же, что и на клиенте
+        const TORESTOS_X = 800;
+        const TORESTOS_Y = 1200;
+        const INTERACTION_RADIUS = 70; // чуть больше, чем на клиенте (50), чтобы был запас
+
+        const dx = player.x - TORESTOS_X;
+        const dy = player.y - TORESTOS_Y;
+        const distance = Math.hypot(dx, dy);
+
+        if (distance > INTERACTION_RADIUS) {
+          ws.send(
+            JSON.stringify({
+              type: "torestosUpgradeResult",
+              success: false,
+              error: "Подойди ближе к Торестосу",
+            }),
+          );
+          return;
+        }
+
         handleTorestosUpgrade(
           ws,
           data,
