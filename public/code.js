@@ -2887,11 +2887,11 @@ function draw(deltaTime) {
   window.torestosSystem.drawTorestos(deltaTime);
   window.homelessSystem?.draw?.();
   window.jackSystem.drawJack(deltaTime);
+  window.droneSystem.draw();
+  window.corporateRobotSystem.draw();
   if (window.neonNpcSystem) {
     window.neonNpcSystem.draw();
   }
-  window.droneSystem.draw();
-  window.corporateRobotSystem.draw();
 
   if (currentWorld.clouds.complete) {
     ctx.drawImage(
