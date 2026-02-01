@@ -602,7 +602,7 @@ function removeButtons() {
 }
 
 function updateButtonsPosition(cameraX, cameraY) {
-  if (!buttonsContainer || !isNear) return;
+  if (!buttonsContainer) return;
   const screenX = TORESTOS.x - cameraX + 35;
   const screenY = TORESTOS.y - cameraY - 110;
   buttonsContainer.style.left = `${screenX}px`;
@@ -618,42 +618,31 @@ function drawTorestos(deltaTime) {
   const screenX = TORESTOS.x - camera.x;
   const screenY = TORESTOS.y - camera.y;
 
-  let sx, sy;
-
-  if (isNear) {
-    sx = 0;
-    sy = 0;
+  // Анимация идёт всегда, независимо от близости
+  cycleTime += deltaTime;
+  while (
+    cycleTime >=
+    (currentPhaseTorestos === "main"
+      ? MAIN_PHASE_DURATION
+      : ACTIVE_PHASE_DURATION)
+  ) {
+    cycleTime -=
+      currentPhaseTorestos === "main"
+        ? MAIN_PHASE_DURATION
+        : ACTIVE_PHASE_DURATION;
+    currentPhaseTorestos = currentPhaseTorestos === "main" ? "active" : "main";
     frame = 0;
     frameTime = 0;
-    cycleTime = 0;
-    currentPhaseTorestos = "main";
-  } else {
-    cycleTime += deltaTime;
-    while (
-      cycleTime >=
-      (currentPhaseTorestos === "main"
-        ? MAIN_PHASE_DURATION
-        : ACTIVE_PHASE_DURATION)
-    ) {
-      cycleTime -=
-        currentPhaseTorestos === "main"
-          ? MAIN_PHASE_DURATION
-          : ACTIVE_PHASE_DURATION;
-      currentPhaseTorestos =
-        currentPhaseTorestos === "main" ? "active" : "main";
-      frame = 0;
-      frameTime = 0;
-    }
-
-    frameTime += deltaTime;
-    while (frameTime >= FRAME_DURATION_TORESTOS) {
-      frameTime -= FRAME_DURATION_TORESTOS;
-      frame = (frame + 1) % TOTAL_FRAMES_TORESTOS;
-    }
-
-    sy = currentPhaseTorestos === "main" ? 0 : 70;
-    sx = frame * 70;
   }
+
+  frameTime += deltaTime;
+  while (frameTime >= FRAME_DURATION_TORESTOS) {
+    frameTime -= FRAME_DURATION_TORESTOS;
+    frame = (frame + 1) % TOTAL_FRAMES_TORESTOS;
+  }
+
+  const sy = currentPhaseTorestos === "main" ? 0 : 70;
+  const sx = frame * 70;
 
   if (spriteTorestos?.complete) {
     ctx.drawImage(spriteTorestos, sx, sy, 70, 70, screenX, screenY, 70, 70);
@@ -680,8 +669,7 @@ function checkProximity() {
     me.health <= 0 ||
     currentWorldId !== TORESTOS.worldId
   ) {
-    if (isNear) {
-      isNear = false;
+    if (isDialogOpen || buttonsContainer) {
       removeButtons();
       closeDialog();
     }
@@ -691,19 +679,21 @@ function checkProximity() {
   const dx = me.x + 35 - (TORESTOS.x + 35);
   const dy = me.y + 35 - (TORESTOS.y + 35);
   const dist = Math.hypot(dx, dy);
+
   const nowNear = dist < TORESTOS.interactionRadius;
 
-  if (nowNear && !isNear) {
-    isNear = true;
+  if (nowNear && !isDialogOpen && !buttonsContainer) {
+    // Только что вошли в зону
     if (isMet) {
       createButtons();
     } else {
       openGreeting();
     }
-  } else if (!nowNear && isNear) {
-    isNear = false;
+  } else if (!nowNear && (isDialogOpen || buttonsContainer)) {
+    // Вышли из зоны — закрываем всё
     removeButtons();
     closeDialog();
+    // Можно (но необязательно) сбросить анимацию в main-фазу
     currentPhaseTorestos = "main";
     cycleTime = 0;
     frame = 0;
