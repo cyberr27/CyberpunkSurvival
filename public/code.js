@@ -127,6 +127,7 @@ const imageSources = {
   trashImage: "trash.png",
   torestosSprite: "torestosSprite.png",
   homelessSprite: "homeless.png",
+  portalImage: "portal.png",
   // === НОВАЯ ПОРВАННАЯ ЭКИПИРОВКА ===
   torn_baseball_cap_of_health: "torn_baseball_cap_of_health.png",
   torn_health_t_shirt: "torn_health_t_shirt.png",
@@ -197,6 +198,7 @@ Object.entries(imageSources).forEach(([key, src]) => {
       window.trashCansSystem.initialize(images.trashImage);
       window.torestosSystem.initialize(images.torestosSprite);
       window.homelessSystem?.initialize?.(images.homelessSprite);
+      window.portalSystem.initialize(images.portalImage);
     }
   };
 });
@@ -1247,6 +1249,7 @@ function startGame() {
   window.trashCansSystem.initialize(images.trashImage);
   window.torestosSystem.initialize(images.torestosSprite);
   window.homelessSystem?.initialize?.(images.homelessSprite);
+  window.portalSystem.initialize(images.portalImage);
   window.combatSystem.initialize();
 
   document.addEventListener("keydown", (e) => {
@@ -2616,6 +2619,7 @@ function update(deltaTime) {
   if (window.trashCansSystem) {
     window.trashCansSystem.update(deltaTime);
   }
+  window.portalSystem.checkProximity();
   window.worldSystem.checkTransitionZones(me.x, me.y);
 }
 
@@ -2892,6 +2896,7 @@ function draw(deltaTime) {
   if (window.neonNpcSystem) {
     window.neonNpcSystem.draw();
   }
+  window.portalSystem.draw(deltaTime);
 
   if (currentWorld.clouds.complete) {
     ctx.drawImage(
@@ -2906,8 +2911,6 @@ function draw(deltaTime) {
       canvas.height,
     );
   }
-
-  window.worldSystem.drawTransitionZones();
 }
 
 function checkCollisions() {

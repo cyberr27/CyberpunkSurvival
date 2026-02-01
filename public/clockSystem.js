@@ -3,7 +3,7 @@
 const clockSystem = {
   clocks: [
     { x: 870, y: 2050, worldId: 0 },
-    { x: 1980, y: 120, worldId: 0 },
+    { x: 1975, y: 120, worldId: 0 },
   ],
 
   sprite: null,
