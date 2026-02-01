@@ -2781,6 +2781,8 @@ function draw(deltaTime) {
         }[player.direction] || SPRITE_ROWS.walk_down;
     }
 
+    window.portalSystem.draw(deltaTime);
+
     if (images.playerSprite?.complete) {
       ctx.drawImage(
         images.playerSprite,
@@ -2896,7 +2898,6 @@ function draw(deltaTime) {
   if (window.neonNpcSystem) {
     window.neonNpcSystem.draw();
   }
-  window.portalSystem.draw(deltaTime);
 
   if (currentWorld.clouds.complete) {
     ctx.drawImage(
