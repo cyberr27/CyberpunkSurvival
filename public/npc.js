@@ -171,7 +171,7 @@ const NPC_TOTAL_FRAMES = 40;
 
 let animationCooldownTimer = 0;
 let isAnimating = false;
-const ANIMATION_COOLDOWN = 20000;
+const ANIMATION_COOLDOWN = 10000;
 
 // КРИТИЧНО: Флаг для предотвращения повторного показа приветствия
 let hasGreetingBeenShown = false;
@@ -580,7 +580,7 @@ function drawNPC(deltaTime) {
       screenX,
       screenY,
       NPC.width,
-      NPC.height
+      NPC.height,
     );
   } else {
     ctx.fillStyle = "purple";
@@ -593,7 +593,7 @@ function drawNPC(deltaTime) {
   ctx.fillText(
     isNPCMet ? NPC.name : "?",
     screenX + NPC.width / 2,
-    screenY - 10
+    screenY - 10,
   );
 }
 
@@ -631,7 +631,7 @@ function showGreetingDialog(container) {
         type: "meetNPC",
         npcMet: true,
         availableQuests: availableQuests.map((q) => q.id),
-      })
+      }),
     );
     closeNPCDialog();
   });
@@ -726,7 +726,7 @@ function openQuestDialog() {
     const toAdd = 5 - availableQuests.length;
     const newQ = getRandomQuests(
       toAdd,
-      availableQuests.map((q) => q.id)
+      availableQuests.map((q) => q.id),
     );
     availableQuests = [...availableQuests, ...newQ];
     sendWhenReady(
@@ -734,7 +734,7 @@ function openQuestDialog() {
       JSON.stringify({
         type: "updateQuests",
         availableQuests: availableQuests.map((q) => q.id),
-      })
+      }),
     );
   }
 
@@ -859,7 +859,7 @@ function completeQuest() {
   if (add > 0) {
     const newQ = getRandomQuests(
       add,
-      availableQuests.map((q) => q.id)
+      availableQuests.map((q) => q.id),
     );
     availableQuests = [...availableQuests, ...newQ];
   }
@@ -871,7 +871,7 @@ function completeQuest() {
       questId: selectedQuest.id,
       inventory: inventory,
       availableQuests: availableQuests.map((q) => q.id),
-    })
+    }),
   );
 
   const rarity = selectedQuest.rarity || 3;
@@ -925,7 +925,7 @@ function setAvailableQuests(questIds) {
   if (add > 0) {
     const newQ = getRandomQuests(
       add,
-      availableQuests.map((q) => q.id)
+      availableQuests.map((q) => q.id),
     );
     availableQuests = [...availableQuests, ...newQ];
     sendWhenReady(
@@ -933,7 +933,7 @@ function setAvailableQuests(questIds) {
       JSON.stringify({
         type: "updateQuests",
         availableQuests: availableQuests.map((q) => q.id),
-      })
+      }),
     );
   }
 }
