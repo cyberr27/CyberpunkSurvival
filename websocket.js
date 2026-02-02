@@ -597,6 +597,13 @@ function setupWebSocket(
             energyUpgrade: 0,
             foodUpgrade: 0,
             waterUpgrade: 0,
+            maxStats: {
+              health: 100,
+              energy: 100,
+              food: 100,
+              water: 100,
+              armor: 0,
+            },
             neonQuest: {
               currentQuestId: null,
               progress: {},
