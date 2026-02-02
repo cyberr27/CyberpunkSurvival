@@ -2476,23 +2476,6 @@ function handleGameMessage(event) {
         }
         break;
       }
-      case "homelessStorageData":
-        if (window.homelessSystem?.handleHomelessStorageData) {
-          window.homelessSystem.handleHomelessStorageData(data);
-        }
-        break;
-
-      case "homelessRentResult":
-        if (window.homelessSystem?.handleRentResult) {
-          window.homelessSystem.handleRentResult(data);
-        }
-        break;
-
-      case "homelessStorageMove":
-        if (window.homelessSystem?.handleHomelessStorageMove) {
-          window.homelessSystem.handleHomelessStorageMove(data);
-        }
-        break;
     }
   } catch (error) {
     console.error("Ошибка в handleGameMessage:", error);
@@ -2798,8 +2781,6 @@ function draw(deltaTime) {
         }[player.direction] || SPRITE_ROWS.walk_down;
     }
 
-    window.portalSystem.draw(deltaTime);
-
     if (images.playerSprite?.complete) {
       ctx.drawImage(
         images.playerSprite,
@@ -2915,6 +2896,7 @@ function draw(deltaTime) {
   if (window.neonNpcSystem) {
     window.neonNpcSystem.draw();
   }
+  window.portalSystem.draw(deltaTime);
 
   if (currentWorld.clouds.complete) {
     ctx.drawImage(

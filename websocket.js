@@ -7,7 +7,6 @@ const {
   trashCansState,
 } = require("./trashCansServer");
 const { handleTorestosUpgrade } = require("./torestosServer");
-const { handleHomelessMessage } = require("./homelessServer");
 
 function broadcastToWorld(wss, clients, players, worldId, message) {
   wss.clients.forEach((client) => {
@@ -3315,71 +3314,6 @@ function setupWebSocket(
           dbCollection,
           saveUserDatabase,
         );
-      } else if (data.type === "getHomelessStorage") {
-        const playerId = clients.get(ws);
-        if (!playerId || !players.has(playerId)) return;
-
-        const player = players.get(playerId);
-        handleHomelessMessage(ws, player, data);
-      } else if (data.type === "rentHomelessStorage") {
-        const playerId = clients.get(ws);
-        if (!playerId || !players.has(playerId)) return;
-
-        const player = players.get(playerId);
-
-        // Можно добавить проверку расстояния до Бездомного, как у Торестоса
-        const HOMELESS_X = 912;
-        const HOMELESS_Y = 2332;
-        const INTERACTION_RADIUS = 80;
-
-        const dx = player.x - HOMELESS_X;
-        const dy = player.y - HOMELESS_Y;
-        const distance = Math.hypot(dx, dy);
-
-        if (distance > INTERACTION_RADIUS) {
-          ws.send(
-            JSON.stringify({
-              type: "homelessRentResult",
-              success: false,
-              error: "Подойди ближе к Бездомному",
-            }),
-          );
-          return;
-        }
-
-        handleHomelessMessage(ws, player, data);
-      } else if (
-        data.type === "moveToHomelessStorage" ||
-        data.type === "moveFromHomelessStorage"
-      ) {
-        const playerId = clients.get(ws);
-        if (!playerId || !players.has(playerId)) return;
-
-        const player = players.get(playerId);
-
-        // Проверка расстояния (опционально, но полезно)
-        const HOMELESS_X = 912;
-        const HOMELESS_Y = 2332;
-        const INTERACTION_RADIUS = 80;
-
-        const dx = player.x - HOMELESS_X;
-        const dy = player.y - HOMELESS_Y;
-        const distance = Math.hypot(dx, dy);
-
-        if (distance > INTERACTION_RADIUS) {
-          ws.send(
-            JSON.stringify({
-              type: "homelessStorageMove",
-              success: false,
-              error: "Подойди ближе к Бездомному",
-            }),
-          );
-          return;
-        }
-
-        handleHomelessMessage(ws, player, data);
-
-        // ... дальше идёт обработка "update" и "move"
       }
       if (data.type === "update" || data.type === "move") {
         const playerId = clients.get(ws);
