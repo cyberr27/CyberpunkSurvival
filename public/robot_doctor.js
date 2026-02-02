@@ -198,7 +198,7 @@ window.robotDoctorSystem = (() => {
   function updateProximity() {
     const me = players.get(myId);
 
-    if (!me || me.worldId !== 0) {
+    if (!me || window.worldSystem.currentWorldId !== 0) {
       if (state.inRange) {
         state.inRange = false;
         buttons.style.display = "none";
@@ -227,6 +227,7 @@ window.robotDoctorSystem = (() => {
   /* ================== LOOP ================== */
 
   function update(dt) {
+    if (window.worldSystem.currentWorldId !== 0) return;
     if (!sprite?.complete) return;
 
     updateProximity();
@@ -239,6 +240,7 @@ window.robotDoctorSystem = (() => {
   }
 
   function draw() {
+    if (window.worldSystem.currentWorldId !== 0) return;
     if (!sprite?.complete) return;
 
     const cam = movementSystem.getCamera();

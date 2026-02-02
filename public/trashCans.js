@@ -34,6 +34,10 @@ function initializeTrashCans(sprite) {
 }
 
 function updateTrashCans(deltaTime) {
+  if (window.worldSystem.currentWorldId !== 0) {
+    closeTrashDialog();
+    return;
+  }
   globalTrashTime += deltaTime;
 
   const me = players.get(myId);
@@ -68,6 +72,10 @@ function updateTrashCans(deltaTime) {
 }
 
 function openTrashDialog(index) {
+  if (window.worldSystem.currentWorldId !== 0) {
+    return;
+  }
+
   if (currentTrashIndex === index && trashDialog) return;
   closeTrashDialog();
 
@@ -134,6 +142,7 @@ function closeTrashDialog() {
 }
 
 function drawTrashCans(ctx) {
+  if (window.worldSystem.currentWorldId !== 0) return;
   if (!trashSpriteReady || !trashSprite?.complete) return;
 
   const cam = window.movementSystem.getCamera();

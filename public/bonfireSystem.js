@@ -28,6 +28,10 @@ window.bonfireSystem = (function () {
     bonfireImage = sprite;
     lightsSystem = window.lightsSystem;
 
+    if (window.worldSystem.currentWorldId !== 0) {
+      return;
+    }
+
     // Добавляем свет только один раз
     BONFIRES.forEach((b, i) => {
       const id = `bonfire_light_${i}`;
@@ -47,11 +51,13 @@ window.bonfireSystem = (function () {
   }
 
   function update(deltaTime) {
+    if (window.worldSystem.currentWorldId !== 0) return;
     if (!bonfireImage) return;
     globalTime += deltaTime;
   }
 
   function draw() {
+    if (window.worldSystem.currentWorldId !== 0) return;
     if (!bonfireImage?.complete) return;
 
     // Кэшируем часто используемые значения один раз за кадр
