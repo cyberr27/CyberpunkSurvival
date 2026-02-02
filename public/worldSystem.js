@@ -61,8 +61,8 @@ const worldSystem = {
     // Тестовые зоны из пула (быстрее чем new Object)
     this.createTransitionZone(2467, 70, 50, 1, 0);
     this.createTransitionZone(2727, 245, 50, 0, 1);
-    this.createTransitionZone(1906, 3123, 50, 2, 1);
-    this.createTransitionZone(2481, 3108, 50, 1, 2);
+    this.createTransitionZone(50, 2727, 50, 2, 1);
+    this.createTransitionZone(50, 2626, 50, 1, 2);
   },
 
   createTransitionZone(x, y, r, target, source) {

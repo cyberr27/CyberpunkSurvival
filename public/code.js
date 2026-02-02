@@ -2912,6 +2912,7 @@ function draw(deltaTime) {
       canvas.height,
     );
   }
+  window.worldSystem.drawTransitionZones();
 }
 
 function checkCollisions() {
