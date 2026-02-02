@@ -2476,6 +2476,23 @@ function handleGameMessage(event) {
         }
         break;
       }
+      case "homelessStorageData":
+        if (window.homelessSystem?.handleHomelessStorageData) {
+          window.homelessSystem.handleHomelessStorageData(data);
+        }
+        break;
+
+      case "homelessRentResult":
+        if (window.homelessSystem?.handleRentResult) {
+          window.homelessSystem.handleRentResult(data);
+        }
+        break;
+
+      case "homelessStorageMove":
+        if (window.homelessSystem?.handleHomelessStorageMove) {
+          window.homelessSystem.handleHomelessStorageMove(data);
+        }
+        break;
     }
   } catch (error) {
     console.error("Ошибка в handleGameMessage:", error);
