@@ -5,21 +5,21 @@ const { MongoClient } = require("mongodb");
 async function connectToDatabase(uri) {
   if (!uri || typeof uri !== "string" || !uri.trim()) {
     console.error(
-      "Ошибка: Переменная окружения MONGO_URI не определена или пуста!"
+      "Ошибка: Переменная окружения MONGO_URI не определена или пуста!",
     );
     process.exit(1);
   }
 
   if (!uri.startsWith("mongodb://") && !uri.startsWith("mongodb+srv://")) {
     console.error(
-      "Ошибка: Некорректная схема в MONGO_URI. Ожидается 'mongodb://' или 'mongodb+srv://'"
+      "Ошибка: Некорректная схема в MONGO_URI. Ожидается 'mongodb://' или 'mongodb+srv://'",
     );
     process.exit(1);
   }
 
   console.log(
     "Используемая строка подключения MongoDB:",
-    uri.replace(/:([^:@]+)@/, ":<password>@")
+    uri.replace(/:([^:@]+)@/, ":<password>@"),
   );
   const mongoClient = new MongoClient(uri);
 
@@ -39,22 +39,34 @@ async function loadUserDatabase(collection, userDatabase) {
     users.forEach((user) => {
       const userData = {
         ...user,
-        maxStats: {
-          health: user.maxStats?.health || 100,
-          energy: user.maxStats?.energy || 100,
-          food: user.maxStats?.food || 100,
-          water: user.maxStats?.water || 100,
-          armor: user.maxStats?.armor || 0,
+        maxStats: user.maxStats || {
+          health: 100 + (user.healthUpgrade || 0),
+          energy: 100 + (user.energyUpgrade || 0),
+          food: 100 + (user.foodUpgrade || 0),
+          water: 100 + (user.waterUpgrade || 0),
+          armor: 0,
         },
-        healthUpgrade: user.healthUpgrade || 0,
-        energyUpgrade: user.energyUpgrade || 0,
-        foodUpgrade: user.foodUpgrade || 0,
-        waterUpgrade: user.waterUpgrade || 0,
-        health: Math.min(user.health || 100, user.maxStats?.health || 100),
-        energy: Math.min(user.energy || 100, user.maxStats?.energy || 100),
-        food: Math.min(user.food || 100, user.maxStats?.food || 100),
-        water: Math.min(user.water || 100, user.maxStats?.water || 100),
-        armor: Math.min(user.armor || 0, user.maxStats?.armor || 0),
+        // Ограничиваем текущие статы сразу при загрузке
+        health: Math.max(
+          0,
+          Math.min(user.health || 100, user.maxStats?.health || 100),
+        ),
+        energy: Math.max(
+          0,
+          Math.min(user.energy || 100, user.maxStats?.energy || 100),
+        ),
+        food: Math.max(
+          0,
+          Math.min(user.food || 100, user.maxStats?.food || 100),
+        ),
+        water: Math.max(
+          0,
+          Math.min(user.water || 100, user.maxStats?.water || 100),
+        ),
+        armor: Math.max(
+          0,
+          Math.min(user.armor || 0, user.maxStats?.armor || 0),
+        ),
       };
       userDatabase.set(user.id, userData);
     });
@@ -86,7 +98,7 @@ async function saveUserDatabase(collection, username, player) {
     await collection.updateOne(
       { id: username },
       { $set: playerData },
-      { upsert: true }
+      { upsert: true },
     );
   } catch (error) {}
 }

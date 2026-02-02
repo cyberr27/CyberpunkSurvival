@@ -406,55 +406,62 @@ function setupWebSocket(
   }
 
   function calculateMaxStats(player, ITEM_CONFIG) {
-    const baseStats = {
+    // Базовые значения + улучшения от перков
+    const base = {
       health: 100 + (player.healthUpgrade || 0),
       energy: 100 + (player.energyUpgrade || 0),
       food: 100 + (player.foodUpgrade || 0),
       water: 100 + (player.waterUpgrade || 0),
       armor: 0,
     };
-    // Проверка полной коллекции
-    const equippedItems = Object.values(player.equipment || {}).filter(Boolean); // Только надетые
-    const collectionSlots = [
-      "head",
-      "chest",
-      "belt",
-      "pants",
-      "boots",
-      "gloves",
-    ];
 
-    // Проверяем, все ли 6 слотов заполнены и принадлежат одной коллекции
-    const collectionsInSlots = collectionSlots
-      .map((slot) => player.equipment[slot])
-      .filter((item) => item && ITEM_CONFIG[item.type]?.collection)
-      .map((item) => ITEM_CONFIG[item.type].collection);
+    // Проверяем полную коллекцию
+    const slots = ["head", "chest", "belt", "pants", "boots", "gloves"];
+    const collections = slots
+      .map((slot) => player.equipment?.[slot])
+      .filter(Boolean)
+      .map((item) => ITEM_CONFIG[item.type]?.collection)
+      .filter(Boolean);
 
-    const isFullCollection =
-      collectionSlots.every(
-        (slot) =>
-          player.equipment[slot] &&
-          ITEM_CONFIG[player.equipment[slot].type]?.collection,
-      ) && new Set(collectionsInSlots).size === 1;
+    const isFullSet =
+      collections.length === slots.length && new Set(collections).size === 1;
 
-    const multiplier = isFullCollection ? 2 : 1;
-    // Применяем эффекты с multiplier (только для maxStats, без damage)
-    equippedItems.forEach((item) => {
-      if (item && ITEM_CONFIG[item.type]) {
-        const effect = ITEM_CONFIG[item.type].effect;
-        if (effect.armor) baseStats.armor += effect.armor * multiplier;
-        if (effect.health) baseStats.health += effect.health * multiplier;
-        if (effect.energy) baseStats.energy += effect.energy * multiplier;
-        if (effect.food) baseStats.food += effect.food * multiplier;
-        if (effect.water) baseStats.water += effect.water * multiplier;
-      }
+    const multiplier = isFullSet ? 2 : 1;
+
+    // Применяем бонусы экипировки
+    Object.values(player.equipment || {}).forEach((item) => {
+      if (!item) return;
+      const eff = ITEM_CONFIG[item.type]?.effect;
+      if (!eff) return;
+
+      if (eff.health) base.health += eff.health * multiplier;
+      if (eff.energy) base.energy += eff.energy * multiplier;
+      if (eff.food) base.food += eff.food * multiplier;
+      if (eff.water) base.water += eff.water * multiplier;
+      if (eff.armor) base.armor += eff.armor * multiplier;
     });
-    player.maxStats = { ...baseStats };
-    player.health = Math.min(player.health, player.maxStats.health);
-    player.energy = Math.min(player.energy, player.maxStats.energy);
-    player.food = Math.min(player.food, player.maxStats.food);
-    player.water = Math.min(player.water, player.maxStats.water);
-    player.armor = Math.min(player.armor, player.maxStats.armor);
+
+    // Записываем итоговые максимумы
+    player.maxStats = { ...base };
+
+    // Жёстко ограничиваем текущие значения (самая важная защита!)
+    player.health = Math.max(
+      0,
+      Math.min(player.health ?? 0, player.maxStats.health),
+    );
+    player.energy = Math.max(
+      0,
+      Math.min(player.energy ?? 0, player.maxStats.energy),
+    );
+    player.food = Math.max(0, Math.min(player.food ?? 0, player.maxStats.food));
+    player.water = Math.max(
+      0,
+      Math.min(player.water ?? 0, player.maxStats.water),
+    );
+    player.armor = Math.max(
+      0,
+      Math.min(player.armor ?? 0, player.maxStats.armor),
+    );
   }
 
   const EQUIPMENT_TYPES = {
@@ -769,6 +776,39 @@ function setupWebSocket(
             // Добавляем поле (даже если null — серверу не отправляем, но на клиенте важно)
             chatBubble: player.chatBubble || null,
           };
+
+          playerData.maxStats = playerData.maxStats || {
+            health: 100 + (playerData.healthUpgrade || 0),
+            energy: 100 + (playerData.energyUpgrade || 0),
+            food: 100 + (playerData.foodUpgrade || 0),
+            water: 100 + (playerData.waterUpgrade || 0),
+            armor: 0,
+          };
+
+          // Ограничиваем текущие значения (защита от старых сохранений или читов)
+          playerData.health = Math.max(
+            0,
+            Math.min(playerData.health || 100, playerData.maxStats.health),
+          );
+          playerData.energy = Math.max(
+            0,
+            Math.min(playerData.energy || 100, playerData.maxStats.energy),
+          );
+          playerData.food = Math.max(
+            0,
+            Math.min(playerData.food || 100, playerData.maxStats.food),
+          );
+          playerData.water = Math.max(
+            0,
+            Math.min(playerData.water || 100, playerData.maxStats.water),
+          );
+          playerData.armor = Math.max(
+            0,
+            Math.min(playerData.armor || 0, playerData.maxStats.armor),
+          );
+
+          // Очень рекомендуется — пересчитать характеристики на всякий случай
+          calculateMaxStats(playerData, ITEM_CONFIG);
 
           players.set(data.username, playerData);
           ws.send(
@@ -1339,6 +1379,27 @@ function setupWebSocket(
           } else {
             player.inventory[slotIndex] = null;
           }
+
+          player.health = Math.max(
+            0,
+            Math.min(player.health, player.maxStats?.health || 100),
+          );
+          player.energy = Math.max(
+            0,
+            Math.min(player.energy, player.maxStats?.energy || 100),
+          );
+          player.food = Math.max(
+            0,
+            Math.min(player.food, player.maxStats?.food || 100),
+          );
+          player.water = Math.max(
+            0,
+            Math.min(player.water, player.maxStats?.water || 100),
+          );
+          player.armor = Math.max(
+            0,
+            Math.min(player.armor, player.maxStats?.armor || 0),
+          );
 
           // Сохраняем изменения
           players.set(id, { ...player });
