@@ -155,14 +155,14 @@ function handleHomelessStorageAction(
 
     const qty = Math.max(1, Math.min(Number(quantity), item.quantity || 1));
 
-    // САМОЕ ВАЖНОЕ: сначала ВСЕГДА ищем существующий стек (даже если склад полный)
+    // ПРИОРИТЕТ №1: ВСЕГДА сначала ищем существующий стек этого типа (даже если склад полный)
     const existingStackIndex = player.storageItems.findIndex(
       (slot) =>
         slot && slot.type === item.type && ITEM_CONFIG[item.type]?.stackable,
     );
 
     if (existingStackIndex !== -1) {
-      // Нашли стек → добавляем к нему (это приоритет №1)
+      // Нашли стек → добавляем к нему (это главное правило, даже если 20/20)
       const target = player.storageItems[existingStackIndex];
       target.quantity = (target.quantity || 1) + qty;
 
@@ -214,7 +214,7 @@ function handleHomelessStorageAction(
       }
     }
 
-    // Сохраняем и обновляем клиента
+    // Сохраняем изменения и отправляем обновление клиенту
     saveUserDatabase(dbCollection, playerId, player);
 
     const client = [...clients.entries()].find(
