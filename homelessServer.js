@@ -1,6 +1,7 @@
 // homelessServer.js
 
 const { saveUserDatabase } = require("./database");
+const { ITEM_CONFIG } = require("./items.js");
 
 const HOMELESS_STORAGE_COST_PER_DAY = 2;
 const HOMELESS_STORAGE_SLOTS = 20;
