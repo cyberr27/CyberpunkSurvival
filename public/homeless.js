@@ -1,4 +1,4 @@
-// homeless.js — полностью переписан под новую логику склада
+// homeless.js — полностью переписан под новую логику склада + исправлена логика кнопки "Забрать"
 
 const HOMELESS = {
   x: 912,
@@ -17,7 +17,11 @@ let buttonsContainerHomeless = null;
 let dialogElementHomeless = null;
 let storageDialogHomeless = null;
 
-// ─── Анимация (оставляем как было) ────────────────────────────────────────────────
+let currentStorageItems = [];
+let selectedPlayerSlotHomeless = null;
+let selectedStorageSlotHomeless = null;
+
+// ─── Анимация ────────────────────────────────────────────────
 const FRAME_COUNT = 13;
 const FRAME_W = 70;
 const FRAME_H = 70;
@@ -96,9 +100,8 @@ function drawHomeless() {
     screenX > canvas.width + 100 ||
     screenY < -100 ||
     screenY > canvas.height + 100
-  ) {
+  )
     return;
-  }
 
   let drawFrame = frameHomeless;
   let drawRow = currentRow * FRAME_H;
@@ -169,6 +172,8 @@ function closeHomelessDialog() {
     "npc-dialog-active",
     "homeless-storage-active",
   );
+  selectedPlayerSlotHomeless = null;
+  selectedStorageSlotHomeless = null;
 }
 
 function openHomelessDialog(section) {
@@ -178,14 +183,12 @@ function openHomelessDialog(section) {
   document.body.classList.add("npc-dialog-active");
 
   if (section === "storage") {
-    // Запрашиваем статус у сервера
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ type: "homelessOpenStorage" }));
     }
     return;
   }
 
-  // Обычные заглушки для talk и quests
   dialogElementHomeless = document.createElement("div");
   dialogElementHomeless.className = "homeless-main-dialog open";
 
@@ -214,6 +217,7 @@ function handleHomelessServerMessage(data) {
     if (!data.rented) {
       showHomelessRentDialog();
     } else {
+      currentStorageItems = data.storageItems || Array(20).fill(null);
       showHomelessStorageInterface(data.storageItems);
     }
   } else if (data.type === "homelessRentSuccess") {
@@ -221,13 +225,17 @@ function handleHomelessServerMessage(data) {
       `Склад арендован до ${new Date(data.rentUntil).toLocaleString()}`,
       "#00ff88",
     );
+    currentStorageItems = data.storageItems || Array(20).fill(null);
     showHomelessStorageInterface(data.storageItems);
   } else if (data.type === "homelessStorageUpdate") {
+    currentStorageItems = data.storageItems || Array(20).fill(null);
     if (storageDialogHomeless) {
       updateHomelessStorageUI(data.inventory, data.storageItems);
     }
   } else if (data.type === "homelessError") {
     showNotification(data.message, "#ff4444");
+  } else if (data.type === "homelessInventoryFull") {
+    showNotification("Инвентарь заполнен! Освободи место.", "#ff4444");
   }
 }
 
@@ -268,12 +276,7 @@ function showHomelessRentDialog() {
       const days = parseInt(document.getElementById("homelessRentDays").value);
       if (days >= 1) {
         if (ws && ws.readyState === WebSocket.OPEN) {
-          ws.send(
-            JSON.stringify({
-              type: "homelessRentConfirm",
-              days,
-            }),
-          );
+          ws.send(JSON.stringify({ type: "homelessRentConfirm", days }));
         }
       } else {
         showNotification("Введите корректное количество дней", "#ff4444");
@@ -284,6 +287,7 @@ function showHomelessRentDialog() {
 // ─── Интерфейс хранилища ────────────────────────────────────────────────
 
 function showHomelessStorageInterface(storageItems) {
+  currentStorageItems = storageItems || Array(20).fill(null);
   closeHomelessDialog();
 
   isStorageOpenHomeless = true;
@@ -319,9 +323,8 @@ function showHomelessStorageInterface(storageItems) {
     .querySelector(".homeless-close-btn")
     .addEventListener("click", closeHomelessDialog);
 
-  updateHomelessStorageUI(window.inventory, storageItems);
+  updateHomelessStorageUI(window.inventory, currentStorageItems);
 
-  // Обработчики кнопок
   document
     .getElementById("homelessPutBtn")
     .addEventListener("click", putSelectedItem);
@@ -329,9 +332,6 @@ function showHomelessStorageInterface(storageItems) {
     .getElementById("homelessTakeBtn")
     .addEventListener("click", takeSelectedItem);
 }
-
-let selectedPlayerSlotHomeless = null;
-let selectedStorageSlotHomeless = null;
 
 function updateHomelessStorageUI(playerInv, storageInv) {
   const playerGrid = document.getElementById("homelessPlayerGrid");
@@ -342,7 +342,6 @@ function updateHomelessStorageUI(playerInv, storageInv) {
   playerGrid.innerHTML = "";
   storageGrid.innerHTML = "";
 
-  // Игрок
   playerInv.forEach((item, i) => {
     const slot = document.createElement("div");
     slot.className = "homeless-slot";
@@ -370,7 +369,6 @@ function updateHomelessStorageUI(playerInv, storageInv) {
     playerGrid.appendChild(slot);
   });
 
-  // Хранилище
   storageInv.forEach((item, i) => {
     const slot = document.createElement("div");
     slot.className = "homeless-slot";
@@ -406,27 +404,26 @@ function updateHomelessSelection() {
     .querySelectorAll(".homeless-slot")
     .forEach((el) => el.classList.remove("selected"));
 
+  const putBtn = document.getElementById("homelessPutBtn");
+  const takeBtn = document.getElementById("homelessTakeBtn");
+
+  if (putBtn) putBtn.disabled = true;
+  if (takeBtn) takeBtn.disabled = true;
+
   if (selectedPlayerSlotHomeless !== null) {
     const el = document.querySelector(
       `#homelessPlayerGrid .homeless-slot[data-index="${selectedPlayerSlotHomeless}"]`,
     );
     if (el) el.classList.add("selected");
-    document.getElementById("homelessPutBtn").disabled =
-      !window.inventory[selectedPlayerSlotHomeless];
-    document.getElementById("homelessTakeBtn").disabled = true;
+    if (putBtn) putBtn.disabled = !window.inventory[selectedPlayerSlotHomeless];
   } else if (selectedStorageSlotHomeless !== null) {
     const el = document.querySelector(
       `#homelessStorageGrid .homeless-slot[data-index="${selectedStorageSlotHomeless}"]`,
     );
     if (el) el.classList.add("selected");
-    document.getElementById("homelessTakeBtn").disabled =
-      !storageDialogHomeless.dataset.storageItems?.[
-        selectedStorageSlotHomeless
-      ];
-    document.getElementById("homelessPutBtn").disabled = true;
-  } else {
-    document.getElementById("homelessPutBtn").disabled = true;
-    document.getElementById("homelessTakeBtn").disabled = true;
+    if (takeBtn && currentStorageItems[selectedStorageSlotHomeless]) {
+      takeBtn.disabled = false;
+    }
   }
 }
 
@@ -459,19 +456,11 @@ function putSelectedItem() {
 function takeSelectedItem() {
   if (selectedStorageSlotHomeless === null) return;
 
-  const freePlayerSlot = window.inventory.findIndex((slot) => !slot);
-
-  if (freePlayerSlot === -1) {
-    showNotification("Инвентарь заполнен!", "#ff4444");
-    return;
-  }
-
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(
       JSON.stringify({
         type: "homelessTakeItem",
-        playerSlot: freePlayerSlot,
-        storageSlot: selectedStorageSlotHomeless,
+        storageSlot: selectedStorageSlotHomeless, // ← ТОЛЬКО storageSlot!
       }),
     );
   }

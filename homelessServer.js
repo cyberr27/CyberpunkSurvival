@@ -172,28 +172,46 @@ function handleHomelessStorageAction(
   } else if (action === "take") {
     // Забрать из хранилища в инвентарь
     if (storageSlot < 0 || storageSlot >= HOMELESS_STORAGE_SLOTS) return;
-    if (playerSlot < 0 || playerSlot >= player.inventory.length) return;
 
     const item = player.storageItems[storageSlot];
     if (!item) return;
 
-    if (player.inventory[playerSlot] !== null) {
-      sendErrorToPlayer(clients, playerId, "Эта ячейка инвентаря занята");
+    // Сервер сам ищет свободный слот в инвентаре
+    const freePlayerSlot = player.inventory.findIndex((slot) => slot === null);
+
+    if (freePlayerSlot === -1) {
+      // Нет свободного места
+      const client = [...clients.entries()].find(
+        ([ws, id]) => id === playerId,
+      )?.[0];
+      if (client && client.readyState === WebSocket.OPEN) {
+        client.send(
+          JSON.stringify({
+            type: "homelessInventoryFull",
+          }),
+        );
+      }
       return;
     }
 
-    player.inventory[playerSlot] = { ...item };
+    // Переносим предмет
+    player.inventory[freePlayerSlot] = { ...item };
     player.storageItems[storageSlot] = null;
 
     saveUserDatabase(dbCollection, playerId, player);
 
-    client.send(
-      JSON.stringify({
-        type: "homelessStorageUpdate",
-        inventory: player.inventory,
-        storageItems: player.storageItems,
-      }),
-    );
+    const client = [...clients.entries()].find(
+      ([ws, id]) => id === playerId,
+    )?.[0];
+    if (client && client.readyState === WebSocket.OPEN) {
+      client.send(
+        JSON.stringify({
+          type: "homelessStorageUpdate",
+          inventory: player.inventory,
+          storageItems: player.storageItems,
+        }),
+      );
+    }
   }
 }
 

@@ -3457,17 +3457,13 @@ function setupWebSocket(
         const playerId = clients.get(ws);
         if (!playerId || !players.has(playerId)) return;
 
-        const { playerSlot, storageSlot } = data;
-        if (
-          typeof playerSlot !== "number" ||
-          typeof storageSlot !== "number" ||
-          playerSlot < 0 ||
-          storageSlot < 0
-        ) {
+        const { storageSlot } = data;
+
+        if (typeof storageSlot !== "number" || storageSlot < 0) {
           ws.send(
             JSON.stringify({
               type: "homelessError",
-              message: "Некорректные номера слотов",
+              message: "Некорректный номер слота хранилища",
             }),
           );
           return;
@@ -3480,7 +3476,7 @@ function setupWebSocket(
           dbCollection,
           playerId,
           "take",
-          playerSlot,
+          null, // playerSlot больше не нужен
           storageSlot,
         );
       }
