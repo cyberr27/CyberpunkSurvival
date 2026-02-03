@@ -18,6 +18,8 @@ let dialogElementHomeless = null;
 let storageDialogHomeless = null;
 
 let currentStorageItems = [];
+let currentRentUntil = null;
+let openStorageAfterRent = false;
 let selectedPlayerSlotHomeless = null;
 let selectedStorageSlotHomeless = null;
 
@@ -214,19 +216,32 @@ function openHomelessDialog(section) {
 
 function handleHomelessServerMessage(data) {
   if (data.type === "homelessStorageStatus") {
+    currentRentUntil = data.rentUntil || null;
+
     if (!data.rented) {
+      // Аренды нет → просто открываем окно аренды
       showHomelessRentDialog();
     } else {
-      currentStorageItems = data.storageItems || Array(20).fill(null);
-      showHomelessStorageInterface(data.storageItems);
+      if (openStorageAfterRent) {
+        // Нас вызвали из кнопки "Сумка" → открываем сразу интерфейс склада
+        currentStorageItems = data.storageItems || Array(20).fill(null);
+        showHomelessStorageInterface(data.storageItems);
+        openStorageAfterRent = false; // сбрасываем флаг
+      } else {
+        // Обычная проверка → показываем окно аренды с инфо о сроке
+        showHomelessRentDialog();
+      }
     }
   } else if (data.type === "homelessRentSuccess") {
+    currentRentUntil = data.rentUntil; // обновляем дату после продления
     showNotification(
       `Склад арендован до ${new Date(data.rentUntil).toLocaleString()}`,
       "#00ff88",
     );
-    currentStorageItems = data.storageItems || Array(20).fill(null);
-    showHomelessStorageInterface(data.storageItems);
+
+    // После успешной оплаты НЕ открываем сразу сумку — остаёмся в окне аренды
+    // Пользователь сам нажмёт "Сумка", если захочет
+    showHomelessRentDialog();
   } else if (data.type === "homelessStorageUpdate") {
     currentStorageItems = data.storageItems || Array(20).fill(null);
     if (storageDialogHomeless) {
@@ -234,8 +249,6 @@ function handleHomelessServerMessage(data) {
     }
   } else if (data.type === "homelessError") {
     showNotification(data.message, "#ff4444");
-  } else if (data.type === "homelessInventoryFull") {
-    showNotification("Инвентарь заполнен! Освободи место.", "#ff4444");
   }
 }
 
@@ -248,17 +261,37 @@ function showHomelessRentDialog() {
   dialogElementHomeless.className =
     "homeless-main-dialog open homeless-rent-dialog";
 
+  let rentInfoHtml = "";
+  if (currentRentUntil && currentRentUntil > Date.now()) {
+    const rentDate = new Date(currentRentUntil).toLocaleString("ru-RU", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    rentInfoHtml = `<p class="homeless-text-rent-info">Аренда оплачена до: ${rentDate}</p>`;
+  } else {
+    rentInfoHtml = `<p class="homeless-text-rent-info">Аренда не оплачена</p>`;
+  }
+
   dialogElementHomeless.innerHTML = `
     <div class="homeless-dialog-header">
       <img src="homeless_foto.png" class="homeless-photo" alt="Бездомный">
       <h2 class="homeless-title">Аренда склада</h2>
     </div>
     <div class="homeless-dialog-content">
+      ${rentInfoHtml}
       <p class="homeless-text">На сколько дней сохранить вещи?</p>
       <p class="homeless-text-cost">2 баляра за сутки</p>
       <input type="number" id="homelessRentDays" min="1" value="1" class="homeless-rent-input">
       <div class="homeless-rent-buttons">
         <button class="homeless-rent-ok">ОК</button>
+        ${
+          currentRentUntil && currentRentUntil > Date.now()
+            ? '<button class="homeless-rent-bag">Сумка</button>'
+            : ""
+        }
         <button class="homeless-close-btn">Закрыть</button>
       </div>
     </div>
@@ -266,6 +299,7 @@ function showHomelessRentDialog() {
 
   document.body.appendChild(dialogElementHomeless);
 
+  // Обработчики кнопок
   dialogElementHomeless
     .querySelector(".homeless-close-btn")
     .addEventListener("click", closeHomelessDialog);
@@ -276,12 +310,28 @@ function showHomelessRentDialog() {
       const days = parseInt(document.getElementById("homelessRentDays").value);
       if (days >= 1) {
         if (ws && ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ type: "homelessRentConfirm", days }));
+          ws.send(
+            JSON.stringify({
+              type: "homelessRentConfirm",
+              days,
+            }),
+          );
         }
       } else {
         showNotification("Введите корректное количество дней", "#ff4444");
       }
     });
+
+  // Если аренда оплачена — добавляем обработчик на кнопку "Сумка"
+  const bagBtn = dialogElementHomeless.querySelector(".homeless-rent-bag");
+  if (bagBtn) {
+    bagBtn.addEventListener("click", () => {
+      openStorageAfterRent = true;
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "homelessOpenStorage" }));
+      }
+    });
+  }
 }
 
 // ─── Интерфейс хранилища ────────────────────────────────────────────────
