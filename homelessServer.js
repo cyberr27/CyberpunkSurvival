@@ -154,25 +154,36 @@ function handleHomelessStorageAction(
 
     const qty = Math.max(1, Math.min(Number(quantity), item.quantity || 1));
 
-    if (player.storageItems[storageSlot] !== null) {
-      const target = player.storageItems[storageSlot];
-      if (target.type === item.type && ITEM_CONFIG[item.type]?.stackable) {
-        target.quantity = (target.quantity || 1) + qty;
-        if (qty >= (item.quantity || 1)) {
-          player.inventory[playerSlot] = null;
-        } else {
-          item.quantity -= qty;
-        }
+    // 1. Ищем существующий стек этого типа на складе
+    const existingStackIndex = player.storageItems.findIndex(
+      (slot) =>
+        slot && slot.type === item.type && ITEM_CONFIG[item.type]?.stackable,
+    );
+
+    if (existingStackIndex !== -1) {
+      // Нашли стек — прибавляем к нему
+      const target = player.storageItems[existingStackIndex];
+      target.quantity = (target.quantity || 1) + qty;
+
+      // Уменьшаем или удаляем из инвентаря игрока
+      if (qty >= (item.quantity || 1)) {
+        player.inventory[playerSlot] = null;
       } else {
+        item.quantity -= qty;
+      }
+    } else {
+      // Стек не найден — кладём в указанный слот (если свободен) или ищем свободный
+      if (player.storageItems[storageSlot] !== null) {
         sendErrorToPlayer(
           clients,
           playerId,
-          "Эта ячейка хранилища занята другим предметом",
+          "Указанная ячейка хранилища занята",
         );
         return;
       }
-    } else {
+
       player.storageItems[storageSlot] = { ...item, quantity: qty };
+
       if (qty >= (item.quantity || 1)) {
         player.inventory[playerSlot] = null;
       } else {
@@ -202,34 +213,36 @@ function handleHomelessStorageAction(
 
     const qty = Math.max(1, Math.min(Number(quantity), item.quantity || 1));
 
-    const freePlayerSlot = player.inventory.findIndex((slot) => slot === null);
+    // 1. Ищем существующий стек этого типа в инвентаре игрока
+    const existingStackIndex = player.inventory.findIndex(
+      (slot) =>
+        slot && slot.type === item.type && ITEM_CONFIG[item.type]?.stackable,
+    );
 
-    if (freePlayerSlot === -1) {
-      const client = [...clients.entries()].find(
-        ([ws, id]) => id === playerId,
-      )?.[0];
-      if (client && client.readyState === WebSocket.OPEN) {
-        client.send(JSON.stringify({ type: "homelessInventoryFull" }));
-      }
-      return;
-    }
+    if (existingStackIndex !== -1) {
+      // Нашли стек — прибавляем к нему
+      const target = player.inventory[existingStackIndex];
+      target.quantity = (target.quantity || 1) + qty;
+    } else {
+      // Стек не найден — ищем свободный слот
+      const freePlayerSlot = player.inventory.findIndex(
+        (slot) => slot === null,
+      );
 
-    if (player.inventory[freePlayerSlot] !== null) {
-      const target = player.inventory[freePlayerSlot];
-      if (target.type === item.type && ITEM_CONFIG[item.type]?.stackable) {
-        target.quantity = (target.quantity || 1) + qty;
-      } else {
-        sendErrorToPlayer(
-          clients,
-          playerId,
-          "Нет свободного места в инвентаре",
-        );
+      if (freePlayerSlot === -1) {
+        const client = [...clients.entries()].find(
+          ([ws, id]) => id === playerId,
+        )?.[0];
+        if (client && client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify({ type: "homelessInventoryFull" }));
+        }
         return;
       }
-    } else {
+
       player.inventory[freePlayerSlot] = { ...item, quantity: qty };
     }
 
+    // Уменьшаем или удаляем из хранилища
     if (qty >= (item.quantity || 1)) {
       player.storageItems[storageSlot] = null;
     } else {
