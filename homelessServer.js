@@ -29,13 +29,18 @@ function handleHomelessRentRequest(
   const player = players.get(playerId);
   if (!player) return;
 
-  // Если аренда истекла — чистим склад
+  // Самое важное изменение: если аренда истекла — чистим склад полностью
   if (player.storageRentUntil && player.storageRentUntil < Date.now()) {
     player.storageItems = Array(HOMELESS_STORAGE_SLOTS).fill(null);
+    // Можно добавить уведомление в лог сервера (опционально)
+    console.log(
+      `[Homeless] Игрок ${playerId}: срок аренды истёк → склад очищен`,
+    );
   }
 
-  // Дальше как было
+  // Проверяем текущее состояние после возможной очистки
   const rented = isStorageRented(player);
+
   const client = [...clients.entries()].find(
     ([ws, id]) => id === playerId,
   )?.[0];
