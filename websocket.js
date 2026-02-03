@@ -3427,18 +3427,13 @@ function setupWebSocket(
         const playerId = clients.get(ws);
         if (!playerId || !players.has(playerId)) return;
 
-        const { playerSlot, storageSlot, quantity } = data;
+        const { playerSlot, quantity } = data; // storageSlot больше НЕ нужен
 
-        if (
-          typeof playerSlot !== "number" ||
-          typeof storageSlot !== "number" ||
-          playerSlot < 0 ||
-          storageSlot < 0
-        ) {
+        if (typeof playerSlot !== "number" || playerSlot < 0) {
           ws.send(
             JSON.stringify({
               type: "homelessError",
-              message: "Некорректные номера слотов",
+              message: "Некорректный слот инвентаря",
             }),
           );
           return;
@@ -3452,8 +3447,8 @@ function setupWebSocket(
           playerId,
           "put",
           playerSlot,
-          storageSlot,
-          quantity, // ← передаём quantity четвёртым параметром действия
+          null, // ← storageSlot больше НЕ передаём (null)
+          quantity,
         );
       } else if (data.type === "homelessTakeItem") {
         const playerId = clients.get(ws);

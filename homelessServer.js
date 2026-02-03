@@ -148,21 +148,20 @@ function handleHomelessStorageAction(
 
   if (action === "put") {
     if (playerSlot < 0 || playerSlot >= player.inventory.length) return;
-    if (storageSlot < 0 || storageSlot >= HOMELESS_STORAGE_SLOTS) return;
 
     let item = player.inventory[playerSlot];
     if (!item) return;
 
     const qty = Math.max(1, Math.min(Number(quantity), item.quantity || 1));
 
-    // ПРИОРИТЕТ №1: ВСЕГДА сначала ищем существующий стек этого типа (даже если склад полный)
+    // ПРИОРИТЕТ №1 — всегда сначала ищем существующий стек (даже если склад 20/20)
     const existingStackIndex = player.storageItems.findIndex(
       (slot) =>
         slot && slot.type === item.type && ITEM_CONFIG[item.type]?.stackable,
     );
 
     if (existingStackIndex !== -1) {
-      // Нашли стек → добавляем к нему (это главное правило, даже если 20/20)
+      // Нашли стек → добавляем к нему (самый важный сценарий)
       const target = player.storageItems[existingStackIndex];
       target.quantity = (target.quantity || 1) + qty;
 
@@ -173,11 +172,11 @@ function handleHomelessStorageAction(
         item.quantity -= qty;
       }
     } else {
-      // Стек этого типа НЕ найден → теперь уже ищем свободное место
+      // Стек не найден → ищем ПЕРВЫЙ свободный слот (любой)
+      const freeSlot = player.storageItems.findIndex((slot) => slot === null);
 
-      // Сначала пытаемся положить в указанный слот (если он свободен)
-      if (player.storageItems[storageSlot] === null) {
-        player.storageItems[storageSlot] = { ...item, quantity: qty };
+      if (freeSlot !== -1) {
+        player.storageItems[freeSlot] = { ...item, quantity: qty };
 
         if (qty >= (item.quantity || 1)) {
           player.inventory[playerSlot] = null;
@@ -185,36 +184,23 @@ function handleHomelessStorageAction(
           item.quantity -= qty;
         }
       } else {
-        // Указанный слот занят → ищем любой свободный слот
-        const freeSlot = player.storageItems.findIndex((slot) => slot === null);
-
-        if (freeSlot !== -1) {
-          player.storageItems[freeSlot] = { ...item, quantity: qty };
-
-          if (qty >= (item.quantity || 1)) {
-            player.inventory[playerSlot] = null;
-          } else {
-            item.quantity -= qty;
-          }
-        } else {
-          // Нет ни стека, ни свободных слотов → только тогда ошибка
-          const client = [...clients.entries()].find(
-            ([ws, id]) => id === playerId,
-          )?.[0];
-          if (client && client.readyState === WebSocket.OPEN) {
-            client.send(
-              JSON.stringify({
-                type: "homelessError",
-                message: "Хранилище заполнено",
-              }),
-            );
-          }
-          return;
+        // Нет ни стека, ни свободных слотов → только тогда ошибка
+        const client = [...clients.entries()].find(
+          ([ws, id]) => id === playerId,
+        )?.[0];
+        if (client && client.readyState === WebSocket.OPEN) {
+          client.send(
+            JSON.stringify({
+              type: "homelessError",
+              message: "Хранилище заполнено",
+            }),
+          );
         }
+        return;
       }
     }
 
-    // Сохраняем изменения и отправляем обновление клиенту
+    // Сохраняем и отправляем обновление
     saveUserDatabase(dbCollection, playerId, player);
 
     const client = [...clients.entries()].find(
@@ -230,7 +216,7 @@ function handleHomelessStorageAction(
       );
     }
   } else if (action === "take") {
-    if (storageSlot >= HOMELESS_STORAGE_SLOTS) return;
+    if (storageSlot < 0 || storageSlot >= HOMELESS_STORAGE_SLOTS) return;
 
     let item = player.storageItems[storageSlot];
     if (!item) return;

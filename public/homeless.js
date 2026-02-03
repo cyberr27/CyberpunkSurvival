@@ -493,21 +493,13 @@ function putSelectedItem() {
     }
   }
 
-  // Ищем свободный слот в хранилище
-  const freeStorageSlot = currentStorageItems.findIndex((slot) => !slot);
-
-  if (freeStorageSlot === -1) {
-    showNotification("Хранилище заполнено!", "#ff4444");
-    return;
-  }
-
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(
       JSON.stringify({
         type: "homelessPutItem",
         playerSlot: selectedPlayerSlotHomeless,
-        storageSlot: freeStorageSlot,
         quantity: quantity,
+        // storageSlot НЕ отправляем больше!
       }),
     );
   }
