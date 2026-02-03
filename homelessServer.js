@@ -230,7 +230,7 @@ function handleHomelessStorageAction(
       );
     }
   } else if (action === "take") {
-    if (storageSlot < 0 || storageSlot >= HOMELESS_STORAGE_SLOTS) return;
+    if (storageSlot >= HOMELESS_STORAGE_SLOTS) return;
 
     let item = player.storageItems[storageSlot];
     if (!item) return;
