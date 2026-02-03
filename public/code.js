@@ -783,7 +783,7 @@ const ITEM_CONFIG = {
     image: images.recipe_torn_equipment,
     description:
       "Рецепт порванной экипировки — материал для улучшений у Торестоса",
-    rarity: 1,
+    rarity: 6,
     stackable: true,
     recipe: "recipe_torn_equipment",
   },
@@ -792,7 +792,7 @@ const ITEM_CONFIG = {
     image: images.recipe_chameleon_equipment,
     description:
       "Рецепт хамелеон-экипировки — материал для улучшений у Торестоса",
-    rarity: 1,
+    rarity: 6,
     stackable: true,
     recipe: "recipe_chameleon_equipment",
   },
