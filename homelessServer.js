@@ -131,6 +131,7 @@ function handleHomelessStorageAction(
   action,
   playerSlot,
   storageSlot,
+  quantity = 1,
 ) {
   const player = players.get(playerId);
   if (!player || !isStorageRented(player)) return;
@@ -151,19 +152,16 @@ function handleHomelessStorageAction(
     let item = player.inventory[playerSlot];
     if (!item) return;
 
-    const quantity = data.quantity
-      ? Math.max(1, Math.min(Number(data.quantity), item.quantity || 1))
-      : 1;
+    const qty = Math.max(1, Math.min(Number(quantity), item.quantity || 1));
 
     if (player.storageItems[storageSlot] !== null) {
-      // Если слот занят — проверяем, можно ли сложить
       const target = player.storageItems[storageSlot];
       if (target.type === item.type && ITEM_CONFIG[item.type]?.stackable) {
-        target.quantity = (target.quantity || 1) + quantity;
-        if (quantity >= (item.quantity || 1)) {
+        target.quantity = (target.quantity || 1) + qty;
+        if (qty >= (item.quantity || 1)) {
           player.inventory[playerSlot] = null;
         } else {
-          item.quantity -= quantity;
+          item.quantity -= qty;
         }
       } else {
         sendErrorToPlayer(
@@ -174,12 +172,11 @@ function handleHomelessStorageAction(
         return;
       }
     } else {
-      // Свободный слот — кладём копию с нужным количеством
-      player.storageItems[storageSlot] = { ...item, quantity };
-      if (quantity >= (item.quantity || 1)) {
+      player.storageItems[storageSlot] = { ...item, quantity: qty };
+      if (qty >= (item.quantity || 1)) {
         player.inventory[playerSlot] = null;
       } else {
-        item.quantity -= quantity;
+        item.quantity -= qty;
       }
     }
 
@@ -203,9 +200,7 @@ function handleHomelessStorageAction(
     let item = player.storageItems[storageSlot];
     if (!item) return;
 
-    const quantity = data.quantity
-      ? Math.max(1, Math.min(Number(data.quantity), item.quantity || 1))
-      : 1;
+    const qty = Math.max(1, Math.min(Number(quantity), item.quantity || 1));
 
     const freePlayerSlot = player.inventory.findIndex((slot) => slot === null);
 
@@ -220,10 +215,9 @@ function handleHomelessStorageAction(
     }
 
     if (player.inventory[freePlayerSlot] !== null) {
-      // Если слот занят — проверяем, можно ли сложить
       const target = player.inventory[freePlayerSlot];
       if (target.type === item.type && ITEM_CONFIG[item.type]?.stackable) {
-        target.quantity = (target.quantity || 1) + quantity;
+        target.quantity = (target.quantity || 1) + qty;
       } else {
         sendErrorToPlayer(
           clients,
@@ -233,13 +227,13 @@ function handleHomelessStorageAction(
         return;
       }
     } else {
-      player.inventory[freePlayerSlot] = { ...item, quantity };
+      player.inventory[freePlayerSlot] = { ...item, quantity: qty };
     }
 
-    if (quantity >= (item.quantity || 1)) {
+    if (qty >= (item.quantity || 1)) {
       player.storageItems[storageSlot] = null;
     } else {
-      item.quantity -= quantity;
+      item.quantity -= qty;
     }
 
     saveUserDatabase(dbCollection, playerId, player);

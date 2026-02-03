@@ -3427,7 +3427,8 @@ function setupWebSocket(
         const playerId = clients.get(ws);
         if (!playerId || !players.has(playerId)) return;
 
-        const { playerSlot, storageSlot } = data;
+        const { playerSlot, storageSlot, quantity } = data;
+
         if (
           typeof playerSlot !== "number" ||
           typeof storageSlot !== "number" ||
@@ -3452,12 +3453,13 @@ function setupWebSocket(
           "put",
           playerSlot,
           storageSlot,
+          quantity, // ← передаём quantity четвёртым параметром действия
         );
       } else if (data.type === "homelessTakeItem") {
         const playerId = clients.get(ws);
         if (!playerId || !players.has(playerId)) return;
 
-        const { storageSlot } = data;
+        const { storageSlot, quantity } = data;
 
         if (typeof storageSlot !== "number" || storageSlot < 0) {
           ws.send(
@@ -3476,8 +3478,9 @@ function setupWebSocket(
           dbCollection,
           playerId,
           "take",
-          null, // playerSlot больше не нужен
+          null,
           storageSlot,
+          quantity, // ← передаём quantity четвёртым параметром действия
         );
       }
       if (data.type === "update" || data.type === "move") {
