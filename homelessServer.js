@@ -155,14 +155,14 @@ function handleHomelessStorageAction(
 
     const qty = Math.max(1, Math.min(Number(quantity), item.quantity || 1));
 
-    // 1. ВСЕГДА сначала ищем существующий стек этого типа (даже если склад полный)
+    // САМОЕ ВАЖНОЕ: сначала ВСЕГДА ищем существующий стек (даже если склад полный)
     const existingStackIndex = player.storageItems.findIndex(
       (slot) =>
         slot && slot.type === item.type && ITEM_CONFIG[item.type]?.stackable,
     );
 
     if (existingStackIndex !== -1) {
-      // Нашли стек → добавляем к нему (это главный приоритет)
+      // Нашли стек → добавляем к нему (это приоритет №1)
       const target = player.storageItems[existingStackIndex];
       target.quantity = (target.quantity || 1) + qty;
 
@@ -173,8 +173,9 @@ function handleHomelessStorageAction(
         item.quantity -= qty;
       }
     } else {
-      // Стек этого типа не найден → теперь уже ищем свободное место
-      // Пытаемся положить в указанный слот (если свободен)
+      // Стек этого типа НЕ найден → теперь уже ищем свободное место
+
+      // Сначала пытаемся положить в указанный слот (если он свободен)
       if (player.storageItems[storageSlot] === null) {
         player.storageItems[storageSlot] = { ...item, quantity: qty };
 
@@ -196,7 +197,7 @@ function handleHomelessStorageAction(
             item.quantity -= qty;
           }
         } else {
-          // Нет ни стека, ни свободных слотов → ошибка
+          // Нет ни стека, ни свободных слотов → только тогда ошибка
           const client = [...clients.entries()].find(
             ([ws, id]) => id === playerId,
           )?.[0];
@@ -213,7 +214,7 @@ function handleHomelessStorageAction(
       }
     }
 
-    // Сохраняем изменения и отправляем обновление клиенту
+    // Сохраняем и обновляем клиента
     saveUserDatabase(dbCollection, playerId, player);
 
     const client = [...clients.entries()].find(
