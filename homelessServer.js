@@ -155,14 +155,14 @@ function handleHomelessStorageAction(
 
     const qty = Math.max(1, Math.min(Number(quantity), item.quantity || 1));
 
-    // 1. Ищем существующий стек этого типа на складе
+    // 1. Ищем существующий стек этого типа на складе (любой слот)
     const existingStackIndex = player.storageItems.findIndex(
       (slot) =>
         slot && slot.type === item.type && ITEM_CONFIG[item.type]?.stackable,
     );
 
     if (existingStackIndex !== -1) {
-      // Нашли стек — прибавляем к нему
+      // Нашли стек → добавляем к нему (игнорируем storageSlot)
       const target = player.storageItems[existingStackIndex];
       target.quantity = (target.quantity || 1) + qty;
 
@@ -173,22 +173,42 @@ function handleHomelessStorageAction(
         item.quantity -= qty;
       }
     } else {
-      // Стек не найден — кладём в указанный слот (если свободен) или ищем свободный
-      if (player.storageItems[storageSlot] !== null) {
-        sendErrorToPlayer(
-          clients,
-          playerId,
-          "Указанная ячейка хранилища занята",
-        );
-        return;
-      }
+      // Стек не найден → кладём в указанный слот, если он свободен
+      if (player.storageItems[storageSlot] === null) {
+        player.storageItems[storageSlot] = { ...item, quantity: qty };
 
-      player.storageItems[storageSlot] = { ...item, quantity: qty };
-
-      if (qty >= (item.quantity || 1)) {
-        player.inventory[playerSlot] = null;
+        if (qty >= (item.quantity || 1)) {
+          player.inventory[playerSlot] = null;
+        } else {
+          item.quantity -= qty;
+        }
       } else {
-        item.quantity -= qty;
+        // Указанный слот занят → ищем любой свободный
+        const freeSlot = player.storageItems.findIndex((slot) => slot === null);
+
+        if (freeSlot !== -1) {
+          player.storageItems[freeSlot] = { ...item, quantity: qty };
+
+          if (qty >= (item.quantity || 1)) {
+            player.inventory[playerSlot] = null;
+          } else {
+            item.quantity -= qty;
+          }
+        } else {
+          // Нет свободных слотов вообще
+          const client = [...clients.entries()].find(
+            ([ws, id]) => id === playerId,
+          )?.[0];
+          if (client && client.readyState === WebSocket.OPEN) {
+            client.send(
+              JSON.stringify({
+                type: "homelessError",
+                message: "Хранилище заполнено",
+              }),
+            );
+          }
+          return;
+        }
       }
     }
 
@@ -214,18 +234,17 @@ function handleHomelessStorageAction(
 
     const qty = Math.max(1, Math.min(Number(quantity), item.quantity || 1));
 
-    // 1. Ищем существующий стек этого типа в инвентаре игрока
+    // Ищем существующий стек в инвентаре
     const existingStackIndex = player.inventory.findIndex(
       (slot) =>
         slot && slot.type === item.type && ITEM_CONFIG[item.type]?.stackable,
     );
 
     if (existingStackIndex !== -1) {
-      // Нашли стек — прибавляем к нему
       const target = player.inventory[existingStackIndex];
       target.quantity = (target.quantity || 1) + qty;
     } else {
-      // Стек не найден — ищем свободный слот
+      // Нет стека → ищем свободный слот
       const freePlayerSlot = player.inventory.findIndex(
         (slot) => slot === null,
       );
