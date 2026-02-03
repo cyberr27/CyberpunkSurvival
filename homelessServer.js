@@ -29,24 +29,27 @@ function handleHomelessRentRequest(
   const player = players.get(playerId);
   if (!player) return;
 
-  const rented = isStorageRented(player);
+  // Если аренда истекла — чистим склад
+  if (player.storageRentUntil && player.storageRentUntil < Date.now()) {
+    player.storageItems = Array(HOMELESS_STORAGE_SLOTS).fill(null);
+  }
 
-  // Отправляем клиенту текущее состояние
+  // Дальше как было
+  const rented = isStorageRented(player);
   const client = [...clients.entries()].find(
     ([ws, id]) => id === playerId,
   )?.[0];
-  if (!client || client.readyState !== WebSocket.OPEN) return;
-
-  client.send(
-    JSON.stringify({
-      type: "homelessStorageStatus",
-      rented,
-      rentUntil: player.storageRentUntil || null,
-      remainingDays: getRemainingDays(player),
-      storageItems:
-        player.storageItems || Array(HOMELESS_STORAGE_SLOTS).fill(null),
-    }),
-  );
+  if (client && client.readyState === WebSocket.OPEN) {
+    client.send(
+      JSON.stringify({
+        type: "homelessStorageStatus",
+        rented,
+        rentUntil: player.storageRentUntil || null,
+        storageItems:
+          player.storageItems || Array(HOMELESS_STORAGE_SLOTS).fill(null),
+      }),
+    );
+  }
 }
 
 function handleHomelessRentConfirm(
