@@ -145,58 +145,102 @@ function handleHomelessStorageAction(
   if (!client || client.readyState !== WebSocket.OPEN) return;
 
   if (action === "put") {
-    // Положить из инвентаря игрока в хранилище
     if (playerSlot < 0 || playerSlot >= player.inventory.length) return;
     if (storageSlot < 0 || storageSlot >= HOMELESS_STORAGE_SLOTS) return;
 
-    const item = player.inventory[playerSlot];
+    let item = player.inventory[playerSlot];
     if (!item) return;
 
-    if (player.storageItems[storageSlot] !== null) {
-      sendErrorToPlayer(clients, playerId, "Эта ячейка хранилища занята");
-      return;
-    }
+    const quantity = data.quantity
+      ? Math.max(1, Math.min(Number(data.quantity), item.quantity || 1))
+      : 1;
 
-    player.storageItems[storageSlot] = { ...item };
-    player.inventory[playerSlot] = null;
+    if (player.storageItems[storageSlot] !== null) {
+      // Если слот занят — проверяем, можно ли сложить
+      const target = player.storageItems[storageSlot];
+      if (target.type === item.type && ITEM_CONFIG[item.type]?.stackable) {
+        target.quantity = (target.quantity || 1) + quantity;
+        if (quantity >= (item.quantity || 1)) {
+          player.inventory[playerSlot] = null;
+        } else {
+          item.quantity -= quantity;
+        }
+      } else {
+        sendErrorToPlayer(
+          clients,
+          playerId,
+          "Эта ячейка хранилища занята другим предметом",
+        );
+        return;
+      }
+    } else {
+      // Свободный слот — кладём копию с нужным количеством
+      player.storageItems[storageSlot] = { ...item, quantity };
+      if (quantity >= (item.quantity || 1)) {
+        player.inventory[playerSlot] = null;
+      } else {
+        item.quantity -= quantity;
+      }
+    }
 
     saveUserDatabase(dbCollection, playerId, player);
 
-    client.send(
-      JSON.stringify({
-        type: "homelessStorageUpdate",
-        inventory: player.inventory,
-        storageItems: player.storageItems,
-      }),
-    );
+    const client = [...clients.entries()].find(
+      ([ws, id]) => id === playerId,
+    )?.[0];
+    if (client && client.readyState === WebSocket.OPEN) {
+      client.send(
+        JSON.stringify({
+          type: "homelessStorageUpdate",
+          inventory: player.inventory,
+          storageItems: player.storageItems,
+        }),
+      );
+    }
   } else if (action === "take") {
-    // Забрать из хранилища в инвентарь
     if (storageSlot < 0 || storageSlot >= HOMELESS_STORAGE_SLOTS) return;
 
-    const item = player.storageItems[storageSlot];
+    let item = player.storageItems[storageSlot];
     if (!item) return;
 
-    // Сервер сам ищет свободный слот в инвентаре
+    const quantity = data.quantity
+      ? Math.max(1, Math.min(Number(data.quantity), item.quantity || 1))
+      : 1;
+
     const freePlayerSlot = player.inventory.findIndex((slot) => slot === null);
 
     if (freePlayerSlot === -1) {
-      // Нет свободного места
       const client = [...clients.entries()].find(
         ([ws, id]) => id === playerId,
       )?.[0];
       if (client && client.readyState === WebSocket.OPEN) {
-        client.send(
-          JSON.stringify({
-            type: "homelessInventoryFull",
-          }),
-        );
+        client.send(JSON.stringify({ type: "homelessInventoryFull" }));
       }
       return;
     }
 
-    // Переносим предмет
-    player.inventory[freePlayerSlot] = { ...item };
-    player.storageItems[storageSlot] = null;
+    if (player.inventory[freePlayerSlot] !== null) {
+      // Если слот занят — проверяем, можно ли сложить
+      const target = player.inventory[freePlayerSlot];
+      if (target.type === item.type && ITEM_CONFIG[item.type]?.stackable) {
+        target.quantity = (target.quantity || 1) + quantity;
+      } else {
+        sendErrorToPlayer(
+          clients,
+          playerId,
+          "Нет свободного места в инвентаре",
+        );
+        return;
+      }
+    } else {
+      player.inventory[freePlayerSlot] = { ...item, quantity };
+    }
+
+    if (quantity >= (item.quantity || 1)) {
+      player.storageItems[storageSlot] = null;
+    } else {
+      item.quantity -= quantity;
+    }
 
     saveUserDatabase(dbCollection, playerId, player);
 

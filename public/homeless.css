@@ -325,6 +325,47 @@
   }
 }
 
+/* Форма ввода количества для стекаемых предметов */
+.homeless-stack-form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin: 12px 0;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 6px;
+  width: 100%;
+  max-width: 220px;
+  align-self: center;
+}
+
+.homeless-cyber-text {
+  color: #00ffff;
+  font-size: 14px;
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.7);
+  text-transform: uppercase;
+}
+
+.homeless-cyber-input {
+  width: 80px;
+  padding: 6px 10px;
+  font-size: 16px;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.6);
+  border: 2px solid #00ffff;
+  color: #00ffff;
+  border-radius: 4px;
+  font-family: "Courier New", monospace;
+}
+
+.homeless-error-text {
+  color: #ff4444;
+  font-size: 12px;
+  text-shadow: 0 0 4px #ff0000;
+  min-height: 16px;
+}
+
 /* Адаптив */
 @media (max-width: 900px) {
   .homeless-storage-content {

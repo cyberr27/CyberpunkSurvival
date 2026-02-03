@@ -310,6 +310,11 @@ function showHomelessStorageInterface(storageItems) {
         <button id="homelessPutBtn" disabled>Положить</button>
         <button id="homelessTakeBtn" disabled>Забрать</button>
       </div>
+      <div class="homeless-stack-form" id="homelessStackForm" style="display: none;">
+        <div class="homeless-cyber-text" id="homelessStackText">Количество:</div>
+        <input type="number" id="homelessStackInput" class="homeless-cyber-input" min="1" value="1">
+        <div class="homeless-error-text" id="homelessStackError"></div>
+      </div>
       <div class="homeless-storage-inventory">
         <h3>Хранилище</h3>
         <div class="homeless-grid" id="homelessStorageGrid"></div>
@@ -406,23 +411,61 @@ function updateHomelessSelection() {
 
   const putBtn = document.getElementById("homelessPutBtn");
   const takeBtn = document.getElementById("homelessTakeBtn");
+  const stackForm = document.getElementById("homelessStackForm");
+  const stackInput = document.getElementById("homelessStackInput");
+  const stackText = document.getElementById("homelessStackText");
+  const stackError = document.getElementById("homelessStackError");
+
+  // По умолчанию скрываем форму количества
+  if (stackForm) stackForm.style.display = "none";
+  if (stackError) stackError.textContent = "";
 
   if (putBtn) putBtn.disabled = true;
   if (takeBtn) takeBtn.disabled = true;
 
+  // Выбран слот игрока (кладём на склад)
   if (selectedPlayerSlotHomeless !== null) {
     const el = document.querySelector(
       `#homelessPlayerGrid .homeless-slot[data-index="${selectedPlayerSlotHomeless}"]`,
     );
     if (el) el.classList.add("selected");
-    if (putBtn) putBtn.disabled = !window.inventory[selectedPlayerSlotHomeless];
-  } else if (selectedStorageSlotHomeless !== null) {
+
+    const item = window.inventory[selectedPlayerSlotHomeless];
+    if (putBtn) {
+      putBtn.disabled = !item;
+    }
+
+    // Если предмет стекаемый — показываем поле количества
+    if (item && ITEM_CONFIG[item.type]?.stackable && item.quantity > 1) {
+      if (stackForm && stackInput) {
+        stackForm.style.display = "flex";
+        stackText.textContent = "Сколько положить:";
+        stackInput.max = item.quantity;
+        stackInput.value = item.quantity; // по умолчанию весь стек
+      }
+    }
+  }
+
+  // Выбран слот хранилища (забираем)
+  else if (selectedStorageSlotHomeless !== null) {
     const el = document.querySelector(
       `#homelessStorageGrid .homeless-slot[data-index="${selectedStorageSlotHomeless}"]`,
     );
     if (el) el.classList.add("selected");
-    if (takeBtn && currentStorageItems[selectedStorageSlotHomeless]) {
+
+    const item = currentStorageItems[selectedStorageSlotHomeless];
+    if (takeBtn && item) {
       takeBtn.disabled = false;
+    }
+
+    // Если предмет стекаемый — показываем поле количества
+    if (item && ITEM_CONFIG[item.type]?.stackable && item.quantity > 1) {
+      if (stackForm && stackInput) {
+        stackForm.style.display = "flex";
+        stackText.textContent = "Сколько забрать:";
+        stackInput.max = item.quantity;
+        stackInput.value = item.quantity; // по умолчанию весь стек
+      }
     }
   }
 }
@@ -430,9 +473,28 @@ function updateHomelessSelection() {
 function putSelectedItem() {
   if (selectedPlayerSlotHomeless === null) return;
 
-  const freeStorageSlot = Array.from(
-    document.querySelectorAll("#homelessStorageGrid .homeless-slot"),
-  ).findIndex((slot) => !slot.hasChildNodes() || !slot.querySelector("img"));
+  const item = window.inventory[selectedPlayerSlotHomeless];
+  if (!item) return;
+
+  let quantity = 1;
+
+  // Если стекаемый и форма видна — берём количество из поля
+  const stackInput = document.getElementById("homelessStackInput");
+  if (
+    ITEM_CONFIG[item.type]?.stackable &&
+    stackInput &&
+    stackInput.parentElement.style.display !== "none"
+  ) {
+    quantity = parseInt(stackInput.value) || 1;
+    if (quantity < 1 || quantity > item.quantity) {
+      document.getElementById("homelessStackError").textContent =
+        "Неверное количество";
+      return;
+    }
+  }
+
+  // Ищем свободный слот в хранилище
+  const freeStorageSlot = currentStorageItems.findIndex((slot) => !slot);
 
   if (freeStorageSlot === -1) {
     showNotification("Хранилище заполнено!", "#ff4444");
@@ -445,6 +507,7 @@ function putSelectedItem() {
         type: "homelessPutItem",
         playerSlot: selectedPlayerSlotHomeless,
         storageSlot: freeStorageSlot,
+        quantity: quantity,
       }),
     );
   }
@@ -456,11 +519,32 @@ function putSelectedItem() {
 function takeSelectedItem() {
   if (selectedStorageSlotHomeless === null) return;
 
+  const item = currentStorageItems[selectedStorageSlotHomeless];
+  if (!item) return;
+
+  let quantity = 1;
+
+  // Если стекаемый и форма видна — берём количество из поля
+  const stackInput = document.getElementById("homelessStackInput");
+  if (
+    ITEM_CONFIG[item.type]?.stackable &&
+    stackInput &&
+    stackInput.parentElement.style.display !== "none"
+  ) {
+    quantity = parseInt(stackInput.value) || 1;
+    if (quantity < 1 || quantity > item.quantity) {
+      document.getElementById("homelessStackError").textContent =
+        "Неверное количество";
+      return;
+    }
+  }
+
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(
       JSON.stringify({
         type: "homelessTakeItem",
-        storageSlot: selectedStorageSlotHomeless, // ← ТОЛЬКО storageSlot!
+        storageSlot: selectedStorageSlotHomeless,
+        quantity: quantity,
       }),
     );
   }
