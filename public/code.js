@@ -2478,8 +2478,25 @@ function handleGameMessage(event) {
       }
       case "homelessStorageStatus":
       case "homelessRentSuccess":
-      case "homelessStorageUpdate":
       case "homelessError":
+        if (window.homelessSystem?.handleMessage) {
+          window.homelessSystem.handleMessage(data);
+        }
+        break;
+
+      case "homelessStorageUpdate":
+        // Обновляем глобальный инвентарь игрока (как у Джека, торговли, использования предметов)
+        if (data.inventory) {
+          inventory = data.inventory.map((slot) => (slot ? { ...slot } : null));
+          const me = players.get(myId);
+          if (me) {
+            me.inventory = [...inventory]; // синхронизируем с объектом игрока
+          }
+          window.inventorySystem.updateInventoryDisplay();
+          updateStatsDisplay(); // на всякий случай, если статы могли измениться
+        }
+
+        // Также обновляем интерфейс склада, если он открыт
         if (window.homelessSystem?.handleMessage) {
           window.homelessSystem.handleMessage(data);
         }
