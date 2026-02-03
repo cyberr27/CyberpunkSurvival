@@ -155,14 +155,14 @@ function handleHomelessStorageAction(
 
     const qty = Math.max(1, Math.min(Number(quantity), item.quantity || 1));
 
-    // 1. Ищем существующий стек этого типа на складе (любой слот)
+    // 1. ВСЕГДА сначала ищем существующий стек этого типа (даже если склад полный)
     const existingStackIndex = player.storageItems.findIndex(
       (slot) =>
         slot && slot.type === item.type && ITEM_CONFIG[item.type]?.stackable,
     );
 
     if (existingStackIndex !== -1) {
-      // Нашли стек → добавляем к нему (игнорируем storageSlot)
+      // Нашли стек → добавляем к нему (это главный приоритет)
       const target = player.storageItems[existingStackIndex];
       target.quantity = (target.quantity || 1) + qty;
 
@@ -173,7 +173,8 @@ function handleHomelessStorageAction(
         item.quantity -= qty;
       }
     } else {
-      // Стек не найден → кладём в указанный слот, если он свободен
+      // Стек этого типа не найден → теперь уже ищем свободное место
+      // Пытаемся положить в указанный слот (если свободен)
       if (player.storageItems[storageSlot] === null) {
         player.storageItems[storageSlot] = { ...item, quantity: qty };
 
@@ -183,7 +184,7 @@ function handleHomelessStorageAction(
           item.quantity -= qty;
         }
       } else {
-        // Указанный слот занят → ищем любой свободный
+        // Указанный слот занят → ищем любой свободный слот
         const freeSlot = player.storageItems.findIndex((slot) => slot === null);
 
         if (freeSlot !== -1) {
@@ -195,7 +196,7 @@ function handleHomelessStorageAction(
             item.quantity -= qty;
           }
         } else {
-          // Нет свободных слотов вообще
+          // Нет ни стека, ни свободных слотов → ошибка
           const client = [...clients.entries()].find(
             ([ws, id]) => id === playerId,
           )?.[0];
@@ -212,6 +213,7 @@ function handleHomelessStorageAction(
       }
     }
 
+    // Сохраняем изменения и отправляем обновление клиенту
     saveUserDatabase(dbCollection, playerId, player);
 
     const client = [...clients.entries()].find(
