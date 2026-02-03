@@ -7,6 +7,11 @@ const {
   trashCansState,
 } = require("./trashCansServer");
 const { handleTorestosUpgrade } = require("./torestosServer");
+const {
+  handleHomelessRentRequest,
+  handleHomelessRentConfirm,
+  handleHomelessStorageAction,
+} = require("./homelessServer");
 
 function broadcastToWorld(wss, clients, players, worldId, message) {
   wss.clients.forEach((client) => {
@@ -3381,6 +3386,102 @@ function setupWebSocket(
           userDatabase,
           dbCollection,
           saveUserDatabase,
+        );
+      } else if (data.type === "homelessOpenStorage") {
+        const playerId = clients.get(ws);
+        if (!playerId || !players.has(playerId)) return;
+
+        handleHomelessRentRequest(
+          wss,
+          clients,
+          players,
+          userDatabase,
+          dbCollection,
+          playerId,
+        );
+      } else if (data.type === "homelessRentConfirm") {
+        const playerId = clients.get(ws);
+        if (!playerId || !players.has(playerId)) return;
+
+        const days = Number(data.days);
+        if (isNaN(days) || days < 1) {
+          ws.send(
+            JSON.stringify({
+              type: "homelessError",
+              message: "Количество дней должно быть целым числом ≥ 1",
+            }),
+          );
+          return;
+        }
+
+        handleHomelessRentConfirm(
+          wss,
+          clients,
+          players,
+          userDatabase,
+          dbCollection,
+          playerId,
+          days,
+        );
+      } else if (data.type === "homelessPutItem") {
+        const playerId = clients.get(ws);
+        if (!playerId || !players.has(playerId)) return;
+
+        const { playerSlot, storageSlot } = data;
+        if (
+          typeof playerSlot !== "number" ||
+          typeof storageSlot !== "number" ||
+          playerSlot < 0 ||
+          storageSlot < 0
+        ) {
+          ws.send(
+            JSON.stringify({
+              type: "homelessError",
+              message: "Некорректные номера слотов",
+            }),
+          );
+          return;
+        }
+
+        handleHomelessStorageAction(
+          wss,
+          clients,
+          players,
+          dbCollection,
+          playerId,
+          "put",
+          playerSlot,
+          storageSlot,
+        );
+      } else if (data.type === "homelessTakeItem") {
+        const playerId = clients.get(ws);
+        if (!playerId || !players.has(playerId)) return;
+
+        const { playerSlot, storageSlot } = data;
+        if (
+          typeof playerSlot !== "number" ||
+          typeof storageSlot !== "number" ||
+          playerSlot < 0 ||
+          storageSlot < 0
+        ) {
+          ws.send(
+            JSON.stringify({
+              type: "homelessError",
+              message: "Некорректные номера слотов",
+            }),
+          );
+          return;
+        }
+
+        handleHomelessStorageAction(
+          wss,
+          clients,
+          players,
+          dbCollection,
+          playerId,
+          "take",
+          playerSlot,
+          storageSlot,
         );
       }
       if (data.type === "update" || data.type === "move") {

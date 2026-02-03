@@ -1,5 +1,6 @@
 /* homeless.css — полностью изолированные стили */
 
+/* Кнопки выбора действия */
 .homeless-buttons-container {
   position: fixed;
   z-index: 1000;
@@ -55,11 +56,11 @@
 .homeless-storage-btn {
   background: linear-gradient(
     135deg,
-    rgba(120, 120, 180, 0.25),
-    rgba(70, 70, 140, 0.35)
+    rgba(180, 100, 180, 0.25),
+    rgba(120, 60, 120, 0.35)
   );
-  color: #ccccff;
-  border-color: #ccccff;
+  color: #ff88ff;
+  border-color: #ff88ff;
 }
 
 .homeless-button:hover {
@@ -67,7 +68,7 @@
   transform: scale(1.07);
 }
 
-/* Диалоговое окно Homeless */
+/* Обычный диалог */
 .homeless-main-dialog {
   position: fixed;
   top: 50%;
@@ -101,88 +102,215 @@
   display: flex !important;
 }
 
-.homeless-dialog-header {
+/* Диалог аренды */
+.homeless-rent-dialog {
+  height: 320px;
+}
+
+.homeless-text-cost {
+  color: #ff8800;
+  font-size: 18px;
+  margin: 12px 0;
+}
+
+.homeless-rent-input {
+  width: 120px;
+  padding: 10px;
+  font-size: 24px;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.6);
+  border: 2px solid #ffb366;
+  color: #ffb366;
+  border-radius: 6px;
+  margin: 16px 0;
+}
+
+.homeless-rent-buttons {
   display: flex;
-  align-items: center;
+  gap: 20px;
   justify-content: center;
-  gap: 15px;
-  margin-bottom: 12px;
+}
+
+.homeless-rent-ok {
+  padding: 14px 32px;
+  font-size: 18px;
+  background: linear-gradient(135deg, #00cc00, #009900);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+/* Большой интерфейс хранилища */
+.homeless-storage-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 92vw;
+  max-width: 1100px;
+  height: 88vh;
+  max-height: 820px;
+  background: linear-gradient(
+    135deg,
+    rgba(10, 8, 6, 0.96),
+    rgba(20, 12, 8, 0.92)
+  );
+  border: 3px solid #ff88ff;
+  border-radius: 12px;
+  color: #ffccff;
+  font-family: "Courier New", monospace;
+  padding: 20px;
+  box-shadow: 0 0 40px rgba(255, 0, 255, 0.6);
+  z-index: 1003;
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.homeless-storage-dialog.open {
+  display: flex !important;
+}
+
+.homeless-storage-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
   flex-shrink: 0;
 }
 
-.homeless-photo {
-  width: 70px;
-  height: 70px;
-  border: 2px solid #ff8800;
-  border-radius: 50%;
-  object-fit: cover;
-  box-shadow: 0 0 15px rgba(255, 140, 0, 0.7);
-}
-
-.homeless-title {
-  color: #ffb366;
-  font-size: 24px;
-  text-shadow:
-    0 0 8px #ffb366,
-    0 0 15px #ff5500;
-  animation: flickerHomeless 2s infinite alternate;
+.homeless-storage-header h2 {
   margin: 0;
+  font-size: 28px;
+  text-shadow: 0 0 12px #ff88ff;
 }
 
-.homeless-dialog-content {
+.homeless-storage-content {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  overflow: hidden;
+}
+
+.homeless-player-inventory,
+.homeless-storage-inventory {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: rgba(0, 0, 0, 0.5);
+  border: 2px solid #aa66aa;
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.homeless-player-inventory h3,
+.homeless-storage-inventory h3 {
+  margin: 0 0 12px 0;
+  text-align: center;
+  color: #ff88ff;
+}
+
+.homeless-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
   flex: 1;
   overflow-y: auto;
-  padding-right: 8px;
-  font-size: 16px;
-  line-height: 1.55;
+  padding: 8px;
 }
 
-.homeless-dialog-content::-webkit-scrollbar {
-  width: 8px;
-}
-.homeless-dialog-content::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.7);
-  border-radius: 4px;
-}
-.homeless-dialog-content::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #ffb366, #ff5500);
-  border-radius: 4px;
-  box-shadow: 0 0 10px rgba(255, 140, 0, 0.7);
+.homeless-slot {
+  aspect-ratio: 1;
+  background: rgba(40, 30, 40, 0.7);
+  border: 2px solid #664466;
+  border-radius: 8px;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.15s;
 }
 
-.homeless-text {
-  margin: 12px 0;
-  text-shadow: 0 0 6px rgba(255, 140, 0, 0.8);
+.homeless-slot:hover {
+  border-color: #aa88aa;
+  box-shadow: 0 0 12px rgba(255, 100, 255, 0.5);
 }
 
+.homeless-slot.selected {
+  border-color: #ff44ff;
+  box-shadow: 0 0 20px #ff44ff;
+  transform: scale(1.06);
+}
+
+.homeless-slot img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.homeless-quantity {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  color: #00ffff;
+  font-size: 14px;
+  text-shadow: 0 0 6px #000;
+  pointer-events: none;
+}
+
+.homeless-storage-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  justify-content: center;
+  padding: 0 16px;
+}
+
+.homeless-storage-buttons button {
+  padding: 16px 32px;
+  font-size: 18px;
+  font-weight: bold;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+
+#homelessPutBtn {
+  background: linear-gradient(135deg, #0066ff, #0033aa);
+  color: white;
+}
+
+#homelessTakeBtn {
+  background: linear-gradient(135deg, #ff0066, #aa0033);
+  color: white;
+}
+
+#homelessPutBtn:disabled,
+#homelessTakeBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Общие элементы */
 .homeless-close-btn {
-  padding: 14px 28px;
-  font-size: 17px;
-  font-family: "Courier New", monospace;
+  padding: 12px 24px;
+  font-size: 16px;
   background: linear-gradient(135deg, #ffb366, #ff5500);
   border: none;
   color: #0a0503;
   border-radius: 6px;
   cursor: pointer;
-  box-shadow:
-    0 0 15px rgba(255, 140, 0, 0.8),
-    0 0 25px rgba(180, 100, 0, 0.6);
-  transition: all 0.3s;
-  text-transform: uppercase;
-  letter-spacing: 1.5px;
-  flex-shrink: 0;
-  margin-top: 12px;
-  align-self: center;
+  box-shadow: 0 0 15px rgba(255, 140, 0, 0.8);
 }
 
 .homeless-close-btn:hover {
-  box-shadow:
-    0 0 25px rgba(255, 140, 0, 1),
-    0 0 40px rgba(180, 100, 0, 0.8);
   transform: scale(1.06);
+  box-shadow: 0 0 25px rgba(255, 140, 0, 1);
 }
 
-/* Анимации (с другим именем, чтобы не конфликтовать) */
+/* Анимации */
 @keyframes neonPulseHomeless {
   0% {
     box-shadow:
@@ -196,51 +324,14 @@
   }
 }
 
-@keyframes flickerHomeless {
-  0%,
-  19%,
-  21%,
-  23%,
-  25%,
-  54%,
-  56%,
-  100% {
-    opacity: 1;
-    text-shadow:
-      0 0 8px #ffb366,
-      0 0 15px #ff5500;
-  }
-  20%,
-  24%,
-  55% {
-    opacity: 0.6;
-    text-shadow: 0 0 3px #ffb366;
-  }
-}
-
 /* Адаптив */
-@media (max-width: 768px) {
-  .homeless-main-dialog {
-    width: 92vw;
-    height: 420px;
-    padding: 15px;
+@media (max-width: 900px) {
+  .homeless-storage-content {
+    flex-direction: column;
   }
-  .homeless-title {
-    font-size: 21px;
-  }
-}
-
-@media (max-width: 480px) {
-  .homeless-main-dialog {
-    width: 95vw;
-    height: 440px;
-    padding: 12px;
-  }
-  .homeless-title {
-    font-size: 19px;
-  }
-  .homeless-close-btn {
-    padding: 12px 22px;
-    font-size: 16px;
+  .homeless-storage-buttons {
+    flex-direction: row;
+    justify-content: center;
+    padding: 16px 0;
   }
 }

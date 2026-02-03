@@ -2476,6 +2476,14 @@ function handleGameMessage(event) {
         }
         break;
       }
+      case "homelessStorageStatus":
+      case "homelessRentSuccess":
+      case "homelessStorageUpdate":
+      case "homelessError":
+        if (window.homelessSystem?.handleMessage) {
+          window.homelessSystem.handleMessage(data);
+        }
+        break;
     }
   } catch (error) {
     console.error("Ошибка в handleGameMessage:", error);
