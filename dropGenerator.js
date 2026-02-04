@@ -104,15 +104,16 @@ function generateEnemyDrop(enemyType, x, y, worldId, now = Date.now()) {
     return drops;
   }
 
-  // 10% — 1 атом + 1 баляр   (без крови!)
+  // 10% — 1 атом + 1 баляр (без крови!)
   if (roll < 0.5) {
     drops.push(createDrop("atom", 1));
     drops.push(createDrop("balyary", 1));
     return drops;
   }
 
-  // 35% — любой предмет rarity 1-3 + пакет крови
-  if (roll < 0.85) {
+  // 27% — любой предмет rarity 1-3 + пакет крови
+  // (было 35%, уменьшили чтобы уместить +7% torn и +6% White Void)
+  if (roll < 0.77) {
     const type =
       LOW_RARITY_FOOD[Math.floor(Math.random() * LOW_RARITY_FOOD.length)];
     drops.push(createDrop(type));
@@ -120,22 +121,22 @@ function generateEnemyDrop(enemyType, x, y, worldId, now = Date.now()) {
     return drops;
   }
 
-  // 8% — одна порванная вещь
-  if (roll < 0.93) {
+  // 15% — одна порванная вещь
+  if (roll < 0.92) {
     const type = TORN_ITEMS[Math.floor(Math.random() * TORN_ITEMS.length)];
     drops.push(createDrop(type));
     return drops;
   }
 
   // 3% — оружие ближнего боя
-  if (roll < 0.96) {
+  if (roll < 0.95) {
     const type =
       MELEE_WEAPONS[Math.floor(Math.random() * MELEE_WEAPONS.length)];
     drops.push(createDrop(type));
     return drops;
   }
 
-  // 2% — White Void
+  // 8% — White Void
   if (roll < 0.98) {
     const type =
       WHITE_VOID_ITEMS[Math.floor(Math.random() * WHITE_VOID_ITEMS.length)];

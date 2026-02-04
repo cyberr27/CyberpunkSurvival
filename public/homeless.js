@@ -137,7 +137,7 @@ function showHomelessButtons() {
   const btns = [
     { text: "ГОВОРИТЬ", cls: "homeless-talk-btn", action: "talk" },
     { text: "ЗАДАНИЯ", cls: "homeless-quests-btn", action: "quests" },
-    { text: "СКЛАД", cls: "homeless-storage-btn", action: "storage" },
+    { text: "СУМКА", cls: "homeless-storage-btn", action: "storage" },
   ];
 
   btns.forEach((b) => {
@@ -278,11 +278,11 @@ function showHomelessRentDialog() {
   dialogElementHomeless.innerHTML = `
     <div class="homeless-dialog-header">
       <img src="homeless_foto.png" class="homeless-photo" alt="Бездомный">
-      <h2 class="homeless-title">Аренда склада</h2>
+      <h2 class="homeless-title">Аренда сумки</h2>
     </div>
     <div class="homeless-dialog-content">
       ${rentInfoHtml}
-      <p class="homeless-text">На сколько дней сохранить вещи?</p>
+      <p class="homeless-text">Братан, могу посмотреть за твоими вещами.Если что скажи на сколько дней сохранить вещи? И бросай их ко мне в сумку...</p>
       <p class="homeless-text-cost">2 баляра за сутки</p>
       <input type="number" id="homelessRentDays" min="1" value="1" class="homeless-rent-input">
       <div class="homeless-rent-buttons">

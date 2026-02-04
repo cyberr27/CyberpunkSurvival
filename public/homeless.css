@@ -104,7 +104,7 @@
 
 /* Диалог аренды */
 .homeless-rent-dialog {
-  height: 320px;
+  height: 420px;
 }
 
 .homeless-text-cost {
@@ -397,9 +397,17 @@
 }
 
 /* Адаптив */
-@media (max-width: 900px) {
+@media (max-width: 480px) {
   .homeless-storage-content {
     flex-direction: column;
+    overflow: auto;
+  }
+  .homeless-storage-dialog {
+    width: 85vw;
+  }
+  .homeless-rent-dialog {
+    width: 85vw;
+    height: 60%;
   }
   .homeless-storage-buttons {
     flex-direction: row;
