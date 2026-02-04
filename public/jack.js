@@ -1,11 +1,11 @@
 // jack.js (торговец, брат John) — Полная рабочая версия с скупкой
-
-// Константы и переменные
 const JACK = {
   x: 1150,
   y: 437,
-  width: 70,
-  height: 70,
+  width: 80,
+  height: 80,
+  spriteWidth: 70,
+  spriteHeight: 70,
   interactionRadius: 50,
   name: "Jack",
 };
@@ -18,12 +18,13 @@ let jackSprite = null;
 // Анимация
 let jackFrame = 0;
 let jackFrameTime = 0;
-const JACK_FRAME_DURATION = 180;
-const JACK_TOTAL_FRAMES = 40;
+const JACK_FRAME_DURATION = 500;
+const JACK_FRAMES_PER_ROW = 13;
+const JACK_ANIMATION_ROW1_DURATION = 13 * JACK_FRAME_DURATION;
+const JACK_ANIMATION_ROW2_IDLE_DURATION = 8000;
 
-let jackIsAnimating = false;
-let jackAnimationCooldownTimer = 0;
-const JACK_ANIMATION_COOLDOWN = 20000;
+let jackCurrentAnimationPhase = "idle";
+let jackPhaseTimer = 0;
 
 // Кнопки над Джеком
 let jackButtonsContainer = null;
@@ -111,38 +112,75 @@ function drawJack(deltaTime) {
   const screenY = JACK.y - camera.y;
 
   // Периодическая анимация
-  if (!jackIsAnimating) {
-    jackAnimationCooldownTimer += deltaTime;
-    if (jackAnimationCooldownTimer >= JACK_ANIMATION_COOLDOWN) {
-      jackIsAnimating = true;
-      jackFrame = 0;
-      jackFrameTime = 0;
-      jackAnimationCooldownTimer = 0;
-    }
+  const me = players.get(myId);
+  const dx = me ? me.x + 35 - (JACK.x + 35) : 9999;
+  const dy = me ? me.y + 35 - (JACK.y + 35) : 9999;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+  const isPlayerNear = distance < JACK.interactionRadius;
+
+  if (isPlayerNear) {
+    // Рядом с игроком — всегда первый кадр (покой)
+    jackFrame = 0;
+    jackCurrentAnimationPhase = "idle";
+    jackPhaseTimer = 0;
   } else {
-    jackFrameTime += deltaTime;
-    if (jackFrameTime >= JACK_FRAME_DURATION) {
-      jackFrameTime -= JACK_FRAME_DURATION;
-      jackFrame = (jackFrame + 1) % JACK_TOTAL_FRAMES;
-      if (jackFrame === 0) jackIsAnimating = false;
+    // Игрок далеко → анимация
+    jackPhaseTimer += deltaTime;
+
+    if (jackCurrentAnimationPhase === "idle") {
+      jackFrame = 0;
+      // Через 8 секунд начинаем вторую строку
+      if (jackPhaseTimer >= JACK_ANIMATION_ROW2_IDLE_DURATION) {
+        jackCurrentAnimationPhase = "row2";
+        jackPhaseTimer = 0;
+        jackFrame = JACK_FRAMES_PER_ROW; // первый кадр второй строки = 13
+      }
+    } else if (jackCurrentAnimationPhase === "row2") {
+      // Проигрываем вторую строку (кадры 13..25)
+      jackFrame =
+        JACK_FRAMES_PER_ROW + Math.floor(jackPhaseTimer / JACK_FRAME_DURATION);
+
+      // 8 секунд прошло → переходим на одну прокрутку первой строки
+      if (jackPhaseTimer >= JACK_ANIMATION_ROW2_IDLE_DURATION) {
+        jackCurrentAnimationPhase = "row1";
+        jackPhaseTimer = 0;
+        jackFrame = 0;
+      }
+    } else if (jackCurrentAnimationPhase === "row1") {
+      // Проигрываем один раз первую строку (кадры 0..12)
+      jackFrame = Math.floor(jackPhaseTimer / JACK_FRAME_DURATION);
+
+      // Закончили один проход первой строки → возвращаемся к 8 секундам второй
+      if (jackPhaseTimer >= JACK_ANIMATION_ROW1_DURATION) {
+        jackCurrentAnimationPhase = "row2";
+        jackPhaseTimer = 0;
+        jackFrame = JACK_FRAMES_PER_ROW;
+      }
     }
   }
 
   if (jackSprite && jackSprite.complete) {
+    let sourceY = 0;
+    if (jackFrame >= JACK_FRAMES_PER_ROW) {
+      sourceY = 70;
+    }
+
+    let frameInRow = jackFrame % JACK_FRAMES_PER_ROW;
+
     ctx.drawImage(
       jackSprite,
-      jackFrame * 70,
-      0,
+      frameInRow * 70,
+      sourceY,
       70,
       70,
       screenX,
       screenY,
-      70,
-      70,
+      JACK.width,
+      JACK.height,
     );
   } else {
     ctx.fillStyle = "purple";
-    ctx.fillRect(screenX, screenY, 70, 70);
+    ctx.fillRect(screenX, screenY, JACK.width, JACK.height);
   }
 
   // Рисуем имя
