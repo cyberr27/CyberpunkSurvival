@@ -4,15 +4,22 @@ const NEON_NPC = {
   name: "Neon",
   spriteKey: "alexNeonSprite",
   photoKey: "alexNeonFoto",
-  x: 100,
-  y: 2555,
-  width: 70,
-  height: 70,
+  x: 20,
+  y: 2660,
+
+  // Размеры на экране (можно менять)
+  width: 80,
+  height: 80,
+
+  // Реальные размеры кадра в спрайтшите
+  spriteWidth: 70,
+  spriteHeight: 70,
+
   interactionRadius: 50,
 
-  speed: 0.02,
-  targetA: { x: 100, y: 2555 },
-  targetB: { x: 2222, y: 2174 },
+  speed: 0.04,
+  targetA: { x: 20, y: 2660 },
+  targetB: { x: 2222, y: 2150 },
   movingToB: true,
   isWaiting: true,
   waitDuration: 10000,
@@ -28,6 +35,10 @@ const NEON_NPC = {
   isDialogOpen: false,
   isMet: false,
 };
+
+const NEON_FRAMES_PER_ROW = 13;
+const NEON_FRAME_DURATION = 120;
+const NEON_ANIMATION_ROW_DURATION = NEON_FRAMES_PER_ROW * NEON_FRAME_DURATION;
 
 let neonButtonsContainer = null;
 let activeDialog = null;
@@ -411,16 +422,50 @@ function updateNeonNpc(deltaTime) {
   }
 
   // ─── Анимация ходьбы (независимо от пауз) ────────────────────
-  if (NEON_NPC.state === "walking") {
-    NEON_NPC.animationTime += deltaTime;
-    const frameDuration = 120; // мс на кадр
-    const totalFrames = 40;
-    NEON_NPC.currentFrame =
-      Math.floor(NEON_NPC.animationTime / frameDuration) % totalFrames;
+  if (NEON_NPC.isPlayerNear) {
+    NEON_NPC.currentFrame = 2 * NEON_FRAMES_PER_ROW + 0;
+    NEON_NPC.animationTime = 0;
   } else {
-    NEON_NPC.currentFrame = 0;
-    // Можно сбросить время, если хочется начинать с первого кадра при следующей ходьбе
-    // NEON_NPC.animationTime = 0;
+    // Обычная логика патрулирования
+    NEON_NPC.animationTime += deltaTime;
+
+    let rowIndex = 0;
+
+    if (NEON_NPC.isWaiting) {
+      // Стоим
+      if (NEON_NPC.movingToB) {
+        // Точка A → 4-я строка (индекс 3)
+        rowIndex = 2;
+      } else {
+        // Точка B → 3-я строка (индекс 2)
+        rowIndex = 3;
+      }
+    } else {
+      // Движемся
+      if (NEON_NPC.movingToB) {
+        // A → B → 2-я строка (индекс 1)
+        rowIndex = 1;
+      } else {
+        // B → A → 1-я строка (индекс 0)
+        rowIndex = 0;
+      }
+    }
+
+    // Кадр внутри строки (циклически)
+    const frameInRow =
+      Math.floor(NEON_NPC.animationTime / NEON_FRAME_DURATION) %
+      NEON_FRAMES_PER_ROW;
+
+    NEON_NPC.currentFrame = rowIndex * NEON_FRAMES_PER_ROW + frameInRow;
+  }
+
+  // Направление оставляем для совместимости (хотя сейчас не используется)
+  if (!NEON_NPC.isWaiting && !NEON_NPC.isPlayerNear) {
+    const target = NEON_NPC.movingToB ? NEON_NPC.targetB : NEON_NPC.targetA;
+    const tdx = target.x - NEON_NPC.x;
+    if (Math.abs(tdx) > 5) {
+      NEON_NPC.direction = tdx > 0 ? "right" : "left";
+    }
   }
 }
 
@@ -443,27 +488,37 @@ function drawNeonNpc() {
   }
 
   const sprite = images[NEON_NPC.spriteKey];
-  const spriteY =
-    { up: 0, down: 70, left: 210, right: 140 }[NEON_NPC.direction] || 70;
 
   if (sprite?.complete) {
+    // Вычисляем координаты кадра в спрайтшите
+    const row = Math.floor(NEON_NPC.currentFrame / NEON_FRAMES_PER_ROW);
+    const frameInRow = NEON_NPC.currentFrame % NEON_FRAMES_PER_ROW;
+
+    const sourceX = frameInRow * NEON_NPC.spriteWidth;
+    const sourceY = row * NEON_NPC.spriteHeight;
+
     ctx.drawImage(
       sprite,
-      NEON_NPC.currentFrame * 70,
-      spriteY,
-      70,
-      70,
+      sourceX,
+      sourceY,
+      NEON_NPC.spriteWidth,
+      NEON_NPC.spriteHeight,
       screenX,
       screenY,
-      70,
-      70,
+      NEON_NPC.width, // размер на экране
+      NEON_NPC.height,
     );
   } else {
     ctx.fillStyle = "#00ffff";
-    ctx.fillRect(screenX, screenY, 70, 70);
+    ctx.fillRect(screenX, screenY, NEON_NPC.width, NEON_NPC.height);
     ctx.fillStyle = "#000";
     ctx.font = "30px Arial";
-    ctx.fillText("NA", screenX + 10, screenY + 50);
+    ctx.textAlign = "center";
+    ctx.fillText(
+      "NA",
+      screenX + NEON_NPC.width / 2,
+      screenY + NEON_NPC.height / 2 + 10,
+    );
   }
 
   // Имя над головой

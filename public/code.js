@@ -2757,7 +2757,6 @@ function draw(deltaTime) {
     window.vacuumRobotSystem.draw();
   }
 
-  window.bonfireSystem.draw();
   window.jackSystem.drawJack(deltaTime);
   window.combatSystem.draw();
   window.enemySystem.draw();
@@ -2919,10 +2918,10 @@ function draw(deltaTime) {
   window.homelessSystem?.draw?.();
   window.jackSystem.drawJack(deltaTime);
   window.droneSystem.draw();
-  window.corporateRobotSystem.draw();
   if (window.neonNpcSystem) {
     window.neonNpcSystem.draw();
   }
+  window.corporateRobotSystem.draw();
 
   if (currentWorld.clouds.complete) {
     ctx.drawImage(
