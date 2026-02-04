@@ -15,7 +15,7 @@ window.droneSystem = (function () {
   let initialized = false;
 
   // Кэшируем размер мира 0
-  let worldSize = { w: 3500, h: 3500 };
+  let worldSize = { w: 2800, h: 2800 };
 
   const updateWorldSize = () => {
     try {

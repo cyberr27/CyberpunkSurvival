@@ -2,8 +2,10 @@
 const NPC = {
   x: 200,
   y: 2600,
-  width: 70,
-  height: 70,
+  width: 80,
+  height: 80,
+  spriteWidth: 70,
+  spriteHeight: 70,
   interactionRadius: 50,
   name: "John",
 };
@@ -166,12 +168,13 @@ let isPlayerNearNPC = false;
 // Анимация
 let npcFrame = 0;
 let npcFrameTime = 0;
-const NPC_FRAME_DURATION = 100;
-const NPC_TOTAL_FRAMES = 40;
+const NPC_FRAME_DURATION = 200; // длительность одного кадра, мс
+const FRAMES_PER_ROW = 13; // кадров в одной строке
+const ANIMATION_ROW1_DURATION = 13 * NPC_FRAME_DURATION; // ~1.3 сек
+const ANIMATION_ROW2_IDLE_DURATION = 8000; // 8 секунд
 
-let animationCooldownTimer = 0;
-let isAnimating = false;
-const ANIMATION_COOLDOWN = 10000;
+let currentAnimationPhase = "idle"; // "idle", "row2", "row1"
+let phaseTimer = 0;
 
 // КРИТИЧНО: Флаг для предотвращения повторного показа приветствия
 let hasGreetingBeenShown = false;
@@ -471,7 +474,7 @@ function createNPCButtons(screenX, screenY) {
 
   const totalButtonsHeight = 45 * 2 + 16;
   npcButtonsContainer.style.left = screenX + NPC.width / 2 + "px";
-  npcButtonsContainer.style.top = screenY - totalButtonsHeight - 25 + "px";
+  npcButtonsContainer.style.top = screenY - totalButtonsHeight - 40 + "px";
   npcButtonsContainer.style.transform = "translateX(-50%)";
 
   const talkBtn = document.createElement("div");
@@ -536,47 +539,69 @@ function drawNPC(deltaTime) {
     removeNPCButtons();
   } else if (isPlayerNearNPC && npcButtonsContainer) {
     npcButtonsContainer.style.left = screenX + NPC.width / 2 + "px";
-    npcButtonsContainer.style.top = screenY - 115 + "px";
+    npcButtonsContainer.style.top = screenY - 190 + "px";
   }
 
-  /* ---------- АНИМАЦИЯ NPC ---------- */
   if (isPlayerNear) {
+    // Рядом с игроком — всегда первый кадр (покой)
     npcFrame = 0;
-    isAnimating = false;
-    animationCooldownTimer = 0;
+    currentAnimationPhase = "idle";
+    phaseTimer = 0;
   } else {
-    if (!isAnimating) {
-      animationCooldownTimer += deltaTime;
-      if (animationCooldownTimer >= ANIMATION_COOLDOWN) {
-        isAnimating = true;
-        npcFrameTime = 0;
-        npcFrame = 0;
-        animationCooldownTimer = 0;
-      } else {
+    // Игрок далеко → анимация
+    phaseTimer += deltaTime;
+
+    if (currentAnimationPhase === "idle") {
+      npcFrame = 0;
+      // Через 8 секунд начинаем вторую строку
+      if (phaseTimer >= ANIMATION_ROW2_IDLE_DURATION) {
+        currentAnimationPhase = "row2";
+        phaseTimer = 0;
+        npcFrame = FRAMES_PER_ROW; // первый кадр второй строки = 13
+      }
+    }
+    //
+    else if (currentAnimationPhase === "row2") {
+      // Проигрываем вторую строку (кадры 13..25)
+      npcFrame = FRAMES_PER_ROW + Math.floor(phaseTimer / NPC_FRAME_DURATION);
+
+      // 8 секунд прошло → переходим на одну прокрутку первой строки
+      if (phaseTimer >= ANIMATION_ROW2_IDLE_DURATION) {
+        currentAnimationPhase = "row1";
+        phaseTimer = 0;
         npcFrame = 0;
       }
-    } else {
-      npcFrameTime += deltaTime;
-      if (npcFrameTime >= NPC_FRAME_DURATION) {
-        npcFrameTime = 0;
-        npcFrame++;
-        if (npcFrame >= NPC_TOTAL_FRAMES) {
-          npcFrame = 0;
-          isAnimating = false;
-          animationCooldownTimer = 0;
-        }
+    }
+    //
+    else if (currentAnimationPhase === "row1") {
+      // Проигрываем один раз первую строку (кадры 0..12)
+      npcFrame = Math.floor(phaseTimer / NPC_FRAME_DURATION);
+
+      // Закончили один проход первой строки → возвращаемся к 8 секундам второй
+      if (phaseTimer >= ANIMATION_ROW1_DURATION) {
+        currentAnimationPhase = "row2";
+        phaseTimer = 0;
+        npcFrame = FRAMES_PER_ROW;
       }
     }
   }
 
   /* ---------- ОТРИСОВКА СПРАЙТА ---------- */
   if (npcSprite && npcSprite.complete) {
+    // Вычисляем, из какой строки брать кадр
+    let sourceY = 0;
+    if (npcFrame >= FRAMES_PER_ROW) {
+      sourceY = NPC.spriteHeight; // берём из второй строки
+    }
+
+    let frameInRow = npcFrame % FRAMES_PER_ROW;
+
     ctx.drawImage(
       npcSprite,
-      npcFrame * NPC.width,
-      0,
-      NPC.width,
-      NPC.height,
+      frameInRow * NPC.spriteWidth,
+      sourceY,
+      NPC.spriteWidth,
+      NPC.spriteHeight,
       screenX,
       screenY,
       NPC.width,
@@ -587,13 +612,13 @@ function drawNPC(deltaTime) {
     ctx.fillRect(screenX, screenY, NPC.width, NPC.height);
   }
 
-  ctx.fillStyle = isNPCMet ? "#ff00ff" : "#ffffff";
-  ctx.font = "12px Arial";
+  ctx.fillStyle = isNPCMet ? "#ff0000" : "#ffffff";
+  ctx.font = "14px Arial";
   ctx.textAlign = "center";
   ctx.fillText(
     isNPCMet ? NPC.name : "?",
     screenX + NPC.width / 2,
-    screenY - 10,
+    screenY - 20,
   );
 }
 
