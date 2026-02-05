@@ -79,11 +79,15 @@ function handleTorestosUpgrade(
         error: "Инвентарь не является массивом",
       }),
     );
-    console.error(
-      "[Torestos] Получен не-массив в качестве inventory:",
-      data.inventory,
-    );
+    console.error("[Torestos] Получен НЕ массив в inventory:", inv);
     return;
+  }
+
+  // Дополнительно: заменяем undefined на null (чтобы унифицировать)
+  for (let i = 0; i < inv.length; i++) {
+    if (inv[i] === undefined) {
+      inv[i] = null;
+    }
   }
 
   // 1. Находим центральный предмет
@@ -192,18 +196,19 @@ function handleTorestosUpgrade(
     let recipeRemoved = false;
 
     for (let i = 0; i < inv.length; i++) {
-      // ─── УСИЛЕННАЯ ПРОВЕРКА ────────────────────────────────────────────────
-      // Пропускаем null, undefined и всё, что не объект
-      if (!inv[i] || inv[i] === null || typeof inv[i] !== "object") {
+      // Самая надёжная проверка: null, undefined, не объект — пропускаем
+      if (inv[i] == null || typeof inv[i] !== "object" || inv[i] === null) {
         continue;
       }
 
-      // Теперь уже безопасно обращаться к .type
-      if (!bloodRemoved && inv[i].type === "blood_pack") {
+      // Теперь 100% безопасно
+      const item = inv[i]; // ← для читаемости
+
+      if (!bloodRemoved && item.type === "blood_pack") {
         inv[i] = null;
         bloodRemoved = true;
       }
-      if (!recipeRemoved && inv[i].type === "recipe_torn_equipment") {
+      if (!recipeRemoved && item.type === "recipe_torn_equipment") {
         inv[i] = null;
         recipeRemoved = true;
       }
@@ -214,12 +219,14 @@ function handleTorestosUpgrade(
     let recipeRemoved = false;
 
     for (let i = 0; i < inv.length; i++) {
-      // ─── ТО ЖЕ САМОЕ УСИЛЕНИЕ ЗАЩИТЫ ───────────────────────────────────────
-      if (!inv[i] || inv[i] === null || typeof inv[i] !== "object") {
+      // Та же надёжная защита
+      if (inv[i] == null || typeof inv[i] !== "object" || inv[i] === null) {
         continue;
       }
 
-      if (!recipeRemoved && inv[i].type === "recipe_chameleon_equipment") {
+      const item = inv[i];
+
+      if (!recipeRemoved && item.type === "recipe_chameleon_equipment") {
         inv[i] = null;
         recipeRemoved = true;
         break;
