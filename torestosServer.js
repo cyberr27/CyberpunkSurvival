@@ -259,7 +259,6 @@ function handleTorestosUpgrade(
   // 7. Сохраняем изменения в базу
   player.inventory = inv;
   players.set(playerId, { ...player });
-  userDatabase.set(playerId, { ...player });
   saveUserDatabase(dbCollection, playerId, player);
 
   // 8. Отправляем результат клиенту
