@@ -194,24 +194,6 @@ function handleTrashGuess(
       }),
     );
 
-    const updatePayload = {
-      type: "update",
-      player: {
-        id: playerId,
-        inventory: player.inventory, // актуальный инвентарь
-        xp: player.xp, // актуальный опыт
-        // если есть другие изменяющиеся поля — можно добавить
-      },
-    };
-
-    broadcastToWorld(
-      wss,
-      clients,
-      players,
-      player.worldId,
-      JSON.stringify(updatePayload),
-    );
-
     // Уведомляем всех в мире (опционально)
     broadcastToWorld(
       wss,

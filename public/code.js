@@ -1790,30 +1790,9 @@ function handleGameMessage(event) {
           }
 
           if (data.player.inventory) {
-            // Глубокая копия, чтобы не было неожиданных мутаций
-            inventory = data.player.inventory.map((slot) =>
-              slot ? { ...slot } : null,
-            );
-
-            // Синхронизируем также в объекте игрока
-            me.inventory = inventory.map((slot) => (slot ? { ...slot } : null));
-
-            // Обновляем отображение инвентаря
-            window.inventorySystem?.updateInventoryDisplay();
-
-            // Если открыто меню Mister Twister — обновляем баланс на табло
-            if (window.misterTwister?.isMenuOpen) {
-              window.misterTwister.updateLocalBalanceDisplay();
-            }
+            inventory = data.player.inventory;
+            window.inventorySystem.updateInventoryDisplay();
           }
-
-          // Оборудование (оставляем как было)
-          if (data.player.equipment) {
-            window.equipmentSystem.syncEquipment(data.player.equipment);
-          }
-
-          // Обновляем статы в любом случае
-          updateStatsDisplay();
           if (data.player.equipment) {
             window.equipmentSystem.syncEquipment(data.player.equipment);
           }

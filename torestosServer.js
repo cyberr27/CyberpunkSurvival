@@ -71,17 +71,6 @@ function handleTorestosUpgrade(
 
   const inv = data.inventory;
 
-  if (!Array.isArray(inv)) {
-    ws.send(
-      JSON.stringify({
-        type: "torestosUpgradeResult",
-        success: false,
-        error: "Инвентарь не является массивом",
-      }),
-    );
-    return;
-  }
-
   // 1. Находим центральный предмет
   const centerIdx = findCentralItem(inv);
   if (centerIdx === -1) {
@@ -188,12 +177,8 @@ function handleTorestosUpgrade(
     let recipeRemoved = false;
 
     for (let i = 0; i < inv.length; i++) {
-      // Пропускаем пустые слоты
-      if (!inv[i] || typeof inv[i] !== "object") {
-        continue;
-      }
+      if (!inv[i]) continue;
 
-      // Проверяем, что у предмета есть свойство type и оно строка
       if (!bloodRemoved && inv[i].type === "blood_pack") {
         inv[i] = null;
         bloodRemoved = true;
@@ -203,17 +188,13 @@ function handleTorestosUpgrade(
         recipeRemoved = true;
       }
 
-      // Можно выйти раньше, если оба ингредиента уже найдены
       if (bloodRemoved && recipeRemoved) break;
     }
   } else if (upgradeType === "chameleon") {
     let recipeRemoved = false;
 
     for (let i = 0; i < inv.length; i++) {
-      // Пропускаем пустые слоты и не-объекты
-      if (!inv[i] || typeof inv[i] !== "object") {
-        continue;
-      }
+      if (!inv[i]) continue;
 
       if (!recipeRemoved && inv[i].type === "recipe_chameleon_equipment") {
         inv[i] = null;
@@ -252,23 +233,6 @@ function handleTorestosUpgrade(
       newInventory: inv,
       message: `Получено: ${ITEM_CONFIG[newType]?.description || newType}`,
     }),
-  );
-
-  const updatePayload = {
-    type: "update",
-    player: {
-      id: playerId,
-      inventory: player.inventory,
-      xp: player.xp,
-    },
-  };
-
-  broadcastToWorld(
-    wss,
-    clients,
-    players,
-    player.worldId,
-    JSON.stringify(updatePayload),
   );
 }
 
