@@ -49,6 +49,7 @@ function getChameleonVariant(originalType) {
 // ------------------------------------------------------------------------
 function handleTorestosUpgrade(
   ws,
+  wss,
   data,
   player,
   players,
