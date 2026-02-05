@@ -5,7 +5,12 @@ const { ITEM_CONFIG } = require("./items"); // предполагается, ч�
 // ------------------------------------------------------------------------
 
 function findCentralItem(inventory) {
-  return inventory.findIndex((item) => item && item.isUpgradeItem);
+  return inventory.findIndex(
+    (item) =>
+      item &&
+      ITEM_CONFIG[item.type] &&
+      ITEM_CONFIG[item.type].collection === "White Void",
+  );
 }
 
 function findMaterialItems(inventory) {
