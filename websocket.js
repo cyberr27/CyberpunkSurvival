@@ -3387,6 +3387,18 @@ function setupWebSocket(
           dbCollection,
           saveUserDatabase,
         );
+      } else if (data.type === "homelessOpenStorage") {
+        const playerId = clients.get(ws);
+        if (!playerId || !players.has(playerId)) return;
+
+        handleHomelessRentRequest(
+          wss,
+          clients,
+          players,
+          userDatabase,
+          dbCollection,
+          playerId,
+        );
       } else if (data.type === "homelessRentConfirm") {
         const playerId = clients.get(ws);
         if (!playerId || !players.has(playerId)) return;

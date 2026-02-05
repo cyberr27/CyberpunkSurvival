@@ -78,26 +78,15 @@ function updateLocalBalanceDisplay(count = null) {
   const el = document.getElementById("twister-balance");
   if (!el) return;
 
-  let realCount;
-
   if (count !== null) {
-    realCount = count;
+    el.textContent = count;
+    el.dataset.count = count;
   } else {
-    // Сначала пытаемся взять из глобального инвентаря (самый надёжный источник)
     const invCount =
       window.inventory?.find((s) => s?.type === "balyary")?.quantity || 0;
-    if (invCount > 0) {
-      realCount = invCount;
-    } else {
-      // fallback — из локального объекта игрока
-      const me = players.get(myId);
-      realCount =
-        me?.inventory?.find((s) => s?.type === "balyary")?.quantity || 0;
-    }
+    el.textContent = invCount;
+    el.dataset.count = invCount;
   }
-
-  el.textContent = realCount;
-  el.dataset.count = realCount;
 }
 
 function showTwisterMenu() {
@@ -299,15 +288,12 @@ function updateTwisterState(data) {
 
   console.log("[Twister CLIENT] Получен state:", data);
 
+  // Баланс — всегда обновляем, если пришёл
   if (data.balance !== undefined) {
     const el = document.getElementById("twister-balance");
     if (el) {
       el.textContent = data.balance;
       el.dataset.count = data.balance;
-    }
-    // Дополнительно синхронизируем глобальный инвентарь, если меню открыто
-    if (isMenuOpen) {
-      updateLocalBalanceDisplay(data.balance);
     }
   }
 
