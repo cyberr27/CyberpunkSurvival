@@ -264,6 +264,24 @@ function handleTorestosUpgrade(
       message: `Получено: ${ITEM_CONFIG[newType]?.description || newType}`,
     }),
   );
+
+  const updatePayload = {
+    type: "update",
+    player: {
+      id: playerId,
+      inventory: player.inventory, // актуальный инвентарь
+      xp: player.xp, // актуальный опыт
+      // если есть другие изменяющиеся поля — можно добавить
+    },
+  };
+
+  broadcastToWorld(
+    wss,
+    clients,
+    players,
+    player.worldId,
+    JSON.stringify(updatePayload),
+  );
 }
 
 module.exports = {
