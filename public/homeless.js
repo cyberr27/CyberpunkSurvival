@@ -282,7 +282,7 @@ function showHomelessRentDialog() {
     </div>
     <div class="homeless-dialog-content">
       ${rentInfoHtml}
-      <p class="homeless-text">Братан, могу посмотреть за твоими вещами.Если что скажи на сколько дней сохранить вещи? И бросай их ко мне в сумку...</p>
+      <p class="homeless-text">Братан, могу посмотреть за твоим барахлишком.Если что скажи на сколько дней сохранить? И бросай вещи их ко мне в сумку...</p>
       <p class="homeless-text-cost">2 баляра за сутки</p>
       <input type="number" id="homelessRentDays" min="1" value="1" class="homeless-rent-input">
       <div class="homeless-rent-buttons">

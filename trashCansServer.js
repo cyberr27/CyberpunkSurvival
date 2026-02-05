@@ -194,6 +194,23 @@ function handleTrashGuess(
       }),
     );
 
+    const updatePayload = {
+      type: "update",
+      player: {
+        id: playerId,
+        inventory: player.inventory,
+        xp: player.xp,
+      },
+    };
+
+    broadcastToWorld(
+      wss,
+      clients,
+      players,
+      player.worldId,
+      JSON.stringify(updatePayload),
+    );
+
     // Уведомляем всех в мире (опционально)
     broadcastToWorld(
       wss,

@@ -285,7 +285,6 @@ async function handleTwisterMessage(
           id: playerId,
           inventory: player.inventory,
           xp: player.xp,
-          // можно добавить и другие поля, если они меняются, но обычно хватает inventory + xp
         },
       };
 
