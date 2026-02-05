@@ -279,6 +279,24 @@ async function handleTwisterMessage(
       // Сохраняем игрока (включая новый xp и баляры)
       await saveUserDatabase(dbCollection, playerId, player);
 
+      const updatePayload = {
+        type: "update",
+        player: {
+          id: playerId,
+          inventory: player.inventory,
+          xp: player.xp,
+          // можно добавить и другие поля, если они меняются, но обычно хватает inventory + xp
+        },
+      };
+
+      broadcastToWorld(
+        wss,
+        clients,
+        players,
+        player.worldId,
+        JSON.stringify(updatePayload),
+      );
+
       const resultSymbols = `${s1} ${s2} ${s3}`;
 
       // Формируем ответ
