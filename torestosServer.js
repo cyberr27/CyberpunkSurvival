@@ -71,6 +71,17 @@ function handleTorestosUpgrade(
 
   const inv = data.inventory;
 
+  if (!Array.isArray(inv)) {
+    ws.send(
+      JSON.stringify({
+        type: "torestosUpgradeResult",
+        success: false,
+        error: "Инвентарь не является массивом",
+      }),
+    );
+    return;
+  }
+
   // 1. Находим центральный предмет
   const centerIdx = findCentralItem(inv);
   if (centerIdx === -1) {
@@ -177,8 +188,12 @@ function handleTorestosUpgrade(
     let recipeRemoved = false;
 
     for (let i = 0; i < inv.length; i++) {
-      if (!inv[i]) continue;
+      // Пропускаем пустые слоты
+      if (!inv[i] || typeof inv[i] !== "object") {
+        continue;
+      }
 
+      // Проверяем, что у предмета есть свойство type и оно строка
       if (!bloodRemoved && inv[i].type === "blood_pack") {
         inv[i] = null;
         bloodRemoved = true;
@@ -188,13 +203,17 @@ function handleTorestosUpgrade(
         recipeRemoved = true;
       }
 
+      // Можно выйти раньше, если оба ингредиента уже найдены
       if (bloodRemoved && recipeRemoved) break;
     }
   } else if (upgradeType === "chameleon") {
     let recipeRemoved = false;
 
     for (let i = 0; i < inv.length; i++) {
-      if (!inv[i]) continue;
+      // Пропускаем пустые слоты и не-объекты
+      if (!inv[i] || typeof inv[i] !== "object") {
+        continue;
+      }
 
       if (!recipeRemoved && inv[i].type === "recipe_chameleon_equipment") {
         inv[i] = null;
