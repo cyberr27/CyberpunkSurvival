@@ -225,22 +225,6 @@ function handleTorestosUpgrade(
   userDatabase.set(playerId, { ...player });
   saveUserDatabase(dbCollection, playerId, player);
 
-  const updatePayload = {
-    type: "update",
-    player: {
-      id: playerId,
-      inventory: player.inventory,
-    },
-  };
-
-  broadcastToWorld(
-    wss,
-    clients,
-    players,
-    player.worldId,
-    JSON.stringify(updatePayload),
-  );
-
   // 8. Отправляем результат клиенту
   ws.send(
     JSON.stringify({

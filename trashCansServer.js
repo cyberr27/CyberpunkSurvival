@@ -198,8 +198,9 @@ function handleTrashGuess(
       type: "update",
       player: {
         id: playerId,
-        inventory: player.inventory,
-        xp: player.xp,
+        inventory: player.inventory, // актуальный инвентарь
+        xp: player.xp, // актуальный опыт
+        // если есть другие изменяющиеся поля — можно добавить
       },
     };
 
