@@ -71,6 +71,21 @@ function handleTorestosUpgrade(
 
   const inv = data.inventory;
 
+  if (!Array.isArray(inv)) {
+    ws.send(
+      JSON.stringify({
+        type: "torestosUpgradeResult",
+        success: false,
+        error: "Инвентарь не является массивом",
+      }),
+    );
+    console.error(
+      "[Torestos] Получен не-массив в качестве inventory:",
+      data.inventory,
+    );
+    return;
+  }
+
   // 1. Находим центральный предмет
   const centerIdx = findCentralItem(inv);
   if (centerIdx === -1) {
@@ -177,8 +192,13 @@ function handleTorestosUpgrade(
     let recipeRemoved = false;
 
     for (let i = 0; i < inv.length; i++) {
-      if (!inv[i]) continue;
+      // ─── УСИЛЕННАЯ ПРОВЕРКА ────────────────────────────────────────────────
+      // Пропускаем null, undefined и всё, что не объект
+      if (!inv[i] || inv[i] === null || typeof inv[i] !== "object") {
+        continue;
+      }
 
+      // Теперь уже безопасно обращаться к .type
       if (!bloodRemoved && inv[i].type === "blood_pack") {
         inv[i] = null;
         bloodRemoved = true;
@@ -194,7 +214,10 @@ function handleTorestosUpgrade(
     let recipeRemoved = false;
 
     for (let i = 0; i < inv.length; i++) {
-      if (!inv[i]) continue;
+      // ─── ТО ЖЕ САМОЕ УСИЛЕНИЕ ЗАЩИТЫ ───────────────────────────────────────
+      if (!inv[i] || inv[i] === null || typeof inv[i] !== "object") {
+        continue;
+      }
 
       if (!recipeRemoved && inv[i].type === "recipe_chameleon_equipment") {
         inv[i] = null;
