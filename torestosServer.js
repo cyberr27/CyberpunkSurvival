@@ -71,6 +71,21 @@ function handleTorestosUpgrade(
 
   const inv = data.inventory;
 
+  const isMoveOperation =
+    data.move && (data.fromSlot !== undefined || data.toSlot !== undefined);
+  const isUpgradeOperation = data.upgrade === true;
+
+  if (!isMoveOperation && !isUpgradeOperation) {
+    ws.send(
+      JSON.stringify({
+        type: "torestosUpgradeResult",
+        success: false,
+        error: "Неизвестный тип операции",
+      }),
+    );
+    return;
+  }
+
   // 1. Находим центральный предмет
   const centerIdx = findCentralItem(inv);
   if (centerIdx === -1) {
@@ -224,6 +239,23 @@ function handleTorestosUpgrade(
   players.set(playerId, { ...player });
   userDatabase.set(playerId, { ...player });
   saveUserDatabase(dbCollection, playerId, player);
+
+  const updatePayload = {
+    type: "update",
+    player: {
+      id: playerId,
+      inventory: player.inventory,
+      // если в процессе улучшения меняется что-то ещё (xp, статистика и т.д.) — добавь сюда
+    },
+  };
+
+  broadcastToWorld(
+    wss,
+    clients,
+    players,
+    player.worldId,
+    JSON.stringify(updatePayload),
+  );
 
   // 8. Отправляем результат клиенту
   ws.send(
