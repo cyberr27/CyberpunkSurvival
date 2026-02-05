@@ -55,6 +55,7 @@ function handleTorestosUpgrade(
   userDatabase,
   dbCollection,
   saveUserDatabase,
+  broadcastToWorld,
 ) {
   const playerId = player.id;
 
@@ -269,9 +270,7 @@ function handleTorestosUpgrade(
     type: "update",
     player: {
       id: playerId,
-      inventory: player.inventory, // актуальный инвентарь
-      xp: player.xp, // актуальный опыт
-      // если есть другие изменяющиеся поля — можно добавить
+      inventory: player.inventory,
     },
   };
 
