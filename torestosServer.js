@@ -5,12 +5,7 @@ const { ITEM_CONFIG } = require("./items"); // предполагается, ч�
 // ------------------------------------------------------------------------
 
 function findCentralItem(inventory) {
-  return inventory.findIndex(
-    (item) =>
-      item &&
-      ITEM_CONFIG[item.type] &&
-      ITEM_CONFIG[item.type].collection === "White Void",
-  );
+  return inventory.findIndex((item) => item && item.isUpgradeItem);
 }
 
 function findMaterialItems(inventory) {
@@ -54,14 +49,12 @@ function getChameleonVariant(originalType) {
 // ------------------------------------------------------------------------
 function handleTorestosUpgrade(
   ws,
-  wss,
   data,
   player,
   players,
   userDatabase,
   dbCollection,
   saveUserDatabase,
-  broadcastToWorld,
 ) {
   const playerId = player.id;
 
@@ -77,25 +70,6 @@ function handleTorestosUpgrade(
   }
 
   const inv = data.inventory;
-
-  if (!Array.isArray(inv)) {
-    ws.send(
-      JSON.stringify({
-        type: "torestosUpgradeResult",
-        success: false,
-        error: "Инвентарь не является массивом",
-      }),
-    );
-    console.error("[Torestos] Получен НЕ массив в inventory:", inv);
-    return;
-  }
-
-  // Дополнительно: заменяем undefined на null (чтобы унифицировать)
-  for (let i = 0; i < inv.length; i++) {
-    if (inv[i] === undefined) {
-      inv[i] = null;
-    }
-  }
 
   // 1. Находим центральный предмет
   const centerIdx = findCentralItem(inv);
@@ -203,19 +177,13 @@ function handleTorestosUpgrade(
     let recipeRemoved = false;
 
     for (let i = 0; i < inv.length; i++) {
-      // Самая надёжная проверка: null, undefined, не объект — пропускаем
-      if (inv[i] == null || typeof inv[i] !== "object" || inv[i] === null) {
-        continue;
-      }
+      if (!inv[i]) continue;
 
-      // Теперь 100% безопасно
-      const item = inv[i]; // ← для читаемости
-
-      if (!bloodRemoved && item.type === "blood_pack") {
+      if (!bloodRemoved && inv[i].type === "blood_pack") {
         inv[i] = null;
         bloodRemoved = true;
       }
-      if (!recipeRemoved && item.type === "recipe_torn_equipment") {
+      if (!recipeRemoved && inv[i].type === "recipe_torn_equipment") {
         inv[i] = null;
         recipeRemoved = true;
       }
@@ -226,14 +194,9 @@ function handleTorestosUpgrade(
     let recipeRemoved = false;
 
     for (let i = 0; i < inv.length; i++) {
-      // Та же надёжная защита
-      if (inv[i] == null || typeof inv[i] !== "object" || inv[i] === null) {
-        continue;
-      }
+      if (!inv[i]) continue;
 
-      const item = inv[i];
-
-      if (!recipeRemoved && item.type === "recipe_chameleon_equipment") {
+      if (!recipeRemoved && inv[i].type === "recipe_chameleon_equipment") {
         inv[i] = null;
         recipeRemoved = true;
         break;
@@ -259,6 +222,7 @@ function handleTorestosUpgrade(
   // 7. Сохраняем изменения в базу
   player.inventory = inv;
   players.set(playerId, { ...player });
+  userDatabase.set(playerId, { ...player });
   saveUserDatabase(dbCollection, playerId, player);
 
   // 8. Отправляем результат клиенту
@@ -269,22 +233,6 @@ function handleTorestosUpgrade(
       newInventory: inv,
       message: `Получено: ${ITEM_CONFIG[newType]?.description || newType}`,
     }),
-  );
-
-  const updatePayload = {
-    type: "update",
-    player: {
-      id: playerId,
-      inventory: player.inventory,
-    },
-  };
-
-  broadcastToWorld(
-    wss,
-    clients,
-    players,
-    player.worldId,
-    JSON.stringify(updatePayload),
   );
 }
 
