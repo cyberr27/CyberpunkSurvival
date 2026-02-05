@@ -5,7 +5,7 @@ const NEON_NPC = {
   spriteKey: "alexNeonSprite",
   photoKey: "alexNeonFoto",
   x: 20,
-  y: 2660,
+  y: 2626,
 
   // Размеры на экране (можно менять)
   width: 80,
@@ -18,7 +18,7 @@ const NEON_NPC = {
   interactionRadius: 50,
 
   speed: 0.04,
-  targetA: { x: 20, y: 2660 },
+  targetA: { x: 20, y: 2626 },
   targetB: { x: 2222, y: 2150 },
   movingToB: true,
   isWaiting: true,
@@ -28,7 +28,7 @@ const NEON_NPC = {
   // Анимация
   animationTime: 0,
   currentFrame: 0,
-  direction: "down",
+  direction: "right",
   state: "idle",
 
   isPlayerNear: false,
@@ -423,7 +423,9 @@ function updateNeonNpc(deltaTime) {
 
   // ─── Анимация ходьбы (независимо от пауз) ────────────────────
   if (NEON_NPC.isPlayerNear) {
-    NEON_NPC.currentFrame = 2 * NEON_FRAMES_PER_ROW + 0;
+    // Игрок рядом → показываем 5-ю строку (индекс 4), кадр 0
+    const rowIndexWhenNear = 4;
+    NEON_NPC.currentFrame = rowIndexWhenNear * NEON_FRAMES_PER_ROW + 0;
     NEON_NPC.animationTime = 0;
   } else {
     // Обычная логика патрулирования
