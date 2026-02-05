@@ -22,7 +22,7 @@ const NEON_NPC = {
   targetB: { x: 2222, y: 2150 },
   movingToB: true,
   isWaiting: true,
-  waitDuration: 10000,
+  waitDuration: 20000,
   waitTimer: 0,
 
   // Анимация
