@@ -527,6 +527,37 @@ const ITEM_CONFIG = {
     stackable: true,
     recipe: "recipe_chameleon_equipment",
   },
+
+  blue_crystal: {
+    description: "Синий кристал — материал для улучшений у Торестоса",
+    rarity: 1,
+    stackable: true,
+  },
+  green_crystal: {
+    description: "Зеленый кристал — материал для улучшений у Торестоса",
+    rarity: 1,
+    stackable: true,
+  },
+  red_crystal: {
+    description: "Красный кристал — материал для улучшений у Торестоса",
+    rarity: 1,
+    stackable: true,
+  },
+  white_crystal: {
+    description: "Белый кристал — материал для улучшений у Торестоса",
+    rarity: 1,
+    stackable: true,
+  },
+  yellow_crystal: {
+    description: "Желтый кристал — материал для улучшений у Торестоса",
+    rarity: 1,
+    stackable: true,
+  },
+  chameleon_crystal: {
+    description: "Хамелион кристал — материал для улучшений у Торестоса",
+    rarity: 1,
+    stackable: true,
+  },
 };
 
 module.exports = { ITEM_CONFIG };

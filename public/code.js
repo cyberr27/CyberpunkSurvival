@@ -173,6 +173,13 @@ const imageSources = {
 
   recipe_torn_equipment: "recipe_torn_equipment.png",
   recipe_chameleon_equipment: "recipe_chameleon_equipment.png",
+
+  blue_crystal: "blue_crystal.png",
+  green_crystal: "green_crystal.png",
+  red_crystal: "red_crystal.png",
+  white_crystal: "white_crystal.png",
+  yellow_crystal: "yellow_crystal.png",
+  chameleon_crystal: "chameleon_crystal.png",
 };
 
 const images = {};
@@ -787,7 +794,6 @@ const ITEM_CONFIG = {
     stackable: true,
     recipe: "recipe_torn_equipment",
   },
-
   recipe_chameleon_equipment: {
     image: images.recipe_chameleon_equipment,
     description:
@@ -795,6 +801,43 @@ const ITEM_CONFIG = {
     rarity: 6,
     stackable: true,
     recipe: "recipe_chameleon_equipment",
+  },
+
+  blue_crystal: {
+    image: images.blue_crystal,
+    description: "Синий кристал — материал для улучшений у Торестоса",
+    rarity: 1,
+    stackable: true,
+  },
+  green_crystal: {
+    image: images.green_crystal,
+    description: "Зеленый кристал — материал для улучшений у Торестоса",
+    rarity: 1,
+    stackable: true,
+  },
+  red_crystal: {
+    image: images.red_crystal,
+    description: "Красный кристал — материал для улучшений у Торестоса",
+    rarity: 1,
+    stackable: true,
+  },
+  white_crystal: {
+    image: images.white_crystal,
+    description: "Белый кристал — материал для улучшений у Торестоса",
+    rarity: 1,
+    stackable: true,
+  },
+  yellow_crystal: {
+    image: images.yellow_crystal,
+    description: "Желтый кристал — материал для улучшений у Торестоса",
+    rarity: 1,
+    stackable: true,
+  },
+  chameleon_crystal: {
+    image: images.chameleon_crystal,
+    description: "Хамелион кристал — материал для улучшений у Торестоса",
+    rarity: 1,
+    stackable: true,
   },
 };
 
