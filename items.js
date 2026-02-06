@@ -93,7 +93,6 @@ const ITEM_CONFIG = {
 
   // === ВАЛЮТА ===
   balyary: {
-    effect: {},
     description: "Баляр: игровая валюта.",
     stackable: true,
     balyary: true,
@@ -108,12 +107,10 @@ const ITEM_CONFIG = {
     rarity: 1,
   },
   medical_certificate: {
-    effect: {},
     description: "Мед. справка МД-07: подтверждает, что ты не зомби.",
     rarity: 5,
   },
   medical_certificate_stamped: {
-    effect: {},
     description: "Мед. справка с печатью заставы. Допуск в Неоновый Город.",
     rarity: 5,
   },
@@ -513,6 +510,7 @@ const ITEM_CONFIG = {
   },
 
   recipe_torn_equipment: {
+    effect: {},
     description:
       "Рецепт порванной экипировки — материал для улучшений у Торестоса",
     rarity: 6,
@@ -521,6 +519,7 @@ const ITEM_CONFIG = {
   },
 
   recipe_chameleon_equipment: {
+    effect: {},
     description:
       "Рецепт хамелеон-экипировки — материал для улучшений у Торестоса",
     rarity: 6,

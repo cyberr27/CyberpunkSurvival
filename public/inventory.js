@@ -150,7 +150,21 @@ function selectSlot(slotIndex, slotElement) {
   selectedSlot = slotIndex;
   screen.textContent =
     ITEM_CONFIG[window.inventory[slotIndex].type]?.description || "";
-  useBtn.disabled = !!ITEM_CONFIG[window.inventory[slotIndex].type]?.balyary;
+
+  const itemType = window.inventory[slotIndex].type;
+  const config = ITEM_CONFIG[itemType];
+
+  const isNonUsableStackable =
+    itemType === "balyary" ||
+    itemType === "blue_crystal" ||
+    itemType === "green_crystal" ||
+    itemType === "red_crystal" ||
+    itemType === "white_crystal" ||
+    itemType === "yellow_crystal" ||
+    itemType === "chameleon_crystal";
+
+  useBtn.disabled =
+    isNonUsableStackable || !!config?.balyary || !config?.effect;
   dropBtn.disabled = false;
 }
 
@@ -178,7 +192,16 @@ function useItem(slotIndex) {
     return;
   }
 
-  if (item.type === "balyary") return;
+  if (
+    item.type === "balyary" ||
+    item.type === "blue_crystal" ||
+    item.type === "green_crystal" ||
+    item.type === "red_crystal" ||
+    item.type === "white_crystal" ||
+    item.type === "yellow_crystal" ||
+    item.type === "chameleon_crystal"
+  )
+    return;
 
   const effect = ITEM_CONFIG[item.type].effect;
   if (effect.health)
