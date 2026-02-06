@@ -13,8 +13,8 @@ const trashCansState = Array(TRASH_CAN_COUNT)
     guessed: false,
     isOpened: false,
     secretSuit: null, // "spades" | "hearts" | "diamonds" | "clubs"
-    nextAttemptAfter: 0,
     loot: [],
+    // nextAttemptAfter убрали — теперь кулдаун индивидуальный для каждого игрока
   }));
 
 const SUITS = ["spades", "hearts", "diamonds", "clubs"];
@@ -67,7 +67,6 @@ function refillTrashCan(index, now = Date.now()) {
   state.guessed = false;
   state.isOpened = false;
   state.secretSuit = SUITS[Math.floor(Math.random() * SUITS.length)];
-  state.nextAttemptAfter = 0;
   state.loot = getRandomLoot();
 }
 
@@ -101,18 +100,7 @@ function handleTrashGuess(
   const state = trashCansState[trashIndex];
   const now = Date.now();
 
-  if (now < state.nextAttemptAfter) {
-    ws.send(
-      JSON.stringify({
-        type: "trashGuessResult",
-        success: false,
-        error: "Слишком рано! Подожди немного...",
-        waitUntil: state.nextAttemptAfter,
-      }),
-    );
-    return;
-  }
-
+  // 1. Проверяем, открыт ли уже бак кем-то другим
   if (state.isOpened || state.guessed) {
     ws.send(
       JSON.stringify({
@@ -124,7 +112,23 @@ function handleTrashGuess(
     return;
   }
 
-  // Можно перезаполнить, если давно не было активности
+  // 2. Проверяем персональный кулдаун этого игрока для этого бака
+  const cooldownKey = trashIndex.toString();
+  const playerCooldown = player.trashCooldowns?.[cooldownKey] || 0;
+
+  if (now < playerCooldown) {
+    ws.send(
+      JSON.stringify({
+        type: "trashGuessResult",
+        success: false,
+        message: `Не-а, это нет братан. Следующая попытка через ${Math.ceil((playerCooldown - now) / 1000)} сек`,
+        waitUntil: playerCooldown,
+      }),
+    );
+    return;
+  }
+
+  // 3. Можно перезаполнить, если давно не было активности
   if (now - state.lastFilled > FILL_COOLDOWN) {
     refillTrashCan(trashIndex, now);
   }
@@ -134,14 +138,14 @@ function handleTrashGuess(
   if (correct) {
     state.guessed = true;
     state.isOpened = true;
-    state.nextAttemptAfter = now + FILL_COOLDOWN;
 
     let addedXP = 0;
     state.loot.forEach((it) => {
       if (it.type === "balyary") {
         let slot = player.inventory.findIndex((s) => s?.type === "balyary");
         if (slot !== -1) {
-          player.inventory[slot].quantity += it.quantity;
+          player.inventory[slot].quantity =
+            (player.inventory[slot].quantity || 0) + it.quantity;
         } else {
           slot = player.inventory.findIndex((s) => !s);
           if (slot !== -1) {
@@ -223,13 +227,25 @@ function handleTrashGuess(
       );
     }, FILL_COOLDOWN);
   } else {
-    state.nextAttemptAfter = now + WRONG_GUESS_COOLDOWN;
+    // Не угадал → ставим кулдаун ТОЛЬКО этому игроку
+    const nextAttempt = now + WRONG_GUESS_COOLDOWN;
+
+    if (!player.trashCooldowns) {
+      player.trashCooldowns = {};
+    }
+    player.trashCooldowns[cooldownKey] = nextAttempt;
+
+    // Сохраняем изменения игрока
+    players.set(playerId, player);
+    userDatabase.set(playerId, player);
+    saveUserDatabase(dbCollection, playerId, player);
 
     ws.send(
       JSON.stringify({
         type: "trashGuessResult",
         success: false,
         message: `Не-а, это нет братан. Следующая попытка через 3 минуты.`,
+        waitUntil: nextAttempt,
       }),
     );
   }

@@ -28,7 +28,6 @@ window.trashCansState = Array(6)
   .map(() => ({
     guessed: false,
     isOpened: false,
-    nextAttemptAfter: 0,
   }));
 
 function initializeTrashCans(sprite) {

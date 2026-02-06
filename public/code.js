@@ -2422,7 +2422,7 @@ function handleGameMessage(event) {
             ...window.trashCansState[data.index],
             guessed: data.guessed ?? false,
             isOpened: data.isOpened ?? false,
-            nextAttemptAfter: data.nextAttemptAfter || 0,
+            // nextAttemptAfter больше не нужен здесь
           };
 
           if (currentTrashIndex === data.index) {
@@ -2434,20 +2434,12 @@ function handleGameMessage(event) {
                 document
                   .querySelectorAll(".suit-btn")
                   .forEach((btn) => (btn.disabled = true));
-              } else if (
-                data.nextAttemptAfter &&
-                Date.now() < data.nextAttemptAfter
-              ) {
-                const remain = Math.ceil(
-                  (data.nextAttemptAfter - Date.now()) / 1000,
-                );
-                msgEl.textContent = `Подожди ещё ~${remain} сек`;
               }
+              // убираем блок с nextAttemptAfter
             }
           }
         }
         break;
-
       case "trashAllStates":
         data.states.forEach((st) => {
           if (st.index >= 0 && st.index < window.trashCansState.length) {

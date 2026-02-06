@@ -857,6 +857,7 @@ function setupWebSocket(
                 playerData.medicalCertificateStamped || false,
               corporateDocumentsSubmitted:
                 playerData.corporateDocumentsSubmitted || false,
+              trashCooldowns: playerData.trashCooldowns || {},
               players: Array.from(players.values()).filter(
                 (p) =>
                   p.id !== data.username && p.worldId === playerData.worldId,
