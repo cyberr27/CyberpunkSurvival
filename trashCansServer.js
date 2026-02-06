@@ -227,7 +227,10 @@ function handleTrashGuess(
       );
     }, FILL_COOLDOWN);
   } else {
-    // Не угадал → ставим кулдаун ТОЛЬКО этому игроку
+    // Не угадал → меняем масть бака на новую случайную
+    state.secretSuit = SUITS[Math.floor(Math.random() * SUITS.length)];
+
+    // Ставим кулдаун ТОЛЬКО этому игроку
     const nextAttempt = now + WRONG_GUESS_COOLDOWN;
 
     if (!player.trashCooldowns) {
@@ -235,11 +238,12 @@ function handleTrashGuess(
     }
     player.trashCooldowns[cooldownKey] = nextAttempt;
 
-    // Сохраняем изменения игрока
+    // Сохраняем изменения игрока (бака не сохраняем, т.к. trashCansState — глобальная)
     players.set(playerId, player);
     userDatabase.set(playerId, player);
     saveUserDatabase(dbCollection, playerId, player);
 
+    // Отправляем результат
     ws.send(
       JSON.stringify({
         type: "trashGuessResult",
