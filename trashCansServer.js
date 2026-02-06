@@ -5,15 +5,16 @@ const TRASH_CAN_COUNT = 6;
 const FILL_COOLDOWN = 5 * 60 * 1000; // 5 минут
 const WRONG_GUESS_COOLDOWN = 3 * 60 * 1000; // 3 минуты
 
-// Состояние каждого бака (индекс 0..4)
+// Состояние каждого бака (индекс 0..5)
 const trashCansState = Array(TRASH_CAN_COUNT)
   .fill(null)
   .map(() => ({
     lastFilled: 0,
     guessed: false,
+    isOpened: false,
     secretSuit: null, // "spades" | "hearts" | "diamonds" | "clubs"
-    nextAttemptAfter: 0, // timestamp, когда можно снова пытаться
-    loot: [], // массив {type, quantity}
+    nextAttemptAfter: 0,
+    loot: [],
   }));
 
 const SUITS = ["spades", "hearts", "diamonds", "clubs"];
@@ -22,12 +23,9 @@ function getRandomLoot(playerCount = 1) {
   const items = [];
   const roll = Math.random();
 
-  // шанс найти что-то полезное
   if (roll < 0.5) {
-    // 50% — ничего или мусор
     if (Math.random() < 0.4) items.push({ type: "trash", quantity: 1 });
   } else if (roll < 0.8) {
-    // 30% — обычная еда
     const food = [
       "nut",
       "apple",
@@ -42,14 +40,12 @@ function getRandomLoot(playerCount = 1) {
       quantity: 1,
     });
   } else if (roll < 0.95) {
-    // 15% — редкая еда / баляры
     const rare = ["canned_meat", "mushroom", "vodka_bottle", "blood_pack"];
     items.push({
       type: rare[Math.floor(Math.random() * rare.length)],
       quantity: 1,
     });
   } else {
-    // 5% — порванная экипировка
     const torn = Object.keys(ITEM_CONFIG).filter((k) => k.startsWith("torn_"));
     items.push({
       type: torn[Math.floor(Math.random() * torn.length)],
@@ -57,8 +53,7 @@ function getRandomLoot(playerCount = 1) {
     });
   }
 
-  // + баляры и опыт почти всегда
-  const balyaryCount = Math.floor(Math.random() * 3) + 1; // 1–3
+  const balyaryCount = Math.floor(Math.random() * 3) + 1;
   if (balyaryCount > 0) {
     items.push({ type: "balyary", quantity: balyaryCount });
   }
@@ -70,6 +65,7 @@ function refillTrashCan(index, now = Date.now()) {
   const state = trashCansState[index];
   state.lastFilled = now;
   state.guessed = false;
+  state.isOpened = false;
   state.secretSuit = SUITS[Math.floor(Math.random() * SUITS.length)];
   state.nextAttemptAfter = 0;
   state.loot = getRandomLoot();
@@ -78,7 +74,7 @@ function refillTrashCan(index, now = Date.now()) {
 function initializeTrashCans() {
   const now = Date.now();
   trashCansState.forEach((state, i) => {
-    refillTrashCan(i, now - i * 60000); // небольшой разброс по времени
+    refillTrashCan(i, now - i * 60000 - Math.random() * 120000);
   });
 }
 
@@ -105,7 +101,6 @@ function handleTrashGuess(
   const state = trashCansState[trashIndex];
   const now = Date.now();
 
-  // Проверяем кулдаун
   if (now < state.nextAttemptAfter) {
     ws.send(
       JSON.stringify({
@@ -118,8 +113,7 @@ function handleTrashGuess(
     return;
   }
 
-  // Проверяем, открыт ли уже
-  if (state.guessed) {
+  if (state.isOpened || state.guessed) {
     ws.send(
       JSON.stringify({
         type: "trashGuessResult",
@@ -130,24 +124,21 @@ function handleTrashGuess(
     return;
   }
 
-  // Проверяем время заполнения
+  // Можно перезаполнить, если давно не было активности
   if (now - state.lastFilled > FILL_COOLDOWN) {
-    // Можно перезаполнить
     refillTrashCan(trashIndex, now);
   }
 
   const correct = suit === state.secretSuit;
 
   if (correct) {
-    // Успех — забираем лут
     state.guessed = true;
+    state.isOpened = true;
     state.nextAttemptAfter = now + FILL_COOLDOWN;
 
-    // Добавляем игроку лут
     let addedXP = 0;
     state.loot.forEach((it) => {
       if (it.type === "balyary") {
-        // баляры
         let slot = player.inventory.findIndex((s) => s?.type === "balyary");
         if (slot !== -1) {
           player.inventory[slot].quantity += it.quantity;
@@ -157,8 +148,8 @@ function handleTrashGuess(
             player.inventory[slot] = { type: "balyary", quantity: it.quantity };
           }
         }
+        addedXP += it.quantity;
       } else if (ITEM_CONFIG[it.type]) {
-        // обычный предмет
         let slot = player.inventory.findIndex((s) => !s);
         if (slot !== -1) {
           player.inventory[slot] = {
@@ -167,23 +158,16 @@ function handleTrashGuess(
           };
         }
       }
-
-      if (it.type === "balyary") {
-        addedXP += it.quantity; // 1 баляр = 1 XP
-      }
     });
 
     if (addedXP > 0) {
       player.xp = (player.xp || 0) + addedXP;
-      // здесь можно добавить проверку левел-апа как в других местах
     }
 
-    // Сохраняем игрока
     players.set(playerId, player);
     userDatabase.set(playerId, player);
     saveUserDatabase(dbCollection, playerId, player);
 
-    // Уведомляем игрока
     ws.send(
       JSON.stringify({
         type: "trashGuessResult",
@@ -194,43 +178,51 @@ function handleTrashGuess(
       }),
     );
 
-    const updatePayload = {
-      type: "update",
-      player: {
-        id: playerId,
-        inventory: player.inventory, // актуальный инвентарь
-        xp: player.xp, // актуальный опыт
-        // если есть другие изменяющиеся поля — можно добавить
-      },
-    };
-
-    broadcastToWorld(
-      wss,
-      clients,
-      players,
-      player.worldId,
-      JSON.stringify(updatePayload),
-    );
-
-    // Уведомляем всех в мире (опционально)
     broadcastToWorld(
       wss,
       clients,
       players,
       player.worldId,
       JSON.stringify({
-        type: "trashCanOpened",
-        trashIndex,
-        playerId,
+        type: "update",
+        player: {
+          id: playerId,
+          inventory: player.inventory,
+          xp: player.xp,
+        },
       }),
     );
 
-    // Перезаполним через FILL_COOLDOWN
+    // Главное обновление состояния для всех
+    broadcastToWorld(
+      wss,
+      clients,
+      players,
+      player.worldId,
+      JSON.stringify({
+        type: "trashState",
+        index: trashIndex,
+        guessed: true,
+        isOpened: true,
+      }),
+    );
+
     setTimeout(() => {
       refillTrashCan(trashIndex);
+      broadcastToWorld(
+        wss,
+        clients,
+        players,
+        player.worldId,
+        JSON.stringify({
+          type: "trashRespawned",
+          index: trashIndex,
+          isOpened: false,
+          guessed: false,
+        }),
+      );
     }, FILL_COOLDOWN);
   } else {
-    // Не угадал
     state.nextAttemptAfter = now + WRONG_GUESS_COOLDOWN;
 
     ws.send(

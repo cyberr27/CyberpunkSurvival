@@ -894,6 +894,20 @@ function setupWebSocket(
                 .map(({ id, ...rest }) => rest),
             }),
           );
+
+          ws.send(
+            JSON.stringify({
+              type: "trashAllStates",
+              states: trashCansState.map((st, idx) => ({
+                index: idx,
+                guessed: st.guessed,
+                isOpened: st.isOpened || false, // если поля isOpened ещё нет — будет false
+                nextAttemptAfter: st.nextAttemptAfter || 0,
+                // secretSuit: st.guessed ? st.secretSuit : undefined,   // можно включить, если хочешь
+              })),
+            }),
+          );
+
           wss.clients.forEach((client) => {
             if (client !== ws && client.readyState === WebSocket.OPEN) {
               const clientPlayer = players.get(clients.get(client));
@@ -3311,18 +3325,30 @@ function setupWebSocket(
       } else if (data.type === "getTrashState") {
         const idx = data.trashIndex;
         if (idx >= 0 && idx < trashCansState.length) {
-          // ← теперь trashCansState видно
           const st = trashCansState[idx];
           ws.send(
             JSON.stringify({
               type: "trashState",
               index: idx,
-              isOpened: st.guessed,
-              secretSuit: st.guessed ? st.secretSuit : null, // ← можно отправлять, если хочешь показывать масть
+              guessed: st.guessed,
+              isOpened: st.isOpened,
+              secretSuit: st.guessed ? st.secretSuit : null,
               nextAttemptAfter: st.nextAttemptAfter,
             }),
           );
         }
+      } else if (data.type === "getAllTrashStates") {
+        ws.send(
+          JSON.stringify({
+            type: "trashAllStates",
+            states: trashCansState.map((st, idx) => ({
+              index: idx,
+              guessed: st.guessed,
+              isOpened: st.isOpened,
+              nextAttemptAfter: st.nextAttemptAfter,
+            })),
+          }),
+        );
       } else if (data.type === "meetTorestos") {
         const player = players.get(clients.get(ws));
         if (!player) return;

@@ -23,10 +23,13 @@ let globalTrashTime = 0;
 let currentTrashIndex = -1;
 let trashDialog = null;
 
-// Глобальное состояние баков (приходит с сервера, обновляется через trashState/trashCanOpened)
 window.trashCansState = Array(6)
   .fill(null)
-  .map(() => ({ guessed: false }));
+  .map(() => ({
+    guessed: false,
+    isOpened: false,
+    nextAttemptAfter: 0,
+  }));
 
 function initializeTrashCans(sprite) {
   trashSprite = sprite;
@@ -72,9 +75,7 @@ function updateTrashCans(deltaTime) {
 }
 
 function openTrashDialog(index) {
-  if (window.worldSystem.currentWorldId !== 0) {
-    return;
-  }
+  if (window.worldSystem.currentWorldId !== 0) return;
 
   if (currentTrashIndex === index && trashDialog) return;
   closeTrashDialog();
@@ -105,7 +106,6 @@ function openTrashDialog(index) {
   document.body.appendChild(trashDialog);
   document.body.classList.add("trash-dialog-active");
 
-  // Кнопки мастей
   trashDialog.querySelectorAll(".suit-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       const suit = btn.dataset.suit;
@@ -121,12 +121,11 @@ function openTrashDialog(index) {
     });
   });
 
-  // Запрашиваем состояние бака у сервера
   if (ws?.readyState === WebSocket.OPEN) {
     ws.send(
       JSON.stringify({
         type: "getTrashState",
-        trashIndex: currentTrashIndex, // ← ИСПРАВЛЕНО: было trashIndex
+        trashIndex: currentTrashIndex,
       }),
     );
   }
@@ -160,7 +159,9 @@ function drawTrashCans(ctx) {
     const sx = (x - cam.x) | 0;
     const sy = (y - cam.y) | 0;
 
-    const isOpened = window.trashCansState[i]?.guessed === true;
+    const state = window.trashCansState[i] || {};
+    const isOpened = state.isOpened === true || state.guessed === true;
+
     const frame = isOpened
       ? 0
       : Math.floor((t + i * 987) / TRASH_CONFIG.FRAME_DURATION) %
@@ -172,10 +173,10 @@ function drawTrashCans(ctx) {
       0,
       TRASH_CONFIG.FRAME_SIZE,
       TRASH_CONFIG.FRAME_SIZE,
-      sx - 20, // было -35
-      sy - 25, // было -35
-      40, // было TRASH_CONFIG.FRAME_SIZE (70)
-      50, // было TRASH_CONFIG.FRAME_SIZE (70)
+      sx - 20,
+      sy - 25,
+      40,
+      50,
     );
   });
 }

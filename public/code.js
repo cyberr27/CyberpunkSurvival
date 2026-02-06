@@ -2353,7 +2353,6 @@ function handleGameMessage(event) {
         if (!msgEl || !cardEl) break;
 
         if (data.success) {
-          // Успех — красивый текст + уведомление
           msgEl.textContent = "Угадал! Забирай лут!";
           msgEl.style.color = "#00ff44";
 
@@ -2367,11 +2366,6 @@ function handleGameMessage(event) {
             msgEl.textContent += "\n" + lootText.slice(0, -2);
           }
 
-          if (data.correctSuit && SUIT_EMOJI[data.correctSuit]) {
-            cardEl.textContent = SUIT_EMOJI[data.correctSuit];
-            cardEl.className = `card-back revealed ${data.correctSuit}`;
-          }
-
           if (data.xpGained) {
             if (window.levelSystem?.showXPEffect) {
               window.levelSystem.showXPEffect(data.xpGained);
@@ -2382,7 +2376,6 @@ function handleGameMessage(event) {
           window.inventorySystem?.updateInventoryDisplay();
           updateStatsDisplay();
         } else {
-          // Неудача
           msgEl.textContent = data.message || data.error || "Не угадал...";
           msgEl.style.color = "#ff4444";
 
@@ -2395,31 +2388,26 @@ function handleGameMessage(event) {
             const remainSec = Math.ceil((data.waitUntil - Date.now()) / 1000);
             msgEl.textContent += ` (ещё ~${remainSec} сек)`;
           }
-
-          if (data.correctSuit && SUIT_EMOJI[data.correctSuit]) {
-            cardEl.textContent = SUIT_EMOJI[data.correctSuit];
-            cardEl.className = `card-back revealed ${data.correctSuit}`;
-          }
         }
         break;
-      case "trashCanOpened":
-        // Кто-то другой открыл бак → показываем его пустым локально
-        if (data.trashIndex >= 0 && data.trashIndex < 5) {
-          // Можно сохранить флаг в глобальной переменной, если она есть
-          if (window.trashCansState) {
-            window.trashCansState[data.trashIndex] =
-              window.trashCansState[data.trashIndex] || {};
-            window.trashCansState[data.trashIndex].guessed = true;
-          }
 
-          // Если диалог открыт именно на этом баке — обновляем сообщение
+      case "trashCanOpened":
+        if (
+          data.trashIndex >= 0 &&
+          data.trashIndex < window.trashCansState.length
+        ) {
+          window.trashCansState[data.trashIndex] = {
+            ...window.trashCansState[data.trashIndex],
+            guessed: true,
+            isOpened: true,
+          };
+
           if (currentTrashIndex === data.trashIndex) {
             const msgEl = document.getElementById("trashMessage");
             if (msgEl) {
               msgEl.textContent = "Этот бак уже кто-то открыл...";
               msgEl.style.color = "#ffaa00";
             }
-            // Отключаем кнопки
             document.querySelectorAll(".suit-btn").forEach((btn) => {
               btn.disabled = true;
               btn.style.opacity = "0.4";
@@ -2429,25 +2417,55 @@ function handleGameMessage(event) {
         break;
 
       case "trashState":
-        // Ответ на запрос getTrashState (например после переподключения)
-        if (data.index === currentTrashIndex) {
-          if (data.isOpened) {
+        if (data.index >= 0 && data.index < window.trashCansState.length) {
+          window.trashCansState[data.index] = {
+            ...window.trashCansState[data.index],
+            guessed: data.guessed ?? false,
+            isOpened: data.isOpened ?? false,
+            nextAttemptAfter: data.nextAttemptAfter || 0,
+          };
+
+          if (currentTrashIndex === data.index) {
             const msgEl = document.getElementById("trashMessage");
             if (msgEl) {
-              msgEl.textContent = "Бак пуст... подожди респавна";
-              msgEl.style.color = "#888888";
+              if (data.isOpened) {
+                msgEl.textContent = "Бак пуст... подожди респавна";
+                msgEl.style.color = "#888888";
+                document
+                  .querySelectorAll(".suit-btn")
+                  .forEach((btn) => (btn.disabled = true));
+              } else if (
+                data.nextAttemptAfter &&
+                Date.now() < data.nextAttemptAfter
+              ) {
+                const remain = Math.ceil(
+                  (data.nextAttemptAfter - Date.now()) / 1000,
+                );
+                msgEl.textContent = `Подожди ещё ~${remain} сек`;
+              }
             }
-            document
-              .querySelectorAll(".suit-btn")
-              .forEach((btn) => (btn.disabled = true));
           }
-          if (data.nextAttemptAfter && Date.now() < data.nextAttemptAfter) {
-            const remain = Math.ceil(
-              (data.nextAttemptAfter - Date.now()) / 1000,
-            );
-            const msgEl = document.getElementById("trashMessage");
-            if (msgEl) msgEl.textContent = `Подожди ещё ~${remain} сек`;
+        }
+        break;
+
+      case "trashAllStates":
+        data.states.forEach((st) => {
+          if (st.index >= 0 && st.index < window.trashCansState.length) {
+            window.trashCansState[st.index] = {
+              guessed: st.guessed,
+              isOpened: st.isOpened,
+              nextAttemptAfter: st.nextAttemptAfter,
+            };
           }
+        });
+        break;
+
+      case "trashRespawned":
+        const idx = data.index;
+        if (idx >= 0 && idx < window.trashCansState.length) {
+          window.trashCansState[idx].isOpened = false;
+          window.trashCansState[idx].guessed = false;
+          window.trashCansState[idx].nextAttemptAfter = 0;
         }
         break;
       case "torestosMet":
