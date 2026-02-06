@@ -1236,6 +1236,12 @@ function setupWebSocket(
         if (
           item.type === "balyary" ||
           item.type === "atom" ||
+          item.type === " blue_crystal" ||
+          item.type === "green_crystal" ||
+          item.type === "red_crystal" ||
+          item.type === "white_crystal" ||
+          item.type === "yellow_crystal" ||
+          item.type === "chameleon_crystal" ||
           (item.type.startsWith("recipe_") && item.type.includes("_equipment"))
         ) {
           const quantityToAdd = item.quantity || 1;
