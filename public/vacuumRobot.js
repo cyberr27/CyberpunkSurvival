@@ -1,15 +1,16 @@
-// vacuumRobot.js — Оптимизированная версия (2025)
+// vacuumRobot.js — Оптимизированная версия (2026)
 // Три робота-пылесоса: ВАКУУМ-9000, 9001, 9002
-// Минимальная нагрузка на CPU и память
+// Минимальная нагрузка на CPU и память + защита от больших дельт
 
 window.vacuumRobotSystem = (function () {
   const DIALOG_RANGE_SQ = 400; // 20×20 px
   const REWARD_DURATION = 100; // ms ожидания на точке перед следующей
+  const MAX_DELTA = 200; // максимальный шаг времени (защита от "догонки")
 
-  // Один спрайт для всех (можно передать разные в initialize)
+  // Один спрайт для всех
   let sharedSprite = null;
 
-  // Данные роботов — компактно, без дублирования функций
+  // Данные роботов — компактно
   const robots = [
     {
       name: "ВАКУУМ-9000",
@@ -57,9 +58,11 @@ window.vacuumRobotSystem = (function () {
     worldId: 0,
   }));
 
+  // Кэш игрока — обновляем только при необходимости
   let meCache = null;
+  let lastWorldId = -1;
 
-  // Один диалог на всех (переиспользуем)
+  // Один диалог на всех
   let dialogElement = null;
   let currentRobot = null;
 
@@ -145,8 +148,19 @@ window.vacuumRobotSystem = (function () {
       } else {
         me.inventory[slot].quantity = qty;
       }
-      updateInventoryDisplay();
-      showNotification(`${robot.name} оставил тебе 1 баляр!`, "#00ff00");
+
+      // ─── Вот здесь добавляем уведомление ───
+      if (window.showNotification) {
+        window.showNotification(
+          `${robot.name} оставил тебе 1 баляр!`,
+          "#00ff88",
+        );
+      }
+
+      // Обновляем инвентарь на экране
+      if (window.updateInventoryDisplay) {
+        window.updateInventoryDisplay();
+      }
     }
   }
 
@@ -160,58 +174,77 @@ window.vacuumRobotSystem = (function () {
   function moveToTarget(robot, tx, ty, dt) {
     const dx = tx - robot.x;
     const dy = ty - robot.y;
-    const dist = Math.hypot(dx, dy);
-    if (dist < 3) {
+    const distSq = dx * dx + dy * dy;
+
+    if (distSq < 9) {
+      // ~3 пикселя
       robot.x = tx;
       robot.y = ty;
       robot.state = "waiting";
       robot.waitTimer = 0;
       return;
     }
+
+    const dist = Math.sqrt(distSq);
     const move = robot.speed * dt;
     robot.x += (dx / dist) * move;
     robot.y += (dy / dist) * move;
   }
 
   function update(deltaTime) {
-    if (window.worldSystem.currentWorldId !== 0) {
+    const currentWorld = window.worldSystem?.currentWorldId ?? -1;
+
+    // Смена мира → чистим кэш и диалог
+    if (currentWorld !== lastWorldId) {
+      lastWorldId = currentWorld;
+      meCache = null;
       hideDialog();
-      return;
+      if (currentWorld !== 0) return;
     }
 
-    meCache = players.get(myId);
+    if (currentWorld !== 0) return;
+
+    // Обновляем кэш игрока только если нужно
+    if (!meCache || meCache.id !== myId) {
+      meCache = players.get(myId);
+    }
+
+    // Защита от огромных дельт (вкладка была свёрнута)
+    const safeDelta = Math.min(deltaTime, MAX_DELTA);
 
     for (const r of robots) {
-      // Анимация (13 кадров, 83ms)
-      r.frameTime += deltaTime;
+      // Анимация кадров (независимо от движения)
+      r.frameTime += safeDelta;
       if (r.frameTime >= 83) {
         r.frameTime -= 83;
         r.frame = (r.frame + 1) % 13;
       }
 
-      // Логика движения
+      // Логика состояния
       if (r.state === "waiting") {
-        r.waitTimer += deltaTime;
+        r.waitTimer += safeDelta;
         if (r.waitTimer >= REWARD_DURATION) {
           r.currentTarget = (r.currentTarget + 1) % r.path.length;
           r.state = "moving";
         }
       } else {
         const target = r.path[r.currentTarget];
-        moveToTarget(r, target.x, target.y, deltaTime);
+        moveToTarget(r, target.x, target.y, safeDelta);
       }
 
-      // Диалог
-      if (isNearPlayer(r)) {
-        showDialog(r);
-      } else if (r.dialogShown) {
-        hideDialog();
+      // Проверка близости и диалог — только если игрок существует
+      if (meCache) {
+        if (isNearPlayer(r)) {
+          showDialog(r);
+        } else if (r.dialogShown) {
+          hideDialog();
+        }
       }
     }
   }
 
   function draw() {
-    if (window.worldSystem.currentWorldId !== 0) return;
+    if (window.worldSystem?.currentWorldId !== 0) return;
 
     const cam = window.movementSystem.getCamera();
     const cw = canvas.width + 200;
@@ -221,7 +254,6 @@ window.vacuumRobotSystem = (function () {
       const sx = r.x - cam.x;
       const sy = r.y - cam.y;
 
-      // Отсечение
       if (sx < -100 || sx > cw || sy < -100 || sy > ch) continue;
 
       if (sharedSprite?.complete) {
@@ -234,8 +266,8 @@ window.vacuumRobotSystem = (function () {
         ctx.fillText(r.name, sx + 8, sy + 40);
       }
 
-      // Подсветка при приближении
-      if (isNearPlayer(r)) {
+      // Подсветка при приближении (только если диалог активен)
+      if (r.dialogShown) {
         ctx.strokeStyle = "#00ffff";
         ctx.lineWidth = 3;
         ctx.setLineDash([8, 8]);
@@ -248,7 +280,8 @@ window.vacuumRobotSystem = (function () {
   function initialize(sprite9000, sprite9001, sprite9002) {
     sharedSprite =
       sprite9000 || sprite9001 || sprite9002 || images.vacuumRobotSprite;
-    // Сброс позиций на стартовые (на случай релоада)
+
+    // Сброс состояний
     robots.forEach((r, i) => {
       r.x = r.path[0].x;
       r.y = r.path[0].y;
@@ -256,14 +289,19 @@ window.vacuumRobotSystem = (function () {
       r.state = "moving";
       r.frame = 0;
       r.frameTime = 0;
+      r.waitTimer = 0;
       r.dialogShown = false;
     });
+
+    // Сброс кэша
+    meCache = null;
+    lastWorldId = -1;
   }
 
   return {
     initialize,
     update,
     draw,
-    hideDialog, // на всякий случай оставляем, если где-то вызывается
+    hideDialog,
   };
 })();
