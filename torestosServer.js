@@ -173,35 +173,61 @@ function handleTorestosUpgrade(
   inv[centerIdx] = null;
 
   if (upgradeType === "torn") {
-    let bloodRemoved = false;
-    let recipeRemoved = false;
+    let bloodIdx = -1;
+    let recipeIdx = -1;
 
+    // Ищем индексы нужных предметов
     for (let i = 0; i < inv.length; i++) {
       if (!inv[i]) continue;
 
-      if (!bloodRemoved && inv[i].type === "blood_pack") {
-        inv[i] = null;
-        bloodRemoved = true;
+      if (inv[i].type === "blood_pack" && bloodIdx === -1) {
+        bloodIdx = i;
       }
-      if (!recipeRemoved && inv[i].type === "recipe_torn_equipment") {
-        inv[i] = null;
-        recipeRemoved = true;
+      if (inv[i].type === "recipe_torn_equipment" && recipeIdx === -1) {
+        recipeIdx = i;
       }
 
-      if (bloodRemoved && recipeRemoved) break;
+      if (bloodIdx !== -1 && recipeIdx !== -1) break;
     }
+
+    // Проверяем, что нашли ВСЕ нужные предметы
+    if (bloodIdx === -1 || recipeIdx === -1) {
+      ws.send(
+        JSON.stringify({
+          type: "torestosUpgradeResult",
+          success: false,
+          error: "Не удалось найти один из требуемых материалов для удаления",
+        }),
+      );
+      return;
+    }
+
+    // Удаляем
+    inv[bloodIdx] = null;
+    inv[recipeIdx] = null;
   } else if (upgradeType === "chameleon") {
-    let recipeRemoved = false;
+    let recipeIdx = -1;
 
     for (let i = 0; i < inv.length; i++) {
       if (!inv[i]) continue;
-
-      if (!recipeRemoved && inv[i].type === "recipe_chameleon_equipment") {
-        inv[i] = null;
-        recipeRemoved = true;
+      if (inv[i].type === "recipe_chameleon_equipment" && recipeIdx === -1) {
+        recipeIdx = i;
         break;
       }
     }
+
+    if (recipeIdx === -1) {
+      ws.send(
+        JSON.stringify({
+          type: "torestosUpgradeResult",
+          success: false,
+          error: "Не удалось найти рецепт хамелеона для удаления",
+        }),
+      );
+      return;
+    }
+
+    inv[recipeIdx] = null;
   }
 
   // 6. Добавляем новый предмет в свободный слот
