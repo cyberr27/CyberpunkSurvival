@@ -557,6 +557,16 @@ const ITEM_CONFIG = {
     rarity: 1,
     stackable: true,
   },
+  nanoalloy: {
+    description: "Наносплав.",
+    rarity: 1,
+    stackable: true,
+  },
+  nanofilament: {
+    description: "Нановолокно.",
+    rarity: 1,
+    stackable: true,
+  },
 };
 
 module.exports = { ITEM_CONFIG };

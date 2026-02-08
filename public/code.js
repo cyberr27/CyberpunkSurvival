@@ -180,6 +180,8 @@ const imageSources = {
   white_crystal: "white_crystal.png",
   yellow_crystal: "yellow_crystal.png",
   chameleon_crystal: "chameleon_crystal.png",
+  nanoalloy: "nanoalloy.png",
+  nanofilament: "nanofilament.png",
 };
 
 const images = {};
@@ -838,6 +840,18 @@ const ITEM_CONFIG = {
     rarity: 1,
     stackable: true,
   },
+  nanoalloy: {
+    image: images.nanoalloy,
+    description: "Наносплав.",
+    rarity: 1,
+    stackable: true,
+  },
+  nanofilament: {
+    image: images.nanofilament,
+    description: "Нановолокно.",
+    rarity: 1,
+    stackable: true,
+  },
 };
 
 let reconnectAttempts = 0;
@@ -1318,7 +1332,7 @@ function startGame() {
     }
 
     switch (e.key) {
-      case "i":
+      case "q":
         toggleInventory();
         e.preventDefault();
         break;

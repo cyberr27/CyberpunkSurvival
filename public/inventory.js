@@ -161,7 +161,9 @@ function selectSlot(slotIndex, slotElement) {
     itemType === "red_crystal" ||
     itemType === "white_crystal" ||
     itemType === "yellow_crystal" ||
-    itemType === "chameleon_crystal";
+    itemType === "chameleon_crystal" ||
+    item.type === "nanofilament" ||
+    item.type === "nanoalloy";
 
   useBtn.disabled =
     isNonUsableStackable || !!config?.balyary || !config?.effect;
@@ -199,7 +201,9 @@ function useItem(slotIndex) {
     item.type === "red_crystal" ||
     item.type === "white_crystal" ||
     item.type === "yellow_crystal" ||
-    item.type === "chameleon_crystal"
+    item.type === "chameleon_crystal" ||
+    item.type === "nanofilament" ||
+    item.type === "nanoalloy"
   )
     return;
 
