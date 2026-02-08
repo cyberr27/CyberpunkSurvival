@@ -1243,11 +1243,8 @@ function setupWebSocket(
           item.type === "yellow_crystal" ||
           item.type === "chameleon_crystal" ||
           item.type === "nanofilament" ||
-          item.type ===
-            "nanoalloy"(
-              item.type.startsWith("recipe_") &&
-                item.type.includes("_equipment"),
-            )
+          item.type === "nanoalloy" ||
+          (item.type.startsWith("recipe_") && item.type.includes("_equipment"))
         ) {
           const quantityToAdd = item.quantity || 1;
           // ИЗМЕНЕНО: Ищем слот с соответствующим типом (balyary или atom)
