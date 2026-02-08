@@ -282,7 +282,7 @@ function showHomelessRentDialog() {
     </div>
     <div class="homeless-dialog-content">
       ${rentInfoHtml}
-      <p class="homeless-text">Братан, могу посмотреть за твоими вещами.Если что скажи на сколько дней сохранить вещи? И бросай их ко мне в сумку...</p>
+      <p class="homeless-text">Братан, могу посмотреть за твоим барахлом. Если что скажи на сколько дней сохранить вещи? И бросай их ко мне в сумку...</p>
       <p class="homeless-text-cost">2 баляра за сутки</p>
       <input type="number" id="homelessRentDays" min="1" value="1" class="homeless-rent-input">
       <div class="homeless-rent-buttons">
@@ -348,7 +348,7 @@ function showHomelessStorageInterface(storageItems) {
 
   storageDialogHomeless.innerHTML = `
     <div class="homeless-storage-header">
-      <h2>Склад Бездомного</h2>
+      <h2>Сумка Бездомного</h2>
       <button class="homeless-close-btn">Закрыть</button>
     </div>
     <div class="homeless-storage-content">
@@ -366,7 +366,7 @@ function showHomelessStorageInterface(storageItems) {
         <div class="homeless-error-text" id="homelessStackError"></div>
       </div>
       <div class="homeless-storage-inventory">
-        <h3>Хранилище</h3>
+        <h3>Сумка</h3>
         <div class="homeless-grid" id="homelessStorageGrid"></div>
       </div>
     </div>
