@@ -267,7 +267,6 @@ function handleTorestosUpgrade(
   } else if (upgradeType === "nano_knife") {
     // Удаляем ВСЕ указанные материалы (по одному каждого типа)
     const toRemove = [
-      "knife",
       "white_crystal",
       "green_crystal",
       "red_crystal",
