@@ -597,6 +597,7 @@ function setupWebSocket(
             captainMet: false,
             thimbleriggerMet: false,
             torestosMet: false,
+            toremidosMet: false,
             level: 0,
             xp: 0,
             upgradePoints: 0,
@@ -752,6 +753,7 @@ function setupWebSocket(
             captainMet: player.captainMet || false,
             thimbleriggerMet: player.thimbleriggerMet || false,
             torestosMet: player.torestosMet || false,
+            toremidosMet: player.toremidosMet || false,
             selectedQuestId: player.selectedQuestId || null,
             level: player.level || 0,
             xp: player.xp || 0,
@@ -839,6 +841,7 @@ function setupWebSocket(
               captainMet: playerData.captainMet,
               thimbleriggerMet: playerData.thimbleriggerMet,
               torestosMet: playerData.torestosMet || false,
+              toremidosMet: playerData.toremidosMet,
               selectedQuestId: playerData.selectedQuestId,
               level: playerData.level,
               xp: playerData.xp,
@@ -3422,6 +3425,17 @@ function setupWebSocket(
           dbCollection,
           saveUserDatabase,
         );
+      } else if (data.type === "meetToremidos") {
+        const id = clients.get(ws);
+        if (id) {
+          const player = players.get(id);
+          player.toremidosMet = true;
+          players.set(id, { ...player });
+          userDatabase.set(id, { ...player });
+          await saveUserDatabase(dbCollection, id, player);
+
+          ws.send(JSON.stringify({ type: "toremidosMet", met: true }));
+        }
       } else if (data.type === "homelessOpenStorage") {
         const playerId = clients.get(ws);
         if (!playerId || !players.has(playerId)) return;

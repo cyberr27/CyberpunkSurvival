@@ -98,10 +98,10 @@ function openTorestosDialog(section = "talk") {
   // Общая кнопка "ОТМЕНА" / "ЗАКРЫТЬ" для upgrade и collection
   if (!isTalk) {
     closeBtn = document.createElement("button");
-    closeBtn.className = "torestos-neon-btn";
+    closeBtn.className = "torestos-neon-btn-cancel";
     closeBtn.style.position = "absolute";
-    closeBtn.style.top = "10px";
-    closeBtn.style.right = "10px";
+    closeBtn.style.top = "3%";
+    closeBtn.style.width = "10%";
     closeBtn.textContent = "ОТМЕНА";
     closeBtn.onclick = closeDialog;
     dialogElement.appendChild(closeBtn);
@@ -259,7 +259,7 @@ function openTorestosDialog(section = "talk") {
     upgradeContent.appendChild(useContainer);
 
     const useBtn = document.createElement("button");
-    useBtn.className = "torestos-neon-btn upgrade-use-btn";
+    useBtn.className = "torestos-neon-btn-use upgrade-use-btn";
     useBtn.textContent = "USE >>";
     useBtn.disabled = true;
     useContainer.appendChild(useBtn);
@@ -288,7 +288,7 @@ function openTorestosDialog(section = "talk") {
     upgradeArea.appendChild(upgradeButtons);
 
     const upgradeBtn = document.createElement("button");
-    upgradeBtn.className = "torestos-neon-btn";
+    upgradeBtn.className = "torestos-neon-btn-create";
     upgradeBtn.textContent = "УЛУЧШИТЬ";
     upgradeBtn.disabled = true;
 
@@ -321,12 +321,6 @@ function openTorestosDialog(section = "talk") {
     };
 
     upgradeButtons.appendChild(upgradeBtn);
-
-    const cancelBtn = document.createElement("button");
-    cancelBtn.className = "torestos-neon-btn";
-    cancelBtn.textContent = "ОТМЕНА";
-    cancelBtn.onclick = closeDialog;
-    upgradeButtons.appendChild(cancelBtn);
 
     let selectedPlayerSlot = null;
 

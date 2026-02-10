@@ -127,6 +127,7 @@ const imageSources = {
   misterTwisterSprite: "mister_twister.png",
   trashImage: "trash.png",
   torestosSprite: "torestosSprite.png",
+  toremidosSprite: "toremidosSprite.png",
   homelessSprite: "homeless.png",
   portalImage: "portal.png",
   // === НОВАЯ ПОРВАННАЯ ЭКИПИРОВКА ===
@@ -207,6 +208,7 @@ Object.entries(imageSources).forEach(([key, src]) => {
       window.thimbleriggerSystem.initialize(images.thimbleriggerSprite);
       window.trashCansSystem.initialize(images.trashImage);
       window.torestosSystem.initialize(images.torestosSprite);
+      window.toremidosSystem?.initialize?.(images.toremidosSprite);
       window.homelessSystem?.initialize?.(images.homelessSprite);
       window.portalSystem.initialize(images.portalImage);
     }
@@ -1191,6 +1193,7 @@ function handleAuthMessage(event) {
         window.thimbleriggerSystem.setThimbleriggerMet(!!data.thimbleriggerMet);
       }
       window.torestosSystem.setTorestosMet(data.torestosMet === true);
+      window.toremidosSystem?.setMet?.(data.toremidosMet === true);
       window.npcSystem.setSelectedQuest(data.selectedQuestId || null);
       window.npcSystem.checkQuestCompletion();
       window.npcSystem.setAvailableQuests(data.availableQuests || []);
@@ -1314,6 +1317,7 @@ function startGame() {
   window.thimbleriggerSystem.initialize(images.thimbleriggerSprite);
   window.trashCansSystem.initialize(images.trashImage);
   window.torestosSystem.initialize(images.torestosSprite);
+  window.toremidosSystem?.initialize?.(images.toremidosSprite);
   window.homelessSystem?.initialize?.(images.homelessSprite);
   window.portalSystem.initialize(images.portalImage);
   window.combatSystem.initialize();
@@ -2559,6 +2563,9 @@ function handleGameMessage(event) {
           upgradeBtn.textContent = "УЛУЧШИТЬ";
         }
         break;
+      case "toremidosMet":
+        window.toremidosSystem?.setMet?.(data.met);
+        break;
       case "forcePosition": {
         const me = players.get(myId);
         if (me) {
@@ -2731,6 +2738,8 @@ function update(deltaTime) {
     window.outpostCaptainSystem.update(deltaTime);
   window.thimbleriggerSystem.checkThimbleriggerProximity();
   window.torestosSystem.checkTorestosProximity();
+  window.toremidosSystem?.checkProximity?.();
+  window.toremidosSystem?.update?.(deltaTime);
   window.homelessSystem?.checkProximity?.();
   window.homelessSystem?.update?.(deltaTime);
   window.misterTwister.checkProximity();
@@ -3008,6 +3017,7 @@ function draw(deltaTime) {
     window.trashCansSystem.draw(ctx);
   }
   window.torestosSystem.drawTorestos(deltaTime);
+  window.toremidosSystem?.draw?.(deltaTime);
   window.homelessSystem?.draw?.();
   window.jackSystem.drawJack(deltaTime);
   window.droneSystem.draw();
