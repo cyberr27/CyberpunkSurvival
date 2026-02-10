@@ -44,10 +44,8 @@ function getChameleonVariant(originalType) {
   return mapping[originalType] || null;
 }
 
-// Новый вариант — Nano Absorbing Knife (из всех кристаллов + нано-материалы)
-function getNanoAbsorbingKnifeVariant(originalType) {
-  // Пока поддерживаем только улучшение белой пустоты → но можно расширить позже
-  if (originalType === "white_void_t_shirt") {
+function getNanoAbsorbingKnifeFromKnife(originalType) {
+  if (originalType === "knife") {
     return "nano_absorbing_knife";
   }
   return null;
@@ -94,12 +92,25 @@ function handleTorestosUpgrade(
   }
 
   const centerItem = inv[centerIdx];
-  if (!isWhiteVoidItem(centerItem)) {
+  const centerType = centerItem.type;
+
+  // Для рецептов torn и chameleon — нужен White Void
+  // Для рецепта nano — нужен обычный knife
+  let isValidCenter = false;
+
+  if (centerType === "knife") {
+    isValidCenter = true; // для nano-рецепта
+  } else if (isWhiteVoidItem(centerItem)) {
+    isValidCenter = true; // для torn и chameleon
+  }
+
+  if (!isValidCenter) {
     ws.send(
       JSON.stringify({
         type: "torestosUpgradeResult",
         success: false,
-        error: "В центральном слоте должен быть предмет коллекции White Void",
+        error:
+          "В центральном слоте должен быть либо предмет коллекции White Void, либо обычный нож (knife)",
       }),
     );
     return;
@@ -130,30 +141,33 @@ function handleTorestosUpgrade(
     requiredMaterials = ["recipe_chameleon_equipment"];
   }
 
-  // ─── НОВЫЙ РЕЦЕПТ: Nano Absorbing Knife ───
+  // ─── НОВЫЙ РЕЦЕПТ: Nano Absorbing Knife из обычного ножа ───
   if (!upgradeType) {
-    const hasAllCrystals =
-      materialTypes.includes("white_crystal") &&
-      materialTypes.includes("green_crystal") &&
-      materialTypes.includes("red_crystal") &&
-      materialTypes.includes("yellow_crystal") &&
-      materialTypes.includes("blue_crystal") &&
-      materialTypes.includes("chameleon_crystal") &&
-      materialTypes.includes("nanoalloy") &&
-      materialTypes.includes("nanofilament");
+    // Проверяем, что центральный предмет — это knife
+    if (centerType === "knife") {
+      const hasAllCrystals =
+        materialTypes.includes("white_crystal") &&
+        materialTypes.includes("green_crystal") &&
+        materialTypes.includes("red_crystal") &&
+        materialTypes.includes("yellow_crystal") &&
+        materialTypes.includes("blue_crystal") &&
+        materialTypes.includes("chameleon_crystal") &&
+        materialTypes.includes("nanoalloy") &&
+        materialTypes.includes("nanofilament");
 
-    if (hasAllCrystals && materials.length >= 8) {
-      upgradeType = "nano";
-      requiredMaterials = [
-        "white_crystal",
-        "green_crystal",
-        "red_crystal",
-        "yellow_crystal",
-        "blue_crystal",
-        "chameleon_crystal",
-        "nanoalloy",
-        "nanofilament",
-      ];
+      if (hasAllCrystals && materials.length >= 8) {
+        upgradeType = "nano_knife";
+        requiredMaterials = [
+          "white_crystal",
+          "green_crystal",
+          "red_crystal",
+          "yellow_crystal",
+          "blue_crystal",
+          "chameleon_crystal",
+          "nanoalloy",
+          "nanofilament",
+        ];
+      }
     }
   }
 
@@ -163,10 +177,11 @@ function handleTorestosUpgrade(
         type: "torestosUpgradeResult",
         success: false,
         error:
-          "Неправильные или недостаточные материалы. Доступные рецепты:\n" +
-          "• blood_pack + recipe_torn_equipment\n" +
-          "• recipe_chameleon_equipment\n" +
-          "• white_crystal + green + red + yellow + blue + chameleon_crystal + nanoalloy + nanofilament",
+          "Неправильные материалы или центральный предмет.\n\n" +
+          "Доступные рецепты:\n" +
+          "• White Void + blood_pack + recipe_torn_equipment\n" +
+          "• White Void + recipe_chameleon_equipment\n" +
+          "• knife + white_crystal + green + red + yellow + blue + chameleon_crystal + nanoalloy + nanofilament",
       }),
     );
     return;
@@ -179,8 +194,8 @@ function handleTorestosUpgrade(
     newType = getTornHealthVariant(centerItem.type);
   } else if (upgradeType === "chameleon") {
     newType = getChameleonVariant(centerItem.type);
-  } else if (upgradeType === "nano") {
-    newType = getNanoAbsorbingKnifeVariant(centerItem.type);
+  } else if (upgradeType === "nano_knife") {
+    newType = getNanoAbsorbingKnifeFromKnife(centerItem.type);
   }
 
   if (!newType) {
@@ -249,7 +264,7 @@ function handleTorestosUpgrade(
       return;
     }
     inv[recipeIdx] = null;
-  } else if (upgradeType === "nano") {
+  } else if (upgradeType === "nano_knife") {
     // Удаляем ВСЕ указанные материалы (по одному каждого типа)
     const toRemove = [
       "white_crystal",
