@@ -1,4 +1,4 @@
-const { ITEM_CONFIG } = require("./items"); // предполагается, что ITEM_CONFIG экспортируется
+const { ITEM_CONFIG } = require("./items");
 
 // ------------------------------------------------------------------------
 // Вспомогательные функции
@@ -18,6 +18,16 @@ function isWhiteVoidItem(item) {
   if (!item) return false;
   const cfg = ITEM_CONFIG[item.type];
   return cfg && cfg.collection === "White Void";
+}
+
+function isUpgradeableItemServer(item) {
+  if (!item) return false;
+  const cfg = ITEM_CONFIG[item.type];
+  if (!cfg) return false;
+  return (
+    cfg.type === "weapon" ||
+    ["headgear", "armor", "gloves", "belt", "pants", "boots"].includes(cfg.type)
+  );
 }
 
 function getTornHealthVariant(originalType) {
@@ -85,6 +95,8 @@ function handleTorestosUpgrade(
   }
 
   const centerItem = inv[centerIdx];
+
+  // Проверка типа предмета (дополнительная защита)
   if (!isWhiteVoidItem(centerItem)) {
     ws.send(
       JSON.stringify({
@@ -96,35 +108,38 @@ function handleTorestosUpgrade(
     return;
   }
 
-  // 2. Ищем материалы и определяем рецепт
+  // Можно раскомментировать для строгой проверки
+  // if (!isUpgradeableItemServer(centerItem)) {
+  //   ws.send(JSON.stringify({
+  //     type: "torestosUpgradeResult",
+  //     success: false,
+  //     error: "В центральном слоте должен быть предмет экипировки или оружие",
+  //   }));
+  //   return;
+  // }
+
+  // 2. Собираем материалы
   const materials = findMaterialItems(inv);
 
   let upgradeType = null; // "torn" или "chameleon"
-  let requiredMaterials = [];
 
-  // Проверяем рецепт Torn Health (нужно два предмета)
-  let hasBlood = false;
-  let hasTornRecipe = false;
-
+  // Считаем, сколько у нас каждого нужного типа
+  const materialCounts = {};
   materials.forEach((m) => {
-    if (m.item.type === "blood_pack") hasBlood = true;
-    if (m.item.type === "recipe_torn_equipment") hasTornRecipe = true;
+    const type = m.item.type;
+    materialCounts[type] = (materialCounts[type] || 0) + (m.item.quantity || 1);
   });
 
-  if (hasBlood && hasTornRecipe && materials.length >= 2) {
-    upgradeType = "torn";
-    requiredMaterials = ["blood_pack", "recipe_torn_equipment"];
-  }
-  // Если не подошёл Torn — проверяем Chameleon (нужен только один рецепт)
-  else if (materials.length >= 1) {
-    const hasChameleonRecipe = materials.some(
-      (m) => m.item.type === "recipe_chameleon_equipment",
-    );
+  // Проверяем рецепт Torn Health
+  const hasBlood = (materialCounts["blood_pack"] || 0) >= 1;
+  const hasTornRecipe = (materialCounts["recipe_torn_equipment"] || 0) >= 1;
 
-    if (hasChameleonRecipe) {
-      upgradeType = "chameleon";
-      requiredMaterials = ["recipe_chameleon_equipment"];
-    }
+  if (hasBlood && hasTornRecipe) {
+    upgradeType = "torn";
+  }
+  // Проверяем рецепт Chameleon
+  else if ((materialCounts["recipe_chameleon_equipment"] || 0) >= 1) {
+    upgradeType = "chameleon";
   }
 
   if (!upgradeType) {
@@ -133,10 +148,10 @@ function handleTorestosUpgrade(
         type: "torestosUpgradeResult",
         success: false,
         error:
-          "Неправильные или недостаточные материалы. Требуется:\n" +
-          "• blood_pack + recipe_torn_equipment\n" +
-          "или\n" +
-          "• recipe_chameleon_equipment",
+          "Неправильные или недостаточные материалы.\n\n" +
+          "Требуется один из вариантов:\n" +
+          "• 1× blood_pack + 1× recipe_torn_equipment\n" +
+          "• 1× recipe_chameleon_equipment",
       }),
     );
     return;
@@ -156,17 +171,16 @@ function handleTorestosUpgrade(
       JSON.stringify({
         type: "torestosUpgradeResult",
         success: false,
-        error:
-          "Неизвестный / неподдерживаемый тип White Void предмета для этого рецепта",
+        error: "Не поддерживается улучшение для этого типа White Void предмета",
       }),
     );
     return;
   }
 
-  // 4. Создаём новый предмет
+  // 4. Создаём результат
   const newItem = {
     type: newType,
-    // Можно добавить quality / durability / etc в будущем
+    // quality, durability и т.д. можно добавить позже
   };
 
   // 5. Удаляем использованные предметы
@@ -176,7 +190,6 @@ function handleTorestosUpgrade(
     let bloodIdx = -1;
     let recipeIdx = -1;
 
-    // Ищем индексы нужных предметов
     for (let i = 0; i < inv.length; i++) {
       if (!inv[i]) continue;
 
@@ -190,19 +203,19 @@ function handleTorestosUpgrade(
       if (bloodIdx !== -1 && recipeIdx !== -1) break;
     }
 
-    // Проверяем, что нашли ВСЕ нужные предметы
     if (bloodIdx === -1 || recipeIdx === -1) {
       ws.send(
         JSON.stringify({
           type: "torestosUpgradeResult",
           success: false,
-          error: "Не удалось найти один из требуемых материалов для удаления",
+          error:
+            "Сервер не нашёл необходимые материалы для удаления (ошибка синхронизации)",
         }),
       );
       return;
     }
 
-    // Удаляем
+    // Удаляем по одному экземпляру
     inv[bloodIdx] = null;
     inv[recipeIdx] = null;
   } else if (upgradeType === "chameleon") {
@@ -221,7 +234,8 @@ function handleTorestosUpgrade(
         JSON.stringify({
           type: "torestosUpgradeResult",
           success: false,
-          error: "Не удалось найти рецепт хамелеона для удаления",
+          error:
+            "Сервер не нашёл рецепт хамелеона для удаления (ошибка синхронизации)",
         }),
       );
       return;
@@ -230,14 +244,14 @@ function handleTorestosUpgrade(
     inv[recipeIdx] = null;
   }
 
-  // 6. Добавляем новый предмет в свободный слот
+  // 6. Добавляем результат в свободный слот
   const freeSlot = inv.findIndex((slot) => slot === null);
   if (freeSlot === -1) {
     ws.send(
       JSON.stringify({
         type: "torestosUpgradeResult",
         success: false,
-        error: "Нет места в инвентаре",
+        error: "Нет свободного места в инвентаре",
       }),
     );
     return;
@@ -245,19 +259,19 @@ function handleTorestosUpgrade(
 
   inv[freeSlot] = newItem;
 
-  // 7. Сохраняем изменения в базу
+  // 7. Сохраняем
   player.inventory = inv;
   players.set(playerId, { ...player });
   userDatabase.set(playerId, { ...player });
   saveUserDatabase(dbCollection, playerId, player);
 
-  // 8. Отправляем результат клиенту
+  // 8. Успешный ответ
   ws.send(
     JSON.stringify({
       type: "torestosUpgradeResult",
       success: true,
       newInventory: inv,
-      message: `Получено: ${ITEM_CONFIG[newType]?.description || newType}`,
+      message: `Успешно улучшено!\nПолучено: ${ITEM_CONFIG[newType]?.description || newType}`,
     }),
   );
 }
