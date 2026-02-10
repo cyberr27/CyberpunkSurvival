@@ -516,7 +516,6 @@ const ITEM_CONFIG = {
     rarity: 6,
     stackable: true,
     recipe: "recipe_torn_equipment",
-    materials: true,
   },
 
   recipe_chameleon_equipment: {
@@ -526,56 +525,47 @@ const ITEM_CONFIG = {
     rarity: 6,
     stackable: true,
     recipe: "recipe_chameleon_equipment",
-    materials: true,
   },
 
   blue_crystal: {
     description: "Синий кристал — материал для улучшений у Торестоса",
     rarity: 1,
     stackable: true,
-    materials: true,
   },
   green_crystal: {
     description: "Зеленый кристал — материал для улучшений у Торестоса",
     rarity: 1,
     stackable: true,
-    materials: true,
   },
   red_crystal: {
     description: "Красный кристал — материал для улучшений у Торестоса",
     rarity: 1,
     stackable: true,
-    materials: true,
   },
   white_crystal: {
     description: "Белый кристал — материал для улучшений у Торестоса",
     rarity: 1,
     stackable: true,
-    materials: true,
   },
   yellow_crystal: {
     description: "Желтый кристал — материал для улучшений у Торестоса",
     rarity: 1,
     stackable: true,
-    materials: true,
   },
   chameleon_crystal: {
     description: "Хамелион кристал — материал для улучшений у Торестоса",
     rarity: 1,
     stackable: true,
-    materials: true,
   },
   nanoalloy: {
     description: "Наносплав.",
     rarity: 1,
     stackable: true,
-    materials: true,
   },
   nanofilament: {
     description: "Нановолокно.",
     rarity: 1,
     stackable: true,
-    materials: true,
   },
 };
 
