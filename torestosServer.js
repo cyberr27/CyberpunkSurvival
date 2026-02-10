@@ -1,4 +1,4 @@
-const { ITEM_CONFIG } = require("./items"); // предполагается, что ITEM_CONFIG экспортируется
+const { ITEM_CONFIG } = require("./items");
 
 // ------------------------------------------------------------------------
 // Вспомогательные функции
@@ -44,6 +44,15 @@ function getChameleonVariant(originalType) {
   return mapping[originalType] || null;
 }
 
+// Новый вариант — Nano Absorbing Knife (из всех кристаллов + нано-материалы)
+function getNanoAbsorbingKnifeVariant(originalType) {
+  // Пока поддерживаем только улучшение белой пустоты → но можно расширить позже
+  if (originalType === "white_void_t_shirt") {
+    return "nano_absorbing_knife";
+  }
+  return null;
+}
+
 // ------------------------------------------------------------------------
 // Основная функция обработки апгрейда
 // ------------------------------------------------------------------------
@@ -71,7 +80,7 @@ function handleTorestosUpgrade(
 
   const inv = data.inventory;
 
-  // 1. Находим центральный предмет
+  // 1. Находим центральный предмет (White Void)
   const centerIdx = findCentralItem(inv);
   if (centerIdx === -1) {
     ws.send(
@@ -96,34 +105,55 @@ function handleTorestosUpgrade(
     return;
   }
 
-  // 2. Ищем материалы и определяем рецепт
+  // 2. Ищем материалы
   const materials = findMaterialItems(inv);
 
-  let upgradeType = null; // "torn" или "chameleon"
+  let upgradeType = null; // "torn" / "chameleon" / "nano"
   let requiredMaterials = [];
 
-  // Проверяем рецепт Torn Health (нужно два предмета)
+  // ─── Проверка старых рецептов ───
   let hasBlood = false;
   let hasTornRecipe = false;
+  let hasChameleonRecipe = false;
 
-  materials.forEach((m) => {
-    if (m.item.type === "blood_pack") hasBlood = true;
-    if (m.item.type === "recipe_torn_equipment") hasTornRecipe = true;
-  });
+  const materialTypes = materials.map((m) => m.item.type);
+
+  hasBlood = materialTypes.includes("blood_pack");
+  hasTornRecipe = materialTypes.includes("recipe_torn_equipment");
+  hasChameleonRecipe = materialTypes.includes("recipe_chameleon_equipment");
 
   if (hasBlood && hasTornRecipe && materials.length >= 2) {
     upgradeType = "torn";
     requiredMaterials = ["blood_pack", "recipe_torn_equipment"];
+  } else if (hasChameleonRecipe && materials.length >= 1) {
+    upgradeType = "chameleon";
+    requiredMaterials = ["recipe_chameleon_equipment"];
   }
-  // Если не подошёл Torn — проверяем Chameleon (нужен только один рецепт)
-  else if (materials.length >= 1) {
-    const hasChameleonRecipe = materials.some(
-      (m) => m.item.type === "recipe_chameleon_equipment",
-    );
 
-    if (hasChameleonRecipe) {
-      upgradeType = "chameleon";
-      requiredMaterials = ["recipe_chameleon_equipment"];
+  // ─── НОВЫЙ РЕЦЕПТ: Nano Absorbing Knife ───
+  if (!upgradeType) {
+    const hasAllCrystals =
+      materialTypes.includes("white_crystal") &&
+      materialTypes.includes("green_crystal") &&
+      materialTypes.includes("red_crystal") &&
+      materialTypes.includes("yellow_crystal") &&
+      materialTypes.includes("blue_crystal") &&
+      materialTypes.includes("chameleon_crystal") &&
+      materialTypes.includes("nanoalloy") &&
+      materialTypes.includes("nanofilament");
+
+    if (hasAllCrystals && materials.length >= 8) {
+      upgradeType = "nano";
+      requiredMaterials = [
+        "white_crystal",
+        "green_crystal",
+        "red_crystal",
+        "yellow_crystal",
+        "blue_crystal",
+        "chameleon_crystal",
+        "nanoalloy",
+        "nanofilament",
+      ];
     }
   }
 
@@ -133,10 +163,10 @@ function handleTorestosUpgrade(
         type: "torestosUpgradeResult",
         success: false,
         error:
-          "Неправильные или недостаточные материалы. Требуется:\n" +
+          "Неправильные или недостаточные материалы. Доступные рецепты:\n" +
           "• blood_pack + recipe_torn_equipment\n" +
-          "или\n" +
-          "• recipe_chameleon_equipment",
+          "• recipe_chameleon_equipment\n" +
+          "• white_crystal + green + red + yellow + blue + chameleon_crystal + nanoalloy + nanofilament",
       }),
     );
     return;
@@ -149,6 +179,8 @@ function handleTorestosUpgrade(
     newType = getTornHealthVariant(centerItem.type);
   } else if (upgradeType === "chameleon") {
     newType = getChameleonVariant(centerItem.type);
+  } else if (upgradeType === "nano") {
+    newType = getNanoAbsorbingKnifeVariant(centerItem.type);
   }
 
   if (!newType) {
@@ -156,8 +188,7 @@ function handleTorestosUpgrade(
       JSON.stringify({
         type: "torestosUpgradeResult",
         success: false,
-        error:
-          "Неизвестный / неподдерживаемый тип White Void предмета для этого рецепта",
+        error: "Этот тип White Void предмета не поддерживается данным рецептом",
       }),
     );
     return;
@@ -166,31 +197,25 @@ function handleTorestosUpgrade(
   // 4. Создаём новый предмет
   const newItem = {
     type: newType,
-    // Можно добавить quality / durability / etc в будущем
+    // Можно добавить quality, durability, itemId и т.д. позже
   };
 
-  // 5. Удаляем использованные предметы
+  // 5. Удаляем центральный предмет
   inv[centerIdx] = null;
 
+  // 6. Удаляем использованные материалы
   if (upgradeType === "torn") {
     let bloodIdx = -1;
     let recipeIdx = -1;
 
-    // Ищем индексы нужных предметов
     for (let i = 0; i < inv.length; i++) {
       if (!inv[i]) continue;
-
-      if (inv[i].type === "blood_pack" && bloodIdx === -1) {
-        bloodIdx = i;
-      }
-      if (inv[i].type === "recipe_torn_equipment" && recipeIdx === -1) {
+      if (inv[i].type === "blood_pack" && bloodIdx === -1) bloodIdx = i;
+      if (inv[i].type === "recipe_torn_equipment" && recipeIdx === -1)
         recipeIdx = i;
-      }
-
       if (bloodIdx !== -1 && recipeIdx !== -1) break;
     }
 
-    // Проверяем, что нашли ВСЕ нужные предметы
     if (bloodIdx === -1 || recipeIdx === -1) {
       ws.send(
         JSON.stringify({
@@ -202,12 +227,10 @@ function handleTorestosUpgrade(
       return;
     }
 
-    // Удаляем
     inv[bloodIdx] = null;
     inv[recipeIdx] = null;
   } else if (upgradeType === "chameleon") {
     let recipeIdx = -1;
-
     for (let i = 0; i < inv.length; i++) {
       if (!inv[i]) continue;
       if (inv[i].type === "recipe_chameleon_equipment" && recipeIdx === -1) {
@@ -215,7 +238,6 @@ function handleTorestosUpgrade(
         break;
       }
     }
-
     if (recipeIdx === -1) {
       ws.send(
         JSON.stringify({
@@ -226,11 +248,45 @@ function handleTorestosUpgrade(
       );
       return;
     }
-
     inv[recipeIdx] = null;
+  } else if (upgradeType === "nano") {
+    // Удаляем ВСЕ указанные материалы (по одному каждого типа)
+    const toRemove = [
+      "white_crystal",
+      "green_crystal",
+      "red_crystal",
+      "yellow_crystal",
+      "blue_crystal",
+      "chameleon_crystal",
+      "nanoalloy",
+      "nanofilament",
+    ];
+
+    const removed = new Set();
+
+    for (let type of toRemove) {
+      for (let i = 0; i < inv.length; i++) {
+        if (inv[i] && inv[i].type === type && !removed.has(type)) {
+          inv[i] = null;
+          removed.add(type);
+          break;
+        }
+      }
+    }
+
+    if (removed.size !== toRemove.length) {
+      ws.send(
+        JSON.stringify({
+          type: "torestosUpgradeResult",
+          success: false,
+          error: "Не удалось найти все необходимые кристаллы и нано-материалы",
+        }),
+      );
+      return;
+    }
   }
 
-  // 6. Добавляем новый предмет в свободный слот
+  // 7. Добавляем новый предмет в свободный слот
   const freeSlot = inv.findIndex((slot) => slot === null);
   if (freeSlot === -1) {
     ws.send(
@@ -245,13 +301,13 @@ function handleTorestosUpgrade(
 
   inv[freeSlot] = newItem;
 
-  // 7. Сохраняем изменения в базу
+  // 8. Сохраняем изменения
   player.inventory = inv;
   players.set(playerId, { ...player });
   userDatabase.set(playerId, { ...player });
   saveUserDatabase(dbCollection, playerId, player);
 
-  // 8. Отправляем результат клиенту
+  // 9. Отправляем результат клиенту
   ws.send(
     JSON.stringify({
       type: "torestosUpgradeResult",

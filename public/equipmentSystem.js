@@ -146,6 +146,15 @@ const equipmentSystem = {
       hands: "onehanded",
       level: 3,
     },
+    nano_absorbing_knife: {
+      type: "weapon",
+      effect: { damage: { min: 6, max: 9 } },
+      description: "Нож: 6-9 урона в ближнем бою",
+      rarity: 4,
+      image: new Image(),
+      hands: "onehanded",
+      level: 3,
+    },
     bat: {
       type: "weapon",
       effect: { damage: { min: 5, max: 10 } },
