@@ -1153,17 +1153,12 @@ function setupWebSocket(
           player.xp = data.xp;
           player.upgradePoints = data.upgradePoints || 0;
 
-          // ← КРИТИЧНО: сохраняем skillPoints, если клиент их прислал
+          // КРИТИЧНО: сохраняем skillPoints с защитой
           if (
             data.skillPoints !== undefined &&
             !isNaN(Number(data.skillPoints))
           ) {
-            player.skillPoints = Math.max(0, Number(data.skillPoints)); // защита от отрицательных/NaN
-          }
-
-          // Опционально: если прислали skills — тоже сохраняем (хотя обычно это делает upgradeSkill)
-          if (data.skills && Array.isArray(data.skills)) {
-            player.skills = data.skills;
+            player.skillPoints = Math.max(0, Number(data.skillPoints));
           }
 
           players.set(id, { ...player });
