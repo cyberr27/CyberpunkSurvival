@@ -2696,6 +2696,36 @@ function handleGameMessage(event) {
           );
         }
         break;
+      case "updateLevel":
+        // Обновляем уровень, XP, очки улучшений
+        window.levelSystem.setLevelData(
+          data.level,
+          data.xp,
+          null,
+          data.upgradePoints,
+        );
+
+        // Обновляем очки навыков (самое важное!)
+        if (data.skillPoints !== undefined) {
+          const oldPoints = window.skillsSystem.skillPoints;
+          window.skillsSystem.skillPoints = Number(data.skillPoints);
+
+          // Если очки увеличились — показываем уведомление
+          if (data.skillPoints > oldPoints) {
+            showNotification(
+              `+${data.skillPoints - oldPoints} очков навыков за уровень!`,
+              "#ffaa00",
+            );
+          }
+
+          // Если окно навыков открыто — обновляем
+          if (window.skillsSystem.isSkillsOpen) {
+            window.skillsSystem.updateSkillPointsDisplay();
+          }
+        }
+
+        updateStatsDisplay();
+        break;
     }
   } catch (error) {
     console.error("Ошибка в handleGameMessage:", error);

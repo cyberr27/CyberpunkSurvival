@@ -2474,12 +2474,13 @@ function setupWebSocket(
             xpToNext = calculateXPToNextLevel(attacker.level);
           }
 
-          const levelsGained = attacker.level - oldLevel; // сколько уровней подняли за этот удар
+          const levelsGained = attacker.level - oldLevel;
+
           if (levelsGained > 0) {
             attacker.skillPoints =
               (attacker.skillPoints || 0) + 3 * levelsGained;
 
-            // Отправляем клиенту обновление
+            // Отправляем клиенту обновление (тот же тип сообщения, что и при прокачке)
             ws.send(
               JSON.stringify({
                 type: "updateLevel",
@@ -2487,14 +2488,15 @@ function setupWebSocket(
                 xp: attacker.xp,
                 xpToNextLevel: xpToNext,
                 upgradePoints: attacker.upgradePoints,
-                skillPoints: attacker.skillPoints, // ← самое важное!
+                skillPoints: attacker.skillPoints,
               }),
             );
-          }
 
-          players.set(attackerId, attacker);
-          userDatabase.set(attackerId, attacker);
-          await saveUserDatabase(dbCollection, attackerId, attacker);
+            // Сохраняем в базу сразу
+            players.set(attackerId, attacker);
+            userDatabase.set(attackerId, attacker);
+            await saveUserDatabase(dbCollection, attackerId, attacker);
+          }
 
           // Уведомление атакующего (levelSyncAfterKill)
           ws.send(
