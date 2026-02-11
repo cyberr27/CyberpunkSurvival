@@ -2610,20 +2610,6 @@ function handleGameMessage(event) {
           window.homelessSystem.handleMessage(data);
         }
         break;
-      case "buySkillSuccess":
-        // Обновляем свои навыки
-        if (data.skills) {
-          window.skillsSystem.playerSkills = data.skills;
-          window.skillsSystem.updateSkillsDisplay();
-
-          // Можно показать уведомление
-          showNotification(`Навык "${data.skillName}" успешно приобретён!`);
-        }
-        break;
-
-      case "buySkillFail":
-        showNotification(data.reason || "Не удалось купить навык");
-        break;
     }
   } catch (error) {
     console.error("Ошибка в handleGameMessage:", error);

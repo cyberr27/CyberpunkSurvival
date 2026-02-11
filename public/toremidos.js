@@ -10,25 +10,6 @@ const TOREMIDOS_CONFIG = {
   worldId: 0,
 };
 
-const TOREMIDOS_SKILLS_SHOP = [
-  {
-    type: "power_strike",
-    name: "Мощный удар",
-    maxLevel: 5,
-    initialLevel: 1,
-    price: { balyary: 120, atoms: 45 },
-    icon: "power_strike.png", // или любое другое изображение
-  },
-  {
-    type: "fast_regen",
-    name: "Быстрая регенерация",
-    maxLevel: 4,
-    initialLevel: 1,
-    price: { balyary: 180, atoms: 30 },
-    icon: "fast_regen.png",
-  },
-];
-
 const TOREMIDOS_MAIN_PHASE_DURATION = 14000;
 const TOREMIDOS_ACTIVE_PHASE_DURATION = 5000;
 const TOREMIDOS_FRAME_DURATION = 180;
@@ -70,10 +51,6 @@ function toremidosOpenGreeting() {
   `;
   document.body.appendChild(toremidosDialogElement);
 
-  if (section === "skills") {
-    renderToremidosSkillsShop();
-  }
-
   const continueBtn = document.getElementById("toremidos-greeting-continue");
   if (continueBtn) {
     continueBtn.onclick = () => {
@@ -94,74 +71,33 @@ function toremidosOpenDialog(section = "talk") {
   toremidosDialogElement = document.createElement("div");
   toremidosDialogElement.className = "toremidos-dialog open";
 
-  let content = "";
-
   if (section === "talk") {
-    content = `
+    toremidosDialogElement.innerHTML = `
       <div class="toremidos-dialog-header">
         <h2 class="toremidos-title">Торемидос</h2>
       </div>
       <div class="toremidos-dialog-content">
-        <p class="toremidos-text">Чё хотел, сталкер?</p>
-        <p class="toremidos-text">Могу рассказать пару историй... или продать кое-что интересное.</p>
+        <p class="toremidos-text">Ну, говори уже. Только без воды — у меня времени мало.</p>
+        <p class="toremidos-text">(здесь будет большой диалог / ветвление разговора)</p>
       </div>
-      <div class="toremidos-dialog-buttons">
-        <button class="toremidos-neon-btn" id="toremidos-btn-skills">Умения</button>
-        <button class="toremidos-neon-btn" id="toremidos-btn-talk">Поговорить</button>
-        <button class="toremidos-neon-btn" id="toremidos-btn-close">Вали отсюда</button>
-      </div>
+      <button class="toremidos-neon-btn toremidos-close-btn">ЗАКРЫТЬ</button>
     `;
-  } else if (section === "skills") {
-    content = `
+  } else {
+    toremidosDialogElement.innerHTML = `
       <div class="toremidos-dialog-header">
         <h2 class="toremidos-title">Умения Торемидоса</h2>
       </div>
-      <div class="toremidos-dialog-content skills-shop">
-        <div id="toremidos-skills-grid"></div>
-        <div id="toremidos-skill-description" class="skill-desc"></div>
+      <div class="toremidos-dialog-content">
+        <p class="toremidos-text">Пока никаких умений не реализовано.</p>
+        <p class="toremidos-text">Это заглушка — позже здесь будет система прокачки / имплантов.</p>
       </div>
-      <button class="toremidos-neon-btn back-btn" id="toremidos-back-to-talk">Назад</button>
+      <button class="toremidos-neon-btn toremidos-close-btn">ЗАКРЫТЬ</button>
     `;
   }
 
-  toremidosDialogElement.innerHTML = content;
   document.body.appendChild(toremidosDialogElement);
-
-  // Обработчики
-  if (section === "talk") {
-    document
-      .getElementById("toremidos-btn-skills")
-      ?.addEventListener("click", () => {
-        toremidosOpenDialog("skills");
-        renderToremidosSkillsShop();
-      });
-
-    document
-      .getElementById("toremidos-btn-talk")
-      ?.addEventListener("click", () => {
-        // можно расширить позже
-        alert("Поговорить — пока заглушка");
-      });
-
-    document
-      .getElementById("toremidos-btn-close")
-      ?.addEventListener("click", () => {
-        toremidosCloseDialog();
-      });
-  }
-
-  if (section === "skills") {
-    document
-      .getElementById("toremidos-back-to-talk")
-      ?.addEventListener("click", () => {
-        toremidosOpenDialog("talk");
-      });
-
-    // ← Добавляем это
-    setTimeout(() => {
-      renderToremidosSkillsShop();
-    }, 50); // небольшой таймаут, чтобы DOM успел создаться
-  }
+  toremidosDialogElement.querySelector(".toremidos-close-btn").onclick =
+    toremidosCloseDialog;
 }
 
 function toremidosCloseDialog() {
@@ -318,64 +254,6 @@ function toremidosSetMet(met) {
       toremidosRemoveButtons();
     }
   }
-}
-
-function renderToremidosSkillsShop() {
-  const grid = document.getElementById("toremidos-skills-grid");
-  if (!grid) return;
-
-  grid.innerHTML = "";
-
-  TOREMIDOS_SKILLS_SHOP.forEach((skill, index) => {
-    const slot = document.createElement("div");
-    slot.className = "toremidos-skill-slot";
-    slot.dataset.skillType = skill.type;
-
-    slot.innerHTML = `
-      <img src="images/skills/${skill.icon}" alt="${skill.name}" />
-      <div class="skill-name">${skill.name}</div>
-    `;
-
-    slot.addEventListener("click", () => {
-      showToremidosSkillDescription(skill);
-    });
-
-    grid.appendChild(slot);
-  });
-}
-
-function showToremidosSkillDescription(skill) {
-  const desc = document.getElementById("toremidos-skill-description");
-  if (!desc) return;
-
-  let priceText = "";
-  for (const [itemType, count] of Object.entries(skill.price)) {
-    priceText += `<div>${ITEM_CONFIG[itemType]?.name || itemType}: ${count}</div>`;
-  }
-
-  desc.innerHTML = `
-    <h3>${skill.name}</h3>
-    <p>${skill.description}</p>
-    <div class="price-block">
-      <strong>Стоимость:</strong><br>
-      ${priceText}
-    </div>
-    <button class="toremidos-buy-btn" data-skill-type="${skill.type}">
-      Купить
-    </button>
-  `;
-
-  // Обработчик покупки
-  desc.querySelector(".toremidos-buy-btn")?.addEventListener("click", () => {
-    if (ws?.readyState === WebSocket.OPEN) {
-      ws.send(
-        JSON.stringify({
-          type: "buyToremidosSkill",
-          skillType: skill.type,
-        }),
-      );
-    }
-  });
 }
 
 window.toremidosSystem = {

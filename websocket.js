@@ -12,7 +12,6 @@ const {
   handleHomelessRentConfirm,
   handleHomelessStorageAction,
 } = require("./homelessServer");
-const { TOREMIDOS_SKILLS } = require("./toremidosSkills");
 
 function broadcastToWorld(wss, clients, players, worldId, message) {
   wss.clients.forEach((client) => {
@@ -3439,118 +3438,6 @@ function setupWebSocket(
 
           ws.send(JSON.stringify({ type: "toremidosMet", met: true }));
         }
-      } else if (data.type === "buyToremidosSkill") {
-        const player = players.get(clients.get(ws));
-        if (!player) return;
-
-        const skillType = data.skillType;
-        const skillConfig = TOREMIDOS_SKILLS[skillType];
-
-        if (!skillConfig) {
-          ws.send(
-            JSON.stringify({
-              type: "buySkillFail",
-              reason: "Такого умения не существует",
-            }),
-          );
-          return;
-        }
-
-        // Проверяем, куплен ли уже
-        const alreadyHas = player.skills?.some((s) => s.type === skillType);
-        if (alreadyHas) {
-          ws.send(
-            JSON.stringify({
-              type: "buySkillFail",
-              reason: "Это умение уже приобретено",
-            }),
-          );
-          return;
-        }
-
-        // Проверяем наличие ресурсов
-        const inventory = player.inventory || [];
-        let canBuy = true;
-        const missingItems = [];
-
-        for (const [itemType, neededCount] of Object.entries(
-          skillConfig.price,
-        )) {
-          const countInInv = inventory.reduce((sum, it) => {
-            return it?.type === itemType ? sum + (it.quantity || 1) : sum;
-          }, 0);
-
-          if (countInInv < neededCount) {
-            canBuy = false;
-            missingItems.push(
-              `${ITEM_CONFIG[itemType]?.name || itemType} — нужно ${neededCount}, есть ${countInInv}`,
-            );
-          }
-        }
-
-        if (!canBuy) {
-          ws.send(
-            JSON.stringify({
-              type: "buySkillFail",
-              reason: "Недостаточно ресурсов:\n" + missingItems.join("\n"),
-            }),
-          );
-          return;
-        }
-
-        // Снимаем ресурсы
-        for (const [itemType, neededCount] of Object.entries(
-          skillConfig.price,
-        )) {
-          let toRemove = neededCount;
-
-          for (let i = 0; i < inventory.length && toRemove > 0; i++) {
-            const it = inventory[i];
-            if (it?.type === itemType) {
-              const qty = it.quantity || 1;
-              if (qty <= toRemove) {
-                inventory[i] = null;
-                toRemove -= qty;
-              } else {
-                it.quantity = qty - toRemove;
-                toRemove = 0;
-              }
-            }
-          }
-        }
-
-        // Добавляем навык
-        if (!player.skills) player.skills = [];
-
-        const newSkill = {
-          type: skillType,
-          level: skillConfig.initialLevel,
-          slot: player.skills.length, // автоматическое назначение слота 0–9
-        };
-
-        player.skills.push(newSkill);
-
-        // Сохраняем
-        userDatabase.set(player.id, player);
-        saveUserDatabase(dbCollection, player.id, player);
-
-        // Отправляем успех
-        ws.send(
-          JSON.stringify({
-            type: "buySkillSuccess",
-            skillType,
-            skillName: skillConfig.name,
-            skills: player.skills,
-          }),
-        );
-
-        // Можно отправить обновление инвентаря, если нужно
-        ws.send(
-          JSON.stringify({
-            type: "syncInventory",
-            inventory: player.inventory.filter(Boolean),
-          }),
-        );
       } else if (data.type === "homelessOpenStorage") {
         const playerId = clients.get(ws);
         if (!playerId || !players.has(playerId)) return;
