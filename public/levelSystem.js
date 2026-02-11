@@ -48,20 +48,20 @@ function updateStatsDisplay() {
     }
     statsEl.innerHTML = `
   <span class="health">Здоровье: ${Math.min(me.health, me.maxStats.health)}/${
-      me.maxStats.health
-    }</span><br>
+    me.maxStats.health
+  }</span><br>
   <span class="energy">Энергия: ${Math.min(me.energy, me.maxStats.energy)}/${
-      me.maxStats.energy
-    }</span><br>
+    me.maxStats.energy
+  }</span><br>
   <span class="food">Еда: ${Math.min(me.food, me.maxStats.food)}/${
-      me.maxStats.food
-    }</span><br>
+    me.maxStats.food
+  }</span><br>
   <span class="water">Вода: ${Math.min(me.water, me.maxStats.water)}/${
-      me.maxStats.water
-    }</span><br>
+    me.maxStats.water
+  }</span><br>
   <span class="armor">Броня: ${Math.min(me.armor, me.maxStats.armor)}/${
-      me.maxStats.armor
-    }</span>
+    me.maxStats.armor
+  }</span>
 `;
     updateUpgradeButtons();
   } catch (error) {}
@@ -120,7 +120,7 @@ function createUpgradeButtons() {
           me.maxStats[statType] = maxStats[statType];
           me[statType] = Math.min(
             me[statType] || baseValue,
-            maxStats[statType]
+            maxStats[statType],
           );
           me[upgradeField] = window.levelSystem[upgradeField]; // сохраняем в игроке
         }
@@ -140,7 +140,7 @@ function createUpgradeButtons() {
               energyUpgrade: window.levelSystem.energyUpgrade || 0,
               foodUpgrade: window.levelSystem.foodUpgrade || 0,
               waterUpgrade: window.levelSystem.waterUpgrade || 0,
-            })
+            }),
           );
         }
       });
@@ -290,7 +290,7 @@ function handleItemPickup(itemType, isDroppedByPlayer) {
           level: currentLevel,
           xp: currentXP,
           upgradePoints,
-        })
+        }),
       );
     } else {
     }
@@ -332,7 +332,7 @@ function handleQuestCompletion(rarity) {
           level: currentLevel,
           xp: currentXP,
           upgradePoints,
-        })
+        }),
       );
     } else {
     }
@@ -376,11 +376,21 @@ function checkLevelUp() {
       xpToNextLevel = calculateXPToNextLevel(currentLevel);
       upgradePoints += 10;
 
+      // НОВОЕ: +3 очка навыков при каждом уровне
+      const skillPointsEarned = 3;
+      window.skillsSystem.skillPoints =
+        (window.skillsSystem.skillPoints || 0) + skillPointsEarned;
+
       // НОВОЕ: Увеличиваем бонус melee damage на +1 при level up
       window.levelSystem.meleeDamageBonus += 1;
 
       showLevelUpEffect();
       updateUpgradeButtons();
+
+      // Обновляем отображение очков навыков, если окно навыков открыто
+      if (window.skillsSystem?.updateSkillPointsDisplay) {
+        window.skillsSystem.updateSkillPointsDisplay();
+      }
 
       if (ws.readyState === WebSocket.OPEN) {
         sendWhenReady(
@@ -390,14 +400,20 @@ function checkLevelUp() {
             level: currentLevel,
             xp: currentXP,
             upgradePoints,
-          })
+            skillPoints: window.skillsSystem.skillPoints,
+          }),
         );
-      } else {
       }
+
+      // Показываем уведомление о полученных очках навыков
+      showNotification(`+${skillPointsEarned} очков навыков!`, "#ffaa00");
     }
+
     updateLevelDisplay();
     updateStatsDisplay();
-  } catch (error) {}
+  } catch (error) {
+    console.error("Ошибка в checkLevelUp:", error);
+  }
 }
 
 function showXPEffect(xpGained) {

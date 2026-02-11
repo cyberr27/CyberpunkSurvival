@@ -12,6 +12,7 @@ const {
   handleHomelessRentConfirm,
   handleHomelessStorageAction,
 } = require("./homelessServer");
+const { handleSkillUpgrade } = require("./toremidosServer");
 
 function broadcastToWorld(wss, clients, players, worldId, message) {
   wss.clients.forEach((client) => {
@@ -618,6 +619,7 @@ function setupWebSocket(
               armor: 0,
             },
             skills: [],
+            skillPoints: 0,
             neonQuest: {
               currentQuestId: null,
               progress: {},
@@ -758,6 +760,8 @@ function setupWebSocket(
             selectedQuestId: player.selectedQuestId || null,
             level: player.level || 0,
             xp: player.xp || 0,
+            skills: player.skills || [],
+            skillPoints: player.skillPoints || 0,
             upgradePoints: player.upgradePoints || 0,
             availableQuests: player.availableQuests || [],
             worldId: player.worldId || 0,
@@ -846,7 +850,8 @@ function setupWebSocket(
               selectedQuestId: playerData.selectedQuestId,
               level: playerData.level,
               xp: playerData.xp,
-              skills: player.skills || [],
+              skills: playerData.skills,
+              skillPoints: playerData.skillPoints,
               upgradePoints: playerData.upgradePoints,
               availableQuests: playerData.availableQuests,
               worldId: playerData.worldId,
@@ -3527,6 +3532,21 @@ function setupWebSocket(
           null,
           storageSlot,
           quantity, // ← передаём quantity четвёртым параметром действия
+        );
+      } else if (data.type === "upgradeSkill") {
+        const playerId = clients.get(ws);
+        if (!playerId || !players.has(playerId)) return;
+
+        const player = players.get(playerId);
+
+        handleSkillUpgrade(
+          ws,
+          data,
+          player,
+          players,
+          userDatabase,
+          dbCollection,
+          saveUserDatabase,
         );
       }
       if (data.type === "update" || data.type === "move") {

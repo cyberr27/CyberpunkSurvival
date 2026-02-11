@@ -164,7 +164,7 @@ const ITEM_CONFIG = {
     description: "Плазменная винтовка: 50 урона, дальность 200px",
     rarity: 4,
     hands: "twohanded",
-    level: 2,
+    level: 0,
   },
   knuckles: {
     type: "weapon",

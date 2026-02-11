@@ -402,7 +402,7 @@ const ITEM_CONFIG = {
     description: "Плазменная винтовка: 50 урона, дальность 200px",
     rarity: 4,
     hands: "twohanded",
-    level: 2,
+    level: 0,
   },
   knuckles: {
     type: "weapon",
@@ -1083,6 +1083,7 @@ function handleAuthMessage(event) {
         level: data.level || 0,
         xp: data.xp || 99,
         skills: data.skills || [],
+        skillPoints: data.skillPoints || 0,
         upgradePoints: data.upgradePoints || 0,
         worldId: data.worldId || 0,
         worldPositions: data.worldPositions || { 0: { x: 222, y: 3205 } },
@@ -1117,6 +1118,7 @@ function handleAuthMessage(event) {
 
       if (window.skillsSystem) {
         window.skillsSystem.playerSkills = data.skills || [];
+        window.skillsSystem.skillPoints = data.skillPoints || 0; // ← НОВОЕ
         if (window.skillsSystem.isSkillsOpen) {
           window.skillsSystem.updateSkillsDisplay();
         }
@@ -2608,6 +2610,83 @@ function handleGameMessage(event) {
         // Также обновляем интерфейс склада, если он открыт
         if (window.homelessSystem?.handleMessage) {
           window.homelessSystem.handleMessage(data);
+        }
+        break;
+      case "upgradeSkillResult":
+        if (data.success) {
+          // Обновляем локальные данные навыков
+          window.skillsSystem.playerSkills =
+            data.skills || window.skillsSystem.playerSkills;
+          window.skillsSystem.skillPoints =
+            data.remainingPoints || window.skillsSystem.skillPoints;
+
+          // Если окно навыков открыто — обновляем его
+          if (window.skillsSystem.isSkillsOpen) {
+            window.skillsSystem.updateSkillsDisplay();
+            window.skillsSystem.updateSkillPointsDisplay();
+          }
+
+          // Если открыто окно Торемидоса — тоже обновляем
+          const toremidosDesc = document.getElementById(
+            "toremidos-skills-description",
+          );
+          if (toremidosDesc) {
+            const activeSlot = document.querySelector(
+              "#toremidos-skills-grid .skill-slot.active",
+            );
+            if (activeSlot) {
+              const index = Number(activeSlot.dataset.index);
+              const template = window.skillsSystem.skillTemplates[index];
+              const playerSkill = window.skillsSystem.playerSkills.find(
+                (s) => s.id === template?.id,
+              );
+
+              if (template) {
+                toremidosDesc.innerHTML = `
+            <h3>${template.name} (ур. ${playerSkill?.level || 0}/${template.maxLevel})</h3>
+            <p>${template.description}</p>
+            <p style="margin-top:12px; color:#00ffcc;">
+              Доступно очков: <strong>${window.skillsSystem.skillPoints}</strong>
+            </p>
+            <button id="toremidos-upgrade-btn" 
+                    class="toremidos-neon-btn upgrade-skill-btn" 
+                    ${window.skillsSystem.skillPoints > 0 && (playerSkill?.level || 0) < template.maxLevel ? "" : "disabled"}>
+              Улучшить (1 очко)
+            </button>
+          `;
+
+                const upgradeBtn = document.getElementById(
+                  "toremidos-upgrade-btn",
+                );
+                if (
+                  upgradeBtn &&
+                  window.skillsSystem.skillPoints > 0 &&
+                  (playerSkill?.level || 0) < template.maxLevel
+                ) {
+                  upgradeBtn.onclick = () => {
+                    if (ws && ws.readyState === WebSocket.OPEN) {
+                      ws.send(
+                        JSON.stringify({
+                          type: "upgradeSkill",
+                          skillId: template.id,
+                        }),
+                      );
+                    }
+                  };
+                }
+              }
+            }
+          }
+
+          showNotification(
+            `Навык улучшен! Осталось очков: ${data.remainingPoints}`,
+            "#00ff88",
+          );
+        } else {
+          showNotification(
+            data.error || "Не удалось улучшить навык",
+            "#ff4444",
+          );
         }
         break;
     }

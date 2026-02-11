@@ -126,7 +126,7 @@ const equipmentSystem = {
       rarity: 4,
       image: new Image(),
       hands: "twohanded",
-      level: 2,
+      level: 0,
     },
     knuckles: {
       type: "weapon",
