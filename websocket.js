@@ -1148,12 +1148,20 @@ function setupWebSocket(
         const id = clients.get(ws);
         if (id) {
           const player = players.get(id);
+
           player.level = data.level;
           player.xp = data.xp;
           player.upgradePoints = data.upgradePoints || 0;
+
+          // ← НОВОЕ: сохраняем skillPoints, если они пришли
+          if (data.skillPoints !== undefined) {
+            player.skillPoints = Number(data.skillPoints);
+          }
+
           players.set(id, { ...player });
           userDatabase.set(id, { ...player });
           await saveUserDatabase(dbCollection, id, player);
+
           wss.clients.forEach((client) => {
             if (
               client.readyState === WebSocket.OPEN &&
