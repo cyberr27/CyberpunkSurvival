@@ -1,5 +1,6 @@
 /* toremidosStyle.css */
 
+/* Основной диалог (остаётся как был) */
 .toremidos-dialog {
   position: fixed;
   top: 50%;
@@ -20,66 +21,57 @@
   font-family: "Courier New", monospace;
   text-align: center;
   z-index: 1001;
-  box-shadow:
-    0 0 20px rgba(0, 255, 255, 0.5),
-    0 0 30px rgba(255, 0, 255, 0.3);
-  animation: toremidosNeonPulse 2s infinite alternate;
-  display: none;
-  flex-direction: column;
+  box-shadow: 0 0 30px rgba(0, 255, 255, 0.6);
   overflow: hidden;
-  padding: 20px;
-  box-sizing: border-box;
 }
 
-.toremidos-dialog.open {
-  display: flex !important;
+/* Кнопки в диалоге */
+.toremidos-neon-btn {
+  padding: 12px 28px;
+  margin: 8px;
+  font-size: 16px;
+  font-weight: bold;
+  text-transform: uppercase;
+  border: 2px solid #00ffff;
+  background: rgba(0, 255, 255, 0.15);
+  color: #00ffff;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  text-shadow: 0 0 8px #00ffff;
+}
+
+.toremidos-neon-btn:hover {
+  background: rgba(0, 255, 255, 0.35);
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.7);
+  transform: translateY(-2px);
 }
 
 .toremidos-dialog-header {
-  flex-shrink: 0;
-  margin-bottom: 12px;
+  padding: 16px;
+  border-bottom: 2px solid #00ffff;
+  background: rgba(0, 0, 0, 0.4);
 }
 
 .toremidos-title {
   margin: 0;
   font-size: 24px;
-  text-shadow:
-    0 0 8px #00ffff,
-    0 0 15px #ff00ff;
-  animation: toremidosFlicker 1.8s infinite alternate;
+  text-shadow: 0 0 10px #00ffff;
 }
 
 .toremidos-dialog-content {
-  flex: 1;
-  overflow-y: auto;
-  padding-right: 8px;
+  padding: 20px;
   font-size: 16px;
   line-height: 1.5;
 }
 
-.toremidos-neon-btn {
-  padding: 12px 28px;
-  font-size: 16px;
-  font-weight: bold;
-  background: linear-gradient(135deg, #00ffff, #ff00ff);
-  color: #000;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  text-transform: uppercase;
-  letter-spacing: 1.2px;
-  box-shadow:
-    0 0 15px rgba(0, 255, 255, 0.8),
-    0 0 25px rgba(255, 0, 255, 0.6);
-  transition: all 0.3s;
-  margin-top: 12px;
+.toremidos-text {
+  margin: 12px 0;
 }
 
-.toremidos-neon-btn:hover {
-  box-shadow:
-    0 0 25px rgba(0, 255, 255, 1),
-    0 0 40px rgba(255, 0, 255, 0.8);
-  transform: scale(1.06);
+/* Анимация текста (как было) */
+.toremidos-text {
+  animation: flicker 4s infinite alternate;
 }
 
 .toremidos-buttons-container {
@@ -89,8 +81,6 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  left: 50%;
-  top: 50%;
   transform: translate(-50%, -50%);
 }
 
@@ -123,26 +113,7 @@
   box-shadow: 0 0 12px rgba(255, 0, 255, 0.5);
 }
 
-.toremidos-dialog-active {
-  overflow: hidden;
-  touch-action: none;
-}
-
-/* Анимации */
-@keyframes toremidosNeonPulse {
-  0% {
-    box-shadow:
-      0 0 10px rgba(0, 255, 255, 0.5),
-      0 0 20px rgba(255, 0, 255, 0.3);
-  }
-  100% {
-    box-shadow:
-      0 0 20px rgba(0, 255, 255, 0.9),
-      0 0 35px rgba(255, 0, 255, 0.6);
-  }
-}
-
-@keyframes toremidosFlicker {
+@keyframes flicker {
   0%,
   19%,
   21%,
@@ -178,4 +149,57 @@
     padding: 10px 24px;
     font-size: 15px;
   }
+}
+
+/* ──────────────────────────────────────────────── */
+/* НОВОЕ: Полностью непрозрачное окно навыков Торемидоса */
+/* ──────────────────────────────────────────────── */
+
+#toremidos-skills-container {
+  background: #0a0a14 !important; /* Тёмный непрозрачный фон */
+  border: 2px solid #00ffff !important;
+  box-shadow: 0 0 30px rgba(0, 255, 255, 0.6) !important;
+  backdrop-filter: none !important; /* Убираем блюр, если был */
+}
+
+#toremidos-skills-container .skills-header {
+  background: #0f0f1f !important; /* Более тёмный заголовок */
+  border-bottom: 2px solid #00ffff !important;
+}
+
+#toremidos-skills-container .skills-header h2 {
+  color: #00ffff !important;
+  text-shadow: 0 0 10px #00ffff !important;
+}
+
+#toremidos-skills-container #toremidos-skills-grid {
+  background: #0a0a14 !important;
+}
+
+#toremidos-skills-container #toremidos-skills-description {
+  background: #0f0f1f !important; /* Описание тоже непрозрачное */
+  border-top: 1px solid #00ffff !important;
+  color: #e0e0ff !important;
+}
+
+/* Убираем любую прозрачность у слотов и бейджей */
+#toremidos-skills-container .skill-slot {
+  background: rgba(20, 20, 40, 0.9) !important;
+  border: 1px solid #00aaff !important;
+}
+
+#toremidos-skills-container .level-badge {
+  background: rgba(0, 255, 255, 0.3) !important;
+  color: #00ffff !important;
+}
+
+/* Закрывающий крестик */
+#toremidos-skills-close {
+  color: #ff0044 !important;
+  text-shadow: 0 0 8px #ff0044 !important;
+}
+
+#toremidos-skills-close:hover {
+  color: #ff4488 !important;
+  text-shadow: 0 0 12px #ff4488 !important;
 }

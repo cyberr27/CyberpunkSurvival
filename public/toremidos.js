@@ -51,15 +51,12 @@ function toremidosOpenGreeting() {
   `;
   document.body.appendChild(toremidosDialogElement);
 
-  const continueBtn = document.getElementById("toremidos-greeting-continue");
-  if (continueBtn) {
-    continueBtn.onclick = () => {
-      if (ws?.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: "meetToremidos" }));
-      }
-      toremidosCloseDialog();
-    };
-  }
+  document.getElementById("toremidos-greeting-continue").onclick = () => {
+    if (ws?.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "meetToremidos" }));
+    }
+    toremidosCloseDialog();
+  };
 }
 
 function toremidosOpenDialog() {
@@ -76,22 +73,11 @@ function toremidosOpenDialog() {
     </div>
     <div class="toremidos-dialog-content">
       <p class="toremidos-text">Ну, говори уже. Только без воды — у меня времени мало.</p>
+      <p class="toremidos-text">(здесь будет большой диалог / ветвление разговора)</p>
     </div>
-    <div class="toremidos-dialog-buttons">
-      <button class="toremidos-neon-btn" id="toremidos-talk-btn">Поговорить</button>
-      <button class="toremidos-neon-btn" id="toremidos-skills-btn">Умения</button>
-      <button class="toremidos-neon-btn" id="toremidos-close-btn">Закрыть</button>
-    </div>
+    <button class="toremidos-neon-btn" id="toremidos-close-btn">ЗАКРЫТЬ</button>
   `;
   document.body.appendChild(toremidosDialogElement);
-
-  document.getElementById("toremidos-talk-btn").onclick = () => {
-    alert("Пока просто болтовня. Добавим квесты позже.");
-  };
-
-  document.getElementById("toremidos-skills-btn").onclick = () => {
-    toremidosOpenSkillsWindow();
-  };
 
   document.getElementById("toremidos-close-btn").onclick = () => {
     toremidosCloseDialog();
@@ -210,13 +196,13 @@ function toremidosOpenSkillsWindow() {
 }
 
 function toremidosCloseDialog() {
-  if (!toremidosDialogElement) return;
-  toremidosIsDialogOpen = false;
+  if (toremidosDialogElement) {
+    toremidosDialogElement.remove();
+    toremidosDialogElement = null;
+  }
   document.body.classList.remove("toremidos-dialog-active");
-  toremidosDialogElement.remove();
-  toremidosDialogElement = null;
+  toremidosIsDialogOpen = false;
 
-  // Закрываем окно умений, если открыто
   const skillsWin = document.getElementById("toremidos-skills-container");
   if (skillsWin) skillsWin.remove();
 }
@@ -232,10 +218,15 @@ function toremidosCreateButtons() {
   talkBtn.textContent = "ГОВОРИТЬ";
   talkBtn.onclick = () => toremidosOpenDialog();
 
-  toremidosButtonsContainer.appendChild(talkBtn);
+  const skillsBtn = document.createElement("div");
+  skillsBtn.className = "toremidos-button toremidos-skills-btn";
+  skillsBtn.textContent = "НАВЫКИ";
+  skillsBtn.onclick = () => toremidosOpenSkillsWindow();
+
+  toremidosButtonsContainer.append(talkBtn, skillsBtn);
   document.body.appendChild(toremidosButtonsContainer);
 
-  // Позиционируем сразу после создания
+  // Позиционируем сразу
   toremidosUpdateButtonsPosition(
     window.movementSystem.getCamera().x,
     window.movementSystem.getCamera().y,
@@ -309,7 +300,6 @@ function toremidosDraw(deltaTime) {
     ctx.fillRect(screenX, screenY, 70, 70);
   }
 
-  // Имя или ?
   ctx.fillStyle = toremidosIsMet ? "#00ff88" : "#ffffff";
   ctx.font = "13px Arial";
   ctx.textAlign = "center";
@@ -319,7 +309,7 @@ function toremidosDraw(deltaTime) {
     screenY - 12,
   );
 
-  // Обновляем позицию кнопок каждые кадр, когда игрок рядом
+  // Обновляем позицию кнопок каждый кадр, когда игрок рядом
   if (toremidosIsNear) {
     toremidosUpdateButtonsPosition(camera.x, camera.y);
   }
