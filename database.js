@@ -94,6 +94,9 @@ async function saveUserDatabase(collection, username, player) {
       food: Math.min(player.food, player.maxStats?.food || 100),
       water: Math.min(player.water, player.maxStats?.water || 100),
       armor: Math.min(player.armor, player.maxStats?.armor || 0),
+
+      skills: player.skills || [],
+      skillPoints: player.skillPoints || 0,
     };
     await collection.updateOne(
       { id: username },

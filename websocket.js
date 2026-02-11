@@ -618,7 +618,10 @@ function setupWebSocket(
               water: 100,
               armor: 0,
             },
-            skills: [],
+            skills: Array.from({ length: 10 }, (_, i) => ({
+              id: i + 1,
+              level: 0,
+            })),
             skillPoints: 0,
             neonQuest: {
               currentQuestId: null,
