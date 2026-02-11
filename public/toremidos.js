@@ -1,255 +1,270 @@
 // toremidos.js
 
-const TOREMIDOS = {
+const TOREMIDOS_CONFIG = {
   x: 575,
   y: 1140,
   width: 70,
   height: 70,
   interactionRadius: 80,
-  name: "Торемидос",
+  name: "Мастер Торемидос",
   worldId: 0,
 };
 
-const MAIN_PHASE_DURATION_TOREMIDOS = 14000;
-const ACTIVE_PHASE_DURATION_TOREMIDOS = 5000;
-const FRAME_DURATION_TOREMIDOS = 180;
-const TOTAL_FRAMES_TOREMIDOS = 13;
+const TOREMIDOS_MAIN_PHASE_DURATION = 14000;
+const TOREMIDOS_ACTIVE_PHASE_DURATION = 5000;
+const TOREMIDOS_FRAME_DURATION = 180;
+const TOREMIDOS_TOTAL_FRAMES = 13;
+const TOREMIDOS_MAX_DELTA = 1000;
 
-let isMetToremidos = false;
-let isNearToremidos = false;
-let isDialogOpenToremidos = false;
+let toremidosIsMet = false;
+let toremidosIsNear = false;
+let toremidosIsDialogOpen = false;
 
-let spriteToremidos = null;
-let buttonsContainerToremidos = null;
-let dialogElementToremidos = null;
+let toremidosSprite = null;
+let toremidosButtonsContainer = null;
+let toremidosDialogElement = null;
 
-let frameToremidos = 0;
-let frameTimeToremidos = 0;
-let cycleTimeToremidos = 0;
-let currentPhaseToremidos = "main";
+let toremidosFrame = 0;
+let toremidosFrameTime = 0;
+let toremidosCycleTime = 0;
+let toremidosCurrentPhase = "main";
 
-function openGreeting() {
-  if (isDialogOpenToremidos) return;
-  isDialogOpenToremidos = true;
-  document.body.classList.add("npc-dialog-active");
+function toremidosOpenGreeting() {
+  if (toremidosIsDialogOpen) return;
+  toremidosIsDialogOpen = true;
+  document.body.classList.add("toremidos-dialog-active");
 
-  dialogElementToremidos = document.createElement("div");
-  dialogElementToremidos.className = "toremidos-dialog open";
-  dialogElementToremidos.innerHTML = `
+  toremidosDialogElement = document.createElement("div");
+  toremidosDialogElement.className = "toremidos-dialog open";
+  toremidosDialogElement.innerHTML = `
     <div class="toremidos-dialog-header">
       <h2 class="toremidos-title">Торемидос</h2>
     </div>
     <div class="toremidos-dialog-content">
       <p class="toremidos-text">Эй, ты... Первый раз вижу тебя здесь.</p>
-      <p class="toremidos-text">Я Торемидос. Не люблю незнакомцев.</p>
-      <p class="toremidos-text">Говори, чего хотел, или вали.</p>
+      <p class="toremidos-text">Я Торемидос. Не люблю незнакомцев, но ты не похож на корпоративную шавку.</p>
+      <p class="toremidos-text">Говори, чего хотел, или вали отсюда.</p>
     </div>
     <button class="toremidos-neon-btn" id="toremidos-greeting-continue">
-      Давай знакомиться
+      Понял, давай знакомиться
     </button>
   `;
-  document.body.appendChild(dialogElementToremidos);
+  document.body.appendChild(toremidosDialogElement);
 
-  document.getElementById("toremidos-greeting-continue").onclick = () => {
-    if (ws?.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: "meetToremidos" }));
-    }
-    closeDialog();
-  };
+  const continueBtn = document.getElementById("toremidos-greeting-continue");
+  if (continueBtn) {
+    continueBtn.onclick = () => {
+      if (ws?.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "meetToremidos" }));
+      }
+      toremidosCloseDialog();
+    };
+  }
 }
 
-function openToremidosDialog(section = "talk") {
-  closeDialog();
+function toremidosOpenDialog(section = "talk") {
+  toremidosCloseDialog();
 
-  isDialogOpenToremidos = true;
-  document.body.classList.add("npc-dialog-active");
+  toremidosIsDialogOpen = true;
+  document.body.classList.add("toremidos-dialog-active");
 
-  dialogElementToremidos = document.createElement("div");
-  dialogElementToremidos.className = "toremidos-dialog open";
+  toremidosDialogElement = document.createElement("div");
+  toremidosDialogElement.className = "toremidos-dialog open";
 
   if (section === "talk") {
-    dialogElementToremidos.innerHTML = `
+    toremidosDialogElement.innerHTML = `
       <div class="toremidos-dialog-header">
         <h2 class="toremidos-title">Торемидос</h2>
       </div>
       <div class="toremidos-dialog-content">
-        <p class="toremidos-text">Говори, что хотел. Без воды.</p>
-        <p class="toremidos-text">(тут будет основной диалог)</p>
+        <p class="toremidos-text">Ну, говори уже. Только без воды — у меня времени мало.</p>
+        <p class="toremidos-text">(здесь будет большой диалог / ветвление разговора)</p>
       </div>
-      <button class="toremidos-neon-btn close-btn">ЗАКРЫТЬ</button>
+      <button class="toremidos-neon-btn toremidos-close-btn">ЗАКРЫТЬ</button>
     `;
   } else {
-    dialogElementToremidos.innerHTML = `
+    toremidosDialogElement.innerHTML = `
       <div class="toremidos-dialog-header">
-        <h2 class="toremidos-title">Умения</h2>
+        <h2 class="toremidos-title">Умения Торемидоса</h2>
       </div>
       <div class="toremidos-dialog-content">
-        <p class="toremidos-text">Пока ничего нет.</p>
-        <p class="toremidos-text">Заглушка под будущие умения / улучшения.</p>
+        <p class="toremidos-text">Пока никаких умений не реализовано.</p>
+        <p class="toremidos-text">Это заглушка — позже здесь будет система прокачки / имплантов.</p>
       </div>
-      <button class="toremidos-neon-btn close-btn">ЗАКРЫТЬ</button>
+      <button class="toremidos-neon-btn toremidos-close-btn">ЗАКРЫТЬ</button>
     `;
   }
 
-  document.body.appendChild(dialogElementToremidos);
-  dialogElementToremidos.querySelector(".close-btn").onclick = closeDialog;
+  document.body.appendChild(toremidosDialogElement);
+  toremidosDialogElement.querySelector(".toremidos-close-btn").onclick =
+    toremidosCloseDialog;
 }
 
-function closeDialog() {
-  if (dialogElementToremidos) {
-    dialogElementToremidos.remove();
-    dialogElementToremidos = null;
+function toremidosCloseDialog() {
+  if (!toremidosDialogElement) return;
+  toremidosIsDialogOpen = false;
+  document.body.classList.remove("toremidos-dialog-active");
+  toremidosDialogElement.remove();
+  toremidosDialogElement = null;
+}
+
+function toremidosCreateButtons() {
+  if (toremidosButtonsContainer) return;
+
+  toremidosButtonsContainer = document.createElement("div");
+  toremidosButtonsContainer.className = "toremidos-buttons-container";
+
+  const talkBtn = document.createElement("div");
+  talkBtn.className = "toremidos-button toremidos-talk-btn";
+  talkBtn.textContent = "ГОВОРИТЬ";
+  talkBtn.onclick = () => toremidosOpenDialog("talk");
+
+  const skillsBtn = document.createElement("div");
+  skillsBtn.className = "toremidos-button toremidos-skills-btn";
+  skillsBtn.textContent = "УМЕНИЯ";
+  skillsBtn.onclick = () => toremidosOpenDialog("skills");
+
+  toremidosButtonsContainer.append(talkBtn, skillsBtn);
+  document.body.appendChild(toremidosButtonsContainer);
+}
+
+function toremidosRemoveButtons() {
+  if (toremidosButtonsContainer) {
+    toremidosButtonsContainer.remove();
+    toremidosButtonsContainer = null;
   }
-  isDialogOpenToremidos = false;
-  document.body.classList.remove("npc-dialog-active");
 }
 
-function createButtons() {
-  if (buttonsContainerToremidos) return;
-
-  buttonsContainerToremidos = document.createElement("div");
-  buttonsContainerToremidos.className = "toremidos-buttons-container";
-
-  const btnTalk = document.createElement("div");
-  btnTalk.className = "toremidos-button toremidos-talk-btn";
-  btnTalk.textContent = "ГОВОРИТЬ";
-  btnTalk.onclick = () => openToremidosDialog("talk");
-
-  const btnSkills = document.createElement("div");
-  btnSkills.className = "toremidos-button toremidos-skills-btn";
-  btnSkills.textContent = "УМЕНИЯ";
-  btnSkills.onclick = () => openToremidosDialog("skills");
-
-  buttonsContainerToremidos.append(btnTalk, btnSkills);
-  document.body.appendChild(buttonsContainerToremidos);
+function toremidosUpdateButtonsPosition(cameraX, cameraY) {
+  if (!toremidosButtonsContainer || !toremidosIsNear) return;
+  const screenX = TOREMIDOS_CONFIG.x - cameraX + 35;
+  const screenY = TOREMIDOS_CONFIG.y - cameraY - 110;
+  toremidosButtonsContainer.style.left = `${screenX}px`;
+  toremidosButtonsContainer.style.top = `${screenY}px`;
 }
 
-function removeButtons() {
-  if (buttonsContainerToremidos) {
-    buttonsContainerToremidos.remove();
-    buttonsContainerToremidos = null;
-  }
-}
+function toremidosDraw(deltaTime) {
+  if (window.worldSystem.currentWorldId !== TOREMIDOS_CONFIG.worldId) return;
 
-function updateButtonsPosition(cameraX, cameraY) {
-  if (!buttonsContainerToremidos || !isNearToremidos) return;
-  const screenX = TOREMIDOS.x - cameraX + 35;
-  const screenY = TOREMIDOS.y - cameraY - 110;
-  buttonsContainerToremidos.style.left = `${screenX}px`;
-  buttonsContainerToremidos.style.top = `${screenY}px`;
-}
-
-function drawToremidos(deltaTime) {
-  if (window.worldSystem.currentWorldId !== TOREMIDOS.worldId) return;
-
-  deltaTime = Math.min(deltaTime, 1000);
+  deltaTime = Math.min(deltaTime, TOREMIDOS_MAX_DELTA);
 
   const camera = window.movementSystem.getCamera();
-  const screenX = TOREMIDOS.x - camera.x;
-  const screenY = TOREMIDOS.y - camera.y;
+  const screenX = TOREMIDOS_CONFIG.x - camera.x;
+  const screenY = TOREMIDOS_CONFIG.y - camera.y;
 
-  let sx = 0;
-  let sy = 0;
+  let sx, sy;
 
-  if (!isNearToremidos) {
-    cycleTimeToremidos += deltaTime;
+  if (toremidosIsNear) {
+    sx = 0;
+    sy = 0;
+    toremidosFrame = 0;
+    toremidosFrameTime = 0;
+    toremidosCycleTime = 0;
+    toremidosCurrentPhase = "main";
+  } else {
+    toremidosCycleTime += deltaTime;
     const phaseDuration =
-      currentPhaseToremidos === "main"
-        ? MAIN_PHASE_DURATION_TOREMIDOS
-        : ACTIVE_PHASE_DURATION_TOREMIDOS;
+      toremidosCurrentPhase === "main"
+        ? TOREMIDOS_MAIN_PHASE_DURATION
+        : TOREMIDOS_ACTIVE_PHASE_DURATION;
 
-    while (cycleTimeToremidos >= phaseDuration) {
-      cycleTimeToremidos -= phaseDuration;
-      currentPhaseToremidos =
-        currentPhaseToremidos === "main" ? "active" : "main";
-      frameToremidos = 0;
-      frameTimeToremidos = 0;
+    while (toremidosCycleTime >= phaseDuration) {
+      toremidosCycleTime -= phaseDuration;
+      toremidosCurrentPhase =
+        toremidosCurrentPhase === "main" ? "active" : "main";
+      toremidosFrame = 0;
+      toremidosFrameTime = 0;
     }
 
-    frameTimeToremidos += deltaTime;
-    while (frameTimeToremidos >= FRAME_DURATION_TOREMIDOS) {
-      frameTimeToremidos -= FRAME_DURATION_TOREMIDOS;
-      frameToremidos = (frameToremidos + 1) % TOTAL_FRAMES_TOREMIDOS;
+    toremidosFrameTime += deltaTime;
+    while (toremidosFrameTime >= TOREMIDOS_FRAME_DURATION) {
+      toremidosFrameTime -= TOREMIDOS_FRAME_DURATION;
+      toremidosFrame = (toremidosFrame + 1) % TOREMIDOS_TOTAL_FRAMES;
     }
 
-    sy = currentPhaseToremidos === "main" ? 70 : 0;
-    sx = frameToremidos * 70;
+    sy = toremidosCurrentPhase === "main" ? 70 : 0;
+    sx = toremidosFrame * 70;
   }
-  // если isNear → остаётся sx=0, sy=0 (первый кадр)
 
-  if (spriteToremidos?.complete) {
-    ctx.drawImage(spriteToremidos, sx, sy, 70, 70, screenX, screenY, 70, 70);
+  if (toremidosSprite?.complete) {
+    ctx.drawImage(toremidosSprite, sx, sy, 70, 70, screenX, screenY, 70, 70);
   } else {
     ctx.fillStyle = "#00aaff";
     ctx.fillRect(screenX, screenY, 70, 70);
   }
 
   // Имя или ?
-  ctx.fillStyle = isMetToremidos ? "#00ff88" : "#ffffff";
+  ctx.fillStyle = toremidosIsMet ? "#00ff88" : "#ffffff";
   ctx.font = "13px Arial";
   ctx.textAlign = "center";
   ctx.fillText(
-    isMetToremidos ? TOREMIDOS.name : "?",
+    toremidosIsMet ? TOREMIDOS_CONFIG.name : "?",
     screenX + 35,
     screenY - 12,
   );
 
-  updateButtonsPosition(camera.x, camera.y);
+  toremidosUpdateButtonsPosition(camera.x, camera.y);
 }
 
-function checkProximity() {
-  const me = players.get(myId);
-  if (!me || me.worldId !== TOREMIDOS.worldId || me.health <= 0) {
-    if (isNearToremidos) {
-      isNearToremidos = false;
-      removeButtons();
-      closeDialog();
+function toremidosCheckProximity() {
+  const player = players.get(myId);
+  if (
+    !player ||
+    player.worldId !== TOREMIDOS_CONFIG.worldId ||
+    player.health <= 0
+  ) {
+    if (toremidosIsNear) {
+      toremidosIsNear = false;
+      toremidosRemoveButtons();
+      toremidosCloseDialog();
     }
     return;
   }
 
-  const dx = me.x + 35 - (TOREMIDOS.x + 35);
-  const dy = me.y + 35 - (TOREMIDOS.y + 35);
+  const dx = player.x + 35 - (TOREMIDOS_CONFIG.x + 35);
+  const dy = player.y + 35 - (TOREMIDOS_CONFIG.y + 35);
   const dist = Math.hypot(dx, dy);
 
-  const nowNear = dist < TOREMIDOS.interactionRadius;
+  const nowNear = dist < TOREMIDOS_CONFIG.interactionRadius;
 
-  if (nowNear && !isNearToremidos) {
-    isNearToremidos = true;
-    if (isMetToremidos) {
-      createButtons();
+  if (nowNear && !toremidosIsNear) {
+    toremidosIsNear = true;
+    if (toremidosIsMet) {
+      toremidosCreateButtons();
     } else {
-      openGreeting();
+      toremidosOpenGreeting();
     }
-  } else if (!nowNear && isNearToremidos) {
-    isNearToremidos = false;
-    removeButtons();
-    closeDialog();
-    currentPhaseToremidos = "main";
-    cycleTimeToremidos = 0;
-    frameToremidos = 0;
-    frameTimeToremidos = 0;
+  } else if (!nowNear && toremidosIsNear) {
+    toremidosIsNear = false;
+    toremidosRemoveButtons();
+    toremidosCloseDialog();
+    toremidosCurrentPhase = "main";
+    toremidosCycleTime = 0;
+    toremidosFrame = 0;
+    toremidosFrameTime = 0;
   }
 }
 
-function setMet(met) {
-  isMetToremidos = !!met;
-  if (isNearToremidos && isMetToremidos) {
-    createButtons();
-  } else if (isNearToremidos && !isMetToremidos) {
-    removeButtons();
+function toremidosSetMet(met) {
+  toremidosIsMet = !!met;
+  if (toremidosIsNear) {
+    if (toremidosIsMet) {
+      toremidosCreateButtons();
+    } else {
+      toremidosRemoveButtons();
+    }
   }
 }
 
 window.toremidosSystem = {
   initialize: (img) => {
-    spriteToremidos = img;
-    currentPhaseToremidos = "main";
-    cycleTimeToremidos = 0;
-    frameToremidos = 0;
-    frameTimeToremidos = 0;
+    toremidosSprite = img;
+    toremidosCurrentPhase = "main";
+    toremidosCycleTime = 0;
+    toremidosFrame = 0;
+    toremidosFrameTime = 0;
   },
-  draw: drawToremidos,
-  checkProximity,
-  setMet,
+  draw: toremidosDraw,
+  checkProximity: toremidosCheckProximity,
+  setMet: toremidosSetMet,
 };

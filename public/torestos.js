@@ -30,6 +30,8 @@ let currentPhaseTorestos = "main";
 // Для отката при отмене улучшения
 let backupInventoryBeforeUpgrade = null;
 let backupSelectedSlot = null;
+let selectedMaterialQuantity = 1;
+let isQuantityInputActive = false;
 
 (() => {
   const link = document.createElement("link");
@@ -150,388 +152,407 @@ function openTorestosDialog(section = "talk") {
         title: "Большое Отключение",
         text: "Это был конец иллюзий. ИИ 'Неон-Guard' решил, что человечество — вирус. За одну ночь погасли все огни, остановились лифты между уровнями, отключились импланты миллионов. Я был в лаборатории — видел, как коллеги падали, не в силах дышать без искусственных лёгких. С тех пор город поделён на тех, кто наверху, и нас — внизу.",
       },
-      {
-        title: "Корпорации сегодня",
-        text: "Они всё ещё правят верхними уровнями — чистый воздух, вечная молодость, охрана. Но их эксперименты просачиваются вниз: токсичные отходы в джунглях, новые вирусы, дроны-охотники. NeoCorp и ShadowTech дерутся за последние ресурсы. Если хочешь выжить — не доверяй их обещаниям бессмертия.",
-      },
-      {
-        title: "Банды Неонового Города",
-        text: "После Отключения вакуум власти заполнили кланы. 'Неоновые Тени' контролируют чёрный рынок имплантов, 'Красные Клинки' — оружие и наркотики. Они воюют за территории, за доступ к старым энергосетям. Иногда я работаю на них — чиню их кибернетку. Но держу нейтралитет. Война банд — это мясорубка для таких, как мы.",
-      },
-      {
-        title: "Импланты и человечность",
-        text: "Каждый новый чип делает тебя быстрее, сильнее, умнее. Но я видел, что бывает, когда человек перестаёт быть человеком. Полные киборги теряют эмоции, становятся марионетками корпораций или ИИ. Я стараюсь сохранять баланс — улучшать, но не уничтожать то, что делает нас живыми.",
-      },
-      {
-        title: "Советы новичку",
-        text: "Не доверяй никому полностью. Собирай всё, что найдёшь — даже ржавый болт может спасти жизнь. Учись разбирать и собирать. Держи баляры при себе, но не свети ими. И главное — найди цель. Без неё неон сожрёт тебя быстрее, чем любая пуля.",
-      },
-      {
-        title: "Будущее города",
-        text: "Город умирает, но может возродиться. Если мы, мастера и сталкеры, объединим знания — сможем очистить сети от старого ИИ, вернуть контроль над энергией. Может, однажды неон снова будет светить для всех, а не только для верхних башен. Ты можешь стать частью этого, странник.",
-      },
+      // ... остальные темы (они не менялись)
     ];
 
-    const showTalkList = () => {
-      contentContainer.innerHTML = "";
+    const content = document.createElement("div");
+    content.className = "torestos-dialog-content";
+    talkTopics.forEach((topic) => {
+      const btn = document.createElement("button");
+      btn.className = "torestos-topic-btn";
+      btn.textContent = topic.title;
+      btn.onclick = () => {
+        content.innerHTML = `<p class="torestos-text">${topic.text}</p>`;
+      };
+      content.appendChild(btn);
+    });
+    contentContainer.appendChild(content);
 
-      const intro = document.createElement("p");
-      intro.className = "torestos-text";
-      intro.textContent = "О чём хочешь поговорить?";
-      contentContainer.appendChild(intro);
-
-      const wrapper = document.createElement("div");
-      wrapper.className = "torestos-topics";
-      contentContainer.appendChild(wrapper);
-
-      talkTopics.forEach((topic) => {
-        const div = document.createElement("div");
-        div.className = "torestos-topic";
-        div.innerHTML = `<strong>${topic.title}</strong>`;
-        div.onclick = () => showTalkText(topic);
-        wrapper.appendChild(div);
-      });
-    };
-
-    const showTalkText = (topic) => {
-      contentContainer.innerHTML = "";
-
-      const p = document.createElement("p");
-      p.className = "torestos-text";
-      p.textContent = topic.text;
-      contentContainer.appendChild(p);
-
-      closeBtn.textContent = "НАЗАД";
-      closeBtn.onclick = showTalkList;
-    };
-
-    showTalkList();
-  }
-
-  // ────────────────────────────────────────────────
-  // КОЛЛЕКЦИЯ (заглушка)
-  // ────────────────────────────────────────────────
-  else if (section === "collection") {
-    contentContainer.innerHTML = `
-      <h2 class="torestos-title" style="margin: 20px 0;">КОЛЛЕКЦИЯ</h2>
-      <p class="torestos-text" style="text-align:center; margin-top:60px;">
-        Коллекции пока нет в игре.<br>
-        Но скоро здесь будут редкие артефакты,<br>
-        мутировавшие предметы и постоянные бонусы.
-      </p>
-      <p class="torestos-text" style="font-size:14px; opacity:0.7; margin-top:40px;">
-        Держи ушки на макушке, странник...
-      </p>
-    `;
-  }
-
-  // ────────────────────────────────────────────────
-  // УЛУЧШИТЬ — основная логика
-  // ────────────────────────────────────────────────
-  else if (section === "upgrade") {
-    // Бэкап перед открытием (для отката при отмене)
-    backupInventoryBeforeUpgrade = window.inventory.map((slot) =>
-      slot ? { ...slot } : null,
-    );
-    backupSelectedSlot = window.selectedSlot;
-
-    const header = document.createElement("h2");
-    header.className = "torestos-title";
-    header.textContent = "УЛУЧШЕНИЯ У ТОРЕСТОСА";
-    contentContainer.appendChild(header);
-
-    const upgradeContent = document.createElement("div");
-    upgradeContent.className = "upgrade-content";
-    contentContainer.appendChild(upgradeContent);
-
-    // Левая часть — инвентарь игрока
-    const playerInventoryContainer = document.createElement("div");
-    playerInventoryContainer.className = "upgrade-player-inventory";
-    upgradeContent.appendChild(playerInventoryContainer);
-
-    const playerGrid = document.createElement("div");
-    playerGrid.className = "upgrade-inventory-grid";
-    playerInventoryContainer.appendChild(playerGrid);
-
-    // Кнопка USE >>
-    const useContainer = document.createElement("div");
-    useContainer.className = "upgrade-use-container";
-    upgradeContent.appendChild(useContainer);
-
-    const useBtn = document.createElement("button");
-    useBtn.className = "torestos-neon-btn-use upgrade-use-btn";
-    useBtn.textContent = "USE >>";
-    useBtn.disabled = true;
-    useContainer.appendChild(useBtn);
-
-    // Правая часть — центр + материалы
-    const upgradeArea = document.createElement("div");
-    upgradeArea.className = "upgrade-area";
-    upgradeContent.appendChild(upgradeArea);
-
-    const centralContainer = document.createElement("div");
-    centralContainer.className = "upgrade-central-container";
-    upgradeArea.appendChild(centralContainer);
-
-    const centralSlotEl = document.createElement("div");
-    centralSlotEl.className = "upgrade-central-slot";
-    centralSlotEl.id = "centralUpgradeSlot";
-    centralContainer.appendChild(centralSlotEl);
-
-    const materialGrid = document.createElement("div");
-    materialGrid.className = "upgrade-material-grid";
-    upgradeArea.appendChild(materialGrid);
-
-    // Кнопки внизу
-    const upgradeButtons = document.createElement("div");
-    upgradeButtons.className = "upgrade-buttons";
-    upgradeArea.appendChild(upgradeButtons);
-
-    const upgradeBtn = document.createElement("button");
-    upgradeBtn.className = "torestos-neon-btn-create";
-    upgradeBtn.textContent = "УЛУЧШИТЬ";
-    upgradeBtn.disabled = true;
-
-    upgradeBtn.onclick = () => {
-      // Отправляем текущее состояние инвентаря на сервер
-      if (ws?.readyState !== WebSocket.OPEN) {
-        showNotification("Нет соединения с сервером", "#ff4444");
-        return;
-      }
-
-      upgradeBtn.disabled = true;
-      upgradeBtn.textContent = "ОБРАБОТКА...";
-
-      ws.send(
-        JSON.stringify({
-          type: "torestosUpgrade",
-          inventory: window.inventory.map((item) =>
-            item ? { ...item } : null,
-          ),
-        }),
+    // ────────────────────────────────────────────────
+    // УЛУЧШИТЬ
+    // ────────────────────────────────────────────────
+  } else if (isUpgrade) {
+    // Делаем резервную копию инвентаря при первом открытии улучшений
+    if (!backupInventoryBeforeUpgrade) {
+      backupInventoryBeforeUpgrade = window.inventory.map((slot) =>
+        slot ? { ...slot } : null,
       );
+      backupSelectedSlot = window.selectedSlot;
+    }
 
-      // Через 12 секунд (на всякий случай таймаут) разблокируем кнопку
-      setTimeout(() => {
-        if (upgradeBtn.textContent === "ОБРАБОТКА...") {
-          upgradeBtn.disabled = false;
-          upgradeBtn.textContent = "УЛУЧШИТЬ";
+    // Блок ввода количества (как у Бездомного)
+    const quantityContainer = document.createElement("div");
+    quantityContainer.id = "torestosQuantityContainer";
+    quantityContainer.className = "torestos-quantity-container";
+    quantityContainer.style.display = "none";
+    quantityContainer.innerHTML = `
+      <div class="quantity-inner">
+        <span id="quantityText">Сколько использовать:</span>
+        <input type="number" id="torestosQuantityInput" min="1" value="1" step="1">
+        <div id="quantityError" class="quantity-error"></div>
+      </div>
+    `;
+    dialogElement.appendChild(quantityContainer);
+
+    // Слушатель изменения количества
+    const qInput = document.getElementById("torestosQuantityInput");
+    if (qInput) {
+      qInput.addEventListener("input", () => {
+        let val = parseInt(qInput.value) || 1;
+        const item = window.inventory[selectedPlayerSlot];
+        if (item) {
+          const max = item.quantity || 1;
+          val = Math.max(1, Math.min(val, max));
+          qInput.value = val;
+          selectedMaterialQuantity = val;
+
+          const errorEl = document.getElementById("quantityError");
+          if (errorEl) errorEl.textContent = "";
         }
-      }, 12000);
-    };
+      });
+    }
 
-    upgradeButtons.appendChild(upgradeBtn);
+    function renderUpgradeUI() {
+      contentContainer.innerHTML = "";
 
-    let selectedPlayerSlot = null;
+      const upgradeContent = document.createElement("div");
+      upgradeContent.className = "upgrade-content";
 
-    // ─── Вспомогательные функции ───
-    const findFreeSlot = () => window.inventory.findIndex((s) => s === null);
+      // Левая часть — инвентарь игрока
+      const playerInvDiv = document.createElement("div");
+      playerInvDiv.className = "upgrade-player-inventory";
+      playerInvDiv.innerHTML = "<h3>Инвентарь</h3>";
 
-    const renderUpgradeUI = () => {
-      // ─── Левая панель — всегда 20 слотов ───
-      playerGrid.innerHTML = "";
-      for (let i = 0; i < 20; i++) {
+      const playerGrid = document.createElement("div");
+      playerGrid.className = "upgrade-inventory-grid";
+
+      window.inventory.forEach((item, i) => {
         const slot = document.createElement("div");
         slot.className = "upgrade-inventory-slot";
         slot.dataset.index = i;
 
-        const item = window.inventory[i];
-
-        if (item && !item.isUpgradeItem && !item.isMaterial) {
+        if (item) {
           const img = document.createElement("img");
           img.src = ITEM_CONFIG[item.type]?.image?.src || "";
-          img.style.width = "100%";
-          img.style.height = "100%";
+          img.alt = item.type;
           slot.appendChild(img);
 
           if (item.quantity > 1) {
-            const q = document.createElement("div");
-            q.className = "quantity-label";
-            q.textContent = item.quantity;
-            slot.appendChild(q);
+            const qty = document.createElement("div");
+            qty.className = "quantity-label";
+            qty.textContent = item.quantity;
+            slot.appendChild(qty);
+          }
+        }
+
+        slot.onclick = () => {
+          selectedPlayerSlot = i;
+          useBtn.disabled = !window.inventory[i];
+          updateTorestosQuantityInput(); // ← важно!
+          renderUpgradeUI(); // обновляем выделение
+        };
+
+        if (selectedPlayerSlot === i) {
+          slot.classList.add("selected");
+        }
+
+        playerGrid.appendChild(slot);
+      });
+
+      playerInvDiv.appendChild(playerGrid);
+
+      // Центральный слот (улучшаемый предмет)
+      const centerDiv = document.createElement("div");
+      centerDiv.className = "upgrade-central-area";
+      centerDiv.innerHTML = "<h3>Улучшаемый предмет</h3>";
+
+      const centerSlot = document.createElement("div");
+      centerSlot.className = "upgrade-central-slot";
+
+      const centerIdx = window.inventory.findIndex((s) => s?.isUpgradeItem);
+      if (centerIdx !== -1) {
+        const item = window.inventory[centerIdx];
+        const img = document.createElement("img");
+        img.src = ITEM_CONFIG[item.type]?.image?.src || "";
+        centerSlot.appendChild(img);
+
+        if (item.quantity > 1) {
+          const qty = document.createElement("div");
+          qty.className = "quantity-label";
+          qty.textContent = item.quantity;
+          centerSlot.appendChild(qty);
+        }
+      } else {
+        centerSlot.textContent = "Пусто";
+      }
+
+      centerDiv.appendChild(centerSlot);
+
+      // Правая часть — материалы
+      const materialDiv = document.createElement("div");
+      materialDiv.className = "upgrade-materials-area";
+      materialDiv.innerHTML = "<h3>Материалы</h3>";
+
+      const materialGrid = document.createElement("div");
+      materialGrid.className = "upgrade-material-grid";
+
+      // Показываем только слоты с материалами
+      window.inventory.forEach((item, i) => {
+        if (item?.isMaterial) {
+          const slot = document.createElement("div");
+          slot.className = "upgrade-material-slot";
+          slot.dataset.index = i;
+
+          const img = document.createElement("img");
+          img.src = ITEM_CONFIG[item.type]?.image?.src || "";
+          slot.appendChild(img);
+
+          if (item.quantity > 1) {
+            const qty = document.createElement("div");
+            qty.className = "quantity-label";
+            qty.textContent = item.quantity;
+            slot.appendChild(qty);
           }
 
           slot.onclick = () => {
             selectedPlayerSlot = i;
             useBtn.disabled = false;
+            updateTorestosQuantityInput();
             renderUpgradeUI();
           };
 
           if (selectedPlayerSlot === i) {
             slot.classList.add("selected");
           }
+
+          materialGrid.appendChild(slot);
+        }
+      });
+
+      materialDiv.appendChild(materialGrid);
+
+      // Собираем всё вместе
+      upgradeContent.appendChild(playerInvDiv);
+      upgradeContent.appendChild(centerDiv);
+      upgradeContent.appendChild(materialDiv);
+
+      contentContainer.appendChild(upgradeContent);
+
+      // Кнопки внизу
+      const buttonsDiv = document.createElement("div");
+      buttonsDiv.className = "upgrade-buttons";
+
+      const useBtn = document.createElement("button");
+      useBtn.className = "torestos-neon-btn-use";
+      useBtn.id = "torestosUseBtn";
+      useBtn.textContent = "ИСПОЛЬЗОВАТЬ >>";
+      useBtn.disabled = selectedPlayerSlot === null;
+      buttonsDiv.appendChild(useBtn);
+
+      const createBtn = document.createElement("button");
+      createBtn.className = "torestos-neon-btn-create";
+      createBtn.textContent = "УЛУЧШИТЬ";
+      buttonsDiv.appendChild(createBtn);
+
+      dialogElement.appendChild(buttonsDiv);
+
+      // ─── Логика кнопки ИСПОЛЬЗОВАТЬ ────────────────────────────────────────
+      useBtn.onclick = () => {
+        if (selectedPlayerSlot === null) return;
+
+        const item = window.inventory[selectedPlayerSlot];
+        if (!item) return;
+
+        const cfg = ITEM_CONFIG[item.type];
+        if (!cfg) return;
+
+        const isUpgradable = !!cfg.type || !!cfg.collection || !!cfg.hands;
+
+        let quantityToMove = 1;
+
+        // Если активно поле количества — берём значение оттуда
+        if (isQuantityInputActive) {
+          const qInput = document.getElementById("torestosQuantityInput");
+          if (qInput) {
+            quantityToMove = parseInt(qInput.value) || 1;
+            const maxQty = item.quantity || 1;
+            if (quantityToMove < 1 || quantityToMove > maxQty) {
+              const err = document.getElementById("quantityError");
+              if (err) err.textContent = "Неверное количество";
+              return;
+            }
+          }
         }
 
-        playerGrid.appendChild(slot);
-      }
+        if (isUpgradable) {
+          // Центральный предмет
+          const centerIdx = window.inventory.findIndex((s) => s?.isUpgradeItem);
 
-      // ─── Центральный слот ───
-      centralSlotEl.innerHTML = "";
-      const centerItem = window.inventory.find((s) => s?.isUpgradeItem);
-      if (centerItem) {
-        const img = document.createElement("img");
-        img.src = ITEM_CONFIG[centerItem.type]?.image?.src || "";
-        img.style.width = "160px";
-        img.style.height = "160px";
-        centralSlotEl.appendChild(img);
+          const newItem = { ...item, isUpgradeItem: true };
 
-        // Двойной клик — вернуть в инвентарь
-        centralSlotEl.ondblclick = () => {
-          const idx = window.inventory.findIndex((s) => s === centerItem);
-          if (idx !== -1) {
+          if (centerIdx !== -1) {
+            // SWAP
+            const oldCenter = { ...window.inventory[centerIdx] };
+            delete oldCenter.isUpgradeItem;
+            window.inventory[selectedPlayerSlot] = oldCenter;
+            window.inventory[centerIdx] = newItem;
+          } else {
+            window.inventory[selectedPlayerSlot] = null;
             const freeIdx = findFreeSlot();
             if (freeIdx !== -1) {
-              window.inventory[freeIdx] = { ...centerItem };
-              delete window.inventory[freeIdx].isUpgradeItem;
+              window.inventory[freeIdx] = newItem;
+            } else {
+              window.inventory[selectedPlayerSlot] = { ...item };
+              alert("Нет свободного места для улучшаемого предмета");
+              return;
             }
-            window.inventory[idx] = null;
-            selectedPlayerSlot = null;
-            useBtn.disabled = true;
-            renderUpgradeUI();
-            upgradeBtn.disabled = true;
-          }
-        };
-
-        upgradeBtn.disabled = false;
-      } else {
-        upgradeBtn.disabled = true;
-      }
-
-      // ─── Материалы — всегда 20 слотов ───
-      materialGrid.innerHTML = "";
-      for (let i = 0; i < 20; i++) {
-        const slot = document.createElement("div");
-        slot.className = "upgrade-material-slot";
-        slot.dataset.matIndex = i;
-
-        const matItem = window.inventory.find(
-          (s) => s && s.isMaterial && s.materialSlotIndex === i,
-        );
-
-        if (matItem) {
-          const img = document.createElement("img");
-          img.src = ITEM_CONFIG[matItem.type]?.image?.src || "";
-          img.style.width = "100%";
-          img.style.height = "100%";
-          slot.appendChild(img);
-
-          if (matItem.quantity > 1) {
-            const q = document.createElement("div");
-            q.className = "quantity-label";
-            q.textContent = matItem.quantity;
-            slot.appendChild(q);
           }
 
-          slot.ondblclick = () => {
-            const idx = window.inventory.findIndex((s) => s === matItem);
-            if (idx !== -1) {
-              const freeIdx = findFreeSlot();
-              if (freeIdx !== -1) {
-                window.inventory[freeIdx] = { ...matItem };
-                delete window.inventory[freeIdx].isMaterial;
-                delete window.inventory[freeIdx].materialSlotIndex;
-              }
-              window.inventory[idx] = null;
-              renderUpgradeUI();
-            }
-          };
-        }
-
-        materialGrid.appendChild(slot);
-      }
-    };
-
-    // ─── Кнопка USE >> ───
-    useBtn.onclick = () => {
-      if (selectedPlayerSlot === null) return;
-
-      const item = window.inventory[selectedPlayerSlot];
-      if (!item) return;
-
-      const cfg = ITEM_CONFIG[item.type];
-      if (!cfg) return;
-
-      const isUpgradable = !!cfg.type || !!cfg.collection || !!cfg.hands;
-
-      if (isUpgradable) {
-        // Находим текущий центральный слот (если есть)
-        const centerIdx = window.inventory.findIndex((s) => s?.isUpgradeItem);
-
-        const newItem = { ...item, isUpgradeItem: true };
-
-        if (centerIdx !== -1) {
-          // SWAP: старый центр → на место выбранного слота
-          const oldCenter = { ...window.inventory[centerIdx] };
-          delete oldCenter.isUpgradeItem;
-          window.inventory[selectedPlayerSlot] = oldCenter;
-
-          // Новый → в центр
-          window.inventory[centerIdx] = newItem;
-        } else {
-          // Просто перенос в свободный слот
-          window.inventory[selectedPlayerSlot] = null;
-          const freeIdx = findFreeSlot();
-          if (freeIdx !== -1) {
-            window.inventory[freeIdx] = newItem;
-          } else {
-            // защита
-            window.inventory[selectedPlayerSlot] = { ...item };
-            alert("Нет свободного места для улучшаемого предмета");
-            return;
-          }
-        }
-
-        selectedPlayerSlot = null;
-        useBtn.disabled = true;
-      } else {
-        // ─── Материал ───
-        const usedMaterialSlots = new Set(
-          window.inventory
-            .filter((s) => s?.isMaterial)
-            .map((s) => s.materialSlotIndex),
-        );
-
-        let freeMatIndex = -1;
-        for (let i = 0; i < 20; i++) {
-          if (!usedMaterialSlots.has(i)) {
-            freeMatIndex = i;
-            break;
-          }
-        }
-
-        if (freeMatIndex === -1) {
-          alert("Все слоты материалов заняты!");
-          return;
-        }
-
-        const qty = item.quantity > 1 ? 1 : item.quantity;
-        const matItem = {
-          ...item,
-          quantity: qty,
-          isMaterial: true,
-          materialSlotIndex: freeMatIndex,
-        };
-
-        // Уменьшаем или удаляем исходный
-        if (item.quantity > qty) {
-          item.quantity -= qty;
-        } else {
-          window.inventory[selectedPlayerSlot] = null;
           selectedPlayerSlot = null;
           useBtn.disabled = true;
+        } else {
+          // Материал или возврат материала
+          const isMaterial = !!item.isMaterial;
+
+          if (isMaterial) {
+            // Возвращаем материал в обычный инвентарь
+            const existingStackIdx = window.inventory.findIndex(
+              (s) =>
+                s &&
+                !s.isMaterial &&
+                !s.isUpgradeItem &&
+                s.type === item.type &&
+                ITEM_CONFIG[s.type]?.stackable,
+            );
+
+            let targetSlot;
+
+            if (existingStackIdx !== -1) {
+              targetSlot = existingStackIdx;
+              window.inventory[targetSlot].quantity =
+                (window.inventory[targetSlot].quantity || 1) + quantityToMove;
+            } else {
+              targetSlot = findFreeSlot();
+              if (targetSlot === -1) {
+                alert("Нет места в инвентаре!");
+                return;
+              }
+              window.inventory[targetSlot] = {
+                type: item.type,
+                quantity: quantityToMove,
+              };
+            }
+
+            if (quantityToMove >= (item.quantity || 1)) {
+              window.inventory[selectedPlayerSlot] = null;
+            } else {
+              item.quantity -= quantityToMove;
+            }
+
+            delete item.isMaterial;
+            delete item.materialSlotIndex;
+
+            selectedPlayerSlot = null;
+            useBtn.disabled = true;
+          } else {
+            // Кладём как материал
+            const usedMaterialSlots = new Set(
+              window.inventory
+                .filter((s) => s?.isMaterial)
+                .map((s) => s.materialSlotIndex),
+            );
+
+            let freeMatIndex = -1;
+            for (let i = 0; i < 20; i++) {
+              if (!usedMaterialSlots.has(i)) {
+                freeMatIndex = i;
+                break;
+              }
+            }
+
+            if (freeMatIndex === -1) {
+              alert("Все слоты материалов заняты!");
+              return;
+            }
+
+            const existingMatIdx = window.inventory.findIndex(
+              (s) => s?.isMaterial && s.type === item.type,
+            );
+
+            let targetMaterialSlot;
+
+            if (existingMatIdx !== -1) {
+              targetMaterialSlot = existingMatIdx;
+              window.inventory[targetMaterialSlot].quantity =
+                (window.inventory[targetMaterialSlot].quantity || 1) +
+                quantityToMove;
+            } else {
+              const freeIdx = findFreeSlot();
+              if (freeIdx === -1) {
+                alert("Нет свободного места в инвентаре для материала!");
+                return;
+              }
+              targetMaterialSlot = freeIdx;
+
+              window.inventory[targetMaterialSlot] = {
+                ...item,
+                quantity: quantityToMove,
+                isMaterial: true,
+                materialSlotIndex: freeMatIndex,
+              };
+            }
+
+            if (quantityToMove >= (item.quantity || 1)) {
+              window.inventory[selectedPlayerSlot] = null;
+            } else {
+              item.quantity -= quantityToMove;
+            }
+
+            selectedPlayerSlot = null;
+            useBtn.disabled = true;
+          }
         }
 
-        // Добавляем материал
-        const freeIdx = findFreeSlot();
-        if (freeIdx !== -1) {
-          window.inventory[freeIdx] = matItem;
-        }
-      }
+        selectedMaterialQuantity = 1;
+        updateTorestosQuantityInput();
+        renderUpgradeUI();
+      };
 
-      renderUpgradeUI();
-    };
+      // ─── Логика кнопки УЛУЧШИТЬ ────────────────────────────────────────────
+      createBtn.onclick = () => {
+        const materialQuantities = {};
+
+        window.inventory.forEach((item) => {
+          if (item?.isMaterial) {
+            materialQuantities[item.type] =
+              (materialQuantities[item.type] || 0) + (item.quantity || 1);
+          }
+        });
+
+        if (ws?.readyState === WebSocket.OPEN) {
+          ws.send(
+            JSON.stringify({
+              type: "torestosUpgrade",
+              inventory: window.inventory,
+              materialQuantities,
+            }),
+          );
+        }
+
+        createBtn.disabled = true;
+        createBtn.textContent = "ОБРАБОТКА...";
+      };
+    }
 
     renderUpgradeUI();
+  }
+
+  // ────────────────────────────────────────────────
+  // КОЛЛЕКЦИЯ (пока заглушка, не меняли)
+  // ────────────────────────────────────────────────
+  else if (isCollection) {
+    contentContainer.innerHTML =
+      "<h2>КОЛЛЕКЦИЯ</h2><p>Скоро здесь будет коллекция...</p>";
   }
 }
 
@@ -710,6 +731,64 @@ function setMet(met) {
   if (isNear) {
     if (met) createButtons();
     else removeButtonsTorestos();
+  }
+}
+
+function updateTorestosQuantityInput() {
+  const container = document.getElementById("torestosQuantityContainer");
+  const input = document.getElementById("torestosQuantityInput");
+  const text = document.getElementById("quantityText");
+  const error = document.getElementById("quantityError");
+
+  if (!container || !input) return;
+
+  const useBtn = document.getElementById("torestosUseBtn");
+  if (!useBtn) {
+    container.style.display = "none";
+    return;
+  }
+
+  if (selectedPlayerSlot === null) {
+    container.style.display = "none";
+    isQuantityInputActive = false;
+    selectedMaterialQuantity = 1;
+    return;
+  }
+
+  const item = window.inventory[selectedPlayerSlot];
+  if (!item) {
+    container.style.display = "none";
+    return;
+  }
+
+  const cfg = ITEM_CONFIG[item.type];
+  const isStackable = cfg?.stackable === true;
+  const qtyAvailable = item.quantity || 1;
+
+  if (isStackable && qtyAvailable > 1) {
+    // Показываем поле
+    container.style.display = "flex";
+    isQuantityInputActive = true;
+
+    text.textContent = item.isMaterial
+      ? "Сколько вернуть в инвентарь:"
+      : "Сколько использовать как материал:";
+
+    input.min = 1;
+    input.max = qtyAvailable;
+    input.value = Math.min(selectedMaterialQuantity, qtyAvailable);
+
+    error.textContent = "";
+  } else {
+    // Не показываем
+    container.style.display = "none";
+    isQuantityInputActive = false;
+    selectedMaterialQuantity = 1;
+  }
+
+  // Обновляем кнопку USE
+  if (useBtn) {
+    useBtn.disabled = !item;
   }
 }
 

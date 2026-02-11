@@ -1,3 +1,5 @@
+/* toremidosStyle.css */
+
 .toremidos-dialog {
   position: fixed;
   top: 50%;
@@ -21,7 +23,7 @@
   box-shadow:
     0 0 20px rgba(0, 255, 255, 0.5),
     0 0 30px rgba(255, 0, 255, 0.3);
-  animation: neonPulse 2s infinite alternate;
+  animation: toremidosNeonPulse 2s infinite alternate;
   display: none;
   flex-direction: column;
   overflow: hidden;
@@ -44,7 +46,7 @@
   text-shadow:
     0 0 8px #00ffff,
     0 0 15px #ff00ff;
-  animation: flicker 1.8s infinite alternate;
+  animation: toremidosFlicker 1.8s infinite alternate;
 }
 
 .toremidos-dialog-content {
@@ -97,31 +99,37 @@
   padding: 12px 24px;
   font-size: 15px;
   font-weight: bold;
-  border: 2px solid #00ffff;
   border-radius: 8px;
   cursor: pointer;
   text-transform: uppercase;
   letter-spacing: 1.5px;
   text-shadow: 0 0 8px rgba(0, 255, 255, 0.9);
-  background: rgba(0, 255, 255, 0.15);
-  color: #00ffff;
-  box-shadow: 0 0 12px rgba(0, 255, 255, 0.5);
   min-width: 130px;
   text-align: center;
   backdrop-filter: blur(4px);
 }
 
 .toremidos-talk-btn {
-  border-color: #00ffff;
+  border: 2px solid #00ffff;
+  background: rgba(0, 255, 255, 0.15);
   color: #00ffff;
+  box-shadow: 0 0 12px rgba(0, 255, 255, 0.5);
 }
 
 .toremidos-skills-btn {
-  border-color: #ff00ff;
+  border: 2px solid #ff00ff;
+  background: rgba(255, 0, 255, 0.15);
   color: #ff00ff;
+  box-shadow: 0 0 12px rgba(255, 0, 255, 0.5);
 }
 
-@keyframes neonPulse {
+.toremidos-dialog-active {
+  overflow: hidden;
+  touch-action: none;
+}
+
+/* Анимации */
+@keyframes toremidosNeonPulse {
   0% {
     box-shadow:
       0 0 10px rgba(0, 255, 255, 0.5),
@@ -134,7 +142,7 @@
   }
 }
 
-@keyframes flicker {
+@keyframes toremidosFlicker {
   0%,
   19%,
   21%,
@@ -153,5 +161,21 @@
   55% {
     opacity: 0.6;
     text-shadow: 0 0 3px #00ffff;
+  }
+}
+
+/* Адаптив */
+@media (max-width: 480px) {
+  .toremidos-dialog {
+    width: 94vw;
+    height: 420px;
+    padding: 16px;
+  }
+  .toremidos-title {
+    font-size: 20px;
+  }
+  .toremidos-neon-btn {
+    padding: 10px 24px;
+    font-size: 15px;
   }
 }
