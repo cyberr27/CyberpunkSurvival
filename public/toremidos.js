@@ -10,6 +10,30 @@ const TOREMIDOS_CONFIG = {
   worldId: 0,
 };
 
+const TOREMIDOS_SKILLS_SHOP = [
+  {
+    name: "Мощный удар",
+    maxLevel: 5,
+    initialLevel: 1,
+    price: { balyary: 120, atoms: 45 },
+    icon: "power_strike.png",
+  },
+  {
+    name: "Быстрая регенерация",
+    maxLevel: 4,
+    initialLevel: 1,
+    price: { balyary: 180, atoms: 30 },
+    icon: "fast_regen.png",
+  },
+  {
+    name: "Высасывание энергии",
+    maxLevel: 5,
+    initialLevel: 1,
+    price: { balyary: 250, blood_pack: 3 },
+    icon: "fast_regen.png",
+  },
+];
+
 const TOREMIDOS_MAIN_PHASE_DURATION = 14000;
 const TOREMIDOS_ACTIVE_PHASE_DURATION = 5000;
 const TOREMIDOS_FRAME_DURATION = 180;
@@ -50,6 +74,10 @@ function toremidosOpenGreeting() {
     </button>
   `;
   document.body.appendChild(toremidosDialogElement);
+
+  if (section === "skills") {
+    renderToremidosSkillsShop();
+  }
 
   const continueBtn = document.getElementById("toremidos-greeting-continue");
   if (continueBtn) {
@@ -133,6 +161,11 @@ function toremidosOpenDialog(section = "talk") {
       ?.addEventListener("click", () => {
         toremidosOpenDialog("talk");
       });
+
+    // ← Добавляем это
+    setTimeout(() => {
+      renderToremidosSkillsShop();
+    }, 50); // небольшой таймаут, чтобы DOM успел создаться
   }
 }
 
