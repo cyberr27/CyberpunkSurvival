@@ -12,24 +12,19 @@ const TOREMIDOS_CONFIG = {
 
 const TOREMIDOS_SKILLS_SHOP = [
   {
+    type: "power_strike",
     name: "Мощный удар",
     maxLevel: 5,
     initialLevel: 1,
     price: { balyary: 120, atoms: 45 },
-    icon: "power_strike.png",
+    icon: "power_strike.png", // или любое другое изображение
   },
   {
+    type: "fast_regen",
     name: "Быстрая регенерация",
     maxLevel: 4,
     initialLevel: 1,
     price: { balyary: 180, atoms: 30 },
-    icon: "fast_regen.png",
-  },
-  {
-    name: "Высасывание энергии",
-    maxLevel: 5,
-    initialLevel: 1,
-    price: { balyary: 250, blood_pack: 3 },
     icon: "fast_regen.png",
   },
 ];
