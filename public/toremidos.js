@@ -71,33 +71,69 @@ function toremidosOpenDialog(section = "talk") {
   toremidosDialogElement = document.createElement("div");
   toremidosDialogElement.className = "toremidos-dialog open";
 
+  let content = "";
+
   if (section === "talk") {
-    toremidosDialogElement.innerHTML = `
+    content = `
       <div class="toremidos-dialog-header">
         <h2 class="toremidos-title">Торемидос</h2>
       </div>
       <div class="toremidos-dialog-content">
-        <p class="toremidos-text">Ну, говори уже. Только без воды — у меня времени мало.</p>
-        <p class="toremidos-text">(здесь будет большой диалог / ветвление разговора)</p>
+        <p class="toremidos-text">Чё хотел, сталкер?</p>
+        <p class="toremidos-text">Могу рассказать пару историй... или продать кое-что интересное.</p>
       </div>
-      <button class="toremidos-neon-btn toremidos-close-btn">ЗАКРЫТЬ</button>
+      <div class="toremidos-dialog-buttons">
+        <button class="toremidos-neon-btn" id="toremidos-btn-skills">Умения</button>
+        <button class="toremidos-neon-btn" id="toremidos-btn-talk">Поговорить</button>
+        <button class="toremidos-neon-btn" id="toremidos-btn-close">Вали отсюда</button>
+      </div>
     `;
-  } else {
-    toremidosDialogElement.innerHTML = `
+  } else if (section === "skills") {
+    content = `
       <div class="toremidos-dialog-header">
         <h2 class="toremidos-title">Умения Торемидоса</h2>
       </div>
-      <div class="toremidos-dialog-content">
-        <p class="toremidos-text">Пока никаких умений не реализовано.</p>
-        <p class="toremidos-text">Это заглушка — позже здесь будет система прокачки / имплантов.</p>
+      <div class="toremidos-dialog-content skills-shop">
+        <div id="toremidos-skills-grid"></div>
+        <div id="toremidos-skill-description" class="skill-desc"></div>
       </div>
-      <button class="toremidos-neon-btn toremidos-close-btn">ЗАКРЫТЬ</button>
+      <button class="toremidos-neon-btn back-btn" id="toremidos-back-to-talk">Назад</button>
     `;
   }
 
+  toremidosDialogElement.innerHTML = content;
   document.body.appendChild(toremidosDialogElement);
-  toremidosDialogElement.querySelector(".toremidos-close-btn").onclick =
-    toremidosCloseDialog;
+
+  // Обработчики
+  if (section === "talk") {
+    document
+      .getElementById("toremidos-btn-skills")
+      ?.addEventListener("click", () => {
+        toremidosOpenDialog("skills");
+        renderToremidosSkillsShop();
+      });
+
+    document
+      .getElementById("toremidos-btn-talk")
+      ?.addEventListener("click", () => {
+        // можно расширить позже
+        alert("Поговорить — пока заглушка");
+      });
+
+    document
+      .getElementById("toremidos-btn-close")
+      ?.addEventListener("click", () => {
+        toremidosCloseDialog();
+      });
+  }
+
+  if (section === "skills") {
+    document
+      .getElementById("toremidos-back-to-talk")
+      ?.addEventListener("click", () => {
+        toremidosOpenDialog("talk");
+      });
+  }
 }
 
 function toremidosCloseDialog() {
@@ -194,7 +230,7 @@ function toremidosDraw(deltaTime) {
   }
 
   // Имя или ?
-  ctx.fillStyle = toremidosIsMet ? "#00ff88" : "#ffffff";
+  ctx.fillStyle = toremidosIsMet ? "#fbff00" : "#ffffff";
   ctx.font = "13px Arial";
   ctx.textAlign = "center";
   ctx.fillText(
@@ -254,6 +290,64 @@ function toremidosSetMet(met) {
       toremidosRemoveButtons();
     }
   }
+}
+
+function renderToremidosSkillsShop() {
+  const grid = document.getElementById("toremidos-skills-grid");
+  if (!grid) return;
+
+  grid.innerHTML = "";
+
+  TOREMIDOS_SKILLS_SHOP.forEach((skill, index) => {
+    const slot = document.createElement("div");
+    slot.className = "toremidos-skill-slot";
+    slot.dataset.skillType = skill.type;
+
+    slot.innerHTML = `
+      <img src="images/skills/${skill.icon}" alt="${skill.name}" />
+      <div class="skill-name">${skill.name}</div>
+    `;
+
+    slot.addEventListener("click", () => {
+      showToremidosSkillDescription(skill);
+    });
+
+    grid.appendChild(slot);
+  });
+}
+
+function showToremidosSkillDescription(skill) {
+  const desc = document.getElementById("toremidos-skill-description");
+  if (!desc) return;
+
+  let priceText = "";
+  for (const [itemType, count] of Object.entries(skill.price)) {
+    priceText += `<div>${ITEM_CONFIG[itemType]?.name || itemType}: ${count}</div>`;
+  }
+
+  desc.innerHTML = `
+    <h3>${skill.name}</h3>
+    <p>${skill.description}</p>
+    <div class="price-block">
+      <strong>Стоимость:</strong><br>
+      ${priceText}
+    </div>
+    <button class="toremidos-buy-btn" data-skill-type="${skill.type}">
+      Купить
+    </button>
+  `;
+
+  // Обработчик покупки
+  desc.querySelector(".toremidos-buy-btn")?.addEventListener("click", () => {
+    if (ws?.readyState === WebSocket.OPEN) {
+      ws.send(
+        JSON.stringify({
+          type: "buyToremidosSkill",
+          skillType: skill.type,
+        }),
+      );
+    }
+  });
 }
 
 window.toremidosSystem = {

@@ -19,6 +19,7 @@
     <link rel="stylesheet" href="joystick.css" />
     <link rel="stylesheet" href="notifications.css" />
     <link rel="stylesheet" href="mister-twister-slot.css" />
+    <link rel="stylesheet" href="skills.css" />
     <link rel="stylesheet" href="style.css" />
     <title>Cyberpunk Survival</title>
   </head>
@@ -100,6 +101,12 @@
         src="images/combat.png"
         alt="Combat"
       />
+      <img
+        id="skillsBtn"
+        class="cyber-btn-img"
+        src="images/skills.png"
+        alt="Skills"
+      />
       <div id="chatContainer">
         <div id="chatCloseHint">Нажми на кнопку чата или ESC для закрытия</div>
         <div id="chatHeader">ЧАТ</div>
@@ -119,6 +126,10 @@
           <button id="useBtn" class="use-btn" disabled></button>
           <button id="dropBtn" class="drop-btn" disabled></button>
         </div>
+      </div>
+      <div id="skillsContainer" style="display: none">
+        <div id="skillsGrid"></div>
+        <div id="skillsDescription"></div>
       </div>
       <script src="inventory.js"></script>
       <script src="levelSystem.js"></script>
@@ -154,6 +165,7 @@
       <script src="notifications.js"></script>
       <script src="obstacles.js"></script>
       <script src="portal.js"></script>
+      <script src="skills.js"></script>
       <script src="code.js"></script>
     </div>
   </body>

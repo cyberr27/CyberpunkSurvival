@@ -656,7 +656,7 @@ function drawTorestos(deltaTime) {
     ctx.fillRect(screenX, screenY, 70, 70);
   }
 
-  ctx.fillStyle = isMet ? "#00ff2f" : "#ffffff";
+  ctx.fillStyle = isMet ? "#fbff00" : "#ffffff";
   ctx.font = "13px Arial";
   ctx.textAlign = "center";
   ctx.fillText(isMet ? TORESTOS.name : "?", screenX + 35, screenY - 12);

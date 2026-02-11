@@ -1082,6 +1082,7 @@ function handleAuthMessage(event) {
         selectedQuestId: data.selectedQuestId || null,
         level: data.level || 0,
         xp: data.xp || 99,
+        skills: data.skills || [],
         upgradePoints: data.upgradePoints || 0,
         worldId: data.worldId || 0,
         worldPositions: data.worldPositions || { 0: { x: 222, y: 3205 } },
@@ -1113,6 +1114,14 @@ function handleAuthMessage(event) {
       }
 
       players.set(myId, me);
+
+      if (window.skillsSystem) {
+        window.skillsSystem.playerSkills = data.skills || [];
+        if (window.skillsSystem.isSkillsOpen) {
+          window.skillsSystem.updateSkillsDisplay();
+        }
+      }
+
       window.worldSystem.currentWorldId = me.worldId;
 
       if (window.welcomeGuideSystem) {
@@ -2600,6 +2609,20 @@ function handleGameMessage(event) {
         if (window.homelessSystem?.handleMessage) {
           window.homelessSystem.handleMessage(data);
         }
+        break;
+      case "buySkillSuccess":
+        // Обновляем свои навыки
+        if (data.skills) {
+          window.skillsSystem.playerSkills = data.skills;
+          window.skillsSystem.updateSkillsDisplay();
+
+          // Можно показать уведомление
+          showNotification(`Навык "${data.skillName}" успешно приобретён!`);
+        }
+        break;
+
+      case "buySkillFail":
+        showNotification(data.reason || "Не удалось купить навык");
         break;
     }
   } catch (error) {
