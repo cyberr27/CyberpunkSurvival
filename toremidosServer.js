@@ -54,6 +54,9 @@ function handleSkillUpgrade(
 
   // Прокачиваем
   skill.level += 1;
+  if (skillId === 1) {
+    player.meleeDamageBonus = skill.level;
+  }
   player.skillPoints -= 1;
 
   // Сохраняем

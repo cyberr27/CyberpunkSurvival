@@ -1084,6 +1084,7 @@ function handleAuthMessage(event) {
         xp: data.xp || 99,
         skills: data.skills || [],
         skillPoints: data.skillPoints || 0,
+        meleeDamageBonus: data.meleeDamageBonus || 0,
         upgradePoints: data.upgradePoints || 0,
         worldId: data.worldId || 0,
         worldPositions: data.worldPositions || { 0: { x: 222, y: 3205 } },
@@ -1920,6 +1921,10 @@ function handleGameMessage(event) {
           } else if (data.player.state !== "attacking") {
             updatedPlayer.attackFrame = 0;
             updatedPlayer.attackFrameTime = 0;
+          }
+
+          if (data.player.meleeDamageBonus !== undefined) {
+            me.meleeDamageBonus = Number(data.player.meleeDamageBonus);
           }
 
           // Если атака только началась — гарантируем сброс

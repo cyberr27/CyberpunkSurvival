@@ -764,6 +764,7 @@ function setupWebSocket(
             level: player.level || 0,
             xp: player.xp || 0,
             skills: player.skills || [],
+            meleeDamageBonus: player.meleeDamageBonus || 0,
             skillPoints: player.skillPoints || 0,
             upgradePoints: player.upgradePoints || 0,
             availableQuests: player.availableQuests || [],
@@ -3680,6 +3681,7 @@ function setupWebSocket(
           water: player.water,
           armor: player.armor,
           distanceTraveled: player.distanceTraveled,
+          meleeDamageBonus: player.meleeDamageBonus || 0,
         };
 
         if (player.state === "attacking") {
