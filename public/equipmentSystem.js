@@ -30,8 +30,20 @@ const equipmentSystem = {
 
   getCurrentMeleeDamage: function () {
     const levelBonus = window.levelSystem.meleeDamageBonus || 0;
-    let min = this.BASE_MELEE_MIN + levelBonus;
-    let max = this.BASE_MELEE_MAX + levelBonus;
+
+    // НОВЫЙ БОНУС: от уровня навыка "Сильный удар" (id: 1)
+    const me = players.get(myId);
+    let skillBonus = 0;
+    if (me && me.skills) {
+      const strongStrike = me.skills.find((s) => s.id === 1);
+      skillBonus = strongStrike ? strongStrike.level : 0;
+    }
+
+    // Итоговый бонус = бонус от уровня + бонус от навыка
+    const totalBonus = levelBonus + skillBonus;
+
+    let min = this.BASE_MELEE_MIN + totalBonus;
+    let max = this.BASE_MELEE_MAX + totalBonus;
 
     // Суммируем от weapon и offhand, если !range (melee)
     ["weapon", "offhand"].forEach((slotName) => {

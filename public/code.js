@@ -1872,6 +1872,9 @@ function handleGameMessage(event) {
             }
             const { x, y, ...stats } = data.player;
             Object.assign(me, stats);
+            if (data.player.meleeDamageBonus !== undefined) {
+              me.meleeDamageBonus = Number(data.player.meleeDamageBonus);
+            }
           }
 
           if (data.player.inventory) {
@@ -1921,10 +1924,6 @@ function handleGameMessage(event) {
           } else if (data.player.state !== "attacking") {
             updatedPlayer.attackFrame = 0;
             updatedPlayer.attackFrameTime = 0;
-          }
-
-          if (data.player.meleeDamageBonus !== undefined) {
-            me.meleeDamageBonus = Number(data.player.meleeDamageBonus);
           }
 
           // Если атака только началась — гарантируем сброс

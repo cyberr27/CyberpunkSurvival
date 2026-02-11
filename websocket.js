@@ -2461,6 +2461,8 @@ function setupWebSocket(
           }
           attacker.xp = (attacker.xp || 0) + xpGained;
 
+          const oldLevel = attacker.level;
+
           let levelUp = false;
           let xpToNext = calculateXPToNextLevel(attacker.level);
 
@@ -2470,6 +2472,24 @@ function setupWebSocket(
             attacker.upgradePoints = (attacker.upgradePoints || 0) + 10;
             levelUp = true;
             xpToNext = calculateXPToNextLevel(attacker.level);
+          }
+
+          const levelsGained = attacker.level - oldLevel; // сколько уровней подняли за этот удар
+          if (levelsGained > 0) {
+            attacker.skillPoints =
+              (attacker.skillPoints || 0) + 3 * levelsGained;
+
+            // Отправляем клиенту обновление
+            ws.send(
+              JSON.stringify({
+                type: "updateLevel",
+                level: attacker.level,
+                xp: attacker.xp,
+                xpToNextLevel: xpToNext,
+                upgradePoints: attacker.upgradePoints,
+                skillPoints: attacker.skillPoints, // ← самое важное!
+              }),
+            );
           }
 
           players.set(attackerId, attacker);
