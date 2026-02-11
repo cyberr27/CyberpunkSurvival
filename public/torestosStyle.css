@@ -407,54 +407,6 @@
   transform: none;
 }
 
-.torestos-quantity-container {
-  position: absolute;
-  top: 38%;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(0, 0, 0, 0.7);
-  border: 2px solid #ffaa00;
-  border-radius: 8px;
-  padding: 12px 20px;
-  z-index: 10;
-  display: none;
-  flex-direction: column;
-  align-items: center;
-  box-shadow: 0 0 15px rgba(255, 170, 0, 0.6);
-}
-
-.quantity-inner {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-#quantityText {
-  color: #ffaa00;
-  font-size: 16px;
-  font-weight: bold;
-  white-space: nowrap;
-}
-
-#torestosQuantityInput {
-  width: 90px;
-  padding: 8px;
-  font-size: 18px;
-  text-align: center;
-  background: rgba(0, 0, 0, 0.6);
-  border: 2px solid #ffaa00;
-  color: #ffdd88;
-  border-radius: 6px;
-}
-
-.quantity-error {
-  color: #ff4444;
-  font-size: 13px;
-  margin-top: 6px;
-  min-height: 18px;
-  text-align: center;
-}
-
 /* Мелкие улучшения для мобильных */
 @media (max-width: 600px) {
   .torestos-upgrade-dialog {
