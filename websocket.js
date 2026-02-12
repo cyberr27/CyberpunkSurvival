@@ -450,7 +450,6 @@ function setupWebSocket(
     // Записываем итоговые максимумы
     player.maxStats = { ...base };
 
-    // Жёстко ограничиваем текущие значения (самая важная защита!)
     player.health = Math.max(
       0,
       Math.min(player.health ?? 0, player.maxStats.health),
@@ -3634,45 +3633,33 @@ function setupWebSocket(
             Math.min(newHealth, player.maxStats?.health || 100),
           );
         }
-        if (data.energy !== undefined)
+        if (data.energy !== undefined) {
           player.energy = Math.max(
             0,
             Math.min(Number(data.energy), player.maxStats?.energy || 100),
           );
-        if (data.food !== undefined)
+        }
+        if (data.food !== undefined) {
           player.food = Math.max(
             0,
             Math.min(Number(data.food), player.maxStats?.food || 100),
           );
-        if (data.water !== undefined)
+        }
+        if (data.water !== undefined) {
           player.water = Math.max(
             0,
             Math.min(Number(data.water), player.maxStats?.water || 100),
           );
-        if (data.armor !== undefined)
+        }
+        if (data.armor !== undefined) {
           player.armor = Math.max(
             0,
             Math.min(Number(data.armor), player.maxStats?.armor || 0),
           );
-
-        if (data.energy !== undefined)
-          player.energy = Math.max(
-            0,
-            Math.min(player.maxStats?.energy || 100, Number(data.energy)),
-          );
-        if (data.food !== undefined)
-          player.food = Math.max(
-            0,
-            Math.min(player.maxStats?.food || 100, Number(data.food)),
-          );
-        if (data.water !== undefined)
-          player.water = Math.max(
-            0,
-            Math.min(player.maxStats?.water || 100, Number(data.water)),
-          );
-        if (data.armor !== undefined) player.armor = Number(data.armor);
-        if (data.distanceTraveled !== undefined)
+        }
+        if (data.distanceTraveled !== undefined) {
           player.distanceTraveled = Number(data.distanceTraveled);
+        }
 
         // ─── ПРОВЕРКА ПРЕПЯТСТВИЙ ───────────────────────────────────────
         let positionValid = true;

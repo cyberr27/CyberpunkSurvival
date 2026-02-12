@@ -1584,6 +1584,10 @@ function updateResources() {
   lastDistance = distance; // Обновляем lastDistance
   updateStatsDisplay();
 
+  console.log(
+    `[updateResources] Отправляем HP: ${me.health}/${me.maxStats?.health ?? 100}`,
+  );
+
   // Отправляем обновленные данные на сервер
   sendWhenReady(
     ws,
@@ -1611,40 +1615,30 @@ function updateResources() {
 function updateStatsDisplay() {
   try {
     const statsEl = document.getElementById("stats");
-    if (!statsEl) {
-      return;
-    }
-    const me = players.get(myId);
-    if (!me) {
-      return;
-    }
-    statsEl.innerHTML = `
-  <span class="health">Здоровье: ${Math.min(
-    me.health ?? 0,
-    me.maxStats?.health ?? 100,
-  )}/${me.maxStats?.health ?? 100}</span><br>
-  <span class="energy">Энергия: ${Math.min(
-    me.energy ?? 0,
-    me.maxStats?.energy ?? 100,
-  )}/${me.maxStats?.energy ?? 100}</span><br>
-  <span class="food">Еда: ${Math.min(me.food ?? 0, me.maxStats?.food ?? 100)}/${
-    me.maxStats?.food ?? 100
-  }</span><br>
-  <span class="water">Вода: ${Math.min(
-    me.water ?? 0,
-    me.maxStats?.water ?? 100,
-  )}/${me.maxStats?.water ?? 100}</span><br>
-  <span class="armor">Броня: ${Math.min(
-    me.armor ?? 0,
-    me.maxStats?.armor ?? 0,
-  )}/${me.maxStats?.armor ?? 0}</span>
-`;
-    updateUpgradeButtons();
+    if (!statsEl) return;
 
-    document.getElementById("coords").innerHTML = `X: ${Math.floor(
-      me.x,
-    )}<br>Y: ${Math.floor(me.y)}`;
-  } catch (error) {}
+    const me = players.get(myId);
+    if (!me) return;
+
+    statsEl.innerHTML = `
+      <span class="health">Здоровье: ${Math.floor(me.health ?? 0)} / ${Math.floor(me.maxStats?.health ?? 100)}</span><br>
+      <span class="energy">Энергия: ${Math.floor(me.energy ?? 0)} / ${Math.floor(me.maxStats?.energy ?? 100)}</span><br>
+      <span class="food">Еда: ${Math.floor(me.food ?? 0)} / ${Math.floor(me.maxStats?.food ?? 100)}</span><br>
+      <span class="water">Вода: ${Math.floor(me.water ?? 0)} / ${Math.floor(me.maxStats?.water ?? 100)}</span><br>
+      <span class="armor">Броня: ${Math.floor(me.armor ?? 0)} / ${Math.floor(me.maxStats?.armor ?? 0)}</span>
+    `;
+
+    // Если есть координаты — обновляем
+    const coordsEl = document.getElementById("coords");
+    if (coordsEl) {
+      coordsEl.innerHTML = `X: ${Math.floor(me.x)}<br>Y: ${Math.floor(me.y)}`;
+    }
+
+    // Обновляем кнопки улучшения, если они есть
+    updateUpgradeButtons?.();
+  } catch (error) {
+    console.error("Ошибка в updateStatsDisplay:", error);
+  }
 }
 
 function handleGameMessage(event) {
