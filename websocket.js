@@ -3624,10 +3624,12 @@ function setupWebSocket(
         if (data.frame !== undefined) player.frame = Number(data.frame);
 
         // ─── ЗАЩИТА ОТ ЧИТОВ: слишком быстрый/большой реген здоровья ─────────────
-        const now = Date.now(); // ← вот эта строка была пропущена!
+        const now = Date.now();
 
+        // Ограничиваем статы — НЕ даём превысить актуальный максимум
         if (data.health !== undefined) {
           const newHealth = Number(data.health);
+          // Разрешаем значение до player.maxStats.health (с экипировкой)
           player.health = Math.max(
             0,
             Math.min(newHealth, player.maxStats?.health || 100),
@@ -3657,8 +3659,27 @@ function setupWebSocket(
             Math.min(Number(data.armor), player.maxStats?.armor || 0),
           );
         }
-        if (data.distanceTraveled !== undefined) {
-          player.distanceTraveled = Number(data.distanceTraveled);
+
+        // Анти-чит на слишком быстрый реген (оставляем как было, но только если превышает лимит)
+        if (data.health !== undefined && data.health > player.health) {
+          const timeSinceLastUpdate = now - (player.lastHealthUpdate || 0);
+          player.lastHealthUpdate = now;
+
+          const maxAllowedIncrease = Math.floor(
+            (player.maxStats?.health || 100) * 1.5,
+          );
+
+          if (
+            timeSinceLastUpdate < 25000 &&
+            data.health - player.health > maxAllowedIncrease
+          ) {
+            console.warn(
+              `[Anti-cheat] Подозрительный реген для ${playerId}: ` +
+                `+${data.health - player.health} hp за ${timeSinceLastUpdate}мс`,
+            );
+            // Откатываем к старому значению (если нужно — можно просто не менять)
+            // player.health = oldHealthValue;  // если хочешь строгий откат
+          }
         }
 
         // ─── ПРОВЕРКА ПРЕПЯТСТВИЙ ───────────────────────────────────────
