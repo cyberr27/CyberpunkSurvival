@@ -40,10 +40,7 @@ async function loadUserDatabase(collection, userDatabase) {
       const userData = {
         ...user,
         maxStats: user.maxStats || {
-          health: Math.max(
-            0,
-            Math.min(user.health ?? 0, user.maxStats?.health || 100),
-          ),
+          health: 100 + (user.healthUpgrade || 0),
           energy: 100 + (user.energyUpgrade || 0),
           food: 100 + (user.foodUpgrade || 0),
           water: 100 + (user.waterUpgrade || 0),
@@ -71,6 +68,26 @@ async function loadUserDatabase(collection, userDatabase) {
           Math.min(user.armor || 0, user.maxStats?.armor || 0),
         ),
       };
+      userData.health = Math.max(
+        0,
+        Math.min(userData.health ?? 0, userData.maxStats?.health || 100),
+      );
+      userData.energy = Math.max(
+        0,
+        Math.min(userData.energy ?? 0, userData.maxStats?.energy || 100),
+      );
+      userData.food = Math.max(
+        0,
+        Math.min(userData.food ?? 0, userData.maxStats?.food || 100),
+      );
+      userData.water = Math.max(
+        0,
+        Math.min(userData.water ?? 0, userData.maxStats?.water || 100),
+      );
+      userData.armor = Math.max(
+        0,
+        Math.min(userData.armor ?? 0, userData.maxStats?.armor || 0),
+      );
       userDatabase.set(user.id, userData);
     });
   } catch (error) {}
@@ -96,10 +113,22 @@ async function saveUserDatabase(collection, username, player) {
         0,
         Math.min(player.health ?? 0, player.maxStats?.health || 100),
       ),
-      energy: Math.min(player.energy, player.maxStats?.energy || 100),
-      food: Math.min(player.food, player.maxStats?.food || 100),
-      water: Math.min(player.water, player.maxStats?.water || 100),
-      armor: Math.min(player.armor, player.maxStats?.armor || 0),
+      energy: Math.max(
+        0,
+        Math.min(player.energy ?? 0, player.maxStats?.energy || 100),
+      ),
+      food: Math.max(
+        0,
+        Math.min(player.food ?? 0, player.maxStats?.food || 100),
+      ),
+      water: Math.max(
+        0,
+        Math.min(player.water ?? 0, player.maxStats?.water || 100),
+      ),
+      armor: Math.max(
+        0,
+        Math.min(player.armor ?? 0, player.maxStats?.armor || 0),
+      ),
 
       skills: player.skills || [],
       skillPoints: player.skillPoints || 0,

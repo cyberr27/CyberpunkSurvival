@@ -1621,7 +1621,7 @@ function updateStatsDisplay() {
     if (!me) return;
 
     statsEl.innerHTML = `
-      <span class="health">Здоровье: ${Math.floor(me.health ?? 0)} / ${Math.floor(me.maxStats?.health ?? 100)}</span><br>
+      <span class="health">Здоровье: ${Math.floor(me.health ?? 0)}/${Math.floor(me.maxStats?.health ?? 100)}</span><br>
       <span class="energy">Энергия: ${Math.floor(me.energy ?? 0)} / ${Math.floor(me.maxStats?.energy ?? 100)}</span><br>
       <span class="food">Еда: ${Math.floor(me.food ?? 0)} / ${Math.floor(me.maxStats?.food ?? 100)}</span><br>
       <span class="water">Вода: ${Math.floor(me.water ?? 0)} / ${Math.floor(me.maxStats?.water ?? 100)}</span><br>
@@ -1791,6 +1791,7 @@ function handleGameMessage(event) {
           me.equipment = data.equipment;
           me.maxStats = data.maxStats;
           me.health = data.stats.health;
+          const healthBeforeSync = me.health;
           me.energy = data.stats.energy;
           me.food = data.stats.food;
           me.water = data.stats.water;
@@ -1799,6 +1800,12 @@ function handleGameMessage(event) {
           inventory = me.inventory.map((slot) => (slot ? { ...slot } : null));
           window.equipmentSystem.equipmentSlots = { ...data.equipment };
           window.equipmentSystem.syncEquipment(data.equipment); // перерисовка + эффекты
+          if (me.health < healthBeforeSync) {
+            me.health = healthBeforeSync;
+            console.log(
+              "[Защита] Восстановили HP после экипировки: " + me.health,
+            );
+          }
         }
         window.equipmentSystem.pendingEquip = null;
         updateInventoryDisplay();
@@ -2061,6 +2068,7 @@ function handleGameMessage(event) {
           if (me) {
             // Обновляем статы игрока (важно для других систем)
             me.health = data.stats.health;
+            const healthBeforeUse = me.health;
             me.energy = data.stats.energy;
             me.food = data.stats.food;
             me.water = data.stats.water;
@@ -2074,6 +2082,14 @@ function handleGameMessage(event) {
 
           // Обновляем глобальную переменную inventory (используется в UI)
           inventory = data.inventory.map((slot) => (slot ? { ...slot } : null));
+
+          if (me.health < healthBeforeUse) {
+            me.health = healthBeforeUse;
+            console.log(
+              "[Защита] Восстановили HP после использования предмета: " +
+                me.health,
+            );
+          }
 
           // Перерисовываем всё
           updateStatsDisplay();
