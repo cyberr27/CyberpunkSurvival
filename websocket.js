@@ -3616,7 +3616,7 @@ function setupWebSocket(
         const oldX = player.x;
         const oldY = player.y;
 
-        // Принимаем только разрешённые поля
+        // Принимаем только разрешённые поля от клиента
         if (data.x !== undefined) player.x = Number(data.x);
         if (data.y !== undefined) player.y = Number(data.y);
         if (data.direction) player.direction = data.direction;
@@ -3627,12 +3627,39 @@ function setupWebSocket(
           player.attackFrameTime = Number(data.attackFrameTime);
         if (data.frame !== undefined) player.frame = Number(data.frame);
 
-        // Ограничиваем статы безопасными значениями
-        if (data.health !== undefined)
-          player.health = Math.max(
-            0,
-            Math.min(player.maxStats?.health || 100, Number(data.health)),
-          );
+        // ─── ОБРАБОТКА ЗДОРОВЬЯ С УЧЁТОМ PENDING REGEN ──────────────────────────────
+        let healthChanged = false;
+
+        if (data.player?.health !== undefined) {
+          const newHealth = Number(data.player.health);
+          const clientPendingRegen = Number(data.player.pendingRegen || 0);
+
+          if (!isNaN(newHealth) && newHealth >= 0) {
+            // Допустимый максимум = текущий maxStats + pendingRegen от клиента + маленький запас на лаги
+            const maxAllowed =
+              (player.maxStats?.health || 100) + clientPendingRegen + 15;
+
+            if (newHealth <= maxAllowed) {
+              // Принимаем значение от клиента
+              if (Math.abs(newHealth - player.health) > 0.1) {
+                healthChanged = true;
+              }
+              player.health = newHealth;
+            } else {
+              // Слишком большое значение → анти-чит, обрезаем до максимума
+              console.warn(
+                `[Anti-cheat] Игрок ${playerId} пытался установить здоровье ${newHealth}, ` +
+                  `максимум разрешено ~${Math.round(maxAllowed)} (maxStats=${player.maxStats?.health}, pending=${clientPendingRegen})`,
+              );
+              player.health = Math.min(
+                player.health,
+                player.maxStats?.health || 100,
+              );
+            }
+          }
+        }
+
+        // Ограничиваем остальные статы (как было раньше)
         if (data.energy !== undefined)
           player.energy = Math.max(
             0,
@@ -3652,7 +3679,7 @@ function setupWebSocket(
         if (data.distanceTraveled !== undefined)
           player.distanceTraveled = Number(data.distanceTraveled);
 
-        // ─── ПРОВЕРКА ПРЕПЯТСТВИЙ ───────────────────────────────────────
+        // ─── ПРОВЕРКА ПРЕПЯТСТВИЙ ────────────────────────────────────────────────────
         let positionValid = true;
 
         // Проверяем только если пришли новые координаты
@@ -3692,10 +3719,10 @@ function setupWebSocket(
           );
         }
 
-        // Сохраняем изменения
+        // Сохраняем изменения в players
         players.set(playerId, { ...player });
 
-        // Готовим данные для рассылки
+        // Готовим данные для рассылки всем в мире
         const updateData = {
           id: playerId,
           x: player.x,
