@@ -27,23 +27,27 @@ const regenerationSystem = {
 
       const percent = 5 + (skill.level - 1);
       const maxHp = me.maxStats?.health || 100;
-      const healAmount = Math.floor((maxHp * percent) / 100);
+      let healAmount = Math.floor((maxHp * percent) / 100);
 
       if (healAmount <= 0) return;
 
-      // Добавляем к pending, а не сразу к health
-      this.pendingRegen += healAmount;
-
       const oldHealth = me.health;
-      // Применяем сразу локально (для плавности)
-      me.health = Math.min(maxHp + this.pendingRegen, me.health + healAmount);
 
-      const gained = me.health - oldHealth;
+      // Самое важное — НЕ даём превысить максимум
+      const canHeal = maxHp - me.health;
+      healAmount = Math.min(healAmount, canHeal);
+
+      if (healAmount <= 0) return; // уже полный или почти полный
+
+      me.health += healAmount;
+      // health уже ≤ maxHp, потому что мы обрезали healAmount
+
+      const gained = healAmount;
 
       showNotification(`Регенерация: +${gained} HP`, "#44ff88");
 
       console.log(
-        `[Реген] +${gained} (pending теперь ${this.pendingRegen}) → ${me.health}/${maxHp}`,
+        `[Реген] +${gained} → ${me.health}/${maxHp}   (навык ур. ${skill.level})`,
       );
 
       if (ws?.readyState === WebSocket.OPEN) {
@@ -54,7 +58,7 @@ const regenerationSystem = {
             player: {
               id: myId,
               health: me.health,
-              pendingRegen: this.pendingRegen, // ← передаём на сервер
+              // pendingRegen больше НЕ отправляем — он больше не нужен
             },
           }),
         );
@@ -62,28 +66,6 @@ const regenerationSystem = {
 
       updateStatsDisplay();
     }, 30000);
-  },
-
-  applyPendingRegen() {
-    const me = players.get(myId);
-    if (!me || this.pendingRegen <= 0) return;
-
-    const oldHealth = me.health;
-
-    // Применяем накопленный реген поверх нового максимума
-    me.health = Math.min(
-      me.maxStats.health + this.pendingRegen,
-      me.health + this.pendingRegen,
-    );
-
-    const applied = me.health - oldHealth;
-
-    if (applied > 0) {
-      console.log(`[Защита] Применён pending реген +${applied} → ${me.health}`);
-      updateStatsDisplay();
-    }
-
-    // Не обнуляем pendingRegen здесь — только сервер может это сделать
   },
 
   // Вызывается клиентом после получения подтверждения от сервера

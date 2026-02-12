@@ -1909,9 +1909,6 @@ function handleGameMessage(event) {
 
           // Обновляем статы в любом случае
           updateStatsDisplay();
-          if (Math.abs(me.health - (data.player.health || me.health)) < 1) {
-            window.regenerationSystem?.clearPendingRegen?.();
-          }
         } else if (data.player?.id) {
           const existing = players.get(data.player.id) || {};
 
