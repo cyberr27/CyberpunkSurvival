@@ -46,25 +46,27 @@ function updateStatsDisplay() {
     if (!me) {
       return;
     }
+
+    // ПОКАЗЫВАЕМ РЕАЛЬНОЕ здоровье, а не обрезанное!
+    // Math.min убираем — пусть отображается то, что реально есть
     statsEl.innerHTML = `
-  <span class="health">Здоровье: ${Math.min(me.health, me.maxStats.health)}/${
-    me.maxStats.health
-  }</span><br>
-  <span class="energy">Энергия: ${Math.min(me.energy, me.maxStats.energy)}/${
-    me.maxStats.energy
-  }</span><br>
-  <span class="food">Еда: ${Math.min(me.food, me.maxStats.food)}/${
-    me.maxStats.food
-  }</span><br>
-  <span class="water">Вода: ${Math.min(me.water, me.maxStats.water)}/${
-    me.maxStats.water
-  }</span><br>
-  <span class="armor">Броня: ${Math.min(me.armor, me.maxStats.armor)}/${
-    me.maxStats.armor
-  }</span>
+  <span class="health">Здоровье: ${Math.floor(me.health ?? 0)}/${Math.floor(me.maxStats?.health ?? 100)}</span><br>
+  <span class="energy">Энергия: ${Math.floor(me.energy ?? 0)}/${Math.floor(me.maxStats?.energy ?? 100)}</span><br>
+  <span class="food">Еда: ${Math.floor(me.food ?? 0)}/${Math.floor(me.maxStats?.food ?? 100)}</span><br>
+  <span class="water">Вода: ${Math.floor(me.water ?? 0)}/${Math.floor(me.maxStats?.water ?? 100)}</span><br>
+  <span class="armor">Броня: ${Math.floor(me.armor ?? 0)}/${Math.floor(me.maxStats?.armor ?? 0)}</span>
 `;
+
     updateUpgradeButtons();
-  } catch (error) {}
+
+    // Координаты (если они есть в твоём коде)
+    if (document.getElementById("coords")) {
+      document.getElementById("coords").innerHTML =
+        `X: ${Math.floor(me.x)}<br>Y: ${Math.floor(me.y)}`;
+    }
+  } catch (error) {
+    console.error("Ошибка в updateStatsDisplay:", error);
+  }
 }
 
 function createUpgradeButtons() {
@@ -492,26 +494,27 @@ window.levelSystem = {
       if (level <= 0) return;
 
       const percent = 5 + (level - 1); // 5% +1% за каждый уровень выше 1
-      const maxHp = me.maxStats?.health || 100;
-      const healAmount = Math.floor((maxHp * percent) / 100);
+      const maxHp = Number(me.maxStats?.health) || 100; // защита от NaN
+      const healAmount = Math.floor((maxHp * percent) / 100) || 0;
 
       if (healAmount <= 0) return;
 
       const oldHealth = me.health;
-      me.health = Math.min(maxHp, me.health + healAmount);
+      me.health = Math.min(maxHp, me.health + healAmount); // не даём превысить максимум
 
       // Визуальный отклик
       if (me.health > oldHealth) {
-        showNotification(
-          `+${me.health - oldHealth} HP (регенерация)`,
-          "#44ff88",
-        );
+        const gained = Math.round(me.health - oldHealth);
+        showNotification(`Регенерация: +${gained} HP`, "#44ff88");
+
+        // Для отладки — можно потом убрать
+        console.log(`[Реген] +${gained} HP → текущее: ${me.health}/${maxHp}`);
       }
 
       updateStatsDisplay();
 
       // Отправляем на сервер только изменение здоровья
-      if (ws?.readyState === WebSocket.OPEN) {
+      if (ws && ws.readyState === WebSocket.OPEN) {
         sendWhenReady(
           ws,
           JSON.stringify({

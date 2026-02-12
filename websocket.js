@@ -3629,42 +3629,31 @@ function setupWebSocket(
 
         if (data.health !== undefined) {
           const newHealth = Number(data.health);
-
-          // Если здоровье увеличивается — проверяем на чит
-          if (newHealth > player.health) {
-            const timeSinceLastUpdate = now - (player.lastHealthUpdate || 0);
-            player.lastHealthUpdate = now; // обновляем метку времени
-
-            // Максимум +150% от максимального здоровья за 25 секунд (грубый лимит)
-            const maxAllowedIncrease = Math.floor(
-              (player.maxStats?.health || 100) * 1.5,
-            );
-
-            if (
-              timeSinceLastUpdate < 25000 &&
-              newHealth - player.health > maxAllowedIncrease
-            ) {
-              console.warn(
-                `[Anti-cheat] Подозрительный реген здоровья для ${playerId}: ` +
-                  `+${newHealth - player.health} hp за ${timeSinceLastUpdate}мс`,
-              );
-              // НЕ применяем подозрительное значение — оставляем старое
-              // player.health остаётся прежним
-            } else {
-              // Нормальное увеличение — применяем с ограничением по maxStats
-              player.health = Math.max(
-                0,
-                Math.min(player.maxStats?.health || 100, newHealth),
-              );
-            }
-          } else {
-            // Здоровье уменьшилось или не изменилось (урон, отравление и т.д.) — применяем без вопросов
-            player.health = Math.max(
-              0,
-              Math.min(player.maxStats?.health || 100, newHealth),
-            );
-          }
+          player.health = Math.max(
+            0,
+            Math.min(newHealth, player.maxStats?.health || 100),
+          );
         }
+        if (data.energy !== undefined)
+          player.energy = Math.max(
+            0,
+            Math.min(Number(data.energy), player.maxStats?.energy || 100),
+          );
+        if (data.food !== undefined)
+          player.food = Math.max(
+            0,
+            Math.min(Number(data.food), player.maxStats?.food || 100),
+          );
+        if (data.water !== undefined)
+          player.water = Math.max(
+            0,
+            Math.min(Number(data.water), player.maxStats?.water || 100),
+          );
+        if (data.armor !== undefined)
+          player.armor = Math.max(
+            0,
+            Math.min(Number(data.armor), player.maxStats?.armor || 0),
+          );
 
         if (data.energy !== undefined)
           player.energy = Math.max(

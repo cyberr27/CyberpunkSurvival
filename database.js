@@ -40,7 +40,10 @@ async function loadUserDatabase(collection, userDatabase) {
       const userData = {
         ...user,
         maxStats: user.maxStats || {
-          health: 100 + (user.healthUpgrade || 0),
+          health: Math.max(
+            0,
+            Math.min(user.health ?? 0, user.maxStats?.health || 100),
+          ),
           energy: 100 + (user.energyUpgrade || 0),
           food: 100 + (user.foodUpgrade || 0),
           water: 100 + (user.waterUpgrade || 0),
@@ -89,7 +92,10 @@ async function saveUserDatabase(collection, username, player) {
       foodUpgrade: player.foodUpgrade || 0,
       waterUpgrade: player.waterUpgrade || 0,
       // Ограничиваем текущие статы
-      health: Math.min(player.health, player.maxStats?.health || 100),
+      health: Math.max(
+        0,
+        Math.min(player.health ?? 0, player.maxStats?.health || 100),
+      ),
       energy: Math.min(player.energy, player.maxStats?.energy || 100),
       food: Math.min(player.food, player.maxStats?.food || 100),
       water: Math.min(player.water, player.maxStats?.water || 100),
