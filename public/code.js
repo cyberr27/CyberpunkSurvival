@@ -1621,7 +1621,7 @@ function updateStatsDisplay() {
     if (!me) return;
 
     statsEl.innerHTML = `
-      <span class="health">Здоровье: ${Math.floor(me.health ?? 0)}/${Math.floor(me.maxStats?.health ?? 100)}</span><br>
+      <span class="health">Здоровье: ${Math.floor(me.health ?? 0)} / ${Math.floor(me.maxStats?.health ?? 100)}</span><br>
       <span class="energy">Энергия: ${Math.floor(me.energy ?? 0)} / ${Math.floor(me.maxStats?.energy ?? 100)}</span><br>
       <span class="food">Еда: ${Math.floor(me.food ?? 0)} / ${Math.floor(me.maxStats?.food ?? 100)}</span><br>
       <span class="water">Вода: ${Math.floor(me.water ?? 0)} / ${Math.floor(me.maxStats?.water ?? 100)}</span><br>
@@ -1787,11 +1787,11 @@ function handleGameMessage(event) {
       case "equipItemSuccess": {
         const me = players.get(myId);
         if (me) {
+          const healthBeforeSync = me.health;
           me.inventory = data.inventory;
           me.equipment = data.equipment;
           me.maxStats = data.maxStats;
           me.health = data.stats.health;
-          const healthBeforeSync = me.health;
           me.energy = data.stats.energy;
           me.food = data.stats.food;
           me.water = data.stats.water;
@@ -1818,6 +1818,7 @@ function handleGameMessage(event) {
       case "unequipItemSuccess": {
         const me = players.get(myId);
         if (me) {
+          const healthBeforeSync = me.health;
           me.inventory = data.inventory;
           me.equipment = data.equipment;
           me.maxStats = data.maxStats;
@@ -1833,6 +1834,12 @@ function handleGameMessage(event) {
           window.equipmentSystem.equipmentSlots = { ...data.equipment };
           window.equipmentSystem.applyEquipmentEffects(me);
           window.equipmentSystem.updateEquipmentDisplay();
+          if (me.health < healthBeforeSync) {
+            me.health = healthBeforeSync;
+            console.log(
+              "[Защита] Восстановили HP после снятия экипировки: " + me.health,
+            );
+          }
         }
 
         window.equipmentSystem.pendingUnequip = null;
@@ -1850,6 +1857,7 @@ function handleGameMessage(event) {
       case "update":
         if (data.player?.id === myId) {
           const me = players.get(myId);
+          const localHealthBeforeUpdate = me.health;
           const isMoving = me.state === "walking" || me.state === "attacking";
 
           if (isMoving) {
@@ -1879,29 +1887,28 @@ function handleGameMessage(event) {
           }
 
           if (data.player.inventory) {
-            // Глубокая копия, чтобы не было неожиданных мутаций
             inventory = data.player.inventory.map((slot) =>
               slot ? { ...slot } : null,
             );
-
-            // Синхронизируем также в объекте игрока
             me.inventory = inventory.map((slot) => (slot ? { ...slot } : null));
-
-            // Обновляем отображение инвентаря
             window.inventorySystem?.updateInventoryDisplay();
-
-            // Если открыто меню Mister Twister — обновляем баланс на табло
             if (window.misterTwister?.isMenuOpen) {
               window.misterTwister.updateLocalBalanceDisplay();
             }
           }
 
-          // Оборудование (оставляем как было)
           if (data.player.equipment) {
             window.equipmentSystem.syncEquipment(data.player.equipment);
           }
 
-          // Обновляем статы в любом случае
+          if (me.health < localHealthBeforeUpdate) {
+            me.health = localHealthBeforeUpdate;
+            console.log(
+              "[Защита update] Восстановили HP после получения от сервера: " +
+                me.health,
+            );
+          }
+
           updateStatsDisplay();
         } else if (data.player?.id) {
           const existing = players.get(data.player.id) || {};
@@ -2066,36 +2073,31 @@ function handleGameMessage(event) {
         {
           const me = players.get(myId);
           if (me) {
-            // Обновляем статы игрока (важно для других систем)
-            me.health = data.stats.health;
             const healthBeforeUse = me.health;
+            me.health = data.stats.health;
             me.energy = data.stats.energy;
             me.food = data.stats.food;
             me.water = data.stats.water;
             me.armor = data.stats.armor || me.armor;
 
-            // КРИТИЧНО: полностью синхронизируем инвентарь игрока с серверным
             me.inventory = data.inventory.map((slot) =>
               slot ? { ...slot } : null,
             );
+
+            if (me.health < healthBeforeUse) {
+              me.health = healthBeforeUse;
+              console.log(
+                "[Защита] Восстановили HP после использования предмета: " +
+                  me.health,
+              );
+            }
           }
 
-          // Обновляем глобальную переменную inventory (используется в UI)
           inventory = data.inventory.map((slot) => (slot ? { ...slot } : null));
 
-          if (me.health < healthBeforeUse) {
-            me.health = healthBeforeUse;
-            console.log(
-              "[Защита] Восстановили HP после использования предмета: " +
-                me.health,
-            );
-          }
-
-          // Перерисовываем всё
           updateStatsDisplay();
           window.inventorySystem.updateInventoryDisplay();
 
-          // Если был выбран слот с использованным предметом — снимаем выделение
           if (
             selectedSlot !== null &&
             (!inventory[selectedSlot] || inventory[selectedSlot] === null)

@@ -49,44 +49,25 @@ async function loadUserDatabase(collection, userDatabase) {
         // Ограничиваем текущие статы сразу при загрузке
         health: Math.max(
           0,
-          Math.min(user.health || 100, user.maxStats?.health || 100),
+          Math.min(user.health ?? 0, user.maxStats?.health ?? 100),
         ),
         energy: Math.max(
           0,
-          Math.min(user.energy || 100, user.maxStats?.energy || 100),
+          Math.min(user.energy ?? 0, user.maxStats?.energy ?? 100),
         ),
-        food: Math.max(
-          0,
-          Math.min(user.food || 100, user.maxStats?.food || 100),
-        ),
+        food: Math.max(0, Math.min(user.food ?? 0, user.maxStats?.food ?? 100)),
         water: Math.max(
           0,
-          Math.min(user.water || 100, user.maxStats?.water || 100),
+          Math.min(user.water ?? 0, user.maxStats?.water ?? 100),
         ),
         armor: Math.max(
           0,
-          Math.min(user.armor || 0, user.maxStats?.armor || 0),
+          Math.min(user.armor ?? 0, user.maxStats?.armor ?? 0),
         ),
       };
-      userData.health = Math.max(
-        0,
-        Math.min(userData.health ?? 0, userData.maxStats?.health || 100),
-      );
-      userData.energy = Math.max(
-        0,
-        Math.min(userData.energy ?? 0, userData.maxStats?.energy || 100),
-      );
-      userData.food = Math.max(
-        0,
-        Math.min(userData.food ?? 0, userData.maxStats?.food || 100),
-      );
-      userData.water = Math.max(
-        0,
-        Math.min(userData.water ?? 0, userData.maxStats?.water || 100),
-      );
-      userData.armor = Math.max(
-        0,
-        Math.min(userData.armor ?? 0, userData.maxStats?.armor || 0),
+      // Лог для отладки
+      console.log(
+        `[loadUserDatabase] HP=${userData.health}, maxHP=${userData.maxStats?.health}`,
       );
       userDatabase.set(user.id, userData);
     });
@@ -98,11 +79,11 @@ async function saveUserDatabase(collection, username, player) {
     const playerData = {
       ...player,
       maxStats: {
-        health: player.maxStats?.health || 100,
-        energy: player.maxStats?.energy || 100,
-        food: player.maxStats?.food || 100,
-        water: player.maxStats?.water || 100,
-        armor: player.maxStats?.armor || 0,
+        health: player.maxStats?.health ?? 100,
+        energy: player.maxStats?.energy ?? 100,
+        food: player.maxStats?.food ?? 100,
+        water: player.maxStats?.water ?? 100,
+        armor: player.maxStats?.armor ?? 0,
       },
       healthUpgrade: player.healthUpgrade || 0,
       energyUpgrade: player.energyUpgrade || 0,
@@ -111,28 +92,32 @@ async function saveUserDatabase(collection, username, player) {
       // Ограничиваем текущие статы
       health: Math.max(
         0,
-        Math.min(player.health ?? 0, player.maxStats?.health || 100),
+        Math.min(player.health ?? 0, player.maxStats?.health ?? 100),
       ),
       energy: Math.max(
         0,
-        Math.min(player.energy ?? 0, player.maxStats?.energy || 100),
+        Math.min(player.energy ?? 0, player.maxStats?.energy ?? 100),
       ),
       food: Math.max(
         0,
-        Math.min(player.food ?? 0, player.maxStats?.food || 100),
+        Math.min(player.food ?? 0, player.maxStats?.food ?? 100),
       ),
       water: Math.max(
         0,
-        Math.min(player.water ?? 0, player.maxStats?.water || 100),
+        Math.min(player.water ?? 0, player.maxStats?.water ?? 100),
       ),
       armor: Math.max(
         0,
-        Math.min(player.armor ?? 0, player.maxStats?.armor || 0),
+        Math.min(player.armor ?? 0, player.maxStats?.armor ?? 0),
       ),
 
       skills: player.skills || [],
       skillPoints: player.skillPoints || 0,
     };
+    // Лог для отладки
+    console.log(
+      `[saveUserDatabase] HP=${playerData.health}, maxHP=${playerData.maxStats?.health}`,
+    );
     await collection.updateOne(
       { id: username },
       { $set: playerData },

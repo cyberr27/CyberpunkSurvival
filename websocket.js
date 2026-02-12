@@ -2371,39 +2371,39 @@ function setupWebSocket(
           }
         });
       } else if (data.type === "attackPlayer") {
-        const attackerId = clients.get(ws);
-        if (
-          attackerId &&
-          players.has(attackerId) &&
-          players.has(data.targetId)
-        ) {
-          const attacker = players.get(attackerId);
-          const target = players.get(data.targetId);
-          if (
-            attacker.worldId === data.worldId &&
-            target.worldId === data.worldId &&
-            target.health > 0
-          ) {
-            target.health = Math.max(0, target.health - data.damage);
-            players.set(data.targetId, { ...target });
-            userDatabase.set(data.targetId, { ...target });
-            await saveUserDatabase(dbCollection, data.targetId, target);
-
-            // Broadcast update to all players in the same world
-            wss.clients.forEach((client) => {
-              if (client.readyState === WebSocket.OPEN) {
-                const clientPlayer = players.get(clients.get(client));
-                if (clientPlayer && clientPlayer.worldId === target.worldId) {
-                  client.send(
-                    JSON.stringify({
-                      type: "update",
-                      player: { id: data.targetId, ...target },
-                    }),
-                  );
-                }
-              }
-            });
+        const id = clients.get(ws);
+        if (id && players.has(id)) {
+          const player = players.get(id);
+          if (data.player) {
+            Object.assign(player, data.player);
           }
+          if (data.health !== undefined) {
+            const prevHealth = player.health;
+            player.health = Math.max(
+              0,
+              Math.min(Number(data.health), player.maxStats?.health || 100),
+            );
+            // Лог для отладки
+            if (player.health !== prevHealth) {
+              console.log(
+                `[update] Сервер сохранил HP: ${player.health} (до: ${prevHealth})`,
+              );
+            }
+            // Анти-чит на слишком быстрый рост (оставляем)
+          }
+          players.set(id, { ...player });
+          userDatabase.set(id, { ...player });
+          await saveUserDatabase(dbCollection, id, player);
+          wss.clients.forEach((client) => {
+            if (
+              client.readyState === WebSocket.OPEN &&
+              clients.get(client) === id
+            ) {
+              client.send(
+                JSON.stringify({ type: "update", player: { id, ...player } }),
+              );
+            }
+          });
         }
       } else if (data.type === "attackEnemy") {
         const attackerId = clients.get(ws);
