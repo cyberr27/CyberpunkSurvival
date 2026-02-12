@@ -450,23 +450,42 @@ function setupWebSocket(
     // Записываем итоговые максимумы
     player.maxStats = { ...base };
 
+    // Сохраняем текущее здоровье ПЕРЕД обрезкой (чтобы реген не потерялся)
+    const oldHealth = player.health ?? 0;
+
+    // Ограничиваем статы — НЕ уменьшаем ниже текущего значения (регенированное!)
     player.health = Math.max(
-      0,
-      Math.min(player.health ?? 0, player.maxStats.health),
+      oldHealth, // ← важно! берём старое значение как минимум
+      Math.min(oldHealth, player.maxStats.health), // не даём превысить новый максимум
     );
+
     player.energy = Math.max(
-      0,
+      player.energy ?? 0,
       Math.min(player.energy ?? 0, player.maxStats.energy),
     );
-    player.food = Math.max(0, Math.min(player.food ?? 0, player.maxStats.food));
+    player.food = Math.max(
+      player.food ?? 0,
+      Math.min(player.food ?? 0, player.maxStats.food),
+    );
     player.water = Math.max(
-      0,
+      player.water ?? 0,
       Math.min(player.water ?? 0, player.maxStats.water),
     );
     player.armor = Math.max(
-      0,
+      player.armor ?? 0,
       Math.min(player.armor ?? 0, player.maxStats.armor),
     );
+
+    // Если здоровье выросло из-за экипировки — поднимаем текущее до нового минимума (опционально)
+    if (
+      player.health < player.maxStats.health &&
+      oldHealth < player.maxStats.health
+    ) {
+      player.health = Math.min(
+        player.maxStats.health,
+        player.health + (player.maxStats.health - oldHealth),
+      );
+    }
   }
 
   const EQUIPMENT_TYPES = {
