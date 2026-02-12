@@ -452,40 +452,47 @@ function setupWebSocket(
 
     // Сохраняем текущее здоровье ПЕРЕД обрезкой (чтобы реген не потерялся)
     const oldHealth = player.health ?? 0;
+    const oldEnergy = player.energy ?? 0;
+    const oldFood = player.food ?? 0;
+    const oldWater = player.water ?? 0;
+    const oldArmor = player.armor ?? 0;
 
     // Ограничиваем статы — НЕ уменьшаем ниже текущего значения (регенированное!)
     player.health = Math.max(
-      oldHealth, // ← важно! берём старое значение как минимум
-      Math.min(oldHealth, player.maxStats.health), // не даём превысить новый максимум
+      oldHealth, // ← минимум = старое значение (защита регена)
+      Math.min(oldHealth, player.maxStats.health), // максимум = новый максимум
     );
 
     player.energy = Math.max(
-      player.energy ?? 0,
-      Math.min(player.energy ?? 0, player.maxStats.energy),
-    );
-    player.food = Math.max(
-      player.food ?? 0,
-      Math.min(player.food ?? 0, player.maxStats.food),
-    );
-    player.water = Math.max(
-      player.water ?? 0,
-      Math.min(player.water ?? 0, player.maxStats.water),
-    );
-    player.armor = Math.max(
-      player.armor ?? 0,
-      Math.min(player.armor ?? 0, player.maxStats.armor),
+      oldEnergy,
+      Math.min(oldEnergy, player.maxStats.energy),
     );
 
-    // Если здоровье выросло из-за экипировки — поднимаем текущее до нового минимума (опционально)
-    if (
-      player.health < player.maxStats.health &&
-      oldHealth < player.maxStats.health
-    ) {
+    player.food = Math.max(oldFood, Math.min(oldFood, player.maxStats.food));
+
+    player.water = Math.max(
+      oldWater,
+      Math.min(oldWater, player.maxStats.water),
+    );
+
+    player.armor = Math.max(
+      oldArmor,
+      Math.min(oldArmor, player.maxStats.armor),
+    );
+
+    // Если максимум вырос из-за экипировки — поднимаем текущее здоровье пропорционально (опционально, но логично)
+    // Это предотвратит ситуацию "макс 130, а текущее осталось 100"
+    if (oldHealth < player.maxStats.health) {
+      const healthDiff =
+        player.maxStats.health - (player.maxStats.health - oldHealth); // пропорциональный подъём
       player.health = Math.min(
         player.maxStats.health,
-        player.health + (player.maxStats.health - oldHealth),
+        player.health + healthDiff,
       );
     }
+
+    // Можно добавить то же самое для других статов, если нужно
+    // if (oldEnergy < player.maxStats.energy) { ... }
   }
 
   const EQUIPMENT_TYPES = {
