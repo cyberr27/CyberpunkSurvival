@@ -421,6 +421,8 @@ function setupWebSocket(
       armor: 0,
     };
 
+    const previousHealth = player.health ?? 0;
+
     // Проверяем полную коллекцию
     const slots = ["head", "chest", "belt", "pants", "boots", "gloves"];
     const collections = slots
@@ -468,10 +470,11 @@ function setupWebSocket(
       0,
       Math.min(player.armor ?? 0, player.maxStats.armor),
     );
-    if (player.health < previousHealth) {
+    if (player.health < previousHealth - 0.1) {
+      // -0.1 чтобы игнорировать погрешность float
       console.log(
-        `[Server] Игрок ${player.id} здоровье обрезано: ${previousHealth} → ${player.health} ` +
-          `(max теперь ${player.maxStats.health})`,
+        `[Server] Игрок ${player.id} здоровье обрезано: ${previousHealth.toFixed(1)} → ${player.health.toFixed(1)} ` +
+          `(новый max = ${player.maxStats.health})`,
       );
     }
   }
