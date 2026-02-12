@@ -3610,6 +3610,9 @@ function setupWebSocket(
         const oldX = player.x;
         const oldY = player.y;
 
+        // Сохраняем старое здоровье перед изменением (для анти-чита)
+        const oldHealthValue = player.health;
+
         // Принимаем только разрешённые поля
         if (data.x !== undefined) player.x = Number(data.x);
         if (data.y !== undefined) player.y = Number(data.y);
@@ -3621,23 +3624,48 @@ function setupWebSocket(
           player.attackFrameTime = Number(data.attackFrameTime);
         if (data.frame !== undefined) player.frame = Number(data.frame);
 
-        // Ограничиваем статы безопасными значениями
-        if (data.health !== undefined)
-          player.health = Math.max(
-            0,
-            Math.min(player.maxStats?.health || 100, Number(data.health)),
-          );
-        const timeSinceLastUpdate = now - (player.lastHealthUpdate || 0);
-        if (timeSinceLastUpdate < 25000 && data.health > player.health) {
-          // подозрительно быстрое увеличение
-          const maxAllowedIncrease = Math.floor(player.maxStats.health * 1.5); // грубый лимит
-          if (data.health - player.health > maxAllowedIncrease) {
-            // откатываем подозрительное значение
-            player.health = oldHealthValue; // нужно сохранить старое значение выше
-            console.warn(`Suspicious health regen for player ${playerId}`);
+        // ─── ЗАЩИТА ОТ ЧИТОВ: слишком быстрый/большой реген здоровья ─────────────
+        const now = Date.now(); // ← вот эта строка была пропущена!
+
+        if (data.health !== undefined) {
+          const newHealth = Number(data.health);
+
+          // Если здоровье увеличивается — проверяем на чит
+          if (newHealth > player.health) {
+            const timeSinceLastUpdate = now - (player.lastHealthUpdate || 0);
+            player.lastHealthUpdate = now; // обновляем метку времени
+
+            // Максимум +150% от максимального здоровья за 25 секунд (грубый лимит)
+            const maxAllowedIncrease = Math.floor(
+              (player.maxStats?.health || 100) * 1.5,
+            );
+
+            if (
+              timeSinceLastUpdate < 25000 &&
+              newHealth - player.health > maxAllowedIncrease
+            ) {
+              console.warn(
+                `[Anti-cheat] Подозрительный реген здоровья для ${playerId}: ` +
+                  `+${newHealth - player.health} hp за ${timeSinceLastUpdate}мс`,
+              );
+              // НЕ применяем подозрительное значение — оставляем старое
+              // player.health остаётся прежним
+            } else {
+              // Нормальное увеличение — применяем с ограничением по maxStats
+              player.health = Math.max(
+                0,
+                Math.min(player.maxStats?.health || 100, newHealth),
+              );
+            }
+          } else {
+            // Здоровье уменьшилось или не изменилось (урон, отравление и т.д.) — применяем без вопросов
+            player.health = Math.max(
+              0,
+              Math.min(player.maxStats?.health || 100, newHealth),
+            );
           }
         }
-        player.lastHealthUpdate = now;
+
         if (data.energy !== undefined)
           player.energy = Math.max(
             0,
