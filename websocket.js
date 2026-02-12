@@ -3627,6 +3627,17 @@ function setupWebSocket(
             0,
             Math.min(player.maxStats?.health || 100, Number(data.health)),
           );
+        const timeSinceLastUpdate = now - (player.lastHealthUpdate || 0);
+        if (timeSinceLastUpdate < 25000 && data.health > player.health) {
+          // подозрительно быстрое увеличение
+          const maxAllowedIncrease = Math.floor(player.maxStats.health * 1.5); // грубый лимит
+          if (data.health - player.health > maxAllowedIncrease) {
+            // откатываем подозрительное значение
+            player.health = oldHealthValue; // нужно сохранить старое значение выше
+            console.warn(`Suspicious health regen for player ${playerId}`);
+          }
+        }
+        player.lastHealthUpdate = now;
         if (data.energy !== undefined)
           player.energy = Math.max(
             0,

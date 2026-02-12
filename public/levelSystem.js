@@ -170,6 +170,65 @@ function updateUpgradeButtons() {
   } catch (error) {}
 }
 
+window.levelSystem.startRegenerationInterval = function () {
+  // Удаляем старый интервал, если был
+  if (window.levelSystem.regenInterval) {
+    clearInterval(window.levelSystem.regenInterval);
+  }
+
+  window.levelSystem.regenInterval = setInterval(() => {
+    const me = players.get(myId);
+    if (!me || me.health <= 0) return;
+
+    // Ищем уровень навыка регенерации
+    const regenSkill = window.skillsSystem?.playerSkills?.find(
+      (s) => s.id === 2,
+    );
+    const level = regenSkill?.level || 0;
+
+    if (level <= 0) return;
+
+    const percent = 5 + (level - 1); // 5% +1% за каждый уровень выше 1
+    const maxHp = me.maxStats?.health || 100;
+    const healAmount = Math.floor((maxHp * percent) / 100);
+
+    if (healAmount <= 0) return;
+
+    const oldHealth = me.health;
+    me.health = Math.min(maxHp, me.health + healAmount);
+
+    // Визуальный отклик (опционально, но очень желательно)
+    if (me.health > oldHealth) {
+      showNotification(`+${me.health - oldHealth} HP (регенерация)`, "#44ff88");
+    }
+
+    updateStatsDisplay();
+
+    // Отправляем на сервер только изменение здоровья
+    if (ws?.readyState === WebSocket.OPEN) {
+      sendWhenReady(
+        ws,
+        JSON.stringify({
+          type: "update",
+          player: {
+            id: myId,
+            health: me.health,
+            // можно добавить x,y,state для совместимости, но не обязательно
+          },
+        }),
+      );
+    }
+  }, 30_000);
+};
+
+// Запускаем один раз при инициализации системы
+// (можно также вызывать после загрузки навыков, но для простоты — здесь)
+setTimeout(() => {
+  if (window.levelSystem && !window.levelSystem.regenInterval) {
+    window.levelSystem.startRegenerationInterval();
+  }
+}, 1500);
+
 function initializeLevelSystem() {
   try {
     if (isInitialized) {
