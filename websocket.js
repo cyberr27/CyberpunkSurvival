@@ -468,6 +468,12 @@ function setupWebSocket(
       0,
       Math.min(player.armor ?? 0, player.maxStats.armor),
     );
+    if (player.health < previousHealth) {
+      console.log(
+        `[Server] Игрок ${player.id} здоровье обрезано: ${previousHealth} → ${player.health} ` +
+          `(max теперь ${player.maxStats.health})`,
+      );
+    }
   }
 
   const EQUIPMENT_TYPES = {

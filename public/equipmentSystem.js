@@ -777,6 +777,7 @@ const equipmentSystem = {
     inventory[slotIndex] = null;
     this.updateEquipmentDisplay();
     this.applyEquipmentEffects(me);
+    document.dispatchEvent(new Event("statsUpdated"));
 
     if (ws.readyState === WebSocket.OPEN) {
       sendWhenReady(
@@ -865,6 +866,7 @@ const equipmentSystem = {
 
     this.updateEquipmentDisplay();
     this.applyEquipmentEffects(me);
+    document.dispatchEvent(new Event("statsUpdated"));
 
     if (ws.readyState === WebSocket.OPEN) {
       sendWhenReady(
@@ -942,6 +944,7 @@ const equipmentSystem = {
     player.food = Math.min(player.food, player.maxStats.food);
     player.water = Math.min(player.water, player.maxStats.water);
     player.armor = Math.min(player.armor, player.maxStats.armor);
+    document.dispatchEvent(new Event("statsUpdated"));
   },
 
   syncEquipment: function (equipment) {
@@ -959,6 +962,7 @@ const equipmentSystem = {
     const me = players.get(myId);
     if (me) {
       this.applyEquipmentEffects(me);
+      document.dispatchEvent(new Event("statsUpdated"));
     }
     this.updateEquipmentDisplay();
 
