@@ -775,6 +775,7 @@ function setupWebSocket(
             skills: player.skills || [],
             meleeDamageBonus: player.meleeDamageBonus || 0,
             skillPoints: player.skillPoints || 0,
+            speedMultiplier: player.speedMultiplier || 1,
             upgradePoints: player.upgradePoints || 0,
             availableQuests: player.availableQuests || [],
             worldId: player.worldId || 0,
@@ -3672,6 +3673,33 @@ function setupWebSocket(
         if (data.distanceTraveled !== undefined)
           player.distanceTraveled = Number(data.distanceTraveled);
 
+        if (data.x !== undefined || data.y !== undefined) {
+          const expectedMult = player.speedMultiplier || 1;
+          // Максимально допустимая скорость за тик ~ с запасом 20–25%
+          const maxAllowedPerTick = 80 * expectedMult * 0.22; // 0.22 сек — примерный интервал отправки
+
+          const movedDist = Math.hypot(player.x - oldX, player.y - oldY);
+
+          if (movedDist > maxAllowedPerTick) {
+            console.warn(
+              `[Anti-speed] ${playerId} moved too far: ${movedDist.toFixed(2)} > ${maxAllowedPerTick.toFixed(2)} ` +
+                `(mult=${expectedMult.toFixed(3)})`,
+            );
+
+            player.x = oldX;
+            player.y = oldY;
+
+            ws.send(
+              JSON.stringify({
+                type: "forcePosition",
+                x: oldX,
+                y: oldY,
+                reason: "speed-limit",
+              }),
+            );
+          }
+        }
+
         // ─── ПРОВЕРКА ПРЕПЯТСТВИЙ ────────────────────────────────────────────────────
         let positionValid = true;
 
@@ -3730,6 +3758,7 @@ function setupWebSocket(
           armor: player.armor,
           distanceTraveled: player.distanceTraveled,
           meleeDamageBonus: player.meleeDamageBonus || 0,
+          speedMultiplier: player.speedMultiplier || 1,
         };
 
         if (player.state === "attacking") {

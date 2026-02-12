@@ -132,7 +132,12 @@
     const distance = Math.hypot(dx, dy);
     if (distance <= tolerance) return false;
 
-    const moveSpeed = baseSpeed * (deltaTime / 1000);
+    const baseSpeed = 65;
+    // ─── Добавляем множитель от навыка "Быстрый шаг" ───────────────────────
+    const speedMult = me.speedMultiplier || 1;
+    const moveSpeed = baseSpeed * speedMult * (deltaTime / 1000);
+    // ────────────────────────────────────────────────────────────────────────
+
     let moveX = (dx / distance) * moveSpeed;
     let moveY = (dy / distance) * moveSpeed;
 

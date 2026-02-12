@@ -44,7 +44,7 @@ const regenerationSystem = {
 
       const gained = healAmount;
 
-      showNotification(`Регенерация: +${gained} HP`, "#44ff88");
+      showNotification(`Регенерация: +${gained} HP`, "#ff0000");
 
       console.log(
         `[Реген] +${gained} → ${me.health}/${maxHp}   (навык ур. ${skill.level})`,

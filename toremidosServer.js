@@ -59,6 +59,18 @@ function handleSkillUpgrade(
   }
   player.skillPoints -= 1;
 
+  if (skillId === 3) {
+    const speedSkill = player.skills.find((s) => s.id === 3);
+    const level = speedSkill ? speedSkill.level : 0;
+
+    // Формула: +0.9% за уровень → +27% на максимуме 30 lvl
+    player.speedMultiplier = 1 + level * 0.009;
+
+    // Альтернативы (раскомментировать по желанию):
+    // player.speedMultiplier = 1 + (level * 0.008);     // консервативно +24%
+    // player.speedMultiplier = 1 + (level * 0.012);     // агрессивно +36%
+  }
+
   // Сохраняем
   players.set(player.id, { ...player });
   userDatabase.set(player.id, { ...player });
