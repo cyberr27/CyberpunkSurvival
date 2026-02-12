@@ -901,13 +901,6 @@ const equipmentSystem = {
       armor: 0,
     };
 
-    // --- Защита регена ---
-    const oldHealth = player.health ?? 0;
-    const oldEnergy = player.energy ?? 0;
-    const oldFood = player.food ?? 0;
-    const oldWater = player.water ?? 0;
-    const oldArmor = player.armor ?? 0;
-
     const equippedItems = Object.values(this.equipmentSlots).filter(Boolean);
     const collectionSlots = [
       "head",
@@ -944,41 +937,11 @@ const equipmentSystem = {
     });
 
     player.maxStats = { ...baseStats };
-    // Не уменьшаем здоровье ниже накопленного регеном значения
-    player.health = Math.max(
-      oldHealth,
-      Math.min(oldHealth, player.maxStats.health),
-    );
-    player.energy = Math.max(
-      oldEnergy,
-      Math.min(oldEnergy, player.maxStats.energy),
-    );
-    player.food = Math.max(oldFood, Math.min(oldFood, player.maxStats.food));
-    player.water = Math.max(
-      oldWater,
-      Math.min(oldWater, player.maxStats.water),
-    );
-    player.armor = Math.max(
-      oldArmor,
-      Math.min(oldArmor, player.maxStats.armor),
-    );
-
-    // Если максимум вырос — поднимаем текущее здоровье пропорционально
-    if (oldHealth < player.maxStats.health) {
-      const healthDiff =
-        player.maxStats.health - (player.maxStats.health - oldHealth);
-      player.health = Math.min(
-        player.maxStats.health,
-        player.health + healthDiff,
-      );
-      console.log(
-        `[equipSystem] Пропорционально подняли HP: ${player.health}/${player.maxStats.health}`,
-      );
-    }
-    // Лог для отладки
-    console.log(
-      `[equipSystem] После applyEquipmentEffects: HP=${player.health}, maxHP=${player.maxStats.health}`,
-    );
+    player.health = Math.min(player.health, player.maxStats.health);
+    player.energy = Math.min(player.energy, player.maxStats.energy);
+    player.food = Math.min(player.food, player.maxStats.food);
+    player.water = Math.min(player.water, player.maxStats.water);
+    player.armor = Math.min(player.armor, player.maxStats.armor);
   },
 
   syncEquipment: function (equipment) {

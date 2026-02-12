@@ -1584,10 +1584,6 @@ function updateResources() {
   lastDistance = distance; // Обновляем lastDistance
   updateStatsDisplay();
 
-  console.log(
-    `[updateResources] Отправляем HP: ${me.health}/${me.maxStats?.health ?? 100}`,
-  );
-
   // Отправляем обновленные данные на сервер
   sendWhenReady(
     ws,
@@ -1615,30 +1611,40 @@ function updateResources() {
 function updateStatsDisplay() {
   try {
     const statsEl = document.getElementById("stats");
-    if (!statsEl) return;
-
-    const me = players.get(myId);
-    if (!me) return;
-
-    statsEl.innerHTML = `
-      <span class="health">Здоровье: ${Math.floor(me.health ?? 0)} / ${Math.floor(me.maxStats?.health ?? 100)}</span><br>
-      <span class="energy">Энергия: ${Math.floor(me.energy ?? 0)} / ${Math.floor(me.maxStats?.energy ?? 100)}</span><br>
-      <span class="food">Еда: ${Math.floor(me.food ?? 0)} / ${Math.floor(me.maxStats?.food ?? 100)}</span><br>
-      <span class="water">Вода: ${Math.floor(me.water ?? 0)} / ${Math.floor(me.maxStats?.water ?? 100)}</span><br>
-      <span class="armor">Броня: ${Math.floor(me.armor ?? 0)} / ${Math.floor(me.maxStats?.armor ?? 0)}</span>
-    `;
-
-    // Если есть координаты — обновляем
-    const coordsEl = document.getElementById("coords");
-    if (coordsEl) {
-      coordsEl.innerHTML = `X: ${Math.floor(me.x)}<br>Y: ${Math.floor(me.y)}`;
+    if (!statsEl) {
+      return;
     }
+    const me = players.get(myId);
+    if (!me) {
+      return;
+    }
+    statsEl.innerHTML = `
+  <span class="health">Здоровье: ${Math.min(
+    me.health ?? 0,
+    me.maxStats?.health ?? 100,
+  )}/${me.maxStats?.health ?? 100}</span><br>
+  <span class="energy">Энергия: ${Math.min(
+    me.energy ?? 0,
+    me.maxStats?.energy ?? 100,
+  )}/${me.maxStats?.energy ?? 100}</span><br>
+  <span class="food">Еда: ${Math.min(me.food ?? 0, me.maxStats?.food ?? 100)}/${
+    me.maxStats?.food ?? 100
+  }</span><br>
+  <span class="water">Вода: ${Math.min(
+    me.water ?? 0,
+    me.maxStats?.water ?? 100,
+  )}/${me.maxStats?.water ?? 100}</span><br>
+  <span class="armor">Броня: ${Math.min(
+    me.armor ?? 0,
+    me.maxStats?.armor ?? 0,
+  )}/${me.maxStats?.armor ?? 0}</span>
+`;
+    updateUpgradeButtons();
 
-    // Обновляем кнопки улучшения, если они есть
-    updateUpgradeButtons?.();
-  } catch (error) {
-    console.error("Ошибка в updateStatsDisplay:", error);
-  }
+    document.getElementById("coords").innerHTML = `X: ${Math.floor(
+      me.x,
+    )}<br>Y: ${Math.floor(me.y)}`;
+  } catch (error) {}
 }
 
 function handleGameMessage(event) {
@@ -1787,7 +1793,6 @@ function handleGameMessage(event) {
       case "equipItemSuccess": {
         const me = players.get(myId);
         if (me) {
-          const healthBeforeSync = me.health;
           me.inventory = data.inventory;
           me.equipment = data.equipment;
           me.maxStats = data.maxStats;
@@ -1800,12 +1805,6 @@ function handleGameMessage(event) {
           inventory = me.inventory.map((slot) => (slot ? { ...slot } : null));
           window.equipmentSystem.equipmentSlots = { ...data.equipment };
           window.equipmentSystem.syncEquipment(data.equipment); // перерисовка + эффекты
-          if (me.health < healthBeforeSync) {
-            me.health = healthBeforeSync;
-            console.log(
-              "[Защита] Восстановили HP после экипировки: " + me.health,
-            );
-          }
         }
         window.equipmentSystem.pendingEquip = null;
         updateInventoryDisplay();
@@ -1818,7 +1817,6 @@ function handleGameMessage(event) {
       case "unequipItemSuccess": {
         const me = players.get(myId);
         if (me) {
-          const healthBeforeSync = me.health;
           me.inventory = data.inventory;
           me.equipment = data.equipment;
           me.maxStats = data.maxStats;
@@ -1834,12 +1832,6 @@ function handleGameMessage(event) {
           window.equipmentSystem.equipmentSlots = { ...data.equipment };
           window.equipmentSystem.applyEquipmentEffects(me);
           window.equipmentSystem.updateEquipmentDisplay();
-          if (me.health < healthBeforeSync) {
-            me.health = healthBeforeSync;
-            console.log(
-              "[Защита] Восстановили HP после снятия экипировки: " + me.health,
-            );
-          }
         }
 
         window.equipmentSystem.pendingUnequip = null;
@@ -1857,7 +1849,6 @@ function handleGameMessage(event) {
       case "update":
         if (data.player?.id === myId) {
           const me = players.get(myId);
-          const localHealthBeforeUpdate = me.health;
           const isMoving = me.state === "walking" || me.state === "attacking";
 
           if (isMoving) {
@@ -1887,28 +1878,29 @@ function handleGameMessage(event) {
           }
 
           if (data.player.inventory) {
+            // Глубокая копия, чтобы не было неожиданных мутаций
             inventory = data.player.inventory.map((slot) =>
               slot ? { ...slot } : null,
             );
+
+            // Синхронизируем также в объекте игрока
             me.inventory = inventory.map((slot) => (slot ? { ...slot } : null));
+
+            // Обновляем отображение инвентаря
             window.inventorySystem?.updateInventoryDisplay();
+
+            // Если открыто меню Mister Twister — обновляем баланс на табло
             if (window.misterTwister?.isMenuOpen) {
               window.misterTwister.updateLocalBalanceDisplay();
             }
           }
 
+          // Оборудование (оставляем как было)
           if (data.player.equipment) {
             window.equipmentSystem.syncEquipment(data.player.equipment);
           }
 
-          if (me.health < localHealthBeforeUpdate) {
-            me.health = localHealthBeforeUpdate;
-            console.log(
-              "[Защита update] Восстановили HP после получения от сервера: " +
-                me.health,
-            );
-          }
-
+          // Обновляем статы в любом случае
           updateStatsDisplay();
         } else if (data.player?.id) {
           const existing = players.get(data.player.id) || {};
@@ -2073,31 +2065,27 @@ function handleGameMessage(event) {
         {
           const me = players.get(myId);
           if (me) {
-            const healthBeforeUse = me.health;
+            // Обновляем статы игрока (важно для других систем)
             me.health = data.stats.health;
             me.energy = data.stats.energy;
             me.food = data.stats.food;
             me.water = data.stats.water;
             me.armor = data.stats.armor || me.armor;
 
+            // КРИТИЧНО: полностью синхронизируем инвентарь игрока с серверным
             me.inventory = data.inventory.map((slot) =>
               slot ? { ...slot } : null,
             );
-
-            if (me.health < healthBeforeUse) {
-              me.health = healthBeforeUse;
-              console.log(
-                "[Защита] Восстановили HP после использования предмета: " +
-                  me.health,
-              );
-            }
           }
 
+          // Обновляем глобальную переменную inventory (используется в UI)
           inventory = data.inventory.map((slot) => (slot ? { ...slot } : null));
 
+          // Перерисовываем всё
           updateStatsDisplay();
           window.inventorySystem.updateInventoryDisplay();
 
+          // Если был выбран слот с использованным предметом — снимаем выделение
           if (
             selectedSlot !== null &&
             (!inventory[selectedSlot] || inventory[selectedSlot] === null)

@@ -450,49 +450,24 @@ function setupWebSocket(
     // Записываем итоговые максимумы
     player.maxStats = { ...base };
 
-    // Сохраняем текущее здоровье ПЕРЕД обрезкой (чтобы реген не потерялся)
-    const oldHealth = player.health ?? 0;
-    const oldEnergy = player.energy ?? 0;
-    const oldFood = player.food ?? 0;
-    const oldWater = player.water ?? 0;
-    const oldArmor = player.armor ?? 0;
-
-    // Ограничиваем статы — НЕ уменьшаем ниже текущего значения (регенированное!)
+    // Жёстко ограничиваем текущие значения (самая важная защита!)
     player.health = Math.max(
-      oldHealth, // ← минимум = старое значение (защита регена)
-      Math.min(oldHealth, player.maxStats.health), // максимум = новый максимум
+      0,
+      Math.min(player.health ?? 0, player.maxStats.health),
     );
-
     player.energy = Math.max(
-      oldEnergy,
-      Math.min(oldEnergy, player.maxStats.energy),
+      0,
+      Math.min(player.energy ?? 0, player.maxStats.energy),
     );
-
-    player.food = Math.max(oldFood, Math.min(oldFood, player.maxStats.food));
-
+    player.food = Math.max(0, Math.min(player.food ?? 0, player.maxStats.food));
     player.water = Math.max(
-      oldWater,
-      Math.min(oldWater, player.maxStats.water),
+      0,
+      Math.min(player.water ?? 0, player.maxStats.water),
     );
-
     player.armor = Math.max(
-      oldArmor,
-      Math.min(oldArmor, player.maxStats.armor),
+      0,
+      Math.min(player.armor ?? 0, player.maxStats.armor),
     );
-
-    // Если максимум вырос из-за экипировки — поднимаем текущее здоровье пропорционально (опционально, но логично)
-    // Это предотвратит ситуацию "макс 130, а текущее осталось 100"
-    if (oldHealth < player.maxStats.health) {
-      const healthDiff =
-        player.maxStats.health - (player.maxStats.health - oldHealth); // пропорциональный подъём
-      player.health = Math.min(
-        player.maxStats.health,
-        player.health + healthDiff,
-      );
-    }
-
-    // Можно добавить то же самое для других статов, если нужно
-    // if (oldEnergy < player.maxStats.energy) { ... }
   }
 
   const EQUIPMENT_TYPES = {
@@ -2371,39 +2346,39 @@ function setupWebSocket(
           }
         });
       } else if (data.type === "attackPlayer") {
-        const id = clients.get(ws);
-        if (id && players.has(id)) {
-          const player = players.get(id);
-          if (data.player) {
-            Object.assign(player, data.player);
+        const attackerId = clients.get(ws);
+        if (
+          attackerId &&
+          players.has(attackerId) &&
+          players.has(data.targetId)
+        ) {
+          const attacker = players.get(attackerId);
+          const target = players.get(data.targetId);
+          if (
+            attacker.worldId === data.worldId &&
+            target.worldId === data.worldId &&
+            target.health > 0
+          ) {
+            target.health = Math.max(0, target.health - data.damage);
+            players.set(data.targetId, { ...target });
+            userDatabase.set(data.targetId, { ...target });
+            await saveUserDatabase(dbCollection, data.targetId, target);
+
+            // Broadcast update to all players in the same world
+            wss.clients.forEach((client) => {
+              if (client.readyState === WebSocket.OPEN) {
+                const clientPlayer = players.get(clients.get(client));
+                if (clientPlayer && clientPlayer.worldId === target.worldId) {
+                  client.send(
+                    JSON.stringify({
+                      type: "update",
+                      player: { id: data.targetId, ...target },
+                    }),
+                  );
+                }
+              }
+            });
           }
-          if (data.health !== undefined) {
-            const prevHealth = player.health;
-            player.health = Math.max(
-              0,
-              Math.min(Number(data.health), player.maxStats?.health || 100),
-            );
-            // Лог для отладки
-            if (player.health !== prevHealth) {
-              console.log(
-                `[update] Сервер сохранил HP: ${player.health} (до: ${prevHealth})`,
-              );
-            }
-            // Анти-чит на слишком быстрый рост (оставляем)
-          }
-          players.set(id, { ...player });
-          userDatabase.set(id, { ...player });
-          await saveUserDatabase(dbCollection, id, player);
-          wss.clients.forEach((client) => {
-            if (
-              client.readyState === WebSocket.OPEN &&
-              clients.get(client) === id
-            ) {
-              client.send(
-                JSON.stringify({ type: "update", player: { id, ...player } }),
-              );
-            }
-          });
         }
       } else if (data.type === "attackEnemy") {
         const attackerId = clients.get(ws);
@@ -3635,9 +3610,6 @@ function setupWebSocket(
         const oldX = player.x;
         const oldY = player.y;
 
-        // Сохраняем старое здоровье перед изменением (для анти-чита)
-        const oldHealthValue = player.health;
-
         // Принимаем только разрешённые поля
         if (data.x !== undefined) player.x = Number(data.x);
         if (data.y !== undefined) player.y = Number(data.y);
@@ -3649,64 +3621,30 @@ function setupWebSocket(
           player.attackFrameTime = Number(data.attackFrameTime);
         if (data.frame !== undefined) player.frame = Number(data.frame);
 
-        // ─── ЗАЩИТА ОТ ЧИТОВ: слишком быстрый/большой реген здоровья ─────────────
-        const now = Date.now();
-
-        // Ограничиваем статы — НЕ даём превысить актуальный максимум
-        if (data.health !== undefined) {
-          const newHealth = Number(data.health);
-          // Разрешаем значение до player.maxStats.health (с экипировкой)
+        // Ограничиваем статы безопасными значениями
+        if (data.health !== undefined)
           player.health = Math.max(
             0,
-            Math.min(newHealth, player.maxStats?.health || 100),
+            Math.min(player.maxStats?.health || 100, Number(data.health)),
           );
-        }
-        if (data.energy !== undefined) {
+        if (data.energy !== undefined)
           player.energy = Math.max(
             0,
-            Math.min(Number(data.energy), player.maxStats?.energy || 100),
+            Math.min(player.maxStats?.energy || 100, Number(data.energy)),
           );
-        }
-        if (data.food !== undefined) {
+        if (data.food !== undefined)
           player.food = Math.max(
             0,
-            Math.min(Number(data.food), player.maxStats?.food || 100),
+            Math.min(player.maxStats?.food || 100, Number(data.food)),
           );
-        }
-        if (data.water !== undefined) {
+        if (data.water !== undefined)
           player.water = Math.max(
             0,
-            Math.min(Number(data.water), player.maxStats?.water || 100),
+            Math.min(player.maxStats?.water || 100, Number(data.water)),
           );
-        }
-        if (data.armor !== undefined) {
-          player.armor = Math.max(
-            0,
-            Math.min(Number(data.armor), player.maxStats?.armor || 0),
-          );
-        }
-
-        // Анти-чит на слишком быстрый реген (оставляем как было, но только если превышает лимит)
-        if (data.health !== undefined && data.health > player.health) {
-          const timeSinceLastUpdate = now - (player.lastHealthUpdate || 0);
-          player.lastHealthUpdate = now;
-
-          const maxAllowedIncrease = Math.floor(
-            (player.maxStats?.health || 100) * 1.5,
-          );
-
-          if (
-            timeSinceLastUpdate < 25000 &&
-            data.health - player.health > maxAllowedIncrease
-          ) {
-            console.warn(
-              `[Anti-cheat] Подозрительный реген для ${playerId}: ` +
-                `+${data.health - player.health} hp за ${timeSinceLastUpdate}мс`,
-            );
-            // Откатываем к старому значению (если нужно — можно просто не менять)
-            // player.health = oldHealthValue;  // если хочешь строгий откат
-          }
-        }
+        if (data.armor !== undefined) player.armor = Number(data.armor);
+        if (data.distanceTraveled !== undefined)
+          player.distanceTraveled = Number(data.distanceTraveled);
 
         // ─── ПРОВЕРКА ПРЕПЯТСТВИЙ ───────────────────────────────────────
         let positionValid = true;

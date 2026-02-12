@@ -180,15 +180,6 @@ window.skillsSystem = {
         Доступно очков навыков: ${this.skillPoints}
       </p>
     `;
-    if (template.code === "regeneration") {
-      const lvl = playerSkill?.level || 0;
-      const pct = lvl > 0 ? 5 + (lvl - 1) : 0;
-      desc.innerHTML += `
-    <div style="margin-top:12px; color:#44ff88;">
-      Текущая регенерация: <strong>+${pct}%</strong> от максимального здоровья каждые 30 сек
-    </div>
-  `;
-    }
   },
 
   updateSkillsDisplay() {
