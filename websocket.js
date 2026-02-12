@@ -867,6 +867,8 @@ function setupWebSocket(
               xp: playerData.xp,
               skills: playerData.skills,
               skillPoints: playerData.skillPoints,
+              meleeDamageBonus: playerData.meleeDamageBonus || 0,
+              speedMultiplier: playerData.speedMultiplier || 1,
               upgradePoints: playerData.upgradePoints,
               availableQuests: playerData.availableQuests,
               worldId: playerData.worldId,
