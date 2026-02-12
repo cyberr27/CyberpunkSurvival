@@ -615,7 +615,8 @@ function setupWebSocket(
             worldId: 0,
             hasSeenWelcomeGuide: false,
             worldPositions: { 0: { x: 222, y: 3205 } },
-
+            speedMultiplier: 1,
+            meleeDamageBonus: 0,
             healthUpgrade: 0,
             energyUpgrade: 0,
             foodUpgrade: 0,
