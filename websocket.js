@@ -2364,6 +2364,16 @@ function setupWebSocket(
         ) {
           const attacker = players.get(attackerId);
           const target = players.get(data.targetId);
+          const expectedBonus = attacker.meleeDamageBonus || 0;
+          const reportedBonus = data.meleeDamageBonus ?? 0;
+
+          if (reportedBonus !== expectedBonus) {
+            console.warn(
+              `[Anti-cheat] Игрок ${attackerId} прислал неверный meleeDamageBonus ` +
+                `(ожидалось ${expectedBonus}, пришло ${reportedBonus}) при атаке игрока`,
+            );
+            attacker.meleeDamageBonus = expectedBonus;
+          }
           if (
             attacker.worldId === data.worldId &&
             target.worldId === data.worldId &&
@@ -2395,6 +2405,16 @@ function setupWebSocket(
         if (!attackerId) return;
 
         const attacker = players.get(attackerId);
+        const expectedBonus = attacker.meleeDamageBonus || 0;
+        const reportedBonus = data.meleeDamageBonus ?? 0;
+
+        if (reportedBonus !== expectedBonus) {
+          console.warn(
+            `[Anti-cheat] Игрок ${attackerId} прислал неверный meleeDamageBonus ` +
+              `(ожидалось ${expectedBonus}, пришло ${reportedBonus}) при атаке врага`,
+          );
+          attacker.meleeDamageBonus = expectedBonus;
+        }
         const enemy = enemies.get(data.targetId);
 
         if (

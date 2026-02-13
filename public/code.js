@@ -1343,6 +1343,7 @@ function startGame() {
   if (window.regenerationSystem) {
     window.regenerationSystem.initialize();
   }
+  window.strongStrikeSystem.initialize();
 
   document.addEventListener("keydown", (e) => {
     const me = players.get(myId);
