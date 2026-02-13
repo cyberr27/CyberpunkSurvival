@@ -2672,13 +2672,9 @@ function setupWebSocket(
             JSON.stringify({
               type: "enemyUpdate",
               enemy: {
-                id: data.targetId,
-                x: enemy.x,
-                y: enemy.y,
-                state: enemy.state,
-                direction: enemy.direction,
+                ...enemy,
+                id: enemyId,
                 health: enemy.health,
-                lastAttackTime: enemy.lastAttackTime || 0,
               },
             }),
           );
@@ -4075,13 +4071,9 @@ function setupWebSocket(
           JSON.stringify({
             type: "enemyUpdate",
             enemy: {
+              ...enemy,
               id: enemyId,
-              x: enemy.x,
-              y: enemy.y,
-              state: enemy.state,
-              direction: enemy.direction,
               health: enemy.health,
-              lastAttackTime: enemy.lastAttackTime || 0,
             },
           }),
         );
