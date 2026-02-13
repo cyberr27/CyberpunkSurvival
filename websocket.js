@@ -2668,14 +2668,17 @@ function setupWebSocket(
             wss,
             clients,
             players,
-            data.worldId,
+            enemy.worldId,
             JSON.stringify({
               type: "enemyUpdate",
               enemy: {
                 id: data.targetId,
-                health: enemy.health,
                 x: enemy.x,
                 y: enemy.y,
+                state: enemy.state,
+                direction: enemy.direction,
+                health: enemy.health,
+                lastAttackTime: enemy.lastAttackTime || 0,
               },
             }),
           );

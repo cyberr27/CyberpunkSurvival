@@ -1385,6 +1385,10 @@ function startGame() {
         window.equipmentSystem.toggleEquipment();
         e.preventDefault();
         break;
+      case "r":
+        window.skillsSystem?.toggleSkills?.();
+        e.preventDefault();
+        break;
     }
   });
 
@@ -2113,21 +2117,30 @@ function handleGameMessage(event) {
         break;
       case "enemyUpdate":
         if (data.enemy && data.enemy.id) {
-          const enemyId = data.enemy.id;
+          const eid = data.enemy.id;
 
-          if (enemies.has(enemyId)) {
-            // Существующий враг — обновляем поля (с сохранением локальных данных, если нужно)
-            const existing = enemies.get(enemyId);
-            enemies.set(enemyId, {
-              ...existing,
-              ...data.enemy,
-              // Для плавной интерполяции движения врагов (если у тебя есть система интерполяции)
-              targetX: data.enemy.x,
-              targetY: data.enemy.y,
-            });
+          if (enemies.has(eid)) {
+            const prev = enemies.get(eid);
+
+            // Важно: полностью доверяем серверу по здоровью
+            const updatedEnemy = {
+              ...prev, // сохраняем локальные поля (анимация и т.п.)
+              ...data.enemy, // перезаписываем всё, что прислал сервер
+              health: data.enemy.health, // ← принудительно, на случай мутации
+              targetX: data.enemy.x ?? prev.x,
+              targetY: data.enemy.y ?? prev.y,
+              // если есть интерполяция движения — можно оставить targetX/Y
+            };
+
+            // Если здоровье стало <= 0 — удаляем локально сразу
+            if (updatedEnemy.health <= 0) {
+              enemies.delete(eid);
+            } else {
+              enemies.set(eid, updatedEnemy);
+            }
           } else {
-            // Новый враг (пришёл впервые, например, при входе в мир или спавне)
-            enemies.set(enemyId, {
+            // Новый враг через update (редко, но возможно)
+            enemies.set(eid, {
               ...data.enemy,
               targetX: data.enemy.x,
               targetY: data.enemy.y,
@@ -2135,7 +2148,6 @@ function handleGameMessage(event) {
           }
         }
         break;
-
       case "enemyDied":
         const deadId = data.enemyId;
         if (enemies.has(deadId)) {

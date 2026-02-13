@@ -336,12 +336,6 @@ function performMeleeAttack(worldId) {
           equipMaxBonus: Math.max(0, equipMax),
         }),
       );
-
-      dmg = window.equipmentSystem.getCurrentMeleeDamage();
-      const predicted =
-        Math.floor(Math.random() * (dmg.max - dmg.min + 1)) + dmg.min;
-      enemy.health = Math.max(0, enemy.health - predicted);
-      enemies.set(enemyId, { ...enemy });
     }
   });
 
