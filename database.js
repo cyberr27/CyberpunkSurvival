@@ -67,8 +67,6 @@ async function loadUserDatabase(collection, userDatabase) {
           0,
           Math.min(user.armor || 0, user.maxStats?.armor || 0),
         ),
-        speedMultiplier: user.speedMultiplier || 1,
-        meleeDamageBonus: user.meleeDamageBonus || 0,
       };
       userDatabase.set(user.id, userData);
     });

@@ -615,8 +615,7 @@ function setupWebSocket(
             worldId: 0,
             hasSeenWelcomeGuide: false,
             worldPositions: { 0: { x: 222, y: 3205 } },
-            speedMultiplier: 1,
-            meleeDamageBonus: 0,
+
             healthUpgrade: 0,
             energyUpgrade: 0,
             foodUpgrade: 0,
@@ -776,7 +775,6 @@ function setupWebSocket(
             skills: player.skills || [],
             meleeDamageBonus: player.meleeDamageBonus || 0,
             skillPoints: player.skillPoints || 0,
-            speedMultiplier: player.speedMultiplier || 1,
             upgradePoints: player.upgradePoints || 0,
             availableQuests: player.availableQuests || [],
             worldId: player.worldId || 0,
@@ -867,8 +865,6 @@ function setupWebSocket(
               xp: playerData.xp,
               skills: playerData.skills,
               skillPoints: playerData.skillPoints,
-              meleeDamageBonus: playerData.meleeDamageBonus || 0,
-              speedMultiplier: playerData.speedMultiplier || 1,
               upgradePoints: playerData.upgradePoints,
               availableQuests: playerData.availableQuests,
               worldId: playerData.worldId,
@@ -1274,7 +1270,7 @@ function setupWebSocket(
         if (
           item.type === "balyary" ||
           item.type === "atom" ||
-          item.type === "blue_crystal" ||
+          item.type === " blue_crystal" ||
           item.type === "green_crystal" ||
           item.type === "red_crystal" ||
           item.type === "white_crystal" ||
@@ -1411,10 +1407,11 @@ function setupWebSocket(
         const item = player.inventory[slotIndex];
         if (item && ITEM_CONFIG[item.type]?.effect) {
           const effect = ITEM_CONFIG[item.type].effect;
-          if (effect.health) {
-            const newHealth = player.health + effect.health;
-            player.health = Math.min(newHealth, player.maxStats.health);
-          }
+          if (effect.health)
+            player.health = Math.min(
+              player.health + effect.health,
+              player.maxStats.health,
+            );
           if (effect.energy)
             player.energy = Math.min(
               player.energy + effect.energy,
@@ -2360,73 +2357,38 @@ function setupWebSocket(
       } else if (data.type === "attackPlayer") {
         const attackerId = clients.get(ws);
         if (
-          !attackerId ||
-          !players.has(attackerId) ||
-          !players.has(data.targetId)
+          attackerId &&
+          players.has(attackerId) &&
+          players.has(data.targetId)
         ) {
-          return;
-        }
+          const attacker = players.get(attackerId);
+          const target = players.get(data.targetId);
+          if (
+            attacker.worldId === data.worldId &&
+            target.worldId === data.worldId &&
+            target.health > 0
+          ) {
+            target.health = Math.max(0, target.health - data.damage);
+            players.set(data.targetId, { ...target });
+            userDatabase.set(data.targetId, { ...target });
+            await saveUserDatabase(dbCollection, data.targetId, target);
 
-        const attacker = players.get(attackerId);
-        const target = players.get(data.targetId);
-
-        if (
-          attacker.worldId !== data.worldId ||
-          target.worldId !== data.worldId ||
-          target.health <= 0
-        ) {
-          return;
-        }
-
-        // Анти-чит: проверяем бонус
-        if (data.meleeDamageBonus !== undefined) {
-          const clientBonus = Number(data.meleeDamageBonus);
-          const serverBonus = attacker.meleeDamageBonus || 0;
-
-          if (Math.abs(clientBonus - serverBonus) > 0.1) {
-            console.warn(
-              `[Anti-cheat PvP] Игрок ${attackerId} подделал meleeDamageBonus: ` +
-                `клиент ${clientBonus}, сервер ${serverBonus}`,
-            );
+            // Broadcast update to all players in the same world
+            wss.clients.forEach((client) => {
+              if (client.readyState === WebSocket.OPEN) {
+                const clientPlayer = players.get(clients.get(client));
+                if (clientPlayer && clientPlayer.worldId === target.worldId) {
+                  client.send(
+                    JSON.stringify({
+                      type: "update",
+                      player: { id: data.targetId, ...target },
+                    }),
+                  );
+                }
+              }
+            });
           }
         }
-
-        // Сервер сам считает урон — ИГНОРИРУЕМ data.damage полностью
-        const baseMin = 5;
-        const baseMax = 10;
-        const meleeBonus = attacker.meleeDamageBonus || 0;
-        const finalMin = baseMin + meleeBonus;
-        const finalMax = baseMax + meleeBonus;
-
-        const damage =
-          Math.floor(Math.random() * (finalMax - finalMin + 1)) + finalMin;
-
-        // Лог для отладки (потом можно убрать)
-        console.log(
-          `[PvP] ${attackerId} → ${data.targetId} | bonus=${meleeBonus} | урон=${damage} (${finalMin}-${finalMax})`,
-        );
-
-        target.health = Math.max(0, target.health - damage);
-
-        // Сохраняем
-        players.set(data.targetId, { ...target });
-        userDatabase.set(data.targetId, { ...target });
-        await saveUserDatabase(dbCollection, data.targetId, target);
-
-        // Рассылка всем в мире
-        wss.clients.forEach((client) => {
-          if (client.readyState === WebSocket.OPEN) {
-            const clientPlayer = players.get(clients.get(client));
-            if (clientPlayer && clientPlayer.worldId === target.worldId) {
-              client.send(
-                JSON.stringify({
-                  type: "update",
-                  player: { id: data.targetId, ...target },
-                }),
-              );
-            }
-          }
-        });
       } else if (data.type === "attackEnemy") {
         const attackerId = clients.get(ws);
         if (!attackerId) return;
@@ -2442,30 +2404,8 @@ function setupWebSocket(
         )
           return;
 
-        // Проверяем бонус от клиента (только для логов/античита, не используем!)
-        if (data.meleeDamageBonus !== undefined) {
-          const clientBonus = Number(data.meleeDamageBonus);
-          const serverBonus = attacker.meleeDamageBonus || 0;
-
-          if (Math.abs(clientBonus - serverBonus) > 0.1) {
-            console.warn(
-              `[Anti-cheat] Игрок ${attackerId} подделал meleeDamageBonus: ` +
-                `клиент ${clientBonus}, сервер ${serverBonus}`,
-            );
-          }
-        }
-
-        // Расчёт урона на сервере
-        const baseMin = 5;
-        const baseMax = 10;
-        const meleeBonus = attacker.meleeDamageBonus || 0;
-        const finalMin = baseMin + meleeBonus;
-        const finalMax = baseMax + meleeBonus;
-
-        const damage =
-          Math.floor(Math.random() * (finalMax - finalMin + 1)) + finalMin;
-
-        enemy.health = Math.max(0, enemy.health - damage);
+        // Наносим урон
+        enemy.health = Math.max(0, enemy.health - data.damage);
 
         // Если умер
         if (enemy.health <= 0) {
@@ -3695,19 +3635,29 @@ function setupWebSocket(
 
         if (data.player?.health !== undefined) {
           const newHealth = Number(data.player.health);
+          const clientPendingRegen = Number(data.player.pendingRegen || 0);
 
           if (!isNaN(newHealth) && newHealth >= 0) {
-            // Очень строгий лимит — только до текущего максимума +1 (на погрешность)
-            const maxAllowed = (player.maxStats?.health || 100) + 1;
+            // Допустимый максимум = текущий maxStats + pendingRegen от клиента + маленький запас на лаги
+            const maxAllowed =
+              (player.maxStats?.health || 100) + clientPendingRegen + 15;
 
             if (newHealth <= maxAllowed) {
+              // Принимаем значение от клиента
+              if (Math.abs(newHealth - player.health) > 0.1) {
+                healthChanged = true;
+              }
               player.health = newHealth;
-              healthChanged = true;
             } else {
+              // Слишком большое значение → анти-чит, обрезаем до максимума
               console.warn(
-                `[Anti-cheat] Игрок ${playerId} health ${newHealth} > max ${maxAllowed}`,
+                `[Anti-cheat] Игрок ${playerId} пытался установить здоровье ${newHealth}, ` +
+                  `максимум разрешено ~${Math.round(maxAllowed)} (maxStats=${player.maxStats?.health}, pending=${clientPendingRegen})`,
               );
-              player.health = player.maxStats?.health || 100;
+              player.health = Math.min(
+                player.health,
+                player.maxStats?.health || 100,
+              );
             }
           }
         }
@@ -3731,33 +3681,6 @@ function setupWebSocket(
         if (data.armor !== undefined) player.armor = Number(data.armor);
         if (data.distanceTraveled !== undefined)
           player.distanceTraveled = Number(data.distanceTraveled);
-
-        if (data.x !== undefined || data.y !== undefined) {
-          const expectedMult = player.speedMultiplier || 1;
-          // Максимально допустимая скорость за тик ~ с запасом 20–25%
-          const maxAllowedPerTick = 80 * expectedMult * 0.22; // 0.22 сек — примерный интервал отправки
-
-          const movedDist = Math.hypot(player.x - oldX, player.y - oldY);
-
-          if (movedDist > maxAllowedPerTick) {
-            console.warn(
-              `[Anti-speed] ${playerId} moved too far: ${movedDist.toFixed(2)} > ${maxAllowedPerTick.toFixed(2)} ` +
-                `(mult=${expectedMult.toFixed(3)})`,
-            );
-
-            player.x = oldX;
-            player.y = oldY;
-
-            ws.send(
-              JSON.stringify({
-                type: "forcePosition",
-                x: oldX,
-                y: oldY,
-                reason: "speed-limit",
-              }),
-            );
-          }
-        }
 
         // ─── ПРОВЕРКА ПРЕПЯТСТВИЙ ────────────────────────────────────────────────────
         let positionValid = true;
@@ -3817,7 +3740,6 @@ function setupWebSocket(
           armor: player.armor,
           distanceTraveled: player.distanceTraveled,
           meleeDamageBonus: player.meleeDamageBonus || 0,
-          speedMultiplier: player.speedMultiplier || 1,
         };
 
         if (player.state === "attacking") {

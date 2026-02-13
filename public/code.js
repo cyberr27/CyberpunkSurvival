@@ -1085,7 +1085,6 @@ function handleAuthMessage(event) {
         skills: data.skills || [],
         skillPoints: data.skillPoints || 0,
         meleeDamageBonus: data.meleeDamageBonus || 0,
-        speedMultiplier: data.speedMultiplier || 1,
         upgradePoints: data.upgradePoints || 0,
         worldId: data.worldId || 0,
         worldPositions: data.worldPositions || { 0: { x: 222, y: 3205 } },
@@ -1883,9 +1882,6 @@ function handleGameMessage(event) {
             if (data.player.meleeDamageBonus !== undefined) {
               me.meleeDamageBonus = Number(data.player.meleeDamageBonus);
             }
-            if (data.player.speedMultiplier !== undefined) {
-              me.speedMultiplier = Number(data.player.speedMultiplier);
-            }
           }
 
           if (data.player.inventory) {
@@ -1913,6 +1909,9 @@ function handleGameMessage(event) {
 
           // Обновляем статы в любом случае
           updateStatsDisplay();
+          if (Math.abs(me.health - (data.player.health || me.health)) < 1) {
+            window.regenerationSystem?.clearPendingRegen?.();
+          }
         } else if (data.player?.id) {
           const existing = players.get(data.player.id) || {};
 
@@ -2700,8 +2699,6 @@ function handleGameMessage(event) {
             `Навык улучшен! Осталось очков: ${data.remainingPoints}`,
             "#00ff88",
           );
-
-          
         } else {
           showNotification(
             data.error || "Не удалось улучшить навык",
