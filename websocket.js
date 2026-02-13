@@ -3635,29 +3635,19 @@ function setupWebSocket(
 
         if (data.player?.health !== undefined) {
           const newHealth = Number(data.player.health);
-          const clientPendingRegen = Number(data.player.pendingRegen || 0);
 
           if (!isNaN(newHealth) && newHealth >= 0) {
-            // Допустимый максимум = текущий maxStats + pendingRegen от клиента + маленький запас на лаги
-            const maxAllowed =
-              (player.maxStats?.health || 100) + clientPendingRegen + 15;
+            // Очень строгий лимит — только до текущего максимума +1 (на погрешность)
+            const maxAllowed = (player.maxStats?.health || 100) + 1;
 
             if (newHealth <= maxAllowed) {
-              // Принимаем значение от клиента
-              if (Math.abs(newHealth - player.health) > 0.1) {
-                healthChanged = true;
-              }
               player.health = newHealth;
+              healthChanged = true;
             } else {
-              // Слишком большое значение → анти-чит, обрезаем до максимума
               console.warn(
-                `[Anti-cheat] Игрок ${playerId} пытался установить здоровье ${newHealth}, ` +
-                  `максимум разрешено ~${Math.round(maxAllowed)} (maxStats=${player.maxStats?.health}, pending=${clientPendingRegen})`,
+                `[Anti-cheat] Игрок ${playerId} health ${newHealth} > max ${maxAllowed}`,
               );
-              player.health = Math.min(
-                player.health,
-                player.maxStats?.health || 100,
-              );
+              player.health = player.maxStats?.health || 100;
             }
           }
         }
