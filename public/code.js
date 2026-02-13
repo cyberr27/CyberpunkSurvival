@@ -2119,53 +2119,59 @@ function handleGameMessage(event) {
         if (data.enemy && data.enemy.id) {
           const eid = data.enemy.id;
 
+          if (enemies.has(enemyId)) {
+            // Существующий враг — обновляем поля (с сохранением локальных данных, если нужно)
+            const existing = enemies.get(enemyId);
+            enemies.set(enemyId, {
+              ...existing,
+              ...data.enemy,
+              // Для плавной интерполяции движения врагов (если у тебя есть система интерполяции)
+              targetX: data.enemy.x,
+              targetY: data.enemy.y,
+            });
+          }
+
           if (enemies.has(eid)) {
-            const prev = enemies.get(eid);
+            const enemy = enemies.get(eid);
 
-            const updatedEnemy = { ...prev };
-
-            // Только если сервер прислал новые координаты — обновляем цель интерполяции
+            if (data.enemy.health !== undefined) {
+              enemy.health = Number(data.enemy.health);
+            }
             if (data.enemy.x !== undefined) {
-              updatedEnemy.targetX = data.enemy.x;
+              enemy.x = data.enemy.x;
+              enemy.targetX = data.enemy.x;
             }
             if (data.enemy.y !== undefined) {
-              updatedEnemy.targetY = data.enemy.y;
+              enemy.y = data.enemy.y;
+              enemy.targetY = data.enemy.y;
+            }
+            if (data.enemy.state !== undefined) {
+              enemy.state = data.enemy.state;
+            }
+            if (data.enemy.direction !== undefined) {
+              enemy.direction = data.enemy.direction;
+            }
+            if (data.enemy.lastAttackTime !== undefined) {
+              enemy.lastAttackTime = data.enemy.lastAttackTime;
             }
 
-            // Все остальные поля перезаписываем как есть (включая health, state, direction и т.д.)
-            Object.assign(updatedEnemy, data.enemy);
-
-            // Принудительно health — число
-            if (data.enemy.health !== undefined) {
-              updatedEnemy.health = Number(data.enemy.health);
-            }
-
-            // Фиксируем id
-            updatedEnemy.id = eid;
-
-            // Удаляем, если мёртв
-            if (updatedEnemy.health <= 0) {
+            if (enemy.health <= 0) {
               enemies.delete(eid);
-            } else {
-              enemies.set(eid, updatedEnemy);
             }
 
-            // Лог только при изменении здоровья
-            if (
-              data.enemy.health !== undefined &&
-              prev.health !== updatedEnemy.health
-            ) {
-              console.log(
-                `[Enemy ${eid}] HP updated: ${prev.health} → ${updatedEnemy.health}`,
-              );
+            if (data.enemy.health !== undefined) {
+              window.requestAnimationFrame(() => {});
+            }
+
+            if (data.enemy.health !== undefined) {
+              console.log(`[Enemy ${eid}] HP updated: ${enemy.health}`);
             }
           } else {
-            // Новый враг — как было
             enemies.set(eid, {
               ...data.enemy,
               id: eid,
-              targetX: data.enemy.x ?? data.enemy.x,
-              targetY: data.enemy.y ?? data.enemy.y,
+              targetX: data.enemy.x,
+              targetY: data.enemy.y,
               walkFrame: 0,
               walkFrameTime: 0,
             });
@@ -3263,4 +3269,4 @@ function gameLoop(timestamp) {
 function onImageLoad() {
   imagesLoaded++;
   if (imagesLoaded === 30) window.addEventListener("resize", resizeCanvas);
-} 
+}
