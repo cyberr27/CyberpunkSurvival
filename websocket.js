@@ -3743,7 +3743,7 @@ function setupWebSocket(
         const oldX = player.x;
         const oldY = player.y;
 
-        // Принимаем только разрешённые поля от клиента
+        // Принимаем только разрешённые поля
         if (data.x !== undefined) player.x = Number(data.x);
         if (data.y !== undefined) player.y = Number(data.y);
         if (data.direction) player.direction = data.direction;
@@ -3754,29 +3754,12 @@ function setupWebSocket(
           player.attackFrameTime = Number(data.attackFrameTime);
         if (data.frame !== undefined) player.frame = Number(data.frame);
 
-        // ─── ОБРАБОТКА ЗДОРОВЬЯ С УЧЁТОМ PENDING REGEN ──────────────────────────────
-        let healthChanged = false;
-
-        if (data.player?.health !== undefined) {
-          const newHealth = Number(data.player.health);
-
-          if (!isNaN(newHealth) && newHealth >= 0) {
-            // Очень строгий лимит — только до текущего максимума +1 (на погрешность)
-            const maxAllowed = (player.maxStats?.health || 100) + 1;
-
-            if (newHealth <= maxAllowed) {
-              player.health = newHealth;
-              healthChanged = true;
-            } else {
-              console.warn(
-                `[Anti-cheat] Игрок ${playerId} health ${newHealth} > max ${maxAllowed}`,
-              );
-              player.health = player.maxStats?.health || 100;
-            }
-          }
-        }
-
-        // Ограничиваем остальные статы (как было раньше)
+        // Ограничиваем статы безопасными значениями
+        if (data.health !== undefined)
+          player.health = Math.max(
+            0,
+            Math.min(player.maxStats?.health || 100, Number(data.health)),
+          );
         if (data.energy !== undefined)
           player.energy = Math.max(
             0,
@@ -3796,7 +3779,7 @@ function setupWebSocket(
         if (data.distanceTraveled !== undefined)
           player.distanceTraveled = Number(data.distanceTraveled);
 
-        // ─── ПРОВЕРКА ПРЕПЯТСТВИЙ ────────────────────────────────────────────────────
+        // ─── ПРОВЕРКА ПРЕПЯТСТВИЙ ───────────────────────────────────────
         let positionValid = true;
 
         // Проверяем только если пришли новые координаты
@@ -3836,10 +3819,10 @@ function setupWebSocket(
           );
         }
 
-        // Сохраняем изменения в players
+        // Сохраняем изменения
         players.set(playerId, { ...player });
 
-        // Готовим данные для рассылки всем в мире
+        // Готовим данные для рассылки
         const updateData = {
           id: playerId,
           x: player.x,
@@ -3853,7 +3836,6 @@ function setupWebSocket(
           water: player.water,
           armor: player.armor,
           distanceTraveled: player.distanceTraveled,
-          meleeDamageBonus: player.meleeDamageBonus || 0,
         };
 
         if (player.state === "attacking") {
