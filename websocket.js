@@ -1411,11 +1411,10 @@ function setupWebSocket(
         const item = player.inventory[slotIndex];
         if (item && ITEM_CONFIG[item.type]?.effect) {
           const effect = ITEM_CONFIG[item.type].effect;
-          if (effect.health)
-            player.health = Math.min(
-              player.health + effect.health,
-              player.maxStats.health,
-            );
+          if (effect.health) {
+            const newHealth = player.health + effect.health;
+            player.health = Math.min(newHealth, player.maxStats.health);
+          }
           if (effect.energy)
             player.energy = Math.min(
               player.energy + effect.energy,
