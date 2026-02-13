@@ -265,19 +265,34 @@ function performMeleeAttack(worldId) {
     if (dist <= MELEE_ATTACK_RANGE) {
       hit = true;
 
+      // Вычисляем, сколько добавляет именно экипировка
+      const dmg = window.equipmentSystem.getCurrentMeleeDamage();
+      const equipMin =
+        dmg.min -
+        (BASE_MELEE_MIN_DAMAGE +
+          window.levelSystem.meleeDamageBonus +
+          (me.meleeDamageBonus || 0));
+      const equipMax =
+        dmg.max -
+        (BASE_MELEE_MAX_DAMAGE +
+          window.levelSystem.meleeDamageBonus +
+          (me.meleeDamageBonus || 0));
+
       sendWhenReady(
         ws,
         JSON.stringify({
-          type: "attackPlayer",
-          targetId: id,
+          type: "attackPlayer", // или "attackEnemy"
+          targetId: id, // или enemyId
           worldId: worldId,
-          melee: true, // ← обязательно!
-          meleeDamageBonus: me.meleeDamageBonus || 0,
+          melee: true,
+          meleeDamageBonus: me.meleeDamageBonus || 0, // навык
+          equipMinBonus: Math.max(0, equipMin), // только от экипировки
+          equipMaxBonus: Math.max(0, equipMax),
         }),
       );
 
       // Локальное предсказание (берём из UI)
-      const dmg = window.equipmentSystem.getCurrentMeleeDamage();
+      dmg = window.equipmentSystem.getCurrentMeleeDamage();
       const predicted =
         Math.floor(Math.random() * (dmg.max - dmg.min + 1)) + dmg.min;
       player.health = Math.max(0, player.health - predicted);
@@ -297,18 +312,32 @@ function performMeleeAttack(worldId) {
     if (dist <= MELEE_ATTACK_RANGE) {
       hit = true;
 
+      const dmg = window.equipmentSystem.getCurrentMeleeDamage();
+      const equipMin =
+        dmg.min -
+        (BASE_MELEE_MIN_DAMAGE +
+          window.levelSystem.meleeDamageBonus +
+          (me.meleeDamageBonus || 0));
+      const equipMax =
+        dmg.max -
+        (BASE_MELEE_MAX_DAMAGE +
+          window.levelSystem.meleeDamageBonus +
+          (me.meleeDamageBonus || 0));
+
       sendWhenReady(
         ws,
         JSON.stringify({
-          type: "attackEnemy",
-          targetId: enemyId,
+          type: "attackEnemy", // или "attackEnemy"
+          targetId: enemyId, // или enemyId
           worldId: worldId,
           melee: true,
-          meleeDamageBonus: me.meleeDamageBonus || 0,
+          meleeDamageBonus: me.meleeDamageBonus || 0, // навык
+          equipMinBonus: Math.max(0, equipMin), // только от экипировки
+          equipMaxBonus: Math.max(0, equipMax),
         }),
       );
 
-      const dmg = window.equipmentSystem.getCurrentMeleeDamage();
+      dmg = window.equipmentSystem.getCurrentMeleeDamage();
       const predicted =
         Math.floor(Math.random() * (dmg.max - dmg.min + 1)) + dmg.min;
       enemy.health = Math.max(0, enemy.health - predicted);

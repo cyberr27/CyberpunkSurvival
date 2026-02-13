@@ -51,6 +51,10 @@ const BLOOD_EYE_PROJ_SPEED = 5; // px/s
 const BLOOD_EYE_DAMAGE_MIN = 12;
 const BLOOD_EYE_DAMAGE_MAX = 18;
 
+const BASE_MELEE_MIN_DAMAGE = 5;
+const BASE_MELEE_MAX_DAMAGE = 10;
+const MAX_EQUIP_BONUS_ALLOWED = 60;
+
 obstacles = [
   {
     worldId: 0,
@@ -2385,50 +2389,56 @@ function setupWebSocket(
           // Можно добавить наказание позже
         }
 
-        let realDamage = 5; // базовый минимум на случай ошибки
+        let realDamage = BASE_MELEE_MIN_DAMAGE; // дефолт на случай ошибки
 
         if (data.melee === true) {
-          // Бонус от навыка "Сильный удар" (id 1)
+          // Бонус от навыка "Сильный удар" (id=1)
           const skillBonus =
             attacker.skills?.find((s) => s.id === 1)?.level || 0;
 
-          // Бонус от уровня (как ты сказал: +1 за каждый уровень)
-          const levelBonus = attacker.level || 0; // если level = бонус
+          // Бонус от уровня игрока (+1 за каждый уровень)
+          const levelBonus = attacker.level || 0;
 
-          // Бонус от оружия — берём с клиента, но с жёстким лимитом
+          // Бонус от экипировки — клиент прислал (если прислал), но с жёстким лимитом
           let equipMinBonus = 0;
           let equipMaxBonus = 0;
+
           if (
-            data.equipMinBonus !== undefined &&
-            data.equipMaxBonus !== undefined
+            typeof data.equipMinBonus === "number" &&
+            typeof data.equipMaxBonus === "number"
           ) {
             equipMinBonus = Math.max(
               0,
-              Math.min(Number(data.equipMinBonus), 60),
-            ); // лимит +60
+              Math.min(data.equipMinBonus, MAX_EQUIP_BONUS_ALLOWED),
+            );
             equipMaxBonus = Math.max(
               0,
-              Math.min(Number(data.equipMaxBonus), 60),
+              Math.min(data.equipMaxBonus, MAX_EQUIP_BONUS_ALLOWED),
             );
           }
 
-          const minDmg =
+          // Итоговый диапазон
+          const finalMin =
             BASE_MELEE_MIN_DAMAGE + levelBonus + skillBonus + equipMinBonus;
-          const maxDmg =
+          const finalMax =
             BASE_MELEE_MAX_DAMAGE + levelBonus + skillBonus + equipMaxBonus;
 
+          // Генерируем урон
           realDamage =
-            Math.floor(Math.random() * (maxDmg - minDmg + 1)) + minDmg;
+            Math.floor(Math.random() * (finalMax - finalMin + 1)) + finalMin;
 
           console.log(
-            `[Melee] ${attackerId} → target | level+${levelBonus} skill+${skillBonus} equip+${equipMinBonus}~${equipMaxBonus} → ${minDmg}-${maxDmg} | урон ${realDamage}`,
+            `[Melee Attack] ${attackerId} → ${data.targetId || data.targetType} ` +
+              `| level +${levelBonus} | skill +${skillBonus} | equip +${equipMinBonus}~${equipMaxBonus} ` +
+              `| диапазон ${finalMin}-${finalMax} | урон ${realDamage}`,
           );
         } else {
+          // Для дальнего боя пока берём от клиента (можно позже закрыть)
           realDamage = Number(data.damage) || 0;
         }
 
-        // Ограничение урона
-        realDamage = Math.max(0, Math.min(realDamage, 500));
+        // Жёсткий лимит урона (защита от багов/читов)
+        realDamage = Math.max(0, Math.min(realDamage, 800));
 
         // Применяем урон
         target.health = Math.max(0, target.health - realDamage);
@@ -2481,53 +2491,59 @@ function setupWebSocket(
           );
         }
 
-        let realDamage = 5; // базовый минимум на случай ошибки
+        let realDamage = BASE_MELEE_MIN_DAMAGE; // дефолт на случай ошибки
 
         if (data.melee === true) {
-          // Бонус от навыка "Сильный удар" (id 1)
+          // Бонус от навыка "Сильный удар" (id=1)
           const skillBonus =
             attacker.skills?.find((s) => s.id === 1)?.level || 0;
 
-          // Бонус от уровня (как ты сказал: +1 за каждый уровень)
-          const levelBonus = attacker.level || 0; // если level = бонус
+          // Бонус от уровня игрока (+1 за каждый уровень)
+          const levelBonus = attacker.level || 0;
 
-          // Бонус от оружия — берём с клиента, но с жёстким лимитом
+          // Бонус от экипировки — клиент прислал (если прислал), но с жёстким лимитом
           let equipMinBonus = 0;
           let equipMaxBonus = 0;
+
           if (
-            data.equipMinBonus !== undefined &&
-            data.equipMaxBonus !== undefined
+            typeof data.equipMinBonus === "number" &&
+            typeof data.equipMaxBonus === "number"
           ) {
             equipMinBonus = Math.max(
               0,
-              Math.min(Number(data.equipMinBonus), 60),
-            ); // лимит +60
+              Math.min(data.equipMinBonus, MAX_EQUIP_BONUS_ALLOWED),
+            );
             equipMaxBonus = Math.max(
               0,
-              Math.min(Number(data.equipMaxBonus), 60),
+              Math.min(data.equipMaxBonus, MAX_EQUIP_BONUS_ALLOWED),
             );
           }
 
-          const minDmg =
+          // Итоговый диапазон
+          const finalMin =
             BASE_MELEE_MIN_DAMAGE + levelBonus + skillBonus + equipMinBonus;
-          const maxDmg =
+          const finalMax =
             BASE_MELEE_MAX_DAMAGE + levelBonus + skillBonus + equipMaxBonus;
 
+          // Генерируем урон
           realDamage =
-            Math.floor(Math.random() * (maxDmg - minDmg + 1)) + minDmg;
+            Math.floor(Math.random() * (finalMax - finalMin + 1)) + finalMin;
 
           console.log(
-            `[Melee] ${attackerId} → target | level+${levelBonus} skill+${skillBonus} equip+${equipMinBonus}~${equipMaxBonus} → ${minDmg}-${maxDmg} | урон ${realDamage}`,
+            `[Melee Attack] ${attackerId} → ${data.targetId || data.targetType} ` +
+              `| level +${levelBonus} | skill +${skillBonus} | equip +${equipMinBonus}~${equipMaxBonus} ` +
+              `| диапазон ${finalMin}-${finalMax} | урон ${realDamage}`,
           );
         } else {
+          // Для дальнего боя пока берём от клиента (можно позже закрыть)
           realDamage = Number(data.damage) || 0;
         }
 
-        // Ограничение урона
-        realDamage = Math.max(0, Math.min(realDamage, 500));
+        // Жёсткий лимит урона (защита от багов/читов)
+        realDamage = Math.max(0, Math.min(realDamage, 800));
 
         // Применяем урон
-        target.health = Math.max(0, target.health - realDamage);
+        enemy.health = Math.max(0, enemy.health - realDamage);
 
         // ─── Смерть врага ───────────────────────────────────────────────────────────
         if (enemy.health <= 0) {
