@@ -250,10 +250,10 @@ function performMeleeAttack(damage, worldId) {
   const me = players.get(myId);
   if (!me) return false;
 
-  const currentWorldId = window.worldSystem?.currentWorldId || me.worldId;
   let hit = false;
+  const currentWorldId = window.worldSystem.currentWorldId;
 
-  // Проверка игроков (PvP) — ближний бой
+  // ─── Проверка других игроков ───────────────────────────────────────────────
   players.forEach((player, id) => {
     if (id === myId) return; // себя не бьём
     if (player.health <= 0) return;
@@ -263,29 +263,29 @@ function performMeleeAttack(damage, worldId) {
     const dy = me.y + 35 - (player.y + 35);
     const dist = Math.sqrt(dx * dx + dy * dy);
 
-    if (dist < MELEE_ATTACK_RANGE) {
+    if (dist <= MELEE_ATTACK_RANGE) {
+      hit = true;
+
       sendWhenReady(
         ws,
         JSON.stringify({
           type: "attackPlayer",
           targetId: id,
-          damage: damage, // для визуального предсказания на клиенте
+          damage: damage, // для визуального отклика на клиенте
           worldId: currentWorldId,
-          melee: true,
+          melee: true, // ← критически важно!
           meleeDamageBonus: me.meleeDamageBonus || 0,
         }),
       );
 
-      // Анимация попадания по себе (если self-hit возможен в будущем)
-      // Сейчас не сработает, т.к. id !== myId выше
-      if (id === myId) triggerAttackAnimation();
-
-      hit = true;
+      // Локально уменьшаем здоровье цели (предсказание)
+      player.health = Math.max(0, player.health - damage);
+      players.set(id, { ...player });
     }
   });
 
-  // Проверка врагов (PvE) — ближний бой
-  enemies.forEach((enemy, id) => {
+  // ─── Проверка врагов ────────────────────────────────────────────────────────
+  enemies.forEach((enemy, enemyId) => {
     if (enemy.health <= 0) return;
     if (enemy.worldId !== currentWorldId) return;
 
@@ -293,25 +293,28 @@ function performMeleeAttack(damage, worldId) {
     const dy = me.y + 35 - (enemy.y + 35);
     const dist = Math.sqrt(dx * dx + dy * dy);
 
-    if (dist < MELEE_ATTACK_RANGE) {
+    if (dist <= MELEE_ATTACK_RANGE) {
+      hit = true;
+
       sendWhenReady(
         ws,
         JSON.stringify({
           type: "attackEnemy",
-          targetId: id,
-          damage: damage, // для визуального предсказания
+          targetId: enemyId,
+          damage: damage, // для визуального отклика
           worldId: currentWorldId,
-          melee: true,
+          melee: true, // ← критически важно!
           meleeDamageBonus: me.meleeDamageBonus || 0,
         }),
       );
 
-      hit = true;
-
-      return;
+      // Локально уменьшаем здоровье врага (предсказание)
+      enemy.health = Math.max(0, enemy.health - damage);
+      enemies.set(enemyId, { ...enemy });
     }
   });
 
+  // Если хоть кого-то задели — отправляем своё состояние
   if (hit) {
     sendWhenReady(
       ws,

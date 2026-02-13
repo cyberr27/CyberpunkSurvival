@@ -2358,82 +2358,87 @@ function setupWebSocket(
       } else if (data.type === "attackPlayer") {
         const attackerId = clients.get(ws);
         if (
-          attackerId &&
-          players.has(attackerId) &&
-          players.has(data.targetId)
-        ) {
-          const attacker = players.get(attackerId);
-          const target = players.get(data.targetId);
+          !attackerId ||
+          !players.has(attackerId) ||
+          !players.has(data.targetId)
+        )
+          return;
 
-          // Анти-чит на бонус (оставляем)
-          const expectedBonus = attacker.meleeDamageBonus || 0;
-          const reportedBonus = data.meleeDamageBonus ?? 0;
-          if (reportedBonus !== expectedBonus) {
-            console.warn(
-              `[Anti-cheat] Игрок ${attackerId} прислал неверный meleeDamageBonus ` +
-                `(ожидалось ${expectedBonus}, пришло ${reportedBonus}) при атаке игрока`,
-            );
-            // Можно сбросить или наказать, но пока просто игнорируем присланное
-          }
+        const attacker = players.get(attackerId);
+        const target = players.get(data.targetId);
 
-          if (
-            attacker.worldId === data.worldId &&
-            target.worldId === data.worldId &&
-            target.health > 0
-          ) {
-            let realDamage = data.damage; // по умолчанию берём от клиента (для ranged)
+        if (
+          attacker.worldId !== data.worldId ||
+          target.worldId !== data.worldId ||
+          target.health <= 0
+        )
+          return;
 
-            // Если это ближний бой → пересчитываем урон на сервере
-            if (data.melee === true) {
-              const skillLevel =
-                attacker.skills?.find((s) => s.id === 1)?.level || 0;
-              const bonus = skillLevel; // как в handleSkillUpgrade: meleeDamageBonus = level
-
-              const minDmg = 5 + bonus;
-              const maxDmg = 10 + bonus;
-
-              realDamage =
-                Math.floor(Math.random() * (maxDmg - minDmg + 1)) + minDmg;
-
-              console.log(
-                `[Melee PvP] ${attackerId} → ${data.targetId} | ` +
-                  `бонус навыка +${bonus} | урон ${realDamage} (было от клиента ${data.damage})`,
-              );
-            }
-
-            target.health = Math.max(0, target.health - realDamage);
-
-            players.set(data.targetId, { ...target });
-            userDatabase.set(data.targetId, { ...target });
-            await saveUserDatabase(dbCollection, data.targetId, target);
-
-            // Рассылка обновления здоровья цели всем в мире
-            broadcastToWorld(
-              wss,
-              clients,
-              players,
-              target.worldId,
-              JSON.stringify({
-                type: "update",
-                player: {
-                  id: data.targetId,
-                  health: target.health,
-                  // можно добавить x,y если нужно, но обычно хватает health
-                },
-              }),
-            );
-
-            // Опционально: уведомление атакующему о нанесённом уроне
-            ws.send(
-              JSON.stringify({
-                type: "damageDealt",
-                targetId: data.targetId,
-                damage: realDamage,
-                isMelee: data.melee === true,
-              }),
-            );
-          }
+        // Анти-чит на бонус
+        const expectedBonus = attacker.meleeDamageBonus || 0;
+        const reportedBonus = data.meleeDamageBonus ?? 0;
+        if (reportedBonus !== expectedBonus) {
+          console.warn(
+            `[Anti-cheat] ${attackerId} прислал неверный meleeDamageBonus ` +
+              `(ожидалось ${expectedBonus}, пришло ${reportedBonus}) при PvP`,
+          );
+          // Можно добавить наказание позже
         }
+
+        let realDamage;
+
+        if (data.melee === true) {
+          // Ближний бой → серверный расчёт
+          const skillLevel =
+            attacker.skills?.find((s) => s.id === 1)?.level || 0;
+          const bonus = skillLevel; // или attacker.meleeDamageBonus — что у тебя хранится
+
+          const minDmg = 5 + bonus;
+          const maxDmg = 10 + bonus;
+          realDamage =
+            Math.floor(Math.random() * (maxDmg - minDmg + 1)) + minDmg;
+
+          console.log(
+            `[Melee PvP] ${attackerId} → ${data.targetId} | бонус +${bonus} | урон ${realDamage}`,
+          );
+        } else {
+          // Дальний бой — пока доверяем клиенту (потом можно закрыть)
+          realDamage = Number(data.damage) || 0;
+        }
+
+        // Защита от абьюза
+        realDamage = Math.max(0, Math.min(realDamage, 300));
+
+        target.health = Math.max(0, target.health - realDamage);
+
+        players.set(data.targetId, { ...target });
+        userDatabase.set(data.targetId, { ...target });
+        await saveUserDatabase(dbCollection, data.targetId, target);
+
+        // Рассылка обновления жертве и всем в мире
+        broadcastToWorld(
+          wss,
+          clients,
+          players,
+          target.worldId,
+          JSON.stringify({
+            type: "update",
+            player: {
+              id: data.targetId,
+              health: target.health,
+            },
+          }),
+        );
+
+        // Уведомляем атакующего о реальном уроне
+        ws.send(
+          JSON.stringify({
+            type: "damageDealt",
+            targetId: data.targetId,
+            damage: realDamage,
+            isMelee: data.melee === true,
+          }),
+        );
       } else if (data.type === "attackEnemy") {
         const attackerId = clients.get(ws);
         if (!attackerId) return;
@@ -2441,78 +2446,55 @@ function setupWebSocket(
         const attacker = players.get(attackerId);
         if (!attacker) return;
 
-        // Анти-чит на бонус навыка
-        const expectedBonus = attacker.meleeDamageBonus || 0;
-        const reportedBonus = data.meleeDamageBonus ?? 0;
-
-        if (reportedBonus !== expectedBonus) {
-          console.warn(
-            `[Anti-cheat] Игрок ${attackerId} прислал неверный meleeDamageBonus ` +
-              `(ожидалось ${expectedBonus}, пришло ${reportedBonus}) при атаке врага`,
-          );
-          // Можно здесь сбросить значение, но пока оставляем как есть
-        }
-
         const enemy = enemies.get(data.targetId);
         if (!enemy || enemy.worldId !== data.worldId || enemy.health <= 0)
           return;
 
-        // Определяем, ближняя это атака или дальняя
-        const isMelee = data.melee === true; // клиент должен присылать это поле
-
-        let finalDamage = 0;
-
-        if (isMelee) {
-          // Ближний бой → считаем на сервере с учётом навыка "Сильный удар"
-          const skillLevel =
-            attacker.skills?.find((s) => s.id === 1)?.level || 0;
-          const bonus = skillLevel; // как установлено в handleSkillUpgrade
-
-          const baseMin = 5;
-          const baseMax = 10;
-
-          finalDamage =
-            Math.floor(
-              Math.random() * (baseMax + bonus - (baseMin + bonus) + 1),
-            ) +
-            (baseMin + bonus);
-
-          console.log(
-            `[Melee PvE] ${attackerId} → enemy ${data.targetId} | ` +
-              `бонус навыка +${bonus} | урон ${finalDamage} (клиент прислал ${data.damage || "нет"})`,
-          );
-        } else {
-          // Дальнобойная атака — пока берём значение от клиента
-          // (можно позже перевести на серверный расчёт, если нужно)
-          finalDamage = Number(data.damage) || 0;
-          console.log(
-            `[Ranged PvE] ${attackerId} → enemy ${data.targetId} | урон ${finalDamage}`,
+        // Анти-чит
+        const expectedBonus = attacker.meleeDamageBonus || 0;
+        const reportedBonus = data.meleeDamageBonus ?? 0;
+        if (reportedBonus !== expectedBonus) {
+          console.warn(
+            `[Anti-cheat] ${attackerId} неверный meleeDamageBonus при атаке врага`,
           );
         }
 
-        // Защита от некорректного урона
-        finalDamage = Math.max(0, Math.min(finalDamage, 500)); // разумный лимит
+        let realDamage;
 
-        // Применяем урон
-        enemy.health = Math.max(0, enemy.health - finalDamage);
+        if (data.melee === true) {
+          // Серверный расчёт ближнего боя
+          const skillLevel =
+            attacker.skills?.find((s) => s.id === 1)?.level || 0;
+          const bonus = skillLevel;
 
-        // Если враг умер
+          const minDmg = 5 + bonus;
+          const maxDmg = 10 + bonus;
+          realDamage =
+            Math.floor(Math.random() * (maxDmg - minDmg + 1)) + minDmg;
+
+          console.log(
+            `[Melee PvE] ${attackerId} → enemy ${data.targetId} | +${bonus} | ${realDamage}`,
+          );
+        } else {
+          realDamage = Number(data.damage) || 0;
+        }
+
+        realDamage = Math.max(0, Math.min(realDamage, 300));
+
+        enemy.health = Math.max(0, enemy.health - realDamage);
+
+        // ─── Смерть врага ───────────────────────────────────────────────────────────
         if (enemy.health <= 0) {
           enemies.delete(data.targetId);
 
-          // Уведомляем всех о смерти врага
           broadcastToWorld(
             wss,
             clients,
             players,
             data.worldId,
-            JSON.stringify({
-              type: "enemyDied",
-              enemyId: data.targetId,
-            }),
+            JSON.stringify({ type: "enemyDied", enemyId: data.targetId }),
           );
 
-          // ───────────────────── НОВАЯ СИСТЕМА ДРОПА ─────────────────────
           const now = Date.now();
           const dropItems = generateEnemyDrop(
             enemy.type,
@@ -2523,7 +2505,6 @@ function setupWebSocket(
           );
 
           if (dropItems.length > 0) {
-            // Добавляем все дропнутые предметы в глобальную карту items
             for (const drop of dropItems) {
               items.set(drop.itemId, {
                 x: drop.x,
@@ -2534,41 +2515,29 @@ function setupWebSocket(
                 worldId: drop.worldId,
               });
             }
-
-            // Отправляем одним сообщением весь дроп
             broadcastToWorld(
               wss,
               clients,
               players,
               data.worldId,
-              JSON.stringify({
-                type: "newItem",
-                items: dropItems,
-              }),
+              JSON.stringify({ type: "newItem", items: dropItems }),
             );
           }
-          // ──────────────────────────────────────────────────────────────
 
           // XP и level up
           let xpGained = 13;
-          if (enemy.type === "scorpion") {
-            xpGained = 20;
-          }
-          if (enemy.type === "blood_eye") {
-            xpGained = 50;
-          }
+          if (enemy.type === "scorpion") xpGained = 20;
+          if (enemy.type === "blood_eye") xpGained = 50;
+
           attacker.xp = (attacker.xp || 0) + xpGained;
 
           const oldLevel = attacker.level;
-
-          let levelUp = false;
           let xpToNext = calculateXPToNextLevel(attacker.level);
 
           while (attacker.xp >= xpToNext && attacker.level < 100) {
             attacker.level += 1;
             attacker.xp -= xpToNext;
             attacker.upgradePoints = (attacker.upgradePoints || 0) + 10;
-            levelUp = true;
             xpToNext = calculateXPToNextLevel(attacker.level);
           }
 
@@ -2578,7 +2547,6 @@ function setupWebSocket(
             attacker.skillPoints =
               (attacker.skillPoints || 0) + 3 * levelsGained;
 
-            // Отправляем клиенту обновление
             ws.send(
               JSON.stringify({
                 type: "updateLevel",
@@ -2589,14 +2557,12 @@ function setupWebSocket(
                 skillPoints: attacker.skillPoints,
               }),
             );
-
-            // Сохраняем в базу сразу
-            players.set(attackerId, attacker);
-            userDatabase.set(attackerId, attacker);
-            await saveUserDatabase(dbCollection, attackerId, attacker);
           }
 
-          // Уведомление атакующему (levelSyncAfterKill)
+          players.set(attackerId, { ...attacker });
+          userDatabase.set(attackerId, { ...attacker });
+          await saveUserDatabase(dbCollection, attackerId, attacker);
+
           ws.send(
             JSON.stringify({
               type: "levelSyncAfterKill",
@@ -2608,37 +2574,33 @@ function setupWebSocket(
             }),
           );
 
-          // Прогресс квеста (только для мутантов)
-          if (enemy.type === "mutant") {
-            if (
-              attacker.neonQuest &&
-              attacker.neonQuest.currentQuestId === "neon_quest_1"
-            ) {
-              attacker.neonQuest.progress = attacker.neonQuest.progress || {};
-              attacker.neonQuest.progress.killMutants =
-                (attacker.neonQuest.progress.killMutants || 0) + 1;
+          // Квест мутанты
+          if (
+            enemy.type === "mutant" &&
+            attacker.neonQuest?.currentQuestId === "neon_quest_1"
+          ) {
+            attacker.neonQuest.progress = attacker.neonQuest.progress || {};
+            attacker.neonQuest.progress.killMutants =
+              (attacker.neonQuest.progress.killMutants || 0) + 1;
 
-              players.set(attackerId, attacker);
-              userDatabase.set(attackerId, attacker);
-              await saveUserDatabase(dbCollection, attackerId, attacker);
+            players.set(attackerId, { ...attacker });
+            userDatabase.set(attackerId, { ...attacker });
+            await saveUserDatabase(dbCollection, attackerId, attacker);
 
-              ws.send(
-                JSON.stringify({
-                  type: "neonQuestProgressUpdate",
-                  progress: attacker.neonQuest.progress,
-                }),
-              );
-            }
+            ws.send(
+              JSON.stringify({
+                type: "neonQuestProgressUpdate",
+                progress: attacker.neonQuest.progress,
+              }),
+            );
           }
 
-          // Респавн через 8–15 секунд
           setTimeout(
             () => spawnNewEnemy(data.worldId),
             8000 + Math.random() * 7000,
           );
         } else {
-          // Если враг ещё жив — обновляем здоровье
-          enemies.set(data.targetId, enemy);
+          enemies.set(data.targetId, { ...enemy });
 
           broadcastToWorld(
             wss,
@@ -2657,14 +2619,14 @@ function setupWebSocket(
           );
         }
 
-        // Опционально: уведомляем атакующего о нанесённом уроне
+        // Уведомление атакующему
         ws.send(
           JSON.stringify({
             type: "damageDealt",
             targetType: "enemy",
             targetId: data.targetId,
-            damage: finalDamage,
-            isMelee: isMelee,
+            damage: realDamage,
+            isMelee: data.melee === true,
           }),
         );
       } else if (data.type === "neonQuestAccept") {
