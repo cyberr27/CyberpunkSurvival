@@ -224,10 +224,11 @@ function performAttack() {
     } else {
       // Ближний бой — используем универсальный расчёт из equipmentSystem (учитывает оба слота)
       const dmg = window.equipmentSystem.getCurrentMeleeDamage();
-      const damage = Math.floor(
+      const predictedDamage = Math.floor(
         Math.random() * (dmg.max - dmg.min + 1) + dmg.min,
       );
-      performMeleeAttack(damage, currentWorldId);
+      // Передаём диапазон вместо одного значения
+      performMeleeAttack(dmg.min, dmg.max, currentWorldId);
     }
   } else {
     // Кулаки — базовый урон + бонус уровня
@@ -246,71 +247,70 @@ function performAttack() {
 }
 
 // Выполнение атаки ближнего боя (ДОБАВЛЕНА ПРОВЕРКА ВРАГОВ)
-function performMeleeAttack(damage, worldId) {
+function performMeleeAttack(minDmg, maxDmg, worldId) {
   const me = players.get(myId);
-  if (!me) return false;
-
   let hit = false;
-  const currentWorldId = window.worldSystem.currentWorldId;
 
-  // ─── Проверка других игроков ───────────────────────────────────────────────
+  // Проверка игроков
   players.forEach((player, id) => {
-    if (id === myId) return; // себя не бьём
-    if (player.health <= 0) return;
-    if (player.worldId !== currentWorldId) return;
+    if (id !== myId && player.health > 0 && player.worldId === worldId) {
+      const dx = me.x + 35 - (player.x + 35); // ← центры, как везде
+      const dy = me.y + 35 - (player.y + 35);
+      const distance = Math.sqrt(dx * dx + dy * dy);
 
-    const dx = me.x + 35 - (player.x + 35);
-    const dy = me.y + 35 - (player.y + 35);
-    const dist = Math.sqrt(dx * dx + dy * dy);
+      if (distance <= MELEE_ATTACK_RANGE) {
+        hit = true;
 
-    if (dist <= MELEE_ATTACK_RANGE) {
-      hit = true;
+        sendWhenReady(
+          ws,
+          JSON.stringify({
+            type: "attackPlayer",
+            targetId: id,
+            minDamage: minDmg, // ← диапазон
+            maxDamage: maxDmg,
+            worldId,
+            melee: true,
+            meleeDamageBonus: me.meleeDamageBonus || 0,
+          }),
+        );
 
-      sendWhenReady(
-        ws,
-        JSON.stringify({
-          type: "attackPlayer",
-          targetId: id,
-          damage: damage, // для визуального отклика на клиенте
-          worldId: currentWorldId,
-          melee: true, // ← критически важно!
-          meleeDamageBonus: me.meleeDamageBonus || 0,
-        }),
-      );
-
-      // Локально уменьшаем здоровье цели (предсказание)
-      player.health = Math.max(0, player.health - damage);
-      players.set(id, { ...player });
+        // Локальное предсказание (для плавности)
+        const predicted =
+          Math.floor(Math.random() * (maxDmg - minDmg + 1)) + minDmg;
+        player.health = Math.max(0, player.health - predicted);
+        players.set(id, { ...player });
+      }
     }
   });
 
-  // ─── Проверка врагов ────────────────────────────────────────────────────────
+  // Проверка врагов — аналогично
   enemies.forEach((enemy, enemyId) => {
-    if (enemy.health <= 0) return;
-    if (enemy.worldId !== currentWorldId) return;
+    if (enemy.health > 0 && enemy.worldId === worldId) {
+      const dx = me.x + 35 - (enemy.x + 35);
+      const dy = me.y + 35 - (enemy.y + 35);
+      const distance = Math.sqrt(dx * dx + dy * dy);
 
-    const dx = me.x + 35 - (enemy.x + 35);
-    const dy = me.y + 35 - (enemy.y + 35);
-    const dist = Math.sqrt(dx * dx + dy * dy);
+      if (distance <= MELEE_ATTACK_RANGE) {
+        hit = true;
 
-    if (dist <= MELEE_ATTACK_RANGE) {
-      hit = true;
+        sendWhenReady(
+          ws,
+          JSON.stringify({
+            type: "attackEnemy",
+            targetId: enemyId,
+            minDamage: minDmg,
+            maxDamage: maxDmg,
+            worldId,
+            melee: true,
+            meleeDamageBonus: me.meleeDamageBonus || 0,
+          }),
+        );
 
-      sendWhenReady(
-        ws,
-        JSON.stringify({
-          type: "attackEnemy",
-          targetId: enemyId,
-          damage: damage, // для визуального отклика
-          worldId: currentWorldId,
-          melee: true, // ← критически важно!
-          meleeDamageBonus: me.meleeDamageBonus || 0,
-        }),
-      );
-
-      // Локально уменьшаем здоровье врага (предсказание)
-      enemy.health = Math.max(0, enemy.health - damage);
-      enemies.set(enemyId, { ...enemy });
+        const predicted =
+          Math.floor(Math.random() * (maxDmg - minDmg + 1)) + minDmg;
+        enemy.health = Math.max(0, enemy.health - predicted);
+        enemies.set(enemyId, { ...enemy });
+      }
     }
   });
 

@@ -2388,26 +2388,50 @@ function setupWebSocket(
         let realDamage;
 
         if (data.melee === true) {
-          // Ближний бой → серверный расчёт
+          // Клиент прислал диапазон, который он посчитал (с экипировкой + уровнем + навыком)
+          let clientMin = Number(data.minDamage) || 5;
+          let clientMax = Number(data.maxDamage) || 10;
+
+          // Анти-чит: ограничиваем максимальный возможный бонус от клиента (экипировка + прочее)
+          const MAX_ALLOWED_BONUS = 80; // например +80 к min/max — подстрой под максимум оружия в игре
+          if (
+            clientMax - clientMin > MAX_ALLOWED_BONUS * 2 ||
+            clientMin < 1 ||
+            clientMax > 1000
+          ) {
+            console.warn(
+              `[Anti-cheat] ${attackerId} подозрительный диапазон ${clientMin}-${clientMax}`,
+            );
+            clientMin = 5;
+            clientMax = 10;
+          }
+
+          // Проверенные сервером бонусы (уровень + навык)
           const skillLevel =
             attacker.skills?.find((s) => s.id === 1)?.level || 0;
-          const bonus = skillLevel; // или attacker.meleeDamageBonus — что у тебя хранится
+          const levelBonus =
+            attacker.meleeDamageBonusFromLevel || attacker.level || 0; // уровень как бонус
 
-          const minDmg = 5 + bonus;
-          const maxDmg = 10 + bonus;
+          const serverVerifiedBonus = skillLevel + levelBonus;
+
+          // Итоговый диапазон = клиентский + только проверенные бонусы
+          const finalMin = clientMin + serverVerifiedBonus;
+          const finalMax = clientMax + serverVerifiedBonus;
+
           realDamage =
-            Math.floor(Math.random() * (maxDmg - minDmg + 1)) + minDmg;
+            Math.floor(Math.random() * (finalMax - finalMin + 1)) + finalMin;
 
           console.log(
-            `[Melee PvP] ${attackerId} → ${data.targetId} | бонус +${bonus} | урон ${realDamage}`,
+            `[Melee] ${attackerId} → ${data.targetId || data.targetType} | ` +
+              `клиент ${clientMin}-${clientMax} + сервер +${serverVerifiedBonus} = ${finalMin}-${finalMax} | урон ${realDamage}`,
           );
         } else {
-          // Дальний бой — пока доверяем клиенту (потом можно закрыть)
+          // Дальний бой — доверяем клиенту (или можно закрыть позже)
           realDamage = Number(data.damage) || 0;
         }
 
-        // Защита от абьюза
-        realDamage = Math.max(0, Math.min(realDamage, 300));
+        // Жёсткая защита от огромного урона
+        realDamage = Math.max(0, Math.min(realDamage, 800));
 
         target.health = Math.max(0, target.health - realDamage);
 
@@ -2462,26 +2486,50 @@ function setupWebSocket(
         let realDamage;
 
         if (data.melee === true) {
-          // Серверный расчёт ближнего боя
+          // Клиент прислал диапазон, который он посчитал (с экипировкой + уровнем + навыком)
+          let clientMin = Number(data.minDamage) || 5;
+          let clientMax = Number(data.maxDamage) || 10;
+
+          // Анти-чит: ограничиваем максимальный возможный бонус от клиента (экипировка + прочее)
+          const MAX_ALLOWED_BONUS = 80; // например +80 к min/max — подстрой под максимум оружия в игре
+          if (
+            clientMax - clientMin > MAX_ALLOWED_BONUS * 2 ||
+            clientMin < 1 ||
+            clientMax > 1000
+          ) {
+            console.warn(
+              `[Anti-cheat] ${attackerId} подозрительный диапазон ${clientMin}-${clientMax}`,
+            );
+            clientMin = 5;
+            clientMax = 10;
+          }
+
+          // Проверенные сервером бонусы (уровень + навык)
           const skillLevel =
             attacker.skills?.find((s) => s.id === 1)?.level || 0;
-          const bonus = skillLevel;
+          const levelBonus =
+            attacker.meleeDamageBonusFromLevel || attacker.level || 0; // уровень как бонус
 
-          const minDmg = 5 + bonus;
-          const maxDmg = 10 + bonus;
+          const serverVerifiedBonus = skillLevel + levelBonus;
+
+          // Итоговый диапазон = клиентский + только проверенные бонусы
+          const finalMin = clientMin + serverVerifiedBonus;
+          const finalMax = clientMax + serverVerifiedBonus;
+
           realDamage =
-            Math.floor(Math.random() * (maxDmg - minDmg + 1)) + minDmg;
+            Math.floor(Math.random() * (finalMax - finalMin + 1)) + finalMin;
 
           console.log(
-            `[Melee PvE] ${attackerId} → enemy ${data.targetId} | +${bonus} | ${realDamage}`,
+            `[Melee] ${attackerId} → ${data.targetId || data.targetType} | ` +
+              `клиент ${clientMin}-${clientMax} + сервер +${serverVerifiedBonus} = ${finalMin}-${finalMax} | урон ${realDamage}`,
           );
         } else {
+          // Дальний бой — доверяем клиенту (или можно закрыть позже)
           realDamage = Number(data.damage) || 0;
         }
 
-        realDamage = Math.max(0, Math.min(realDamage, 300));
-
-        enemy.health = Math.max(0, enemy.health - realDamage);
+        // Жёсткая защита от огромного урона
+        realDamage = Math.max(0, Math.min(realDamage, 800));
 
         // ─── Смерть врага ───────────────────────────────────────────────────────────
         if (enemy.health <= 0) {
