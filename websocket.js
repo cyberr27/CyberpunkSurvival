@@ -2385,54 +2385,52 @@ function setupWebSocket(
           // Можно добавить наказание позже
         }
 
-        let realDamage;
+        let realDamage = 5; // базовый минимум на случай ошибки
 
         if (data.melee === true) {
-          // Клиент прислал диапазон, который он посчитал (с экипировкой + уровнем + навыком)
-          let clientMin = Number(data.minDamage) || 5;
-          let clientMax = Number(data.maxDamage) || 10;
+          // Бонус от навыка "Сильный удар" (id 1)
+          const skillBonus =
+            attacker.skills?.find((s) => s.id === 1)?.level || 0;
 
-          // Анти-чит: ограничиваем максимальный возможный бонус от клиента (экипировка + прочее)
-          const MAX_ALLOWED_BONUS = 80; // например +80 к min/max — подстрой под максимум оружия в игре
+          // Бонус от уровня (как ты сказал: +1 за каждый уровень)
+          const levelBonus = attacker.level || 0; // если level = бонус
+
+          // Бонус от оружия — берём с клиента, но с жёстким лимитом
+          let equipMinBonus = 0;
+          let equipMaxBonus = 0;
           if (
-            clientMax - clientMin > MAX_ALLOWED_BONUS * 2 ||
-            clientMin < 1 ||
-            clientMax > 1000
+            data.equipMinBonus !== undefined &&
+            data.equipMaxBonus !== undefined
           ) {
-            console.warn(
-              `[Anti-cheat] ${attackerId} подозрительный диапазон ${clientMin}-${clientMax}`,
+            equipMinBonus = Math.max(
+              0,
+              Math.min(Number(data.equipMinBonus), 60),
+            ); // лимит +60
+            equipMaxBonus = Math.max(
+              0,
+              Math.min(Number(data.equipMaxBonus), 60),
             );
-            clientMin = 5;
-            clientMax = 10;
           }
 
-          // Проверенные сервером бонусы (уровень + навык)
-          const skillLevel =
-            attacker.skills?.find((s) => s.id === 1)?.level || 0;
-          const levelBonus =
-            attacker.meleeDamageBonusFromLevel || attacker.level || 0; // уровень как бонус
-
-          const serverVerifiedBonus = skillLevel + levelBonus;
-
-          // Итоговый диапазон = клиентский + только проверенные бонусы
-          const finalMin = clientMin + serverVerifiedBonus;
-          const finalMax = clientMax + serverVerifiedBonus;
+          const minDmg =
+            BASE_MELEE_MIN_DAMAGE + levelBonus + skillBonus + equipMinBonus;
+          const maxDmg =
+            BASE_MELEE_MAX_DAMAGE + levelBonus + skillBonus + equipMaxBonus;
 
           realDamage =
-            Math.floor(Math.random() * (finalMax - finalMin + 1)) + finalMin;
+            Math.floor(Math.random() * (maxDmg - minDmg + 1)) + minDmg;
 
           console.log(
-            `[Melee] ${attackerId} → ${data.targetId || data.targetType} | ` +
-              `клиент ${clientMin}-${clientMax} + сервер +${serverVerifiedBonus} = ${finalMin}-${finalMax} | урон ${realDamage}`,
+            `[Melee] ${attackerId} → target | level+${levelBonus} skill+${skillBonus} equip+${equipMinBonus}~${equipMaxBonus} → ${minDmg}-${maxDmg} | урон ${realDamage}`,
           );
         } else {
-          // Дальний бой — доверяем клиенту (или можно закрыть позже)
           realDamage = Number(data.damage) || 0;
         }
 
-        // Жёсткая защита от огромного урона
-        realDamage = Math.max(0, Math.min(realDamage, 800));
+        // Ограничение урона
+        realDamage = Math.max(0, Math.min(realDamage, 500));
 
+        // Применяем урон
         target.health = Math.max(0, target.health - realDamage);
 
         players.set(data.targetId, { ...target });
@@ -2483,53 +2481,53 @@ function setupWebSocket(
           );
         }
 
-        let realDamage;
+        let realDamage = 5; // базовый минимум на случай ошибки
 
         if (data.melee === true) {
-          // Клиент прислал диапазон, который он посчитал (с экипировкой + уровнем + навыком)
-          let clientMin = Number(data.minDamage) || 5;
-          let clientMax = Number(data.maxDamage) || 10;
+          // Бонус от навыка "Сильный удар" (id 1)
+          const skillBonus =
+            attacker.skills?.find((s) => s.id === 1)?.level || 0;
 
-          // Анти-чит: ограничиваем максимальный возможный бонус от клиента (экипировка + прочее)
-          const MAX_ALLOWED_BONUS = 80; // например +80 к min/max — подстрой под максимум оружия в игре
+          // Бонус от уровня (как ты сказал: +1 за каждый уровень)
+          const levelBonus = attacker.level || 0; // если level = бонус
+
+          // Бонус от оружия — берём с клиента, но с жёстким лимитом
+          let equipMinBonus = 0;
+          let equipMaxBonus = 0;
           if (
-            clientMax - clientMin > MAX_ALLOWED_BONUS * 2 ||
-            clientMin < 1 ||
-            clientMax > 1000
+            data.equipMinBonus !== undefined &&
+            data.equipMaxBonus !== undefined
           ) {
-            console.warn(
-              `[Anti-cheat] ${attackerId} подозрительный диапазон ${clientMin}-${clientMax}`,
+            equipMinBonus = Math.max(
+              0,
+              Math.min(Number(data.equipMinBonus), 60),
+            ); // лимит +60
+            equipMaxBonus = Math.max(
+              0,
+              Math.min(Number(data.equipMaxBonus), 60),
             );
-            clientMin = 5;
-            clientMax = 10;
           }
 
-          // Проверенные сервером бонусы (уровень + навык)
-          const skillLevel =
-            attacker.skills?.find((s) => s.id === 1)?.level || 0;
-          const levelBonus =
-            attacker.meleeDamageBonusFromLevel || attacker.level || 0; // уровень как бонус
-
-          const serverVerifiedBonus = skillLevel + levelBonus;
-
-          // Итоговый диапазон = клиентский + только проверенные бонусы
-          const finalMin = clientMin + serverVerifiedBonus;
-          const finalMax = clientMax + serverVerifiedBonus;
+          const minDmg =
+            BASE_MELEE_MIN_DAMAGE + levelBonus + skillBonus + equipMinBonus;
+          const maxDmg =
+            BASE_MELEE_MAX_DAMAGE + levelBonus + skillBonus + equipMaxBonus;
 
           realDamage =
-            Math.floor(Math.random() * (finalMax - finalMin + 1)) + finalMin;
+            Math.floor(Math.random() * (maxDmg - minDmg + 1)) + minDmg;
 
           console.log(
-            `[Melee] ${attackerId} → ${data.targetId || data.targetType} | ` +
-              `клиент ${clientMin}-${clientMax} + сервер +${serverVerifiedBonus} = ${finalMin}-${finalMax} | урон ${realDamage}`,
+            `[Melee] ${attackerId} → target | level+${levelBonus} skill+${skillBonus} equip+${equipMinBonus}~${equipMaxBonus} → ${minDmg}-${maxDmg} | урон ${realDamage}`,
           );
         } else {
-          // Дальний бой — доверяем клиенту (или можно закрыть позже)
           realDamage = Number(data.damage) || 0;
         }
 
-        // Жёсткая защита от огромного урона
-        realDamage = Math.max(0, Math.min(realDamage, 800));
+        // Ограничение урона
+        realDamage = Math.max(0, Math.min(realDamage, 500));
+
+        // Применяем урон
+        target.health = Math.max(0, target.health - realDamage);
 
         // ─── Смерть врага ───────────────────────────────────────────────────────────
         if (enemy.health <= 0) {
