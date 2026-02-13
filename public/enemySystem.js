@@ -40,7 +40,7 @@ const ENEMY_TYPES = Object.freeze({
     minDamage: 12,
     maxDamage: 18,
     attackType: "projectile",
-    color: "#ff0000", 
+    color: "#ff0000",
   },
 });
 
@@ -169,7 +169,7 @@ function updateEnemies(deltaTime) {
             vy: Math.sin(angle) * speedFactor,
             damage:
               Math.floor(
-                Math.random() * (config.maxDamage - config.minDamage + 1)
+                Math.random() * (config.maxDamage - config.minDamage + 1),
               ) + config.minDamage,
             spawnTime: now,
             ownerEnemyId: enemy.id,
@@ -269,7 +269,7 @@ function drawEnemies() {
       ctx.fillText(
         enemy.type === "scorpion" ? "S" : "M",
         screenX + 35,
-        screenY + 50
+        screenY + 50,
       );
     }
 
@@ -285,30 +285,28 @@ function drawEnemies() {
           ? HP_COLORS.scorpion_normal
           : HP_COLORS.normal
         : isScorpion
-        ? HP_COLORS.scorpion_low
-        : HP_COLORS.low;
+          ? HP_COLORS.scorpion_low
+          : HP_COLORS.low;
 
     ctx.fillStyle = hpColor;
     ctx.fillRect(screenX + 5, screenY - 15, 60 * hpPercent, 10);
 
-    // Текст здоровья + тип врага
+    // Текст здоровья — максимально просто и контрастно
     ctx.font = "bold 12px Arial";
     ctx.textAlign = "center";
     ctx.strokeStyle = "black";
     ctx.lineWidth = 3;
 
-    // Здоровье
     const hpText = Math.floor(enemy.health);
     ctx.strokeText(hpText, screenX + 35, screenY - 7);
     ctx.fillStyle = "white";
     ctx.fillText(hpText, screenX + 35, screenY - 7);
 
-    // Тип врага (цвет теперь из конфига)
+    // Тип врага
     ctx.font = "10px Arial";
     ctx.fillStyle = config.color;
     ctx.fillText(enemy.type, screenX + 35, screenY + 80);
   }
-
   // ─── Проектили ─────────────────────────────────────────────────────
   if (enemyProjectiles.size > 0) {
     ctx.fillStyle = "#ff0044";

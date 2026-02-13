@@ -2122,28 +2122,52 @@ function handleGameMessage(event) {
           if (enemies.has(eid)) {
             const prev = enemies.get(eid);
 
-            // Важно: полностью доверяем серверу по здоровью
-            const updatedEnemy = {
-              ...prev, // сохраняем локальные поля (анимация и т.п.)
-              ...data.enemy, // перезаписываем всё, что прислал сервер
-              health: data.enemy.health, // ← принудительно, на случай мутации
-              targetX: data.enemy.x ?? prev.x,
-              targetY: data.enemy.y ?? prev.y,
-              // если есть интерполяция движения — можно оставить targetX/Y
-            };
+            const updatedEnemy = { ...prev };
 
-            // Если здоровье стало <= 0 — удаляем локально сразу
+            // Только если сервер прислал новые координаты — обновляем цель интерполяции
+            if (data.enemy.x !== undefined) {
+              updatedEnemy.targetX = data.enemy.x;
+            }
+            if (data.enemy.y !== undefined) {
+              updatedEnemy.targetY = data.enemy.y;
+            }
+
+            // Все остальные поля перезаписываем как есть (включая health, state, direction и т.д.)
+            Object.assign(updatedEnemy, data.enemy);
+
+            // Принудительно health — число
+            if (data.enemy.health !== undefined) {
+              updatedEnemy.health = Number(data.enemy.health);
+            }
+
+            // Фиксируем id
+            updatedEnemy.id = eid;
+
+            // Удаляем, если мёртв
             if (updatedEnemy.health <= 0) {
               enemies.delete(eid);
             } else {
               enemies.set(eid, updatedEnemy);
             }
+
+            // Лог только при изменении здоровья
+            if (
+              data.enemy.health !== undefined &&
+              prev.health !== updatedEnemy.health
+            ) {
+              console.log(
+                `[Enemy ${eid}] HP updated: ${prev.health} → ${updatedEnemy.health}`,
+              );
+            }
           } else {
-            // Новый враг через update (редко, но возможно)
+            // Новый враг — как было
             enemies.set(eid, {
               ...data.enemy,
-              targetX: data.enemy.x,
-              targetY: data.enemy.y,
+              id: eid,
+              targetX: data.enemy.x ?? data.enemy.x,
+              targetY: data.enemy.y ?? data.enemy.y,
+              walkFrame: 0,
+              walkFrameTime: 0,
             });
           }
         }
@@ -3239,4 +3263,4 @@ function gameLoop(timestamp) {
 function onImageLoad() {
   imagesLoaded++;
   if (imagesLoaded === 30) window.addEventListener("resize", resizeCanvas);
-}
+} 
