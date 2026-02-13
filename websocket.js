@@ -2378,20 +2378,20 @@ function setupWebSocket(
           return;
         }
 
-        // Проверяем бонус от клиента (только для лога/античита)
+        // Анти-чит: проверяем бонус
         if (data.meleeDamageBonus !== undefined) {
           const clientBonus = Number(data.meleeDamageBonus);
           const serverBonus = attacker.meleeDamageBonus || 0;
 
           if (Math.abs(clientBonus - serverBonus) > 0.1) {
             console.warn(
-              `[Anti-cheat] Игрок ${attackerId} подделал meleeDamageBonus при PvP: ` +
+              `[Anti-cheat PvP] Игрок ${attackerId} подделал meleeDamageBonus: ` +
                 `клиент ${clientBonus}, сервер ${serverBonus}`,
             );
           }
         }
 
-        // Сервер сам считает урон — как для врагов
+        // Сервер сам считает урон — ИГНОРИРУЕМ data.damage полностью
         const baseMin = 5;
         const baseMax = 10;
         const meleeBonus = attacker.meleeDamageBonus || 0;
@@ -2401,21 +2401,11 @@ function setupWebSocket(
         const damage =
           Math.floor(Math.random() * (finalMax - finalMin + 1)) + finalMin;
 
-        // Проверяем, если клиент всё-таки прислал damage (на будущее)
-        if (data.damage !== undefined) {
-          const clientDamage = Number(data.damage);
-          if (
-            clientDamage < finalMin ||
-            clientDamage > finalMax + 5 // запас на рандом
-          ) {
-            console.warn(
-              `[Anti-cheat PvP] Игрок ${attackerId} прислал некорректный урон ${clientDamage} ` +
-                `(ожидается ${finalMin}-${finalMax}, bonus=${meleeBonus})`,
-            );
-          }
-        }
+        // Лог для отладки (потом можно убрать)
+        console.log(
+          `[PvP] ${attackerId} → ${data.targetId} | bonus=${meleeBonus} | урон=${damage} (${finalMin}-${finalMax})`,
+        );
 
-        // Применяем урон
         target.health = Math.max(0, target.health - damage);
 
         // Сохраняем
@@ -2423,7 +2413,7 @@ function setupWebSocket(
         userDatabase.set(data.targetId, { ...target });
         await saveUserDatabase(dbCollection, data.targetId, target);
 
-        // Рассылка обновления всем в мире
+        // Рассылка всем в мире
         wss.clients.forEach((client) => {
           if (client.readyState === WebSocket.OPEN) {
             const clientPlayer = players.get(clients.get(client));
