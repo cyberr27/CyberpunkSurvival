@@ -4072,7 +4072,6 @@ function setupWebSocket(
             type: "enemyUpdate",
             enemy: {
               ...enemy,
-              enemyId: enemyId,
               health: enemy.health,
             },
           }),
