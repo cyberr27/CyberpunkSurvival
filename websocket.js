@@ -2360,38 +2360,83 @@ function setupWebSocket(
       } else if (data.type === "attackPlayer") {
         const attackerId = clients.get(ws);
         if (
-          attackerId &&
-          players.has(attackerId) &&
-          players.has(data.targetId)
+          !attackerId ||
+          !players.has(attackerId) ||
+          !players.has(data.targetId)
         ) {
-          const attacker = players.get(attackerId);
-          const target = players.get(data.targetId);
-          if (
-            attacker.worldId === data.worldId &&
-            target.worldId === data.worldId &&
-            target.health > 0
-          ) {
-            target.health = Math.max(0, target.health - data.damage);
-            players.set(data.targetId, { ...target });
-            userDatabase.set(data.targetId, { ...target });
-            await saveUserDatabase(dbCollection, data.targetId, target);
+          return;
+        }
 
-            // Broadcast update to all players in the same world
-            wss.clients.forEach((client) => {
-              if (client.readyState === WebSocket.OPEN) {
-                const clientPlayer = players.get(clients.get(client));
-                if (clientPlayer && clientPlayer.worldId === target.worldId) {
-                  client.send(
-                    JSON.stringify({
-                      type: "update",
-                      player: { id: data.targetId, ...target },
-                    }),
-                  );
-                }
-              }
-            });
+        const attacker = players.get(attackerId);
+        const target = players.get(data.targetId);
+
+        if (
+          attacker.worldId !== data.worldId ||
+          target.worldId !== data.worldId ||
+          target.health <= 0
+        ) {
+          return;
+        }
+
+        // Проверяем бонус от клиента (только для лога/античита)
+        if (data.meleeDamageBonus !== undefined) {
+          const clientBonus = Number(data.meleeDamageBonus);
+          const serverBonus = attacker.meleeDamageBonus || 0;
+
+          if (Math.abs(clientBonus - serverBonus) > 0.1) {
+            console.warn(
+              `[Anti-cheat] Игрок ${attackerId} подделал meleeDamageBonus при PvP: ` +
+                `клиент ${clientBonus}, сервер ${serverBonus}`,
+            );
           }
         }
+
+        // Сервер сам считает урон — как для врагов
+        const baseMin = 5;
+        const baseMax = 10;
+        const meleeBonus = attacker.meleeDamageBonus || 0;
+        const finalMin = baseMin + meleeBonus;
+        const finalMax = baseMax + meleeBonus;
+
+        const damage =
+          Math.floor(Math.random() * (finalMax - finalMin + 1)) + finalMin;
+
+        // Проверяем, если клиент всё-таки прислал damage (на будущее)
+        if (data.damage !== undefined) {
+          const clientDamage = Number(data.damage);
+          if (
+            clientDamage < finalMin ||
+            clientDamage > finalMax + 5 // запас на рандом
+          ) {
+            console.warn(
+              `[Anti-cheat PvP] Игрок ${attackerId} прислал некорректный урон ${clientDamage} ` +
+                `(ожидается ${finalMin}-${finalMax}, bonus=${meleeBonus})`,
+            );
+          }
+        }
+
+        // Применяем урон
+        target.health = Math.max(0, target.health - damage);
+
+        // Сохраняем
+        players.set(data.targetId, { ...target });
+        userDatabase.set(data.targetId, { ...target });
+        await saveUserDatabase(dbCollection, data.targetId, target);
+
+        // Рассылка обновления всем в мире
+        wss.clients.forEach((client) => {
+          if (client.readyState === WebSocket.OPEN) {
+            const clientPlayer = players.get(clients.get(client));
+            if (clientPlayer && clientPlayer.worldId === target.worldId) {
+              client.send(
+                JSON.stringify({
+                  type: "update",
+                  player: { id: data.targetId, ...target },
+                }),
+              );
+            }
+          }
+        });
       } else if (data.type === "attackEnemy") {
         const attackerId = clients.get(ws);
         if (!attackerId) return;
@@ -2407,8 +2452,30 @@ function setupWebSocket(
         )
           return;
 
-        // Наносим урон
-        enemy.health = Math.max(0, enemy.health - data.damage);
+        // Проверяем бонус от клиента (только для логов/античита, не используем!)
+        if (data.meleeDamageBonus !== undefined) {
+          const clientBonus = Number(data.meleeDamageBonus);
+          const serverBonus = attacker.meleeDamageBonus || 0;
+
+          if (Math.abs(clientBonus - serverBonus) > 0.1) {
+            console.warn(
+              `[Anti-cheat] Игрок ${attackerId} подделал meleeDamageBonus: ` +
+                `клиент ${clientBonus}, сервер ${serverBonus}`,
+            );
+          }
+        }
+
+        // Расчёт урона на сервере
+        const baseMin = 5;
+        const baseMax = 10;
+        const meleeBonus = attacker.meleeDamageBonus || 0;
+        const finalMin = baseMin + meleeBonus;
+        const finalMax = baseMax + meleeBonus;
+
+        const damage =
+          Math.floor(Math.random() * (finalMax - finalMin + 1)) + finalMin;
+
+        enemy.health = Math.max(0, enemy.health - damage);
 
         // Если умер
         if (enemy.health <= 0) {
