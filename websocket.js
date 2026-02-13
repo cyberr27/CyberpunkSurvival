@@ -2668,13 +2668,12 @@ function setupWebSocket(
             wss,
             clients,
             players,
-            enemy.worldId,
+            data.worldId,
             JSON.stringify({
               type: "enemyUpdate",
               enemy: {
-                ...enemy,
-                id: enemyId,
-                health: enemy.health,
+                ...enemy, // все поля сразу
+                id: data.targetId, // берём id из пришедшего сообщения — он всегда верный
               },
             }),
           );
@@ -4071,8 +4070,8 @@ function setupWebSocket(
           JSON.stringify({
             type: "enemyUpdate",
             enemy: {
-              ...enemy,
-              health: enemy.health,
+              ...enemy, // все поля, включая type, x, y, state, direction, health и т.д.
+              id: enemyId, // явно берём id из параметра forEach
             },
           }),
         );
