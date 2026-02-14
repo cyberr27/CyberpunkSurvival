@@ -2545,29 +2545,10 @@ function setupWebSocket(
         // Применяем урон
         enemy.health = Math.max(0, enemy.health - realDamage);
 
-        enemies.set(data.targetId, { ...enemy });
-
-        broadcastToWorld(
-          wss,
-          clients,
-          players,
-          data.worldId,
-          JSON.stringify({
-            type: "enemyUpdate",
-            enemy: {
-              id: data.targetId,
-              health: enemy.health,
-              x: enemy.x,
-              y: enemy.y,
-            },
-          }),
-        );
-
         // ─── Смерть врага ───────────────────────────────────────────────────────────
         if (enemy.health <= 0) {
           enemies.delete(data.targetId);
 
-          // Отправляем смерть ПОСЛЕ обновления здоровья → клиент увидит 0 и потом удаление
           broadcastToWorld(
             wss,
             clients,

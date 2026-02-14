@@ -1385,7 +1385,7 @@ function startGame() {
         window.equipmentSystem.toggleEquipment();
         e.preventDefault();
         break;
-      case "r":
+      case "r": 
         window.skillsSystem?.toggleSkills?.();
         e.preventDefault();
         break;
@@ -2117,84 +2117,40 @@ function handleGameMessage(event) {
         break;
       case "enemyUpdate":
         if (data.enemy && data.enemy.id) {
-          const eid = data.enemy.id;
+          const enemyId = data.enemy.id;
 
-          if (enemies.has(eid)) {
-            const enemy = enemies.get(eid);
-
-            // ─── КРИТИЧНОЕ ИСПРАВЛЕНИЕ ───────────────────────────────────────
-            if (data.enemy.health !== undefined) {
-              enemy.health = Number(data.enemy.health);
-
-              // Немедленное удаление, если здоровье ≤ 0 пришло в любом пакете
-              if (enemy.health <= 0) {
-                enemies.delete(eid);
-                console.debug(
-                  `[client] Удалён враг ${eid} по enemyUpdate (health <= 0)`,
-                );
-              }
-            }
-            // ─────────────────────────────────────────────────────────────────
-
-            if (data.enemy.x !== undefined) {
-              enemy.x = data.enemy.x;
-              enemy.targetX = data.enemy.x;
-            }
-            if (data.enemy.y !== undefined) {
-              enemy.y = data.enemy.y;
-              enemy.targetY = data.enemy.y;
-            }
-            if (data.enemy.state !== undefined) {
-              enemy.state = data.enemy.state;
-            }
-            if (data.enemy.direction !== undefined) {
-              enemy.direction = data.enemy.direction;
-            }
-            if (data.enemy.lastAttackTime !== undefined) {
-              enemy.lastAttackTime = data.enemy.lastAttackTime;
-            }
-
-            // Удаляем, если здоровье стало ≤ 0 (дублирующая защита)
-            if (enemy.health <= 0) {
-              enemies.delete(eid);
-            }
-
-            if (data.enemy.health !== undefined) {
-              console.log(`[Enemy ${eid}] HP updated: ${enemy.health}`);
-            }
+          if (enemies.has(enemyId)) {
+            // Существующий враг — обновляем поля (с сохранением локальных данных, если нужно)
+            const existing = enemies.get(enemyId);
+            enemies.set(enemyId, {
+              ...existing,
+              ...data.enemy,
+              // Для плавной интерполяции движения врагов (если у тебя есть система интерполяции)
+              targetX: data.enemy.x,
+              targetY: data.enemy.y,
+            });
           } else {
-            // Новый враг — но только если живой
-            if (data.enemy.health > 0) {
-              enemies.set(eid, {
-                ...data.enemy,
-                id: eid,
-                targetX: data.enemy.x,
-                targetY: data.enemy.y,
-                walkFrame: 0,
-                walkFrameTime: 0,
-              });
-            }
+            // Новый враг (пришёл впервые, например, при входе в мир или спавне)
+            enemies.set(enemyId, {
+              ...data.enemy,
+              targetX: data.enemy.x,
+              targetY: data.enemy.y,
+            });
           }
         }
         break;
+
       case "enemyDied":
         const deadId = data.enemyId;
         if (enemies.has(deadId)) {
           enemies.delete(deadId);
-          console.debug(
-            `[client] Удалён враг ${deadId} по сообщению enemyDied`,
-          );
-        } else {
-          console.debug(`[client] enemyDied для уже отсутствующего ${deadId}`);
         }
-
-        // Двойная защита — на всякий случай чистим из Map
-        enemies.delete(deadId);
-
+        // Вызываем обработчик смерти (эффекты, звук и т.д.), если он есть
         if (window.enemySystem && window.enemySystem.handleEnemyDeath) {
           window.enemySystem.handleEnemyDeath(deadId);
         }
         break;
+
       case "newEnemy":
         // Это сообщение приходит при спавне нового врага (у тебя есть spawnNewEnemy на сервере)
         if (data.enemy && data.enemy.id) {
