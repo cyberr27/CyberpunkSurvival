@@ -1,8 +1,5 @@
-// regenerationSystem.js
-
 const regenerationSystem = {
   isInitialized: false,
-  pendingRegen: 0, // ← НОВОЕ: накопленный реген, который ещё "висит"
 
   initialize() {
     if (this.isInitialized) return;
@@ -10,11 +7,7 @@ const regenerationSystem = {
 
     this.startRegeneration();
 
-    document.addEventListener("statsUpdated", () => {
-      this.applyPendingRegen();
-    });
-
-    console.log("[Regeneration] Система инициализирована (с pendingRegen)");
+    console.log("[Regeneration] Система инициализирована");
   },
 
   startRegeneration() {
@@ -31,17 +24,12 @@ const regenerationSystem = {
 
       if (healAmount <= 0) return;
 
-      const oldHealth = me.health;
-
-      // Самое важное — НЕ даём превысить максимум
       const canHeal = maxHp - me.health;
       healAmount = Math.min(healAmount, canHeal);
 
-      if (healAmount <= 0) return; // уже полный или почти полный
+      if (healAmount <= 0) return;
 
       me.health += healAmount;
-      // health уже ≤ maxHp, потому что мы обрезали healAmount
-
       const gained = healAmount;
 
       showNotification(`Регенерация: +${gained} HP`, "#ff0000");
@@ -58,7 +46,6 @@ const regenerationSystem = {
             player: {
               id: myId,
               health: me.health,
-              // pendingRegen больше НЕ отправляем — он больше не нужен
             },
           }),
         );
@@ -66,12 +53,6 @@ const regenerationSystem = {
 
       updateStatsDisplay();
     }, 30000);
-  },
-
-  // Вызывается клиентом после получения подтверждения от сервера
-  clearPendingRegen() {
-    this.pendingRegen = 0;
-    console.log("[Regeneration] pendingRegen сброшен после синхронизации");
   },
 };
 

@@ -1149,6 +1149,10 @@ function handleAuthMessage(event) {
       window.inventorySystem.updateInventoryDisplay();
       updateStatsDisplay();
 
+      if (window.regenerationSystem) {
+        window.regenerationSystem.initialize();
+      }
+
       // Другие игроки
       if (data.players) {
         data.players.forEach((p) => {
@@ -1336,6 +1340,10 @@ function startGame() {
   window.homelessSystem?.initialize?.(images.homelessSprite);
   window.portalSystem.initialize(images.portalImage);
   window.combatSystem.initialize();
+  if (window.regenerationSystem) {
+    window.regenerationSystem.initialize();
+  }
+  window.strongStrikeSystem.initialize();
 
   document.addEventListener("keydown", (e) => {
     const me = players.get(myId);
@@ -1375,6 +1383,10 @@ function startGame() {
         break;
       case "e":
         window.equipmentSystem.toggleEquipment();
+        e.preventDefault();
+        break;
+      case "r":
+        window.skillsSystem?.toggleSkills?.();
         e.preventDefault();
         break;
     }
@@ -2105,40 +2117,84 @@ function handleGameMessage(event) {
         break;
       case "enemyUpdate":
         if (data.enemy && data.enemy.id) {
-          const enemyId = data.enemy.id;
+          const eid = data.enemy.id;
 
-          if (enemies.has(enemyId)) {
-            // Существующий враг — обновляем поля (с сохранением локальных данных, если нужно)
-            const existing = enemies.get(enemyId);
-            enemies.set(enemyId, {
-              ...existing,
-              ...data.enemy,
-              // Для плавной интерполяции движения врагов (если у тебя есть система интерполяции)
-              targetX: data.enemy.x,
-              targetY: data.enemy.y,
-            });
+          if (enemies.has(eid)) {
+            const enemy = enemies.get(eid);
+
+            // ─── КРИТИЧНОЕ ИСПРАВЛЕНИЕ ───────────────────────────────────────
+            if (data.enemy.health !== undefined) {
+              enemy.health = Number(data.enemy.health);
+
+              // Немедленное удаление, если здоровье ≤ 0 пришло в любом пакете
+              if (enemy.health <= 0) {
+                enemies.delete(eid);
+                console.debug(
+                  `[client] Удалён враг ${eid} по enemyUpdate (health <= 0)`,
+                );
+              }
+            }
+            // ─────────────────────────────────────────────────────────────────
+
+            if (data.enemy.x !== undefined) {
+              enemy.x = data.enemy.x;
+              enemy.targetX = data.enemy.x;
+            }
+            if (data.enemy.y !== undefined) {
+              enemy.y = data.enemy.y;
+              enemy.targetY = data.enemy.y;
+            }
+            if (data.enemy.state !== undefined) {
+              enemy.state = data.enemy.state;
+            }
+            if (data.enemy.direction !== undefined) {
+              enemy.direction = data.enemy.direction;
+            }
+            if (data.enemy.lastAttackTime !== undefined) {
+              enemy.lastAttackTime = data.enemy.lastAttackTime;
+            }
+
+            // Удаляем, если здоровье стало ≤ 0 (дублирующая защита)
+            if (enemy.health <= 0) {
+              enemies.delete(eid);
+            }
+
+            if (data.enemy.health !== undefined) {
+              console.log(`[Enemy ${eid}] HP updated: ${enemy.health}`);
+            }
           } else {
-            // Новый враг (пришёл впервые, например, при входе в мир или спавне)
-            enemies.set(enemyId, {
-              ...data.enemy,
-              targetX: data.enemy.x,
-              targetY: data.enemy.y,
-            });
+            // Новый враг — но только если живой
+            if (data.enemy.health > 0) {
+              enemies.set(eid, {
+                ...data.enemy,
+                id: eid,
+                targetX: data.enemy.x,
+                targetY: data.enemy.y,
+                walkFrame: 0,
+                walkFrameTime: 0,
+              });
+            }
           }
         }
         break;
-
       case "enemyDied":
         const deadId = data.enemyId;
         if (enemies.has(deadId)) {
           enemies.delete(deadId);
+          console.debug(
+            `[client] Удалён враг ${deadId} по сообщению enemyDied`,
+          );
+        } else {
+          console.debug(`[client] enemyDied для уже отсутствующего ${deadId}`);
         }
-        // Вызываем обработчик смерти (эффекты, звук и т.д.), если он есть
+
+        // Двойная защита — на всякий случай чистим из Map
+        enemies.delete(deadId);
+
         if (window.enemySystem && window.enemySystem.handleEnemyDeath) {
           window.enemySystem.handleEnemyDeath(deadId);
         }
         break;
-
       case "newEnemy":
         // Это сообщение приходит при спавне нового врага (у тебя есть spawnNewEnemy на сервере)
         if (data.enemy && data.enemy.id) {
@@ -2842,6 +2898,7 @@ function update(deltaTime) {
     window.equipmentSystem.syncEquipment(me.equipment);
     window.equipmentSystem.lastApplied = true;
     updateStatsDisplay();
+    document.dispatchEvent(new Event("statsUpdated"));
   }
 
   window.movementSystem.update(deltaTime);

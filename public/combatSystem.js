@@ -34,7 +34,7 @@ function initializeCombatSystem() {
         }, ATTACK_COOLDOWN); // Повтор каждые 500 мс (как кулдаун)
       }
     },
-    { passive: false }
+    { passive: false },
   );
 
   combatBtn.addEventListener(
@@ -46,7 +46,7 @@ function initializeCombatSystem() {
         attackInterval = null;
       }
     },
-    { passive: false }
+    { passive: false },
   );
 
   combatBtn.addEventListener(
@@ -58,7 +58,7 @@ function initializeCombatSystem() {
         attackInterval = null;
       }
     },
-    { passive: false }
+    { passive: false },
   );
 
   // Дополнительно: для мыши тоже можно удерживать (бонус для десктопа)
@@ -196,7 +196,7 @@ function performAttack() {
           range: bullet.range,
           ownerId: myId,
           worldId: currentWorldId,
-        })
+        }),
       );
 
       sendWhenReady(
@@ -219,15 +219,16 @@ function performAttack() {
             attackFrameTime: 0,
             worldId: currentWorldId,
           },
-        })
+        }),
       );
     } else {
       // Ближний бой — используем универсальный расчёт из equipmentSystem (учитывает оба слота)
       const dmg = window.equipmentSystem.getCurrentMeleeDamage();
-      const damage = Math.floor(
-        Math.random() * (dmg.max - dmg.min + 1) + dmg.min
+      const predictedDamage = Math.floor(
+        Math.random() * (dmg.max - dmg.min + 1) + dmg.min,
       );
-      performMeleeAttack(damage, currentWorldId);
+      // Передаём диапазон вместо одного значения
+      performMeleeAttack(currentWorldId);
     }
   } else {
     // Кулаки — базовый урон + бонус уровня
@@ -239,9 +240,9 @@ function performAttack() {
           levelBonus +
           1) +
         BASE_MELEE_MIN_DAMAGE +
-        levelBonus
+        levelBonus,
     );
-    performMeleeAttack(damage, currentWorldId);
+    performMeleeAttack(currentWorldId);
   }
 }
 
@@ -250,7 +251,7 @@ function performMeleeAttack(damage, worldId) {
   const me = players.get(myId);
   let hit = false;
 
-  // Проверка игроков
+  // Проверка игроков (PvP) — оставляем как было
   players.forEach((player, id) => {
     if (id !== myId && player.health > 0 && player.worldId === worldId) {
       const dx = player.x - me.x;
@@ -258,7 +259,6 @@ function performMeleeAttack(damage, worldId) {
       const distance = Math.sqrt(dx * dx + dy * dy);
       if (distance <= MELEE_ATTACK_RANGE) {
         hit = true;
-        // Принудительно обновляем локально здоровье (для мгновенного отображения)
         player.health = Math.max(0, player.health - damage);
         players.set(id, player);
 
@@ -269,18 +269,15 @@ function performMeleeAttack(damage, worldId) {
             targetId: id,
             damage,
             worldId,
-          })
+          }),
         );
 
-        // Если попали по текущему игроку — анимация получения урона
-        if (id === myId) {
-          triggerAttackAnimation();
-        }
+        if (id === myId) triggerAttackAnimation();
       }
     }
   });
 
-  // Проверка врагов
+  // Проверка врагов — ВОЗВРАЩАЕМ ОПТИМИСТИЧНОЕ УМЕНЬШЕНИЕ HP
   enemies.forEach((enemy, enemyId) => {
     if (enemy.health > 0 && enemy.worldId === worldId) {
       const dx = enemy.x - me.x;
@@ -288,19 +285,44 @@ function performMeleeAttack(damage, worldId) {
       const distance = Math.sqrt(dx * dx + dy * dy);
       if (distance <= MELEE_ATTACK_RANGE) {
         hit = true;
-        // Принудительно обновляем здоровье мутанта локально
-        enemy.health = Math.max(0, enemy.health - damage);
+
+        // ─── ОПТИМИСТИЧНОЕ УМЕНЬШЕНИЕ ЗДОРОВЬЯ НА КЛИЕНТЕ ───────────────────────
+        // Берём тот же диапазон, что отправляем на сервер (через getCurrentMeleeDamage)
+        const dmgRange = window.equipmentSystem.getCurrentMeleeDamage();
+        // Генерируем урон так же, как сервер будет (для визуальной синхронизации)
+        const clientSideDamage = Math.floor(
+          Math.random() * (dmgRange.max - dmgRange.min + 1) + dmgRange.min,
+        );
+
+        enemy.health = Math.max(0, enemy.health - clientSideDamage);
         enemies.set(enemyId, enemy);
+        // ────────────────────────────────────────────────────────────────────────
 
         sendWhenReady(
           ws,
           JSON.stringify({
             type: "attackEnemy",
             targetId: enemyId,
-            damage,
             worldId,
-          })
+            melee: true,
+            meleeDamageBonus: me.meleeDamageBonus || 0,
+            equipMinBonus: Math.max(
+              0,
+              dmgRange.min -
+                (BASE_MELEE_MIN + window.levelSystem.meleeDamageBonus),
+            ),
+            equipMaxBonus: Math.max(
+              0,
+              dmgRange.max -
+                (BASE_MELEE_MAX + window.levelSystem.meleeDamageBonus),
+            ),
+          }),
         );
+
+        // Если враг умер локально — можно сразу показать эффект смерти (опционально)
+        if (enemy.health <= 0) {
+          // Здесь можно добавить частицы/звук смерти локально, если хочешь
+        }
       }
     }
   });
@@ -325,7 +347,7 @@ function performMeleeAttack(damage, worldId) {
           frame: me.frame,
           worldId,
         },
-      })
+      }),
     );
   }
 
@@ -377,7 +399,7 @@ function updateBullets(deltaTime) {
               targetId: id,
               damage: bullet.damage,
               worldId: currentWorldId,
-            })
+            }),
           );
           if (id === myId) triggerAttackAnimation();
           hit = true;
@@ -397,7 +419,7 @@ function updateBullets(deltaTime) {
               targetId: id,
               damage: bullet.damage,
               worldId: currentWorldId,
-            })
+            }),
           );
           hit = true;
         }
@@ -412,7 +434,7 @@ function updateBullets(deltaTime) {
           type: "removeBullet",
           bulletId,
           worldId: currentWorldId,
-        })
+        }),
       );
       return;
     }
@@ -430,7 +452,7 @@ function updateBullets(deltaTime) {
           type: "removeBullet",
           bulletId,
           worldId: currentWorldId,
-        })
+        }),
       );
     }
   });
@@ -461,7 +483,7 @@ function drawBullets() {
       0.5,
       screenX,
       screenY,
-      BULLET_SIZE * 1.5
+      BULLET_SIZE * 1.5,
     );
     grad.addColorStop(0, bullet.damage >= 50 ? "#00eaff" : "#fffbe0");
     grad.addColorStop(0.5, bullet.damage >= 50 ? "#00eaffcc" : "#ff4444cc");
