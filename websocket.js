@@ -854,7 +854,7 @@ function setupWebSocket(
               selectedQuestId: playerData.selectedQuestId,
               level: playerData.level,
               xp: playerData.xp,
-              meleeDamageBonus: playerData.maleeDamageDonus || 0,
+              meleeDamageBonus: playerData.maleeDamageBonus || 0,
               skills: playerData.skills,
               skillPoints: playerData.skillPoints,
               upgradePoints: playerData.upgradePoints,
