@@ -249,16 +249,21 @@ function performAttack() {
 // Выполнение атаки ближнего боя (ДОБАВЛЕНА ПРОВЕРКА ВРАГОВ)
 function performMeleeAttack(damage, worldId) {
   const me = players.get(myId);
+  if (!me) return false;
+
   let hit = false;
 
-  // Проверка игроков (PvP) — оставляем как было
+  // ─── Проверка других игроков (PvP) ────────────────────────────────────────
   players.forEach((player, id) => {
     if (id !== myId && player.health > 0 && player.worldId === worldId) {
       const dx = player.x - me.x;
       const dy = player.y - me.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
+
       if (distance <= MELEE_ATTACK_RANGE) {
         hit = true;
+
+        // Оптимистично уменьшаем здоровье цели (PvP)
         player.health = Math.max(0, player.health - damage);
         players.set(id, player);
 
@@ -272,30 +277,49 @@ function performMeleeAttack(damage, worldId) {
           }),
         );
 
-        if (id === myId) triggerAttackAnimation();
+        // Если попали по себе (маловероятно, но оставляем)
+        if (id === myId) {
+          triggerAttackAnimation();
+        }
       }
     }
   });
 
-  // Проверка врагов — ВОЗВРАЩАЕМ ОПТИМИСТИЧНОЕ УМЕНЬШЕНИЕ HP
+  // ─── Проверка врагов ───────────────────────────────────────────────────────
   enemies.forEach((enemy, enemyId) => {
     if (enemy.health > 0 && enemy.worldId === worldId) {
       const dx = enemy.x - me.x;
       const dy = enemy.y - me.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
+
       if (distance <= MELEE_ATTACK_RANGE) {
         hit = true;
 
-        // ─── ОПТИМИСТИЧНОЕ УМЕНЬШЕНИЕ ЗДОРОВЬЯ НА КЛИЕНТЕ ───────────────────────
-        // Берём тот же диапазон, что отправляем на сервер (через getCurrentMeleeDamage)
+        // Получаем актуальный диапазон урона (уже включает level + skill + equip)
         const dmgRange = window.equipmentSystem.getCurrentMeleeDamage();
-        // Генерируем урон так же, как сервер будет (для визуальной синхронизации)
+
+        // Клиентский урон — для мгновенного визуального эффекта
         const clientSideDamage = Math.floor(
           Math.random() * (dmgRange.max - dmgRange.min + 1) + dmgRange.min,
         );
 
+        // Оптимистично уменьшаем здоровье врага на клиенте
         enemy.health = Math.max(0, enemy.health - clientSideDamage);
         enemies.set(enemyId, enemy);
+
+        // ─── ПРАВИЛЬНЫЙ расчёт equip бонусов для сервера ───────────────────────
+        // equipBonus — это только бонус от оружия/предметов, без level и skill
+        const levelBonus = window.levelSystem.meleeDamageBonus || 0;
+        // skillBonus уже включён в dmgRange через getCurrentMeleeDamage
+
+        const equipMinBonus = Math.max(
+          0,
+          dmgRange.min - BASE_MELEE_MIN_DAMAGE - levelBonus,
+        );
+        const equipMaxBonus = Math.max(
+          0,
+          dmgRange.max - BASE_MELEE_MAX_DAMAGE - levelBonus,
+        );
         // ────────────────────────────────────────────────────────────────────────
 
         sendWhenReady(
@@ -303,30 +327,24 @@ function performMeleeAttack(damage, worldId) {
           JSON.stringify({
             type: "attackEnemy",
             targetId: enemyId,
-            worldId,
+            worldId: worldId,
             melee: true,
-            meleeDamageBonus: me.meleeDamageBonus || 0,
-            equipMinBonus: Math.max(
-              0,
-              dmgRange.min -
-                (BASE_MELEE_MIN + window.levelSystem.meleeDamageBonus),
-            ),
-            equipMaxBonus: Math.max(
-              0,
-              dmgRange.max -
-                (BASE_MELEE_MAX + window.levelSystem.meleeDamageBonus),
-            ),
+            meleeDamageBonus: me.meleeDamageBonus || 0, // обычно 0, но оставляем
+            equipMinBonus: equipMinBonus,
+            equipMaxBonus: equipMaxBonus,
           }),
         );
 
-        // Если враг умер локально — можно сразу показать эффект смерти (опционально)
+        // Если враг "умер" локально — можно сразу запустить визуальный эффект
         if (enemy.health <= 0) {
-          // Здесь можно добавить частицы/звук смерти локально, если хочешь
+          // Опционально: добавить частицы, звук или анимацию смерти
+          // Например: triggerEnemyDeathAnimation(enemyId);
         }
       }
     }
   });
 
+  // ─── Если хоть кого-то задели — отправляем своё состояние ────────────────
   if (hit) {
     sendWhenReady(
       ws,

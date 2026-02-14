@@ -2379,15 +2379,15 @@ function setupWebSocket(
           return;
 
         // Анти-чит на бонус
-        const expectedBonus = attacker.meleeDamageBonus || 0;
-        const reportedBonus = data.meleeDamageBonus ?? 0;
-        if (reportedBonus !== expectedBonus) {
-          console.warn(
-            `[Anti-cheat] ${attackerId} прислал неверный meleeDamageBonus ` +
-              `(ожидалось ${expectedBonus}, пришло ${reportedBonus}) при PvP`,
-          );
-          // Можно добавить наказание позже
-        }
+        // const expectedBonus = attacker.meleeDamageBonus || 0;
+        // const reportedBonus = data.meleeDamageBonus ?? 0;
+        // if (reportedBonus !== expectedBonus) {
+        // console.warn(
+        //    `[Anti-cheat] ${attackerId} прислал неверный meleeDamageBonus ` +
+        //      `(ожидалось ${expectedBonus}, пришло ${reportedBonus}) при PvP`,
+        //  );
+        // Можно добавить наказание позже
+        //  }
 
         let realDamage = BASE_MELEE_MIN_DAMAGE; // дефолт на случай ошибки
 
