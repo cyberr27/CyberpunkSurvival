@@ -1111,11 +1111,23 @@ function handleAuthMessage(event) {
         me.maxStats = data.maxStats;
       }
 
-      if (window.welcomeGuideSystem && window.welcomeGuideSystem.setSeen) {
-        window.welcomeGuideSystem.setSeen(data.hasSeenWelcomeGuide === true);
-      }
-
       players.set(myId, me);
+
+      if (
+        data.player?.skills?.some?.((s) => s.id === 2 && s.level >= 1) ||
+        me.skills?.some?.((s) => s.id === 2 && s.level >= 1)
+      ) {
+        if (
+          window.regenerationSystem &&
+          typeof window.regenerationSystem.start === "function"
+        ) {
+          window.regenerationSystem.start();
+          console.log(
+            "[Regeneration] Запущена пассивная регенерация при логине",
+          );
+        }
+      }
+      // ────────────────────────────────────────────────────────────────
 
       if (window.skillsSystem) {
         window.skillsSystem.playerSkills = data.skills || [];
@@ -2693,6 +2705,9 @@ function handleGameMessage(event) {
             `Навык улучшен! Осталось очков: ${data.remainingPoints}`,
             "#00ff88",
           );
+          if (data.skillId === 2) {
+            window.regenerationSystem.start();
+          }
         } else {
           showNotification(
             data.error || "Не удалось улучшить навык",
@@ -2729,6 +2744,32 @@ function handleGameMessage(event) {
         }
 
         updateStatsDisplay();
+        break;
+      case "regenerationApplied":
+        if (data.success && data.playerId === myId) {
+          const me = players.get(myId);
+          if (me) {
+            const oldHp = me.health;
+            me.health = Math.min(
+              Math.max(0, Number(data.newHealth)),
+              me.maxStats?.health || 100,
+            );
+
+            if (me.health > oldHp) {
+              showNotification(
+                `Регенерация: +${Math.round(me.health - oldHp)} HP`,
+                "#ff4444",
+              );
+            }
+          }
+          updateStatsDisplay();
+        }
+        break;
+
+      case "regenerationRejected":
+        if (data.playerId === myId) {
+          console.warn("Регенерация отклонена сервером:", data.reason);
+        }
         break;
     }
   } catch (error) {
