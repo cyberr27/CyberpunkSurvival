@@ -40,7 +40,7 @@ const ENEMY_TYPES = Object.freeze({
     minDamage: 12,
     maxDamage: 18,
     attackType: "projectile",
-    color: "#ff0000",
+    color: "#ff0000", 
   },
 });
 
@@ -104,11 +104,6 @@ function syncEnemies(serverEnemies) {
   for (const id of currentIds) {
     enemies.delete(id);
   }
-  for (const [id, enemy] of enemies.entries()) {
-    if (enemy.health <= 0) {
-      enemies.delete(id);
-    }
-  }
 }
 
 function handleEnemyDeath(enemyId) {
@@ -139,10 +134,6 @@ function updateEnemies(deltaTime) {
 
   // Обновление анимации и логики blood_eye
   for (const enemy of enemies.values()) {
-    if (enemy.health <= 0) {
-      enemies.delete(enemy.id);
-      continue;
-    }
     if (enemy.worldId !== currentWorldId || enemy.health <= 0) continue;
 
     const config = ENEMY_TYPES[enemy.type] || ENEMY_TYPES.mutant;
@@ -178,7 +169,7 @@ function updateEnemies(deltaTime) {
             vy: Math.sin(angle) * speedFactor,
             damage:
               Math.floor(
-                Math.random() * (config.maxDamage - config.minDamage + 1),
+                Math.random() * (config.maxDamage - config.minDamage + 1)
               ) + config.minDamage,
             spawnTime: now,
             ownerEnemyId: enemy.id,
@@ -243,10 +234,6 @@ function drawEnemies() {
   ctx.save();
 
   for (const enemy of enemies.values()) {
-    if (enemy.health <= 0) {
-      enemies.delete(enemy.id);
-      continue;
-    }
     if (enemy.worldId !== currentWorldId || enemy.health <= 0) continue;
 
     const config = ENEMY_TYPES[enemy.type] || ENEMY_TYPES.mutant;
@@ -282,7 +269,7 @@ function drawEnemies() {
       ctx.fillText(
         enemy.type === "scorpion" ? "S" : "M",
         screenX + 35,
-        screenY + 50,
+        screenY + 50
       );
     }
 
@@ -298,28 +285,30 @@ function drawEnemies() {
           ? HP_COLORS.scorpion_normal
           : HP_COLORS.normal
         : isScorpion
-          ? HP_COLORS.scorpion_low
-          : HP_COLORS.low;
+        ? HP_COLORS.scorpion_low
+        : HP_COLORS.low;
 
     ctx.fillStyle = hpColor;
     ctx.fillRect(screenX + 5, screenY - 15, 60 * hpPercent, 10);
 
-    // Текст здоровья — максимально просто и контрастно
+    // Текст здоровья + тип врага
     ctx.font = "bold 12px Arial";
     ctx.textAlign = "center";
     ctx.strokeStyle = "black";
     ctx.lineWidth = 3;
 
+    // Здоровье
     const hpText = Math.floor(enemy.health);
     ctx.strokeText(hpText, screenX + 35, screenY - 7);
     ctx.fillStyle = "white";
     ctx.fillText(hpText, screenX + 35, screenY - 7);
 
-    // Тип врага
+    // Тип врага (цвет теперь из конфига)
     ctx.font = "10px Arial";
     ctx.fillStyle = config.color;
     ctx.fillText(enemy.type, screenX + 35, screenY + 80);
   }
+
   // ─── Проектили ─────────────────────────────────────────────────────
   if (enemyProjectiles.size > 0) {
     ctx.fillStyle = "#ff0044";

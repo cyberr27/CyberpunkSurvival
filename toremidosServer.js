@@ -55,10 +55,7 @@ function handleSkillUpgrade(
   // Прокачиваем
   skill.level += 1;
   if (skillId === 1) {
-    player.meleeDamageBonus = skill.level; // ← ключевой момент
-    console.log(
-      `[Skill] Игрок ${player.id} прокачал Сильный удар → бонус теперь +${player.meleeDamageBonus}`,
-    );
+    player.meleeDamageBonus = skill.level;
   }
   player.skillPoints -= 1;
 
