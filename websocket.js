@@ -606,7 +606,7 @@ function setupWebSocket(
             worldId: 0,
             hasSeenWelcomeGuide: false,
             worldPositions: { 0: { x: 222, y: 3205 } },
-
+            meleeDamageBonus: 0,
             healthUpgrade: 0,
             energyUpgrade: 0,
             foodUpgrade: 0,
@@ -854,6 +854,7 @@ function setupWebSocket(
               selectedQuestId: playerData.selectedQuestId,
               level: playerData.level,
               xp: playerData.xp,
+              meleeDamageBonus: playerData.maleeDamageDonus || 0,
               skills: playerData.skills,
               skillPoints: playerData.skillPoints,
               upgradePoints: playerData.upgradePoints,

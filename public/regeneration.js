@@ -1,20 +1,32 @@
 window.regenerationSystem = {
   interval: null,
+  lastDamageTime: 0, // ← когда последний раз получили урон
+  REGEN_DELAY_AFTER_DAMAGE: 30000, // 30 секунд после урона
 
   start() {
     if (this.interval) clearInterval(this.interval);
 
     this.interval = setInterval(() => {
+      const now = Date.now();
+
+      // 1. Проверяем, прошло ли 30 секунд после последнего урона
+      if (now - this.lastDamageTime < this.REGEN_DELAY_AFTER_DAMAGE) {
+        return; // ещё в "боевом" режиме — реген не работает
+      }
+
       const me = players.get(myId);
       if (!me || me.health <= 0 || me.health >= (me.maxStats?.health || 100)) {
         return;
       }
 
-      // Ищем навык регенерации (id = 2)
+      // 2. Проверяем наличие и уровень навыка (обязательно!)
       const regSkill = me.skills?.find((s) => s.id === 2);
-      if (!regSkill || regSkill.level < 1) return;
+      if (!regSkill || regSkill.level < 1) {
+        this.stop(); // если скилл пропал или =0 — выключаем систему
+        return;
+      }
 
-      const percent = 5 + (regSkill.level - 1); // 5% → 31% на 27 уровне
+      const percent = 5 + (regSkill.level - 1);
       const maxHp = me.maxStats?.health || 100;
       let heal = Math.floor((maxHp * percent) / 100);
 
@@ -25,19 +37,18 @@ window.regenerationSystem = {
 
       if (heal <= 0) return;
 
-      // Отправляем запрос на лечение серверу
       if (ws?.readyState === WebSocket.OPEN) {
         sendWhenReady(
           ws,
           JSON.stringify({
             type: "requestRegeneration",
             amount: heal,
-            currentHealth: me.health, // для проверки сервером
+            currentHealth: me.health,
             skillLevel: regSkill.level,
           }),
         );
       }
-    }, 30000); // каждые 30 секунд
+    }, 30000);
   },
 
   stop() {
@@ -45,5 +56,10 @@ window.regenerationSystem = {
       clearInterval(this.interval);
       this.interval = null;
     }
+  },
+
+  // Вызывается при получении урона (см. ниже)
+  resetTimerOnDamage() {
+    this.lastDamageTime = Date.now();
   },
 };

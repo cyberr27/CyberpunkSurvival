@@ -1114,18 +1114,10 @@ function handleAuthMessage(event) {
       players.set(myId, me);
 
       if (
-        data.player?.skills?.some?.((s) => s.id === 2 && s.level >= 1) ||
-        me.skills?.some?.((s) => s.id === 2 && s.level >= 1)
+        me.skills?.some((s) => s.id === 2 && s.level >= 1) &&
+        window.regenerationSystem
       ) {
-        if (
-          window.regenerationSystem &&
-          typeof window.regenerationSystem.start === "function"
-        ) {
-          window.regenerationSystem.start();
-          console.log(
-            "[Regeneration] Запущена пассивная регенерация при логине",
-          );
-        }
+        window.regenerationSystem.start();
       }
       // ────────────────────────────────────────────────────────────────
 
@@ -1873,6 +1865,21 @@ function handleGameMessage(event) {
             const newHp = Number(data.player.health);
             const gained = newHp - oldHp;
 
+            if (data.player.health !== undefined) {
+              const oldHp = me.health;
+              const newHp = Number(data.player.health);
+              const gained = newHp - oldHp;
+
+              if (gained > 0.1) {
+                showNotification(
+                  `Регенерация: +${Math.round(gained)} HP`,
+                  "#ff4444",
+                );
+              } else if (gained < -0.1 && window.regenerationSystem) {
+                window.regenerationSystem.resetTimerOnDamage();
+              }
+            }
+
             if (gained > 0.1) {
               showNotification(
                 `Регенерация: +${Math.round(gained)} HP`,
@@ -2240,6 +2247,9 @@ function handleGameMessage(event) {
         // Визуал атаки на игрока (например, triggerAttackAnimation если targetId === myId)
         if (data.targetId === myId) {
           triggerAttackAnimation();
+          if (data.targetId === myId && window.regenerationSystem) {
+            window.regenerationSystem.resetTimerOnDamage();
+          }
         }
         break;
       case "neonQuestStarted":

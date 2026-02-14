@@ -231,16 +231,9 @@ function performAttack() {
     }
   } else {
     // Кулаки — базовый урон + бонус уровня
-    const damage = Math.floor(
-      Math.random() *
-        (BASE_MELEE_MAX_DAMAGE +
-          levelBonus -
-          BASE_MELEE_MIN_DAMAGE -
-          levelBonus +
-          1) +
-        BASE_MELEE_MIN_DAMAGE +
-        levelBonus,
-    );
+    const range = window.strongStrikeSystem.getCurrentMeleeDamageRange();
+    const damage =
+      Math.floor(Math.random() * (range.max - range.min + 1)) + range.min;
     performMeleeAttack(damage, currentWorldId);
   }
 }
