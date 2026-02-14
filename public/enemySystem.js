@@ -104,6 +104,11 @@ function syncEnemies(serverEnemies) {
   for (const id of currentIds) {
     enemies.delete(id);
   }
+  for (const [id, enemy] of enemies.entries()) {
+    if (enemy.health <= 0) {
+      enemies.delete(id);
+    }
+  }
 }
 
 function handleEnemyDeath(enemyId) {
@@ -134,6 +139,10 @@ function updateEnemies(deltaTime) {
 
   // Обновление анимации и логики blood_eye
   for (const enemy of enemies.values()) {
+    if (enemy.health <= 0) {
+      enemies.delete(enemy.id);
+      continue;
+    }
     if (enemy.worldId !== currentWorldId || enemy.health <= 0) continue;
 
     const config = ENEMY_TYPES[enemy.type] || ENEMY_TYPES.mutant;
