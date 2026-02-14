@@ -3722,6 +3722,8 @@ function setupWebSocket(
           }),
         );
       } else if (data.type === "requestRegeneration") {
+        const playerId = clients.get(ws); // ← ДОБАВЛЕНА ЭТА СТРОКА
+
         const player = players.get(playerId);
         if (!player) return;
 
@@ -3731,11 +3733,10 @@ function setupWebSocket(
           requestedHeal <= 0 ||
           requestedHeal > 50
         ) {
-          // Слишком большое лечение или некорректное значение → отклоняем
           ws.send(
             JSON.stringify({
               type: "regenerationRejected",
-              playerId,
+              playerId, // ← теперь работает
               reason: "invalid_amount",
             }),
           );
