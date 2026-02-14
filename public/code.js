@@ -1377,6 +1377,10 @@ function startGame() {
         window.equipmentSystem.toggleEquipment();
         e.preventDefault();
         break;
+      case "r":
+        window.skillsSystem?.toggleSkills?.();
+        e.preventDefault();
+        break;
     }
   });
 
