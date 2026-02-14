@@ -1865,6 +1865,18 @@ function handleGameMessage(event) {
       case "update":
         if (data.player?.id === myId) {
           const me = players.get(myId);
+          if (data.player.health !== undefined) {
+            const oldHp = me.health;
+            const newHp = Number(data.player.health);
+            const gained = newHp - oldHp;
+
+            if (gained > 0.1) {
+              showNotification(
+                `Регенерация: +${Math.round(gained)} HP`,
+                "#ff4444",
+              );
+            }
+          }
           const isMoving = me.state === "walking" || me.state === "attacking";
 
           if (isMoving) {
@@ -2082,11 +2094,32 @@ function handleGameMessage(event) {
           const me = players.get(myId);
           if (me) {
             // Обновляем статы игрока (важно для других систем)
-            me.health = data.stats.health;
-            me.energy = data.stats.energy;
-            me.food = data.stats.food;
-            me.water = data.stats.water;
-            me.armor = data.stats.armor || me.armor;
+            if (data.stats.health !== undefined)
+              me.health = Math.max(
+                0,
+                Math.min(me.maxStats?.health || 100, Number(data.stats.health)),
+              );
+
+            if (data.stats.energy !== undefined)
+              me.energy = Math.max(
+                0,
+                Math.min(me.maxStats?.energy || 100, Number(data.stats.energy)),
+              );
+
+            if (data.stats.food !== undefined)
+              me.food = Math.max(
+                0,
+                Math.min(me.maxStats?.food || 100, Number(data.stats.food)),
+              );
+
+            if (data.stats.water !== undefined)
+              me.water = Math.max(
+                0,
+                Math.min(me.maxStats?.water || 100, Number(data.stats.water)),
+              );
+
+            if (data.stats.armor !== undefined)
+              me.armor = Math.max(0, Number(data.stats.armor || me.armor));
 
             // КРИТИЧНО: полностью синхронизируем инвентарь игрока с серверным
             me.inventory = data.inventory.map((slot) =>
@@ -2746,26 +2779,22 @@ function handleGameMessage(event) {
         updateStatsDisplay();
         break;
       case "regenerationApplied":
-        if (data.success && data.playerId === myId) {
+        if (data.playerId === myId) {
+          // Здоровье уже пришло через "update" → просто синхронизируем на всякий случай
           const me = players.get(myId);
-          if (me) {
-            const oldHp = me.health;
+          if (
+            me &&
+            typeof data.newHealth === "number" &&
+            !isNaN(data.newHealth)
+          ) {
             me.health = Math.min(
               Math.max(0, Number(data.newHealth)),
               me.maxStats?.health || 100,
             );
-
-            if (me.health > oldHp) {
-              showNotification(
-                `Регенерация: +${Math.round(me.health - oldHp)} HP`,
-                "#ff4444",
-              );
-            }
+            updateStatsDisplay();
           }
-          updateStatsDisplay();
         }
         break;
-
       case "regenerationRejected":
         if (data.playerId === myId) {
           console.warn("Регенерация отклонена сервером:", data.reason);
