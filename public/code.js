@@ -1149,10 +1149,6 @@ function handleAuthMessage(event) {
       window.inventorySystem.updateInventoryDisplay();
       updateStatsDisplay();
 
-      if (window.regenerationSystem) {
-        window.regenerationSystem.initialize();
-      }
-
       // Другие игроки
       if (data.players) {
         data.players.forEach((p) => {
@@ -1340,9 +1336,6 @@ function startGame() {
   window.homelessSystem?.initialize?.(images.homelessSprite);
   window.portalSystem.initialize(images.portalImage);
   window.combatSystem.initialize();
-  if (window.regenerationSystem) {
-    window.regenerationSystem.initialize();
-  }
 
   document.addEventListener("keydown", (e) => {
     const me = players.get(myId);
@@ -2849,7 +2842,6 @@ function update(deltaTime) {
     window.equipmentSystem.syncEquipment(me.equipment);
     window.equipmentSystem.lastApplied = true;
     updateStatsDisplay();
-    document.dispatchEvent(new Event("statsUpdated"));
   }
 
   window.movementSystem.update(deltaTime);
