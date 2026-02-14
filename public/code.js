@@ -1348,6 +1348,9 @@ function startGame() {
   window.homelessSystem?.initialize?.(images.homelessSprite);
   window.portalSystem.initialize(images.portalImage);
   window.combatSystem.initialize();
+  if (window.strongStrikeSystem && !window.strongStrikeSystem.initialized) {
+    window.strongStrikeSystem.initialize();
+  }
 
   document.addEventListener("keydown", (e) => {
     const me = players.get(myId);
