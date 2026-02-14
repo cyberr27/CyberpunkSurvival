@@ -1343,7 +1343,6 @@ function startGame() {
   if (window.regenerationSystem) {
     window.regenerationSystem.initialize();
   }
-  window.strongStrikeSystem.initialize();
 
   document.addEventListener("keydown", (e) => {
     const me = players.get(myId);
@@ -1383,10 +1382,6 @@ function startGame() {
         break;
       case "e":
         window.equipmentSystem.toggleEquipment();
-        e.preventDefault();
-        break;
-      case "r": 
-        window.skillsSystem?.toggleSkills?.();
         e.preventDefault();
         break;
     }

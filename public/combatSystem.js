@@ -34,7 +34,7 @@ function initializeCombatSystem() {
         }, ATTACK_COOLDOWN); // Повтор каждые 500 мс (как кулдаун)
       }
     },
-    { passive: false },
+    { passive: false }
   );
 
   combatBtn.addEventListener(
@@ -46,7 +46,7 @@ function initializeCombatSystem() {
         attackInterval = null;
       }
     },
-    { passive: false },
+    { passive: false }
   );
 
   combatBtn.addEventListener(
@@ -58,7 +58,7 @@ function initializeCombatSystem() {
         attackInterval = null;
       }
     },
-    { passive: false },
+    { passive: false }
   );
 
   // Дополнительно: для мыши тоже можно удерживать (бонус для десктопа)
@@ -196,7 +196,7 @@ function performAttack() {
           range: bullet.range,
           ownerId: myId,
           worldId: currentWorldId,
-        }),
+        })
       );
 
       sendWhenReady(
@@ -219,16 +219,15 @@ function performAttack() {
             attackFrameTime: 0,
             worldId: currentWorldId,
           },
-        }),
+        })
       );
     } else {
       // Ближний бой — используем универсальный расчёт из equipmentSystem (учитывает оба слота)
       const dmg = window.equipmentSystem.getCurrentMeleeDamage();
-      const predictedDamage = Math.floor(
-        Math.random() * (dmg.max - dmg.min + 1) + dmg.min,
+      const damage = Math.floor(
+        Math.random() * (dmg.max - dmg.min + 1) + dmg.min
       );
-      // Передаём диапазон вместо одного значения
-      performMeleeAttack(currentWorldId);
+      performMeleeAttack(damage, currentWorldId);
     }
   } else {
     // Кулаки — базовый урон + бонус уровня
@@ -240,108 +239,69 @@ function performAttack() {
           levelBonus +
           1) +
         BASE_MELEE_MIN_DAMAGE +
-        levelBonus,
+        levelBonus
     );
-    performMeleeAttack(currentWorldId);
+    performMeleeAttack(damage, currentWorldId);
   }
 }
 
 // Выполнение атаки ближнего боя (ДОБАВЛЕНА ПРОВЕРКА ВРАГОВ)
-function performMeleeAttack(worldId) {
-  // ← убрали параметр damage
+function performMeleeAttack(damage, worldId) {
   const me = players.get(myId);
   let hit = false;
 
   // Проверка игроков
   players.forEach((player, id) => {
-    if (id === myId) return;
-    if (player.health <= 0) return;
-    if (player.worldId !== worldId) return;
+    if (id !== myId && player.health > 0 && player.worldId === worldId) {
+      const dx = player.x - me.x;
+      const dy = player.y - me.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      if (distance <= MELEE_ATTACK_RANGE) {
+        hit = true;
+        // Принудительно обновляем локально здоровье (для мгновенного отображения)
+        player.health = Math.max(0, player.health - damage);
+        players.set(id, player);
 
-    const dx = me.x + 35 - (player.x + 35);
-    const dy = me.y + 35 - (player.y + 35);
-    const dist = Math.sqrt(dx * dx + dy * dy);
+        sendWhenReady(
+          ws,
+          JSON.stringify({
+            type: "attackPlayer",
+            targetId: id,
+            damage,
+            worldId,
+          })
+        );
 
-    if (dist <= MELEE_ATTACK_RANGE) {
-      hit = true;
-
-      // Вычисляем, сколько добавляет именно экипировка
-      const dmg = window.equipmentSystem.getCurrentMeleeDamage();
-      const equipMin =
-        dmg.min -
-        (BASE_MELEE_MIN_DAMAGE +
-          window.levelSystem.meleeDamageBonus +
-          (me.meleeDamageBonus || 0));
-      const equipMax =
-        dmg.max -
-        (BASE_MELEE_MAX_DAMAGE +
-          window.levelSystem.meleeDamageBonus +
-          (me.meleeDamageBonus || 0));
-
-      sendWhenReady(
-        ws,
-        JSON.stringify({
-          type: "attackPlayer", // или "attackEnemy"
-          targetId: id, // или enemyId
-          worldId: worldId,
-          melee: true,
-          meleeDamageBonus: me.meleeDamageBonus || 0, // навык
-          equipMinBonus: Math.max(0, equipMin), // только от экипировки
-          equipMaxBonus: Math.max(0, equipMax),
-        }),
-      );
-
-      // Локальное предсказание (берём из UI)
-      dmg = window.equipmentSystem.getCurrentMeleeDamage();
-      const predicted =
-        Math.floor(Math.random() * (dmg.max - dmg.min + 1)) + dmg.min;
-      player.health = Math.max(0, player.health - predicted);
-      players.set(id, { ...player });
+        // Если попали по текущему игроку — анимация получения урона
+        if (id === myId) {
+          triggerAttackAnimation();
+        }
+      }
     }
   });
 
   // Проверка врагов
   enemies.forEach((enemy, enemyId) => {
-    if (enemy.health <= 0) return;
-    if (enemy.worldId !== worldId) return;
+    if (enemy.health > 0 && enemy.worldId === worldId) {
+      const dx = enemy.x - me.x;
+      const dy = enemy.y - me.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      if (distance <= MELEE_ATTACK_RANGE) {
+        hit = true;
+        // Принудительно обновляем здоровье мутанта локально
+        enemy.health = Math.max(0, enemy.health - damage);
+        enemies.set(enemyId, enemy);
 
-    const dx = me.x + 35 - (enemy.x + 35);
-    const dy = me.y + 35 - (enemy.y + 35);
-    const dist = Math.sqrt(dx * dx + dy * dy);
-
-    if (dist <= MELEE_ATTACK_RANGE) {
-      hit = true;
-
-      const dmg = window.equipmentSystem.getCurrentMeleeDamage();
-      const equipMin =
-        dmg.min -
-        (BASE_MELEE_MIN_DAMAGE +
-          window.levelSystem.meleeDamageBonus +
-          (me.meleeDamageBonus || 0));
-      const equipMax =
-        dmg.max -
-        (BASE_MELEE_MAX_DAMAGE +
-          window.levelSystem.meleeDamageBonus +
-          (me.meleeDamageBonus || 0));
-
-      sendWhenReady(
-        ws,
-        JSON.stringify({
-          type: "attackEnemy", // или "attackEnemy"
-          targetId: enemyId, // или enemyId
-          worldId: worldId,
-          melee: true,
-          meleeDamageBonus: me.meleeDamageBonus || 0, // навык
-          equipMinBonus: Math.max(0, equipMin), // только от экипировки
-          equipMaxBonus: Math.max(0, equipMax),
-        }),
-      );
-
-      dmg = window.equipmentSystem.getCurrentMeleeDamage();
-      const predicted =
-        Math.floor(Math.random() * (dmg.max - dmg.min + 1)) + dmg.min;
-      enemy.health = Math.max(0, enemy.health - predicted);
-      enemies.set(enemyId, { ...enemy });
+        sendWhenReady(
+          ws,
+          JSON.stringify({
+            type: "attackEnemy",
+            targetId: enemyId,
+            damage,
+            worldId,
+          })
+        );
+      }
     }
   });
 
@@ -365,7 +325,7 @@ function performMeleeAttack(worldId) {
           frame: me.frame,
           worldId,
         },
-      }),
+      })
     );
   }
 
@@ -417,7 +377,7 @@ function updateBullets(deltaTime) {
               targetId: id,
               damage: bullet.damage,
               worldId: currentWorldId,
-            }),
+            })
           );
           if (id === myId) triggerAttackAnimation();
           hit = true;
@@ -437,7 +397,7 @@ function updateBullets(deltaTime) {
               targetId: id,
               damage: bullet.damage,
               worldId: currentWorldId,
-            }),
+            })
           );
           hit = true;
         }
@@ -452,7 +412,7 @@ function updateBullets(deltaTime) {
           type: "removeBullet",
           bulletId,
           worldId: currentWorldId,
-        }),
+        })
       );
       return;
     }
@@ -470,7 +430,7 @@ function updateBullets(deltaTime) {
           type: "removeBullet",
           bulletId,
           worldId: currentWorldId,
-        }),
+        })
       );
     }
   });
@@ -501,7 +461,7 @@ function drawBullets() {
       0.5,
       screenX,
       screenY,
-      BULLET_SIZE * 1.5,
+      BULLET_SIZE * 1.5
     );
     grad.addColorStop(0, bullet.damage >= 50 ? "#00eaff" : "#fffbe0");
     grad.addColorStop(0.5, bullet.damage >= 50 ? "#00eaffcc" : "#ff4444cc");
