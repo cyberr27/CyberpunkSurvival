@@ -1,59 +1,75 @@
-const regenerationSystem = {
-  isInitialized: false,
+// regeneration.js
 
-  initialize() {
-    if (this.isInitialized) return;
-    this.isInitialized = true;
+window.regenerationSystem = {
+  interval: null,
+  lastDamageTime: 0,
+  REGEN_DELAY_AFTER_DAMAGE: 30000, // 30 секунд после урона
 
-    this.startRegeneration();
+  start() {
+    if (this.interval) clearInterval(this.interval);
 
-    console.log("[Regeneration] Система инициализирована");
-  },
+    this.interval = setInterval(() => {
+      const now = Date.now();
 
-  startRegeneration() {
-    setInterval(() => {
+      // 1. Проверяем, прошло ли 30 секунд после последнего урона
+      if (now - this.lastDamageTime < this.REGEN_DELAY_AFTER_DAMAGE) {
+        return;
+      }
+
       const me = players.get(myId);
-      if (!me || me.health <= 0) return;
+      if (!me || me.health <= 0 || me.health >= (me.maxStats?.health || 100)) {
+        return;
+      }
 
-      const skill = me.skills?.find((s) => s.id === 2);
-      if (!skill || skill.level < 1) return;
+      // 2. Проверяем наличие и уровень навыка
+      const regSkill = me.skills?.find((s) => s.id === 2);
+      if (!regSkill || regSkill.level < 1) {
+        this.stop();
+        return;
+      }
 
-      const percent = 5 + (skill.level - 1);
+      // НОВАЯ ФОРМУЛА: 1% за каждый уровень навыка
+      const percent = regSkill.level * 1; // 1%, 2%, 3% ...
       const maxHp = me.maxStats?.health || 100;
-      let healAmount = Math.floor((maxHp * percent) / 100);
+      let heal = Math.floor((maxHp * percent) / 100);
 
-      if (healAmount <= 0) return;
+      if (heal <= 0) return;
 
-      const canHeal = maxHp - me.health;
-      healAmount = Math.min(healAmount, canHeal);
+      const missing = maxHp - me.health;
+      heal = Math.min(heal, missing);
 
-      if (healAmount <= 0) return;
-
-      me.health += healAmount;
-      const gained = healAmount;
-
-      showNotification(`Регенерация: +${gained} HP`, "#ff0000");
-
-      console.log(
-        `[Реген] +${gained} → ${me.health}/${maxHp}   (навык ур. ${skill.level})`,
-      );
+      if (heal <= 0) return;
 
       if (ws?.readyState === WebSocket.OPEN) {
         sendWhenReady(
           ws,
           JSON.stringify({
-            type: "update",
-            player: {
-              id: myId,
-              health: me.health,
-            },
+            type: "requestRegeneration",
+            amount: heal,
+            currentHealth: me.health,
+            skillLevel: regSkill.level,
           }),
         );
       }
-
-      updateStatsDisplay();
     }, 30000);
   },
-};
 
-window.regenerationSystem = regenerationSystem;
+  stop() {
+    if (this.interval) {
+      clearInterval(this.interval);
+      this.interval = null;
+    }
+  },
+
+  resetTimerOnDamage() {
+    this.lastDamageTime = Date.now();
+  },
+
+  // Вызывается один раз после загрузки игрока (или можно в initialize)
+  tryStart() {
+    const me = players.get(myId);
+    if (me?.skills?.find((s) => s.id === 2)?.level >= 1) {
+      this.start();
+    }
+  },
+};

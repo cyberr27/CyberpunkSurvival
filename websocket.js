@@ -3620,7 +3620,7 @@ function setupWebSocket(
         }
 
         // Проверяем допустимый процент лечения
-        const allowedPercent = 5 + (regSkill.level - 1);
+        const allowedPercent = regSkill.level * 1;
         const maxAllowedHeal = Math.floor(
           ((player.maxStats?.health || 100) * allowedPercent) / 100,
         );

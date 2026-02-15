@@ -1860,33 +1860,24 @@ function handleGameMessage(event) {
       case "update":
         if (data.player?.id === myId) {
           const me = players.get(myId);
+          if (!me) break;
+
+          // ← Самое важное место для детекта урона
           if (data.player.health !== undefined) {
-            const oldHp = me.health;
-            const newHp = Number(data.player.health);
-            const gained = newHp - oldHp;
+            const oldHealth = Number(me.health) || 0;
+            const newHealth = Number(data.player.health);
 
-            if (data.player.health !== undefined) {
-              const oldHp = me.health;
-              const newHp = Number(data.player.health);
-              const gained = newHp - oldHp;
-
-              if (gained > 0.1) {
-                showNotification(
-                  `Регенерация: +${Math.round(gained)} HP`,
-                  "#ff4444",
-                );
-              } else if (gained < -0.1 && window.regenerationSystem) {
-                window.regenerationSystem.resetTimerOnDamage();
-              }
+            // Если здоровье уменьшилось — это урон
+            if (newHealth < oldHealth && window.regenerationSystem) {
+              window.regenerationSystem.resetTimerOnDamage();
             }
 
-            if (gained > 0.1) {
-              showNotification(
-                `Регенерация: +${Math.round(gained)} HP`,
-                "#ff4444",
-              );
-            }
+            me.health = Math.max(
+              0,
+              Math.min(newHealth, me.maxStats?.health || 100),
+            );
           }
+
           const isMoving = me.state === "walking" || me.state === "attacking";
 
           if (isMoving) {
@@ -2244,10 +2235,9 @@ function handleGameMessage(event) {
         window.enemySystem.syncEnemies(data.enemies);
         break;
       case "enemyAttack":
-        // Визуал атаки на игрока (например, triggerAttackAnimation если targetId === myId)
         if (data.targetId === myId) {
-          triggerAttackAnimation();
-          if (data.targetId === myId && window.regenerationSystem) {
+          triggerAttackAnimation?.(); // если функция существует
+          if (window.regenerationSystem) {
             window.regenerationSystem.resetTimerOnDamage();
           }
         }
