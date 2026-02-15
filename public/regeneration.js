@@ -1,53 +1,77 @@
+// regeneration.js
+
 window.regenerationSystem = {
   interval: null,
-  lastDamageTime: 0, // ← когда последний раз получили урон
+  lastDamageTime: 0,
   REGEN_DELAY_AFTER_DAMAGE: 30000, // 30 секунд после урона
 
+  // Запуск системы регенерации
   start() {
-    if (this.interval) clearInterval(this.interval);
+    if (this.interval) {
+      clearInterval(this.interval);
+    }
 
     this.interval = setInterval(() => {
       const now = Date.now();
 
-      // 1. Проверяем, прошло ли 30 секунд после последнего урона
+      // Диагностика: почему не регенерируем
       if (now - this.lastDamageTime < this.REGEN_DELAY_AFTER_DAMAGE) {
-        return; // ещё в "боевом" режиме — реген не работает
+        const secLeft = Math.ceil(
+          (this.REGEN_DELAY_AFTER_DAMAGE - (now - this.lastDamageTime)) / 1000,
+        );
+        return;
       }
 
       const me = players.get(myId);
-      if (!me || me.health <= 0 || me.health >= (me.maxStats?.health || 100)) {
+      if (!me) {
         return;
       }
 
-      // 2. Проверяем наличие и уровень навыка (обязательно!)
+      if (me.health <= 0) {
+        return;
+      }
+
+      if (me.health >= (me.maxStats?.health || 100)) {
+        return;
+      }
+
+      // Проверка навыка
       const regSkill = me.skills?.find((s) => s.id === 2);
       if (!regSkill || regSkill.level < 1) {
-        this.stop(); // если скилл пропал или =0 — выключаем систему
+        this.stop();
         return;
       }
 
-      const percent = 5 + (regSkill.level - 1);
+      // Формула: 1% за каждый уровень навыка
+      const percent = regSkill.level * 1; // ур.1 → 1%, ур.2 → 2%, ...
       const maxHp = me.maxStats?.health || 100;
       let heal = Math.floor((maxHp * percent) / 100);
 
-      if (heal <= 0) return;
+      if (heal <= 0) {
+        return;
+      }
 
       const missing = maxHp - me.health;
       heal = Math.min(heal, missing);
 
-      if (heal <= 0) return;
-
-      if (ws?.readyState === WebSocket.OPEN) {
-        sendWhenReady(
-          ws,
-          JSON.stringify({
-            type: "requestRegeneration",
-            amount: heal,
-            currentHealth: me.health,
-            skillLevel: regSkill.level,
-          }),
-        );
+      if (heal <= 0) {
+        return;
       }
+
+      if (ws?.readyState !== WebSocket.OPEN) {
+        console.warn("[Regen] WebSocket не открыт — запрос не отправлен");
+        return;
+      }
+
+      sendWhenReady(
+        ws,
+        JSON.stringify({
+          type: "requestRegeneration",
+          amount: heal,
+          currentHealth: me.health,
+          skillLevel: regSkill.level,
+        }),
+      );
     }, 30000);
   },
 
@@ -58,8 +82,30 @@ window.regenerationSystem = {
     }
   },
 
-  // Вызывается при получении урона (см. ниже)
   resetTimerOnDamage() {
-    this.lastDamageTime = Date.now();
+    const now = Date.now();
+    this.lastDamageTime = now;
+  },
+
+  // Вызывать один раз после загрузки данных игрока
+  tryAutoStart() {
+    const me = players.get(myId);
+    if (!me) {
+      return;
+    }
+
+    const hasRegenSkill = me.skills?.some((s) => s.id === 2 && s.level >= 1);
+    if (hasRegenSkill) {
+      this.start();
+    }
   },
 };
+
+window.addEventListener("load", () => {
+  const checkInterval = setInterval(() => {
+    if (myId && players.has(myId) && ws?.readyState === WebSocket.OPEN) {
+      window.regenerationSystem.tryAutoStart();
+      clearInterval(checkInterval);
+    }
+  }, 1000);
+});

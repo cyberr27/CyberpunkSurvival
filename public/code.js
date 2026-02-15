@@ -1124,6 +1124,9 @@ function handleAuthMessage(event) {
       if (window.skillsSystem) {
         window.skillsSystem.playerSkills = data.skills || [];
         window.skillsSystem.skillPoints = Number(data.skillPoints) || 0;
+        console.log(
+          `[Login] Загружены skillPoints: ${window.skillsSystem.skillPoints} (из сервера: ${data.skillPoints})`,
+        );
 
         // Если окно навыков открыто — сразу обновляем
         if (window.skillsSystem.isSkillsOpen) {

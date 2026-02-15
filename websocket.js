@@ -1150,36 +1150,53 @@ function setupWebSocket(
         );
       } else if (data.type === "updateLevel") {
         const id = clients.get(ws);
-        if (id) {
-          const player = players.get(id);
+        if (!id || !players.has(id)) return;
 
-          player.level = data.level;
-          player.xp = data.xp;
-          player.upgradePoints = data.upgradePoints || 0;
+        const player = players.get(id);
 
-          // КРИТИЧНО: сохраняем skillPoints с защитой
-          if (
-            data.skillPoints !== undefined &&
-            !isNaN(Number(data.skillPoints))
-          ) {
-            player.skillPoints = Math.max(0, Number(data.skillPoints));
+        player.level = Number(data.level) || player.level || 0;
+        player.xp = Number(data.xp) || player.xp || 0;
+        player.upgradePoints =
+          Number(data.upgradePoints) || player.upgradePoints || 0;
+
+        // Самое важное — skillPoints
+        if (
+          data.skillPoints !== undefined &&
+          !isNaN(Number(data.skillPoints))
+        ) {
+          const newSkillPoints = Math.max(0, Number(data.skillPoints));
+          if (newSkillPoints !== player.skillPoints) {
+            console.log(
+              `[LevelUp] Игрок ${id} получил skillPoints: ${player.skillPoints} → ${newSkillPoints}`,
+            );
+            player.skillPoints = newSkillPoints;
           }
-
-          players.set(id, { ...player });
-          userDatabase.set(id, { ...player });
-          await saveUserDatabase(dbCollection, id, player);
-
-          wss.clients.forEach((client) => {
-            if (
-              client.readyState === WebSocket.OPEN &&
-              clients.get(client) === id
-            ) {
-              client.send(
-                JSON.stringify({ type: "update", player: { id, ...player } }),
-              );
-            }
-          });
         }
+
+        players.set(id, { ...player });
+        userDatabase.set(id, { ...player });
+        await saveUserDatabase(dbCollection, id, player);
+
+        // Рассылаем обновление только этому игроку (или всем, если хочешь)
+        wss.clients.forEach((client) => {
+          if (
+            client.readyState === WebSocket.OPEN &&
+            clients.get(client) === id
+          ) {
+            client.send(
+              JSON.stringify({
+                type: "update",
+                player: {
+                  id,
+                  level: player.level,
+                  xp: player.xp,
+                  upgradePoints: player.upgradePoints,
+                  skillPoints: player.skillPoints,
+                },
+              }),
+            );
+          }
+        });
       } else if (data.type === "updateMaxStats") {
         const id = clients.get(ws);
         if (id) {

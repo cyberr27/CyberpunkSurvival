@@ -300,7 +300,7 @@ function toremidosDraw(deltaTime) {
     ctx.fillRect(screenX, screenY, 70, 70);
   }
 
-  ctx.fillStyle = toremidosIsMet ? "#00ff88" : "#ffffff";
+  ctx.fillStyle = toremidosIsMet ? "#fbff00" : "#ffffff";
   ctx.font = "13px Arial";
   ctx.textAlign = "center";
   ctx.fillText(
