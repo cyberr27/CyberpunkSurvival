@@ -1858,35 +1858,23 @@ function handleGameMessage(event) {
         pendingPickups.delete(data.itemId);
         break;
       case "update":
-        if (data.player?.id === myId) {
-          const me = players.get(myId);
-          if (data.player.health !== undefined) {
-            const oldHp = me.health;
-            const newHp = Number(data.player.health);
-            const gained = newHp - oldHp;
+        if (data.player.health !== undefined) {
+          const oldHp = me.health;
+          const newHp = Number(data.player.health);
+          const gained = newHp - oldHp;
 
-            if (data.player.health !== undefined) {
-              const oldHp = me.health;
-              const newHp = Number(data.player.health);
-              const gained = newHp - oldHp;
-
-              if (gained > 0.1) {
-                showNotification(
-                  `Регенерация: +${Math.round(gained)} HP`,
-                  "#ff4444",
-                );
-              } else if (gained < -0.1 && window.regenerationSystem) {
-                window.regenerationSystem.resetTimerOnDamage();
-              }
-            }
-
-            if (gained > 0.1) {
-              showNotification(
-                `Регенерация: +${Math.round(gained)} HP`,
-                "#ff4444",
-              );
-            }
+          // Показываем только положительный прирост от регена
+          if (gained > 0.1) {
+            showNotification(
+              `Регенерация: +${Math.round(gained)} HP`,
+              "#ff4444",
+            );
           }
+          if (gained < -0.1 && window.regenerationSystem) {
+            window.regenerationSystem.resetTimerOnDamage();
+          }
+
+          me.health = newHp;
           const isMoving = me.state === "walking" || me.state === "attacking";
 
           if (isMoving) {

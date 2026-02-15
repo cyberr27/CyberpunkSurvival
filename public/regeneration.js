@@ -9,34 +9,43 @@ window.regenerationSystem = {
     this.interval = setInterval(() => {
       const now = Date.now();
 
-      // 1. Проверяем, прошло ли 30 секунд после последнего урона
+      // 1. Самая первая проверка — вышли из боя?
       if (now - this.lastDamageTime < this.REGEN_DELAY_AFTER_DAMAGE) {
-        return; // ещё в "боевом" режиме — реген не работает
+        return; // ещё в боевом режиме — реген не работает
       }
 
       const me = players.get(myId);
-      if (!me || me.health <= 0 || me.health >= (me.maxStats?.health || 100)) {
+      if (!me) return; // игрок пропал из карты
+
+      const maxHp = me.maxStats?.health || 100;
+
+      // 2. Почти полное здоровье? Не беспокоим сервер
+      const missing = maxHp - me.health;
+      if (missing < 3) return;
+
+      // 3. Мёртв или уже полный хп? Выходим
+      if (me.health <= 0 || me.health >= maxHp) {
         return;
       }
 
-      // 2. Проверяем наличие и уровень навыка (обязательно!)
+      // 4. Проверяем навык (самое тяжёлое — find)
       const regSkill = me.skills?.find((s) => s.id === 2);
       if (!regSkill || regSkill.level < 1) {
-        this.stop(); // если скилл пропал или =0 — выключаем систему
+        this.stop(); // навык пропал или =0 → выключаем систему
         return;
       }
 
+      // 5. Расчёт лечения
       const percent = 5 + (regSkill.level - 1);
-      const maxHp = me.maxStats?.health || 100;
       let heal = Math.floor((maxHp * percent) / 100);
 
       if (heal <= 0) return;
 
-      const missing = maxHp - me.health;
       heal = Math.min(heal, missing);
 
       if (heal <= 0) return;
 
+      // 6. Отправляем запрос
       if (ws?.readyState === WebSocket.OPEN) {
         sendWhenReady(
           ws,
