@@ -3989,7 +3989,11 @@ function setupWebSocket(
                   enemy.worldId,
                   JSON.stringify({
                     type: "update",
-                    player: { id: closestPlayer.id, ...closestPlayer },
+                    player: {
+                      id: closestPlayer.id,
+                      health: closestPlayer.health, // ← явно добавляем
+                      // если хочешь — можно добавить x, y, direction и т.д., но health главное
+                    },
                   }),
                 );
               } else {
