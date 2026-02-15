@@ -3586,6 +3586,13 @@ function setupWebSocket(
           dbCollection,
           saveUserDatabase,
         );
+      }
+      if (data.type === "updateMeleeDamageBonus") {
+        const player = players.get(clients.get(ws));
+        if (player) {
+          player.meleeDamageBonus = Number(data.meleeDamageBonus) || 0;
+          // Не обязательно сразу сохранять — можно раз в 30–60 сек или при дисконнекте
+        }
       } else if (data.type === "requestRegeneration") {
         const playerId = clients.get(ws);
         const player = players.get(playerId);

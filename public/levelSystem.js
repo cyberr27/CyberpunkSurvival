@@ -384,6 +384,16 @@ function checkLevelUp() {
       // НОВОЕ: Увеличиваем бонус melee damage на +1 при level up
       window.levelSystem.meleeDamageBonus += 1;
 
+      if (ws.readyState === WebSocket.OPEN) {
+        sendWhenReady(
+          ws,
+          JSON.stringify({
+            type: "updateMeleeDamageBonus",
+            meleeDamageBonus: window.levelSystem.meleeDamageBonus,
+          }),
+        );
+      }
+
       showLevelUpEffect();
       updateUpgradeButtons();
 
