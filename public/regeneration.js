@@ -1,6 +1,6 @@
 window.regenerationSystem = {
   interval: null,
-  lastDamageTime: 0, // когда последний раз получили урон
+  lastDamageTime: 0, // ← когда последний раз получили урон
   REGEN_DELAY_AFTER_DAMAGE: 30000, // 30 секунд после урона
 
   start() {
@@ -15,24 +15,19 @@ window.regenerationSystem = {
       }
 
       const me = players.get(myId);
-      if (!me) return; // игрок пропал
-
-      const maxHp = me.maxStats?.health || 100;
-
-      // 2. Мёртв или уже полный? Выходим
-      if (me.health <= 0 || me.health >= maxHp) {
+      if (!me || me.health <= 0 || me.health >= (me.maxStats?.health || 100)) {
         return;
       }
 
-      // 3. Проверяем навык
+      // 2. Проверяем наличие и уровень навыка (обязательно!)
       const regSkill = me.skills?.find((s) => s.id === 2);
       if (!regSkill || regSkill.level < 1) {
-        this.stop(); // навык пропал → выключаем
+        this.stop(); // если скилл пропал или =0 — выключаем систему
         return;
       }
 
-      // 4. Расчёт лечения — до максимума
       const percent = 5 + (regSkill.level - 1);
+      const maxHp = me.maxStats?.health || 100;
       let heal = Math.floor((maxHp * percent) / 100);
 
       if (heal <= 0) return;
@@ -42,7 +37,6 @@ window.regenerationSystem = {
 
       if (heal <= 0) return;
 
-      // 5. Отправляем запрос
       if (ws?.readyState === WebSocket.OPEN) {
         sendWhenReady(
           ws,
@@ -64,6 +58,7 @@ window.regenerationSystem = {
     }
   },
 
+  // Вызывается при получении урона (см. ниже)
   resetTimerOnDamage() {
     this.lastDamageTime = Date.now();
   },

@@ -3585,6 +3585,105 @@ function setupWebSocket(
           dbCollection,
           saveUserDatabase,
         );
+      } else if (data.type === "requestRegeneration") {
+        const playerId = clients.get(ws);
+        const player = players.get(playerId);
+        if (!player) return;
+
+        const requestedHeal = Number(data.amount);
+        if (
+          !Number.isInteger(requestedHeal) ||
+          requestedHeal <= 0 ||
+          requestedHeal > 50
+        ) {
+          ws.send(
+            JSON.stringify({
+              type: "regenerationRejected",
+              playerId, // ← теперь работает
+              reason: "invalid_amount",
+            }),
+          );
+          return;
+        }
+
+        // Проверяем наличие и уровень навыка
+        const regSkill = player.skills?.find((s) => s.id === 2);
+        if (!regSkill || regSkill.level < 1) {
+          ws.send(
+            JSON.stringify({
+              type: "regenerationRejected",
+              playerId,
+              reason: "no_skill",
+            }),
+          );
+          return;
+        }
+
+        // Проверяем допустимый процент лечения
+        const allowedPercent = 5 + (regSkill.level - 1);
+        const maxAllowedHeal = Math.floor(
+          ((player.maxStats?.health || 100) * allowedPercent) / 100,
+        );
+
+        if (requestedHeal > maxAllowedHeal + 2) {
+          // +2 — небольшой запас на rounding
+          console.warn(
+            `[AntiCheat] Игрок ${playerId} запросил слишком много регенерации: ${requestedHeal} > ${maxAllowedHeal}`,
+          );
+          ws.send(
+            JSON.stringify({
+              type: "regenerationRejected",
+              playerId,
+              reason: "cheat_suspected",
+            }),
+          );
+          return;
+        }
+
+        // Проверяем, что здоровье не превысит максимум
+        const newHealth = Math.min(
+          player.health + requestedHeal,
+          player.maxStats?.health || 100,
+        );
+
+        if (newHealth <= player.health) {
+          // Уже полное здоровье
+          return;
+        }
+
+        // Применяем
+        player.health = newHealth;
+
+        // Сохраняем в базу (если ваша система это делает)
+        userDatabase.set(playerId, { ...player });
+        saveUserDatabase?.(dbCollection, playerId, player);
+
+        // Рассылаем обновление всем
+        const updatePayload = {
+          id: playerId,
+          health: player.health,
+          // можно добавить и другие поля, если нужно
+        };
+
+        broadcastToWorld(
+          wss,
+          clients,
+          players,
+          player.worldId,
+          JSON.stringify({
+            type: "update",
+            player: updatePayload,
+          }),
+        );
+
+        // Подтверждаем игроку
+        ws.send(
+          JSON.stringify({
+            type: "regenerationApplied",
+            playerId,
+            newHealth: player.health,
+          }),
+        );
       }
       if (data.type === "update" || data.type === "move") {
         const playerId = clients.get(ws);

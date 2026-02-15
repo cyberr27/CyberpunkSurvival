@@ -34,7 +34,7 @@ function initializeCombatSystem() {
         }, ATTACK_COOLDOWN); // Повтор каждые 500 мс (как кулдаун)
       }
     },
-    { passive: false }
+    { passive: false },
   );
 
   combatBtn.addEventListener(
@@ -46,7 +46,7 @@ function initializeCombatSystem() {
         attackInterval = null;
       }
     },
-    { passive: false }
+    { passive: false },
   );
 
   combatBtn.addEventListener(
@@ -58,7 +58,7 @@ function initializeCombatSystem() {
         attackInterval = null;
       }
     },
-    { passive: false }
+    { passive: false },
   );
 
   // Дополнительно: для мыши тоже можно удерживать (бонус для десктопа)
@@ -196,7 +196,7 @@ function performAttack() {
           range: bullet.range,
           ownerId: myId,
           worldId: currentWorldId,
-        })
+        }),
       );
 
       sendWhenReady(
@@ -219,28 +219,21 @@ function performAttack() {
             attackFrameTime: 0,
             worldId: currentWorldId,
           },
-        })
+        }),
       );
     } else {
       // Ближний бой — используем универсальный расчёт из equipmentSystem (учитывает оба слота)
       const dmg = window.equipmentSystem.getCurrentMeleeDamage();
-      const damage = Math.floor(
-        Math.random() * (dmg.max - dmg.min + 1) + dmg.min
-      );
+      const range = window.strongStrikeSystem.getCurrentMeleeDamageRange();
+      const damage =
+        Math.floor(Math.random() * (range.max - range.min + 1)) + range.min;
       performMeleeAttack(damage, currentWorldId);
     }
   } else {
     // Кулаки — базовый урон + бонус уровня
-    const damage = Math.floor(
-      Math.random() *
-        (BASE_MELEE_MAX_DAMAGE +
-          levelBonus -
-          BASE_MELEE_MIN_DAMAGE -
-          levelBonus +
-          1) +
-        BASE_MELEE_MIN_DAMAGE +
-        levelBonus
-    );
+    const range = window.strongStrikeSystem.getCurrentMeleeDamageRange();
+    const damage =
+      Math.floor(Math.random() * (range.max - range.min + 1)) + range.min;
     performMeleeAttack(damage, currentWorldId);
   }
 }
@@ -269,7 +262,7 @@ function performMeleeAttack(damage, worldId) {
             targetId: id,
             damage,
             worldId,
-          })
+          }),
         );
 
         // Если попали по текущему игроку — анимация получения урона
@@ -299,7 +292,7 @@ function performMeleeAttack(damage, worldId) {
             targetId: enemyId,
             damage,
             worldId,
-          })
+          }),
         );
       }
     }
@@ -325,7 +318,7 @@ function performMeleeAttack(damage, worldId) {
           frame: me.frame,
           worldId,
         },
-      })
+      }),
     );
   }
 
@@ -377,7 +370,7 @@ function updateBullets(deltaTime) {
               targetId: id,
               damage: bullet.damage,
               worldId: currentWorldId,
-            })
+            }),
           );
           if (id === myId) triggerAttackAnimation();
           hit = true;
@@ -397,7 +390,7 @@ function updateBullets(deltaTime) {
               targetId: id,
               damage: bullet.damage,
               worldId: currentWorldId,
-            })
+            }),
           );
           hit = true;
         }
@@ -412,7 +405,7 @@ function updateBullets(deltaTime) {
           type: "removeBullet",
           bulletId,
           worldId: currentWorldId,
-        })
+        }),
       );
       return;
     }
@@ -430,7 +423,7 @@ function updateBullets(deltaTime) {
           type: "removeBullet",
           bulletId,
           worldId: currentWorldId,
-        })
+        }),
       );
     }
   });
@@ -461,7 +454,7 @@ function drawBullets() {
       0.5,
       screenX,
       screenY,
-      BULLET_SIZE * 1.5
+      BULLET_SIZE * 1.5,
     );
     grad.addColorStop(0, bullet.damage >= 50 ? "#00eaff" : "#fffbe0");
     grad.addColorStop(0.5, bullet.damage >= 50 ? "#00eaffcc" : "#ff4444cc");
