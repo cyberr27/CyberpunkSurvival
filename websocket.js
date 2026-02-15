@@ -606,7 +606,7 @@ function setupWebSocket(
             worldId: 0,
             hasSeenWelcomeGuide: false,
             worldPositions: { 0: { x: 222, y: 3205 } },
-            meleeDamageBonus: 0,
+
             healthUpgrade: 0,
             energyUpgrade: 0,
             foodUpgrade: 0,
@@ -854,7 +854,6 @@ function setupWebSocket(
               selectedQuestId: playerData.selectedQuestId,
               level: playerData.level,
               xp: playerData.xp,
-              meleeDamageBonus: playerData.meleeDamageBonus || 0,
               skills: playerData.skills,
               skillPoints: playerData.skillPoints,
               upgradePoints: playerData.upgradePoints,
@@ -3587,112 +3586,6 @@ function setupWebSocket(
           saveUserDatabase,
         );
       }
-      if (data.type === "updateMeleeDamageBonus") {
-        const player = players.get(clients.get(ws));
-        if (player) {
-          player.meleeDamageBonus = Number(data.meleeDamageBonus) || 0;
-          // Не обязательно сразу сохранять — можно раз в 30–60 сек или при дисконнекте
-        }
-      } else if (data.type === "requestRegeneration") {
-        const playerId = clients.get(ws);
-        const player = players.get(playerId);
-        if (!player) return;
-
-        const requestedHeal = Number(data.amount);
-        if (
-          !Number.isInteger(requestedHeal) ||
-          requestedHeal <= 0 ||
-          requestedHeal > 50
-        ) {
-          ws.send(
-            JSON.stringify({
-              type: "regenerationRejected",
-              playerId, // ← теперь работает
-              reason: "invalid_amount",
-            }),
-          );
-          return;
-        }
-
-        // Проверяем наличие и уровень навыка
-        const regSkill = player.skills?.find((s) => s.id === 2);
-        if (!regSkill || regSkill.level < 1) {
-          ws.send(
-            JSON.stringify({
-              type: "regenerationRejected",
-              playerId,
-              reason: "no_skill",
-            }),
-          );
-          return;
-        }
-
-        // Проверяем допустимый процент лечения
-        const allowedPercent = 5 + (regSkill.level - 1);
-        const maxAllowedHeal = Math.floor(
-          ((player.maxStats?.health || 100) * allowedPercent) / 100,
-        );
-
-        if (requestedHeal > maxAllowedHeal + 2) {
-          // +2 — небольшой запас на rounding
-          console.warn(
-            `[AntiCheat] Игрок ${playerId} запросил слишком много регенерации: ${requestedHeal} > ${maxAllowedHeal}`,
-          );
-          ws.send(
-            JSON.stringify({
-              type: "regenerationRejected",
-              playerId,
-              reason: "cheat_suspected",
-            }),
-          );
-          return;
-        }
-
-        // Проверяем, что здоровье не превысит максимум
-        const newHealth = Math.min(
-          player.health + requestedHeal,
-          player.maxStats?.health || 100,
-        );
-
-        if (newHealth <= player.health) {
-          // Уже полное здоровье
-          return;
-        }
-
-        // Применяем
-        player.health = newHealth;
-
-        // Сохраняем в базу (если ваша система это делает)
-        userDatabase.set(playerId, { ...player });
-        saveUserDatabase?.(dbCollection, playerId, player);
-
-        // Рассылаем обновление всем
-        const updatePayload = {
-          id: playerId,
-          health: player.health,
-          // можно добавить и другие поля, если нужно
-        };
-
-        broadcastToWorld(
-          wss,
-          clients,
-          players,
-          player.worldId,
-          JSON.stringify({
-            type: "update",
-            player: updatePayload,
-          }),
-        );
-
-        // Подтверждаем игроку
-        ws.send(
-          JSON.stringify({
-            type: "regenerationApplied",
-            playerId,
-            newHealth: player.health,
-          }),
-        );
-      }
       if (data.type === "update" || data.type === "move") {
         const playerId = clients.get(ws);
 
@@ -3989,11 +3882,7 @@ function setupWebSocket(
                   enemy.worldId,
                   JSON.stringify({
                     type: "update",
-                    player: {
-                      id: closestPlayer.id,
-                      health: closestPlayer.health, // ← явно добавляем
-                      // если хочешь — можно добавить x, y, direction и т.д., но health главное
-                    },
+                    player: { id: closestPlayer.id, ...closestPlayer },
                   }),
                 );
               } else {

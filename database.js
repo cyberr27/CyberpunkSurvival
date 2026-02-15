@@ -46,7 +46,6 @@ async function loadUserDatabase(collection, userDatabase) {
           water: 100 + (user.waterUpgrade || 0),
           armor: 0,
         },
-        meleeDamageBonus: user.meleeDamageBonus || 0,
         // Ограничиваем текущие статы сразу при загрузке
         health: Math.max(
           0,
@@ -95,7 +94,7 @@ async function saveUserDatabase(collection, username, player) {
       food: Math.min(player.food, player.maxStats?.food || 100),
       water: Math.min(player.water, player.maxStats?.water || 100),
       armor: Math.min(player.armor, player.maxStats?.armor || 0),
-      meleeDamageBonus: player.meleeDamageBonus || 0,
+
       skills: player.skills || [],
       skillPoints: player.skillPoints || 0,
     };

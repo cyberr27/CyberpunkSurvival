@@ -1111,15 +1111,11 @@ function handleAuthMessage(event) {
         me.maxStats = data.maxStats;
       }
 
-      players.set(myId, me);
-
-      if (
-        me.skills?.some((s) => s.id === 2 && s.level >= 1) &&
-        window.regenerationSystem
-      ) {
-        window.regenerationSystem.start();
+      if (window.welcomeGuideSystem && window.welcomeGuideSystem.setSeen) {
+        window.welcomeGuideSystem.setSeen(data.hasSeenWelcomeGuide === true);
       }
-      // ────────────────────────────────────────────────────────────────
+
+      players.set(myId, me);
 
       if (window.skillsSystem) {
         window.skillsSystem.playerSkills = data.skills || [];
@@ -1340,9 +1336,6 @@ function startGame() {
   window.homelessSystem?.initialize?.(images.homelessSprite);
   window.portalSystem.initialize(images.portalImage);
   window.combatSystem.initialize();
-  if (window.strongStrikeSystem && !window.strongStrikeSystem.initialized) {
-    window.strongStrikeSystem.initialize();
-  }
 
   document.addEventListener("keydown", (e) => {
     const me = players.get(myId);
@@ -1382,10 +1375,6 @@ function startGame() {
         break;
       case "e":
         window.equipmentSystem.toggleEquipment();
-        e.preventDefault();
-        break;
-      case "r":
-        window.skillsSystem?.toggleSkills?.();
         e.preventDefault();
         break;
     }
@@ -1858,23 +1847,8 @@ function handleGameMessage(event) {
         pendingPickups.delete(data.itemId);
         break;
       case "update":
-        if (data.player.health !== undefined) {
-          const oldHp = me.health;
-          const newHp = Number(data.player.health);
-          const gained = newHp - oldHp;
-
-          // Показываем только положительный прирост от регена
-          if (gained > 0.1) {
-            showNotification(
-              `Регенерация: +${Math.round(gained)} HP`,
-              "#ff4444",
-            );
-          }
-          if (gained < -0.1 && window.regenerationSystem) {
-            window.regenerationSystem.resetTimerOnDamage();
-          }
-
-          me.health = newHp;
+        if (data.player?.id === myId) {
+          const me = players.get(myId);
           const isMoving = me.state === "walking" || me.state === "attacking";
 
           if (isMoving) {
@@ -2092,32 +2066,11 @@ function handleGameMessage(event) {
           const me = players.get(myId);
           if (me) {
             // Обновляем статы игрока (важно для других систем)
-            if (data.stats.health !== undefined)
-              me.health = Math.max(
-                0,
-                Math.min(me.maxStats?.health || 100, Number(data.stats.health)),
-              );
-
-            if (data.stats.energy !== undefined)
-              me.energy = Math.max(
-                0,
-                Math.min(me.maxStats?.energy || 100, Number(data.stats.energy)),
-              );
-
-            if (data.stats.food !== undefined)
-              me.food = Math.max(
-                0,
-                Math.min(me.maxStats?.food || 100, Number(data.stats.food)),
-              );
-
-            if (data.stats.water !== undefined)
-              me.water = Math.max(
-                0,
-                Math.min(me.maxStats?.water || 100, Number(data.stats.water)),
-              );
-
-            if (data.stats.armor !== undefined)
-              me.armor = Math.max(0, Number(data.stats.armor || me.armor));
+            me.health = data.stats.health;
+            me.energy = data.stats.energy;
+            me.food = data.stats.food;
+            me.water = data.stats.water;
+            me.armor = data.stats.armor || me.armor;
 
             // КРИТИЧНО: полностью синхронизируем инвентарь игрока с серверным
             me.inventory = data.inventory.map((slot) =>
@@ -2235,9 +2188,6 @@ function handleGameMessage(event) {
         // Визуал атаки на игрока (например, triggerAttackAnimation если targetId === myId)
         if (data.targetId === myId) {
           triggerAttackAnimation();
-          if (data.targetId === myId && window.regenerationSystem) {
-            window.regenerationSystem.resetTimerOnDamage();
-          }
         }
         break;
       case "neonQuestStarted":
@@ -2739,9 +2689,6 @@ function handleGameMessage(event) {
             `Навык улучшен! Осталось очков: ${data.remainingPoints}`,
             "#00ff88",
           );
-          if (data.skillId === 2) {
-            window.regenerationSystem.start();
-          }
         } else {
           showNotification(
             data.error || "Не удалось улучшить навык",
@@ -2778,28 +2725,6 @@ function handleGameMessage(event) {
         }
 
         updateStatsDisplay();
-        break;
-      case "regenerationApplied":
-        if (data.playerId === myId) {
-          // Здоровье уже пришло через "update" → просто синхронизируем на всякий случай
-          const me = players.get(myId);
-          if (
-            me &&
-            typeof data.newHealth === "number" &&
-            !isNaN(data.newHealth)
-          ) {
-            me.health = Math.min(
-              Math.max(0, Number(data.newHealth)),
-              me.maxStats?.health || 100,
-            );
-            updateStatsDisplay();
-          }
-        }
-        break;
-      case "regenerationRejected":
-        if (data.playerId === myId) {
-          console.warn("Регенерация отклонена сервером:", data.reason);
-        }
         break;
     }
   } catch (error) {
