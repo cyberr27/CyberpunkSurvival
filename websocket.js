@@ -1282,7 +1282,7 @@ function setupWebSocket(
         if (
           item.type === "balyary" ||
           item.type === "atom" ||
-          item.type === " blue_crystal" ||
+          item.type === "blue_crystal" ||
           item.type === "green_crystal" ||
           item.type === "red_crystal" ||
           item.type === "white_crystal" ||
