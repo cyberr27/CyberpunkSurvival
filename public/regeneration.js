@@ -43,9 +43,9 @@ window.regenerationSystem = {
       }
 
       // Формула: 1% за каждый уровень навыка
-      const percent = regSkill.level * 1; // ур.1 → 1%, ур.2 → 2%, ...
-      const maxHp = me.maxStats?.health || 100;
-      let heal = Math.floor((maxHp * percent) / 100);
+      const percent = regSkill.level * 1;
+      const BASE_HP = 100;
+      let heal = Math.floor((BASE_HP * percent) / 100);
 
       if (heal <= 0) {
         return;
