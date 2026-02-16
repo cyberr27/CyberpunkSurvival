@@ -1868,9 +1868,11 @@ function handleGameMessage(event) {
           // ← Самое важное место для детекта урона
           if (data.player.health !== undefined) {
             const oldHealth = Number(me.health) || 0;
-            const newHealth = Number(data.player.health);
+            let newHealth = Number(data.player.health);
 
-            // Если здоровье уменьшилось — это урон
+            // Защита от отрицательного здоровья с сервера
+            newHealth = Math.max(0, newHealth);
+
             if (newHealth < oldHealth && window.regenerationSystem) {
               window.regenerationSystem.resetTimerOnDamage();
             }

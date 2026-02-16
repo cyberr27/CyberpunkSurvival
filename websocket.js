@@ -825,6 +825,10 @@ function setupWebSocket(
 
           // Очень рекомендуется — пересчитать характеристики на всякий случай
           calculateMaxStats(playerData, ITEM_CONFIG);
+          playerData.health = Math.max(
+            0,
+            Math.min(playerData.health, playerData.maxStats.health),
+          );
 
           players.set(data.username, playerData);
           ws.send(
@@ -3897,6 +3901,12 @@ function setupWebSocket(
             // ────────────────────── ЛОГИКА ДАЛЬНОБОЙНОГО ВРАГА (blood_eye) ──────────────────────
             // Стреляет раз в 2000 мс
             if (now - (enemy.lastAttackTime || 0) >= attackCooldown) {
+              // ← добавляем сюда
+              if (closestPlayer.health <= 0) {
+                enemy.state = "idle";
+                return;
+              }
+
               enemy.lastAttackTime = now;
               enemy.state = "attacking";
 
@@ -3965,6 +3975,12 @@ function setupWebSocket(
                 const damage =
                   Math.floor(Math.random() * (maxDamage - minDamage + 1)) +
                   minDamage;
+
+                // Защита: не наносим урон мёртвому
+                if (closestPlayer.health <= 0) {
+                  enemy.state = "idle"; // или "walking" — чтобы не замирал
+                  return;
+                }
 
                 closestPlayer.health = Math.max(
                   0,
@@ -4058,6 +4074,9 @@ function setupWebSocket(
         const player = players.get(id);
         if (player) {
           player.hasSeenWelcomeGuide = player.hasSeenWelcomeGuide || false;
+          if (player.health <= 0) {
+            player.health = 0; // фиксируем смерть
+          }
           userDatabase.set(id, { ...player });
           await saveUserDatabase(dbCollection, id, player);
 
