@@ -804,7 +804,7 @@ function setupWebSocket(
           // Ограничиваем текущие значения (защита от старых сохранений или читов)
           playerData.health = Math.max(
             0,
-            Math.min(playerData.health || 100, playerData.maxStats.health),
+            Math.min(playerData.health ?? 0, playerData.maxStats.health || 100),
           );
           playerData.energy = Math.max(
             0,
