@@ -31,7 +31,9 @@ window.regenerationSystem = {
         return;
       }
 
-      if (me.health >= (me.maxStats?.health || 100)) {
+      const currentMaxHealth = me.maxStats?.health || 100;
+
+      if (me.health >= currentMaxHealth) {
         return;
       }
 
@@ -42,7 +44,7 @@ window.regenerationSystem = {
         return;
       }
 
-      // Формула: 1% за каждый уровень навыка
+      // Формула: 1% от базовых 100 hp за каждый уровень навыка
       const percent = regSkill.level * 1;
       const BASE_HP = 100;
       let heal = Math.floor((BASE_HP * percent) / 100);
@@ -51,7 +53,8 @@ window.regenerationSystem = {
         return;
       }
 
-      const missing = maxHp - me.health;
+      // ← Здесь была главная ошибка — maxHp не был объявлен
+      const missing = currentMaxHealth - me.health;
       heal = Math.min(heal, missing);
 
       if (heal <= 0) {
