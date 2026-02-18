@@ -1865,78 +1865,96 @@ function handleGameMessage(event) {
           const me = players.get(myId);
           if (!me) break;
 
-          // ← Самое важное место для детекта урона
-          if (data.player.health !== undefined) {
-            const oldHealth = Number(me.health) || 0;
-            let newHealth = Number(data.player.health);
-
-            // Защита от отрицательного здоровья с сервера
-            newHealth = Math.max(0, newHealth);
-
-            if (newHealth < oldHealth && window.regenerationSystem) {
-              window.regenerationSystem.resetTimerOnDamage();
+          // Проверка на устаревший пакет (самое важное для предотвращения откатов)
+          if (data.player.lastUpdateTs && me.lastUpdateTs) {
+            if (data.player.lastUpdateTs < me.lastUpdateTs) {
+              // console.debug("[Anti-rollback] Игнорируем устаревшее обновление статов",
+              //   data.player.lastUpdateTs, "<", me.lastUpdateTs);
+              break;
             }
-
-            me.health = Math.max(
-              0,
-              Math.min(newHealth, me.maxStats?.health || 100),
-            );
           }
 
-          const isMoving = me.state === "walking" || me.state === "attacking";
-
-          if (isMoving) {
-            const { x, y, direction, state, frame, ...stats } = data.player;
-            Object.assign(me, stats);
+          // Обновляем локальный timestamp (даже если пакета нет — на всякий случай)
+          if (data.player.lastUpdateTs) {
+            me.lastUpdateTs = data.player.lastUpdateTs;
           } else {
-            if (data.player.x !== undefined) {
-              me.serverTargetX = data.player.x;
-              me.serverTargetY = data.player.y;
-              me.x += (me.serverTargetX - me.x) * 0.1;
-              me.y += (me.serverTargetY - me.y) * 0.1;
-              if (
-                Math.abs(me.serverTargetX - me.x) < 0.5 &&
-                Math.abs(me.serverTargetY - me.y) < 0.5
-              ) {
-                me.x = me.serverTargetX;
-                me.y = me.serverTargetY;
-                delete me.serverTargetX;
-                delete me.serverTargetY;
+            // Если сервер почему-то не прислал — ставим текущее время
+            me.lastUpdateTs = Date.now();
+          }
+
+          // Передаём все данные в очередь обработки (только статы, позиция и анимация остаются как были)
+          if (window.playerUpdateQueue && window.playerUpdateQueue.enqueue) {
+            window.playerUpdateQueue.enqueue(data.player);
+          } else {
+            console.warn(
+              "[Warning] playerUpdateQueue не инициализирован — fallback",
+            );
+            // Временный fallback на старую логику (можно удалить после тестов)
+            if (data.player.health !== undefined) {
+              const oldHealth = Number(me.health) || 0;
+              let newHealth = Number(data.player.health);
+              newHealth = Math.max(0, newHealth);
+
+              if (newHealth < oldHealth && window.regenerationSystem) {
+                window.regenerationSystem.resetTimerOnDamage();
+              }
+
+              me.health = Math.max(
+                0,
+                Math.min(newHealth, me.maxStats?.health || 100),
+              );
+            }
+
+            const isMoving = me.state === "walking" || me.state === "attacking";
+
+            if (isMoving) {
+              const { x, y, direction, state, frame, ...stats } = data.player;
+              Object.assign(me, stats);
+            } else {
+              if (data.player.x !== undefined) {
+                me.serverTargetX = data.player.x;
+                me.serverTargetY = data.player.y;
+                me.x += (me.serverTargetX - me.x) * 0.1;
+                me.y += (me.serverTargetY - me.y) * 0.1;
+                if (
+                  Math.abs(me.serverTargetX - me.x) < 0.5 &&
+                  Math.abs(me.serverTargetY - me.y) < 0.5
+                ) {
+                  me.x = me.serverTargetX;
+                  me.y = me.serverTargetY;
+                  delete me.serverTargetX;
+                  delete me.serverTargetY;
+                }
+              }
+              const { x, y, ...stats } = data.player;
+              Object.assign(me, stats);
+              if (data.player.meleeDamageBonus !== undefined) {
+                me.meleeDamageBonus = Number(data.player.meleeDamageBonus);
               }
             }
-            const { x, y, ...stats } = data.player;
-            Object.assign(me, stats);
-            if (data.player.meleeDamageBonus !== undefined) {
-              me.meleeDamageBonus = Number(data.player.meleeDamageBonus);
+
+            if (data.player.inventory) {
+              inventory = data.player.inventory.map((slot) =>
+                slot ? { ...slot } : null,
+              );
+              me.inventory = inventory.map((slot) =>
+                slot ? { ...slot } : null,
+              );
+              window.inventorySystem?.updateInventoryDisplay();
+
+              if (window.misterTwister?.isMenuOpen) {
+                window.misterTwister.updateLocalBalanceDisplay();
+              }
             }
-          }
 
-          if (data.player.inventory) {
-            // Глубокая копия, чтобы не было неожиданных мутаций
-            inventory = data.player.inventory.map((slot) =>
-              slot ? { ...slot } : null,
-            );
-
-            // Синхронизируем также в объекте игрока
-            me.inventory = inventory.map((slot) => (slot ? { ...slot } : null));
-
-            // Обновляем отображение инвентаря
-            window.inventorySystem?.updateInventoryDisplay();
-
-            // Если открыто меню Mister Twister — обновляем баланс на табло
-            if (window.misterTwister?.isMenuOpen) {
-              window.misterTwister.updateLocalBalanceDisplay();
+            if (data.player.equipment) {
+              window.equipmentSystem.syncEquipment(data.player.equipment);
             }
-          }
 
-          // Оборудование (оставляем как было)
-          if (data.player.equipment) {
-            window.equipmentSystem.syncEquipment(data.player.equipment);
+            updateStatsDisplay();
           }
-
-          // Обновляем статы в любом случае
-          updateStatsDisplay();
         } else if (data.player?.id) {
+          // Обработка других игроков — полностью без изменений
           const existing = players.get(data.player.id) || {};
 
           const updatedPlayer = {
@@ -1960,7 +1978,6 @@ function handleGameMessage(event) {
             updatedPlayer.attackFrameTime = 0;
           }
 
-          // Если атака только началась — гарантируем сброс
           if (
             data.player.state === "attacking" &&
             existing.state !== "attacking"
@@ -1976,38 +1993,26 @@ function handleGameMessage(event) {
             updatedPlayer.attackFrame = data.player.attackFrame;
           }
 
-          // Добавь это:
-          if (data.player.attackFrame !== undefined) {
-            updatedPlayer.attackFrame = data.player.attackFrame;
-            updatedPlayer.attackFrameTime = data.player.attackFrameTime || 0;
-          }
-
-          // КРИТИЧНО ВАЖНЫЙ БЛОК: детект начала атаки у других игроков
           const wasAttacking = existing.state === "attacking";
           const isAttacking = data.player.state === "attacking";
 
           if (isAttacking && !wasAttacking) {
-            // Игрок ТОЛЬКО ЧТО начал атаковать (даже стоя на месте!)
             updatedPlayer.attackFrame = 0;
             updatedPlayer.attackFrameTime = 0;
-            updatedPlayer.animTime = 0; // сбрасываем анимацию ходьбы
+            updatedPlayer.animTime = 0;
             updatedPlayer.frame = 0;
-            updatedPlayer.prevState = existing.state || "idle"; // на всякий
+            updatedPlayer.prevState = existing.state || "idle";
           } else if (!isAttacking && wasAttacking) {
-            // Закончил атаку
             updatedPlayer.attackFrame = 0;
             updatedPlayer.attackFrameTime = 0;
           } else if (isAttacking && wasAttacking) {
-            // Продолжает атаковать — сохраняем прогресс
             updatedPlayer.attackFrame = existing.attackFrame || 0;
             updatedPlayer.attackFrameTime = existing.attackFrameTime || 0;
           } else {
-            // Не атакует вообще
             updatedPlayer.attackFrame = 0;
             updatedPlayer.attackFrameTime = 0;
           }
 
-          // Анимация ходьбы — только если не атакует
           if (data.player.state === "walking") {
             updatedPlayer.animTime = existing.animTime || 0;
             updatedPlayer.frame = existing.frame ?? 0;

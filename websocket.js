@@ -3807,6 +3807,9 @@ function setupWebSocket(
         // Сохраняем изменения
         players.set(playerId, { ...player });
 
+        const now = Date.now();
+        player.lastUpdateTs = now;
+
         // Готовим данные для рассылки
         const updateData = {
           id: playerId,
@@ -3822,6 +3825,7 @@ function setupWebSocket(
           armor: player.armor,
           distanceTraveled: player.distanceTraveled,
           meleeDamageBonus: player.meleeDamageBonus || 0,
+          lastUpdateTs: player.lastUpdateTs,
         };
 
         if (player.state === "attacking") {
