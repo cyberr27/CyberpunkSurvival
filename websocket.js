@@ -578,7 +578,6 @@ function setupWebSocket(
             water: 100,
             armor: 0,
             distanceTraveled: 0,
-            lastResourceSyncDistance: 0,
             direction: "down",
             state: "idle",
             frame: 0,
@@ -792,7 +791,6 @@ function setupWebSocket(
 
             // Добавляем поле (даже если null — серверу не отправляем, но на клиенте важно)
             chatBubble: player.chatBubble || null,
-            lastResourceSyncDistance: player.lastResourceSyncDistance || 0,
           };
 
           playerData.maxStats = playerData.maxStats || {
@@ -3709,7 +3707,9 @@ function setupWebSocket(
       if (data.type === "update" || data.type === "move") {
         const playerId = clients.get(ws);
 
+        // Очень важная защита
         if (!playerId || !players.has(playerId)) {
+          // Игрок ещё не авторизован или уже отключился
           ws.send(
             JSON.stringify({
               type: "error",
@@ -3720,12 +3720,15 @@ function setupWebSocket(
         }
 
         const player = players.get(playerId);
+
+        // Теперь player точно существует
         const currentWorldId = player.worldId;
 
+        // Сохраняем старую позицию для проверки препятствий
         const oldX = player.x;
         const oldY = player.y;
 
-        // Клиент может менять ТОЛЬКО позицию, направление, состояние и кадры
+        // Принимаем только разрешённые поля
         if (data.x !== undefined) player.x = Number(data.x);
         if (data.y !== undefined) player.y = Number(data.y);
         if (data.direction) player.direction = data.direction;
@@ -3736,73 +3739,39 @@ function setupWebSocket(
           player.attackFrameTime = Number(data.attackFrameTime);
         if (data.frame !== undefined) player.frame = Number(data.frame);
 
-        // Сервер сам считает дистанцию и расход ресурсов
-        let distanceDelta = 0;
-        if (data.x !== undefined && data.y !== undefined) {
-          const newX = Number(data.x);
-          const newY = Number(data.y);
-          const dx = newX - oldX;
-          const dy = newY - oldY;
-          distanceDelta = Math.hypot(dx, dy);
-        }
-
-        player.distanceTraveled =
-          (player.distanceTraveled || 0) + distanceDelta;
-
-        // Расход ресурсов на сервере
-        const currentDistance = Math.floor(player.distanceTraveled);
-        const prevDistance = player.lastResourceSyncDistance || 0;
-
-        // Вода: -1 каждые 500 px
-        const waterLoss = Math.floor(currentDistance / 500);
-        const prevWaterLoss = Math.floor(prevDistance / 500);
-        if (waterLoss > prevWaterLoss) {
-          player.water = Math.max(
+        // Ограничиваем статы безопасными значениями
+        if (data.health !== undefined)
+          player.health = Math.max(
             0,
-            (player.water || 100) - (waterLoss - prevWaterLoss),
+            Math.min(player.maxStats?.health || 100, Number(data.health)),
           );
-        }
-
-        // Еда: -1 каждые 900 px
-        const foodLoss = Math.floor(currentDistance / 900);
-        const prevFoodLoss = Math.floor(prevDistance / 900);
-        if (foodLoss > prevFoodLoss) {
-          player.food = Math.max(
-            0,
-            (player.food || 100) - (foodLoss - prevFoodLoss),
-          );
-        }
-
-        // Энергия: -1 каждые 1300 px
-        const energyLoss = Math.floor(currentDistance / 1300);
-        const prevEnergyLoss = Math.floor(prevDistance / 1300);
-        if (energyLoss > prevEnergyLoss) {
+        if (data.energy !== undefined)
           player.energy = Math.max(
             0,
-            (player.energy || 100) - (energyLoss - prevEnergyLoss),
+            Math.min(player.maxStats?.energy || 100, Number(data.energy)),
           );
-        }
+        if (data.food !== undefined)
+          player.food = Math.max(
+            0,
+            Math.min(player.maxStats?.food || 100, Number(data.food)),
+          );
+        if (data.water !== undefined)
+          player.water = Math.max(
+            0,
+            Math.min(player.maxStats?.water || 100, Number(data.water)),
+          );
+        if (data.armor !== undefined) player.armor = Number(data.armor);
+        if (data.distanceTraveled !== undefined)
+          player.distanceTraveled = Number(data.distanceTraveled);
 
-        // Здоровье при нулевых показателях
-        if (player.energy <= 0 || player.food <= 0 || player.water <= 0) {
-          const healthLoss = Math.floor(currentDistance / 200);
-          const prevHealthLoss = Math.floor(prevDistance / 200);
-          if (healthLoss > prevHealthLoss) {
-            player.health = Math.max(
-              0,
-              (player.health || 100) - (healthLoss - prevHealthLoss),
-            );
-          }
-        }
-
-        // Запоминаем дистанцию, по которой уже посчитали расход
-        player.lastResourceSyncDistance = currentDistance;
-
-        // Проверка препятствий
+        // ─── ПРОВЕРКА ПРЕПЯТСТВИЙ ───────────────────────────────────────
         let positionValid = true;
+
+        // Проверяем только если пришли новые координаты
         if (data.x !== undefined || data.y !== undefined) {
           for (const obs of obstacles) {
             if (obs.worldId !== currentWorldId) continue;
+
             if (
               segmentsIntersect(
                 oldX,
@@ -3824,6 +3793,7 @@ function setupWebSocket(
         if (!positionValid) {
           player.x = oldX;
           player.y = oldY;
+
           ws.send(
             JSON.stringify({
               type: "forcePosition",
@@ -3834,9 +3804,10 @@ function setupWebSocket(
           );
         }
 
-        const now = Date.now();
-        player.lastUpdateTs = now;
+        // Сохраняем изменения
+        players.set(playerId, { ...player });
 
+        // Готовим данные для рассылки
         const updateData = {
           id: playerId,
           x: player.x,
@@ -3851,7 +3822,6 @@ function setupWebSocket(
           armor: player.armor,
           distanceTraveled: player.distanceTraveled,
           meleeDamageBonus: player.meleeDamageBonus || 0,
-          lastUpdateTs: player.lastUpdateTs,
         };
 
         if (player.state === "attacking") {
