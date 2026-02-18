@@ -3707,9 +3707,7 @@ function setupWebSocket(
       if (data.type === "update" || data.type === "move") {
         const playerId = clients.get(ws);
 
-        // Очень важная защита
         if (!playerId || !players.has(playerId)) {
-          // Игрок ещё не авторизован или уже отключился
           ws.send(
             JSON.stringify({
               type: "error",
@@ -3720,15 +3718,12 @@ function setupWebSocket(
         }
 
         const player = players.get(playerId);
-
-        // Теперь player точно существует
         const currentWorldId = player.worldId;
 
-        // Сохраняем старую позицию для проверки препятствий
         const oldX = player.x;
         const oldY = player.y;
 
-        // Принимаем только разрешённые поля
+        // Клиент может менять ТОЛЬКО позицию, направление, состояние и кадры
         if (data.x !== undefined) player.x = Number(data.x);
         if (data.y !== undefined) player.y = Number(data.y);
         if (data.direction) player.direction = data.direction;
@@ -3739,35 +3734,11 @@ function setupWebSocket(
           player.attackFrameTime = Number(data.attackFrameTime);
         if (data.frame !== undefined) player.frame = Number(data.frame);
 
-        // Ограничиваем статы безопасными значениями
-        if (data.health !== undefined)
-          player.health = Math.max(
-            0,
-            Math.min(player.maxStats?.health || 100, Number(data.health)),
-          );
-        if (data.energy !== undefined)
-          player.energy = Math.max(
-            0,
-            Math.min(player.maxStats?.energy || 100, Number(data.energy)),
-          );
-        if (data.food !== undefined)
-          player.food = Math.max(
-            0,
-            Math.min(player.maxStats?.food || 100, Number(data.food)),
-          );
-        if (data.water !== undefined)
-          player.water = Math.max(
-            0,
-            Math.min(player.maxStats?.water || 100, Number(data.water)),
-          );
-        if (data.armor !== undefined) player.armor = Number(data.armor);
-        if (data.distanceTraveled !== undefined)
-          player.distanceTraveled = Number(data.distanceTraveled);
+        // Статы (health, energy и т.д.) НЕЛЬЗЯ менять с клиента — защита от читов
+        // Сервер сам управляет ими (урон, реген, использование предметов и т.д.)
 
-        // ─── ПРОВЕРКА ПРЕПЯТСТВИЙ ───────────────────────────────────────
+        // Проверка препятствий (только для позиции)
         let positionValid = true;
-
-        // Проверяем только если пришли новые координаты
         if (data.x !== undefined || data.y !== undefined) {
           for (const obs of obstacles) {
             if (obs.worldId !== currentWorldId) continue;
@@ -3804,13 +3775,11 @@ function setupWebSocket(
           );
         }
 
-        // Сохраняем изменения
-        players.set(playerId, { ...player });
-
+        // Фиксируем время обновления (для будущей защиты от race, но пока не используем жёстко)
         const now = Date.now();
         player.lastUpdateTs = now;
 
-        // Готовим данные для рассылки
+        // Готовим данные для рассылки (статы берём актуальные с сервера)
         const updateData = {
           id: playerId,
           x: player.x,

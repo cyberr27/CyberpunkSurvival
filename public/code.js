@@ -1865,96 +1865,95 @@ function handleGameMessage(event) {
           const me = players.get(myId);
           if (!me) break;
 
-          // Проверка на устаревший пакет (самое важное для предотвращения откатов)
-          if (data.player.lastUpdateTs && me.lastUpdateTs) {
-            if (data.player.lastUpdateTs < me.lastUpdateTs) {
-              // console.debug("[Anti-rollback] Игнорируем устаревшее обновление статов",
-              //   data.player.lastUpdateTs, "<", me.lastUpdateTs);
-              break;
+          // Применяем ВСЁ от сервера (сервер теперь авторитетный по статам)
+          if (data.player.health !== undefined) {
+            const oldHealth = Number(me.health) || 0;
+            let newHealth = Number(data.player.health);
+            newHealth = Math.max(0, newHealth);
+
+            if (newHealth < oldHealth && window.regenerationSystem) {
+              window.regenerationSystem.resetTimerOnDamage();
             }
-          }
 
-          // Обновляем локальный timestamp (даже если пакета нет — на всякий случай)
-          if (data.player.lastUpdateTs) {
-            me.lastUpdateTs = data.player.lastUpdateTs;
-          } else {
-            // Если сервер почему-то не прислал — ставим текущее время
-            me.lastUpdateTs = Date.now();
-          }
-
-          // Передаём все данные в очередь обработки (только статы, позиция и анимация остаются как были)
-          if (window.playerUpdateQueue && window.playerUpdateQueue.enqueue) {
-            window.playerUpdateQueue.enqueue(data.player);
-          } else {
-            console.warn(
-              "[Warning] playerUpdateQueue не инициализирован — fallback",
+            me.health = Math.max(
+              0,
+              Math.min(newHealth, me.maxStats?.health || 100),
             );
-            // Временный fallback на старую логику (можно удалить после тестов)
-            if (data.player.health !== undefined) {
-              const oldHealth = Number(me.health) || 0;
-              let newHealth = Number(data.player.health);
-              newHealth = Math.max(0, newHealth);
-
-              if (newHealth < oldHealth && window.regenerationSystem) {
-                window.regenerationSystem.resetTimerOnDamage();
-              }
-
-              me.health = Math.max(
-                0,
-                Math.min(newHealth, me.maxStats?.health || 100),
-              );
-            }
-
-            const isMoving = me.state === "walking" || me.state === "attacking";
-
-            if (isMoving) {
-              const { x, y, direction, state, frame, ...stats } = data.player;
-              Object.assign(me, stats);
-            } else {
-              if (data.player.x !== undefined) {
-                me.serverTargetX = data.player.x;
-                me.serverTargetY = data.player.y;
-                me.x += (me.serverTargetX - me.x) * 0.1;
-                me.y += (me.serverTargetY - me.y) * 0.1;
-                if (
-                  Math.abs(me.serverTargetX - me.x) < 0.5 &&
-                  Math.abs(me.serverTargetY - me.y) < 0.5
-                ) {
-                  me.x = me.serverTargetX;
-                  me.y = me.serverTargetY;
-                  delete me.serverTargetX;
-                  delete me.serverTargetY;
-                }
-              }
-              const { x, y, ...stats } = data.player;
-              Object.assign(me, stats);
-              if (data.player.meleeDamageBonus !== undefined) {
-                me.meleeDamageBonus = Number(data.player.meleeDamageBonus);
-              }
-            }
-
-            if (data.player.inventory) {
-              inventory = data.player.inventory.map((slot) =>
-                slot ? { ...slot } : null,
-              );
-              me.inventory = inventory.map((slot) =>
-                slot ? { ...slot } : null,
-              );
-              window.inventorySystem?.updateInventoryDisplay();
-
-              if (window.misterTwister?.isMenuOpen) {
-                window.misterTwister.updateLocalBalanceDisplay();
-              }
-            }
-
-            if (data.player.equipment) {
-              window.equipmentSystem.syncEquipment(data.player.equipment);
-            }
-
-            updateStatsDisplay();
           }
+
+          if (data.player.energy !== undefined)
+            me.energy = Math.max(
+              0,
+              Math.min(Number(data.player.energy), me.maxStats?.energy || 100),
+            );
+
+          if (data.player.food !== undefined)
+            me.food = Math.max(
+              0,
+              Math.min(Number(data.player.food), me.maxStats?.food || 100),
+            );
+
+          if (data.player.water !== undefined)
+            me.water = Math.max(
+              0,
+              Math.min(Number(data.player.water), me.maxStats?.water || 100),
+            );
+
+          if (data.player.armor !== undefined)
+            me.armor = Number(data.player.armor);
+
+          if (data.player.distanceTraveled !== undefined)
+            me.distanceTraveled = Number(data.player.distanceTraveled);
+
+          if (data.player.meleeDamageBonus !== undefined)
+            me.meleeDamageBonus = Number(data.player.meleeDamageBonus);
+
+          // Инвентарь и экипировка — сразу
+          if (data.player.inventory) {
+            inventory = data.player.inventory.map((slot) =>
+              slot ? { ...slot } : null,
+            );
+            me.inventory = inventory.map((slot) => (slot ? { ...slot } : null));
+            window.inventorySystem?.updateInventoryDisplay();
+
+            if (window.misterTwister?.isMenuOpen) {
+              window.misterTwister.updateLocalBalanceDisplay();
+            }
+          }
+
+          if (data.player.equipment) {
+            window.equipmentSystem.syncEquipment(data.player.equipment);
+          }
+
+          // Позиция / движение / анимация — как раньше
+          const isMoving = me.state === "walking" || me.state === "attacking";
+
+          if (isMoving) {
+            const { x, y, direction, state, frame, ...stats } = data.player;
+            Object.assign(me, stats);
+          } else {
+            if (data.player.x !== undefined) {
+              me.serverTargetX = data.player.x;
+              me.serverTargetY = data.player.y;
+              me.x += (me.serverTargetX - me.x) * 0.1;
+              me.y += (me.serverTargetY - me.y) * 0.1;
+              if (
+                Math.abs(me.serverTargetX - me.x) < 0.5 &&
+                Math.abs(me.serverTargetY - me.y) < 0.5
+              ) {
+                me.x = me.serverTargetX;
+                me.y = me.serverTargetY;
+                delete me.serverTargetX;
+                delete me.serverTargetY;
+              }
+            }
+            const { x, y, ...stats } = data.player;
+            Object.assign(me, stats);
+          }
+
+          updateStatsDisplay();
         } else if (data.player?.id) {
-          // Обработка других игроков — полностью без изменений
+          // Обработка других игроков — без изменений
           const existing = players.get(data.player.id) || {};
 
           const updatedPlayer = {
