@@ -3734,8 +3734,43 @@ function setupWebSocket(
           player.attackFrameTime = Number(data.attackFrameTime);
         if (data.frame !== undefined) player.frame = Number(data.frame);
 
-        // Статы (health, energy и т.д.) НЕЛЬЗЯ менять с клиента — защита от читов
-        // Сервер сам управляет ими (урон, реген, использование предметов и т.д.)
+        if (data.health !== undefined) {
+          const newHealth = Number(data.health);
+          if (newHealth < player.health && newHealth >= 0) {
+            player.health = Math.max(0, newHealth);
+          }
+        }
+        if (data.energy !== undefined) {
+          const newEnergy = Number(data.energy);
+          if (newEnergy < player.energy && newEnergy >= 0) {
+            player.energy = Math.max(0, newEnergy);
+          }
+        }
+        if (data.food !== undefined) {
+          const newFood = Number(data.food);
+          if (newFood < player.food && newFood >= 0) {
+            player.food = Math.max(0, newFood);
+          }
+        }
+        if (data.water !== undefined) {
+          const newWater = Number(data.water);
+          if (newWater < player.water && newWater >= 0) {
+            player.water = Math.max(0, newWater);
+          }
+        }
+        if (data.armor !== undefined) {
+          const newArmor = Number(data.armor);
+          if (newArmor < player.armor && newArmor >= 0) {
+            player.armor = newArmor;
+          }
+        }
+        if (data.distanceTraveled !== undefined) {
+          const newDist = Number(data.distanceTraveled);
+          if (newDist > player.distanceTraveled) {
+            // дистанцию можно только увеличивать
+            player.distanceTraveled = newDist;
+          }
+        }
 
         // Проверка препятствий (только для позиции)
         let positionValid = true;
