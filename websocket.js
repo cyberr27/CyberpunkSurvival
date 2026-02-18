@@ -578,6 +578,7 @@ function setupWebSocket(
             water: 100,
             armor: 0,
             distanceTraveled: 0,
+            lastResourceSyncDistance: 0,
             direction: "down",
             state: "idle",
             frame: 0,
@@ -791,6 +792,7 @@ function setupWebSocket(
 
             // Добавляем поле (даже если null — серверу не отправляем, но на клиенте важно)
             chatBubble: player.chatBubble || null,
+            lastResourceSyncDistance: player.lastResourceSyncDistance || 0,
           };
 
           playerData.maxStats = playerData.maxStats || {
@@ -3734,50 +3736,73 @@ function setupWebSocket(
           player.attackFrameTime = Number(data.attackFrameTime);
         if (data.frame !== undefined) player.frame = Number(data.frame);
 
-        if (data.health !== undefined) {
-          const newHealth = Number(data.health);
-          if (newHealth < player.health && newHealth >= 0) {
-            player.health = Math.max(0, newHealth);
-          }
+        // Сервер сам считает дистанцию и расход ресурсов
+        let distanceDelta = 0;
+        if (data.x !== undefined && data.y !== undefined) {
+          const newX = Number(data.x);
+          const newY = Number(data.y);
+          const dx = newX - oldX;
+          const dy = newY - oldY;
+          distanceDelta = Math.hypot(dx, dy);
         }
-        if (data.energy !== undefined) {
-          const newEnergy = Number(data.energy);
-          if (newEnergy < player.energy && newEnergy >= 0) {
-            player.energy = Math.max(0, newEnergy);
-          }
+
+        player.distanceTraveled =
+          (player.distanceTraveled || 0) + distanceDelta;
+
+        // Расход ресурсов на сервере
+        const currentDistance = Math.floor(player.distanceTraveled);
+        const prevDistance = player.lastResourceSyncDistance || 0;
+
+        // Вода: -1 каждые 500 px
+        const waterLoss = Math.floor(currentDistance / 500);
+        const prevWaterLoss = Math.floor(prevDistance / 500);
+        if (waterLoss > prevWaterLoss) {
+          player.water = Math.max(
+            0,
+            (player.water || 100) - (waterLoss - prevWaterLoss),
+          );
         }
-        if (data.food !== undefined) {
-          const newFood = Number(data.food);
-          if (newFood < player.food && newFood >= 0) {
-            player.food = Math.max(0, newFood);
-          }
+
+        // Еда: -1 каждые 900 px
+        const foodLoss = Math.floor(currentDistance / 900);
+        const prevFoodLoss = Math.floor(prevDistance / 900);
+        if (foodLoss > prevFoodLoss) {
+          player.food = Math.max(
+            0,
+            (player.food || 100) - (foodLoss - prevFoodLoss),
+          );
         }
-        if (data.water !== undefined) {
-          const newWater = Number(data.water);
-          if (newWater < player.water && newWater >= 0) {
-            player.water = Math.max(0, newWater);
-          }
+
+        // Энергия: -1 каждые 1300 px
+        const energyLoss = Math.floor(currentDistance / 1300);
+        const prevEnergyLoss = Math.floor(prevDistance / 1300);
+        if (energyLoss > prevEnergyLoss) {
+          player.energy = Math.max(
+            0,
+            (player.energy || 100) - (energyLoss - prevEnergyLoss),
+          );
         }
-        if (data.armor !== undefined) {
-          const newArmor = Number(data.armor);
-          if (newArmor < player.armor && newArmor >= 0) {
-            player.armor = newArmor;
-          }
-        }
-        if (data.distanceTraveled !== undefined) {
-          const newDist = Number(data.distanceTraveled);
-          if (newDist > player.distanceTraveled) {
-            // дистанцию можно только увеличивать
-            player.distanceTraveled = newDist;
+
+        // Здоровье при нулевых показателях
+        if (player.energy <= 0 || player.food <= 0 || player.water <= 0) {
+          const healthLoss = Math.floor(currentDistance / 200);
+          const prevHealthLoss = Math.floor(prevDistance / 200);
+          if (healthLoss > prevHealthLoss) {
+            player.health = Math.max(
+              0,
+              (player.health || 100) - (healthLoss - prevHealthLoss),
+            );
           }
         }
 
-        // Проверка препятствий (только для позиции)
+        // Запоминаем дистанцию, по которой уже посчитали расход
+        player.lastResourceSyncDistance = currentDistance;
+
+        // Проверка препятствий
         let positionValid = true;
         if (data.x !== undefined || data.y !== undefined) {
           for (const obs of obstacles) {
             if (obs.worldId !== currentWorldId) continue;
-
             if (
               segmentsIntersect(
                 oldX,
@@ -3799,7 +3824,6 @@ function setupWebSocket(
         if (!positionValid) {
           player.x = oldX;
           player.y = oldY;
-
           ws.send(
             JSON.stringify({
               type: "forcePosition",
@@ -3810,11 +3834,9 @@ function setupWebSocket(
           );
         }
 
-        // Фиксируем время обновления (для будущей защиты от race, но пока не используем жёстко)
         const now = Date.now();
         player.lastUpdateTs = now;
 
-        // Готовим данные для рассылки (статы берём актуальные с сервера)
         const updateData = {
           id: playerId,
           x: player.x,

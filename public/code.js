@@ -1566,7 +1566,9 @@ function updateResources() {
   const distance = Math.floor(me.distanceTraveled || 0);
   let changed = false;
 
-  // Вода
+  // Локальное предсказание расхода (только для плавного UI)
+  // Реальный расход применяет сервер и пришлёт в "update"
+
   const waterLoss = Math.floor(distance / 500);
   const prevWaterLoss = Math.floor(lastDistance / 500);
   if (waterLoss > prevWaterLoss) {
@@ -1574,7 +1576,6 @@ function updateResources() {
     changed = true;
   }
 
-  // Еда
   const foodLoss = Math.floor(distance / 900);
   const prevFoodLoss = Math.floor(lastDistance / 900);
   if (foodLoss > prevFoodLoss) {
@@ -1582,7 +1583,6 @@ function updateResources() {
     changed = true;
   }
 
-  // Энергия
   const energyLoss = Math.floor(distance / 1300);
   const prevEnergyLoss = Math.floor(lastDistance / 1300);
   if (energyLoss > prevEnergyLoss) {
@@ -1590,8 +1590,7 @@ function updateResources() {
     changed = true;
   }
 
-  // Здоровье при нулевых показателях
-  if (me.energy === 0 || me.food === 0 || me.water === 0) {
+  if (me.energy <= 0 || me.food <= 0 || me.water <= 0) {
     const healthLoss = Math.floor(distance / 200);
     const prevHealthLoss = Math.floor(lastDistance / 200);
     if (healthLoss > prevHealthLoss) {
@@ -1604,29 +1603,6 @@ function updateResources() {
 
   if (changed) {
     updateStatsDisplay();
-
-    // Отправляем только если что-то изменилось
-    sendWhenReady(
-      ws,
-      JSON.stringify({
-        type: "update",
-        player: {
-          id: myId,
-          x: me.x,
-          y: me.y,
-          health: me.health,
-          energy: me.energy,
-          food: me.food,
-          water: me.water,
-          armor: me.armor,
-          distanceTraveled: me.distanceTraveled,
-          direction: me.direction,
-          state: me.state,
-          frame: me.frame,
-          worldId: window.worldSystem.currentWorldId,
-        },
-      }),
-    );
   }
 }
 
