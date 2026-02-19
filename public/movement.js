@@ -192,7 +192,6 @@
     window.npcSystem?.checkQuestCompletion?.();
     window.vendingMachine?.checkProximity?.();
     window.checkCollisions?.(); // если есть глобальная функция
-    updateResources?.(); // если определена
 
     if (currentTime - lastSendTime >= sendInterval) {
       sendMovementUpdate(me);
@@ -339,25 +338,20 @@
   }
 
   function sendMovementUpdate(player) {
-    sendWhenReady(
-      ws,
-      JSON.stringify({
-        type: "move",
-        x: player.x,
-        y: player.y,
-        health: player.health,
-        energy: player.energy,
-        food: player.food,
-        water: player.water,
-        armor: player.armor,
-        distanceTraveled: player.distanceTraveled,
-        direction: player.direction,
-        state: player.state,
-        frame: player.frame,
-        attackFrame: player.attackFrame || 0,
-        attackFrameTime: player.attackFrameTime || 0,
-      }),
-    );
+    if (ws?.readyState !== WebSocket.OPEN) return;
+
+    const payload = {
+      type: "move",
+      x: Math.round(player.x * 10) / 10,
+      y: Math.round(player.y * 10) / 10,
+      direction: player.direction,
+      state: player.state,
+      frame: player.frame | 0,
+      attackFrame: player.attackFrame | 0,
+      attackFrameTime: player.attackFrameTime | 0,
+    };
+
+    sendWhenReady(ws, JSON.stringify(payload));
   }
 
   function updateCamera(player) {
@@ -388,6 +382,26 @@
       cam.y,
       players.get(myId)?.worldId || 0,
     );
+  }
+
+  function sendStatsUpdateIfNeeded() {
+    const me = players.get(myId);
+    if (!me) return;
+
+    // Здесь можно добавить минимальный порог изменения, чтобы не спамить
+    // Например: if (Math.abs(me.health - lastSentHealth) < 0.5) return;
+
+    const payload = {
+      type: "stats",
+      health: Math.round(me.health),
+      energy: Math.round(me.energy),
+      food: Math.round(me.food),
+      water: Math.round(me.water),
+      armor: Math.round(me.armor ?? 0),
+      distanceTraveled: Math.round(me.distanceTraveled || 0),
+    };
+
+    sendWhenReady(ws, JSON.stringify(payload));
   }
 
   window.movementSystem = {
