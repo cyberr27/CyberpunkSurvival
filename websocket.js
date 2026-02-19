@@ -3703,9 +3703,7 @@ function setupWebSocket(
             newHealth: player.health,
           }),
         );
-      }
-      // ─── ДВИЖЕНИЕ, АНИМАЦИЯ, СОСТОЯНИЕ ────────────────────────────────────────
-      else if (data.type === "move") {
+      } else if (data.type === "move") {
         const playerId = clients.get(ws);
         if (!playerId || !players.has(playerId)) return;
 
@@ -3781,10 +3779,7 @@ function setupWebSocket(
           player.worldId,
           JSON.stringify({ type: "playerMove", player: moveData }),
         );
-      }
-
-      // ─── ИЗМЕНЕНИЕ ХАРАКТЕРИСТИК ───────────────────────────────────────────────
-      else if (data.type === "stats") {
+      } else if (data.type === "stats") {
         const playerId = clients.get(ws);
         if (!playerId || !players.has(playerId)) return;
 
