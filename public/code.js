@@ -1860,7 +1860,7 @@ function handleGameMessage(event) {
       case "inventoryFull":
         pendingPickups.delete(data.itemId);
         break;
-      case "update":
+      case "playerUpdate":
         if (data.player?.id === myId) {
           const me = players.get(myId);
           if (!me) break;

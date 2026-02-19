@@ -3834,7 +3834,7 @@ function setupWebSocket(
           players,
           currentWorldId,
           JSON.stringify({
-            type: "update",
+            type: "playerUpdate",
             player: updateData,
           }),
         );
@@ -3968,7 +3968,7 @@ function setupWebSocket(
           players,
           currentWorldId,
           JSON.stringify({
-            type: "update",
+            type: "playerUpdate",
             player: updateData,
           }),
         );
