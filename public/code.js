@@ -1558,68 +1558,89 @@ function handlePlayerClick(worldX, worldY) {
   window.tradeSystem.selectPlayer(selectedPlayerId); // Убрали !!selectedPlayerId
 }
 
-// Логика расхода ресурсов
+let lastSentResources = {
+  health: 100,
+  energy: 100,
+  food: 100,
+  water: 100,
+  armor: 0,
+};
+
 function updateResources() {
   const me = players.get(myId);
   if (!me) return;
 
   const distance = Math.floor(me.distanceTraveled || 0);
 
-  // Вода: -1 каждые 250 пикселей
+  let changed = false;
+  const changes = {};
+
+  // Вода: -1 каждые 500 пикселей
   const waterLoss = Math.floor(distance / 500);
-  const prevWaterLoss = Math.floor(lastDistance / 500);
-  if (waterLoss > prevWaterLoss) {
-    me.water = Math.max(0, me.water - (waterLoss - prevWaterLoss));
+  if (waterLoss > Math.floor(lastDistance / 500)) {
+    me.water = Math.max(
+      0,
+      me.water - (waterLoss - Math.floor(lastDistance / 500)),
+    );
+    changed = true;
   }
 
-  // Еда: -1 каждые 450 пикселей
-  const foodLoss = Math.floor(distance / 900);
-  const prevFoodLoss = Math.floor(lastDistance / 900);
-  if (foodLoss > prevFoodLoss) {
-    me.food = Math.max(0, me.food - (foodLoss - prevFoodLoss));
-  }
-
-  // Энергия: -1 каждые 650 пикселей
   const energyLoss = Math.floor(distance / 1300);
-  const prevEnergyLoss = Math.floor(lastDistance / 1300);
-  if (energyLoss > prevEnergyLoss) {
-    me.energy = Math.max(0, me.energy - (energyLoss - prevEnergyLoss));
+  if (energyLoss > Math.floor(lastDistance / 1300)) {
+    me.energy = Math.max(
+      0,
+      me.energy - (energyLoss - Math.floor(lastDistance / 1300)),
+    );
+    changed = true;
   }
 
-  // Здоровье: -1 каждые 100 пикселей, если любой из показателей равен 0
-  if (me.energy === 0 || me.food === 0 || me.water === 0) {
-    const healthLoss = Math.floor(distance / 200);
-    const prevHealthLoss = Math.floor(lastDistance / 200);
-    if (healthLoss > prevHealthLoss) {
-      me.health = Math.max(0, me.health - (healthLoss - prevHealthLoss));
-    }
+  const foodLoss = Math.floor(distance / 900);
+  if (foodLoss > Math.floor(lastDistance / 900)) {
+    me.food = Math.max(
+      0,
+      me.food - (foodLoss - Math.floor(lastDistance / 900)),
+    );
+    changed = true;
   }
 
-  lastDistance = distance; // Обновляем lastDistance
+  lastDistance = distance;
+
+  // Проверяем, изменились ли ключевые ресурсы
+  if (me.health !== lastSentResources.health) {
+    changes.health = me.health;
+    changed = true;
+  }
+  if (me.energy !== lastSentResources.energy) {
+    changes.energy = me.energy;
+    changed = true;
+  }
+  if (me.food !== lastSentResources.food) {
+    changes.food = me.food;
+    changed = true;
+  }
+  if (me.water !== lastSentResources.water) {
+    changes.water = me.water;
+    changed = true;
+  }
+  if (me.armor !== lastSentResources.armor) {
+    changes.armor = me.armor;
+    changed = true;
+  }
+
+  if (changed && ws?.readyState === WebSocket.OPEN) {
+    sendWhenReady(
+      ws,
+      JSON.stringify({
+        type: "resourceUpdate",
+        changes,
+      }),
+    );
+
+    // Запоминаем, что мы отправили
+    Object.assign(lastSentResources, changes);
+  }
+
   updateStatsDisplay();
-
-  // Отправляем обновленные данные на сервер
-  sendWhenReady(
-    ws,
-    JSON.stringify({
-      type: "update",
-      player: {
-        id: myId,
-        x: me.x,
-        y: me.y,
-        health: me.health,
-        energy: me.energy,
-        food: me.food,
-        water: me.water,
-        armor: me.armor,
-        distanceTraveled: me.distanceTraveled,
-        direction: me.direction,
-        state: me.state,
-        frame: me.frame,
-        worldId: window.worldSystem.currentWorldId,
-      },
-    }),
-  );
 }
 
 function updateStatsDisplay() {

@@ -3704,74 +3704,35 @@ function setupWebSocket(
           }),
         );
       }
-      if (data.type === "update" || data.type === "move") {
+      if (data.type === "move") {
         const playerId = clients.get(ws);
-
-        // Очень важная защита
         if (!playerId || !players.has(playerId)) {
-          // Игрок ещё не авторизован или уже отключился
           ws.send(
-            JSON.stringify({
-              type: "error",
-              message: "Not authenticated or session expired",
-            }),
+            JSON.stringify({ type: "error", message: "Not authenticated" }),
           );
           return;
         }
 
         const player = players.get(playerId);
-
-        // Теперь player точно существует
-        const currentWorldId = player.worldId;
-
-        // Сохраняем старую позицию для проверки препятствий
         const oldX = player.x;
         const oldY = player.y;
 
-        // Принимаем только разрешённые поля
+        // Принимаем ТОЛЬКО позицию и анимацию
         if (data.x !== undefined) player.x = Number(data.x);
         if (data.y !== undefined) player.y = Number(data.y);
         if (data.direction) player.direction = data.direction;
         if (data.state) player.state = data.state;
+        if (data.frame !== undefined) player.frame = Number(data.frame);
         if (data.attackFrame !== undefined)
           player.attackFrame = Number(data.attackFrame);
         if (data.attackFrameTime !== undefined)
           player.attackFrameTime = Number(data.attackFrameTime);
-        if (data.frame !== undefined) player.frame = Number(data.frame);
 
-        // Ограничиваем статы безопасными значениями
-        if (data.health !== undefined)
-          player.health = Math.max(
-            0,
-            Math.min(player.maxStats?.health || 100, Number(data.health)),
-          );
-        if (data.energy !== undefined)
-          player.energy = Math.max(
-            0,
-            Math.min(player.maxStats?.energy || 100, Number(data.energy)),
-          );
-        if (data.food !== undefined)
-          player.food = Math.max(
-            0,
-            Math.min(player.maxStats?.food || 100, Number(data.food)),
-          );
-        if (data.water !== undefined)
-          player.water = Math.max(
-            0,
-            Math.min(player.maxStats?.water || 100, Number(data.water)),
-          );
-        if (data.armor !== undefined) player.armor = Number(data.armor);
-        if (data.distanceTraveled !== undefined)
-          player.distanceTraveled = Number(data.distanceTraveled);
-
-        // ─── ПРОВЕРКА ПРЕПЯТСТВИЙ ───────────────────────────────────────
-        let positionValid = true;
-
-        // Проверяем только если пришли новые координаты
+        // Проверка препятствий
+        let valid = true;
         if (data.x !== undefined || data.y !== undefined) {
           for (const obs of obstacles) {
-            if (obs.worldId !== currentWorldId) continue;
-
+            if (obs.worldId !== player.worldId) continue;
             if (
               segmentsIntersect(
                 oldX,
@@ -3784,16 +3745,15 @@ function setupWebSocket(
                 obs.y2,
               )
             ) {
-              positionValid = false;
+              valid = false;
               break;
             }
           }
         }
 
-        if (!positionValid) {
+        if (!valid) {
           player.x = oldX;
           player.y = oldY;
-
           ws.send(
             JSON.stringify({
               type: "forcePosition",
@@ -3804,40 +3764,112 @@ function setupWebSocket(
           );
         }
 
-        // Сохраняем изменения
         players.set(playerId, { ...player });
 
-        // Готовим данные для рассылки
-        const updateData = {
+        // Рассылаем ТОЛЬКО движение
+        const moveData = {
           id: playerId,
           x: player.x,
           y: player.y,
           direction: player.direction,
           state: player.state,
           frame: player.frame,
-          health: player.health,
-          energy: player.energy,
-          food: player.food,
-          water: player.water,
-          armor: player.armor,
-          distanceTraveled: player.distanceTraveled,
-          meleeDamageBonus: player.meleeDamageBonus || 0,
+          attackFrame: player.attackFrame ?? 0,
+          attackFrameTime: player.attackFrameTime ?? 0,
         };
-
-        if (player.state === "attacking") {
-          updateData.attackFrame = player.attackFrame ?? 0;
-          updateData.attackFrameTime = player.attackFrameTime ?? 0;
-        }
 
         broadcastToWorld(
           wss,
           clients,
           players,
-          currentWorldId,
-          JSON.stringify({
-            type: "update",
-            player: updateData,
-          }),
+          player.worldId,
+          JSON.stringify({ type: "move", player: moveData }),
+        );
+      } else if (data.type === "resourceUpdate") {
+        const playerId = clients.get(ws);
+        if (!playerId || !players.has(playerId)) return;
+
+        const player = players.get(playerId);
+        const changes = data.changes || {};
+
+        let acceptedChanges = {};
+        let rejected = false;
+
+        // Сервер сам знает примерную дистанцию и допустимые траты
+        const expectedDistanceDelta = 300; // за ~5 сек максимум
+        const maxWaterLoss = Math.floor(expectedDistanceDelta / 400) + 2; // запас
+        const maxFoodLoss = Math.floor(expectedDistanceDelta / 800) + 2;
+        const maxEnergyLoss = Math.floor(expectedDistanceDelta / 1200) + 2;
+
+        // Проверяем каждое изменение
+        if ("water" in changes) {
+          const delta = changes.water - player.water;
+          if (delta < -maxWaterLoss || delta > 50) {
+            // >50 — подозрительно много
+            rejected = true;
+          } else {
+            acceptedChanges.water = Math.max(
+              0,
+              Math.min(player.maxStats.water, changes.water),
+            );
+          }
+        }
+
+        if ("food" in changes) {
+          const delta = changes.food - player.food;
+          if (delta < -maxFoodLoss || delta > 50) {
+            rejected = true;
+          } else {
+            acceptedChanges.food = Math.max(
+              0,
+              Math.min(player.maxStats.food, changes.food),
+            );
+          }
+        }
+
+        if ("energy" in changes) {
+          const delta = changes.energy - player.energy;
+          if (delta < -maxEnergyLoss || delta > 50) {
+            rejected = true;
+          } else {
+            acceptedChanges.energy = Math.max(
+              0,
+              Math.min(player.maxStats.energy, changes.energy),
+            );
+          }
+        }
+
+        if (rejected) {
+          // Можно отправить игроку актуальные значения с сервера
+          ws.send(
+            JSON.stringify({
+              type: "resourceCorrection",
+              player: {
+                health: player.health,
+                energy: player.energy,
+                food: player.food,
+                water: player.water,
+                armor: player.armor,
+              },
+            }),
+          );
+          return;
+        }
+
+        // Применяем принятые изменения
+        Object.assign(player, acceptedChanges);
+
+        players.set(playerId, { ...player });
+
+        // Рассылаем только изменившиеся ресурсы
+        const updatePayload = { id: playerId, ...acceptedChanges };
+
+        broadcastToWorld(
+          wss,
+          clients,
+          players,
+          player.worldId,
+          JSON.stringify({ type: "resourceUpdate", player: updatePayload }),
         );
       }
     });
