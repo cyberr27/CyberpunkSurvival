@@ -3839,6 +3839,86 @@ function setupWebSocket(
             player: updateData,
           }),
         );
+      } else if (data.type === "resourceUpdate") {
+        const playerId = clients.get(ws);
+        if (!playerId || !players.has(playerId)) return;
+
+        const player = players.get(playerId);
+
+        // Клиент может только УМЕНЬШАТЬ ресурсы (расход при ходьбе)
+        if (data.player.health !== undefined) {
+          const newVal = Number(data.player.health);
+          if (newVal < player.health && newVal >= 0) {
+            player.health = newVal;
+          }
+        }
+        if (data.player.energy !== undefined) {
+          const newVal = Number(data.player.energy);
+          if (newVal < player.energy && newVal >= 0) {
+            player.energy = newVal;
+          }
+        }
+        if (data.player.food !== undefined) {
+          const newVal = Number(data.player.food);
+          if (newVal < player.food && newVal >= 0) {
+            player.food = newVal;
+          }
+        }
+        if (data.player.water !== undefined) {
+          const newVal = Number(data.player.water);
+          if (newVal < player.water && newVal >= 0) {
+            player.water = newVal;
+          }
+        }
+
+        // Дистанцию можно только увеличивать
+        if (data.player.distanceTraveled !== undefined) {
+          const newDist = Number(data.player.distanceTraveled);
+          if (newDist > player.distanceTraveled) {
+            player.distanceTraveled = newDist;
+          }
+        }
+
+        // Сохраняем изменения
+        players.set(playerId, { ...player });
+        userDatabase.set(playerId, { ...player });
+        await saveUserDatabase(dbCollection, playerId, player);
+
+        // Подтверждаем клиенту актуальные значения
+        ws.send(
+          JSON.stringify({
+            type: "update",
+            player: {
+              id: playerId,
+              health: player.health,
+              energy: player.energy,
+              food: player.food,
+              water: player.water,
+              armor: player.armor,
+              distanceTraveled: player.distanceTraveled,
+            },
+          }),
+        );
+
+        // Рассылаем остальным в мире (опционально, если нужно)
+        broadcastToWorld(
+          wss,
+          clients,
+          players,
+          player.worldId,
+          JSON.stringify({
+            type: "update",
+            player: {
+              id: playerId,
+              health: player.health,
+              energy: player.energy,
+              food: player.food,
+              water: player.water,
+              armor: player.armor,
+              distanceTraveled: player.distanceTraveled,
+            },
+          }),
+        );
       }
     });
 
