@@ -1,11 +1,10 @@
 // playerStateSequence.js
 
 /** @typedef {Object} SequenceState
- *  @property {number} clientSeq           - последний seq, принятый от клиента
- *  @property {number} serverSeq           - seq, который сервер присвоил последнему валидному состоянию
+ *  @property {number} clientSeq
+ *  @property {number} serverSeq
  *  @property {Array<{seq:number, type:string, data:any, receivedAt:number}>} pendingQueue
  *  @property {boolean} isProcessing
- *  @property {Object|null} lastAppliedSnapshot
  */
 
 /** @type {Map<string, SequenceState>} */
@@ -17,28 +16,43 @@ function initSequenceForPlayer(playerId) {
     serverSeq: 0,
     pendingQueue: [],
     isProcessing: false,
-    lastAppliedSnapshot: null,
   });
 }
 
+/**
+ * Проверяет, стоит ли принимать сообщение в очередь
+ * @returns {boolean}
+ */
 function shouldEnqueueClientMessage(playerId, incomingClientSeq, messageType) {
   const state = playerSequences.get(playerId);
   if (!state) return true;
 
-  // Для move/update — строгая последовательность
   if (messageType === "move" || messageType === "update") {
     return incomingClientSeq > state.clientSeq;
   }
 
-  // Для остальных действий — разрешаем, если seq не сильно устарел
   return incomingClientSeq >= state.clientSeq - 5;
 }
 
-function enqueueClientMessage(playerId, incomingClientSeq, messageType, data) {
-  const state = playerSequences.get(playerId);
+/**
+ * Кладёт сообщение в очередь и запускает обработку
+ * @param {string} playerId
+ * @param {number} incomingClientSeq
+ * @param {string} messageType
+ * @param {any} data
+ * @param {(playerId: string, type: string, payload: any, seq: number) => Promise<boolean>} applyCallback
+ */
+function enqueueClientMessage(
+  playerId,
+  incomingClientSeq,
+  messageType,
+  data,
+  applyCallback,
+) {
+  let state = playerSequences.get(playerId);
   if (!state) {
     initSequenceForPlayer(playerId);
-    return;
+    state = playerSequences.get(playerId);
   }
 
   state.pendingQueue.push({
@@ -48,16 +62,19 @@ function enqueueClientMessage(playerId, incomingClientSeq, messageType, data) {
     receivedAt: Date.now(),
   });
 
-  // Сортируем очередь по seq (на случай перепутанных пакетов)
   state.pendingQueue.sort((a, b) => a.seq - b.seq);
 
-  // Запускаем обработку, если ещё не идёт
   if (!state.isProcessing) {
-    processQueueAsync(playerId);
+    processQueueAsync(playerId, applyCallback);
   }
 }
 
-async function processQueueAsync(playerId) {
+/**
+ * Обрабатывает очередь асинхронно
+ * @param {string} playerId
+ * @param {(playerId: string, type: string, payload: any, seq: number) => Promise<boolean>} applyCallback
+ */
+async function processQueueAsync(playerId, applyCallback) {
   const state = playerSequences.get(playerId);
   if (!state || state.isProcessing) return;
 
@@ -66,21 +83,20 @@ async function processQueueAsync(playerId) {
   while (state.pendingQueue.length > 0) {
     const msg = state.pendingQueue[0];
 
-    // Пропускаем устаревшие пакеты (опционально)
     if (Date.now() - msg.receivedAt > 15000) {
       state.pendingQueue.shift();
       continue;
     }
 
-    // ← Здесь будет вызов applyMessage (она теперь в websocket.js)
-    const applied = await applyMessage(playerId, msg.type, msg.data, msg.seq);
+    // ← Вот где мы наконец применяем!
+    const applied = await applyCallback(playerId, msg.type, msg.data, msg.seq);
 
     if (applied) {
       state.clientSeq = Math.max(state.clientSeq, msg.seq);
       state.serverSeq += 1;
       state.pendingQueue.shift();
     } else {
-      // Не применилось → отбрасываем (можно улучшить позже)
+      // Не применилось — отбрасываем (можно добавить retry позже)
       state.pendingQueue.shift();
     }
   }
@@ -89,8 +105,7 @@ async function processQueueAsync(playerId) {
 }
 
 function getNextServerSeq(playerId) {
-  const state = playerSequences.get(playerId);
-  return state ? state.serverSeq : 0;
+  return playerSequences.get(playerId)?.serverSeq ?? 0;
 }
 
 function getCurrentServerSeq(playerId) {

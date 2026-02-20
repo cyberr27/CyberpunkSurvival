@@ -3884,14 +3884,19 @@ function setupWebSocket(
         }
 
         if (!shouldEnqueueClientMessage(playerId, incomingSeq, data.type)) {
-          // Можно раскомментить, если хочешь информировать клиента
-          // ws.send(JSON.stringify({ type: "seqRejected", seq: incomingSeq }));
           return;
         }
 
-        enqueueClientMessage(playerId, incomingSeq, data.type, data);
+        // ← Передаём applyMessage как коллбэк
+        enqueueClientMessage(
+          playerId,
+          incomingSeq,
+          data.type,
+          data,
+          applyMessage,
+        );
 
-        return; // ← ВАЖНО! Никакой логики move здесь больше нет
+        return;
       }
     });
 
