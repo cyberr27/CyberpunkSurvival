@@ -295,7 +295,6 @@ function performMeleeAttack(damage, worldId) {
             targetId: enemyId,
             damage,
             worldId,
-            seq: nextSeq(),
           }),
         );
       }

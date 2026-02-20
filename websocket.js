@@ -4037,6 +4037,35 @@ function setupWebSocket(
                     player: { id: closestPlayer.id, ...closestPlayer },
                   }),
                 );
+
+                broadcastToWorld(
+                  wss,
+                  clients,
+                  players,
+                  enemy.worldId,
+                  JSON.stringify({
+                    type: "update",
+                    player: {
+                      id: closestPlayer.id,
+                      x: closestPlayer.x,
+                      y: closestPlayer.y,
+                      health: closestPlayer.health,
+                      energy: closestPlayer.energy,
+                      food: closestPlayer.food,
+                      water: closestPlayer.water,
+                      armor: closestPlayer.armor,
+                      distanceTraveled: closestPlayer.distanceTraveled,
+                      direction: closestPlayer.direction,
+                      state: closestPlayer.state,
+                      frame: closestPlayer.frame,
+                      attackFrame: closestPlayer.attackFrame || 0,
+                      attackFrameTime: closestPlayer.attackFrameTime || 0,
+                      inventory: closestPlayer.inventory || [],
+                      equipment: closestPlayer.equipment || {},
+                      serverSeq: getNextServerSeq(closestPlayer.id),
+                    },
+                  }),
+                );
               } else {
                 enemy.state = "attacking"; // держим анимацию
               }
