@@ -869,12 +869,7 @@ const ITEM_CONFIG = {
 let reconnectAttempts = 0;
 const maxReconnectAttempts = 5;
 const reconnectDelay = 2000; // 2 секунды
-let lastDistance = 0;
-let clientSequence = 0;
-
-function nextSeq() {
-  return ++clientSequence;
-}
+let lastDistance = 0; // Добавляем глобальную переменную
 
 // Переключение форм
 toRegister.addEventListener("click", () => {
@@ -1870,12 +1865,6 @@ function handleGameMessage(event) {
           const me = players.get(myId);
           if (!me) break;
 
-          const incomingServerSeq = data.player.serverSeq ?? -1;
-          if (incomingServerSeq <= (me.lastServerSeq ?? -1)) {
-            break;
-          }
-          me.lastServerSeq = incomingServerSeq;
-
           // ← Самое важное место для детекта урона
           if (data.player.health !== undefined) {
             const oldHealth = Number(me.health) || 0;
@@ -1950,11 +1939,6 @@ function handleGameMessage(event) {
         } else if (data.player?.id) {
           const existing = players.get(data.player.id) || {};
 
-          const incomingServerSeq = data.player.serverSeq ?? -1;
-          if (incomingServerSeq <= (existing.lastServerSeq ?? -1)) {
-            break;
-          }
-
           const updatedPlayer = {
             ...existing,
             ...data.player,
@@ -1966,7 +1950,6 @@ function handleGameMessage(event) {
             y: existing.y ?? data.player.y,
             direction: data.player.direction,
             state: data.player.state,
-            lastServerSeq: incomingServerSeq,
           };
 
           if (data.player.attackFrame !== undefined) {

@@ -13,14 +13,6 @@ const {
   handleHomelessStorageAction,
 } = require("./homelessServer");
 const { handleSkillUpgrade } = require("./toremidosServer");
-const {
-  initSequenceForPlayer,
-  shouldEnqueueClientMessage,
-  enqueueClientMessage,
-  getNextServerSeq,
-  getCurrentServerSeq,
-  cleanupSequence,
-} = require("./playerStateSequence");
 
 function broadcastToWorld(wss, clients, players, worldId, message) {
   wss.clients.forEach((client) => {
@@ -477,921 +469,6 @@ function setupWebSocket(
       Math.min(player.armor ?? 0, player.maxStats.armor),
     );
   }
-  async function applyMessage(playerId, msgType, payload, clientSeq) {
-    switch (msgType) {
-      case "move":
-      case "update": {
-        const oldX = player.x;
-        const oldY = player.y;
-
-        if (payload.x !== undefined) player.x = Number(payload.x);
-        if (payload.y !== undefined) player.y = Number(payload.y);
-        if (payload.direction) player.direction = payload.direction;
-        if (payload.state) player.state = payload.state;
-        if (payload.attackFrame !== undefined)
-          player.attackFrame = Number(payload.attackFrame);
-        if (payload.attackFrameTime !== undefined)
-          player.attackFrameTime = Number(payload.attackFrameTime);
-        if (payload.frame !== undefined) player.frame = Number(payload.frame);
-
-        if (payload.health !== undefined)
-          player.health = Math.max(
-            0,
-            Math.min(player.maxStats?.health || 100, Number(payload.health)),
-          );
-        if (payload.energy !== undefined)
-          player.energy = Math.max(
-            0,
-            Math.min(player.maxStats?.energy || 100, Number(payload.energy)),
-          );
-        if (payload.food !== undefined)
-          player.food = Math.max(
-            0,
-            Math.min(player.maxStats?.food || 100, Number(payload.food)),
-          );
-        if (payload.water !== undefined)
-          player.water = Math.max(
-            0,
-            Math.min(player.maxStats?.water || 100, Number(payload.water)),
-          );
-        if (payload.armor !== undefined) player.armor = Number(payload.armor);
-        if (payload.distanceTraveled !== undefined)
-          player.distanceTraveled = Number(payload.distanceTraveled);
-
-        let positionValid = true;
-        if (payload.x !== undefined || payload.y !== undefined) {
-          for (const obs of obstacles) {
-            if (obs.worldId !== player.worldId) continue;
-            if (
-              segmentsIntersect(
-                oldX,
-                oldY,
-                player.x,
-                player.y,
-                obs.x1,
-                obs.y1,
-                obs.x2,
-                obs.y2,
-              )
-            ) {
-              positionValid = false;
-              break;
-            }
-          }
-        }
-
-        if (!positionValid) {
-          player.x = oldX;
-          player.y = oldY;
-
-          const ws = [...wss.clients].find((c) => clients.get(c) === playerId);
-          if (ws?.readyState === WebSocket.OPEN) {
-            ws.send(
-              JSON.stringify({
-                type: "forcePosition",
-                x: oldX,
-                y: oldY,
-                reason: "collision",
-              }),
-            );
-          }
-        }
-
-        success = true;
-        break;
-      }
-
-      case "pickup": {
-        if (!items.has(payload.itemId)) break;
-
-        const item = items.get(payload.itemId);
-        if (item.isQuestItem && item.questOwnerId !== playerId) break;
-
-        if (!player.inventory) player.inventory = Array(20).fill(null);
-
-        const quantityToAdd = item.quantity || 1;
-        let added = false;
-
-        if (
-          item.type === "balyary" ||
-          item.type === "atom" ||
-          item.type === "blue_crystal" ||
-          item.type === "green_crystal" ||
-          item.type === "red_crystal" ||
-          item.type === "white_crystal" ||
-          item.type === "yellow_crystal" ||
-          item.type === "chameleon_crystal" ||
-          item.type === "nanofilament" ||
-          item.type === "nanoalloy" ||
-          (item.type.startsWith("recipe_") && item.type.includes("_equipment"))
-        ) {
-          const stackSlot = player.inventory.findIndex(
-            (slot) => slot && slot.type === item.type,
-          );
-          if (stackSlot !== -1) {
-            player.inventory[stackSlot].quantity =
-              (player.inventory[stackSlot].quantity || 1) + quantityToAdd;
-            added = true;
-          }
-        }
-
-        if (!added) {
-          const freeSlot = player.inventory.findIndex((slot) => slot === null);
-          if (freeSlot === -1) break; // инвентарь полон — отбрасываем
-          player.inventory[freeSlot] = {
-            type: item.type,
-            quantity: quantityToAdd,
-            itemId: payload.itemId,
-          };
-        }
-
-        items.delete(payload.itemId);
-
-        // Рассылка всем в мире (как было раньше)
-        wss.clients.forEach((client) => {
-          if (client.readyState === WebSocket.OPEN) {
-            const clientPlayer = players.get(clients.get(client));
-            if (clientPlayer && clientPlayer.worldId === item.worldId) {
-              client.send(
-                JSON.stringify({
-                  type: "itemPicked",
-                  itemId: payload.itemId,
-                  playerId,
-                  item: {
-                    type: item.type,
-                    itemId: payload.itemId,
-                    quantity: quantityToAdd,
-                    isDroppedByPlayer: item.isDroppedByPlayer || false,
-                  },
-                }),
-              );
-              if (clients.get(client) === playerId) {
-                client.send(
-                  JSON.stringify({
-                    type: "update",
-                    player: { id: playerId, inventory: player.inventory },
-                  }),
-                );
-              }
-            }
-          }
-        });
-
-        // Респавн через 10 минут
-        setTimeout(
-          () => {
-            const world = worlds.find((w) => w.id === item.worldId);
-            if (!world) return;
-            const newItemId = `${item.type}_${Date.now()}`;
-            const newItem = {
-              x: Math.random() * world.width,
-              y: Math.random() * world.height,
-              type: item.type,
-              spawnTime: Date.now(),
-              worldId: item.worldId,
-              quantity: quantityToAdd,
-            };
-            items.set(newItemId, newItem);
-            broadcastToWorld(
-              wss,
-              clients,
-              players,
-              item.worldId,
-              JSON.stringify({
-                type: "newItem",
-                itemId: newItemId,
-                x: newItem.x,
-                y: newItem.y,
-                type: newItem.type,
-                spawnTime: newItem.spawnTime,
-                worldId: newItem.worldId,
-                quantity: newItem.quantity,
-              }),
-            );
-          },
-          10 * 60 * 1000,
-        );
-
-        success = true;
-        break;
-      }
-
-      case "useItem": {
-        const slotIndex = payload.slotIndex;
-        const item = player.inventory[slotIndex];
-        if (!item || !ITEM_CONFIG[item.type]?.effect) break;
-
-        const effect = ITEM_CONFIG[item.type].effect;
-        if (effect.health)
-          player.health = Math.min(
-            player.health + effect.health,
-            player.maxStats.health,
-          );
-        if (effect.energy)
-          player.energy = Math.min(
-            player.energy + effect.energy,
-            player.maxStats.energy,
-          );
-        if (effect.food)
-          player.food = Math.min(
-            player.food + effect.food,
-            player.maxStats.food,
-          );
-        if (effect.water)
-          player.water = Math.min(
-            player.water + effect.water,
-            player.maxStats.water,
-          );
-        if (effect.armor)
-          player.armor = Math.min(
-            player.armor + effect.armor,
-            player.maxStats.armor,
-          );
-
-        // Уменьшаем/удаляем предмет
-        if (ITEM_CONFIG[item.type].stackable && item.quantity > 1) {
-          item.quantity -= 1;
-        } else {
-          player.inventory[slotIndex] = null;
-        }
-
-        // Ограничиваем статы
-        player.health = Math.max(
-          0,
-          Math.min(player.health, player.maxStats?.health || 100),
-        );
-        player.energy = Math.max(
-          0,
-          Math.min(player.energy, player.maxStats?.energy || 100),
-        );
-        player.food = Math.max(
-          0,
-          Math.min(player.food, player.maxStats?.food || 100),
-        );
-        player.water = Math.max(
-          0,
-          Math.min(player.water, player.maxStats?.water || 100),
-        );
-        player.armor = Math.max(
-          0,
-          Math.min(player.armor, player.maxStats?.armor || 0),
-        );
-
-        // Подтверждение клиенту
-        const ws = [...wss.clients].find((c) => clients.get(c) === playerId);
-        if (ws?.readyState === WebSocket.OPEN) {
-          ws.send(
-            JSON.stringify({
-              type: "useItemSuccess",
-              stats: {
-                health: player.health,
-                energy: player.energy,
-                food: player.food,
-                water: player.water,
-                armor: player.armor,
-              },
-              inventory: player.inventory,
-            }),
-          );
-        }
-
-        success = true;
-        break;
-      }
-
-      case "equipItem": {
-        const { slotIndex, slotName } = payload;
-
-        if (
-          slotIndex < 0 ||
-          slotIndex >= player.inventory.length ||
-          !player.inventory[slotIndex]
-        )
-          break;
-
-        const item = player.inventory[slotIndex];
-        const config = ITEM_CONFIG[item.type];
-        if (!config || !config.type) break;
-
-        if (config.level !== undefined && (player.level || 0) < config.level)
-          break;
-
-        let targetSlot = slotName;
-
-        if (config.type === "weapon") {
-          if (config.hands === "twohanded") {
-            if (player.equipment.offhand !== null) break;
-            targetSlot = "weapon";
-          } else if (config.hands === "onehanded") {
-            const currentWeapon = player.equipment.weapon;
-            if (currentWeapon) {
-              const currentConfig = ITEM_CONFIG[currentWeapon.type];
-              if (currentConfig?.hands === "twohanded") {
-                targetSlot = "weapon";
-              } else {
-                targetSlot =
-                  player.equipment.offhand === null ? "offhand" : "weapon";
-              }
-            } else {
-              targetSlot = "weapon";
-            }
-          }
-        } else {
-          targetSlot = EQUIPMENT_TYPES[config.type];
-          if (!targetSlot) break;
-        }
-
-        const oldItem = player.equipment[targetSlot];
-        if (oldItem) {
-          player.inventory[slotIndex] = {
-            type: oldItem.type,
-            itemId: oldItem.itemId,
-          };
-        } else {
-          player.inventory[slotIndex] = null;
-        }
-
-        player.equipment[targetSlot] = { type: item.type, itemId: item.itemId };
-
-        if (config.hands === "twohanded") player.equipment.offhand = null;
-        if (oldItem && ITEM_CONFIG[oldItem.type]?.hands === "twohanded")
-          player.equipment.offhand = null;
-
-        calculateMaxStats(player, ITEM_CONFIG);
-
-        // Ответ клиенту
-        const ws = [...wss.clients].find((c) => clients.get(c) === playerId);
-        if (ws?.readyState === WebSocket.OPEN) {
-          ws.send(
-            JSON.stringify({
-              type: "equipItemSuccess",
-              inventory: player.inventory,
-              equipment: player.equipment,
-              maxStats: player.maxStats,
-              stats: {
-                health: player.health,
-                energy: player.energy,
-                food: player.food,
-                water: player.water,
-                armor: player.armor,
-              },
-            }),
-          );
-        }
-
-        // Broadcast статов
-        broadcastToWorld(
-          wss,
-          clients,
-          players,
-          player.worldId,
-          JSON.stringify({
-            type: "update",
-            player: {
-              id: playerId,
-              maxStats: player.maxStats,
-              health: player.health,
-              energy: player.energy,
-              food: player.food,
-              water: player.water,
-              armor: player.armor,
-            },
-          }),
-        );
-
-        success = true;
-        break;
-      }
-
-      case "unequipItem": {
-        const { slotName, inventorySlot, itemId } = payload;
-
-        const validSlots = [
-          "head",
-          "chest",
-          "belt",
-          "pants",
-          "boots",
-          "weapon",
-          "offhand",
-          "gloves",
-        ];
-        if (!validSlots.includes(slotName)) break;
-
-        const equippedItem = player.equipment[slotName];
-        if (!equippedItem || equippedItem.itemId !== itemId) break;
-
-        if (
-          inventorySlot < 0 ||
-          inventorySlot >= player.inventory.length ||
-          player.inventory[inventorySlot] !== null
-        )
-          break;
-
-        player.inventory[inventorySlot] = {
-          type: equippedItem.type,
-          itemId: equippedItem.itemId,
-        };
-
-        player.equipment[slotName] = null;
-
-        const config = ITEM_CONFIG[equippedItem.type];
-        if (config?.type === "weapon" && config.hands === "twohanded") {
-          player.equipment.offhand = null;
-        }
-
-        calculateMaxStats(player, ITEM_CONFIG);
-
-        // Ответ клиенту
-        const ws = [...wss.clients].find((c) => clients.get(c) === playerId);
-        if (ws?.readyState === WebSocket.OPEN) {
-          ws.send(
-            JSON.stringify({
-              type: "unequipItemSuccess",
-              slotName,
-              inventorySlot,
-              inventory: player.inventory,
-              equipment: player.equipment,
-              maxStats: player.maxStats,
-              stats: {
-                health: player.health,
-                energy: player.energy,
-                food: player.food,
-                water: player.water,
-                armor: player.armor,
-              },
-            }),
-          );
-        }
-
-        // Broadcast статов
-        broadcastToWorld(
-          wss,
-          clients,
-          players,
-          player.worldId,
-          JSON.stringify({
-            type: "update",
-            player: {
-              id: playerId,
-              maxStats: player.maxStats,
-              health: player.health,
-              energy: player.energy,
-              food: player.food,
-              water: player.water,
-              armor: player.armor,
-            },
-          }),
-        );
-
-        success = true;
-        break;
-      }
-
-      case "dropItem": {
-        const slotIndex = payload.slotIndex;
-        const quantityToDrop = payload.quantity || 1;
-        const item = player.inventory[slotIndex];
-        if (!item) break;
-
-        if (
-          ITEM_CONFIG[item.type]?.stackable &&
-          quantityToDrop > (item.quantity || 1)
-        )
-          break;
-
-        let dropX = player.x;
-        let dropY = player.y;
-        let attempts = 0;
-        const maxAttempts = 10;
-
-        do {
-          const angle = Math.random() * Math.PI * 2;
-          const radius = Math.random() * 100;
-          dropX = player.x + Math.cos(angle) * radius;
-          dropY = player.y + Math.sin(angle) * radius;
-          attempts++;
-        } while (checkCollisionServer(dropX, dropY) && attempts < maxAttempts);
-
-        if (attempts >= maxAttempts) break;
-
-        const itemId = `${item.type}_${Date.now()}`;
-        if (ITEM_CONFIG[item.type]?.stackable) {
-          if (quantityToDrop === (item.quantity || 1)) {
-            player.inventory[slotIndex] = null;
-          } else {
-            item.quantity -= quantityToDrop;
-          }
-        } else {
-          player.inventory[slotIndex] = null;
-        }
-
-        items.set(itemId, {
-          x: dropX,
-          y: dropY,
-          type: item.type,
-          spawnTime: Date.now(),
-          quantity: quantityToDrop,
-          isDroppedByPlayer: true,
-          worldId: player.worldId,
-        });
-
-        broadcastToWorld(
-          wss,
-          clients,
-          players,
-          player.worldId,
-          JSON.stringify({
-            type: "itemDropped",
-            itemId,
-            x: dropX,
-            y: dropY,
-            type: item.type,
-            spawnTime: Date.now(),
-            quantity: quantityToDrop,
-            isDroppedByPlayer: true,
-            worldId: player.worldId,
-          }),
-        );
-
-        const ws = [...wss.clients].find((c) => clients.get(c) === playerId);
-        if (ws?.readyState === WebSocket.OPEN) {
-          ws.send(
-            JSON.stringify({
-              type: "update",
-              player: { id: playerId, inventory: player.inventory },
-            }),
-          );
-        }
-
-        success = true;
-        break;
-      }
-
-      case "attackPlayer": {
-        const targetId = payload.targetId;
-        const damage = payload.damage;
-        const target = players.get(targetId);
-        if (!target || target.worldId !== player.worldId || target.health <= 0)
-          break;
-
-        target.health = Math.max(0, target.health - damage);
-
-        players.set(targetId, { ...target });
-        userDatabase.set(targetId, { ...target });
-        saveUserDatabase(dbCollection, targetId, target);
-
-        broadcastToWorld(
-          wss,
-          clients,
-          players,
-          target.worldId,
-          JSON.stringify({
-            type: "update",
-            player: { id: targetId, health: target.health },
-          }),
-        );
-
-        success = true;
-        break;
-      }
-
-      case "attackEnemy": {
-        const targetId = payload.targetId;
-        const damage = payload.damage;
-        const enemy = enemies.get(targetId);
-        if (!enemy || enemy.worldId !== player.worldId || enemy.health <= 0)
-          break;
-
-        enemy.health = Math.max(0, enemy.health - damage);
-
-        if (enemy.health <= 0) {
-          enemies.delete(targetId);
-          broadcastToWorld(
-            wss,
-            clients,
-            players,
-            player.worldId,
-            JSON.stringify({
-              type: "enemyDied",
-              enemyId: targetId,
-            }),
-          );
-
-          // Дроп (как было)
-          const now = Date.now();
-          const dropItems = generateEnemyDrop(
-            enemy.type,
-            enemy.x,
-            enemy.y,
-            player.worldId,
-            now,
-          );
-          if (dropItems.length > 0) {
-            dropItems.forEach((drop) => items.set(drop.itemId, drop));
-            broadcastToWorld(
-              wss,
-              clients,
-              players,
-              player.worldId,
-              JSON.stringify({
-                type: "newItem",
-                items: dropItems,
-              }),
-            );
-          }
-
-          // XP и level up (как было)
-          let xpGained = 13;
-          if (enemy.type === "scorpion") xpGained = 20;
-          if (enemy.type === "blood_eye") xpGained = 50;
-
-          player.xp = (player.xp || 0) + xpGained;
-          const oldLevel = player.level;
-          let xpToNext = calculateXPToNextLevel(player.level);
-
-          while (player.xp >= xpToNext && player.level < 100) {
-            player.level += 1;
-            player.xp -= xpToNext;
-            player.upgradePoints = (player.upgradePoints || 0) + 10;
-            xpToNext = calculateXPToNextLevel(player.level);
-          }
-
-          const levelsGained = player.level - oldLevel;
-          if (levelsGained > 0) {
-            player.skillPoints = (player.skillPoints || 0) + 3 * levelsGained;
-            const ws = [...wss.clients].find(
-              (c) => clients.get(c) === playerId,
-            );
-            if (ws?.readyState === WebSocket.OPEN) {
-              ws.send(
-                JSON.stringify({
-                  type: "updateLevel",
-                  level: player.level,
-                  xp: player.xp,
-                  xpToNextLevel: xpToNext,
-                  upgradePoints: player.upgradePoints,
-                  skillPoints: player.skillPoints,
-                }),
-              );
-            }
-          }
-
-          // Уведомление
-          const ws = [...wss.clients].find((c) => clients.get(c) === playerId);
-          if (ws?.readyState === WebSocket.OPEN) {
-            ws.send(
-              JSON.stringify({
-                type: "levelSyncAfterKill",
-                level: player.level,
-                xp: player.xp,
-                xpToNextLevel: xpToNext,
-                upgradePoints: player.upgradePoints,
-                xpGained,
-              }),
-            );
-          }
-
-          // Квест прогресс
-          if (
-            enemy.type === "mutant" &&
-            player.neonQuest?.currentQuestId === "neon_quest_1"
-          ) {
-            player.neonQuest.progress = player.neonQuest.progress || {};
-            player.neonQuest.progress.killMutants =
-              (player.neonQuest.progress.killMutants || 0) + 1;
-            ws?.send(
-              JSON.stringify({
-                type: "neonQuestProgressUpdate",
-                progress: player.neonQuest.progress,
-              }),
-            );
-          }
-
-          // Респавн
-          setTimeout(
-            () => spawnNewEnemy(player.worldId),
-            8000 + Math.random() * 7000,
-          );
-        } else {
-          enemies.set(targetId, enemy);
-          broadcastToWorld(
-            wss,
-            clients,
-            players,
-            player.worldId,
-            JSON.stringify({
-              type: "enemyUpdate",
-              enemy: {
-                id: targetId,
-                health: enemy.health,
-                x: enemy.x,
-                y: enemy.y,
-              },
-            }),
-          );
-        }
-
-        success = true;
-        break;
-      }
-
-      case "tradeCompleted": {
-        // Полный код tradeCompleted из твоего старого обработчика
-        // Копируем 1:1, только убираем players.set / saveUserDatabase / broadcast (они уже есть в конце applyMessage)
-        const fromId = playerId;
-        let toId = payload.toId;
-
-        if (!toId || !players.has(toId)) {
-          for (const [key, offers] of tradeOffers.entries()) {
-            const [id1, id2] = key.split("-");
-            if (id1 === fromId || id2 === fromId) {
-              toId = id1 === fromId ? id2 : id1;
-              break;
-            }
-          }
-        }
-        if (!toId || !players.has(toId)) break;
-
-        const tradeKey =
-          fromId < toId ? `${fromId}-${toId}` : `${toId}-${fromId}`;
-        if (!tradeOffers.has(tradeKey)) break;
-
-        const offers = tradeOffers.get(tradeKey);
-        if (!offers.myConfirmed || !offers.partnerConfirmed) break;
-
-        const playerAId = tradeKey.split("-")[0];
-        const playerBId = tradeKey.split("-")[1];
-        const playerA = players.get(playerAId);
-        const playerB = players.get(playerBId);
-
-        if (!playerA || !playerB || !playerA.inventory || !playerB.inventory)
-          break;
-
-        const offerFromA = offers.myOffer;
-        const offerFromB = offers.partnerOffer;
-
-        const validateOffer = (player, offer) => {
-          return offer.every((item) => {
-            if (!item) return true;
-            const invItem = player.inventory[item.originalSlot];
-            if (!invItem) return false;
-            if (invItem.type !== item.type) return false;
-            if (item.quantity && invItem.quantity < item.quantity) return false;
-            return true;
-          });
-        };
-
-        if (
-          !validateOffer(playerA, offerFromA) ||
-          !validateOffer(playerB, offerFromB)
-        ) {
-          broadcastTradeCancelled(wss, clients, playerAId, playerBId);
-          tradeRequests.delete(tradeKey);
-          tradeOffers.delete(tradeKey);
-          break;
-        }
-
-        // Проверка места (как было)
-        const calculateRequiredSlots = (player, incomingOffer) => {
-          let required = 0;
-          incomingOffer.forEach((item) => {
-            if (!item) return;
-            if (ITEM_CONFIG[item.type]?.stackable) {
-              if (!player.inventory.some((s) => s && s.type === item.type))
-                required += 1;
-            } else {
-              required += 1;
-            }
-          });
-          return required;
-        };
-
-        const calculateFreedSlots = (player, ownOffer) => {
-          let freed = 0;
-          ownOffer.forEach((item) => {
-            if (!item || item.originalSlot === undefined) return;
-            const slotItem = player.inventory[item.originalSlot];
-            if (!slotItem) return;
-            if (ITEM_CONFIG[item.type]?.stackable && item.quantity) {
-              if ((slotItem.quantity || 1) - item.quantity <= 0) freed += 1;
-            } else {
-              freed += 1;
-            }
-          });
-          return freed;
-        };
-
-        const freeA = playerA.inventory.filter((s) => s === null).length;
-        const freeB = playerB.inventory.filter((s) => s === null).length;
-        const freedA = calculateFreedSlots(playerA, offerFromA);
-        const freedB = calculateFreedSlots(playerB, offerFromB);
-
-        if (
-          freeA + freedA < calculateRequiredSlots(playerA, offerFromB) ||
-          freeB + freedB < calculateRequiredSlots(playerB, offerFromA)
-        ) {
-          broadcastTradeCancelled(wss, clients, playerAId, playerBId);
-          tradeRequests.delete(tradeKey);
-          tradeOffers.delete(tradeKey);
-          break;
-        }
-
-        // Удаление предложенных
-        offerFromA.forEach((item) => {
-          if (!item || item.originalSlot === undefined) return;
-          const invItem = playerA.inventory[item.originalSlot];
-          if (!invItem || invItem.type !== item.type) return;
-          if (ITEM_CONFIG[item.type]?.stackable && item.quantity) {
-            invItem.quantity = (invItem.quantity || 1) - item.quantity;
-            if (invItem.quantity <= 0)
-              playerA.inventory[item.originalSlot] = null;
-          } else {
-            playerA.inventory[item.originalSlot] = null;
-          }
-        });
-
-        offerFromB.forEach((item) => {
-          if (!item || item.originalSlot === undefined) return;
-          const invItem = playerB.inventory[item.originalSlot];
-          if (!invItem || invItem.type !== item.type) return;
-          if (ITEM_CONFIG[item.type]?.stackable && item.quantity) {
-            invItem.quantity = (invItem.quantity || 1) - item.quantity;
-            if (invItem.quantity <= 0)
-              playerB.inventory[item.originalSlot] = null;
-          } else {
-            playerB.inventory[item.originalSlot] = null;
-          }
-        });
-
-        // Добавление полученных
-        const addItems = (player, itemsToAdd) => {
-          itemsToAdd.forEach((item) => {
-            if (!item) return;
-            const type = item.type;
-            const qty = item.quantity || 1;
-            if (ITEM_CONFIG[type]?.stackable) {
-              let added = false;
-              for (let i = 0; i < player.inventory.length; i++) {
-                if (player.inventory[i]?.type === type) {
-                  player.inventory[i].quantity =
-                    (player.inventory[i].quantity || 1) + qty;
-                  added = true;
-                  break;
-                }
-              }
-              if (added) return;
-            }
-            const free = player.inventory.findIndex((s) => s === null);
-            if (free !== -1) {
-              player.inventory[free] = {
-                type,
-                quantity: qty,
-                itemId: `${type}_${Date.now()}_${Math.random()}`,
-              };
-            }
-          });
-        };
-
-        addItems(playerA, offerFromB);
-        addItems(playerB, offerFromA);
-
-        // Очистка трейда
-        tradeRequests.delete(tradeKey);
-        tradeOffers.delete(tradeKey);
-
-        // Отправляем каждому обновлённый инвентарь
-        const wsA = [...wss.clients].find((c) => clients.get(c) === playerAId);
-        const wsB = [...wss.clients].find((c) => clients.get(c) === playerBId);
-        if (wsA?.readyState === WebSocket.OPEN) {
-          wsA.send(
-            JSON.stringify({
-              type: "tradeCompleted",
-              newInventory: playerA.inventory,
-            }),
-          );
-        }
-        if (wsB?.readyState === WebSocket.OPEN) {
-          wsB.send(
-            JSON.stringify({
-              type: "tradeCompleted",
-              newInventory: playerB.inventory,
-            }),
-          );
-        }
-
-        success = true;
-        break;
-      }
-
-      // Добавь аналогично case'ы для buyWater, sellToJack, buyFromJack, thimbleriggerBet и т.д.
-      // Принцип тот же: копируй старую логику, но без players.set / save / broadcast — они в конце applyMessage
-
-      default:
-        console.warn(`applyMessage: неизвестный тип ${msgType}`);
-        success = false;
-    }
-  }
 
   const EQUIPMENT_TYPES = {
     headgear: "head",
@@ -1754,7 +831,6 @@ function setupWebSocket(
           );
 
           players.set(data.username, playerData);
-          initSequenceForPlayer(data.username);
           ws.send(
             JSON.stringify({
               type: "loginSuccess",
@@ -1868,23 +944,57 @@ function setupWebSocket(
           ws.send(JSON.stringify({ type: "loginFail" }));
         }
       } else if (data.type === "buyWater") {
-        const playerId = clients.get(ws);
-        if (!playerId || !players.has(playerId)) return;
+        const id = clients.get(ws);
+        if (!id) return;
 
-        const incomingSeq = Number(data.seq ?? -1);
-        if (!Number.isInteger(incomingSeq)) return;
+        const player = players.get(id);
+        if (!player || !player.inventory) return;
 
-        if (!shouldEnqueueClientMessage(playerId, incomingSeq, data.type))
-          return;
-
-        enqueueClientMessage(
-          playerId,
-          incomingSeq,
-          data.type,
-          data,
-          applyMessage,
+        const balyarySlot = player.inventory.findIndex(
+          (slot) => slot && slot.type === "balyary",
         );
-        return;
+        const balyaryCount =
+          balyarySlot !== -1 ? player.inventory[balyarySlot].quantity || 1 : 0;
+
+        if (balyaryCount < data.cost) {
+          ws.send(
+            JSON.stringify({
+              type: "buyWaterResult",
+              success: false,
+              error: "Not enough balyary!",
+            }),
+          );
+          return;
+        }
+
+        if (balyaryCount === data.cost) {
+          player.inventory[balyarySlot] = null;
+        } else {
+          player.inventory[balyarySlot].quantity -= data.cost;
+        }
+
+        player.water = Math.min(
+          player.maxStats.water,
+          player.water + data.waterGain,
+        );
+
+        players.set(id, { ...player });
+        userDatabase.set(id, { ...player });
+        await saveUserDatabase(dbCollection, id, player);
+
+        ws.send(
+          JSON.stringify({
+            type: "buyWaterResult",
+            success: true,
+            option: data.option,
+            water: player.water,
+            inventory: player.inventory,
+            balyaryCount:
+              balyarySlot !== -1
+                ? player.inventory[balyarySlot]?.quantity || 0
+                : 0,
+          }),
+        );
       } else if (data.type === "meetNPC") {
         const id = clients.get(ws);
         if (id) {
@@ -2149,23 +1259,146 @@ function setupWebSocket(
           await saveUserDatabase(dbCollection, id, player);
         }
       } else if (data.type === "pickup") {
-        const playerId = clients.get(ws);
-        if (!playerId || !players.has(playerId)) return;
+        const id = clients.get(ws);
+        if (!id) return;
 
-        const incomingSeq = Number(data.seq ?? -1);
-        if (!Number.isInteger(incomingSeq)) return;
-
-        if (!shouldEnqueueClientMessage(playerId, incomingSeq, data.type))
+        if (!items.has(data.itemId)) {
+          ws.send(
+            JSON.stringify({ type: "itemNotFound", itemId: data.itemId }),
+          );
           return;
+        }
 
-        enqueueClientMessage(
-          playerId,
-          incomingSeq,
-          data.type,
-          data,
-          applyMessage,
+        const item = items.get(data.itemId);
+        const player = players.get(id);
+
+        if (item.isQuestItem && item.questOwnerId !== id) {
+          return;
+        }
+
+        if (!player.inventory) player.inventory = Array(20).fill(null);
+
+        // НОВОЕ: Расширили условие на atom, чтобы он тоже стекался как balyary
+        if (
+          item.type === "balyary" ||
+          item.type === "atom" ||
+          item.type === "blue_crystal" ||
+          item.type === "green_crystal" ||
+          item.type === "red_crystal" ||
+          item.type === "white_crystal" ||
+          item.type === "yellow_crystal" ||
+          item.type === "chameleon_crystal" ||
+          item.type === "nanofilament" ||
+          item.type === "nanoalloy" ||
+          (item.type.startsWith("recipe_") && item.type.includes("_equipment"))
+        ) {
+          const quantityToAdd = item.quantity || 1;
+          // ИЗМЕНЕНО: Ищем слот с соответствующим типом (balyary или atom)
+          const stackSlot = player.inventory.findIndex(
+            (slot) => slot && slot.type === item.type, // Теперь проверяем item.type, чтобы работало для atom
+          );
+          if (stackSlot !== -1) {
+            player.inventory[stackSlot].quantity =
+              (player.inventory[stackSlot].quantity || 1) + quantityToAdd;
+          } else {
+            const freeSlot = player.inventory.findIndex(
+              (slot) => slot === null,
+            );
+            if (freeSlot !== -1) {
+              player.inventory[freeSlot] = {
+                type: item.type, // Используем item.type, чтобы было "atom" или "balyary"
+                quantity: quantityToAdd,
+                itemId: data.itemId,
+              };
+            } else {
+              ws.send(
+                JSON.stringify({ type: "inventoryFull", itemId: data.itemId }),
+              );
+              return;
+            }
+          }
+        } else {
+          const freeSlot = player.inventory.findIndex((slot) => slot === null);
+          if (freeSlot !== -1) {
+            player.inventory[freeSlot] = {
+              type: item.type,
+              itemId: data.itemId,
+            };
+          } else {
+            ws.send(
+              JSON.stringify({ type: "inventoryFull", itemId: data.itemId }),
+            );
+            return;
+          }
+        }
+
+        items.delete(data.itemId);
+        players.set(id, { ...player });
+        userDatabase.set(id, { ...player });
+        await saveUserDatabase(dbCollection, id, player);
+
+        wss.clients.forEach((client) => {
+          if (client.readyState === WebSocket.OPEN) {
+            const clientPlayer = players.get(clients.get(client));
+            if (clientPlayer && clientPlayer.worldId === item.worldId) {
+              client.send(
+                JSON.stringify({
+                  type: "itemPicked",
+                  itemId: data.itemId,
+                  playerId: id,
+                  item: {
+                    type: item.type,
+                    itemId: data.itemId,
+                    quantity: item.quantity || 1,
+                    isDroppedByPlayer: item.isDroppedByPlayer || false,
+                  },
+                }),
+              );
+              if (clients.get(client) === id) {
+                client.send(
+                  JSON.stringify({ type: "update", player: { id, ...player } }),
+                );
+              }
+            }
+          }
+        });
+
+        setTimeout(
+          () => {
+            const worldWidth = worlds.find((w) => w.id === item.worldId).width;
+            const worldHeight = worlds.find(
+              (w) => w.id === item.worldId,
+            ).height;
+            const newItemId = `${item.type}_${Date.now()}`;
+            const newItem = {
+              x: Math.random() * worldWidth,
+              y: Math.random() * worldHeight,
+              type: item.type,
+              spawnTime: Date.now(),
+              worldId: item.worldId,
+            };
+            items.set(newItemId, newItem);
+            wss.clients.forEach((client) => {
+              if (client.readyState === WebSocket.OPEN) {
+                const clientPlayer = players.get(clients.get(client));
+                if (clientPlayer && clientPlayer.worldId === item.worldId) {
+                  client.send(
+                    JSON.stringify({
+                      type: "newItem",
+                      itemId: newItemId,
+                      x: newItem.x,
+                      y: newItem.y,
+                      type: newItem.type,
+                      spawnTime: newItem.spawnTime,
+                      worldId: newItem.worldId,
+                    }),
+                  );
+                }
+              }
+            });
+          },
+          10 * 60 * 1000,
         );
-        return;
       } else if (data.type === "chat") {
         const id = clients.get(ws);
         if (id) {
@@ -2178,77 +1411,484 @@ function setupWebSocket(
           });
         }
       } else if (data.type === "useItem") {
-        const playerId = clients.get(ws);
-        if (!playerId || !players.has(playerId)) return;
+        const id = clients.get(ws);
+        if (!id || !players.has(id)) return;
 
-        const incomingSeq = Number(data.seq ?? -1);
-        if (!Number.isInteger(incomingSeq)) return;
+        const player = players.get(id);
+        const slotIndex = data.slotIndex;
+        const item = player.inventory[slotIndex];
+        if (item && ITEM_CONFIG[item.type]?.effect) {
+          const effect = ITEM_CONFIG[item.type].effect;
+          if (effect.health)
+            player.health = Math.min(
+              player.health + effect.health,
+              player.maxStats.health,
+            );
+          if (effect.energy)
+            player.energy = Math.min(
+              player.energy + effect.energy,
+              player.maxStats.energy,
+            );
+          if (effect.food)
+            player.food = Math.min(
+              player.food + effect.food,
+              player.maxStats.food,
+            );
+          if (effect.water)
+            player.water = Math.min(
+              player.water + effect.water,
+              player.maxStats.water,
+            );
+          if (effect.armor)
+            player.armor = Math.min(
+              player.armor + effect.armor,
+              player.maxStats.armor,
+            );
+          if (ITEM_CONFIG[item.type].stackable) {
+            if (item.quantity > 1) {
+              player.inventory[slotIndex].quantity -= 1;
+            } else {
+              player.inventory[slotIndex] = null;
+            }
+          } else {
+            player.inventory[slotIndex] = null;
+          }
 
-        if (!shouldEnqueueClientMessage(playerId, incomingSeq, data.type))
-          return;
+          player.health = Math.max(
+            0,
+            Math.min(player.health, player.maxStats?.health || 100),
+          );
+          player.energy = Math.max(
+            0,
+            Math.min(player.energy, player.maxStats?.energy || 100),
+          );
+          player.food = Math.max(
+            0,
+            Math.min(player.food, player.maxStats?.food || 100),
+          );
+          player.water = Math.max(
+            0,
+            Math.min(player.water, player.maxStats?.water || 100),
+          );
+          player.armor = Math.max(
+            0,
+            Math.min(player.armor, player.maxStats?.armor || 0),
+          );
 
-        enqueueClientMessage(
-          playerId,
-          incomingSeq,
-          data.type,
-          data,
-          applyMessage,
-        );
-        return;
+          // Сохраняем изменения
+          players.set(id, { ...player });
+          userDatabase.set(id, { ...player });
+          await saveUserDatabase(dbCollection, id, player);
+
+          // Отправляем подтверждение клиенту
+          ws.send(
+            JSON.stringify({
+              type: "useItemSuccess",
+              stats: {
+                health: player.health,
+                energy: player.energy,
+                food: player.food,
+                water: player.water,
+                armor: player.armor,
+              },
+              inventory: player.inventory,
+            }),
+          );
+        }
       } else if (data.type === "equipItem") {
         const playerId = clients.get(ws);
-        if (!playerId || !players.has(playerId)) return;
-
-        const incomingSeq = Number(data.seq ?? -1);
-        if (!Number.isInteger(incomingSeq)) return;
-
-        if (!shouldEnqueueClientMessage(playerId, incomingSeq, data.type))
+        if (!playerId || !players.has(playerId)) {
+          ws.send(
+            JSON.stringify({ type: "equipItemFail", error: "Игрок не найден" }),
+          );
           return;
+        }
 
-        enqueueClientMessage(
-          playerId,
-          incomingSeq,
-          data.type,
-          data,
-          applyMessage,
+        const player = players.get(playerId);
+        const { slotIndex, slotName } = data;
+
+        // Валидация слота инвентаря
+        if (
+          slotIndex < 0 ||
+          slotIndex >= player.inventory.length ||
+          !player.inventory[slotIndex]
+        ) {
+          ws.send(
+            JSON.stringify({
+              type: "equipItemFail",
+              error: "Неверный слот инвентаря",
+            }),
+          );
+          return;
+        }
+
+        const item = player.inventory[slotIndex];
+        const config = ITEM_CONFIG[item.type];
+
+        if (!config || !config.type) {
+          ws.send(
+            JSON.stringify({
+              type: "equipItemFail",
+              error: "Некорректный предмет",
+            }),
+          );
+          return;
+        }
+
+        // Проверка уровня
+        if (config.level !== undefined && (player.level || 0) < config.level) {
+          ws.send(
+            JSON.stringify({
+              type: "equipItemFail",
+              error: `Требуется уровень ${config.level} для экипировки этого предмета`,
+            }),
+          );
+          return;
+        }
+
+        // Определяем целевой слот экипировки
+        let targetSlot = slotName;
+
+        if (config.type === "weapon") {
+          if (config.hands === "twohanded") {
+            if (player.equipment.offhand !== null) {
+              ws.send(
+                JSON.stringify({
+                  type: "equipItemFail",
+                  error: "Снимите предмет со второй руки для двуручного оружия",
+                }),
+              );
+              return;
+            }
+            targetSlot = "weapon";
+          } else if (config.hands === "onehanded") {
+            const currentWeapon = player.equipment.weapon;
+
+            if (currentWeapon) {
+              const currentConfig = ITEM_CONFIG[currentWeapon.type];
+              if (currentConfig?.hands === "twohanded") {
+                // Если сейчас двуручное → новое одноручное ставим вместо него
+                targetSlot = "weapon";
+              } else {
+                // Обычная логика одноручных
+                if (player.equipment.offhand === null) {
+                  targetSlot = "offhand";
+                } else {
+                  targetSlot = "weapon";
+                }
+              }
+            } else {
+              targetSlot = "weapon";
+            }
+          }
+        } else {
+          targetSlot = EQUIPMENT_TYPES[config.type];
+          if (!targetSlot) {
+            ws.send(
+              JSON.stringify({
+                type: "equipItemFail",
+                error: "Нельзя экипировать в этот слот",
+              }),
+            );
+            return;
+          }
+        }
+
+        const oldItem = player.equipment[targetSlot];
+
+        if (oldItem) {
+          player.inventory[slotIndex] = {
+            type: oldItem.type,
+            itemId: oldItem.itemId,
+          };
+        } else {
+          player.inventory[slotIndex] = null;
+        }
+
+        player.equipment[targetSlot] = {
+          type: item.type,
+          itemId: item.itemId,
+        };
+
+        if (oldItem) {
+          const oldConfig = ITEM_CONFIG[oldItem.type];
+          if (oldConfig?.type === "weapon" && oldConfig.hands === "twohanded") {
+            player.equipment.offhand = null;
+          }
+        }
+
+        if (config.hands === "twohanded") {
+          player.equipment.offhand = null;
+        }
+
+        calculateMaxStats(player, ITEM_CONFIG);
+
+        players.set(playerId, { ...player });
+        userDatabase.set(playerId, { ...player });
+        await saveUserDatabase(dbCollection, playerId, player);
+
+        ws.send(
+          JSON.stringify({
+            type: "equipItemSuccess",
+            inventory: player.inventory,
+            equipment: player.equipment,
+            maxStats: player.maxStats,
+            stats: {
+              health: player.health,
+              energy: player.energy,
+              food: player.food,
+              water: player.water,
+              armor: player.armor,
+            },
+          }),
         );
-        return;
+
+        broadcastToWorld(
+          wss,
+          clients,
+          players,
+          player.worldId,
+          JSON.stringify({
+            type: "update",
+            player: {
+              id: playerId,
+              maxStats: player.maxStats,
+              health: player.health,
+              energy: player.energy,
+              food: player.food,
+              water: player.water,
+              armor: player.armor,
+            },
+          }),
+        );
       } else if (data.type === "unequipItem") {
         const playerId = clients.get(ws);
-        if (!playerId || !players.has(playerId)) return;
-
-        const incomingSeq = Number(data.seq ?? -1);
-        if (!Number.isInteger(incomingSeq)) return;
-
-        if (!shouldEnqueueClientMessage(playerId, incomingSeq, data.type))
+        if (!playerId) {
+          ws.send(
+            JSON.stringify({
+              type: "unequipItemFail",
+              error: "Игрок не найден",
+            }),
+          );
           return;
+        }
 
-        enqueueClientMessage(
-          playerId,
-          incomingSeq,
-          data.type,
-          data,
-          applyMessage,
+        const player = players.get(playerId);
+        if (!player?.equipment || !player?.inventory) {
+          ws.send(
+            JSON.stringify({
+              type: "unequipItemFail",
+              error: "Данные игрока недоступны",
+            }),
+          );
+          return;
+        }
+
+        const { slotName, inventorySlot, itemId } = data;
+
+        const validSlots = [
+          "head",
+          "chest",
+          "belt",
+          "pants",
+          "boots",
+          "weapon",
+          "offhand",
+          "gloves",
+        ];
+
+        if (!validSlots.includes(slotName)) {
+          ws.send(
+            JSON.stringify({
+              type: "unequipItemFail",
+              error: "Недопустимый слот",
+            }),
+          );
+          return;
+        }
+
+        // Проверяем наличие предмета и совпадение itemId (защита от подмены)
+        const equippedItem = player.equipment[slotName];
+        if (!equippedItem || equippedItem.itemId !== itemId) {
+          ws.send(
+            JSON.stringify({
+              type: "unequipItemFail",
+              error: "Предмет не найден в слоте или неверный itemId",
+            }),
+          );
+          return;
+        }
+
+        // Проверяем, что указанный слот инвентаря действительно свободен
+        if (
+          inventorySlot < 0 ||
+          inventorySlot >= player.inventory.length ||
+          player.inventory[inventorySlot] !== null
+        ) {
+          ws.send(
+            JSON.stringify({
+              type: "unequipItemFail",
+              error: "Указанный слот инвентаря недоступен или занят",
+            }),
+          );
+          return;
+        }
+
+        // Снимаем предмет и кладём ровно в тот слот инвентаря, который указал клиент
+        player.inventory[inventorySlot] = {
+          type: equippedItem.type,
+          itemId: equippedItem.itemId,
+          // quantity: equippedItem.quantity || 1,   // если в будущем будут стакающиеся предметы экипировки
+        };
+
+        player.equipment[slotName] = null;
+
+        // Специальная обработка двуручного оружия
+        const config = ITEM_CONFIG[equippedItem.type];
+        if (config?.type === "weapon" && config.hands === "twohanded") {
+          player.equipment.offhand = null;
+        }
+
+        // Пересчитываем характеристики
+        calculateMaxStats(player, ITEM_CONFIG);
+
+        // Сохраняем изменения
+        players.set(playerId, { ...player });
+        userDatabase.set(playerId, { ...player });
+        await saveUserDatabase(dbCollection, playerId, player);
+
+        // Успешный ответ
+        ws.send(
+          JSON.stringify({
+            type: "unequipItemSuccess",
+            slotName,
+            inventorySlot,
+            inventory: player.inventory,
+            equipment: player.equipment,
+            maxStats: player.maxStats,
+            stats: {
+              health: player.health,
+              energy: player.energy,
+              food: player.food,
+              water: player.water,
+              armor: player.armor,
+            },
+          }),
         );
-        return;
+
+        // Рассылка обновления другим игрокам в мире
+        broadcastToWorld(
+          wss,
+          clients,
+          players,
+          player.worldId,
+          JSON.stringify({
+            type: "update",
+            player: {
+              id: playerId,
+              maxStats: player.maxStats,
+              health: player.health,
+              energy: player.energy,
+              food: player.food,
+              water: player.water,
+              armor: player.armor,
+            },
+          }),
+        );
       } else if (data.type === "dropItem") {
-        const playerId = clients.get(ws);
-        if (!playerId || !players.has(playerId)) return;
+        const id = clients.get(ws);
+        if (id) {
+          const player = players.get(id);
+          const slotIndex = data.slotIndex;
+          const item = player.inventory[slotIndex];
+          if (item) {
+            let quantityToDrop = data.quantity || 1;
+            if (ITEM_CONFIG[item.type]?.stackable) {
+              const currentQuantity = item.quantity || 1;
+              if (quantityToDrop > currentQuantity) {
+                return;
+              }
+            }
 
-        const incomingSeq = Number(data.seq ?? -1);
-        if (!Number.isInteger(incomingSeq)) return;
+            let dropX,
+              dropY,
+              attempts = 0;
+            const maxAttempts = 10;
+            do {
+              const angle = Math.random() * Math.PI * 2;
+              const radius = Math.random() * 100;
+              dropX = player.x + Math.cos(angle) * radius;
+              dropY = player.y + Math.sin(angle) * radius;
+              attempts++;
+            } while (
+              checkCollisionServer(dropX, dropY) &&
+              attempts < maxAttempts
+            );
 
-        if (!shouldEnqueueClientMessage(playerId, incomingSeq, data.type))
-          return;
-
-        enqueueClientMessage(
-          playerId,
-          incomingSeq,
-          data.type,
-          data,
-          applyMessage,
-        );
-        return;
+            if (attempts < maxAttempts) {
+              const itemId = `${item.type}_${Date.now()}`;
+              if (ITEM_CONFIG[item.type]?.stackable) {
+                if (quantityToDrop === item.quantity) {
+                  player.inventory[slotIndex] = null;
+                } else {
+                  player.inventory[slotIndex].quantity -= quantityToDrop;
+                }
+                items.set(itemId, {
+                  x: dropX,
+                  y: dropY,
+                  type: item.type,
+                  spawnTime: Date.now(),
+                  quantity: quantityToDrop,
+                  isDroppedByPlayer: true,
+                  worldId: player.worldId,
+                });
+              } else {
+                player.inventory[slotIndex] = null;
+                items.set(itemId, {
+                  x: dropX,
+                  y: dropY,
+                  type: item.type,
+                  spawnTime: Date.now(),
+                  isDroppedByPlayer: true,
+                  worldId: player.worldId,
+                });
+              }
+              players.set(id, { ...player });
+              userDatabase.set(id, { ...player });
+              await saveUserDatabase(dbCollection, id, player);
+              wss.clients.forEach((client) => {
+                if (client.readyState === WebSocket.OPEN) {
+                  const clientPlayer = players.get(clients.get(client));
+                  if (clientPlayer && clientPlayer.worldId === player.worldId) {
+                    client.send(
+                      JSON.stringify({
+                        type: "itemDropped",
+                        itemId,
+                        x: dropX,
+                        y: dropY,
+                        type: item.type,
+                        spawnTime: Date.now(),
+                        quantity: ITEM_CONFIG[item.type]?.stackable
+                          ? quantityToDrop
+                          : undefined,
+                        isDroppedByPlayer: true,
+                        worldId: player.worldId,
+                      }),
+                    );
+                    if (clients.get(client) === id) {
+                      client.send(
+                        JSON.stringify({
+                          type: "update",
+                          player: { id, ...player },
+                        }),
+                      );
+                    }
+                  }
+                }
+              });
+            }
+          }
+        }
       } else if (data.type === "selectQuest") {
         const id = clients.get(ws);
         if (id) {
@@ -2431,23 +2071,257 @@ function setupWebSocket(
           }
         });
       } else if (data.type === "tradeCompleted") {
-        const playerId = clients.get(ws);
-        if (!playerId || !players.has(playerId)) return;
+        const fromId = clients.get(ws);
+        if (!fromId || !players.has(fromId)) return;
 
-        const incomingSeq = Number(data.seq ?? -1);
-        if (!Number.isInteger(incomingSeq)) return;
+        // Получаем второго участника — он должен быть в данных или в tradeOffers
+        let toId = data.toId;
+        if (!toId || !players.has(toId)) {
+          // Если toId не пришёл — ищем по активным трейдам
+          for (const [key, offers] of tradeOffers.entries()) {
+            const [id1, id2] = key.split("-");
+            if (id1 === fromId || id2 === fromId) {
+              toId = id1 === fromId ? id2 : id1;
+              break;
+            }
+          }
+        }
+        if (!toId || !players.has(toId)) return;
 
-        if (!shouldEnqueueClientMessage(playerId, incomingSeq, data.type))
+        // Нормализуем ключ торговли (всегда меньший ID первым)
+        const tradeKey =
+          fromId < toId ? `${fromId}-${toId}` : `${toId}-${fromId}`;
+        if (!tradeOffers.has(tradeKey)) return;
+
+        const offers = tradeOffers.get(tradeKey);
+        if (!offers.myConfirmed || !offers.partnerConfirmed) return;
+
+        // Определяем игроков
+        const playerAId = tradeKey.split("-")[0]; // меньший ID
+        const playerBId = tradeKey.split("-")[1]; // больший ID
+        const playerA = players.get(playerAId);
+        const playerB = players.get(playerBId);
+
+        if (!playerA || !playerB || !playerA.inventory || !playerB.inventory)
           return;
 
-        enqueueClientMessage(
-          playerId,
-          incomingSeq,
-          data.type,
-          data,
-          applyMessage,
-        );
-        return;
+        // Определяем, чьё предложение чьё (симметрично!)
+        const offerFromA = offers.myOffer; // всегда от игрока A (меньший ID)
+        const offerFromB = offers.partnerOffer; // всегда от игрока B
+
+        // ВАЛИДАЦИЯ: предметы на месте
+        const validateOffer = (player, offer) => {
+          return offer.every((item) => {
+            if (!item) return true;
+            const invItem = player.inventory[item.originalSlot];
+            if (!invItem) return false;
+            if (invItem.type !== item.type) return false;
+            if (item.quantity && invItem.quantity < item.quantity) return false;
+            return true;
+          });
+        };
+
+        if (
+          !validateOffer(playerA, offerFromA) ||
+          !validateOffer(playerB, offerFromB)
+        ) {
+          broadcastTradeCancelled(wss, clients, playerAId, playerBId);
+          tradeRequests.delete(tradeKey);
+          tradeOffers.delete(tradeKey);
+          return;
+        }
+
+        // Проверка свободного места
+        const calculateRequiredSlots = (player, incomingOffer) => {
+          let requiredSlots = 0;
+
+          incomingOffer.forEach((item) => {
+            if (!item) return;
+
+            const type = item.type;
+            const isStackable = ITEM_CONFIG[type]?.stackable;
+
+            if (isStackable) {
+              // Проверяем, есть ли уже стек этого типа в инвентаре
+              const hasExistingStack = player.inventory.some(
+                (slot) => slot && slot.type === type,
+              );
+              if (!hasExistingStack) {
+                requiredSlots += 1; // Нужен новый слот только если нет стака
+              }
+              // Если есть — просто прибавим количество, слот не нужен
+            } else {
+              // Не-стакабельный — всегда нужен отдельный слот
+              requiredSlots += 1;
+            }
+          });
+
+          return requiredSlots;
+        };
+
+        const calculateFreedSlots = (player, ownOffer) => {
+          let freed = 0;
+
+          ownOffer.forEach((item) => {
+            if (!item || item.originalSlot === undefined) return;
+
+            const slotItem = player.inventory[item.originalSlot];
+            if (!slotItem) return;
+
+            if (ITEM_CONFIG[item.type]?.stackable && item.quantity) {
+              const remaining = (slotItem.quantity || 1) - (item.quantity || 1);
+              if (remaining <= 0) {
+                freed += 1; // Слот полностью освобождается
+              }
+              // Если осталось >0 — слот остаётся занятым
+            } else {
+              freed += 1; // Не-стакабельный — слот всегда освобождается
+            }
+          });
+
+          return freed;
+        };
+
+        // Текущие пустые слоты
+        const freeSlotsA = playerA.inventory.filter((s) => s === null).length;
+        const freeSlotsB = playerB.inventory.filter((s) => s === null).length;
+
+        // Освобождаются от своих отданных предметов
+        const freedByA = calculateFreedSlots(playerA, offerFromA);
+        const freedByB = calculateFreedSlots(playerB, offerFromB);
+
+        // Итого доступных слотов после отдачи
+        const totalAvailableA = freeSlotsA + freedByA;
+        const totalAvailableB = freeSlotsB + freedByB;
+
+        // Сколько реально нужно слотов для входящих предметов (с учётом стеков)
+        const requiredForA = calculateRequiredSlots(playerA, offerFromB);
+        const requiredForB = calculateRequiredSlots(playerB, offerFromA);
+
+        // Проверка: хватает ли места?
+        if (totalAvailableA < requiredForA || totalAvailableB < requiredForB) {
+          broadcastTradeCancelled(wss, clients, playerAId, playerBId);
+          tradeRequests.delete(tradeKey);
+          tradeOffers.delete(tradeKey);
+          return;
+        }
+
+        // УДАЛЕНИЕ предложенных предметов
+        // УДАЛЕНИЕ предложенных предметов (с поддержкой частичного стака)
+        offerFromA.forEach((item) => {
+          if (item && item.originalSlot !== undefined) {
+            const slotIndex = item.originalSlot;
+            const invItem = playerA.inventory[slotIndex];
+
+            // Защита от подлога
+            if (!invItem || invItem.type !== item.type) return;
+
+            if (ITEM_CONFIG[item.type]?.stackable && item.quantity) {
+              // Это stackable (баляры, атомы) — уменьшаем количество
+              invItem.quantity = (invItem.quantity || 1) - item.quantity;
+              if (invItem.quantity <= 0) {
+                playerA.inventory[slotIndex] = null;
+              }
+            } else {
+              // Не stackable — полностью удаляем
+              playerA.inventory[slotIndex] = null;
+            }
+          }
+        });
+
+        offerFromB.forEach((item) => {
+          if (item && item.originalSlot !== undefined) {
+            const slotIndex = item.originalSlot;
+            const invItem = playerB.inventory[slotIndex];
+
+            // Защита от подлога
+            if (!invItem || invItem.type !== item.type) return;
+
+            if (ITEM_CONFIG[item.type]?.stackable && item.quantity) {
+              // Это stackable — уменьшаем количество
+              invItem.quantity = (invItem.quantity || 1) - item.quantity;
+              if (invItem.quantity <= 0) {
+                playerB.inventory[slotIndex] = null;
+              }
+            } else {
+              // Не stackable — полностью удаляем
+              playerB.inventory[slotIndex] = null;
+            }
+          }
+        });
+
+        // ДОБАВЛЕНИЕ полученных предметов (с поддержкой стека для stackable)
+        const addItemsToPlayer = (player, itemsToAdd) => {
+          itemsToAdd.forEach((item) => {
+            if (!item) return;
+
+            const type = item.type;
+            const qty = item.quantity || 1;
+
+            // Если предмет stackable — ищем существующий стек
+            if (ITEM_CONFIG[type]?.stackable) {
+              let added = false;
+              for (let i = 0; i < player.inventory.length; i++) {
+                const slot = player.inventory[i];
+                if (slot && slot.type === type) {
+                  // Нашли существующий стек — прибавляем
+                  slot.quantity = (slot.quantity || 1) + qty;
+                  added = true;
+                  break;
+                }
+              }
+              if (added) return; // Уже добавили в существующий стек
+            }
+
+            // Если не stackable или не нашли стек — ищем свободный слот
+            const freeSlot = player.inventory.findIndex((s) => s === null);
+            if (freeSlot !== -1) {
+              player.inventory[freeSlot] = {
+                type: type,
+                quantity: qty,
+                itemId: `${type}_${Date.now()}_${Math.random()}`,
+              };
+            }
+            // Если нет места — предмет пропадает (уже проверено ранее через freeSlots)
+          });
+        };
+
+        // Применяем для обоих игроков
+        addItemsToPlayer(playerA, offerFromB);
+        addItemsToPlayer(playerB, offerFromA);
+
+        // Сохранение
+        players.set(playerAId, { ...playerA });
+        players.set(playerBId, { ...playerB });
+        userDatabase.set(playerAId, { ...playerA });
+        userDatabase.set(playerBId, { ...playerB });
+        await saveUserDatabase(dbCollection, playerAId, playerA);
+        await saveUserDatabase(dbCollection, playerBId, playerB);
+
+        // Отправляем каждому свой новый инвентарь
+        wss.clients.forEach((client) => {
+          if (client.readyState !== WebSocket.OPEN) return;
+          const clientId = clients.get(client);
+          if (clientId === playerAId) {
+            client.send(
+              JSON.stringify({
+                type: "tradeCompleted",
+                newInventory: playerA.inventory,
+              }),
+            );
+          } else if (clientId === playerBId) {
+            client.send(
+              JSON.stringify({
+                type: "tradeCompleted",
+                newInventory: playerB.inventory,
+              }),
+            );
+          }
+        });
+
+        // Очистка
+        tradeRequests.delete(tradeKey);
+        tradeOffers.delete(tradeKey);
       } else if (data.type === "tradeCancelled") {
         const fromId = clients.get(ws);
         const toId = data.toId;
@@ -2493,41 +2367,218 @@ function setupWebSocket(
           }
         });
       } else if (data.type === "attackPlayer") {
-        const playerId = clients.get(ws);
-        if (!playerId || !players.has(playerId)) return;
+        const attackerId = clients.get(ws);
+        if (
+          attackerId &&
+          players.has(attackerId) &&
+          players.has(data.targetId)
+        ) {
+          const attacker = players.get(attackerId);
+          const target = players.get(data.targetId);
+          if (
+            attacker.worldId === data.worldId &&
+            target.worldId === data.worldId &&
+            target.health > 0
+          ) {
+            target.health = Math.max(0, target.health - data.damage);
+            players.set(data.targetId, { ...target });
+            userDatabase.set(data.targetId, { ...target });
+            await saveUserDatabase(dbCollection, data.targetId, target);
 
-        const incomingSeq = Number(data.seq ?? -1);
-        if (!Number.isInteger(incomingSeq)) return;
-
-        if (!shouldEnqueueClientMessage(playerId, incomingSeq, data.type))
-          return;
-
-        enqueueClientMessage(
-          playerId,
-          incomingSeq,
-          data.type,
-          data,
-          applyMessage,
-        );
-        return;
+            // Broadcast update to all players in the same world
+            wss.clients.forEach((client) => {
+              if (client.readyState === WebSocket.OPEN) {
+                const clientPlayer = players.get(clients.get(client));
+                if (clientPlayer && clientPlayer.worldId === target.worldId) {
+                  client.send(
+                    JSON.stringify({
+                      type: "update",
+                      player: { id: data.targetId, ...target },
+                    }),
+                  );
+                }
+              }
+            });
+          }
+        }
       } else if (data.type === "attackEnemy") {
-        const playerId = clients.get(ws);
-        if (!playerId || !players.has(playerId)) return;
+        const attackerId = clients.get(ws);
+        if (!attackerId) return;
 
-        const incomingSeq = Number(data.seq ?? -1);
-        if (!Number.isInteger(incomingSeq)) return;
+        const attacker = players.get(attackerId);
+        const enemy = enemies.get(data.targetId);
 
-        if (!shouldEnqueueClientMessage(playerId, incomingSeq, data.type))
+        if (
+          !attacker ||
+          !enemy ||
+          enemy.worldId !== data.worldId ||
+          enemy.health <= 0
+        )
           return;
 
-        enqueueClientMessage(
-          playerId,
-          incomingSeq,
-          data.type,
-          data,
-          applyMessage,
-        );
-        return;
+        // Наносим урон
+        enemy.health = Math.max(0, enemy.health - data.damage);
+
+        // Если умер
+        if (enemy.health <= 0) {
+          enemies.delete(data.targetId);
+
+          // Уведомляем всех о смерти
+          broadcastToWorld(
+            wss,
+            clients,
+            players,
+            data.worldId,
+            JSON.stringify({
+              type: "enemyDied",
+              enemyId: data.targetId,
+            }),
+          );
+
+          // ───────────────────── НОВАЯ СИСТЕМА ДРОПА ─────────────────────
+          const now = Date.now();
+          const dropItems = generateEnemyDrop(
+            enemy.type,
+            enemy.x,
+            enemy.y,
+            data.worldId,
+            now,
+          );
+
+          if (dropItems.length > 0) {
+            // Добавляем все дропнутые предметы в глобальную карту items
+            for (const drop of dropItems) {
+              items.set(drop.itemId, {
+                x: drop.x,
+                y: drop.y,
+                type: drop.type,
+                quantity: drop.quantity || 1,
+                spawnTime: drop.spawnTime,
+                worldId: drop.worldId,
+              });
+            }
+
+            // Отправляем одним сообщением весь дроп
+            broadcastToWorld(
+              wss,
+              clients,
+              players,
+              data.worldId,
+              JSON.stringify({
+                type: "newItem",
+                items: dropItems,
+              }),
+            );
+          }
+          // ──────────────────────────────────────────────────────────────
+
+          // XP и level up
+          let xpGained = 13;
+          if (enemy.type === "scorpion") {
+            xpGained = 20;
+          }
+          if (enemy.type === "blood_eye") {
+            xpGained = 50;
+          }
+          attacker.xp = (attacker.xp || 0) + xpGained;
+
+          const oldLevel = attacker.level;
+
+          let levelUp = false;
+          let xpToNext = calculateXPToNextLevel(attacker.level);
+
+          while (attacker.xp >= xpToNext && attacker.level < 100) {
+            attacker.level += 1;
+            attacker.xp -= xpToNext;
+            attacker.upgradePoints = (attacker.upgradePoints || 0) + 10;
+            levelUp = true;
+            xpToNext = calculateXPToNextLevel(attacker.level);
+          }
+
+          const levelsGained = attacker.level - oldLevel;
+
+          if (levelsGained > 0) {
+            attacker.skillPoints =
+              (attacker.skillPoints || 0) + 3 * levelsGained;
+
+            // Отправляем клиенту обновление (тот же тип сообщения, что и при прокачке)
+            ws.send(
+              JSON.stringify({
+                type: "updateLevel",
+                level: attacker.level,
+                xp: attacker.xp,
+                xpToNextLevel: xpToNext,
+                upgradePoints: attacker.upgradePoints,
+                skillPoints: attacker.skillPoints,
+              }),
+            );
+
+            // Сохраняем в базу сразу
+            players.set(attackerId, attacker);
+            userDatabase.set(attackerId, attacker);
+            await saveUserDatabase(dbCollection, attackerId, attacker);
+          }
+
+          // Уведомление атакующего (levelSyncAfterKill)
+          ws.send(
+            JSON.stringify({
+              type: "levelSyncAfterKill",
+              level: attacker.level,
+              xp: attacker.xp,
+              xpToNextLevel: xpToNext,
+              upgradePoints: attacker.upgradePoints,
+              xpGained,
+            }),
+          );
+
+          // Прогресс квеста (только для мутантов)
+          if (enemy.type === "mutant") {
+            if (
+              attacker.neonQuest &&
+              attacker.neonQuest.currentQuestId === "neon_quest_1"
+            ) {
+              attacker.neonQuest.progress = attacker.neonQuest.progress || {};
+              attacker.neonQuest.progress.killMutants =
+                (attacker.neonQuest.progress.killMutants || 0) + 1;
+
+              players.set(attackerId, attacker);
+              userDatabase.set(attackerId, attacker);
+              await saveUserDatabase(dbCollection, attackerId, attacker);
+
+              ws.send(
+                JSON.stringify({
+                  type: "neonQuestProgressUpdate",
+                  progress: attacker.neonQuest.progress,
+                }),
+              );
+            }
+          }
+
+          // Респавн через 8–15 секунд
+          setTimeout(
+            () => spawnNewEnemy(data.worldId),
+            8000 + Math.random() * 7000,
+          );
+        } else {
+          // Если враг ещё жив — просто обновляем здоровье
+          enemies.set(data.targetId, enemy);
+
+          broadcastToWorld(
+            wss,
+            clients,
+            players,
+            data.worldId,
+            JSON.stringify({
+              type: "enemyUpdate",
+              enemy: {
+                id: data.targetId,
+                health: enemy.health,
+                x: enemy.x,
+                y: enemy.y,
+              },
+            }),
+          );
+        }
       } else if (data.type === "neonQuestAccept") {
         const id = clients.get(ws);
         if (id && players.has(id)) {
@@ -3119,40 +3170,205 @@ function setupWebSocket(
         );
       } else if (data.type === "buyFromJack") {
         const playerId = clients.get(ws);
-        if (!playerId || !players.has(playerId)) return;
-
-        const incomingSeq = Number(data.seq ?? -1);
-        if (!Number.isInteger(incomingSeq)) return;
-
-        if (!shouldEnqueueClientMessage(playerId, incomingSeq, data.type))
+        if (!playerId || !players.has(playerId)) {
+          ws.send(
+            JSON.stringify({
+              type: "buyFromJackFail",
+              error: "Игрок не найден",
+            }),
+          );
           return;
+        }
 
-        enqueueClientMessage(
-          playerId,
-          incomingSeq,
-          data.type,
-          data,
-          applyMessage,
+        const player = players.get(playerId);
+        const type = data.itemType;
+        const cfg = ITEM_CONFIG[type];
+        if (!cfg) {
+          ws.send(
+            JSON.stringify({
+              type: "buyFromJackFail",
+              error: "Неверный тип предмета",
+            }),
+          );
+          return;
+        }
+
+        // Проверка: это еда rarity 1-3, не оружие, не чёрный список
+        const BLACKLIST = ["balyary", "atom", "blood_pack", "blood_syringe"];
+        const isValid =
+          cfg.rarity >= 1 &&
+          cfg.rarity <= 3 &&
+          !BLACKLIST.includes(type) &&
+          cfg.category !== "weapon";
+        if (!isValid) {
+          ws.send(
+            JSON.stringify({
+              type: "buyFromJackFail",
+              error: "Этот предмет нельзя купить у Джека",
+            }),
+          );
+          return;
+        }
+
+        const price = cfg.rarity; // Цена = rarity
+        if (data.price !== price) {
+          ws.send(
+            JSON.stringify({ type: "buyFromJackFail", error: "Неверная цена" }),
+          );
+          return;
+        }
+
+        // Находим баляры
+        const balyarySlot = player.inventory.findIndex(
+          (s) => s && s.type === "balyary",
         );
-        return;
+        const balyaryQty =
+          balyarySlot !== -1 ? player.inventory[balyarySlot].quantity || 0 : 0;
+        if (balyaryQty < price) {
+          ws.send(
+            JSON.stringify({
+              type: "buyFromJackFail",
+              error: "Не хватает баляров",
+            }),
+          );
+          return;
+        }
+
+        // Вычитаем баляры
+        if (balyaryQty === price) {
+          player.inventory[balyarySlot] = null;
+        } else {
+          player.inventory[balyarySlot].quantity -= price;
+        }
+
+        // Находим свободный слот
+        const freeSlot = player.inventory.findIndex((s) => s === null);
+        if (freeSlot === -1) {
+          ws.send(
+            JSON.stringify({
+              type: "buyFromJackFail",
+              error: "Инвентарь полон",
+            }),
+          );
+          return;
+        }
+
+        // Добавляем предмет
+        player.inventory[freeSlot] = {
+          type,
+          quantity: 1,
+          itemId: `${type}_${Date.now()}`,
+        };
+
+        // Сохраняем
+        players.set(playerId, { ...player });
+        userDatabase.set(playerId, { ...player });
+        await saveUserDatabase(dbCollection, playerId, player);
+
+        // Отправляем success с новым inventory
+        ws.send(
+          JSON.stringify({
+            type: "buyFromJackSuccess",
+            inventory: player.inventory,
+          }),
+        );
       } else if (data.type === "sellToJack") {
         const playerId = clients.get(ws);
-        if (!playerId || !players.has(playerId)) return;
-
-        const incomingSeq = Number(data.seq ?? -1);
-        if (!Number.isInteger(incomingSeq)) return;
-
-        if (!shouldEnqueueClientMessage(playerId, incomingSeq, data.type))
+        if (!playerId || !players.has(playerId)) {
+          ws.send(
+            JSON.stringify({
+              type: "sellToJackFail",
+              error: "Игрок не найден",
+            }),
+          );
           return;
+        }
 
-        enqueueClientMessage(
-          playerId,
-          incomingSeq,
-          data.type,
-          data,
-          applyMessage,
+        const player = players.get(playerId);
+        const slotIndex = data.slotIndex;
+        if (slotIndex < 0 || slotIndex >= player.inventory.length) {
+          ws.send(
+            JSON.stringify({ type: "sellToJackFail", error: "Неверный слот" }),
+          );
+          return;
+        }
+
+        const item = player.inventory[slotIndex];
+        if (!item) {
+          ws.send(
+            JSON.stringify({ type: "sellToJackFail", error: "Слот пустой" }),
+          );
+          return;
+        }
+
+        // Проверка: это еда (та же как в покупке)
+        const cfg = ITEM_CONFIG[item.type];
+        if (!cfg) {
+          ws.send(
+            JSON.stringify({
+              type: "sellToJackFail",
+              error: "Неверный тип предмета",
+            }),
+          );
+          return;
+        }
+
+        const BLACKLIST = ["balyary", "atom", "blood_pack", "blood_syringe"];
+        const isFood =
+          cfg.rarity >= 1 &&
+          cfg.rarity <= 3 &&
+          !BLACKLIST.includes(item.type) &&
+          cfg.category !== "weapon";
+        if (!isFood) {
+          ws.send(
+            JSON.stringify({
+              type: "sellToJackFail",
+              error: "Джек покупает только продукты питания",
+            }),
+          );
+          return;
+        }
+
+        player.inventory[slotIndex] = null;
+
+        let balyarySlot = player.inventory.findIndex(
+          (s) => s && s.type === "balyary",
         );
-        return;
+        if (balyarySlot !== -1) {
+          player.inventory[balyarySlot].quantity =
+            (player.inventory[balyarySlot].quantity || 0) + 1;
+        } else {
+          const freeSlot = player.inventory.findIndex((s) => s === null);
+          if (freeSlot !== -1) {
+            player.inventory[freeSlot] = {
+              type: "balyary",
+              quantity: 1,
+              itemId: `balyary_${Date.now()}`,
+            };
+          } else {
+            // Редко: но если нет места — не добавляем (хотя проверено ранее? Нет, добавить проверку
+            ws.send(
+              JSON.stringify({
+                type: "sellToJackFail",
+                error: "Нет места для баляра",
+              }),
+            );
+            return;
+          }
+        }
+
+        // Сохраняем
+        players.set(playerId, { ...player });
+        userDatabase.set(playerId, { ...player });
+        await saveUserDatabase(dbCollection, playerId, player);
+
+        // Отправляем success с новым inventory
+        ws.send(
+          JSON.stringify({
+            type: "sellToJackSuccess",
+            inventory: player.inventory,
+          }),
+        );
       } else if (data.type === "twister") {
         const playerId = clients.get(ws);
         if (!playerId) {
@@ -3487,10 +3703,13 @@ function setupWebSocket(
             newHealth: player.health,
           }),
         );
-      } else if (data.type === "update" || data.type === "move") {
+      }
+      if (data.type === "update" || data.type === "move") {
         const playerId = clients.get(ws);
 
+        // Очень важная защита
         if (!playerId || !players.has(playerId)) {
+          // Игрок ещё не авторизован или уже отключился
           ws.send(
             JSON.stringify({
               type: "error",
@@ -3500,28 +3719,126 @@ function setupWebSocket(
           return;
         }
 
-        const incomingSeq = Number(data.seq ?? -1);
-        if (!Number.isInteger(incomingSeq) || incomingSeq < 0) {
-          console.warn(
-            `[Seq] Игрок ${playerId} → некорректный seq: ${data.seq}`,
+        const player = players.get(playerId);
+
+        // Теперь player точно существует
+        const currentWorldId = player.worldId;
+
+        // Сохраняем старую позицию для проверки препятствий
+        const oldX = player.x;
+        const oldY = player.y;
+
+        // Принимаем только разрешённые поля
+        if (data.x !== undefined) player.x = Number(data.x);
+        if (data.y !== undefined) player.y = Number(data.y);
+        if (data.direction) player.direction = data.direction;
+        if (data.state) player.state = data.state;
+        if (data.attackFrame !== undefined)
+          player.attackFrame = Number(data.attackFrame);
+        if (data.attackFrameTime !== undefined)
+          player.attackFrameTime = Number(data.attackFrameTime);
+        if (data.frame !== undefined) player.frame = Number(data.frame);
+
+        // Ограничиваем статы безопасными значениями
+        if (data.health !== undefined)
+          player.health = Math.max(
+            0,
+            Math.min(player.maxStats?.health || 100, Number(data.health)),
           );
-          return;
+        if (data.energy !== undefined)
+          player.energy = Math.max(
+            0,
+            Math.min(player.maxStats?.energy || 100, Number(data.energy)),
+          );
+        if (data.food !== undefined)
+          player.food = Math.max(
+            0,
+            Math.min(player.maxStats?.food || 100, Number(data.food)),
+          );
+        if (data.water !== undefined)
+          player.water = Math.max(
+            0,
+            Math.min(player.maxStats?.water || 100, Number(data.water)),
+          );
+        if (data.armor !== undefined) player.armor = Number(data.armor);
+        if (data.distanceTraveled !== undefined)
+          player.distanceTraveled = Number(data.distanceTraveled);
+
+        // ─── ПРОВЕРКА ПРЕПЯТСТВИЙ ───────────────────────────────────────
+        let positionValid = true;
+
+        // Проверяем только если пришли новые координаты
+        if (data.x !== undefined || data.y !== undefined) {
+          for (const obs of obstacles) {
+            if (obs.worldId !== currentWorldId) continue;
+
+            if (
+              segmentsIntersect(
+                oldX,
+                oldY,
+                player.x,
+                player.y,
+                obs.x1,
+                obs.y1,
+                obs.x2,
+                obs.y2,
+              )
+            ) {
+              positionValid = false;
+              break;
+            }
+          }
         }
 
-        if (!shouldEnqueueClientMessage(playerId, incomingSeq, data.type)) {
-          return;
+        if (!positionValid) {
+          player.x = oldX;
+          player.y = oldY;
+
+          ws.send(
+            JSON.stringify({
+              type: "forcePosition",
+              x: oldX,
+              y: oldY,
+              reason: "collision",
+            }),
+          );
         }
 
-        // ← Передаём applyMessage как коллбэк
-        enqueueClientMessage(
-          playerId,
-          incomingSeq,
-          data.type,
-          data,
-          applyMessage,
+        // Сохраняем изменения
+        players.set(playerId, { ...player });
+
+        // Готовим данные для рассылки
+        const updateData = {
+          id: playerId,
+          x: player.x,
+          y: player.y,
+          direction: player.direction,
+          state: player.state,
+          frame: player.frame,
+          health: player.health,
+          energy: player.energy,
+          food: player.food,
+          water: player.water,
+          armor: player.armor,
+          distanceTraveled: player.distanceTraveled,
+          meleeDamageBonus: player.meleeDamageBonus || 0,
+        };
+
+        if (player.state === "attacking") {
+          updateData.attackFrame = player.attackFrame ?? 0;
+          updateData.attackFrameTime = player.attackFrameTime ?? 0;
+        }
+
+        broadcastToWorld(
+          wss,
+          clients,
+          players,
+          currentWorldId,
+          JSON.stringify({
+            type: "update",
+            player: updateData,
+          }),
         );
-
-        return;
       }
     });
 
@@ -3778,7 +4095,6 @@ function setupWebSocket(
               }
             });
           });
-          cleanupSequence(id);
         }
         clients.delete(ws);
         players.delete(id);

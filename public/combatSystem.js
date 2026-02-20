@@ -196,7 +196,6 @@ function performAttack() {
           range: bullet.range,
           ownerId: myId,
           worldId: currentWorldId,
-          seq: nextSeq(),
         }),
       );
 
@@ -219,7 +218,6 @@ function performAttack() {
             attackFrame: 0,
             attackFrameTime: 0,
             worldId: currentWorldId,
-            seq: nextSeq(),
           },
         }),
       );
@@ -264,7 +262,6 @@ function performMeleeAttack(damage, worldId) {
             targetId: id,
             damage,
             worldId,
-            seq: nextSeq(),
           }),
         );
 
@@ -295,7 +292,6 @@ function performMeleeAttack(damage, worldId) {
             targetId: enemyId,
             damage,
             worldId,
-            seq: nextSeq(),
           }),
         );
       }
@@ -321,7 +317,6 @@ function performMeleeAttack(damage, worldId) {
           state: me.state,
           frame: me.frame,
           worldId,
-          seq: nextSeq(),
         },
       }),
     );
@@ -375,7 +370,6 @@ function updateBullets(deltaTime) {
               targetId: id,
               damage: bullet.damage,
               worldId: currentWorldId,
-              seq: nextSeq(),
             }),
           );
           if (id === myId) triggerAttackAnimation();
@@ -396,7 +390,6 @@ function updateBullets(deltaTime) {
               targetId: id,
               damage: bullet.damage,
               worldId: currentWorldId,
-              seq: nextSeq(),
             }),
           );
           hit = true;
