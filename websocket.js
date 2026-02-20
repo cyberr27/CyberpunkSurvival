@@ -1346,22 +1346,6 @@ function setupWebSocket(
         userDatabase.set(id, { ...player });
         await saveUserDatabase(dbCollection, id, player);
 
-        broadcastToWorld(
-          wss,
-          clients,
-          players,
-          player.worldId,
-          JSON.stringify({
-            type: "update",
-            player: {
-              id,
-              inventory: player.inventory,
-              // можно добавить и другие поля, если они могли измениться
-              serverSeq: getNextServerSeq(id),
-            },
-          }),
-        );
-
         wss.clients.forEach((client) => {
           if (client.readyState === WebSocket.OPEN) {
             const clientPlayer = players.get(clients.get(client));
@@ -1504,26 +1488,6 @@ function setupWebSocket(
           players.set(id, { ...player });
           userDatabase.set(id, { ...player });
           await saveUserDatabase(dbCollection, id, player);
-
-          broadcastToWorld(
-            wss,
-            clients,
-            players,
-            player.worldId,
-            JSON.stringify({
-              type: "update",
-              player: {
-                id,
-                health: player.health,
-                energy: player.energy,
-                food: player.food,
-                water: player.water,
-                armor: player.armor,
-                inventory: player.inventory,
-                serverSeq: getNextServerSeq(id),
-              },
-            }),
-          );
 
           // Отправляем подтверждение клиенту
           ws.send(
@@ -1697,15 +1661,12 @@ function setupWebSocket(
             type: "update",
             player: {
               id: playerId,
-              inventory: player.inventory,
-              equipment: player.equipment,
               maxStats: player.maxStats,
               health: player.health,
               energy: player.energy,
               food: player.food,
               water: player.water,
               armor: player.armor,
-              serverSeq: getNextServerSeq(playerId),
             },
           }),
         );
@@ -1834,15 +1795,12 @@ function setupWebSocket(
             type: "update",
             player: {
               id: playerId,
-              inventory: player.inventory,
-              equipment: player.equipment,
               maxStats: player.maxStats,
               health: player.health,
               energy: player.energy,
               food: player.food,
               water: player.water,
               armor: player.armor,
-              serverSeq: getNextServerSeq(playerId),
             },
           }),
         );
@@ -2365,26 +2323,6 @@ function setupWebSocket(
               JSON.stringify({
                 type: "tradeCompleted",
                 newInventory: playerB.inventory,
-              }),
-            );
-          }
-        });
-
-        [playerAId, playerBId].forEach((pid) => {
-          const p = players.get(pid);
-          if (p) {
-            broadcastToWorld(
-              wss,
-              clients,
-              players,
-              p.worldId,
-              JSON.stringify({
-                type: "update",
-                player: {
-                  id: pid,
-                  inventory: p.inventory,
-                  serverSeq: getNextServerSeq(pid),
-                },
               }),
             );
           }
@@ -4075,6 +4013,20 @@ function setupWebSocket(
                 userDatabase.set(closestPlayer.id, { ...closestPlayer });
                 saveUserDatabase(dbCollection, closestPlayer.id, closestPlayer);
 
+                // Уведомляем всех о попадании
+                broadcastToWorld(
+                  wss,
+                  clients,
+                  players,
+                  enemy.worldId,
+                  JSON.stringify({
+                    type: "enemyAttack",
+                    targetId: closestPlayer.id,
+                    damage: damage,
+                    enemyId: enemyId,
+                  }),
+                );
+
                 broadcastToWorld(
                   wss,
                   clients,
@@ -4082,18 +4034,7 @@ function setupWebSocket(
                   enemy.worldId,
                   JSON.stringify({
                     type: "update",
-                    player: {
-                      id: closestPlayer.id,
-                      health: closestPlayer.health,
-                      energy: closestPlayer.energy,
-                      food: closestPlayer.food,
-                      water: closestPlayer.water,
-                      armor: closestPlayer.armor,
-                      inventory: closestPlayer.inventory,
-                      equipment: closestPlayer.equipment,
-                      maxStats: closestPlayer.maxStats,
-                      serverSeq: getNextServerSeq(closestPlayer.id),
-                    },
+                    player: { id: closestPlayer.id, ...closestPlayer },
                   }),
                 );
               } else {
