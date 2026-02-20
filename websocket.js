@@ -14,12 +14,12 @@ const {
 } = require("./homelessServer");
 const { handleSkillUpgrade } = require("./toremidosServer");
 const {
-  shouldAcceptClientUpdate,
-  acceptClientUpdate,
+  initSequenceForPlayer,
+  shouldEnqueueClientMessage,
+  enqueueClientMessage,
   getNextServerSeq,
   getCurrentServerSeq,
   cleanupSequence,
-  initSequenceForPlayer,
 } = require("./playerStateSequence");
 
 function broadcastToWorld(wss, clients, players, worldId, message) {
@@ -400,6 +400,162 @@ function segmentsIntersect(x1, y1, x2, y2, x3, y3, x4, y4) {
 function calculateXPToNextLevel(level) {
   if (level >= 100) return 0;
   return 100 * Math.pow(2, level);
+}
+
+async function applyMessage(playerId, msgType, payload, clientSeq) {
+  const player = players.get(playerId);
+  if (!player) return false;
+
+  let success = false;
+
+  switch (msgType) {
+    case "move":
+    case "update": {
+      const oldX = player.x;
+      const oldY = player.y;
+
+      // Применяем только разрешённые поля
+      if (payload.x !== undefined) player.x = Number(payload.x);
+      if (payload.y !== undefined) player.y = Number(payload.y);
+      if (payload.direction) player.direction = payload.direction;
+      if (payload.state) player.state = payload.state;
+      if (payload.attackFrame !== undefined)
+        player.attackFrame = Number(payload.attackFrame);
+      if (payload.attackFrameTime !== undefined)
+        player.attackFrameTime = Number(payload.attackFrameTime);
+      if (payload.frame !== undefined) player.frame = Number(payload.frame);
+
+      // Ограничиваем статы
+      if (payload.health !== undefined)
+        player.health = Math.max(
+          0,
+          Math.min(player.maxStats?.health || 100, Number(payload.health)),
+        );
+      if (payload.energy !== undefined)
+        player.energy = Math.max(
+          0,
+          Math.min(player.maxStats?.energy || 100, Number(payload.energy)),
+        );
+      if (payload.food !== undefined)
+        player.food = Math.max(
+          0,
+          Math.min(player.maxStats?.food || 100, Number(payload.food)),
+        );
+      if (payload.water !== undefined)
+        player.water = Math.max(
+          0,
+          Math.min(player.maxStats?.water || 100, Number(payload.water)),
+        );
+      if (payload.armor !== undefined) player.armor = Number(payload.armor);
+      if (payload.distanceTraveled !== undefined)
+        player.distanceTraveled = Number(payload.distanceTraveled);
+
+      // Проверка препятствий
+      let positionValid = true;
+      if (payload.x !== undefined || payload.y !== undefined) {
+        for (const obs of obstacles) {
+          if (obs.worldId !== player.worldId) continue;
+          if (
+            segmentsIntersect(
+              oldX,
+              oldY,
+              player.x,
+              player.y,
+              obs.x1,
+              obs.y1,
+              obs.x2,
+              obs.y2,
+            )
+          ) {
+            positionValid = false;
+            break;
+          }
+        }
+      }
+
+      if (!positionValid) {
+        player.x = oldX;
+        player.y = oldY;
+
+        // Ищем ws этого игрока и форсируем позицию
+        const ws = [...wss.clients].find((c) => clients.get(c) === playerId);
+        if (ws?.readyState === WebSocket.OPEN) {
+          ws.send(
+            JSON.stringify({
+              type: "forcePosition",
+              x: oldX,
+              y: oldY,
+              reason: "collision",
+            }),
+          );
+        }
+      }
+
+      success = true;
+      break;
+    }
+
+    // Пока оставляем заглушку — потом добавим useItem, equipItem и т.д.
+    default:
+      console.warn(`applyMessage: не реализован тип ${msgType}`);
+      success = false;
+  }
+
+  if (success) {
+    players.set(playerId, { ...player });
+
+    userDatabase.set(playerId, { ...player });
+    saveUserDatabase(dbCollection, playerId, player).catch((e) =>
+      console.error("DB save failed:", e),
+    );
+
+    const updateData = {
+      id: playerId,
+      x: player.x,
+      y: player.y,
+      direction: player.direction,
+      state: player.state,
+      frame: player.frame,
+      health: player.health,
+      energy: player.energy,
+      food: player.food,
+      water: player.water,
+      armor: player.armor,
+      distanceTraveled: player.distanceTraveled,
+      meleeDamageBonus: player.meleeDamageBonus || 0,
+      serverSeq: getNextServerSeq(playerId),
+    };
+
+    if (player.state === "attacking") {
+      updateData.attackFrame = player.attackFrame ?? 0;
+      updateData.attackFrameTime = player.attackFrameTime ?? 0;
+    }
+
+    broadcastToWorld(
+      wss,
+      clients,
+      players,
+      player.worldId,
+      JSON.stringify({
+        type: "update",
+        player: updateData,
+      }),
+    );
+
+    // Опционально — подтверждение клиенту
+    const ws = [...wss.clients].find((c) => clients.get(c) === playerId);
+    if (ws?.readyState === WebSocket.OPEN) {
+      ws.send(
+        JSON.stringify({
+          type: "actionConfirmed",
+          seq: clientSeq,
+          serverSeq: getNextServerSeq(playerId),
+        }),
+      );
+    }
+  }
+
+  return success;
 }
 
 function setupWebSocket(
@@ -3713,167 +3869,38 @@ function setupWebSocket(
           }),
         );
       }
-      if (data.type === "move" || data.type === "update") {
-        const incomingSeq = Number(data.seq);
-        if (!Number.isInteger(incomingSeq) || incomingSeq < 0) return;
+      if (data.type === "update" || data.type === "move") {
+        const playerId = clients.get(ws);
 
-        if (!shouldEnqueueClientMessage(playerId, incomingSeq, data.type)) {
-          return;
-        }
-
-        enqueueClientMessage(playerId, incomingSeq, data.type, data);
-        return; // ← НЕ обрабатываем здесь!
-      }
-
-      // Аналогично для ВСЕХ остальных типов, которые меняют состояние игрока:
-      else if (
-        [
-          "useItem",
-          "equipItem",
-          "unequipItem",
-          "dropItem",
-          "pickup",
-          "tradeCompleted",
-          "requestRegeneration",
-          "buyWater",
-          "sellToJack",
-          "buyFromJack",
-          "thimbleriggerBet",
-          "thimbleriggerGameResult" /* ... и все остальные */,
-        ].includes(data.type)
-      ) {
-        const incomingSeq = Number(data.seq ?? 0); // если клиент не присылает — 0
-        if (!shouldEnqueueClientMessage(playerId, incomingSeq, data.type)) {
-          return;
-        }
-
-        enqueueClientMessage(playerId, incomingSeq, data.type, data);
-        return;
-
-        const player = players.get(playerId);
-
-        // Теперь player точно существует
-        const currentWorldId = player.worldId;
-
-        // Сохраняем старую позицию для проверки препятствий
-        const oldX = player.x;
-        const oldY = player.y;
-
-        // Принимаем только разрешённые поля
-        if (data.x !== undefined) player.x = Number(data.x);
-        if (data.y !== undefined) player.y = Number(data.y);
-        if (data.direction) player.direction = data.direction;
-        if (data.state) player.state = data.state;
-        if (data.attackFrame !== undefined)
-          player.attackFrame = Number(data.attackFrame);
-        if (data.attackFrameTime !== undefined)
-          player.attackFrameTime = Number(data.attackFrameTime);
-        if (data.frame !== undefined) player.frame = Number(data.frame);
-
-        // Ограничиваем статы безопасными значениями
-        if (data.health !== undefined)
-          player.health = Math.max(
-            0,
-            Math.min(player.maxStats?.health || 100, Number(data.health)),
-          );
-        if (data.energy !== undefined)
-          player.energy = Math.max(
-            0,
-            Math.min(player.maxStats?.energy || 100, Number(data.energy)),
-          );
-        if (data.food !== undefined)
-          player.food = Math.max(
-            0,
-            Math.min(player.maxStats?.food || 100, Number(data.food)),
-          );
-        if (data.water !== undefined)
-          player.water = Math.max(
-            0,
-            Math.min(player.maxStats?.water || 100, Number(data.water)),
-          );
-        if (data.armor !== undefined) player.armor = Number(data.armor);
-        if (data.distanceTraveled !== undefined)
-          player.distanceTraveled = Number(data.distanceTraveled);
-
-        // ─── ПРОВЕРКА ПРЕПЯТСТВИЙ ───────────────────────────────────────
-        let positionValid = true;
-
-        // Проверяем только если пришли новые координаты
-        if (data.x !== undefined || data.y !== undefined) {
-          for (const obs of obstacles) {
-            if (obs.worldId !== currentWorldId) continue;
-
-            if (
-              segmentsIntersect(
-                oldX,
-                oldY,
-                player.x,
-                player.y,
-                obs.x1,
-                obs.y1,
-                obs.x2,
-                obs.y2,
-              )
-            ) {
-              positionValid = false;
-              break;
-            }
-          }
-        }
-
-        if (!positionValid) {
-          player.x = oldX;
-          player.y = oldY;
-
+        // Защита: игрок не авторизован или уже отключился
+        if (!playerId || !players.has(playerId)) {
           ws.send(
             JSON.stringify({
-              type: "forcePosition",
-              x: oldX,
-              y: oldY,
-              reason: "collision",
+              type: "error",
+              message: "Not authenticated or session expired",
             }),
           );
+          return;
         }
 
-        acceptClientUpdate(playerId, incomingSeq);
-        const nextServerSeq = getNextServerSeq(playerId);
-
-        // Сохраняем изменения
-        players.set(playerId, { ...player });
-
-        // Готовим данные для рассылки
-        const updateData = {
-          id: playerId,
-          x: player.x,
-          y: player.y,
-          direction: player.direction,
-          state: player.state,
-          frame: player.frame,
-          health: player.health,
-          energy: player.energy,
-          food: player.food,
-          water: player.water,
-          armor: player.armor,
-          distanceTraveled: player.distanceTraveled,
-          meleeDamageBonus: player.meleeDamageBonus || 0,
-          serverSeq: nextServerSeq,
-        };
-
-        if (player.state === "attacking") {
-          updateData.attackFrame = player.attackFrame ?? 0;
-          updateData.attackFrameTime = player.attackFrameTime ?? 0;
+        // seq обязателен и должен быть целым ≥ 0
+        const incomingSeq = Number(data.seq ?? -1);
+        if (!Number.isInteger(incomingSeq) || incomingSeq < 0) {
+          console.warn(`Игрок ${playerId}: некорректный seq = ${data.seq}`);
+          return;
         }
 
-        broadcastToWorld(
-          wss,
-          clients,
-          players,
-          currentWorldId,
-          JSON.stringify({
-            type: "update",
-            player: updateData,
-          }),
-        );
+        // Проверяем, стоит ли принимать это сообщение в очередь
+        if (!shouldEnqueueClientMessage(playerId, incomingSeq, data.type)) {
+          // Можно отправить клиенту, что пакет отклонён (опционально)
+          // ws.send(JSON.stringify({ type: "seqRejected", seq: incomingSeq }));
+          return;
+        }
+
+        // Кладём в очередь → applyMessage обработает асинхронно
+        enqueueClientMessage(playerId, incomingSeq, data.type, data);
+
+        return; // ← ВАЖНО! Никакой дальнейшей обработки здесь
       }
     });
 
@@ -4149,166 +4176,6 @@ function setupWebSocket(
       clearTimeout(inactivityTimer);
     });
   });
-}
-
-async function applyMessage(playerId, msgType, payload, clientSeq) {
-  const player = players.get(playerId);
-  if (!player) return false;
-
-  let success = false;
-
-  switch (msgType) {
-    case "move":
-    case "update": {
-      // ── старая логика обработки move/update ─────────────────────────────
-      const oldX = player.x;
-      const oldY = player.y;
-
-      if (payload.x !== undefined) player.x = Number(payload.x);
-      if (payload.y !== undefined) player.y = Number(payload.y);
-      if (payload.direction) player.direction = payload.direction;
-      if (payload.state) player.state = payload.state;
-      if (payload.frame !== undefined) player.frame = Number(payload.frame);
-      // ... все остальные поля, которые были раньше ...
-
-      // проверка препятствий (как было)
-      let valid = true;
-      if (payload.x !== undefined || payload.y !== undefined) {
-        for (const obs of obstacles) {
-          if (obs.worldId !== player.worldId) continue;
-          if (
-            segmentsIntersect(
-              oldX,
-              oldY,
-              player.x,
-              player.y,
-              obs.x1,
-              obs.y1,
-              obs.x2,
-              obs.y2,
-            )
-          ) {
-            valid = false;
-            break;
-          }
-        }
-      }
-
-      if (!valid) {
-        player.x = oldX;
-        player.y = oldY;
-        // отправляем forcePosition только этому клиенту
-        const ws = [...wss.clients].find((c) => clients.get(c) === playerId);
-        if (ws?.readyState === WebSocket.OPEN) {
-          ws.send(
-            JSON.stringify({
-              type: "forcePosition",
-              x: oldX,
-              y: oldY,
-              reason: "collision",
-            }),
-          );
-        }
-      }
-
-      success = true;
-      break;
-    }
-
-    case "useItem": {
-      // вся старая логика useItem, но БЕЗ players.set и БЕЗ save
-      // только изменение объекта player
-      const slotIndex = payload.slotIndex;
-      const item = player.inventory[slotIndex];
-      if (!item) break;
-
-      const effect = ITEM_CONFIG[item.type]?.effect;
-      if (!effect) break;
-
-      if (effect.health)
-        player.health = Math.min(
-          player.health + effect.health,
-          player.maxStats.health,
-        );
-      // ... остальные статы ...
-
-      if (ITEM_CONFIG[item.type].stackable && item.quantity > 1) {
-        item.quantity -= 1;
-      } else {
-        player.inventory[slotIndex] = null;
-      }
-
-      success = true;
-      break;
-    }
-
-    case "equipItem":
-    case "unequipItem":
-    case "dropItem":
-    case "pickup":
-    case "tradeCompleted":
-    case "requestRegeneration":
-    case "buyWater":
-    case "sellToJack":
-      // ... остальные действия, которые меняют player ...
-
-      // Копируем старую логику, но БЕЗ players.set / userDatabase.set / saveUserDatabase
-      // только мутируем объект player
-
-      success = true;
-      break;
-
-    default:
-      console.warn(`applyMessage: неизвестный тип ${msgType}`);
-      success = false;
-  }
-
-  if (success) {
-    // Критически важно — сохраняем и рассылаем изменения
-    players.set(playerId, { ...player }); // на всякий случай создаём копию
-
-    // Сохраняем в базу (можно делать реже — раз в 3–10 сек, но для простоты оставляем здесь)
-    userDatabase.set(playerId, { ...player });
-    saveUserDatabase(dbCollection, playerId, player).catch((e) =>
-      console.error("save failed", e),
-    );
-
-    // Рассылка обновления всем (можно оптимизировать позже)
-    const updateFields = {
-      id: playerId,
-      x: player.x,
-      y: player.y,
-      health: player.health,
-      energy: player.energy,
-      food: player.food,
-      water: player.water,
-      armor: player.armor,
-      // ... другие важные поля ...
-      serverSeq: getNextServerSeq(playerId),
-    };
-
-    broadcastToWorld(
-      wss,
-      clients,
-      players,
-      player.worldId,
-      JSON.stringify({ type: "update", player: updateFields }),
-    );
-
-    // Отправляем клиенту подтверждение (опционально)
-    const ws = [...wss.clients].find((c) => clients.get(c) === playerId);
-    if (ws?.readyState === WebSocket.OPEN) {
-      ws.send(
-        JSON.stringify({
-          type: "actionConfirmed",
-          seq: clientSeq,
-          serverSeq: getNextServerSeq(playerId),
-        }),
-      );
-    }
-  }
-
-  return success;
 }
 
 module.exports = { setupWebSocket };
