@@ -55,6 +55,12 @@ function enqueueClientMessage(
     state = playerSequences.get(playerId);
   }
 
+  // Защита от вызова без callback (на случай, если забудешь передать)
+  if (typeof applyCallback !== "function") {
+    console.error(`[QUEUE] Нет applyCallback для ${playerId} / ${messageType}`);
+    return;
+  }
+
   state.pendingQueue.push({
     seq: incomingClientSeq,
     type: messageType,
