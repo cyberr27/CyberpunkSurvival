@@ -1505,6 +1505,26 @@ function setupWebSocket(
           userDatabase.set(id, { ...player });
           await saveUserDatabase(dbCollection, id, player);
 
+          broadcastToWorld(
+            wss,
+            clients,
+            players,
+            player.worldId,
+            JSON.stringify({
+              type: "update",
+              player: {
+                id,
+                health: player.health,
+                energy: player.energy,
+                food: player.food,
+                water: player.water,
+                armor: player.armor,
+                inventory: player.inventory,
+                serverSeq: getNextServerSeq(id),
+              },
+            }),
+          );
+
           // Отправляем подтверждение клиенту
           ws.send(
             JSON.stringify({
@@ -1519,8 +1539,6 @@ function setupWebSocket(
               inventory: player.inventory,
             }),
           );
-
-          
         }
       } else if (data.type === "equipItem") {
         const playerId = clients.get(ws);
@@ -1679,12 +1697,15 @@ function setupWebSocket(
             type: "update",
             player: {
               id: playerId,
+              inventory: player.inventory,
+              equipment: player.equipment,
               maxStats: player.maxStats,
               health: player.health,
               energy: player.energy,
               food: player.food,
               water: player.water,
               armor: player.armor,
+              serverSeq: getNextServerSeq(playerId),
             },
           }),
         );
@@ -1813,12 +1834,15 @@ function setupWebSocket(
             type: "update",
             player: {
               id: playerId,
+              inventory: player.inventory,
+              equipment: player.equipment,
               maxStats: player.maxStats,
               health: player.health,
               energy: player.energy,
               food: player.food,
               water: player.water,
               armor: player.armor,
+              serverSeq: getNextServerSeq(playerId),
             },
           }),
         );
@@ -2341,6 +2365,26 @@ function setupWebSocket(
               JSON.stringify({
                 type: "tradeCompleted",
                 newInventory: playerB.inventory,
+              }),
+            );
+          }
+        });
+
+        [playerAId, playerBId].forEach((pid) => {
+          const p = players.get(pid);
+          if (p) {
+            broadcastToWorld(
+              wss,
+              clients,
+              players,
+              p.worldId,
+              JSON.stringify({
+                type: "update",
+                player: {
+                  id: pid,
+                  inventory: p.inventory,
+                  serverSeq: getNextServerSeq(pid),
+                },
               }),
             );
           }
@@ -4048,60 +4092,6 @@ function setupWebSocket(
                       inventory: closestPlayer.inventory,
                       equipment: closestPlayer.equipment,
                       maxStats: closestPlayer.maxStats,
-                      serverSeq: getNextServerSeq(closestPlayer.id),
-                    },
-                  }),
-                );
-
-                // Уведомляем всех о попадании
-                broadcastToWorld(
-                  wss,
-                  clients,
-                  players,
-                  enemy.worldId,
-                  JSON.stringify({
-                    type: "enemyAttack",
-                    targetId: closestPlayer.id,
-                    damage: damage,
-                    enemyId: enemyId,
-                  }),
-                );
-
-                broadcastToWorld(
-                  wss,
-                  clients,
-                  players,
-                  enemy.worldId,
-                  JSON.stringify({
-                    type: "update",
-                    player: { id: closestPlayer.id, ...closestPlayer },
-                  }),
-                );
-
-                broadcastToWorld(
-                  wss,
-                  clients,
-                  players,
-                  enemy.worldId,
-                  JSON.stringify({
-                    type: "update",
-                    player: {
-                      id: closestPlayer.id,
-                      x: closestPlayer.x,
-                      y: closestPlayer.y,
-                      health: closestPlayer.health,
-                      energy: closestPlayer.energy,
-                      food: closestPlayer.food,
-                      water: closestPlayer.water,
-                      armor: closestPlayer.armor,
-                      distanceTraveled: closestPlayer.distanceTraveled,
-                      direction: closestPlayer.direction,
-                      state: closestPlayer.state,
-                      frame: closestPlayer.frame,
-                      attackFrame: closestPlayer.attackFrame || 0,
-                      attackFrameTime: closestPlayer.attackFrameTime || 0,
-                      inventory: closestPlayer.inventory || [],
-                      equipment: closestPlayer.equipment || {},
                       serverSeq: getNextServerSeq(closestPlayer.id),
                     },
                   }),
