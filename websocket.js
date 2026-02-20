@@ -1045,7 +1045,6 @@ function setupWebSocket(
               player: {
                 id: player.id,
                 alexNeonMet: true,
-                seq: nextSeq(),
               },
             }),
           );
@@ -1206,7 +1205,6 @@ function setupWebSocket(
                   xp: player.xp,
                   upgradePoints: player.upgradePoints,
                   skillPoints: player.skillPoints,
-                  seq: nextSeq(),
                 },
               }),
             );
@@ -1233,10 +1231,7 @@ function setupWebSocket(
               clients.get(client) === id
             ) {
               client.send(
-                JSON.stringify({
-                  type: "update",
-                  player: { id, ...player, seq: nextSeq() },
-                }),
+                JSON.stringify({ type: "update", player: { id, ...player } }),
               );
             }
           });
@@ -1257,10 +1252,7 @@ function setupWebSocket(
               clients.get(client) === id
             ) {
               client.send(
-                JSON.stringify({
-                  type: "update",
-                  player: { id, ...player, seq: nextSeq() },
-                }),
+                JSON.stringify({ type: "update", player: { id, ...player } }),
               );
             }
           });
@@ -1373,10 +1365,7 @@ function setupWebSocket(
               );
               if (clients.get(client) === id) {
                 client.send(
-                  JSON.stringify({
-                    type: "update",
-                    player: { id, ...player, seq: nextSeq() },
-                  }),
+                  JSON.stringify({ type: "update", player: { id, ...player } }),
                 );
               }
             }
@@ -1678,7 +1667,6 @@ function setupWebSocket(
               food: player.food,
               water: player.water,
               armor: player.armor,
-              seq: nextSeq(),
             },
           }),
         );
@@ -1813,7 +1801,6 @@ function setupWebSocket(
               food: player.food,
               water: player.water,
               armor: player.armor,
-              seq: nextSeq(),
             },
           }),
         );
@@ -1902,7 +1889,6 @@ function setupWebSocket(
                         JSON.stringify({
                           type: "update",
                           player: { id, ...player },
-                          seq: nextSeq(),
                         }),
                       );
                     }
@@ -1943,7 +1929,6 @@ function setupWebSocket(
                       ownerId: data.ownerId,
                       spawnTime: data.spawnTime,
                       worldId: data.worldId,
-                      seq: nextSeq(),
                     }),
                   );
                 }
@@ -2418,7 +2403,6 @@ function setupWebSocket(
                     JSON.stringify({
                       type: "update",
                       player: { id: data.targetId, ...target },
-                      seq: nextSeq(),
                     }),
                   );
                 }
@@ -3477,7 +3461,6 @@ function setupWebSocket(
             JSON.stringify({
               type: "update",
               player: { id: player.id, torestosMet: true },
-              seq: nextSeq(),
             }),
           );
         }
@@ -3718,7 +3701,6 @@ function setupWebSocket(
           JSON.stringify({
             type: "update",
             player: updatePayload,
-            seq: nextSeq(),
           }),
         );
 
@@ -3877,7 +3859,6 @@ function setupWebSocket(
           JSON.stringify({
             type: "update",
             player: updateData,
-            seq: nextSeq(),
           }),
         );
       }
@@ -4054,7 +4035,6 @@ function setupWebSocket(
                   JSON.stringify({
                     type: "update",
                     player: { id: closestPlayer.id, ...closestPlayer },
-                    seq: nextSeq(),
                   }),
                 );
               } else {
