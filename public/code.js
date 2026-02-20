@@ -1962,6 +1962,10 @@ function handleGameMessage(event) {
             window.equipmentSystem.syncEquipment(data.player.equipment);
           }
 
+          if (data.player.maxStats) {
+            me.maxStats = { ...data.player.maxStats };
+          }
+
           // ─── Всегда перерисовываем ────────────────────────────────────────────
           updateStatsDisplay();
         } else if (data.player?.id) {

@@ -1346,6 +1346,22 @@ function setupWebSocket(
         userDatabase.set(id, { ...player });
         await saveUserDatabase(dbCollection, id, player);
 
+        broadcastToWorld(
+          wss,
+          clients,
+          players,
+          player.worldId,
+          JSON.stringify({
+            type: "update",
+            player: {
+              id,
+              inventory: player.inventory,
+              // можно добавить и другие поля, если они могли измениться
+              serverSeq: getNextServerSeq(id),
+            },
+          }),
+        );
+
         wss.clients.forEach((client) => {
           if (client.readyState === WebSocket.OPEN) {
             const clientPlayer = players.get(clients.get(client));
@@ -1503,6 +1519,8 @@ function setupWebSocket(
               inventory: player.inventory,
             }),
           );
+
+          
         }
       } else if (data.type === "equipItem") {
         const playerId = clients.get(ws);
@@ -4012,6 +4030,28 @@ function setupWebSocket(
                 players.set(closestPlayer.id, { ...closestPlayer });
                 userDatabase.set(closestPlayer.id, { ...closestPlayer });
                 saveUserDatabase(dbCollection, closestPlayer.id, closestPlayer);
+
+                broadcastToWorld(
+                  wss,
+                  clients,
+                  players,
+                  enemy.worldId,
+                  JSON.stringify({
+                    type: "update",
+                    player: {
+                      id: closestPlayer.id,
+                      health: closestPlayer.health,
+                      energy: closestPlayer.energy,
+                      food: closestPlayer.food,
+                      water: closestPlayer.water,
+                      armor: closestPlayer.armor,
+                      inventory: closestPlayer.inventory,
+                      equipment: closestPlayer.equipment,
+                      maxStats: closestPlayer.maxStats,
+                      serverSeq: getNextServerSeq(closestPlayer.id),
+                    },
+                  }),
+                );
 
                 // Уведомляем всех о попадании
                 broadcastToWorld(
