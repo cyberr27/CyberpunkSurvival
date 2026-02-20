@@ -112,5 +112,5 @@ module.exports = {
   getNextServerSeq,
   getCurrentServerSeq,
   cleanupSequence,
-  // processQueueAsync и applyMessage будут вызываться из websocket.js
+  // processQueueAsync и applyMessage НЕ экспортируем — они внутренние
 };

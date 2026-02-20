@@ -3868,11 +3868,9 @@ function setupWebSocket(
             newHealth: player.health,
           }),
         );
-      }
-      if (data.type === "update" || data.type === "move") {
+      } else if (data.type === "update" || data.type === "move") {
         const playerId = clients.get(ws);
 
-        // Защита: игрок не авторизован или уже отключился
         if (!playerId || !players.has(playerId)) {
           ws.send(
             JSON.stringify({
@@ -3883,24 +3881,23 @@ function setupWebSocket(
           return;
         }
 
-        // seq обязателен и должен быть целым ≥ 0
         const incomingSeq = Number(data.seq ?? -1);
         if (!Number.isInteger(incomingSeq) || incomingSeq < 0) {
-          console.warn(`Игрок ${playerId}: некорректный seq = ${data.seq}`);
+          console.warn(
+            `[Seq] Игрок ${playerId} → некорректный seq: ${data.seq}`,
+          );
           return;
         }
 
-        // Проверяем, стоит ли принимать это сообщение в очередь
         if (!shouldEnqueueClientMessage(playerId, incomingSeq, data.type)) {
-          // Можно отправить клиенту, что пакет отклонён (опционально)
+          // Можно раскомментить, если хочешь информировать клиента
           // ws.send(JSON.stringify({ type: "seqRejected", seq: incomingSeq }));
           return;
         }
 
-        // Кладём в очередь → applyMessage обработает асинхронно
         enqueueClientMessage(playerId, incomingSeq, data.type, data);
 
-        return; // ← ВАЖНО! Никакой дальнейшей обработки здесь
+        return; // ← ВАЖНО! Никакой логики move здесь больше нет
       }
     });
 
