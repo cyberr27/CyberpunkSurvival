@@ -356,6 +356,7 @@
         frame: player.frame,
         attackFrame: player.attackFrame || 0,
         attackFrameTime: player.attackFrameTime || 0,
+        seq: nextSeq(),
       }),
     );
   }

@@ -13,6 +13,14 @@ const {
   handleHomelessStorageAction,
 } = require("./homelessServer");
 const { handleSkillUpgrade } = require("./toremidosServer");
+const {
+  shouldAcceptClientUpdate,
+  acceptClientUpdate,
+  getNextServerSeq,
+  getCurrentServerSeq,
+  cleanupSequence,
+  initSequenceForPlayer,
+} = require("./playerStateSequence");
 
 function broadcastToWorld(wss, clients, players, worldId, message) {
   wss.clients.forEach((client) => {
@@ -831,6 +839,7 @@ function setupWebSocket(
           );
 
           players.set(data.username, playerData);
+          initSequenceForPlayer(data.username);
           ws.send(
             JSON.stringify({
               type: "loginSuccess",
@@ -1036,6 +1045,7 @@ function setupWebSocket(
               player: {
                 id: player.id,
                 alexNeonMet: true,
+                seq: nextSeq(),
               },
             }),
           );
@@ -1196,6 +1206,7 @@ function setupWebSocket(
                   xp: player.xp,
                   upgradePoints: player.upgradePoints,
                   skillPoints: player.skillPoints,
+                  seq: nextSeq(),
                 },
               }),
             );
@@ -1222,7 +1233,10 @@ function setupWebSocket(
               clients.get(client) === id
             ) {
               client.send(
-                JSON.stringify({ type: "update", player: { id, ...player } }),
+                JSON.stringify({
+                  type: "update",
+                  player: { id, ...player, seq: nextSeq() },
+                }),
               );
             }
           });
@@ -1243,7 +1257,10 @@ function setupWebSocket(
               clients.get(client) === id
             ) {
               client.send(
-                JSON.stringify({ type: "update", player: { id, ...player } }),
+                JSON.stringify({
+                  type: "update",
+                  player: { id, ...player, seq: nextSeq() },
+                }),
               );
             }
           });
@@ -1356,7 +1373,10 @@ function setupWebSocket(
               );
               if (clients.get(client) === id) {
                 client.send(
-                  JSON.stringify({ type: "update", player: { id, ...player } }),
+                  JSON.stringify({
+                    type: "update",
+                    player: { id, ...player, seq: nextSeq() },
+                  }),
                 );
               }
             }
@@ -1658,6 +1678,7 @@ function setupWebSocket(
               food: player.food,
               water: player.water,
               armor: player.armor,
+              seq: nextSeq(),
             },
           }),
         );
@@ -1792,6 +1813,7 @@ function setupWebSocket(
               food: player.food,
               water: player.water,
               armor: player.armor,
+              seq: nextSeq(),
             },
           }),
         );
@@ -1880,6 +1902,7 @@ function setupWebSocket(
                         JSON.stringify({
                           type: "update",
                           player: { id, ...player },
+                          seq: nextSeq(),
                         }),
                       );
                     }
@@ -1920,6 +1943,7 @@ function setupWebSocket(
                       ownerId: data.ownerId,
                       spawnTime: data.spawnTime,
                       worldId: data.worldId,
+                      seq: nextSeq(),
                     }),
                   );
                 }
@@ -2394,6 +2418,7 @@ function setupWebSocket(
                     JSON.stringify({
                       type: "update",
                       player: { id: data.targetId, ...target },
+                      seq: nextSeq(),
                     }),
                   );
                 }
@@ -3452,6 +3477,7 @@ function setupWebSocket(
             JSON.stringify({
               type: "update",
               player: { id: player.id, torestosMet: true },
+              seq: nextSeq(),
             }),
           );
         }
@@ -3692,6 +3718,7 @@ function setupWebSocket(
           JSON.stringify({
             type: "update",
             player: updatePayload,
+            seq: nextSeq(),
           }),
         );
 
@@ -3716,6 +3743,15 @@ function setupWebSocket(
               message: "Not authenticated or session expired",
             }),
           );
+          return;
+        }
+
+        const incomingSeq = Number(data.seq);
+        if (!Number.isInteger(incomingSeq) || incomingSeq < 0) {
+          return;
+        }
+
+        if (!shouldAcceptClientUpdate(playerId, incomingSeq)) {
           return;
         }
 
@@ -3804,6 +3840,9 @@ function setupWebSocket(
           );
         }
 
+        acceptClientUpdate(playerId, incomingSeq);
+        const nextServerSeq = getNextServerSeq(playerId);
+
         // Сохраняем изменения
         players.set(playerId, { ...player });
 
@@ -3822,6 +3861,7 @@ function setupWebSocket(
           armor: player.armor,
           distanceTraveled: player.distanceTraveled,
           meleeDamageBonus: player.meleeDamageBonus || 0,
+          serverSeq: nextServerSeq,
         };
 
         if (player.state === "attacking") {
@@ -3837,6 +3877,7 @@ function setupWebSocket(
           JSON.stringify({
             type: "update",
             player: updateData,
+            seq: nextSeq(),
           }),
         );
       }
@@ -4013,6 +4054,7 @@ function setupWebSocket(
                   JSON.stringify({
                     type: "update",
                     player: { id: closestPlayer.id, ...closestPlayer },
+                    seq: nextSeq(),
                   }),
                 );
               } else {
@@ -4095,6 +4137,7 @@ function setupWebSocket(
               }
             });
           });
+          cleanupSequence(id);
         }
         clients.delete(ws);
         players.delete(id);
