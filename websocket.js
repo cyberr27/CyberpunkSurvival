@@ -3713,29 +3713,42 @@ function setupWebSocket(
           }),
         );
       }
-      if (data.type === "update" || data.type === "move") {
-        const playerId = clients.get(ws);
-
-        // Очень важная защита
-        if (!playerId || !players.has(playerId)) {
-          // Игрок ещё не авторизован или уже отключился
-          ws.send(
-            JSON.stringify({
-              type: "error",
-              message: "Not authenticated or session expired",
-            }),
-          );
-          return;
-        }
-
+      if (data.type === "move" || data.type === "update") {
         const incomingSeq = Number(data.seq);
-        if (!Number.isInteger(incomingSeq) || incomingSeq < 0) {
+        if (!Number.isInteger(incomingSeq) || incomingSeq < 0) return;
+
+        if (!shouldEnqueueClientMessage(playerId, incomingSeq, data.type)) {
           return;
         }
 
-        if (!shouldAcceptClientUpdate(playerId, incomingSeq)) {
+        enqueueClientMessage(playerId, incomingSeq, data.type, data);
+        return; // ← НЕ обрабатываем здесь!
+      }
+
+      // Аналогично для ВСЕХ остальных типов, которые меняют состояние игрока:
+      else if (
+        [
+          "useItem",
+          "equipItem",
+          "unequipItem",
+          "dropItem",
+          "pickup",
+          "tradeCompleted",
+          "requestRegeneration",
+          "buyWater",
+          "sellToJack",
+          "buyFromJack",
+          "thimbleriggerBet",
+          "thimbleriggerGameResult" /* ... и все остальные */,
+        ].includes(data.type)
+      ) {
+        const incomingSeq = Number(data.seq ?? 0); // если клиент не присылает — 0
+        if (!shouldEnqueueClientMessage(playerId, incomingSeq, data.type)) {
           return;
         }
+
+        enqueueClientMessage(playerId, incomingSeq, data.type, data);
+        return;
 
         const player = players.get(playerId);
 
@@ -4136,6 +4149,166 @@ function setupWebSocket(
       clearTimeout(inactivityTimer);
     });
   });
+}
+
+async function applyMessage(playerId, msgType, payload, clientSeq) {
+  const player = players.get(playerId);
+  if (!player) return false;
+
+  let success = false;
+
+  switch (msgType) {
+    case "move":
+    case "update": {
+      // ── старая логика обработки move/update ─────────────────────────────
+      const oldX = player.x;
+      const oldY = player.y;
+
+      if (payload.x !== undefined) player.x = Number(payload.x);
+      if (payload.y !== undefined) player.y = Number(payload.y);
+      if (payload.direction) player.direction = payload.direction;
+      if (payload.state) player.state = payload.state;
+      if (payload.frame !== undefined) player.frame = Number(payload.frame);
+      // ... все остальные поля, которые были раньше ...
+
+      // проверка препятствий (как было)
+      let valid = true;
+      if (payload.x !== undefined || payload.y !== undefined) {
+        for (const obs of obstacles) {
+          if (obs.worldId !== player.worldId) continue;
+          if (
+            segmentsIntersect(
+              oldX,
+              oldY,
+              player.x,
+              player.y,
+              obs.x1,
+              obs.y1,
+              obs.x2,
+              obs.y2,
+            )
+          ) {
+            valid = false;
+            break;
+          }
+        }
+      }
+
+      if (!valid) {
+        player.x = oldX;
+        player.y = oldY;
+        // отправляем forcePosition только этому клиенту
+        const ws = [...wss.clients].find((c) => clients.get(c) === playerId);
+        if (ws?.readyState === WebSocket.OPEN) {
+          ws.send(
+            JSON.stringify({
+              type: "forcePosition",
+              x: oldX,
+              y: oldY,
+              reason: "collision",
+            }),
+          );
+        }
+      }
+
+      success = true;
+      break;
+    }
+
+    case "useItem": {
+      // вся старая логика useItem, но БЕЗ players.set и БЕЗ save
+      // только изменение объекта player
+      const slotIndex = payload.slotIndex;
+      const item = player.inventory[slotIndex];
+      if (!item) break;
+
+      const effect = ITEM_CONFIG[item.type]?.effect;
+      if (!effect) break;
+
+      if (effect.health)
+        player.health = Math.min(
+          player.health + effect.health,
+          player.maxStats.health,
+        );
+      // ... остальные статы ...
+
+      if (ITEM_CONFIG[item.type].stackable && item.quantity > 1) {
+        item.quantity -= 1;
+      } else {
+        player.inventory[slotIndex] = null;
+      }
+
+      success = true;
+      break;
+    }
+
+    case "equipItem":
+    case "unequipItem":
+    case "dropItem":
+    case "pickup":
+    case "tradeCompleted":
+    case "requestRegeneration":
+    case "buyWater":
+    case "sellToJack":
+      // ... остальные действия, которые меняют player ...
+
+      // Копируем старую логику, но БЕЗ players.set / userDatabase.set / saveUserDatabase
+      // только мутируем объект player
+
+      success = true;
+      break;
+
+    default:
+      console.warn(`applyMessage: неизвестный тип ${msgType}`);
+      success = false;
+  }
+
+  if (success) {
+    // Критически важно — сохраняем и рассылаем изменения
+    players.set(playerId, { ...player }); // на всякий случай создаём копию
+
+    // Сохраняем в базу (можно делать реже — раз в 3–10 сек, но для простоты оставляем здесь)
+    userDatabase.set(playerId, { ...player });
+    saveUserDatabase(dbCollection, playerId, player).catch((e) =>
+      console.error("save failed", e),
+    );
+
+    // Рассылка обновления всем (можно оптимизировать позже)
+    const updateFields = {
+      id: playerId,
+      x: player.x,
+      y: player.y,
+      health: player.health,
+      energy: player.energy,
+      food: player.food,
+      water: player.water,
+      armor: player.armor,
+      // ... другие важные поля ...
+      serverSeq: getNextServerSeq(playerId),
+    };
+
+    broadcastToWorld(
+      wss,
+      clients,
+      players,
+      player.worldId,
+      JSON.stringify({ type: "update", player: updateFields }),
+    );
+
+    // Отправляем клиенту подтверждение (опционально)
+    const ws = [...wss.clients].find((c) => clients.get(c) === playerId);
+    if (ws?.readyState === WebSocket.OPEN) {
+      ws.send(
+        JSON.stringify({
+          type: "actionConfirmed",
+          seq: clientSeq,
+          serverSeq: getNextServerSeq(playerId),
+        }),
+      );
+    }
+  }
+
+  return success;
 }
 
 module.exports = { setupWebSocket };

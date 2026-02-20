@@ -1,9 +1,11 @@
 // playerStateSequence.js
 
-/**
- * @typedef {Object} SequenceState
- * @property {number} clientSeq - последний seq, принятый от клиента
- * @property {number} serverSeq - seq, который сервер присвоил последнему валидному состоянию
+/** @typedef {Object} SequenceState
+ *  @property {number} clientSeq
+ *  @property {number} serverSeq
+ *  @property {Array<{seq:number, type:string, data:any, receivedAt:number}>} pendingQueue
+ *  @property {boolean} isProcessing
+ *  @property {Object|null} lastAppliedSnapshot
  */
 
 /** @type {Map<string, SequenceState>} */
@@ -13,35 +15,86 @@ function initSequenceForPlayer(playerId) {
   playerSequences.set(playerId, {
     clientSeq: -1,
     serverSeq: 0,
+    pendingQueue: [],
+    isProcessing: false,
+    lastAppliedSnapshot: null,
   });
 }
 
-function shouldAcceptClientUpdate(playerId, incomingClientSeq) {
+function shouldEnqueueClientMessage(playerId, incomingClientSeq, messageType) {
   const state = playerSequences.get(playerId);
-  if (!state) return true; // первый пакет после логина
+  if (!state) return true;
 
-  // Принимаем только строго возрастающие seq
-  return incomingClientSeq > state.clientSeq;
+  // Для move/update — строгая последовательность
+  if (messageType === "move" || messageType === "update") {
+    return incomingClientSeq > state.clientSeq;
+  }
+
+  // Для остальных действий — разрешаем, если seq не сильно устарел (защита от очень старых пакетов)
+  return incomingClientSeq >= state.clientSeq - 5;
 }
 
-function acceptClientUpdate(playerId, incomingClientSeq) {
+function enqueueClientMessage(playerId, incomingClientSeq, messageType, data) {
   const state = playerSequences.get(playerId);
   if (!state) {
     initSequenceForPlayer(playerId);
     return;
   }
 
-  state.clientSeq = incomingClientSeq;
-  state.serverSeq += 1;
+  state.pendingQueue.push({
+    seq: incomingClientSeq,
+    type: messageType,
+    data,
+    receivedAt: Date.now(),
+  });
+
+  // Сортируем очередь по seq (на случай, если пакеты пришли не по порядку)
+  state.pendingQueue.sort((a, b) => a.seq - b.seq);
+
+  // Запускаем обработку, если ещё не запущена
+  if (!state.isProcessing) {
+    processQueueAsync(playerId);
+  }
+}
+
+async function processQueueAsync(playerId) {
+  const state = playerSequences.get(playerId);
+  if (!state || state.isProcessing) return;
+
+  state.isProcessing = true;
+
+  while (state.pendingQueue.length > 0) {
+    const msg = state.pendingQueue[0];
+
+    // Пропускаем слишком старые пакеты (опционально, защита)
+    if (Date.now() - msg.receivedAt > 15000) {
+      state.pendingQueue.shift();
+      continue;
+    }
+
+    // Здесь будет вызываться реальная логика применения (см. ниже)
+    const applied = await applyMessage(playerId, msg.type, msg.data, msg.seq);
+
+    if (applied) {
+      state.clientSeq = Math.max(state.clientSeq, msg.seq);
+      state.serverSeq += 1;
+      state.pendingQueue.shift();
+
+      // Можно сохранить снапшот после успешного применения
+      // state.lastAppliedSnapshot = getPlayerSnapshot(playerId);
+    } else {
+      // Если не удалось применить — ждём следующего тика или отбрасываем
+      // Для простоты — отбрасываем и идём дальше
+      state.pendingQueue.shift();
+    }
+  }
+
+  state.isProcessing = false;
 }
 
 function getNextServerSeq(playerId) {
   const state = playerSequences.get(playerId);
-  if (!state) {
-    initSequenceForPlayer(playerId);
-    return 0;
-  }
-  return state.serverSeq;
+  return state ? state.serverSeq : 0;
 }
 
 function getCurrentServerSeq(playerId) {
@@ -53,10 +106,11 @@ function cleanupSequence(playerId) {
 }
 
 module.exports = {
-  shouldAcceptClientUpdate,
-  acceptClientUpdate,
+  initSequenceForPlayer,
+  shouldEnqueueClientMessage,
+  enqueueClientMessage,
   getNextServerSeq,
   getCurrentServerSeq,
   cleanupSequence,
-  initSequenceForPlayer,
+  // processQueueAsync и applyMessage будут вызываться из websocket.js
 };
