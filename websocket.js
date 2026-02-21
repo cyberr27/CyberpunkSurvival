@@ -722,6 +722,16 @@ function setupWebSocket(
         ws.tradeCancelledQueue.push(data);
         processTradeCancelledQueue(ws);
         return;
+      }
+      if (!ws.attackPlayerQueue) {
+        ws.attackPlayerQueue = [];
+        ws.isProcessingAttackPlayer = false;
+      }
+
+      if (data.type === "attackPlayer") {
+        ws.attackPlayerQueue.push(data);
+        processAttackPlayerQueue(ws);
+        return;
       } else if (data.type === "buyWater") {
         const id = clients.get(ws);
         if (!id) return;
@@ -1150,41 +1160,6 @@ function setupWebSocket(
             }
           }
         });
-      } else if (data.type === "attackPlayer") {
-        const attackerId = clients.get(ws);
-        if (
-          attackerId &&
-          players.has(attackerId) &&
-          players.has(data.targetId)
-        ) {
-          const attacker = players.get(attackerId);
-          const target = players.get(data.targetId);
-          if (
-            attacker.worldId === data.worldId &&
-            target.worldId === data.worldId &&
-            target.health > 0
-          ) {
-            target.health = Math.max(0, target.health - data.damage);
-            players.set(data.targetId, { ...target });
-            userDatabase.set(data.targetId, { ...target });
-            await saveUserDatabase(dbCollection, data.targetId, target);
-
-            // Broadcast update to all players in the same world
-            wss.clients.forEach((client) => {
-              if (client.readyState === WebSocket.OPEN) {
-                const clientPlayer = players.get(clients.get(client));
-                if (clientPlayer && clientPlayer.worldId === target.worldId) {
-                  client.send(
-                    JSON.stringify({
-                      type: "update",
-                      player: { id: data.targetId, ...target },
-                    }),
-                  );
-                }
-              }
-            });
-          }
-        }
       } else if (data.type === "attackEnemy") {
         const attackerId = clients.get(ws);
         if (!attackerId) return;
@@ -4252,6 +4227,56 @@ function setupWebSocket(
         }
 
         ws.isProcessingTradeCancelled = false;
+      }
+      async function processAttackPlayerQueue(ws) {
+        if (ws.isProcessingAttackPlayer) return;
+        ws.isProcessingAttackPlayer = true;
+
+        while (ws.attackPlayerQueue.length > 0) {
+          const data = ws.attackPlayerQueue.shift();
+
+          const attackerId = clients.get(ws);
+          if (
+            !attackerId ||
+            !players.has(attackerId) ||
+            !players.has(data.targetId)
+          ) {
+            continue;
+          }
+
+          const attacker = players.get(attackerId);
+          const target = players.get(data.targetId);
+
+          if (
+            attacker.worldId !== data.worldId ||
+            target.worldId !== data.worldId ||
+            target.health <= 0
+          ) {
+            continue;
+          }
+
+          // Применяем урон
+          target.health = Math.max(0, target.health - data.damage);
+
+          // Сохраняем изменения цели
+          players.set(data.targetId, { ...target });
+          userDatabase.set(data.targetId, { ...target });
+          await saveUserDatabase(dbCollection, data.targetId, target);
+
+          // Рассылаем обновление здоровья всем в мире цели
+          broadcastToWorld(
+            wss,
+            clients,
+            players,
+            target.worldId,
+            JSON.stringify({
+              type: "update",
+              player: { id: data.targetId, ...target },
+            }),
+          );
+        }
+
+        ws.isProcessingAttackPlayer = false;
       }
     });
 
