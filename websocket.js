@@ -3857,6 +3857,8 @@ function setupWebSocket(
           food: player.food,
           water: player.water,
           armor: player.armor,
+          inventory: player.inventory,
+          equipment: player.equipment,
           distanceTraveled: player.distanceTraveled,
           meleeDamageBonus: player.meleeDamageBonus || 0,
         };

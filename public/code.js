@@ -1980,6 +1980,8 @@ function handleGameMessage(event) {
               food: data.player.food ?? p.food,
               water: data.player.water ?? p.water,
               armor: data.player.armor ?? p.armor,
+              inventory: data.player.inventory ?? p.inventory,
+              equipment: data.player.equipment ?? p.equipment,
               distanceTraveled:
                 data.player.distanceTraveled ?? p.distanceTraveled,
               meleeDamageBonus:
