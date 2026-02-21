@@ -20,6 +20,8 @@ let ws;
 let players = new Map();
 let myId;
 const items = new Map();
+window.incomingMessageQueue = [];
+window.isProcessingMessages = false;
 
 const GAME_CONFIG = {
   FRAME_DURATION: 80,
@@ -942,7 +944,18 @@ function reconnectWebSocket() {
             try {
               const data = JSON.parse(event.data);
               if (data.type === "loginSuccess") {
-                ws.onmessage = handleGameMessage;
+                ws.onmessage = (event) => {
+                  try {
+                    const data = JSON.parse(event.data);
+                    window.incomingMessageQueue.push(data);
+                    processMessageQueue(); // запустит обработку, если ещё не идёт
+                  } catch (err) {
+                    console.error(
+                      "Не удалось распарсить сообщение от сервера:",
+                      err,
+                    );
+                  }
+                };
                 tradeSystem.initialize(ws);
                 // Синхронизируем игрока с сервером
                 const me = players.get(myId);
@@ -983,7 +996,15 @@ function initializeWebSocket() {
       handleAuthMessage(event);
       const data = JSON.parse(event.data);
       if (data.type === "loginSuccess") {
-        ws.onmessage = handleGameMessage;
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            window.incomingMessageQueue.push(data);
+            processMessageQueue(); // запустит обработку, если ещё не идёт
+          } catch (err) {
+            console.error("Не удалось распарсить сообщение от сервера:", err);
+          }
+        };
       }
     } catch (error) {
       console.error("Ошибка при обработке сообщения:", error);
@@ -1230,7 +1251,15 @@ function handleAuthMessage(event) {
       window.equipmentSystem.syncEquipment(data.equipment);
 
       resizeCanvas();
-      ws.onmessage = handleGameMessage;
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          window.incomingMessageQueue.push(data);
+          processMessageQueue(); // запустит обработку, если ещё не идёт
+        } catch (err) {
+          console.error("Не удалось распарсить сообщение от сервера:", err);
+        }
+      };
       startGame();
       updateOnlineCount(0);
       break;
@@ -1661,1052 +1690,1041 @@ function updateStatsDisplay() {
   } catch (error) {}
 }
 
-function handleGameMessage(event) {
-  try {
-    const data = JSON.parse(event.data);
-    const currentWorldId = window.worldSystem.currentWorldId;
+async function handleGameMessageLogic(data) {
+  const currentWorldId = window.worldSystem.currentWorldId;
 
-    switch (data.type) {
-      case "syncPlayers":
-        if (data.worldId === currentWorldId && data.players) {
-          const myPlayer = players.get(myId);
-          players.clear();
-          if (myPlayer) players.set(myId, { ...myPlayer, frameTime: 0 });
+  switch (data.type) {
+    case "syncPlayers":
+      if (data.worldId === currentWorldId && data.players) {
+        const myPlayer = players.get(myId);
+        players.clear();
+        if (myPlayer) players.set(myId, { ...myPlayer, frameTime: 0 });
 
-          data.players.forEach((p) => {
-            if (p?.id && p.id !== myId) {
-              players.set(p.id, {
-                ...p,
-                frameTime: 0,
-                animTime: 0,
-                targetX: p.x,
-                targetY: p.y,
-                targetFrame: p.state === "walking" ? p.frame : 0,
-                targetDirection: p.direction,
-                targetState: p.state,
-                targetAttackFrame: p.attackFrame || 0,
-              });
+        data.players.forEach((p) => {
+          if (p?.id && p.id !== myId) {
+            players.set(p.id, {
+              ...p,
+              frameTime: 0,
+              animTime: 0,
+              targetX: p.x,
+              targetY: p.y,
+              targetFrame: p.state === "walking" ? p.frame : 0,
+              targetDirection: p.direction,
+              targetState: p.state,
+              targetAttackFrame: p.attackFrame || 0,
+            });
+          }
+        });
+      }
+      break;
+    case "worldTransitionSuccess":
+      {
+        const me = players.get(myId);
+        if (me) {
+          window.worldSystem.switchWorld(data.worldId, me, data.x, data.y);
+          items.forEach((item, itemId) => {
+            if (item.worldId !== data.worldId) {
+              items.delete(itemId);
             }
           });
-        }
-        break;
-      case "worldTransitionSuccess":
-        {
-          const me = players.get(myId);
-          if (me) {
-            window.worldSystem.switchWorld(data.worldId, me, data.x, data.y);
-            items.forEach((item, itemId) => {
-              if (item.worldId !== data.worldId) {
-                items.delete(itemId);
-              }
-            });
-            window.vendingMachine.hideVendingMenu();
-            window.lightsSystem.reset(data.worldId);
-            if (data.lights) {
-              lights.length = 0;
-              data.lights.forEach((light) =>
-                lights.push({
-                  ...light,
-                  baseRadius: light.radius,
-                  pulseSpeed: 0.001,
-                }),
-              );
-            }
-          }
-        }
-        // Добавляем задержку для стабилизации соединения после перехода
-        setTimeout(() => {
-          if (ws.readyState === WebSocket.OPEN) {
-            sendWhenReady(
-              ws,
-              JSON.stringify({
-                type: "syncPlayers",
-                worldId: data.worldId,
+          window.vendingMachine.hideVendingMenu();
+          window.lightsSystem.reset(data.worldId);
+          if (data.lights) {
+            lights.length = 0;
+            data.lights.forEach((light) =>
+              lights.push({
+                ...light,
+                baseRadius: light.radius,
+                pulseSpeed: 0.001,
               }),
             );
           }
-        }, 1000); // Задержка 1 секунда
-        break;
-      case "newPlayer":
-        if (data.player?.id && data.player.worldId === currentWorldId) {
-          players.set(data.player.id, {
-            ...data.player,
-            animTime: 0,
-            targetX: data.player.x,
-            targetY: data.player.y,
-            targetDirection: data.player.direction,
-            targetState: data.player.state,
-            targetAttackFrame: data.player.attackFrame || 0,
+        }
+      }
+      // Добавляем задержку для стабилизации соединения после перехода
+      setTimeout(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+          sendWhenReady(
+            ws,
+            JSON.stringify({
+              type: "syncPlayers",
+              worldId: data.worldId,
+            }),
+          );
+        }
+      }, 1000); // Задержка 1 секунда
+      break;
+    case "newPlayer":
+      if (data.player?.id && data.player.worldId === currentWorldId) {
+        players.set(data.player.id, {
+          ...data.player,
+          animTime: 0,
+          targetX: data.player.x,
+          targetY: data.player.y,
+          targetDirection: data.player.direction,
+          targetState: data.player.state,
+          targetAttackFrame: data.player.attackFrame || 0,
+        });
+      }
+      break;
+    case "playerLeft":
+      if (players.has(data.id)) {
+        players.delete(data.id);
+      }
+      break;
+    case "syncItems":
+      items.clear();
+      data.items.forEach((item) => {
+        if (item.worldId === currentWorldId) {
+          items.set(item.itemId, {
+            x: item.x,
+            y: item.y,
+            type: item.type,
+            spawnTime: item.spawnTime,
+            worldId: item.worldId,
           });
         }
-        break;
-      case "playerLeft":
-        if (players.has(data.id)) {
-          players.delete(data.id);
+      });
+      data.items.forEach((item) => {
+        if (pendingPickups.has(item.itemId)) {
+          pendingPickups.delete(item.itemId);
         }
-        break;
-      case "syncItems":
-        items.clear();
-        data.items.forEach((item) => {
-          if (item.worldId === currentWorldId) {
-            items.set(item.itemId, {
-              x: item.x,
-              y: item.y,
-              type: item.type,
-              spawnTime: item.spawnTime,
-              worldId: item.worldId,
-            });
-          }
-        });
-        data.items.forEach((item) => {
-          if (pendingPickups.has(item.itemId)) {
-            pendingPickups.delete(item.itemId);
-          }
-        });
-        break;
-      case "itemPicked":
-        items.delete(data.itemId);
-        pendingPickups.delete(data.itemId);
-        const me = players.get(myId);
-        if (me && data.playerId === myId && data.item) {
-          if (data.item.type === "balyary") {
-            const balyarySlot = inventory.findIndex(
-              (slot) => slot && slot.type === "balyary",
-            );
-            if (balyarySlot !== -1) {
-              inventory[balyarySlot].quantity =
-                (inventory[balyarySlot].quantity || 1) + 1;
-            } else {
-              const freeSlot = inventory.findIndex((slot) => slot === null);
-              if (freeSlot !== -1) {
-                inventory[freeSlot] = {
-                  type: "balyary",
-                  quantity: 1,
-                  itemId: data.itemId,
-                };
-              }
-            }
+      });
+      break;
+    case "itemPicked":
+      items.delete(data.itemId);
+      pendingPickups.delete(data.itemId);
+      const me = players.get(myId);
+      if (me && data.playerId === myId && data.item) {
+        if (data.item.type === "balyary") {
+          const balyarySlot = inventory.findIndex(
+            (slot) => slot && slot.type === "balyary",
+          );
+          if (balyarySlot !== -1) {
+            inventory[balyarySlot].quantity =
+              (inventory[balyarySlot].quantity || 1) + 1;
           } else {
             const freeSlot = inventory.findIndex((slot) => slot === null);
             if (freeSlot !== -1) {
-              inventory[freeSlot] = data.item;
+              inventory[freeSlot] = {
+                type: "balyary",
+                quantity: 1,
+                itemId: data.itemId,
+              };
             }
           }
-          window.inventorySystem.updateInventoryDisplay();
-          levelSystem.handleItemPickup(
-            data.item.type,
-            data.item.isDroppedByPlayer || false,
+        } else {
+          const freeSlot = inventory.findIndex((slot) => slot === null);
+          if (freeSlot !== -1) {
+            inventory[freeSlot] = data.item;
+          }
+        }
+        window.inventorySystem.updateInventoryDisplay();
+        levelSystem.handleItemPickup(
+          data.item.type,
+          data.item.isDroppedByPlayer || false,
+        );
+      }
+      updateStatsDisplay();
+      break;
+    case "itemNotFound":
+      items.delete(data.itemId);
+      pendingPickups.delete(data.itemId);
+      break;
+    case "equipItemSuccess": {
+      const me = players.get(myId);
+      if (me) {
+        me.inventory = data.inventory;
+        me.equipment = data.equipment;
+        me.maxStats = data.maxStats;
+        me.health = data.stats.health;
+        me.energy = data.stats.energy;
+        me.food = data.stats.food;
+        me.water = data.stats.water;
+        me.armor = data.stats.armor;
+
+        inventory = me.inventory.map((slot) => (slot ? { ...slot } : null));
+        window.equipmentSystem.equipmentSlots = { ...data.equipment };
+        window.equipmentSystem.syncEquipment(data.equipment); // перерисовка + эффекты
+      }
+      window.equipmentSystem.pendingEquip = null;
+      updateInventoryDisplay();
+      updateStatsDisplay();
+      break;
+    }
+    case "equipItemFail":
+      window.equipmentSystem.handleEquipFail(data.error);
+      break;
+    case "unequipItemSuccess": {
+      const me = players.get(myId);
+      if (me) {
+        me.inventory = data.inventory;
+        me.equipment = data.equipment;
+        me.maxStats = data.maxStats;
+        me.health = data.stats.health;
+        me.energy = data.stats.energy;
+        me.food = data.stats.food;
+        me.water = data.stats.water;
+        me.armor = data.stats.armor;
+
+        inventory = me.inventory.map((slot) => (slot ? { ...slot } : null));
+
+        // Синхронизируем визуальные слоты
+        window.equipmentSystem.equipmentSlots = { ...data.equipment };
+        window.equipmentSystem.applyEquipmentEffects(me);
+        window.equipmentSystem.updateEquipmentDisplay();
+      }
+
+      window.equipmentSystem.pendingUnequip = null;
+      updateInventoryDisplay();
+      updateStatsDisplay();
+      showNotification("Предмет снят", "#00ff88");
+      break;
+    }
+    case "unequipItemFail":
+      window.equipmentSystem.handleUnequipFail(message.error);
+      break;
+    case "inventoryFull":
+      pendingPickups.delete(data.itemId);
+      break;
+    case "update":
+      if (data.player?.id === myId) {
+        const me = players.get(myId);
+        if (!me) break;
+
+        // ← Самое важное место для детекта урона
+        if (data.player.health !== undefined) {
+          const oldHealth = Number(me.health) || 0;
+          let newHealth = Number(data.player.health);
+
+          // Защита от отрицательного здоровья с сервера
+          newHealth = Math.max(0, newHealth);
+
+          if (newHealth < oldHealth && window.regenerationSystem) {
+            window.regenerationSystem.resetTimerOnDamage();
+          }
+
+          me.health = Math.max(
+            0,
+            Math.min(newHealth, me.maxStats?.health || 100),
           );
         }
-        updateStatsDisplay();
-        break;
-      case "itemNotFound":
-        items.delete(data.itemId);
-        pendingPickups.delete(data.itemId);
-        break;
-      case "equipItemSuccess": {
-        const me = players.get(myId);
-        if (me) {
-          me.inventory = data.inventory;
-          me.equipment = data.equipment;
-          me.maxStats = data.maxStats;
-          me.health = data.stats.health;
-          me.energy = data.stats.energy;
-          me.food = data.stats.food;
-          me.water = data.stats.water;
-          me.armor = data.stats.armor;
 
-          inventory = me.inventory.map((slot) => (slot ? { ...slot } : null));
-          window.equipmentSystem.equipmentSlots = { ...data.equipment };
-          window.equipmentSystem.syncEquipment(data.equipment); // перерисовка + эффекты
-        }
-        window.equipmentSystem.pendingEquip = null;
-        updateInventoryDisplay();
-        updateStatsDisplay();
-        break;
-      }
-      case "equipItemFail":
-        window.equipmentSystem.handleEquipFail(data.error);
-        break;
-      case "unequipItemSuccess": {
-        const me = players.get(myId);
-        if (me) {
-          me.inventory = data.inventory;
-          me.equipment = data.equipment;
-          me.maxStats = data.maxStats;
-          me.health = data.stats.health;
-          me.energy = data.stats.energy;
-          me.food = data.stats.food;
-          me.water = data.stats.water;
-          me.armor = data.stats.armor;
+        const isMoving = me.state === "walking" || me.state === "attacking";
 
-          inventory = me.inventory.map((slot) => (slot ? { ...slot } : null));
-
-          // Синхронизируем визуальные слоты
-          window.equipmentSystem.equipmentSlots = { ...data.equipment };
-          window.equipmentSystem.applyEquipmentEffects(me);
-          window.equipmentSystem.updateEquipmentDisplay();
-        }
-
-        window.equipmentSystem.pendingUnequip = null;
-        updateInventoryDisplay();
-        updateStatsDisplay();
-        showNotification("Предмет снят", "#00ff88");
-        break;
-      }
-      case "unequipItemFail":
-        window.equipmentSystem.handleUnequipFail(message.error);
-        break;
-      case "inventoryFull":
-        pendingPickups.delete(data.itemId);
-        break;
-      case "update":
-        if (data.player?.id === myId) {
-          const me = players.get(myId);
-          if (!me) break;
-
-          // ← Самое важное место для детекта урона
-          if (data.player.health !== undefined) {
-            const oldHealth = Number(me.health) || 0;
-            let newHealth = Number(data.player.health);
-
-            // Защита от отрицательного здоровья с сервера
-            newHealth = Math.max(0, newHealth);
-
-            if (newHealth < oldHealth && window.regenerationSystem) {
-              window.regenerationSystem.resetTimerOnDamage();
+        if (isMoving) {
+          const { x, y, direction, state, frame, ...stats } = data.player;
+          Object.assign(me, stats);
+        } else {
+          if (data.player.x !== undefined) {
+            me.serverTargetX = data.player.x;
+            me.serverTargetY = data.player.y;
+            me.x += (me.serverTargetX - me.x) * 0.1;
+            me.y += (me.serverTargetY - me.y) * 0.1;
+            if (
+              Math.abs(me.serverTargetX - me.x) < 0.5 &&
+              Math.abs(me.serverTargetY - me.y) < 0.5
+            ) {
+              me.x = me.serverTargetX;
+              me.y = me.serverTargetY;
+              delete me.serverTargetX;
+              delete me.serverTargetY;
             }
+          }
+          const { x, y, ...stats } = data.player;
+          Object.assign(me, stats);
+          if (data.player.meleeDamageBonus !== undefined) {
+            me.meleeDamageBonus = Number(data.player.meleeDamageBonus);
+          }
+        }
 
+        if (data.player.inventory) {
+          // Глубокая копия, чтобы не было неожиданных мутаций
+          inventory = data.player.inventory.map((slot) =>
+            slot ? { ...slot } : null,
+          );
+
+          // Синхронизируем также в объекте игрока
+          me.inventory = inventory.map((slot) => (slot ? { ...slot } : null));
+
+          // Обновляем отображение инвентаря
+          window.inventorySystem?.updateInventoryDisplay();
+
+          // Если открыто меню Mister Twister — обновляем баланс на табло
+          if (window.misterTwister?.isMenuOpen) {
+            window.misterTwister.updateLocalBalanceDisplay();
+          }
+        }
+
+        // Оборудование (оставляем как было)
+        if (data.player.equipment) {
+          window.equipmentSystem.syncEquipment(data.player.equipment);
+        }
+
+        // Обновляем статы в любом случае
+        updateStatsDisplay();
+      } else if (data.player?.id) {
+        const existing = players.get(data.player.id) || {};
+
+        const updatedPlayer = {
+          ...existing,
+          ...data.player,
+          targetX: data.player.x,
+          targetY: data.player.y,
+          targetDirection: data.player.direction,
+          targetState: data.player.state,
+          x: existing.x ?? data.player.x,
+          y: existing.y ?? data.player.y,
+          direction: data.player.direction,
+          state: data.player.state,
+        };
+
+        if (data.player.attackFrame !== undefined) {
+          updatedPlayer.attackFrame = data.player.attackFrame;
+          updatedPlayer.attackFrameTime = data.player.attackFrameTime || 0;
+        } else if (data.player.state !== "attacking") {
+          updatedPlayer.attackFrame = 0;
+          updatedPlayer.attackFrameTime = 0;
+        }
+
+        // Если атака только началась — гарантируем сброс
+        if (
+          data.player.state === "attacking" &&
+          existing.state !== "attacking"
+        ) {
+          updatedPlayer.attackFrame = 0;
+          updatedPlayer.attackFrameTime = 0;
+        }
+
+        if (data.player.attackFrameTime !== undefined) {
+          updatedPlayer.attackFrameTime = data.player.attackFrameTime;
+        }
+        if (data.player.attackFrame !== undefined) {
+          updatedPlayer.attackFrame = data.player.attackFrame;
+        }
+
+        // Добавь это:
+        if (data.player.attackFrame !== undefined) {
+          updatedPlayer.attackFrame = data.player.attackFrame;
+          updatedPlayer.attackFrameTime = data.player.attackFrameTime || 0;
+        }
+
+        // КРИТИЧНО ВАЖНЫЙ БЛОК: детект начала атаки у других игроков
+        const wasAttacking = existing.state === "attacking";
+        const isAttacking = data.player.state === "attacking";
+
+        if (isAttacking && !wasAttacking) {
+          // Игрок ТОЛЬКО ЧТО начал атаковать (даже стоя на месте!)
+          updatedPlayer.attackFrame = 0;
+          updatedPlayer.attackFrameTime = 0;
+          updatedPlayer.animTime = 0; // сбрасываем анимацию ходьбы
+          updatedPlayer.frame = 0;
+          updatedPlayer.prevState = existing.state || "idle"; // на всякий
+        } else if (!isAttacking && wasAttacking) {
+          // Закончил атаку
+          updatedPlayer.attackFrame = 0;
+          updatedPlayer.attackFrameTime = 0;
+        } else if (isAttacking && wasAttacking) {
+          // Продолжает атаковать — сохраняем прогресс
+          updatedPlayer.attackFrame = existing.attackFrame || 0;
+          updatedPlayer.attackFrameTime = existing.attackFrameTime || 0;
+        } else {
+          // Не атакует вообще
+          updatedPlayer.attackFrame = 0;
+          updatedPlayer.attackFrameTime = 0;
+        }
+
+        // Анимация ходьбы — только если не атакует
+        if (data.player.state === "walking") {
+          updatedPlayer.animTime = existing.animTime || 0;
+          updatedPlayer.frame = existing.frame ?? 0;
+        } else if (data.player.state !== "attacking") {
+          updatedPlayer.frame = 0;
+          updatedPlayer.animTime = 0;
+        }
+
+        players.set(data.player.id, updatedPlayer);
+      }
+      break;
+    case "itemDropped":
+      if (data.worldId === currentWorldId) {
+        items.set(data.itemId, {
+          x: data.x,
+          y: data.y,
+          type: data.type,
+          spawnTime: data.spawnTime,
+          worldId: data.worldId,
+        });
+        if (data.quantity && ITEM_CONFIG[data.type]?.stackable) {
+          items.get(data.itemId).quantity = data.quantity;
+        }
+        window.inventorySystem.updateInventoryDisplay();
+      }
+      break;
+    case "chat":
+      window.chatSystem.handleChatMessage(data);
+
+      const player = players.get(data.id);
+      if (player && player.worldId === window.worldSystem.currentWorldId) {
+        const shortText = data.message.substring(0, CHAT_BUBBLE_MAX_LENGTH);
+        player.chatBubble = {
+          text: shortText,
+          time: Date.now(),
+        };
+      }
+      break;
+    case "buyWaterResult":
+      if (data.success) {
+        const me = players.get(myId);
+        me.water = data.water;
+        me.inventory = data.inventory.map((slot) =>
+          slot ? { ...slot } : null,
+        );
+        updateStatsDisplay();
+        window.inventorySystem.updateInventoryDisplay();
+        window.vendingMachine.hideVendingMenu();
+      } else {
+        const errorEl = document.getElementById("vendingError");
+        errorEl.textContent = data.error || "Ошибка покупки";
+      }
+      break;
+    case "totalOnline":
+      updateOnlineCount(data.count);
+      break;
+    case "tradeRequest":
+    case "tradeAccepted":
+    case "tradeOffer":
+    case "tradeConfirmed":
+    case "tradeCancelled":
+      window.tradeSystem.handleTradeMessage(data);
+      break;
+
+    case "tradeCompleted":
+      if (data.newInventory) {
+        // КРИТИЧНО: обновляем локальный инвентарь
+        inventory = data.newInventory.map((slot) =>
+          slot ? { ...slot } : null,
+        );
+
+        // Также обновляем инвентарь в объекте игрока (для других систем)
+        const me = players.get(myId);
+        if (me) {
+          me.inventory = [...inventory]; // глубокая копия
+          players.set(myId, me);
+        }
+
+        window.tradeSystem.closeTradeWindow();
+        window.tradeSystem.resetTrade();
+        window.inventorySystem.updateInventoryDisplay();
+        updateStatsDisplay();
+      }
+      break;
+    case "tradeChatMessage":
+      window.tradeSystem.handleTradeMessage(data);
+      break;
+    case "useItemSuccess":
+      {
+        const me = players.get(myId);
+        if (me) {
+          // Обновляем статы игрока (важно для других систем)
+          if (data.stats.health !== undefined)
             me.health = Math.max(
               0,
-              Math.min(newHealth, me.maxStats?.health || 100),
-            );
-          }
-
-          const isMoving = me.state === "walking" || me.state === "attacking";
-
-          if (isMoving) {
-            const { x, y, direction, state, frame, ...stats } = data.player;
-            Object.assign(me, stats);
-          } else {
-            if (data.player.x !== undefined) {
-              me.serverTargetX = data.player.x;
-              me.serverTargetY = data.player.y;
-              me.x += (me.serverTargetX - me.x) * 0.1;
-              me.y += (me.serverTargetY - me.y) * 0.1;
-              if (
-                Math.abs(me.serverTargetX - me.x) < 0.5 &&
-                Math.abs(me.serverTargetY - me.y) < 0.5
-              ) {
-                me.x = me.serverTargetX;
-                me.y = me.serverTargetY;
-                delete me.serverTargetX;
-                delete me.serverTargetY;
-              }
-            }
-            const { x, y, ...stats } = data.player;
-            Object.assign(me, stats);
-            if (data.player.meleeDamageBonus !== undefined) {
-              me.meleeDamageBonus = Number(data.player.meleeDamageBonus);
-            }
-          }
-
-          if (data.player.inventory) {
-            // Глубокая копия, чтобы не было неожиданных мутаций
-            inventory = data.player.inventory.map((slot) =>
-              slot ? { ...slot } : null,
+              Math.min(me.maxStats?.health || 100, Number(data.stats.health)),
             );
 
-            // Синхронизируем также в объекте игрока
-            me.inventory = inventory.map((slot) => (slot ? { ...slot } : null));
+          if (data.stats.energy !== undefined)
+            me.energy = Math.max(
+              0,
+              Math.min(me.maxStats?.energy || 100, Number(data.stats.energy)),
+            );
 
-            // Обновляем отображение инвентаря
-            window.inventorySystem?.updateInventoryDisplay();
+          if (data.stats.food !== undefined)
+            me.food = Math.max(
+              0,
+              Math.min(me.maxStats?.food || 100, Number(data.stats.food)),
+            );
 
-            // Если открыто меню Mister Twister — обновляем баланс на табло
-            if (window.misterTwister?.isMenuOpen) {
-              window.misterTwister.updateLocalBalanceDisplay();
-            }
-          }
+          if (data.stats.water !== undefined)
+            me.water = Math.max(
+              0,
+              Math.min(me.maxStats?.water || 100, Number(data.stats.water)),
+            );
 
-          // Оборудование (оставляем как было)
-          if (data.player.equipment) {
-            window.equipmentSystem.syncEquipment(data.player.equipment);
-          }
+          if (data.stats.armor !== undefined)
+            me.armor = Math.max(0, Number(data.stats.armor || me.armor));
 
-          // Обновляем статы в любом случае
-          updateStatsDisplay();
-        } else if (data.player?.id) {
-          const existing = players.get(data.player.id) || {};
-
-          const updatedPlayer = {
-            ...existing,
-            ...data.player,
-            targetX: data.player.x,
-            targetY: data.player.y,
-            targetDirection: data.player.direction,
-            targetState: data.player.state,
-            x: existing.x ?? data.player.x,
-            y: existing.y ?? data.player.y,
-            direction: data.player.direction,
-            state: data.player.state,
-          };
-
-          if (data.player.attackFrame !== undefined) {
-            updatedPlayer.attackFrame = data.player.attackFrame;
-            updatedPlayer.attackFrameTime = data.player.attackFrameTime || 0;
-          } else if (data.player.state !== "attacking") {
-            updatedPlayer.attackFrame = 0;
-            updatedPlayer.attackFrameTime = 0;
-          }
-
-          // Если атака только началась — гарантируем сброс
-          if (
-            data.player.state === "attacking" &&
-            existing.state !== "attacking"
-          ) {
-            updatedPlayer.attackFrame = 0;
-            updatedPlayer.attackFrameTime = 0;
-          }
-
-          if (data.player.attackFrameTime !== undefined) {
-            updatedPlayer.attackFrameTime = data.player.attackFrameTime;
-          }
-          if (data.player.attackFrame !== undefined) {
-            updatedPlayer.attackFrame = data.player.attackFrame;
-          }
-
-          // Добавь это:
-          if (data.player.attackFrame !== undefined) {
-            updatedPlayer.attackFrame = data.player.attackFrame;
-            updatedPlayer.attackFrameTime = data.player.attackFrameTime || 0;
-          }
-
-          // КРИТИЧНО ВАЖНЫЙ БЛОК: детект начала атаки у других игроков
-          const wasAttacking = existing.state === "attacking";
-          const isAttacking = data.player.state === "attacking";
-
-          if (isAttacking && !wasAttacking) {
-            // Игрок ТОЛЬКО ЧТО начал атаковать (даже стоя на месте!)
-            updatedPlayer.attackFrame = 0;
-            updatedPlayer.attackFrameTime = 0;
-            updatedPlayer.animTime = 0; // сбрасываем анимацию ходьбы
-            updatedPlayer.frame = 0;
-            updatedPlayer.prevState = existing.state || "idle"; // на всякий
-          } else if (!isAttacking && wasAttacking) {
-            // Закончил атаку
-            updatedPlayer.attackFrame = 0;
-            updatedPlayer.attackFrameTime = 0;
-          } else if (isAttacking && wasAttacking) {
-            // Продолжает атаковать — сохраняем прогресс
-            updatedPlayer.attackFrame = existing.attackFrame || 0;
-            updatedPlayer.attackFrameTime = existing.attackFrameTime || 0;
-          } else {
-            // Не атакует вообще
-            updatedPlayer.attackFrame = 0;
-            updatedPlayer.attackFrameTime = 0;
-          }
-
-          // Анимация ходьбы — только если не атакует
-          if (data.player.state === "walking") {
-            updatedPlayer.animTime = existing.animTime || 0;
-            updatedPlayer.frame = existing.frame ?? 0;
-          } else if (data.player.state !== "attacking") {
-            updatedPlayer.frame = 0;
-            updatedPlayer.animTime = 0;
-          }
-
-          players.set(data.player.id, updatedPlayer);
-        }
-        break;
-      case "itemDropped":
-        if (data.worldId === currentWorldId) {
-          items.set(data.itemId, {
-            x: data.x,
-            y: data.y,
-            type: data.type,
-            spawnTime: data.spawnTime,
-            worldId: data.worldId,
-          });
-          if (data.quantity && ITEM_CONFIG[data.type]?.stackable) {
-            items.get(data.itemId).quantity = data.quantity;
-          }
-          window.inventorySystem.updateInventoryDisplay();
-        }
-        break;
-      case "chat":
-        window.chatSystem.handleChatMessage(data);
-
-        const player = players.get(data.id);
-        if (player && player.worldId === window.worldSystem.currentWorldId) {
-          const shortText = data.message.substring(0, CHAT_BUBBLE_MAX_LENGTH);
-          player.chatBubble = {
-            text: shortText,
-            time: Date.now(),
-          };
-        }
-        break;
-      case "buyWaterResult":
-        if (data.success) {
-          const me = players.get(myId);
-          me.water = data.water;
+          // КРИТИЧНО: полностью синхронизируем инвентарь игрока с серверным
           me.inventory = data.inventory.map((slot) =>
             slot ? { ...slot } : null,
           );
-          updateStatsDisplay();
-          window.inventorySystem.updateInventoryDisplay();
-          window.vendingMachine.hideVendingMenu();
+        }
+
+        // Обновляем глобальную переменную inventory (используется в UI)
+        inventory = data.inventory.map((slot) => (slot ? { ...slot } : null));
+
+        // Перерисовываем всё
+        updateStatsDisplay();
+        window.inventorySystem.updateInventoryDisplay();
+
+        // Если был выбран слот с использованным предметом — снимаем выделение
+        if (
+          selectedSlot !== null &&
+          (!inventory[selectedSlot] || inventory[selectedSlot] === null)
+        ) {
+          selectedSlot = null;
+          document
+            .querySelectorAll(".inventory-slot.selected")
+            ?.forEach((el) => el.classList.remove("selected"));
+          document.getElementById("inventoryScreen").textContent = "";
+          document.getElementById("useBtn").disabled = true;
+          document.getElementById("dropBtn").disabled = true;
+        }
+      }
+      break;
+    case "syncBullets":
+      window.combatSystem.syncBullets(data.bullets);
+      break;
+    case "enemyUpdate":
+      if (data.enemy && data.enemy.id) {
+        const enemyId = data.enemy.id;
+
+        if (enemies.has(enemyId)) {
+          // Существующий враг — обновляем поля (с сохранением локальных данных, если нужно)
+          const existing = enemies.get(enemyId);
+          enemies.set(enemyId, {
+            ...existing,
+            ...data.enemy,
+            // Для плавной интерполяции движения врагов (если у тебя есть система интерполяции)
+            targetX: data.enemy.x,
+            targetY: data.enemy.y,
+          });
         } else {
-          const errorEl = document.getElementById("vendingError");
-          errorEl.textContent = data.error || "Ошибка покупки";
-        }
-        break;
-      case "totalOnline":
-        updateOnlineCount(data.count);
-        break;
-      case "tradeRequest":
-      case "tradeAccepted":
-      case "tradeOffer":
-      case "tradeConfirmed":
-      case "tradeCancelled":
-        window.tradeSystem.handleTradeMessage(data);
-        break;
-
-      case "tradeCompleted":
-        if (data.newInventory) {
-          // КРИТИЧНО: обновляем локальный инвентарь
-          inventory = data.newInventory.map((slot) =>
-            slot ? { ...slot } : null,
-          );
-
-          // Также обновляем инвентарь в объекте игрока (для других систем)
-          const me = players.get(myId);
-          if (me) {
-            me.inventory = [...inventory]; // глубокая копия
-            players.set(myId, me);
-          }
-
-          window.tradeSystem.closeTradeWindow();
-          window.tradeSystem.resetTrade();
-          window.inventorySystem.updateInventoryDisplay();
-          updateStatsDisplay();
-        }
-        break;
-      case "tradeChatMessage":
-        window.tradeSystem.handleTradeMessage(data);
-        break;
-      case "useItemSuccess":
-        {
-          const me = players.get(myId);
-          if (me) {
-            // Обновляем статы игрока (важно для других систем)
-            if (data.stats.health !== undefined)
-              me.health = Math.max(
-                0,
-                Math.min(me.maxStats?.health || 100, Number(data.stats.health)),
-              );
-
-            if (data.stats.energy !== undefined)
-              me.energy = Math.max(
-                0,
-                Math.min(me.maxStats?.energy || 100, Number(data.stats.energy)),
-              );
-
-            if (data.stats.food !== undefined)
-              me.food = Math.max(
-                0,
-                Math.min(me.maxStats?.food || 100, Number(data.stats.food)),
-              );
-
-            if (data.stats.water !== undefined)
-              me.water = Math.max(
-                0,
-                Math.min(me.maxStats?.water || 100, Number(data.stats.water)),
-              );
-
-            if (data.stats.armor !== undefined)
-              me.armor = Math.max(0, Number(data.stats.armor || me.armor));
-
-            // КРИТИЧНО: полностью синхронизируем инвентарь игрока с серверным
-            me.inventory = data.inventory.map((slot) =>
-              slot ? { ...slot } : null,
-            );
-          }
-
-          // Обновляем глобальную переменную inventory (используется в UI)
-          inventory = data.inventory.map((slot) => (slot ? { ...slot } : null));
-
-          // Перерисовываем всё
-          updateStatsDisplay();
-          window.inventorySystem.updateInventoryDisplay();
-
-          // Если был выбран слот с использованным предметом — снимаем выделение
-          if (
-            selectedSlot !== null &&
-            (!inventory[selectedSlot] || inventory[selectedSlot] === null)
-          ) {
-            selectedSlot = null;
-            document
-              .querySelectorAll(".inventory-slot.selected")
-              ?.forEach((el) => el.classList.remove("selected"));
-            document.getElementById("inventoryScreen").textContent = "";
-            document.getElementById("useBtn").disabled = true;
-            document.getElementById("dropBtn").disabled = true;
-          }
-        }
-        break;
-      case "syncBullets":
-        window.combatSystem.syncBullets(data.bullets);
-        break;
-      case "enemyUpdate":
-        if (data.enemy && data.enemy.id) {
-          const enemyId = data.enemy.id;
-
-          if (enemies.has(enemyId)) {
-            // Существующий враг — обновляем поля (с сохранением локальных данных, если нужно)
-            const existing = enemies.get(enemyId);
-            enemies.set(enemyId, {
-              ...existing,
-              ...data.enemy,
-              // Для плавной интерполяции движения врагов (если у тебя есть система интерполяции)
-              targetX: data.enemy.x,
-              targetY: data.enemy.y,
-            });
-          } else {
-            // Новый враг (пришёл впервые, например, при входе в мир или спавне)
-            enemies.set(enemyId, {
-              ...data.enemy,
-              targetX: data.enemy.x,
-              targetY: data.enemy.y,
-            });
-          }
-        }
-        break;
-
-      case "enemyDied":
-        const deadId = data.enemyId;
-        if (enemies.has(deadId)) {
-          enemies.delete(deadId);
-        }
-        // Вызываем обработчик смерти (эффекты, звук и т.д.), если он есть
-        if (window.enemySystem && window.enemySystem.handleEnemyDeath) {
-          window.enemySystem.handleEnemyDeath(deadId);
-        }
-        break;
-
-      case "newEnemy":
-        // Это сообщение приходит при спавне нового врага (у тебя есть spawnNewEnemy на сервере)
-        if (data.enemy && data.enemy.id) {
-          enemies.set(data.enemy.id, {
+          // Новый враг (пришёл впервые, например, при входе в мир или спавне)
+          enemies.set(enemyId, {
             ...data.enemy,
             targetX: data.enemy.x,
             targetY: data.enemy.y,
           });
         }
-        break;
-      case "enemyKilled":
-        break;
-      case "levelSyncAfterKill": {
-        // Мгновенно обновляем уровень, XP, xpToNextLevel, upgradePoints
-        if (window.levelSystem) {
-          window.levelSystem.currentLevel = data.level;
-          window.levelSystem.currentXP = data.xp;
-          window.levelSystem.xpToNextLevel = data.xpToNextLevel;
-          window.levelSystem.upgradePoints = data.upgradePoints;
-          if (typeof window.levelSystem.setLevelData === "function") {
-            window.levelSystem.setLevelData(
-              data.level,
-              data.xp,
-              null,
-              data.upgradePoints,
-            );
-          }
-          if (typeof window.levelSystem.showXPEffect === "function") {
-            window.levelSystem.showXPEffect(data.xpGained);
-          }
-          if (typeof window.levelSystem.updateLevelDisplay === "function") {
-            window.levelSystem.updateLevelDisplay();
-          }
-          if (typeof window.levelSystem.updateStatsDisplay === "function") {
-            window.levelSystem.updateStatsDisplay();
-          }
-          if (typeof window.levelSystem.updateUpgradeButtons === "function") {
-            window.levelSystem.updateUpgradeButtons();
-          }
-        }
-        break;
       }
-      case "syncEnemies":
-        window.enemySystem.syncEnemies(data.enemies);
-        break;
-      case "enemyAttack":
-        if (data.targetId === myId) {
-          triggerAttackAnimation?.(); // если функция существует
-          if (window.regenerationSystem) {
-            window.regenerationSystem.resetTimerOnDamage();
-          }
-        }
-        break;
-      case "neonQuestStarted":
-        showNotification("Заказ принят: Очистка пустошей", "#00ff44");
-        break;
-      case "neonQuestProgressUpdate":
-        // Это основное обновление прогресса от сервера
-        if (window.neonNpcSystem) {
-          const me = players.get(myId);
-          if (me && me.neonQuest) {
-            me.neonQuest.progress = {
-              ...me.neonQuest.progress,
-              ...data.progress,
-            };
-            if (me.neonQuest.currentQuestId === "neon_quest_1") {
-              updateQuestProgressDisplay(); // вызываем из neon_npc.js
-            }
-          }
-        }
-        break;
-      case "neonQuestCompleted":
-        {
-          showNotification(
-            `Заказ сдан! +${data.reward.xp} XP | +${data.reward.balyary} баляров!`,
-            "#00ffff",
-          );
-          if (window.levelSystem) {
-            window.levelSystem.setLevelData(
-              data.level,
-              data.xp,
-              data.xpToNextLevel,
-              data.upgradePoints,
-            );
-            window.levelSystem.showXPEffect(data.reward.xp);
-          }
-          const me = players.get(myId);
-          me.inventory = data.inventory.map((slot) =>
-            slot ? { ...slot } : null,
-          );
-          window.inventorySystem.updateInventoryDisplay();
-        }
-        break;
-      case "doctorQuestCompleted":
-        {
-          showNotification(
-            "Мед. справка получена! Форма МД-07 в инвентаре.",
-            "#00ff44",
-          );
-          const me = players.get(myId);
-          if (me) {
-            me.medicalCertificate = data.medicalCertificate || true;
-            me.inventory = data.inventory.map((i) => (i ? { ...i } : null));
-            window.inventorySystem.updateInventoryDisplay();
-          }
-        }
-        break;
-      case "robotDoctorResult":
-        if (data.success) {
-          const me = players.get(myId);
-          if (me) {
-            if (data.health !== undefined) me.health = data.health;
-            if (data.inventory) {
-              me.inventory = data.inventory.map((i) => (i ? { ...i } : null));
-              window.inventorySystem.updateInventoryDisplay();
-            }
-            updateStatsDisplay();
-            showNotification(
-              data.action === "freeHeal"
-                ? "Осмотр пройден. Здоровье восстановлено!"
-                : data.action === "heal20"
-                  ? "+20 HP за 1 баляр"
-                  : `Полное восстановление за ${data.cost} баляров!`,
-              "#00ff44",
-            );
-          }
-        } else {
-          showNotification(data.error || "Лечение невозможно", "#ff0066");
-        }
-        break;
-      case "captainStampResult":
-        if (data.success) {
-          // Обновляем инвентарь
-          const me = players.get(myId);
-          me.inventory = data.inventory.map((i) => (i ? { ...i } : null));
-          window.inventorySystem.updateInventoryDisplay();
+      break;
 
-          if (me) {
-            me.medicalCertificateStamped =
-              data.medicalCertificateStamped ?? true;
-            players.set(myId, me);
-          }
+    case "enemyDied":
+      const deadId = data.enemyId;
+      if (enemies.has(deadId)) {
+        enemies.delete(deadId);
+      }
+      // Вызываем обработчик смерти (эффекты, звук и т.д.), если он есть
+      if (window.enemySystem && window.enemySystem.handleEnemyDeath) {
+        window.enemySystem.handleEnemyDeath(deadId);
+      }
+      break;
 
-          // Уведомление
-          showNotification(
-            "Печать получена! Допуск в Неоновый Город выдан.",
-            "#00ff44",
-          );
-
-          // Автоматически закрываем диалог капитана
-          const captainDialog = document.getElementById("captainDialog");
-          if (captainDialog) captainDialog.remove();
-
-          if (window.outpostCaptainSystem) {
-            window.outpostCaptainSystem.isCaptainDialogOpen = () => false;
-          }
-        } else {
-          showNotification(
-            data.error || "Капитан отказался ставить печать.",
-            "#ff0066",
-          );
-        }
-        break;
-      case "corporateDocumentsResult":
-        if (data.success) {
-          // Обновляем уровень и опыт
+    case "newEnemy":
+      // Это сообщение приходит при спавне нового врага (у тебя есть spawnNewEnemy на сервере)
+      if (data.enemy && data.enemy.id) {
+        enemies.set(data.enemy.id, {
+          ...data.enemy,
+          targetX: data.enemy.x,
+          targetY: data.enemy.y,
+        });
+      }
+      break;
+    case "enemyKilled":
+      break;
+    case "levelSyncAfterKill": {
+      // Мгновенно обновляем уровень, XP, xpToNextLevel, upgradePoints
+      if (window.levelSystem) {
+        window.levelSystem.currentLevel = data.level;
+        window.levelSystem.currentXP = data.xp;
+        window.levelSystem.xpToNextLevel = data.xpToNextLevel;
+        window.levelSystem.upgradePoints = data.upgradePoints;
+        if (typeof window.levelSystem.setLevelData === "function") {
           window.levelSystem.setLevelData(
             data.level,
             data.xp,
             null,
             data.upgradePoints,
           );
-
-          // Обновляем инвентарь
-          const me = players.get(myId);
-          me.inventory = data.inventory;
-          window.inventorySystem.updateInventoryDisplay();
-
-          // Уведомление
-          showNotification(
-            "Документы приняты. Добро пожаловать в Корпорацию!",
-            "#00ffff",
-          );
-          showNotification(
-            "Получен стартовый комплект снаряжения и кастет",
-            "#ffff00",
-          );
-
-          // Закрываем диалог
-          if (window.corporateRobotSystem?.isPlayerInteracting()) {
-            document.querySelector(".npc-dialog")?.style &&
-              (document.querySelector(".npc-dialog").style.display = "none");
-          }
-        } else {
-          showNotification(
-            data.error || "Ошибка при сдаче документов",
-            "#ff0000",
-          );
         }
-        break;
-      case "thimbleriggerMet":
-        window.thimbleriggerSystem.setThimbleriggerMet(data.met);
-        break;
-      case "thimbleriggerBetResult":
-        if (data.success) {
-          const me = players.get(myId);
-          me.inventory = data.inventory.map((i) => (i ? { ...i } : null));
-          window.inventorySystem.updateInventoryDisplay();
-
-          // Начинаем игру на клиенте (передаём bet)
-          startSimpleGame(data.bet);
-        } else {
-          showNotification(
-            data.error || "Недостаточно баляров для ставки!",
-            "#ff0066",
-          );
+        if (typeof window.levelSystem.showXPEffect === "function") {
+          window.levelSystem.showXPEffect(data.xpGained);
         }
-        break;
-      case "thimbleriggerGameResultSync":
-        if (data.success) {
-          const me = players.get(myId);
-          me.inventory = data.inventory.map((i) => (i ? { ...i } : null));
-          window.inventorySystem.updateInventoryDisplay();
-
-          if (window.levelSystem) {
-            window.levelSystem.setLevelData(
-              data.level,
-              data.xp,
-              null, // maxStats не меняем
-              data.upgradePoints,
-            );
-            window.levelSystem.showXPEffect(data.xpGained || 0);
-
-            // ← ДОБАВЛЕНО: динамическое обновление level-display после +XP
-            window.levelSystem.updateLevelDisplay();
-            window.levelSystem.checkLevelUp(); // На всякий, хотя сервер уже проверил
-          }
-          updateStatsDisplay();
-
-          showNotification(
-            data.won ? "Выигрыш зачислен! +XP" : "Проигрыш подтверждён.",
-            data.won ? "#00ff00" : "#ff0000",
-          );
-        } else {
-          showNotification(
-            data.error || "Ошибка в результате игры.",
-            "#ff0066",
-          );
+        if (typeof window.levelSystem.updateLevelDisplay === "function") {
+          window.levelSystem.updateLevelDisplay();
         }
-        break;
-      case "buyFromJackSuccess":
-        {
-          // Обновляем инвентарь из сервера
-          inventory = data.inventory.map((slot) => (slot ? { ...slot } : null));
-          const me = players.get(myId);
-          if (me) {
-            me.inventory = [...inventory]; // Синхронизируем с игроком
-            players.set(myId, me);
-          }
-          window.inventorySystem.updateInventoryDisplay();
-          updateStatsDisplay();
-
-          // Перезагружаем диалог магазина (обновит grid)
-          if (jackDialogStage === "shop") {
-            showJackDialog("shop");
-          }
+        if (typeof window.levelSystem.updateStatsDisplay === "function") {
+          window.levelSystem.updateStatsDisplay();
         }
-        break;
-      case "buyFromJackFail":
-        alert(data.error || "Ошибка покупки");
-        break;
-      case "sellToJackSuccess":
-        {
-          // Обновляем инвентарь из сервера
-          inventory = data.inventory.map((slot) => (slot ? { ...slot } : null));
-          const me = players.get(myId);
-          if (me) {
-            me.inventory = [...inventory];
-            players.set(myId, me);
-          }
-          window.inventorySystem.updateInventoryDisplay();
-          updateStatsDisplay();
-
-          // Перезагружаем диалог скупки
-          if (jackDialogStage === "buyback") {
-            showJackDialog("buyback");
-          }
+        if (typeof window.levelSystem.updateUpgradeButtons === "function") {
+          window.levelSystem.updateUpgradeButtons();
         }
-        break;
-      case "sellToJackFail":
-        alert(data.error || "Ошибка продажи");
-        break;
-      case "twister":
-        if (window.misterTwister?.handleMessage) {
-          window.misterTwister.handleMessage(data);
+      }
+      break;
+    }
+    case "syncEnemies":
+      window.enemySystem.syncEnemies(data.enemies);
+      break;
+    case "enemyAttack":
+      if (data.targetId === myId) {
+        triggerAttackAnimation?.(); // если функция существует
+        if (window.regenerationSystem) {
+          window.regenerationSystem.resetTimerOnDamage();
         }
-        break;
-      case "trashGuessResult":
-        const msgEl = document.getElementById("trashMessage");
-        const cardEl = document.getElementById("cardBack");
-
-        if (!msgEl || !cardEl) break;
-
-        if (data.success) {
-          msgEl.textContent = "Угадал! Забирай лут!";
-          msgEl.style.color = "#00ff44";
-
-          showNotification("Мусорный бак открыт! +лут и XP", "#44ff44");
-
-          if (data.loot) {
-            let lootText = "Получено: ";
-            data.loot.forEach((it) => {
-              lootText += `${it.type} ×${it.quantity || 1}, `;
-            });
-            msgEl.textContent += "\n" + lootText.slice(0, -2);
-          }
-
-          if (data.xpGained) {
-            if (window.levelSystem?.showXPEffect) {
-              window.levelSystem.showXPEffect(data.xpGained);
-            }
-            showNotification(`+${data.xpGained} XP`, "#ffff44");
-          }
-
-          window.inventorySystem?.updateInventoryDisplay();
-          updateStatsDisplay();
-        } else {
-          msgEl.textContent = data.message || data.error || "Не угадал...";
-          msgEl.style.color = "#ff4444";
-
-          showNotification(
-            data.message || "Не та масть... подожди 3 минуты",
-            "#ff4444",
-          );
-
-          if (data.waitUntil) {
-            const remainSec = Math.ceil((data.waitUntil - Date.now()) / 1000);
-            msgEl.textContent += ` (ещё ~${remainSec} сек)`;
-          }
-        }
-        break;
-
-      case "trashCanOpened":
-        if (
-          data.trashIndex >= 0 &&
-          data.trashIndex < window.trashCansState.length
-        ) {
-          window.trashCansState[data.trashIndex] = {
-            ...window.trashCansState[data.trashIndex],
-            guessed: true,
-            isOpened: true,
+      }
+      break;
+    case "neonQuestStarted":
+      showNotification("Заказ принят: Очистка пустошей", "#00ff44");
+      break;
+    case "neonQuestProgressUpdate":
+      // Это основное обновление прогресса от сервера
+      if (window.neonNpcSystem) {
+        const me = players.get(myId);
+        if (me && me.neonQuest) {
+          me.neonQuest.progress = {
+            ...me.neonQuest.progress,
+            ...data.progress,
           };
-
-          if (currentTrashIndex === data.trashIndex) {
-            const msgEl = document.getElementById("trashMessage");
-            if (msgEl) {
-              msgEl.textContent = "Этот бак уже кто-то открыл...";
-              msgEl.style.color = "#ffaa00";
-            }
-            document.querySelectorAll(".suit-btn").forEach((btn) => {
-              btn.disabled = true;
-              btn.style.opacity = "0.4";
-            });
+          if (me.neonQuest.currentQuestId === "neon_quest_1") {
+            updateQuestProgressDisplay(); // вызываем из neon_npc.js
           }
         }
-        break;
-
-      case "trashState":
-        if (data.index >= 0 && data.index < window.trashCansState.length) {
-          window.trashCansState[data.index] = {
-            ...window.trashCansState[data.index],
-            guessed: data.guessed ?? false,
-            isOpened: data.isOpened ?? false,
-            // nextAttemptAfter больше не нужен здесь
-          };
-
-          if (currentTrashIndex === data.index) {
-            const msgEl = document.getElementById("trashMessage");
-            if (msgEl) {
-              if (data.isOpened) {
-                msgEl.textContent = "Бак пуст... подожди респавна";
-                msgEl.style.color = "#888888";
-                document
-                  .querySelectorAll(".suit-btn")
-                  .forEach((btn) => (btn.disabled = true));
-              }
-              // убираем блок с nextAttemptAfter
-            }
-          }
-        }
-        break;
-      case "trashAllStates":
-        data.states.forEach((st) => {
-          if (st.index >= 0 && st.index < window.trashCansState.length) {
-            window.trashCansState[st.index] = {
-              guessed: st.guessed,
-              isOpened: st.isOpened,
-              nextAttemptAfter: st.nextAttemptAfter,
-            };
-          }
-        });
-        break;
-
-      case "trashRespawned":
-        const idx = data.index;
-        if (idx >= 0 && idx < window.trashCansState.length) {
-          window.trashCansState[idx].isOpened = false;
-          window.trashCansState[idx].guessed = false;
-          window.trashCansState[idx].nextAttemptAfter = 0;
-        }
-        break;
-      case "torestosMet":
-        window.torestosSystem.setTorestosMet(data.met);
-        break;
-      case "torestosUpgradeResult":
-        const upgradeBtn = document.querySelector(
-          ".upgrade-buttons .torestos-neon-btn",
+      }
+      break;
+    case "neonQuestCompleted":
+      {
+        showNotification(
+          `Заказ сдан! +${data.reward.xp} XP | +${data.reward.balyary} баляров!`,
+          "#00ffff",
         );
-
-        if (data.success) {
-          window.inventory = data.newInventory.map((i) =>
-            i ? { ...i } : null,
+        if (window.levelSystem) {
+          window.levelSystem.setLevelData(
+            data.level,
+            data.xp,
+            data.xpToNextLevel,
+            data.upgradePoints,
           );
-          window.inventorySystem.updateInventoryDisplay();
-          updateStatsDisplay();
-
-          showNotification(
-            data.message || "Предмет успешно улучшен!",
-            "#00ff88",
-          );
-
-          // Перерисовываем интерфейс Торестоса
-          if (isDialogOpen) {
-            renderUpgradeUI(); // ← вызови свою функцию renderUpgradeUI()
-          }
-        } else {
-          showNotification(data.error || "Не удалось улучшить", "#ff4444");
+          window.levelSystem.showXPEffect(data.reward.xp);
         }
-
-        if (upgradeBtn) {
-          upgradeBtn.disabled = false;
-          upgradeBtn.textContent = "УЛУЧШИТЬ";
-        }
-        break;
-      case "toremidosMet":
-        window.toremidosSystem?.setMet?.(data.met);
-        break;
-      case "forcePosition": {
+        const me = players.get(myId);
+        me.inventory = data.inventory.map((slot) =>
+          slot ? { ...slot } : null,
+        );
+        window.inventorySystem.updateInventoryDisplay();
+      }
+      break;
+    case "doctorQuestCompleted":
+      {
+        showNotification(
+          "Мед. справка получена! Форма МД-07 в инвентаре.",
+          "#00ff44",
+        );
         const me = players.get(myId);
         if (me) {
-          me.x = data.x;
-          me.y = data.y;
-          // можно сбросить target, чтобы не пыталась снова идти туда же
-          window.movementSystem.stopMovement?.();
-        }
-        break;
-      }
-      case "homelessStorageStatus":
-      case "homelessRentSuccess":
-      case "homelessError":
-        if (window.homelessSystem?.handleMessage) {
-          window.homelessSystem.handleMessage(data);
-        }
-        break;
-
-      case "homelessStorageUpdate":
-        // Обновляем глобальный инвентарь игрока (как у Джека, торговли, использования предметов)
-        if (data.inventory) {
-          inventory = data.inventory.map((slot) => (slot ? { ...slot } : null));
-          const me = players.get(myId);
-          if (me) {
-            me.inventory = [...inventory]; // синхронизируем с объектом игрока
-          }
+          me.medicalCertificate = data.medicalCertificate || true;
+          me.inventory = data.inventory.map((i) => (i ? { ...i } : null));
           window.inventorySystem.updateInventoryDisplay();
-          updateStatsDisplay(); // на всякий случай, если статы могли измениться
         }
-
-        // Также обновляем интерфейс склада, если он открыт
-        if (window.homelessSystem?.handleMessage) {
-          window.homelessSystem.handleMessage(data);
-        }
-        break;
-      case "upgradeSkillResult":
-        if (data.success) {
-          // Обновляем локальные данные навыков
-          window.skillsSystem.playerSkills =
-            data.skills || window.skillsSystem.playerSkills;
-          window.skillsSystem.skillPoints =
-            data.remainingPoints || window.skillsSystem.skillPoints;
-
-          // Если окно навыков открыто — обновляем его
-          if (window.skillsSystem.isSkillsOpen) {
-            window.skillsSystem.updateSkillsDisplay();
-            window.skillsSystem.updateSkillPointsDisplay();
+      }
+      break;
+    case "robotDoctorResult":
+      if (data.success) {
+        const me = players.get(myId);
+        if (me) {
+          if (data.health !== undefined) me.health = data.health;
+          if (data.inventory) {
+            me.inventory = data.inventory.map((i) => (i ? { ...i } : null));
+            window.inventorySystem.updateInventoryDisplay();
           }
-
-          // Если открыто окно Торемидоса — тоже обновляем
-          const toremidosDesc = document.getElementById(
-            "toremidos-skills-description",
+          updateStatsDisplay();
+          showNotification(
+            data.action === "freeHeal"
+              ? "Осмотр пройден. Здоровье восстановлено!"
+              : data.action === "heal20"
+                ? "+20 HP за 1 баляр"
+                : `Полное восстановление за ${data.cost} баляров!`,
+            "#00ff44",
           );
-          if (toremidosDesc) {
-            const activeSlot = document.querySelector(
-              "#toremidos-skills-grid .skill-slot.active",
-            );
-            if (activeSlot) {
-              const index = Number(activeSlot.dataset.index);
-              const template = window.skillsSystem.skillTemplates[index];
-              const playerSkill = window.skillsSystem.playerSkills.find(
-                (s) => s.id === template?.id,
-              );
+        }
+      } else {
+        showNotification(data.error || "Лечение невозможно", "#ff0066");
+      }
+      break;
+    case "captainStampResult":
+      if (data.success) {
+        // Обновляем инвентарь
+        const me = players.get(myId);
+        me.inventory = data.inventory.map((i) => (i ? { ...i } : null));
+        window.inventorySystem.updateInventoryDisplay();
 
-              if (template) {
-                toremidosDesc.innerHTML = `
+        if (me) {
+          me.medicalCertificateStamped = data.medicalCertificateStamped ?? true;
+          players.set(myId, me);
+        }
+
+        // Уведомление
+        showNotification(
+          "Печать получена! Допуск в Неоновый Город выдан.",
+          "#00ff44",
+        );
+
+        // Автоматически закрываем диалог капитана
+        const captainDialog = document.getElementById("captainDialog");
+        if (captainDialog) captainDialog.remove();
+
+        if (window.outpostCaptainSystem) {
+          window.outpostCaptainSystem.isCaptainDialogOpen = () => false;
+        }
+      } else {
+        showNotification(
+          data.error || "Капитан отказался ставить печать.",
+          "#ff0066",
+        );
+      }
+      break;
+    case "corporateDocumentsResult":
+      if (data.success) {
+        // Обновляем уровень и опыт
+        window.levelSystem.setLevelData(
+          data.level,
+          data.xp,
+          null,
+          data.upgradePoints,
+        );
+
+        // Обновляем инвентарь
+        const me = players.get(myId);
+        me.inventory = data.inventory;
+        window.inventorySystem.updateInventoryDisplay();
+
+        // Уведомление
+        showNotification(
+          "Документы приняты. Добро пожаловать в Корпорацию!",
+          "#00ffff",
+        );
+        showNotification(
+          "Получен стартовый комплект снаряжения и кастет",
+          "#ffff00",
+        );
+
+        // Закрываем диалог
+        if (window.corporateRobotSystem?.isPlayerInteracting()) {
+          document.querySelector(".npc-dialog")?.style &&
+            (document.querySelector(".npc-dialog").style.display = "none");
+        }
+      } else {
+        showNotification(
+          data.error || "Ошибка при сдаче документов",
+          "#ff0000",
+        );
+      }
+      break;
+    case "thimbleriggerMet":
+      window.thimbleriggerSystem.setThimbleriggerMet(data.met);
+      break;
+    case "thimbleriggerBetResult":
+      if (data.success) {
+        const me = players.get(myId);
+        me.inventory = data.inventory.map((i) => (i ? { ...i } : null));
+        window.inventorySystem.updateInventoryDisplay();
+
+        // Начинаем игру на клиенте (передаём bet)
+        startSimpleGame(data.bet);
+      } else {
+        showNotification(
+          data.error || "Недостаточно баляров для ставки!",
+          "#ff0066",
+        );
+      }
+      break;
+    case "thimbleriggerGameResultSync":
+      if (data.success) {
+        const me = players.get(myId);
+        me.inventory = data.inventory.map((i) => (i ? { ...i } : null));
+        window.inventorySystem.updateInventoryDisplay();
+
+        if (window.levelSystem) {
+          window.levelSystem.setLevelData(
+            data.level,
+            data.xp,
+            null, // maxStats не меняем
+            data.upgradePoints,
+          );
+          window.levelSystem.showXPEffect(data.xpGained || 0);
+
+          // ← ДОБАВЛЕНО: динамическое обновление level-display после +XP
+          window.levelSystem.updateLevelDisplay();
+          window.levelSystem.checkLevelUp(); // На всякий, хотя сервер уже проверил
+        }
+        updateStatsDisplay();
+
+        showNotification(
+          data.won ? "Выигрыш зачислен! +XP" : "Проигрыш подтверждён.",
+          data.won ? "#00ff00" : "#ff0000",
+        );
+      } else {
+        showNotification(data.error || "Ошибка в результате игры.", "#ff0066");
+      }
+      break;
+    case "buyFromJackSuccess":
+      {
+        // Обновляем инвентарь из сервера
+        inventory = data.inventory.map((slot) => (slot ? { ...slot } : null));
+        const me = players.get(myId);
+        if (me) {
+          me.inventory = [...inventory]; // Синхронизируем с игроком
+          players.set(myId, me);
+        }
+        window.inventorySystem.updateInventoryDisplay();
+        updateStatsDisplay();
+
+        // Перезагружаем диалог магазина (обновит grid)
+        if (jackDialogStage === "shop") {
+          showJackDialog("shop");
+        }
+      }
+      break;
+    case "buyFromJackFail":
+      alert(data.error || "Ошибка покупки");
+      break;
+    case "sellToJackSuccess":
+      {
+        // Обновляем инвентарь из сервера
+        inventory = data.inventory.map((slot) => (slot ? { ...slot } : null));
+        const me = players.get(myId);
+        if (me) {
+          me.inventory = [...inventory];
+          players.set(myId, me);
+        }
+        window.inventorySystem.updateInventoryDisplay();
+        updateStatsDisplay();
+
+        // Перезагружаем диалог скупки
+        if (jackDialogStage === "buyback") {
+          showJackDialog("buyback");
+        }
+      }
+      break;
+    case "sellToJackFail":
+      alert(data.error || "Ошибка продажи");
+      break;
+    case "twister":
+      if (window.misterTwister?.handleMessage) {
+        window.misterTwister.handleMessage(data);
+      }
+      break;
+    case "trashGuessResult":
+      const msgEl = document.getElementById("trashMessage");
+      const cardEl = document.getElementById("cardBack");
+
+      if (!msgEl || !cardEl) break;
+
+      if (data.success) {
+        msgEl.textContent = "Угадал! Забирай лут!";
+        msgEl.style.color = "#00ff44";
+
+        showNotification("Мусорный бак открыт! +лут и XP", "#44ff44");
+
+        if (data.loot) {
+          let lootText = "Получено: ";
+          data.loot.forEach((it) => {
+            lootText += `${it.type} ×${it.quantity || 1}, `;
+          });
+          msgEl.textContent += "\n" + lootText.slice(0, -2);
+        }
+
+        if (data.xpGained) {
+          if (window.levelSystem?.showXPEffect) {
+            window.levelSystem.showXPEffect(data.xpGained);
+          }
+          showNotification(`+${data.xpGained} XP`, "#ffff44");
+        }
+
+        window.inventorySystem?.updateInventoryDisplay();
+        updateStatsDisplay();
+      } else {
+        msgEl.textContent = data.message || data.error || "Не угадал...";
+        msgEl.style.color = "#ff4444";
+
+        showNotification(
+          data.message || "Не та масть... подожди 3 минуты",
+          "#ff4444",
+        );
+
+        if (data.waitUntil) {
+          const remainSec = Math.ceil((data.waitUntil - Date.now()) / 1000);
+          msgEl.textContent += ` (ещё ~${remainSec} сек)`;
+        }
+      }
+      break;
+
+    case "trashCanOpened":
+      if (
+        data.trashIndex >= 0 &&
+        data.trashIndex < window.trashCansState.length
+      ) {
+        window.trashCansState[data.trashIndex] = {
+          ...window.trashCansState[data.trashIndex],
+          guessed: true,
+          isOpened: true,
+        };
+
+        if (currentTrashIndex === data.trashIndex) {
+          const msgEl = document.getElementById("trashMessage");
+          if (msgEl) {
+            msgEl.textContent = "Этот бак уже кто-то открыл...";
+            msgEl.style.color = "#ffaa00";
+          }
+          document.querySelectorAll(".suit-btn").forEach((btn) => {
+            btn.disabled = true;
+            btn.style.opacity = "0.4";
+          });
+        }
+      }
+      break;
+
+    case "trashState":
+      if (data.index >= 0 && data.index < window.trashCansState.length) {
+        window.trashCansState[data.index] = {
+          ...window.trashCansState[data.index],
+          guessed: data.guessed ?? false,
+          isOpened: data.isOpened ?? false,
+          // nextAttemptAfter больше не нужен здесь
+        };
+
+        if (currentTrashIndex === data.index) {
+          const msgEl = document.getElementById("trashMessage");
+          if (msgEl) {
+            if (data.isOpened) {
+              msgEl.textContent = "Бак пуст... подожди респавна";
+              msgEl.style.color = "#888888";
+              document
+                .querySelectorAll(".suit-btn")
+                .forEach((btn) => (btn.disabled = true));
+            }
+            // убираем блок с nextAttemptAfter
+          }
+        }
+      }
+      break;
+    case "trashAllStates":
+      data.states.forEach((st) => {
+        if (st.index >= 0 && st.index < window.trashCansState.length) {
+          window.trashCansState[st.index] = {
+            guessed: st.guessed,
+            isOpened: st.isOpened,
+            nextAttemptAfter: st.nextAttemptAfter,
+          };
+        }
+      });
+      break;
+
+    case "trashRespawned":
+      const idx = data.index;
+      if (idx >= 0 && idx < window.trashCansState.length) {
+        window.trashCansState[idx].isOpened = false;
+        window.trashCansState[idx].guessed = false;
+        window.trashCansState[idx].nextAttemptAfter = 0;
+      }
+      break;
+    case "torestosMet":
+      window.torestosSystem.setTorestosMet(data.met);
+      break;
+    case "torestosUpgradeResult":
+      const upgradeBtn = document.querySelector(
+        ".upgrade-buttons .torestos-neon-btn",
+      );
+
+      if (data.success) {
+        window.inventory = data.newInventory.map((i) => (i ? { ...i } : null));
+        window.inventorySystem.updateInventoryDisplay();
+        updateStatsDisplay();
+
+        showNotification(data.message || "Предмет успешно улучшен!", "#00ff88");
+
+        // Перерисовываем интерфейс Торестоса
+        if (isDialogOpen) {
+          renderUpgradeUI(); // ← вызови свою функцию renderUpgradeUI()
+        }
+      } else {
+        showNotification(data.error || "Не удалось улучшить", "#ff4444");
+      }
+
+      if (upgradeBtn) {
+        upgradeBtn.disabled = false;
+        upgradeBtn.textContent = "УЛУЧШИТЬ";
+      }
+      break;
+    case "toremidosMet":
+      window.toremidosSystem?.setMet?.(data.met);
+      break;
+    case "forcePosition": {
+      const me = players.get(myId);
+      if (me) {
+        me.x = data.x;
+        me.y = data.y;
+        // можно сбросить target, чтобы не пыталась снова идти туда же
+        window.movementSystem.stopMovement?.();
+      }
+      break;
+    }
+    case "homelessStorageStatus":
+    case "homelessRentSuccess":
+    case "homelessError":
+      if (window.homelessSystem?.handleMessage) {
+        window.homelessSystem.handleMessage(data);
+      }
+      break;
+
+    case "homelessStorageUpdate":
+      // Обновляем глобальный инвентарь игрока (как у Джека, торговли, использования предметов)
+      if (data.inventory) {
+        inventory = data.inventory.map((slot) => (slot ? { ...slot } : null));
+        const me = players.get(myId);
+        if (me) {
+          me.inventory = [...inventory]; // синхронизируем с объектом игрока
+        }
+        window.inventorySystem.updateInventoryDisplay();
+        updateStatsDisplay(); // на всякий случай, если статы могли измениться
+      }
+
+      // Также обновляем интерфейс склада, если он открыт
+      if (window.homelessSystem?.handleMessage) {
+        window.homelessSystem.handleMessage(data);
+      }
+      break;
+    case "upgradeSkillResult":
+      if (data.success) {
+        // Обновляем локальные данные навыков
+        window.skillsSystem.playerSkills =
+          data.skills || window.skillsSystem.playerSkills;
+        window.skillsSystem.skillPoints =
+          data.remainingPoints || window.skillsSystem.skillPoints;
+
+        // Если окно навыков открыто — обновляем его
+        if (window.skillsSystem.isSkillsOpen) {
+          window.skillsSystem.updateSkillsDisplay();
+          window.skillsSystem.updateSkillPointsDisplay();
+        }
+
+        // Если открыто окно Торемидоса — тоже обновляем
+        const toremidosDesc = document.getElementById(
+          "toremidos-skills-description",
+        );
+        if (toremidosDesc) {
+          const activeSlot = document.querySelector(
+            "#toremidos-skills-grid .skill-slot.active",
+          );
+          if (activeSlot) {
+            const index = Number(activeSlot.dataset.index);
+            const template = window.skillsSystem.skillTemplates[index];
+            const playerSkill = window.skillsSystem.playerSkills.find(
+              (s) => s.id === template?.id,
+            );
+
+            if (template) {
+              toremidosDesc.innerHTML = `
             <h3>${template.name} (ур. ${playerSkill?.level || 0}/${template.maxLevel})</h3>
             <p>${template.description}</p>
             <p style="margin-top:12px; color:#00ffcc;">
@@ -2719,99 +2737,114 @@ function handleGameMessage(event) {
             </button>
           `;
 
-                const upgradeBtn = document.getElementById(
-                  "toremidos-upgrade-btn",
-                );
-                if (
-                  upgradeBtn &&
-                  window.skillsSystem.skillPoints > 0 &&
-                  (playerSkill?.level || 0) < template.maxLevel
-                ) {
-                  upgradeBtn.onclick = () => {
-                    if (ws && ws.readyState === WebSocket.OPEN) {
-                      ws.send(
-                        JSON.stringify({
-                          type: "upgradeSkill",
-                          skillId: template.id,
-                        }),
-                      );
-                    }
-                  };
-                }
+              const upgradeBtn = document.getElementById(
+                "toremidos-upgrade-btn",
+              );
+              if (
+                upgradeBtn &&
+                window.skillsSystem.skillPoints > 0 &&
+                (playerSkill?.level || 0) < template.maxLevel
+              ) {
+                upgradeBtn.onclick = () => {
+                  if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(
+                      JSON.stringify({
+                        type: "upgradeSkill",
+                        skillId: template.id,
+                      }),
+                    );
+                  }
+                };
               }
             }
           }
-
-          showNotification(
-            `Навык улучшен! Осталось очков: ${data.remainingPoints}`,
-            "#00ff88",
-          );
-          if (data.skillId === 2) {
-            window.regenerationSystem.start();
-          }
-        } else {
-          showNotification(
-            data.error || "Не удалось улучшить навык",
-            "#ff4444",
-          );
         }
-        break;
-      case "updateLevel":
-        // Обновляем уровень, XP, очки улучшений
-        window.levelSystem.setLevelData(
-          data.level,
-          data.xp,
-          null,
-          data.upgradePoints,
+
+        showNotification(
+          `Навык улучшен! Осталось очков: ${data.remainingPoints}`,
+          "#00ff88",
         );
+        if (data.skillId === 2) {
+          window.regenerationSystem.start();
+        }
+      } else {
+        showNotification(data.error || "Не удалось улучшить навык", "#ff4444");
+      }
+      break;
+    case "updateLevel":
+      // Обновляем уровень, XP, очки улучшений
+      window.levelSystem.setLevelData(
+        data.level,
+        data.xp,
+        null,
+        data.upgradePoints,
+      );
 
-        // Обновляем очки навыков (самое важное!)
-        if (data.skillPoints !== undefined) {
-          const oldPoints = window.skillsSystem.skillPoints;
-          window.skillsSystem.skillPoints = Number(data.skillPoints);
+      // Обновляем очки навыков (самое важное!)
+      if (data.skillPoints !== undefined) {
+        const oldPoints = window.skillsSystem.skillPoints;
+        window.skillsSystem.skillPoints = Number(data.skillPoints);
 
-          // Если очки увеличились — показываем уведомление
-          if (data.skillPoints > oldPoints) {
-            showNotification(
-              `+${data.skillPoints - oldPoints} очков навыков за уровень!`,
-              "#ffaa00",
-            );
-          }
-
-          // Если окно навыков открыто — обновляем
-          if (window.skillsSystem.isSkillsOpen) {
-            window.skillsSystem.updateSkillPointsDisplay();
-          }
+        // Если очки увеличились — показываем уведомление
+        if (data.skillPoints > oldPoints) {
+          showNotification(
+            `+${data.skillPoints - oldPoints} очков навыков за уровень!`,
+            "#ffaa00",
+          );
         }
 
-        updateStatsDisplay();
-        break;
-      case "regenerationApplied":
-        if (data.playerId === myId) {
-          // Здоровье уже пришло через "update" → просто синхронизируем на всякий случай
-          const me = players.get(myId);
-          if (
-            me &&
-            typeof data.newHealth === "number" &&
-            !isNaN(data.newHealth)
-          ) {
-            me.health = Math.min(
-              Math.max(0, Number(data.newHealth)),
-              me.maxStats?.health || 100,
-            );
-            updateStatsDisplay();
-          }
+        // Если окно навыков открыто — обновляем
+        if (window.skillsSystem.isSkillsOpen) {
+          window.skillsSystem.updateSkillPointsDisplay();
         }
-        break;
-      case "regenerationRejected":
-        if (data.playerId === myId) {
-          console.warn("Регенерация отклонена сервером:", data.reason);
+      }
+
+      updateStatsDisplay();
+      break;
+    case "regenerationApplied":
+      if (data.playerId === myId) {
+        // Здоровье уже пришло через "update" → просто синхронизируем на всякий случай
+        const me = players.get(myId);
+        if (
+          me &&
+          typeof data.newHealth === "number" &&
+          !isNaN(data.newHealth)
+        ) {
+          me.health = Math.min(
+            Math.max(0, Number(data.newHealth)),
+            me.maxStats?.health || 100,
+          );
+          updateStatsDisplay();
         }
-        break;
-    }
-  } catch (error) {
-    console.error("Ошибка в handleGameMessage:", error);
+      }
+      break;
+    case "regenerationRejected":
+      if (data.playerId === myId) {
+        console.warn("Регенерация отклонена сервером:", data.reason);
+      }
+      break;
   }
+}
+
+async function processMessageQueue() {
+  if (window.isProcessingMessages) return;
+  window.isProcessingMessages = true;
+
+  while (window.incomingMessageQueue.length > 0) {
+    const data = window.incomingMessageQueue.shift();
+
+    try {
+      await handleGameMessageLogic(data);
+    } catch (err) {
+      console.error(
+        "Критическая ошибка при обработке сообщения из очереди:",
+        err,
+        data,
+      );
+    }
+  }
+
+  window.isProcessingMessages = false;
 }
 
 function resizeCanvas() {

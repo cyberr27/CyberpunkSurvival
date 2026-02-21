@@ -563,6 +563,17 @@ function setupWebSocket(
         return;
       }
 
+      if (!ws.registerQueue) {
+        ws.registerQueue = [];
+        ws.isProcessingRegister = false;
+      }
+
+      if (data.type === "register") {
+        ws.registerQueue.push(data);
+        processRegisterQueue(ws);
+        return;
+      }
+
       if (data.type === "register") {
         if (userDatabase.has(data.username)) {
           ws.send(JSON.stringify({ type: "registerFail" }));
@@ -3839,6 +3850,93 @@ function setupWebSocket(
             player: updateData,
           }),
         );
+      }
+      async function processRegisterQueue(ws) {
+        if (ws.isProcessingRegister) return;
+        ws.isProcessingRegister = true;
+
+        while (ws.registerQueue.length > 0) {
+          const data = ws.registerQueue.shift();
+
+          // ── старая логика регистрации — без изменений ─────────────────────
+          if (userDatabase.has(data.username)) {
+            ws.send(JSON.stringify({ type: "registerFail" }));
+          } else {
+            const newPlayer = {
+              id: data.username,
+              password: data.password,
+              x: 474,
+              y: 2474,
+              health: 100,
+              energy: 100,
+              food: 100,
+              water: 100,
+              armor: 0,
+              distanceTraveled: 0,
+              direction: "down",
+              state: "idle",
+              frame: 0,
+              inventory: Array(20).fill(null),
+              equipment: {
+                head: null,
+                chest: null,
+                belt: null,
+                pants: null,
+                boots: null,
+                weapon: null,
+                offhand: null,
+                gloves: null,
+              },
+              npcMet: false,
+              jackMet: false,
+              alexNeonMet: false,
+              captainMet: false,
+              thimbleriggerMet: false,
+              torestosMet: false,
+              toremidosMet: false,
+              level: 0,
+              xp: 0,
+              upgradePoints: 0,
+              availableQuests: [],
+              worldId: 0,
+              hasSeenWelcomeGuide: false,
+              worldPositions: { 0: { x: 222, y: 3205 } },
+
+              healthUpgrade: 0,
+              energyUpgrade: 0,
+              foodUpgrade: 0,
+              waterUpgrade: 0,
+              maxStats: {
+                health: 100,
+                energy: 100,
+                food: 100,
+                water: 100,
+                armor: 0,
+              },
+              skills: Array.from({ length: 10 }, (_, i) => ({
+                id: i + 1,
+                level: 0,
+              })),
+              skillPoints: 0,
+              neonQuest: {
+                currentQuestId: null,
+                progress: {},
+                completed: [],
+              },
+              medicalCertificate: false,
+              medicalCertificateStamped: false,
+              corporateDocumentsSubmitted: false,
+
+              chatBubble: null,
+            };
+
+            userDatabase.set(data.username, newPlayer);
+            await saveUserDatabase(dbCollection, data.username, newPlayer);
+            ws.send(JSON.stringify({ type: "registerSuccess" }));
+          }
+        }
+
+        ws.isProcessingRegister = false;
       }
     });
 
