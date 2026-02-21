@@ -338,26 +338,42 @@
     return "up-right";
   }
 
+  let lastMoveSent = 0;
+
   function sendMovementUpdate(player) {
+    const now = performance.now();
+    if (now - lastMoveSent < 80) return; // не чаще 12–15 раз в секунду
+
+    // Проверяем, изменилось ли что-то важное
+    const changed =
+      Math.abs(player.x - (player.lastSentX || 0)) > 1.5 ||
+      Math.abs(player.y - (player.lastSentY || 0)) > 1.5 ||
+      player.direction !== (player.lastSentDirection || "") ||
+      player.state !== (player.lastSentState || "");
+
+    if (!changed) return;
+
     sendWhenReady(
       ws,
       JSON.stringify({
         type: "move",
         x: player.x,
         y: player.y,
-        health: player.health,
-        energy: player.energy,
-        food: player.food,
-        water: player.water,
-        armor: player.armor,
-        distanceTraveled: player.distanceTraveled,
         direction: player.direction,
         state: player.state,
         frame: player.frame,
         attackFrame: player.attackFrame || 0,
         attackFrameTime: player.attackFrameTime || 0,
+        // НЕ отправляем health/energy/food/water/armor/distanceTraveled в move!
       }),
     );
+
+    player.lastSentX = player.x;
+    player.lastSentY = player.y;
+    player.lastSentDirection = player.direction;
+    player.lastSentState = player.state;
+
+    lastMoveSent = now;
   }
 
   function updateCamera(player) {

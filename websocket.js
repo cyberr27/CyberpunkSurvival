@@ -3703,8 +3703,7 @@ function setupWebSocket(
             newHealth: player.health,
           }),
         );
-      }
-      if (data.type === "move") {
+      } else if (data.type === "move") {
         const playerId = clients.get(ws);
 
         if (!playerId || !players.has(playerId)) {

@@ -1602,7 +1602,7 @@ function updateResources() {
   sendWhenReady(
     ws,
     JSON.stringify({
-      type: "update",
+      type: "move",
       player: {
         id: myId,
         x: me.x,
@@ -1862,28 +1862,39 @@ function handleGameMessage(event) {
         break;
       case "move": {
         if (data.player?.id === myId) {
-          // Для самого себя обычно move не приходит (или приходит forcePosition)
-          // Но на всякий случай можно обработать аналогично update
           const me = players.get(myId);
           if (!me) break;
 
-          if (data.player.x !== undefined) me.x = data.player.x;
-          if (data.player.y !== undefined) me.y = data.player.y;
+          const serverX = data.player.x;
+          const serverY = data.player.y;
+
+          if (serverX !== undefined && serverY !== undefined) {
+            // Вычисляем расстояние до серверной позиции
+            const dx = serverX - me.x;
+            const dy = serverY - me.y;
+            const dist = Math.hypot(dx, dy);
+
+            if (dist > 40) {
+              // ← увеличил порог до 40–60 px
+              // Сильное рассинхронизирование — телепорт
+              me.x = serverX;
+              me.y = serverY;
+              console.warn("Strong position correction", dist);
+            } else if (dist > 8) {
+              // Плавная коррекция (lerp)
+              me.x += dx * 0.35; // ← коэффициент 0.3–0.5, подбери под ощущения
+              me.y += dy * 0.35;
+            }
+            // если dist ≤ 8 — игнорируем, клиент уже почти там
+          }
+
           if (data.player.direction) me.direction = data.player.direction;
           if (data.player.state) me.state = data.player.state;
           if (data.player.frame !== undefined) me.frame = data.player.frame;
+
           if (data.player.attackFrame !== undefined) {
             me.attackFrame = data.player.attackFrame;
             me.attackFrameTime = data.player.attackFrameTime ?? 0;
-          }
-
-          // Можно сбросить локальную интерполяцию, если сервер принудительно поставил
-          if (
-            Math.abs(me.x - data.player.x) > 5 ||
-            Math.abs(me.y - data.player.y) > 5
-          ) {
-            me.x = data.player.x;
-            me.y = data.player.y;
           }
         } else if (data.player?.id) {
           let p = players.get(data.player.id);
@@ -1918,7 +1929,6 @@ function handleGameMessage(event) {
         }
         break;
       }
-
       case "update": {
         if (data.player?.id === myId) {
           const me = players.get(myId);
@@ -1977,6 +1987,27 @@ function handleGameMessage(event) {
             });
           }
         }
+        break;
+      }
+      case "forcePosition": {
+        const me = players.get(myId);
+        if (!me) break;
+
+        if (data.x !== undefined) me.x = data.x;
+        if (data.y !== undefined) me.y = data.y;
+
+        // Можно сбросить предсказание движения, чтобы не дёргалось дальше
+        if (window.movementSystem?.resetPrediction) {
+          window.movementSystem.resetPrediction();
+        }
+
+        console.log(
+          "Server forced position →",
+          data.x,
+          data.y,
+          "reason:",
+          data.reason,
+        );
         break;
       }
       case "itemDropped":
