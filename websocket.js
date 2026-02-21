@@ -732,6 +732,16 @@ function setupWebSocket(
         ws.attackPlayerQueue.push(data);
         processAttackPlayerQueue(ws);
         return;
+      }
+      if (!ws.attackEnemyQueue) {
+        ws.attackEnemyQueue = [];
+        ws.isProcessingAttackEnemy = false;
+      }
+
+      if (data.type === "attackEnemy") {
+        ws.attackEnemyQueue.push(data);
+        processAttackEnemyQueue(ws);
+        return;
       } else if (data.type === "buyWater") {
         const id = clients.get(ws);
         if (!id) return;
@@ -1160,184 +1170,6 @@ function setupWebSocket(
             }
           }
         });
-      } else if (data.type === "attackEnemy") {
-        const attackerId = clients.get(ws);
-        if (!attackerId) return;
-
-        const attacker = players.get(attackerId);
-        const enemy = enemies.get(data.targetId);
-
-        if (
-          !attacker ||
-          !enemy ||
-          enemy.worldId !== data.worldId ||
-          enemy.health <= 0
-        )
-          return;
-
-        // Наносим урон
-        enemy.health = Math.max(0, enemy.health - data.damage);
-
-        // Если умер
-        if (enemy.health <= 0) {
-          enemies.delete(data.targetId);
-
-          // Уведомляем всех о смерти
-          broadcastToWorld(
-            wss,
-            clients,
-            players,
-            data.worldId,
-            JSON.stringify({
-              type: "enemyDied",
-              enemyId: data.targetId,
-            }),
-          );
-
-          // ───────────────────── НОВАЯ СИСТЕМА ДРОПА ─────────────────────
-          const now = Date.now();
-          const dropItems = generateEnemyDrop(
-            enemy.type,
-            enemy.x,
-            enemy.y,
-            data.worldId,
-            now,
-          );
-
-          if (dropItems.length > 0) {
-            // Добавляем все дропнутые предметы в глобальную карту items
-            for (const drop of dropItems) {
-              items.set(drop.itemId, {
-                x: drop.x,
-                y: drop.y,
-                type: drop.type,
-                quantity: drop.quantity || 1,
-                spawnTime: drop.spawnTime,
-                worldId: drop.worldId,
-              });
-            }
-
-            // Отправляем одним сообщением весь дроп
-            broadcastToWorld(
-              wss,
-              clients,
-              players,
-              data.worldId,
-              JSON.stringify({
-                type: "newItem",
-                items: dropItems,
-              }),
-            );
-          }
-          // ──────────────────────────────────────────────────────────────
-
-          // XP и level up
-          let xpGained = 13;
-          if (enemy.type === "scorpion") {
-            xpGained = 20;
-          }
-          if (enemy.type === "blood_eye") {
-            xpGained = 50;
-          }
-          attacker.xp = (attacker.xp || 0) + xpGained;
-
-          const oldLevel = attacker.level;
-
-          let levelUp = false;
-          let xpToNext = calculateXPToNextLevel(attacker.level);
-
-          while (attacker.xp >= xpToNext && attacker.level < 100) {
-            attacker.level += 1;
-            attacker.xp -= xpToNext;
-            attacker.upgradePoints = (attacker.upgradePoints || 0) + 10;
-            levelUp = true;
-            xpToNext = calculateXPToNextLevel(attacker.level);
-          }
-
-          const levelsGained = attacker.level - oldLevel;
-
-          if (levelsGained > 0) {
-            attacker.skillPoints =
-              (attacker.skillPoints || 0) + 3 * levelsGained;
-
-            // Отправляем клиенту обновление (тот же тип сообщения, что и при прокачке)
-            ws.send(
-              JSON.stringify({
-                type: "updateLevel",
-                level: attacker.level,
-                xp: attacker.xp,
-                xpToNextLevel: xpToNext,
-                upgradePoints: attacker.upgradePoints,
-                skillPoints: attacker.skillPoints,
-              }),
-            );
-
-            // Сохраняем в базу сразу
-            players.set(attackerId, attacker);
-            userDatabase.set(attackerId, attacker);
-            await saveUserDatabase(dbCollection, attackerId, attacker);
-          }
-
-          // Уведомление атакующего (levelSyncAfterKill)
-          ws.send(
-            JSON.stringify({
-              type: "levelSyncAfterKill",
-              level: attacker.level,
-              xp: attacker.xp,
-              xpToNextLevel: xpToNext,
-              upgradePoints: attacker.upgradePoints,
-              xpGained,
-            }),
-          );
-
-          // Прогресс квеста (только для мутантов)
-          if (enemy.type === "mutant") {
-            if (
-              attacker.neonQuest &&
-              attacker.neonQuest.currentQuestId === "neon_quest_1"
-            ) {
-              attacker.neonQuest.progress = attacker.neonQuest.progress || {};
-              attacker.neonQuest.progress.killMutants =
-                (attacker.neonQuest.progress.killMutants || 0) + 1;
-
-              players.set(attackerId, attacker);
-              userDatabase.set(attackerId, attacker);
-              await saveUserDatabase(dbCollection, attackerId, attacker);
-
-              ws.send(
-                JSON.stringify({
-                  type: "neonQuestProgressUpdate",
-                  progress: attacker.neonQuest.progress,
-                }),
-              );
-            }
-          }
-
-          // Респавн через 8–15 секунд
-          setTimeout(
-            () => spawnNewEnemy(data.worldId),
-            8000 + Math.random() * 7000,
-          );
-        } else {
-          // Если враг ещё жив — просто обновляем здоровье
-          enemies.set(data.targetId, enemy);
-
-          broadcastToWorld(
-            wss,
-            clients,
-            players,
-            data.worldId,
-            JSON.stringify({
-              type: "enemyUpdate",
-              enemy: {
-                id: data.targetId,
-                health: enemy.health,
-                x: enemy.x,
-                y: enemy.y,
-              },
-            }),
-          );
-        }
       } else if (data.type === "neonQuestAccept") {
         const id = clients.get(ws);
         if (id && players.has(id)) {
@@ -4277,6 +4109,186 @@ function setupWebSocket(
         }
 
         ws.isProcessingAttackPlayer = false;
+      }
+      async function processAttackEnemyQueue(ws) {
+        if (ws.isProcessingAttackEnemy) return;
+        ws.isProcessingAttackEnemy = true;
+
+        while (ws.attackEnemyQueue.length > 0) {
+          const data = ws.attackEnemyQueue.shift();
+
+          const attackerId = clients.get(ws);
+          if (!attackerId) continue;
+
+          const attacker = players.get(attackerId);
+          if (!attacker) continue;
+
+          const enemy = enemies.get(data.targetId);
+          if (!enemy || enemy.worldId !== data.worldId || enemy.health <= 0) {
+            continue;
+          }
+
+          // Наносим урон
+          enemy.health = Math.max(0, enemy.health - data.damage);
+
+          if (enemy.health <= 0) {
+            // ─── СМЕРТЬ МОБА ───────────────────────────────────────────────
+            enemies.delete(data.targetId);
+
+            // Уведомляем всех о смерти
+            broadcastToWorld(
+              wss,
+              clients,
+              players,
+              data.worldId,
+              JSON.stringify({
+                type: "enemyDied",
+                enemyId: data.targetId,
+              }),
+            );
+
+            // Генерация дропа
+            const now = Date.now();
+            const dropItems = generateEnemyDrop(
+              enemy.type,
+              enemy.x,
+              enemy.y,
+              data.worldId,
+              now,
+            );
+
+            if (dropItems.length > 0) {
+              // Добавляем дроп в глобальную карту items
+              for (const drop of dropItems) {
+                items.set(drop.itemId, {
+                  x: drop.x,
+                  y: drop.y,
+                  type: drop.type,
+                  quantity: drop.quantity || 1,
+                  spawnTime: drop.spawnTime,
+                  worldId: drop.worldId,
+                });
+              }
+
+              // Рассылаем весь дроп одним сообщением
+              broadcastToWorld(
+                wss,
+                clients,
+                players,
+                data.worldId,
+                JSON.stringify({
+                  type: "newItem",
+                  items: dropItems,
+                }),
+              );
+            }
+
+            // ─── XP И LEVEL UP ─────────────────────────────────────────────
+            let xpGained = 13;
+            if (enemy.type === "scorpion") xpGained = 20;
+            if (enemy.type === "blood_eye") xpGained = 50;
+
+            attacker.xp = (attacker.xp || 0) + xpGained;
+
+            const oldLevel = attacker.level;
+            let levelUp = false;
+            let xpToNext = calculateXPToNextLevel(attacker.level);
+
+            while (attacker.xp >= xpToNext && attacker.level < 100) {
+              attacker.level += 1;
+              attacker.xp -= xpToNext;
+              attacker.upgradePoints = (attacker.upgradePoints || 0) + 10;
+              levelUp = true;
+              xpToNext = calculateXPToNextLevel(attacker.level);
+            }
+
+            const levelsGained = attacker.level - oldLevel;
+
+            if (levelsGained > 0) {
+              attacker.skillPoints =
+                (attacker.skillPoints || 0) + 3 * levelsGained;
+
+              // Отправляем обновление уровня
+              ws.send(
+                JSON.stringify({
+                  type: "updateLevel",
+                  level: attacker.level,
+                  xp: attacker.xp,
+                  xpToNextLevel: xpToNext,
+                  upgradePoints: attacker.upgradePoints,
+                  skillPoints: attacker.skillPoints,
+                }),
+              );
+
+              // Сохраняем атакующего сразу после level up
+              players.set(attackerId, { ...attacker });
+              userDatabase.set(attackerId, { ...attacker });
+              await saveUserDatabase(dbCollection, attackerId, attacker);
+            }
+
+            // Уведомление атакующего о XP и уровне
+            ws.send(
+              JSON.stringify({
+                type: "levelSyncAfterKill",
+                level: attacker.level,
+                xp: attacker.xp,
+                xpToNextLevel: xpToNext,
+                upgradePoints: attacker.upgradePoints,
+                xpGained,
+              }),
+            );
+
+            // ─── ПРОГРЕСС КВЕСТА (мутанты) ─────────────────────────────────
+            if (enemy.type === "mutant") {
+              if (
+                attacker.neonQuest &&
+                attacker.neonQuest.currentQuestId === "neon_quest_1"
+              ) {
+                attacker.neonQuest.progress = attacker.neonQuest.progress || {};
+                attacker.neonQuest.progress.killMutants =
+                  (attacker.neonQuest.progress.killMutants || 0) + 1;
+
+                players.set(attackerId, { ...attacker });
+                userDatabase.set(attackerId, { ...attacker });
+                await saveUserDatabase(dbCollection, attackerId, attacker);
+
+                ws.send(
+                  JSON.stringify({
+                    type: "neonQuestProgressUpdate",
+                    progress: attacker.neonQuest.progress,
+                  }),
+                );
+              }
+            }
+
+            // ─── РЕСПАВН МОБА ──────────────────────────────────────────────
+            setTimeout(
+              () => spawnNewEnemy(data.worldId),
+              8000 + Math.random() * 7000,
+            );
+          } else {
+            // Моб ещё жив — обновляем только здоровье
+            enemies.set(data.targetId, { ...enemy });
+
+            broadcastToWorld(
+              wss,
+              clients,
+              players,
+              data.worldId,
+              JSON.stringify({
+                type: "enemyUpdate",
+                enemy: {
+                  id: data.targetId,
+                  health: enemy.health,
+                  x: enemy.x,
+                  y: enemy.y,
+                },
+              }),
+            );
+          }
+        }
+
+        ws.isProcessingAttackEnemy = false;
       }
     });
 
