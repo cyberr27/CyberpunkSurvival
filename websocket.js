@@ -622,6 +622,16 @@ function setupWebSocket(
         ws.pickupQueue.push(data);
         processPickupQueue(ws);
         return;
+      }
+      if (!ws.dropQueue) {
+        ws.dropQueue = [];
+        ws.isProcessingDrop = false;
+      }
+
+      if (data.type === "dropItem") {
+        ws.dropQueue.push(data);
+        processDropQueue(ws);
+        return;
       } else if (data.type === "buyWater") {
         const id = clients.get(ws);
         if (!id) return;
@@ -1333,100 +1343,6 @@ function setupWebSocket(
             },
           }),
         );
-      } else if (data.type === "dropItem") {
-        const id = clients.get(ws);
-        if (id) {
-          const player = players.get(id);
-          const slotIndex = data.slotIndex;
-          const item = player.inventory[slotIndex];
-          if (item) {
-            let quantityToDrop = data.quantity || 1;
-            if (ITEM_CONFIG[item.type]?.stackable) {
-              const currentQuantity = item.quantity || 1;
-              if (quantityToDrop > currentQuantity) {
-                return;
-              }
-            }
-
-            let dropX,
-              dropY,
-              attempts = 0;
-            const maxAttempts = 10;
-            do {
-              const angle = Math.random() * Math.PI * 2;
-              const radius = Math.random() * 100;
-              dropX = player.x + Math.cos(angle) * radius;
-              dropY = player.y + Math.sin(angle) * radius;
-              attempts++;
-            } while (
-              checkCollisionServer(dropX, dropY) &&
-              attempts < maxAttempts
-            );
-
-            if (attempts < maxAttempts) {
-              const itemId = `${item.type}_${Date.now()}`;
-              if (ITEM_CONFIG[item.type]?.stackable) {
-                if (quantityToDrop === item.quantity) {
-                  player.inventory[slotIndex] = null;
-                } else {
-                  player.inventory[slotIndex].quantity -= quantityToDrop;
-                }
-                items.set(itemId, {
-                  x: dropX,
-                  y: dropY,
-                  type: item.type,
-                  spawnTime: Date.now(),
-                  quantity: quantityToDrop,
-                  isDroppedByPlayer: true,
-                  worldId: player.worldId,
-                });
-              } else {
-                player.inventory[slotIndex] = null;
-                items.set(itemId, {
-                  x: dropX,
-                  y: dropY,
-                  type: item.type,
-                  spawnTime: Date.now(),
-                  isDroppedByPlayer: true,
-                  worldId: player.worldId,
-                });
-              }
-              players.set(id, { ...player });
-              userDatabase.set(id, { ...player });
-              await saveUserDatabase(dbCollection, id, player);
-              wss.clients.forEach((client) => {
-                if (client.readyState === WebSocket.OPEN) {
-                  const clientPlayer = players.get(clients.get(client));
-                  if (clientPlayer && clientPlayer.worldId === player.worldId) {
-                    client.send(
-                      JSON.stringify({
-                        type: "itemDropped",
-                        itemId,
-                        x: dropX,
-                        y: dropY,
-                        type: item.type,
-                        spawnTime: Date.now(),
-                        quantity: ITEM_CONFIG[item.type]?.stackable
-                          ? quantityToDrop
-                          : undefined,
-                        isDroppedByPlayer: true,
-                        worldId: player.worldId,
-                      }),
-                    );
-                    if (clients.get(client) === id) {
-                      client.send(
-                        JSON.stringify({
-                          type: "update",
-                          player: { id, ...player },
-                        }),
-                      );
-                    }
-                  }
-                }
-              });
-            }
-          }
-        }
       } else if (data.type === "selectQuest") {
         const id = clients.get(ws);
         if (id) {
@@ -3998,6 +3914,122 @@ function setupWebSocket(
         }
 
         ws.isProcessingPickup = false;
+      }
+      async function processDropQueue(ws) {
+        if (ws.isProcessingDrop) return;
+        ws.isProcessingDrop = true;
+
+        while (ws.dropQueue.length > 0) {
+          const data = ws.dropQueue.shift();
+
+          const id = clients.get(ws);
+          if (!id) continue;
+
+          const player = players.get(id);
+          if (!player) continue;
+
+          const slotIndex = data.slotIndex;
+          const item = player.inventory[slotIndex];
+          if (!item) continue;
+
+          let quantityToDrop = data.quantity || 1;
+          if (ITEM_CONFIG[item.type]?.stackable) {
+            const currentQuantity = item.quantity || 1;
+            if (quantityToDrop > currentQuantity) {
+              continue; // некорректный запрос — игнорируем
+            }
+          }
+
+          let dropX,
+            dropY,
+            attempts = 0;
+          const maxAttempts = 10;
+          do {
+            const angle = Math.random() * Math.PI * 2;
+            const radius = Math.random() * 100;
+            dropX = player.x + Math.cos(angle) * radius;
+            dropY = player.y + Math.sin(angle) * radius;
+            attempts++;
+          } while (
+            checkCollisionServer(dropX, dropY) &&
+            attempts < maxAttempts
+          );
+
+          if (attempts >= maxAttempts) {
+            // Не нашли место — просто пропускаем (можно отправить ошибку клиенту, но пока как было)
+            continue;
+          }
+
+          const itemId = `${item.type}_${Date.now()}`;
+
+          if (ITEM_CONFIG[item.type]?.stackable) {
+            if (quantityToDrop === (item.quantity || 1)) {
+              player.inventory[slotIndex] = null;
+            } else {
+              player.inventory[slotIndex].quantity -= quantityToDrop;
+            }
+            items.set(itemId, {
+              x: dropX,
+              y: dropY,
+              type: item.type,
+              spawnTime: Date.now(),
+              quantity: quantityToDrop,
+              isDroppedByPlayer: true,
+              worldId: player.worldId,
+            });
+          } else {
+            player.inventory[slotIndex] = null;
+            items.set(itemId, {
+              x: dropX,
+              y: dropY,
+              type: item.type,
+              spawnTime: Date.now(),
+              isDroppedByPlayer: true,
+              worldId: player.worldId,
+            });
+          }
+
+          // Сохраняем изменения
+          players.set(id, { ...player });
+          userDatabase.set(id, { ...player });
+          await saveUserDatabase(dbCollection, id, player);
+
+          // Рассылаем всем в мире
+          wss.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+              const clientPlayer = players.get(clients.get(client));
+              if (clientPlayer && clientPlayer.worldId === player.worldId) {
+                client.send(
+                  JSON.stringify({
+                    type: "itemDropped",
+                    itemId,
+                    x: dropX,
+                    y: dropY,
+                    type: item.type,
+                    spawnTime: Date.now(),
+                    quantity: ITEM_CONFIG[item.type]?.stackable
+                      ? quantityToDrop
+                      : undefined,
+                    isDroppedByPlayer: true,
+                    worldId: player.worldId,
+                  }),
+                );
+
+                // Обновляем инвентарь и статы тому, кто дропнул
+                if (clients.get(client) === id) {
+                  client.send(
+                    JSON.stringify({
+                      type: "update",
+                      player: { id, ...player },
+                    }),
+                  );
+                }
+              }
+            }
+          });
+        }
+
+        ws.isProcessingDrop = false;
       }
     });
 
