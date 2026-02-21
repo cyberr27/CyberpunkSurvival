@@ -1918,10 +1918,25 @@ function handleGameMessage(event) {
           // (можно добавить проверку seq, если сервер начнёт присылать seq в update)
         } else {
           // Другие игроки — сглаживание позиции
+          if (data.player.seq !== undefined && data.player.id) {
+            const existing = players.get(data.player.id);
+            if (existing && existing.lastSeq !== undefined) {
+              if (data.player.seq <= existing.lastSeq) {
+                // Старый или равный пакет → игнорируем
+                break;
+              }
+            }
+          }
+
           let p = players.get(data.player.id);
           if (!p) {
-            p = { ...data.player, animTime: 0, frame: 0 };
+            p = { ...data.player, animTime: 0, frame: 0, lastSeq: -1 };
             players.set(data.player.id, p);
+          }
+
+          // Обновляем lastSeq
+          if (data.player.seq !== undefined) {
+            p.lastSeq = Math.max(p.lastSeq, Number(data.player.seq));
           }
 
           // Целевые значения от сервера
@@ -1978,6 +1993,31 @@ function handleGameMessage(event) {
         // Можно логировать для отладки
         // console.debug(`Подтверждён seq ${seq}, serverSeq ${serverSeq}`);
 
+        break;
+      case "forcePosition":
+        {
+          if (data.x === undefined || data.y === undefined) break;
+
+          const me = players.get(myId);
+          if (!me) break;
+
+          // Принудительно устанавливаем позицию от сервера
+          me.x = Number(data.x);
+          me.y = Number(data.y);
+
+          // Очищаем все неподтверждённые пакеты движения (они теперь неактуальны)
+          pendingMovementPackets = [];
+
+          // Можно сразу отправить новое корректное положение
+          sendMovementUpdate(me);
+
+          // Опционально: визуальный отклик (например, мигание или звук)
+          // window.soundSystem?.play("collision"); // если есть
+
+          console.log(
+            `Сервер отклонил позицию → forcePosition (${me.x}, ${me.y})`,
+          );
+        }
         break;
       case "itemDropped":
         if (data.worldId === currentWorldId) {
@@ -2915,6 +2955,25 @@ function update(deltaTime) {
   }
   window.portalSystem.checkProximity();
   window.worldSystem.checkTransitionZones(me.x, me.y);
+  const now = Date.now();
+  const RESEND_TIMEOUT = 2200; // 2.2 секунды
+
+  pendingMovementPackets = pendingMovementPackets.filter((packet) => {
+    if (now - packet.sentAt > RESEND_TIMEOUT) {
+      // Повторная отправка
+      sendWhenReady(ws, JSON.stringify(packet.payload));
+      packet.sentAt = now; // обновляем время последней отправки
+      // console.debug(`Resent seq ${packet.seq}`);
+      return true; // оставляем в очереди
+    }
+    return true;
+  });
+
+  // Опционально: если пакетов > 40–50 → экстренная очистка самых старых
+  if (pendingMovementPackets.length > 45) {
+    pendingMovementPackets.sort((a, b) => a.seq - b.seq);
+    pendingMovementPackets = pendingMovementPackets.slice(-40);
+  }
 }
 
 function draw(deltaTime) {

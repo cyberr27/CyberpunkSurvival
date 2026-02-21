@@ -115,6 +115,7 @@ async function processQueueAsync(playerId, applyCallback) {
           // Подготовка и рассылка update
           const updateData = {
             id: playerId,
+            seq: newServerSeq,
             x: player.x,
             y: player.y,
             direction: player.direction,
