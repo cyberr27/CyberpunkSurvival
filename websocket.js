@@ -582,25 +582,16 @@ function setupWebSocket(
         ws.transitionQueue.push(data);
         processWorldTransitionQueue(ws);
         return;
-      } else if (data.type === "syncPlayers") {
-        const id = clients.get(ws);
-        if (id) {
-          const player = players.get(id);
-          const worldId = data.worldId;
-          if (player.worldId !== worldId) {
-            return;
-          }
-          const worldPlayers = Array.from(players.values()).filter(
-            (p) => p.id !== id && p.worldId === worldId,
-          );
-          ws.send(
-            JSON.stringify({
-              type: "syncPlayers",
-              players: worldPlayers,
-              worldId,
-            }),
-          );
-        }
+      }
+      if (!ws.syncQueue) {
+        ws.syncQueue = [];
+        ws.isProcessingSync = false;
+      }
+
+      if (data.type === "syncPlayers") {
+        ws.syncQueue.push(data);
+        processSyncQueue(ws);
+        return;
       } else if (data.type === "login") {
         const player = userDatabase.get(data.username);
         if (player && player.password === data.password) {
@@ -3894,6 +3885,44 @@ function setupWebSocket(
         }
 
         ws.isProcessingTransition = false;
+      }
+      async function processSyncQueue(ws) {
+        if (ws.isProcessingSync) return;
+        ws.isProcessingSync = true;
+
+        while (ws.syncQueue.length > 0) {
+          const data = ws.syncQueue.shift();
+
+          const id = clients.get(ws);
+          if (!id) continue;
+
+          const player = players.get(id);
+          if (!player) continue;
+
+          const worldId = data.worldId;
+
+          // Проверяем, что запрос актуален (игрок всё ещё в этом мире)
+          if (player.worldId !== worldId) {
+            // Можно отправить ошибку, но чаще всего просто игнорируем
+            continue;
+          }
+
+          // Собираем список других игроков в мире
+          const worldPlayers = Array.from(players.values()).filter(
+            (p) => p.id !== id && p.worldId === worldId,
+          );
+
+          // Отправляем только один раз — самый свежий
+          ws.send(
+            JSON.stringify({
+              type: "syncPlayers",
+              players: worldPlayers,
+              worldId,
+            }),
+          );
+        }
+
+        ws.isProcessingSync = false;
       }
     });
 
