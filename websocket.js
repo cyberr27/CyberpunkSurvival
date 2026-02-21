@@ -662,6 +662,16 @@ function setupWebSocket(
         ws.unequipQueue.push(data);
         processUnequipQueue(ws);
         return;
+      }
+      if (!ws.tradeRequestQueue) {
+        ws.tradeRequestQueue = [];
+        ws.isProcessingTradeRequest = false;
+      }
+
+      if (data.type === "tradeRequest") {
+        ws.tradeRequestQueue.push(data);
+        processTradeRequestQueue(ws);
+        return;
       } else if (data.type === "buyWater") {
         const id = clients.get(ws);
         if (!id) return;
@@ -1060,29 +1070,6 @@ function setupWebSocket(
             }
           });
         }
-      } else if (data.type === "tradeRequest") {
-        const fromId = clients.get(ws);
-        if (!fromId) return;
-        const toId = data.toId;
-        const playerA = players.get(fromId);
-        const playerB = players.get(toId);
-
-        // УБРАНЫ ПРОВЕРКИ НА РАССТОЯНИЕ И ЗДОРОВЬЕ
-        if (!playerA || !playerB || playerA.worldId !== playerB.worldId) return;
-
-        // ИСПРАВЛЕНИЕ: всегда сортированный ключ (меньший ID первым)
-        const sortedIds = [fromId, toId].sort();
-        const tradeKey = `${sortedIds[0]}-${sortedIds[1]}`;
-        tradeRequests.set(tradeKey, { status: "pending" });
-
-        wss.clients.forEach((client) => {
-          if (
-            client.readyState === WebSocket.OPEN &&
-            clients.get(client) === toId
-          ) {
-            client.send(JSON.stringify({ type: "tradeRequest", fromId, toId }));
-          }
-        });
       } else if (data.type === "tradeAccepted") {
         const fromId = data.fromId; // B accepts, fromId = B, toId = A (initiator)
         const toId = data.toId;
@@ -4119,6 +4106,48 @@ function setupWebSocket(
         }
 
         ws.isProcessingUnequip = false;
+      }
+      async function processTradeRequestQueue(ws) {
+        if (ws.isProcessingTradeRequest) return;
+        ws.isProcessingTradeRequest = true;
+
+        while (ws.tradeRequestQueue.length > 0) {
+          const data = ws.tradeRequestQueue.shift();
+
+          const fromId = clients.get(ws);
+          if (!fromId) continue;
+
+          const toId = data.toId;
+          const playerA = players.get(fromId);
+          const playerB = players.get(toId);
+
+          // УБРАНЫ ПРОВЕРКИ НА РАССТОЯНИЕ И ЗДОРОВЬЕ (как было)
+          if (!playerA || !playerB || playerA.worldId !== playerB.worldId)
+            continue;
+
+          // Всегда сортированный ключ (меньший ID первым) — защита от дубликатов
+          const sortedIds = [fromId, toId].sort();
+          const tradeKey = `${sortedIds[0]}-${sortedIds[1]}`;
+
+          // Если уже есть активный запрос — не перезаписываем (можно добавить логику отказа, но пока как было)
+          if (tradeRequests.has(tradeKey)) continue;
+
+          tradeRequests.set(tradeKey, { status: "pending" });
+
+          // Отправляем уведомление ТОЛЬКО целевому игроку
+          wss.clients.forEach((client) => {
+            if (
+              client.readyState === WebSocket.OPEN &&
+              clients.get(client) === toId
+            ) {
+              client.send(
+                JSON.stringify({ type: "tradeRequest", fromId, toId }),
+              );
+            }
+          });
+        }
+
+        ws.isProcessingTradeRequest = false;
       }
     });
 
