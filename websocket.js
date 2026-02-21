@@ -13,6 +13,13 @@ const {
   handleHomelessStorageAction,
 } = require("./homelessServer");
 const { handleSkillUpgrade } = require("./toremidosServer");
+const {
+  initSequenceForPlayer,
+  cleanupSequence,
+  shouldEnqueueClientMessage,
+  enqueueClientMessage,
+  getNextServerSeq,
+} = require("./playerStateSequence");
 
 function broadcastToWorld(wss, clients, players, worldId, message) {
   wss.clients.forEach((client) => {
@@ -540,6 +547,97 @@ function setupWebSocket(
     );
   }
 
+  async function applyMessage(playerId, msgType, payload, clientSeq) {
+    const player = players.get(playerId);
+    if (!player) return false;
+
+    const currentWorldId = player.worldId;
+    const oldX = player.x;
+    const oldY = player.y;
+
+    // Принимаем только разрешённые поля — точная копия существующей логики
+    if (payload.x !== undefined) player.x = Number(payload.x);
+    if (payload.y !== undefined) player.y = Number(payload.y);
+    if (payload.direction) player.direction = payload.direction;
+    if (payload.state) player.state = payload.state;
+    if (payload.attackFrame !== undefined)
+      player.attackFrame = Number(payload.attackFrame);
+    if (payload.attackFrameTime !== undefined)
+      player.attackFrameTime = Number(payload.attackFrameTime);
+    if (payload.frame !== undefined) player.frame = Number(payload.frame);
+
+    // Ограничиваем статы
+    if (payload.health !== undefined)
+      player.health = Math.max(
+        0,
+        Math.min(player.maxStats?.health || 100, Number(payload.health)),
+      );
+    if (payload.energy !== undefined)
+      player.energy = Math.max(
+        0,
+        Math.min(player.maxStats?.energy || 100, Number(payload.energy)),
+      );
+    if (payload.food !== undefined)
+      player.food = Math.max(
+        0,
+        Math.min(player.maxStats?.food || 100, Number(payload.food)),
+      );
+    if (payload.water !== undefined)
+      player.water = Math.max(
+        0,
+        Math.min(player.maxStats?.water || 100, Number(payload.water)),
+      );
+    if (payload.armor !== undefined) player.armor = Number(payload.armor);
+    if (payload.distanceTraveled !== undefined)
+      player.distanceTraveled = Number(payload.distanceTraveled);
+
+    // Проверка препятствий — 1:1
+    let positionValid = true;
+    if (payload.x !== undefined || payload.y !== undefined) {
+      for (const obs of obstacles) {
+        if (obs.worldId !== currentWorldId) continue;
+        if (
+          segmentsIntersect(
+            oldX,
+            oldY,
+            player.x,
+            player.y,
+            obs.x1,
+            obs.y1,
+            obs.x2,
+            obs.y2,
+          )
+        ) {
+          positionValid = false;
+          break;
+        }
+      }
+    }
+
+    if (!positionValid) {
+      player.x = oldX;
+      player.y = oldY;
+
+      // Отправляем forcePosition сразу (это не успех, но важно для клиента)
+      const ws = [...wss.clients].find((c) => clients.get(c) === playerId);
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(
+          JSON.stringify({
+            type: "forcePosition",
+            x: oldX,
+            y: oldY,
+            reason: "collision",
+          }),
+        );
+      }
+
+      return false; // НЕ считаем успешным применением
+    }
+
+    // Успех — возвращаем true → в processQueueAsync будет сделан players.set / save / broadcast
+    return true;
+  }
+
   wss.on("connection", (ws) => {
     console.log("Client connected");
 
@@ -913,6 +1011,8 @@ function setupWebSocket(
                 .map(({ id, ...rest }) => rest),
             }),
           );
+
+          initSequenceForPlayer(data.username);
 
           ws.send(
             JSON.stringify({
@@ -3704,12 +3804,9 @@ function setupWebSocket(
           }),
         );
       }
-      if (data.type === "update" || data.type === "move") {
+      if (data.type === "move" || data.type === "update") {
         const playerId = clients.get(ws);
-
-        // Очень важная защита
         if (!playerId || !players.has(playerId)) {
-          // Игрок ещё не авторизован или уже отключился
           ws.send(
             JSON.stringify({
               type: "error",
@@ -3719,126 +3816,24 @@ function setupWebSocket(
           return;
         }
 
-        const player = players.get(playerId);
-
-        // Теперь player точно существует
-        const currentWorldId = player.worldId;
-
-        // Сохраняем старую позицию для проверки препятствий
-        const oldX = player.x;
-        const oldY = player.y;
-
-        // Принимаем только разрешённые поля
-        if (data.x !== undefined) player.x = Number(data.x);
-        if (data.y !== undefined) player.y = Number(data.y);
-        if (data.direction) player.direction = data.direction;
-        if (data.state) player.state = data.state;
-        if (data.attackFrame !== undefined)
-          player.attackFrame = Number(data.attackFrame);
-        if (data.attackFrameTime !== undefined)
-          player.attackFrameTime = Number(data.attackFrameTime);
-        if (data.frame !== undefined) player.frame = Number(data.frame);
-
-        // Ограничиваем статы безопасными значениями
-        if (data.health !== undefined)
-          player.health = Math.max(
-            0,
-            Math.min(player.maxStats?.health || 100, Number(data.health)),
-          );
-        if (data.energy !== undefined)
-          player.energy = Math.max(
-            0,
-            Math.min(player.maxStats?.energy || 100, Number(data.energy)),
-          );
-        if (data.food !== undefined)
-          player.food = Math.max(
-            0,
-            Math.min(player.maxStats?.food || 100, Number(data.food)),
-          );
-        if (data.water !== undefined)
-          player.water = Math.max(
-            0,
-            Math.min(player.maxStats?.water || 100, Number(data.water)),
-          );
-        if (data.armor !== undefined) player.armor = Number(data.armor);
-        if (data.distanceTraveled !== undefined)
-          player.distanceTraveled = Number(data.distanceTraveled);
-
-        // ─── ПРОВЕРКА ПРЕПЯТСТВИЙ ───────────────────────────────────────
-        let positionValid = true;
-
-        // Проверяем только если пришли новые координаты
-        if (data.x !== undefined || data.y !== undefined) {
-          for (const obs of obstacles) {
-            if (obs.worldId !== currentWorldId) continue;
-
-            if (
-              segmentsIntersect(
-                oldX,
-                oldY,
-                player.x,
-                player.y,
-                obs.x1,
-                obs.y1,
-                obs.x2,
-                obs.y2,
-              )
-            ) {
-              positionValid = false;
-              break;
-            }
-          }
+        const incomingSeq = Number(data.seq ?? -1);
+        if (!Number.isInteger(incomingSeq) || incomingSeq < -1) {
+          console.warn(`Некорректный seq от ${playerId}: ${data.seq}`);
+          return;
         }
 
-        if (!positionValid) {
-          player.x = oldX;
-          player.y = oldY;
-
-          ws.send(
-            JSON.stringify({
-              type: "forcePosition",
-              x: oldX,
-              y: oldY,
-              reason: "collision",
-            }),
-          );
+        if (!shouldEnqueueClientMessage(playerId, incomingSeq, data.type)) {
+          return;
         }
 
-        // Сохраняем изменения
-        players.set(playerId, { ...player });
-
-        // Готовим данные для рассылки
-        const updateData = {
-          id: playerId,
-          x: player.x,
-          y: player.y,
-          direction: player.direction,
-          state: player.state,
-          frame: player.frame,
-          health: player.health,
-          energy: player.energy,
-          food: player.food,
-          water: player.water,
-          armor: player.armor,
-          distanceTraveled: player.distanceTraveled,
-          meleeDamageBonus: player.meleeDamageBonus || 0,
-        };
-
-        if (player.state === "attacking") {
-          updateData.attackFrame = player.attackFrame ?? 0;
-          updateData.attackFrameTime = player.attackFrameTime ?? 0;
-        }
-
-        broadcastToWorld(
-          wss,
-          clients,
-          players,
-          currentWorldId,
-          JSON.stringify({
-            type: "update",
-            player: updateData,
-          }),
+        enqueueClientMessage(
+          playerId,
+          incomingSeq,
+          data.type,
+          data,
+          applyMessage,
         );
+        return;
       }
     });
 
@@ -4106,6 +4101,9 @@ function setupWebSocket(
         });
       }
       clearTimeout(inactivityTimer);
+      if (id) {
+        cleanupSequence(id);
+      }
     });
 
     ws.on("error", (error) => {

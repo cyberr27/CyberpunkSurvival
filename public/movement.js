@@ -339,25 +339,32 @@
   }
 
   function sendMovementUpdate(player) {
-    sendWhenReady(
-      ws,
-      JSON.stringify({
-        type: "move",
-        x: player.x,
-        y: player.y,
-        health: player.health,
-        energy: player.energy,
-        food: player.food,
-        water: player.water,
-        armor: player.armor,
-        distanceTraveled: player.distanceTraveled,
-        direction: player.direction,
-        state: player.state,
-        frame: player.frame,
-        attackFrame: player.attackFrame || 0,
-        attackFrameTime: player.attackFrameTime || 0,
-      }),
-    );
+    const seq = nextClientSeq++;
+    const payload = {
+      type: "move", // или "update" — можно оставить "move" для всех перемещений
+      seq,
+      x: player.x,
+      y: player.y,
+      health: player.health,
+      energy: player.energy,
+      food: player.food,
+      water: player.water,
+      armor: player.armor,
+      distanceTraveled: player.distanceTraveled,
+      direction: player.direction,
+      state: player.state,
+      frame: player.frame,
+      attackFrame: player.attackFrame ?? 0,
+      attackFrameTime: player.attackFrameTime ?? 0,
+    };
+
+    pendingMovementPackets.push({
+      seq,
+      payload,
+      sentAt: Date.now(),
+    });
+
+    sendWhenReady(ws, JSON.stringify(payload));
   }
 
   function updateCamera(player) {
