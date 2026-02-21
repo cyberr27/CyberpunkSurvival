@@ -682,6 +682,16 @@ function setupWebSocket(
         ws.tradeAcceptedQueue.push(data);
         processTradeAcceptedQueue(ws);
         return;
+      }
+      if (!ws.tradeOfferQueue) {
+        ws.tradeOfferQueue = [];
+        ws.isProcessingTradeOffer = false;
+      }
+
+      if (data.type === "tradeOffer") {
+        ws.tradeOfferQueue.push(data);
+        processTradeOfferQueue(ws);
+        return;
       } else if (data.type === "buyWater") {
         const id = clients.get(ws);
         if (!id) return;
@@ -1080,36 +1090,6 @@ function setupWebSocket(
             }
           });
         }
-      } else if (data.type === "tradeOffer") {
-        const fromId = clients.get(ws);
-        if (!fromId) return;
-        const toId = data.toId;
-        const tradeKey =
-          fromId < toId ? `${fromId}-${toId}` : `${toId}-${fromId}`; // Symmetric key
-
-        if (!tradeOffers.has(tradeKey)) return;
-
-        // Update offer from fromId
-        const offers = tradeOffers.get(tradeKey);
-        if (fromId === tradeKey.split("-")[0]) {
-          // A - initiator
-          offers.myOffer = data.offer;
-        } else {
-          offers.partnerOffer = data.offer;
-        }
-        tradeOffers.set(tradeKey, offers);
-
-        // Send to partner (dynamic update)
-        wss.clients.forEach((client) => {
-          if (
-            client.readyState === WebSocket.OPEN &&
-            clients.get(client) === toId
-          ) {
-            client.send(
-              JSON.stringify({ type: "tradeOffer", fromId, offer: data.offer }),
-            );
-          }
-        });
       } else if (data.type === "tradeConfirmed") {
         const fromId = clients.get(ws);
         const toId = data.toId;
@@ -4175,6 +4155,56 @@ function setupWebSocket(
         }
 
         ws.isProcessingTradeAccepted = false;
+      }
+      async function processTradeOfferQueue(ws) {
+        if (ws.isProcessingTradeOffer) return;
+        ws.isProcessingTradeOffer = true;
+
+        while (ws.tradeOfferQueue.length > 0) {
+          const data = ws.tradeOfferQueue.shift();
+
+          const fromId = clients.get(ws);
+          if (!fromId) continue;
+
+          const toId = data.toId;
+          const tradeKey =
+            fromId < toId ? `${fromId}-${toId}` : `${toId}-${fromId}`;
+
+          if (!tradeOffers.has(tradeKey)) continue;
+
+          // Получаем текущие офферы
+          const offers = tradeOffers.get(tradeKey);
+
+          // Обновляем нужную сторону
+          if (fromId === tradeKey.split("-")[0]) {
+            // fromId — инициатор (A)
+            offers.myOffer = data.offer;
+          } else {
+            // fromId — второй игрок (B)
+            offers.partnerOffer = data.offer;
+          }
+
+          // Сохраняем изменения
+          tradeOffers.set(tradeKey, offers);
+
+          // Отправляем обновление ТОЛЬКО партнёру
+          wss.clients.forEach((client) => {
+            if (
+              client.readyState === WebSocket.OPEN &&
+              clients.get(client) === toId
+            ) {
+              client.send(
+                JSON.stringify({
+                  type: "tradeOffer",
+                  fromId,
+                  offer: data.offer,
+                }),
+              );
+            }
+          });
+        }
+
+        ws.isProcessingTradeOffer = false;
       }
     });
 
