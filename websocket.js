@@ -632,6 +632,16 @@ function setupWebSocket(
         ws.dropQueue.push(data);
         processDropQueue(ws);
         return;
+      }
+      if (!ws.useItemQueue) {
+        ws.useItemQueue = [];
+        ws.isProcessingUseItem = false;
+      }
+
+      if (data.type === "useItem") {
+        ws.useItemQueue.push(data);
+        processUseItemQueue(ws);
+        return;
       } else if (data.type === "buyWater") {
         const id = clients.get(ws);
         if (!id) return;
@@ -957,91 +967,6 @@ function setupWebSocket(
               );
             }
           });
-        }
-      } else if (data.type === "useItem") {
-        const id = clients.get(ws);
-        if (!id || !players.has(id)) return;
-
-        const player = players.get(id);
-        const slotIndex = data.slotIndex;
-        const item = player.inventory[slotIndex];
-        if (item && ITEM_CONFIG[item.type]?.effect) {
-          const effect = ITEM_CONFIG[item.type].effect;
-          if (effect.health)
-            player.health = Math.min(
-              player.health + effect.health,
-              player.maxStats.health,
-            );
-          if (effect.energy)
-            player.energy = Math.min(
-              player.energy + effect.energy,
-              player.maxStats.energy,
-            );
-          if (effect.food)
-            player.food = Math.min(
-              player.food + effect.food,
-              player.maxStats.food,
-            );
-          if (effect.water)
-            player.water = Math.min(
-              player.water + effect.water,
-              player.maxStats.water,
-            );
-          if (effect.armor)
-            player.armor = Math.min(
-              player.armor + effect.armor,
-              player.maxStats.armor,
-            );
-          if (ITEM_CONFIG[item.type].stackable) {
-            if (item.quantity > 1) {
-              player.inventory[slotIndex].quantity -= 1;
-            } else {
-              player.inventory[slotIndex] = null;
-            }
-          } else {
-            player.inventory[slotIndex] = null;
-          }
-
-          player.health = Math.max(
-            0,
-            Math.min(player.health, player.maxStats?.health || 100),
-          );
-          player.energy = Math.max(
-            0,
-            Math.min(player.energy, player.maxStats?.energy || 100),
-          );
-          player.food = Math.max(
-            0,
-            Math.min(player.food, player.maxStats?.food || 100),
-          );
-          player.water = Math.max(
-            0,
-            Math.min(player.water, player.maxStats?.water || 100),
-          );
-          player.armor = Math.max(
-            0,
-            Math.min(player.armor, player.maxStats?.armor || 0),
-          );
-
-          // Сохраняем изменения
-          players.set(id, { ...player });
-          userDatabase.set(id, { ...player });
-          await saveUserDatabase(dbCollection, id, player);
-
-          // Отправляем подтверждение клиенту
-          ws.send(
-            JSON.stringify({
-              type: "useItemSuccess",
-              stats: {
-                health: player.health,
-                energy: player.energy,
-                food: player.food,
-                water: player.water,
-                armor: player.armor,
-              },
-              inventory: player.inventory,
-            }),
-          );
         }
       } else if (data.type === "equipItem") {
         const playerId = clients.get(ws);
@@ -4030,6 +3955,116 @@ function setupWebSocket(
         }
 
         ws.isProcessingDrop = false;
+      }
+      async function processUseItemQueue(ws) {
+        if (ws.isProcessingUseItem) return;
+        ws.isProcessingUseItem = true;
+
+        while (ws.useItemQueue.length > 0) {
+          const data = ws.useItemQueue.shift();
+
+          const id = clients.get(ws);
+          if (!id || !players.has(id)) continue;
+
+          const player = players.get(id);
+          const slotIndex = data.slotIndex;
+
+          // Проверяем, что слот существует и предмет есть
+          if (
+            slotIndex < 0 ||
+            slotIndex >= player.inventory.length ||
+            !player.inventory[slotIndex]
+          ) {
+            continue;
+          }
+
+          const item = player.inventory[slotIndex];
+          if (!ITEM_CONFIG[item.type]?.effect) continue;
+
+          const effect = ITEM_CONFIG[item.type].effect;
+
+          // Применяем эффекты (как было)
+          if (effect.health)
+            player.health = Math.min(
+              player.health + effect.health,
+              player.maxStats.health,
+            );
+          if (effect.energy)
+            player.energy = Math.min(
+              player.energy + effect.energy,
+              player.maxStats.energy,
+            );
+          if (effect.food)
+            player.food = Math.min(
+              player.food + effect.food,
+              player.maxStats.food,
+            );
+          if (effect.water)
+            player.water = Math.min(
+              player.water + effect.water,
+              player.maxStats.water,
+            );
+          if (effect.armor)
+            player.armor = Math.min(
+              player.armor + effect.armor,
+              player.maxStats.armor,
+            );
+
+          // Жёсткие ограничения (как было)
+          player.health = Math.max(
+            0,
+            Math.min(player.health, player.maxStats?.health || 100),
+          );
+          player.energy = Math.max(
+            0,
+            Math.min(player.energy, player.maxStats?.energy || 100),
+          );
+          player.food = Math.max(
+            0,
+            Math.min(player.food, player.maxStats?.food || 100),
+          );
+          player.water = Math.max(
+            0,
+            Math.min(player.water, player.maxStats?.water || 100),
+          );
+          player.armor = Math.max(
+            0,
+            Math.min(player.armor, player.maxStats?.armor || 0),
+          );
+
+          // Уменьшаем/удаляем предмет
+          if (ITEM_CONFIG[item.type].stackable) {
+            if (item.quantity > 1) {
+              player.inventory[slotIndex].quantity -= 1;
+            } else {
+              player.inventory[slotIndex] = null;
+            }
+          } else {
+            player.inventory[slotIndex] = null;
+          }
+
+          // Сохраняем изменения
+          players.set(id, { ...player });
+          userDatabase.set(id, { ...player });
+          await saveUserDatabase(dbCollection, id, player);
+
+          // Отправляем успех клиенту (как было)
+          ws.send(
+            JSON.stringify({
+              type: "useItemSuccess",
+              stats: {
+                health: player.health,
+                energy: player.energy,
+                food: player.food,
+                water: player.water,
+                armor: player.armor,
+              },
+              inventory: player.inventory,
+            }),
+          );
+        }
+
+        ws.isProcessingUseItem = false;
       }
     });
 
