@@ -1602,7 +1602,7 @@ function updateResources() {
   sendWhenReady(
     ws,
     JSON.stringify({
-      type: "move",
+      type: "update",
       player: {
         id: myId,
         x: me.x,
@@ -1860,76 +1860,7 @@ function handleGameMessage(event) {
       case "inventoryFull":
         pendingPickups.delete(data.itemId);
         break;
-      case "move": {
-        if (data.player?.id === myId) {
-          const me = players.get(myId);
-          if (!me) break;
-
-          const serverX = data.player.x;
-          const serverY = data.player.y;
-
-          if (serverX !== undefined && serverY !== undefined) {
-            // Вычисляем расстояние до серверной позиции
-            const dx = serverX - me.x;
-            const dy = serverY - me.y;
-            const dist = Math.hypot(dx, dy);
-
-            if (dist > 40) {
-              // ← увеличил порог до 40–60 px
-              // Сильное рассинхронизирование — телепорт
-              me.x = serverX;
-              me.y = serverY;
-              console.warn("Strong position correction", dist);
-            } else if (dist > 8) {
-              // Плавная коррекция (lerp)
-              me.x += dx * 0.35; // ← коэффициент 0.3–0.5, подбери под ощущения
-              me.y += dy * 0.35;
-            }
-            // если dist ≤ 8 — игнорируем, клиент уже почти там
-          }
-
-          if (data.player.direction) me.direction = data.player.direction;
-          if (data.player.state) me.state = data.player.state;
-          if (data.player.frame !== undefined) me.frame = data.player.frame;
-
-          if (data.player.attackFrame !== undefined) {
-            me.attackFrame = data.player.attackFrame;
-            me.attackFrameTime = data.player.attackFrameTime ?? 0;
-          }
-        } else if (data.player?.id) {
-          let p = players.get(data.player.id);
-          if (!p) {
-            // редкий случай — новый игрок только что вошёл
-            p = { ...data.player, worldId: window.worldSystem.currentWorldId };
-            players.set(data.player.id, p);
-          }
-
-          // Интерполяция цели
-          p.targetX = data.player.x;
-          p.targetY = data.player.y;
-          p.targetDirection = data.player.direction;
-          p.targetState = data.player.state;
-
-          if (data.player.attackFrame !== undefined) {
-            p.attackFrame = data.player.attackFrame;
-            p.attackFrameTime = data.player.attackFrameTime ?? 0;
-          }
-
-          // Детект начала атаки (очень важно!)
-          const wasAttacking = p.state === "attacking";
-          p.state = data.player.state ?? p.state;
-          p.direction = data.player.direction ?? p.direction;
-
-          if (p.state === "attacking" && !wasAttacking) {
-            p.attackFrame = 0;
-            p.attackFrameTime = 0;
-            p.animTime = 0;
-            p.frame = 0;
-          }
-        }
-        break;
-      }
-      case "update": {
+      case "update":
         if (data.player?.id === myId) {
           const me = players.get(myId);
           if (!me) break;
@@ -1938,80 +1869,156 @@ function handleGameMessage(event) {
           if (data.player.health !== undefined) {
             const oldHealth = Number(me.health) || 0;
             let newHealth = Number(data.player.health);
+
+            // Защита от отрицательного здоровья с сервера
             newHealth = Math.max(0, newHealth);
 
             if (newHealth < oldHealth && window.regenerationSystem) {
               window.regenerationSystem.resetTimerOnDamage();
             }
 
-            me.health = Math.min(newHealth, me.maxStats?.health || 100);
+            me.health = Math.max(
+              0,
+              Math.min(newHealth, me.maxStats?.health || 100),
+            );
           }
 
-          // Остальные статы
-          if (data.player.energy !== undefined)
-            me.energy = Math.max(
-              0,
-              Math.min(data.player.energy, me.maxStats?.energy || 100),
-            );
-          if (data.player.food !== undefined)
-            me.food = Math.max(
-              0,
-              Math.min(data.player.food, me.maxStats?.food || 100),
-            );
-          if (data.player.water !== undefined)
-            me.water = Math.max(
-              0,
-              Math.min(data.player.water, me.maxStats?.water || 100),
-            );
-          if (data.player.armor !== undefined)
-            me.armor = Number(data.player.armor);
-          if (data.player.distanceTraveled !== undefined)
-            me.distanceTraveled = Number(data.player.distanceTraveled);
-          if (data.player.meleeDamageBonus !== undefined)
-            me.meleeDamageBonus = Number(data.player.meleeDamageBonus);
+          const isMoving = me.state === "walking" || me.state === "attacking";
 
+          if (isMoving) {
+            const { x, y, direction, state, frame, ...stats } = data.player;
+            Object.assign(me, stats);
+          } else {
+            if (data.player.x !== undefined) {
+              me.serverTargetX = data.player.x;
+              me.serverTargetY = data.player.y;
+              me.x += (me.serverTargetX - me.x) * 0.1;
+              me.y += (me.serverTargetY - me.y) * 0.1;
+              if (
+                Math.abs(me.serverTargetX - me.x) < 0.5 &&
+                Math.abs(me.serverTargetY - me.y) < 0.5
+              ) {
+                me.x = me.serverTargetX;
+                me.y = me.serverTargetY;
+                delete me.serverTargetX;
+                delete me.serverTargetY;
+              }
+            }
+            const { x, y, ...stats } = data.player;
+            Object.assign(me, stats);
+            if (data.player.meleeDamageBonus !== undefined) {
+              me.meleeDamageBonus = Number(data.player.meleeDamageBonus);
+            }
+          }
+
+          if (data.player.inventory) {
+            // Глубокая копия, чтобы не было неожиданных мутаций
+            inventory = data.player.inventory.map((slot) =>
+              slot ? { ...slot } : null,
+            );
+
+            // Синхронизируем также в объекте игрока
+            me.inventory = inventory.map((slot) => (slot ? { ...slot } : null));
+
+            // Обновляем отображение инвентаря
+            window.inventorySystem?.updateInventoryDisplay();
+
+            // Если открыто меню Mister Twister — обновляем баланс на табло
+            if (window.misterTwister?.isMenuOpen) {
+              window.misterTwister.updateLocalBalanceDisplay();
+            }
+          }
+
+          // Оборудование (оставляем как было)
+          if (data.player.equipment) {
+            window.equipmentSystem.syncEquipment(data.player.equipment);
+          }
+
+          // Обновляем статы в любом случае
           updateStatsDisplay();
         } else if (data.player?.id) {
-          const p = players.get(data.player.id);
-          if (p) {
-            Object.assign(p, {
-              health: data.player.health ?? p.health,
-              energy: data.player.energy ?? p.energy,
-              food: data.player.food ?? p.food,
-              water: data.player.water ?? p.water,
-              armor: data.player.armor ?? p.armor,
-              inventory: data.player.inventory ?? p.inventory,
-              equipment: data.player.equipment ?? p.equipment,
-              distanceTraveled:
-                data.player.distanceTraveled ?? p.distanceTraveled,
-              meleeDamageBonus:
-                data.player.meleeDamageBonus ?? p.meleeDamageBonus,
-            });
+          const existing = players.get(data.player.id) || {};
+
+          const updatedPlayer = {
+            ...existing,
+            ...data.player,
+            targetX: data.player.x,
+            targetY: data.player.y,
+            targetDirection: data.player.direction,
+            targetState: data.player.state,
+            x: existing.x ?? data.player.x,
+            y: existing.y ?? data.player.y,
+            direction: data.player.direction,
+            state: data.player.state,
+          };
+
+          if (data.player.attackFrame !== undefined) {
+            updatedPlayer.attackFrame = data.player.attackFrame;
+            updatedPlayer.attackFrameTime = data.player.attackFrameTime || 0;
+          } else if (data.player.state !== "attacking") {
+            updatedPlayer.attackFrame = 0;
+            updatedPlayer.attackFrameTime = 0;
           }
+
+          // Если атака только началась — гарантируем сброс
+          if (
+            data.player.state === "attacking" &&
+            existing.state !== "attacking"
+          ) {
+            updatedPlayer.attackFrame = 0;
+            updatedPlayer.attackFrameTime = 0;
+          }
+
+          if (data.player.attackFrameTime !== undefined) {
+            updatedPlayer.attackFrameTime = data.player.attackFrameTime;
+          }
+          if (data.player.attackFrame !== undefined) {
+            updatedPlayer.attackFrame = data.player.attackFrame;
+          }
+
+          // Добавь это:
+          if (data.player.attackFrame !== undefined) {
+            updatedPlayer.attackFrame = data.player.attackFrame;
+            updatedPlayer.attackFrameTime = data.player.attackFrameTime || 0;
+          }
+
+          // КРИТИЧНО ВАЖНЫЙ БЛОК: детект начала атаки у других игроков
+          const wasAttacking = existing.state === "attacking";
+          const isAttacking = data.player.state === "attacking";
+
+          if (isAttacking && !wasAttacking) {
+            // Игрок ТОЛЬКО ЧТО начал атаковать (даже стоя на месте!)
+            updatedPlayer.attackFrame = 0;
+            updatedPlayer.attackFrameTime = 0;
+            updatedPlayer.animTime = 0; // сбрасываем анимацию ходьбы
+            updatedPlayer.frame = 0;
+            updatedPlayer.prevState = existing.state || "idle"; // на всякий
+          } else if (!isAttacking && wasAttacking) {
+            // Закончил атаку
+            updatedPlayer.attackFrame = 0;
+            updatedPlayer.attackFrameTime = 0;
+          } else if (isAttacking && wasAttacking) {
+            // Продолжает атаковать — сохраняем прогресс
+            updatedPlayer.attackFrame = existing.attackFrame || 0;
+            updatedPlayer.attackFrameTime = existing.attackFrameTime || 0;
+          } else {
+            // Не атакует вообще
+            updatedPlayer.attackFrame = 0;
+            updatedPlayer.attackFrameTime = 0;
+          }
+
+          // Анимация ходьбы — только если не атакует
+          if (data.player.state === "walking") {
+            updatedPlayer.animTime = existing.animTime || 0;
+            updatedPlayer.frame = existing.frame ?? 0;
+          } else if (data.player.state !== "attacking") {
+            updatedPlayer.frame = 0;
+            updatedPlayer.animTime = 0;
+          }
+
+          players.set(data.player.id, updatedPlayer);
         }
         break;
-      }
-      case "forcePosition": {
-        const me = players.get(myId);
-        if (!me) break;
-
-        if (data.x !== undefined) me.x = data.x;
-        if (data.y !== undefined) me.y = data.y;
-
-        // Можно сбросить предсказание движения, чтобы не дёргалось дальше
-        if (window.movementSystem?.resetPrediction) {
-          window.movementSystem.resetPrediction();
-        }
-
-        console.log(
-          "Server forced position →",
-          data.x,
-          data.y,
-          "reason:",
-          data.reason,
-        );
-        break;
-      }
       case "itemDropped":
         if (data.worldId === currentWorldId) {
           items.set(data.itemId, {

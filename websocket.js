@@ -3703,10 +3703,13 @@ function setupWebSocket(
             newHealth: player.health,
           }),
         );
-      } else if (data.type === "move") {
+      }
+      if (data.type === "update" || data.type === "move") {
         const playerId = clients.get(ws);
 
+        // Очень важная защита
         if (!playerId || !players.has(playerId)) {
+          // Игрок ещё не авторизован или уже отключился
           ws.send(
             JSON.stringify({
               type: "error",
@@ -3717,23 +3720,54 @@ function setupWebSocket(
         }
 
         const player = players.get(playerId);
+
+        // Теперь player точно существует
         const currentWorldId = player.worldId;
+
+        // Сохраняем старую позицию для проверки препятствий
         const oldX = player.x;
         const oldY = player.y;
 
-        // Принимаем ТОЛЬКО поля, относящиеся к движению
+        // Принимаем только разрешённые поля
         if (data.x !== undefined) player.x = Number(data.x);
         if (data.y !== undefined) player.y = Number(data.y);
         if (data.direction) player.direction = data.direction;
         if (data.state) player.state = data.state;
-        if (data.frame !== undefined) player.frame = Number(data.frame);
         if (data.attackFrame !== undefined)
           player.attackFrame = Number(data.attackFrame);
         if (data.attackFrameTime !== undefined)
           player.attackFrameTime = Number(data.attackFrameTime);
+        if (data.frame !== undefined) player.frame = Number(data.frame);
 
-        // Проверка коллизий — только если пришли координаты
+        // Ограничиваем статы безопасными значениями
+        if (data.health !== undefined)
+          player.health = Math.max(
+            0,
+            Math.min(player.maxStats?.health || 100, Number(data.health)),
+          );
+        if (data.energy !== undefined)
+          player.energy = Math.max(
+            0,
+            Math.min(player.maxStats?.energy || 100, Number(data.energy)),
+          );
+        if (data.food !== undefined)
+          player.food = Math.max(
+            0,
+            Math.min(player.maxStats?.food || 100, Number(data.food)),
+          );
+        if (data.water !== undefined)
+          player.water = Math.max(
+            0,
+            Math.min(player.maxStats?.water || 100, Number(data.water)),
+          );
+        if (data.armor !== undefined) player.armor = Number(data.armor);
+        if (data.distanceTraveled !== undefined)
+          player.distanceTraveled = Number(data.distanceTraveled);
+
+        // ─── ПРОВЕРКА ПРЕПЯТСТВИЙ ───────────────────────────────────────
         let positionValid = true;
+
+        // Проверяем только если пришли новые координаты
         if (data.x !== undefined || data.y !== undefined) {
           for (const obs of obstacles) {
             if (obs.worldId !== currentWorldId) continue;
@@ -3770,21 +3804,29 @@ function setupWebSocket(
           );
         }
 
+        // Сохраняем изменения
         players.set(playerId, { ...player });
 
-        // Готовим минимальный пакет только с данными движения
-        const moveData = {
+        // Готовим данные для рассылки
+        const updateData = {
           id: playerId,
           x: player.x,
           y: player.y,
           direction: player.direction,
           state: player.state,
           frame: player.frame,
+          health: player.health,
+          energy: player.energy,
+          food: player.food,
+          water: player.water,
+          armor: player.armor,
+          distanceTraveled: player.distanceTraveled,
+          meleeDamageBonus: player.meleeDamageBonus || 0,
         };
 
         if (player.state === "attacking") {
-          moveData.attackFrame = player.attackFrame ?? 0;
-          moveData.attackFrameTime = player.attackFrameTime ?? 0;
+          updateData.attackFrame = player.attackFrame ?? 0;
+          updateData.attackFrameTime = player.attackFrameTime ?? 0;
         }
 
         broadcastToWorld(
@@ -3793,84 +3835,8 @@ function setupWebSocket(
           players,
           currentWorldId,
           JSON.stringify({
-            type: "move",
-            player: moveData,
-          }),
-        );
-      } else if (data.type === "update") {
-        const playerId = clients.get(ws);
-
-        if (!playerId || !players.has(playerId)) {
-          ws.send(
-            JSON.stringify({
-              type: "error",
-              message: "Not authenticated or session expired",
-            }),
-          );
-          return;
-        }
-
-        const player = players.get(playerId);
-
-        // Очень жёсткая проверка допустимых значений статов
-        if (data.health !== undefined) {
-          player.health = Math.max(
-            0,
-            Math.min(player.maxStats?.health || 100, Number(data.health)),
-          );
-        }
-        if (data.energy !== undefined) {
-          player.energy = Math.max(
-            0,
-            Math.min(player.maxStats?.energy || 100, Number(data.energy)),
-          );
-        }
-        if (data.food !== undefined) {
-          player.food = Math.max(
-            0,
-            Math.min(player.maxStats?.food || 100, Number(data.food)),
-          );
-        }
-        if (data.water !== undefined) {
-          player.water = Math.max(
-            0,
-            Math.min(player.maxStats?.water || 100, Number(data.water)),
-          );
-        }
-        if (data.armor !== undefined) {
-          player.armor = Number(data.armor);
-        }
-        if (data.distanceTraveled !== undefined) {
-          player.distanceTraveled = Number(data.distanceTraveled);
-        }
-        if (data.meleeDamageBonus !== undefined) {
-          player.meleeDamageBonus = Number(data.meleeDamageBonus);
-        }
-
-        players.set(playerId, { ...player });
-
-        // Рассылаем ТОЛЬКО статы
-        const statsData = {
-          id: playerId,
-          health: player.health,
-          energy: player.energy,
-          food: player.food,
-          water: player.water,
-          armor: player.armor,
-          inventory: player.inventory,
-          equipment: player.equipment,
-          distanceTraveled: player.distanceTraveled,
-          meleeDamageBonus: player.meleeDamageBonus || 0,
-        };
-
-        broadcastToWorld(
-          wss,
-          clients,
-          players,
-          player.worldId,
-          JSON.stringify({
             type: "update",
-            player: statsData,
+            player: updateData,
           }),
         );
       }
