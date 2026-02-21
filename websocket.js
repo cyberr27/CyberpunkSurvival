@@ -572,84 +572,16 @@ function setupWebSocket(
         ws.registerQueue.push(data);
         processRegisterQueue(ws);
         return;
-      } else if (data.type === "worldTransition") {
-        const id = clients.get(ws);
-        if (id) {
-          const player = players.get(id);
-          const oldWorldId = player.worldId;
-          const targetWorldId = data.targetWorldId;
+      }
+      if (!ws.transitionQueue) {
+        ws.transitionQueue = [];
+        ws.isProcessingTransition = false;
+      }
 
-          if (!worlds.find((w) => w.id === targetWorldId)) {
-            return;
-          }
-
-          player.worldId = targetWorldId;
-          player.x = data.x;
-          player.y = data.y;
-          player.worldPositions[targetWorldId] = { x: data.x, y: data.y };
-
-          players.set(id, { ...player });
-          userDatabase.set(id, { ...player });
-          await saveUserDatabase(dbCollection, id, player);
-
-          wss.clients.forEach((client) => {
-            if (client.readyState === WebSocket.OPEN) {
-              const clientPlayer = players.get(clients.get(client));
-              if (clientPlayer && clientPlayer.worldId === oldWorldId) {
-                client.send(JSON.stringify({ type: "playerLeft", id }));
-              }
-            }
-          });
-
-          const worldPlayers = Array.from(players.values()).filter(
-            (p) => p.id !== id && p.worldId === targetWorldId,
-          );
-
-          wss.clients.forEach((client) => {
-            if (client.readyState === WebSocket.OPEN) {
-              const clientPlayer = players.get(clients.get(client));
-              if (clientPlayer && clientPlayer.worldId === targetWorldId) {
-                client.send(JSON.stringify({ type: "newPlayer", player }));
-              }
-            }
-          });
-
-          const worldItems = Array.from(items.entries())
-            .filter(([_, item]) => item.worldId === targetWorldId)
-            .map(([itemId, item]) => ({
-              itemId,
-              x: item.x,
-              y: item.y,
-              type: item.type,
-              spawnTime: item.spawnTime,
-              worldId: item.worldId,
-            }));
-          const worldEnemies = Array.from(enemies.entries())
-            .filter(([_, enemy]) => enemy.worldId === targetWorldId)
-            .map(([enemyId, enemy]) => ({
-              enemyId,
-              x: enemy.x,
-              y: enemy.y,
-              health: enemy.health,
-              direction: enemy.direction,
-              state: enemy.state,
-              frame: enemy.frame,
-              worldId: enemy.worldId,
-            }));
-
-          ws.send(
-            JSON.stringify({
-              type: "worldTransitionSuccess",
-              worldId: targetWorldId,
-              x: player.x,
-              y: player.y,
-              lights: lights.get(targetWorldId).map(({ id, ...rest }) => rest),
-              players: worldPlayers,
-              items: worldItems,
-              enemies: worldEnemies,
-            }),
-          );
-        }
+      if (data.type === "worldTransition") {
+        ws.transitionQueue.push(data);
+        processWorldTransitionQueue(ws);
+        return;
       } else if (data.type === "syncPlayers") {
         const id = clients.get(ws);
         if (id) {
@@ -3858,6 +3790,110 @@ function setupWebSocket(
         }
 
         ws.isProcessingRegister = false;
+      }
+      async function processWorldTransitionQueue(ws) {
+        if (ws.isProcessingTransition) return;
+        ws.isProcessingTransition = true;
+
+        while (ws.transitionQueue.length > 0) {
+          const data = ws.transitionQueue.shift();
+
+          const id = clients.get(ws);
+          if (!id) continue; // игрок уже отключился — пропускаем
+
+          const player = players.get(id);
+          if (!player) continue;
+
+          const oldWorldId = player.worldId;
+          const targetWorldId = data.targetWorldId;
+
+          // Проверяем существование мира
+          if (!worlds.find((w) => w.id === targetWorldId)) {
+            ws.send(
+              JSON.stringify({
+                type: "worldTransitionFail",
+                reason: "invalid_world",
+              }),
+            );
+            continue;
+          }
+
+          // ── Основная логика перехода (та же, что была раньше) ─────────────
+          player.worldId = targetWorldId;
+          player.x = data.x;
+          player.y = data.y;
+          player.worldPositions[targetWorldId] = { x: data.x, y: data.y };
+
+          players.set(id, { ...player });
+          userDatabase.set(id, { ...player });
+          await saveUserDatabase(dbCollection, id, player);
+
+          // Уведомляем всех в старом мире, что игрок ушёл
+          wss.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+              const clientPlayer = players.get(clients.get(client));
+              if (clientPlayer && clientPlayer.worldId === oldWorldId) {
+                client.send(JSON.stringify({ type: "playerLeft", id }));
+              }
+            }
+          });
+
+          // Собираем данные нового мира
+          const worldPlayers = Array.from(players.values()).filter(
+            (p) => p.id !== id && p.worldId === targetWorldId,
+          );
+
+          const worldItems = Array.from(items.entries())
+            .filter(([_, item]) => item.worldId === targetWorldId)
+            .map(([itemId, item]) => ({
+              itemId,
+              x: item.x,
+              y: item.y,
+              type: item.type,
+              spawnTime: item.spawnTime,
+              worldId: item.worldId,
+            }));
+
+          const worldEnemies = Array.from(enemies.entries())
+            .filter(([_, enemy]) => enemy.worldId === targetWorldId)
+            .map(([enemyId, enemy]) => ({
+              enemyId,
+              x: enemy.x,
+              y: enemy.y,
+              health: enemy.health,
+              direction: enemy.direction,
+              state: enemy.state,
+              frame: enemy.frame,
+              worldId: enemy.worldId,
+            }));
+
+          // Отправляем успех текущему игроку + все данные нового мира
+          ws.send(
+            JSON.stringify({
+              type: "worldTransitionSuccess",
+              worldId: targetWorldId,
+              x: player.x,
+              y: player.y,
+              lights:
+                lights.get(targetWorldId)?.map(({ id, ...rest }) => rest) || [],
+              players: worldPlayers,
+              items: worldItems,
+              enemies: worldEnemies,
+            }),
+          );
+
+          // Уведомляем всех в новом мире о новом игроке
+          wss.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+              const clientPlayer = players.get(clients.get(client));
+              if (clientPlayer && clientPlayer.worldId === targetWorldId) {
+                client.send(JSON.stringify({ type: "newPlayer", player }));
+              }
+            }
+          });
+        }
+
+        ws.isProcessingTransition = false;
       }
     });
 
