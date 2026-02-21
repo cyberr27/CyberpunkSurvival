@@ -612,6 +612,16 @@ function setupWebSocket(
         ws.updateQueue.push(data);
         processUpdateQueue(ws);
         return;
+      }
+      if (!ws.pickupQueue) {
+        ws.pickupQueue = [];
+        ws.isProcessingPickup = false;
+      }
+
+      if (data.type === "pickup") {
+        ws.pickupQueue.push(data);
+        processPickupQueue(ws);
+        return;
       } else if (data.type === "buyWater") {
         const id = clients.get(ws);
         if (!id) return;
@@ -927,147 +937,6 @@ function setupWebSocket(
           userDatabase.set(id, { ...player });
           await saveUserDatabase(dbCollection, id, player);
         }
-      } else if (data.type === "pickup") {
-        const id = clients.get(ws);
-        if (!id) return;
-
-        if (!items.has(data.itemId)) {
-          ws.send(
-            JSON.stringify({ type: "itemNotFound", itemId: data.itemId }),
-          );
-          return;
-        }
-
-        const item = items.get(data.itemId);
-        const player = players.get(id);
-
-        if (item.isQuestItem && item.questOwnerId !== id) {
-          return;
-        }
-
-        if (!player.inventory) player.inventory = Array(20).fill(null);
-
-        // НОВОЕ: Расширили условие на atom, чтобы он тоже стекался как balyary
-        if (
-          item.type === "balyary" ||
-          item.type === "atom" ||
-          item.type === "blue_crystal" ||
-          item.type === "green_crystal" ||
-          item.type === "red_crystal" ||
-          item.type === "white_crystal" ||
-          item.type === "yellow_crystal" ||
-          item.type === "chameleon_crystal" ||
-          item.type === "nanofilament" ||
-          item.type === "nanoalloy" ||
-          (item.type.startsWith("recipe_") && item.type.includes("_equipment"))
-        ) {
-          const quantityToAdd = item.quantity || 1;
-          // ИЗМЕНЕНО: Ищем слот с соответствующим типом (balyary или atom)
-          const stackSlot = player.inventory.findIndex(
-            (slot) => slot && slot.type === item.type, // Теперь проверяем item.type, чтобы работало для atom
-          );
-          if (stackSlot !== -1) {
-            player.inventory[stackSlot].quantity =
-              (player.inventory[stackSlot].quantity || 1) + quantityToAdd;
-          } else {
-            const freeSlot = player.inventory.findIndex(
-              (slot) => slot === null,
-            );
-            if (freeSlot !== -1) {
-              player.inventory[freeSlot] = {
-                type: item.type, // Используем item.type, чтобы было "atom" или "balyary"
-                quantity: quantityToAdd,
-                itemId: data.itemId,
-              };
-            } else {
-              ws.send(
-                JSON.stringify({ type: "inventoryFull", itemId: data.itemId }),
-              );
-              return;
-            }
-          }
-        } else {
-          const freeSlot = player.inventory.findIndex((slot) => slot === null);
-          if (freeSlot !== -1) {
-            player.inventory[freeSlot] = {
-              type: item.type,
-              itemId: data.itemId,
-            };
-          } else {
-            ws.send(
-              JSON.stringify({ type: "inventoryFull", itemId: data.itemId }),
-            );
-            return;
-          }
-        }
-
-        items.delete(data.itemId);
-        players.set(id, { ...player });
-        userDatabase.set(id, { ...player });
-        await saveUserDatabase(dbCollection, id, player);
-
-        wss.clients.forEach((client) => {
-          if (client.readyState === WebSocket.OPEN) {
-            const clientPlayer = players.get(clients.get(client));
-            if (clientPlayer && clientPlayer.worldId === item.worldId) {
-              client.send(
-                JSON.stringify({
-                  type: "itemPicked",
-                  itemId: data.itemId,
-                  playerId: id,
-                  item: {
-                    type: item.type,
-                    itemId: data.itemId,
-                    quantity: item.quantity || 1,
-                    isDroppedByPlayer: item.isDroppedByPlayer || false,
-                  },
-                }),
-              );
-              if (clients.get(client) === id) {
-                client.send(
-                  JSON.stringify({ type: "update", player: { id, ...player } }),
-                );
-              }
-            }
-          }
-        });
-
-        setTimeout(
-          () => {
-            const worldWidth = worlds.find((w) => w.id === item.worldId).width;
-            const worldHeight = worlds.find(
-              (w) => w.id === item.worldId,
-            ).height;
-            const newItemId = `${item.type}_${Date.now()}`;
-            const newItem = {
-              x: Math.random() * worldWidth,
-              y: Math.random() * worldHeight,
-              type: item.type,
-              spawnTime: Date.now(),
-              worldId: item.worldId,
-            };
-            items.set(newItemId, newItem);
-            wss.clients.forEach((client) => {
-              if (client.readyState === WebSocket.OPEN) {
-                const clientPlayer = players.get(clients.get(client));
-                if (clientPlayer && clientPlayer.worldId === item.worldId) {
-                  client.send(
-                    JSON.stringify({
-                      type: "newItem",
-                      itemId: newItemId,
-                      x: newItem.x,
-                      y: newItem.y,
-                      type: newItem.type,
-                      spawnTime: newItem.spawnTime,
-                      worldId: newItem.worldId,
-                    }),
-                  );
-                }
-              }
-            });
-          },
-          10 * 60 * 1000,
-        );
       } else if (data.type === "chat") {
         const id = clients.get(ws);
         if (id) {
@@ -3958,6 +3827,177 @@ function setupWebSocket(
         }
 
         ws.isProcessingUpdate = false;
+      }
+      async function processPickupQueue(ws) {
+        if (ws.isProcessingPickup) return;
+        ws.isProcessingPickup = true;
+
+        while (ws.pickupQueue.length > 0) {
+          const data = ws.pickupQueue.shift();
+
+          const id = clients.get(ws);
+          if (!id) continue;
+
+          if (!items.has(data.itemId)) {
+            ws.send(
+              JSON.stringify({ type: "itemNotFound", itemId: data.itemId }),
+            );
+            continue;
+          }
+
+          const item = items.get(data.itemId);
+          const player = players.get(id);
+
+          if (!player) continue;
+
+          // Защита квестовых предметов
+          if (item.isQuestItem && item.questOwnerId !== id) {
+            continue;
+          }
+
+          if (!player.inventory) player.inventory = Array(20).fill(null);
+
+          let picked = false;
+
+          // Стекируемые предметы (balyary, atom, кристаллы, рецепты и т.д.)
+          if (
+            item.type === "balyary" ||
+            item.type === "atom" ||
+            item.type === "blue_crystal" ||
+            item.type === "green_crystal" ||
+            item.type === "red_crystal" ||
+            item.type === "white_crystal" ||
+            item.type === "yellow_crystal" ||
+            item.type === "chameleon_crystal" ||
+            item.type === "nanofilament" ||
+            item.type === "nanoalloy" ||
+            (item.type.startsWith("recipe_") &&
+              item.type.includes("_equipment"))
+          ) {
+            const quantityToAdd = item.quantity || 1;
+            const stackSlot = player.inventory.findIndex(
+              (slot) => slot && slot.type === item.type,
+            );
+
+            if (stackSlot !== -1) {
+              player.inventory[stackSlot].quantity =
+                (player.inventory[stackSlot].quantity || 1) + quantityToAdd;
+              picked = true;
+            } else {
+              const freeSlot = player.inventory.findIndex(
+                (slot) => slot === null,
+              );
+              if (freeSlot !== -1) {
+                player.inventory[freeSlot] = {
+                  type: item.type,
+                  quantity: quantityToAdd,
+                  itemId: data.itemId,
+                };
+                picked = true;
+              }
+            }
+          } else {
+            // Обычные предметы — один в слот
+            const freeSlot = player.inventory.findIndex(
+              (slot) => slot === null,
+            );
+            if (freeSlot !== -1) {
+              player.inventory[freeSlot] = {
+                type: item.type,
+                itemId: data.itemId,
+              };
+              picked = true;
+            }
+          }
+
+          if (!picked) {
+            ws.send(
+              JSON.stringify({ type: "inventoryFull", itemId: data.itemId }),
+            );
+            continue;
+          }
+
+          // Удаляем предмет с карты
+          items.delete(data.itemId);
+
+          // Сохраняем игрока
+          players.set(id, { ...player });
+          userDatabase.set(id, { ...player });
+          await saveUserDatabase(dbCollection, id, player);
+
+          // Рассылаем всем в мире
+          wss.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+              const clientPlayer = players.get(clients.get(client));
+              if (clientPlayer && clientPlayer.worldId === item.worldId) {
+                client.send(
+                  JSON.stringify({
+                    type: "itemPicked",
+                    itemId: data.itemId,
+                    playerId: id,
+                    item: {
+                      type: item.type,
+                      itemId: data.itemId,
+                      quantity: item.quantity || 1,
+                      isDroppedByPlayer: item.isDroppedByPlayer || false,
+                    },
+                  }),
+                );
+
+                // Обновляем самого подобравшего
+                if (clients.get(client) === id) {
+                  client.send(
+                    JSON.stringify({
+                      type: "update",
+                      player: { id, ...player },
+                    }),
+                  );
+                }
+              }
+            }
+          });
+
+          // Респавн через 10 минут (как было)
+          setTimeout(
+            () => {
+              const world = worlds.find((w) => w.id === item.worldId);
+              if (!world) return;
+
+              const newItemId = `${item.type}_${Date.now()}`;
+              const newItem = {
+                x: Math.random() * world.width,
+                y: Math.random() * world.height,
+                type: item.type,
+                spawnTime: Date.now(),
+                worldId: item.worldId,
+              };
+
+              items.set(newItemId, newItem);
+
+              wss.clients.forEach((client) => {
+                if (client.readyState === WebSocket.OPEN) {
+                  const clientPlayer = players.get(clients.get(client));
+                  if (clientPlayer && clientPlayer.worldId === item.worldId) {
+                    client.send(
+                      JSON.stringify({
+                        type: "newItem",
+                        itemId: newItemId,
+                        x: newItem.x,
+                        y: newItem.y,
+                        type: newItem.type,
+                        spawnTime: newItem.spawnTime,
+                        worldId: newItem.worldId,
+                      }),
+                    );
+                  }
+                }
+              });
+            },
+            10 * 60 * 1000,
+          );
+        }
+
+        ws.isProcessingPickup = false;
       }
     });
 
