@@ -4124,7 +4124,27 @@ function setupWebSocket(
           if (!attacker) continue;
 
           const enemy = enemies.get(data.targetId);
-          if (!enemy || enemy.worldId !== data.worldId || enemy.health <= 0) {
+
+          if (!enemy || enemy.worldId !== data.worldId) {
+            // Моб не найден или в другом мире — принудительно говорим клиенту "он мёртв"
+            ws.send(
+              JSON.stringify({
+                type: "enemyDied",
+                enemyId: data.targetId,
+              }),
+            );
+            continue;
+          }
+
+          if (enemy.health <= 0) {
+            // Уже мёртв (кто-то другой убил) — удаляем на сервере (на всякий) и говорим атакующему
+            enemies.delete(data.targetId);
+            ws.send(
+              JSON.stringify({
+                type: "enemyDied",
+                enemyId: data.targetId,
+              }),
+            );
             continue;
           }
 
