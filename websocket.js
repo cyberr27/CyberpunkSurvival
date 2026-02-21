@@ -592,212 +592,16 @@ function setupWebSocket(
         ws.syncQueue.push(data);
         processSyncQueue(ws);
         return;
-      } else if (data.type === "login") {
-        const player = userDatabase.get(data.username);
-        if (player && player.password === data.password) {
-          clients.set(ws, data.username);
-          const playerData = {
-            ...player,
-            inventory: player.inventory || Array(20).fill(null),
-            equipment: player.equipment || {
-              head: null,
-              chest: null,
-              belt: null,
-              pants: null,
-              boots: null,
-              weapon: null,
-              gloves: null,
-            },
-            npcMet: player.npcMet || false,
-            jackMet: player.jackMet || false,
-            alexNeonMet: player.alexNeonMet || false,
-            captainMet: player.captainMet || false,
-            thimbleriggerMet: player.thimbleriggerMet || false,
-            torestosMet: player.torestosMet || false,
-            toremidosMet: player.toremidosMet || false,
-            selectedQuestId: player.selectedQuestId || null,
-            level: player.level || 0,
-            xp: player.xp || 0,
-            skills: player.skills || [],
-            meleeDamageBonus: player.meleeDamageBonus || 0,
-            skillPoints: player.skillPoints || 0,
-            upgradePoints: player.upgradePoints || 0,
-            availableQuests: player.availableQuests || [],
-            worldId: player.worldId || 0,
-            hasSeenWelcomeGuide: player.hasSeenWelcomeGuide || false,
-            worldPositions: player.worldPositions || {
-              0: { x: player.x, y: player.y },
-            },
+      }
+      if (!ws.loginQueue) {
+        ws.loginQueue = [];
+        ws.isProcessingLogin = false;
+      }
 
-            healthUpgrade: player.healthUpgrade || 0,
-            energyUpgrade: player.energyUpgrade || 0,
-            foodUpgrade: player.foodUpgrade || 0,
-            waterUpgrade: player.waterUpgrade || 0,
-            neonQuest: player.neonQuest || {
-              currentQuestId: null,
-              progress: {},
-              completed: [],
-            },
-            medicalCertificate: player.medicalCertificate || false,
-            medicalCertificateStamped:
-              player.medicalCertificateStamped || false,
-            corporateDocumentsSubmitted:
-              player.corporateDocumentsSubmitted || false,
-
-            // Добавляем поле (даже если null — серверу не отправляем, но на клиенте важно)
-            chatBubble: player.chatBubble || null,
-          };
-
-          playerData.maxStats = playerData.maxStats || {
-            health: 100 + (playerData.healthUpgrade || 0),
-            energy: 100 + (playerData.energyUpgrade || 0),
-            food: 100 + (playerData.foodUpgrade || 0),
-            water: 100 + (playerData.waterUpgrade || 0),
-            armor: 0,
-          };
-
-          // Ограничиваем текущие значения (защита от старых сохранений или читов)
-          playerData.health = Math.max(
-            0,
-            Math.min(playerData.health ?? 0, playerData.maxStats.health || 100),
-          );
-          playerData.energy = Math.max(
-            0,
-            Math.min(playerData.energy || 100, playerData.maxStats.energy),
-          );
-          playerData.food = Math.max(
-            0,
-            Math.min(playerData.food || 100, playerData.maxStats.food),
-          );
-          playerData.water = Math.max(
-            0,
-            Math.min(playerData.water || 100, playerData.maxStats.water),
-          );
-          playerData.armor = Math.max(
-            0,
-            Math.min(playerData.armor || 0, playerData.maxStats.armor),
-          );
-
-          // Очень рекомендуется — пересчитать характеристики на всякий случай
-          calculateMaxStats(playerData, ITEM_CONFIG);
-          playerData.health = Math.max(
-            0,
-            Math.min(playerData.health, playerData.maxStats.health),
-          );
-
-          players.set(data.username, playerData);
-          ws.send(
-            JSON.stringify({
-              type: "loginSuccess",
-              id: data.username,
-              x: playerData.x,
-              y: playerData.y,
-              health: playerData.health,
-              energy: playerData.energy,
-              food: playerData.food,
-              water: playerData.water,
-              armor: playerData.armor,
-              distanceTraveled: playerData.distanceTraveled || 0,
-              direction: playerData.direction || "down",
-              state: playerData.state || "idle",
-              frame: playerData.frame || 0,
-              inventory: playerData.inventory,
-              equipment: playerData.equipment,
-              npcMet: playerData.npcMet,
-              jackMet: playerData.jackMet,
-              alexNeonMet: playerData.alexNeonMet,
-              captainMet: playerData.captainMet,
-              thimbleriggerMet: playerData.thimbleriggerMet,
-              torestosMet: playerData.torestosMet || false,
-              toremidosMet: playerData.toremidosMet,
-              selectedQuestId: playerData.selectedQuestId,
-              level: playerData.level,
-              xp: playerData.xp,
-              skills: playerData.skills,
-              skillPoints: playerData.skillPoints,
-              upgradePoints: playerData.upgradePoints,
-              availableQuests: playerData.availableQuests,
-              worldId: playerData.worldId,
-              hasSeenWelcomeGuide: playerData.hasSeenWelcomeGuide || false,
-              worldPositions: playerData.worldPositions,
-              healthUpgrade: playerData.healthUpgrade || 0,
-              energyUpgrade: playerData.energyUpgrade || 0,
-              foodUpgrade: playerData.foodUpgrade || 0,
-              waterUpgrade: playerData.waterUpgrade || 0,
-              neonQuest: playerData.neonQuest,
-              medicalCertificate: playerData.medicalCertificate || false,
-              medicalCertificateStamped:
-                playerData.medicalCertificateStamped || false,
-              corporateDocumentsSubmitted:
-                playerData.corporateDocumentsSubmitted || false,
-              trashCooldowns: playerData.trashCooldowns || {},
-              players: Array.from(players.values()).filter(
-                (p) =>
-                  p.id !== data.username && p.worldId === playerData.worldId,
-              ),
-              items: Array.from(items.entries())
-                .filter(([_, item]) => item.worldId === playerData.worldId)
-                .map(([itemId, item]) => ({
-                  itemId,
-                  x: item.x,
-                  y: item.y,
-                  type: item.type,
-                  spawnTime: item.spawnTime,
-                  worldId: item.worldId,
-                  enemies: Array.from(enemies.entries())
-                    .filter(
-                      ([_, enemy]) => enemy.worldId === playerData.worldId,
-                    )
-                    .map(([enemyId, enemy]) => ({
-                      enemyId,
-                      x: enemy.x,
-                      y: enemy.y,
-                      health: enemy.health,
-                      direction: enemy.direction,
-                      state: enemy.state,
-                      frame: enemy.frame,
-                      worldId: enemy.worldId,
-                    })),
-                })),
-              healthUpgrade: playerData.healthUpgrade,
-              energyUpgrade: playerData.energyUpgrade,
-              foodUpgrade: playerData.foodUpgrade,
-              waterUpgrade: playerData.waterUpgrade,
-              lights: lights
-                .get(playerData.worldId)
-                .map(({ id, ...rest }) => rest),
-            }),
-          );
-
-          ws.send(
-            JSON.stringify({
-              type: "trashAllStates",
-              states: trashCansState.map((st, idx) => ({
-                index: idx,
-                guessed: st.guessed,
-                isOpened: st.isOpened || false, // если поля isOpened ещё нет — будет false
-                nextAttemptAfter: st.nextAttemptAfter || 0,
-                // secretSuit: st.guessed ? st.secretSuit : undefined,   // можно включить, если хочешь
-              })),
-            }),
-          );
-
-          wss.clients.forEach((client) => {
-            if (client !== ws && client.readyState === WebSocket.OPEN) {
-              const clientPlayer = players.get(clients.get(client));
-              if (clientPlayer && clientPlayer.worldId === playerData.worldId) {
-                client.send(
-                  JSON.stringify({
-                    type: "newPlayer",
-                    player: players.get(data.username),
-                  }),
-                );
-              }
-            }
-          });
-        } else {
-          ws.send(JSON.stringify({ type: "loginFail" }));
-        }
+      if (data.type === "login") {
+        ws.loginQueue.push(data);
+        processLoginQueue(ws);
+        return; // ← обязательно! прерываем обычный поток
       } else if (data.type === "buyWater") {
         const id = clients.get(ws);
         if (!id) return;
@@ -3923,6 +3727,221 @@ function setupWebSocket(
         }
 
         ws.isProcessingSync = false;
+      }
+      async function processLoginQueue(ws) {
+        if (ws.isProcessingLogin) return;
+        ws.isProcessingLogin = true;
+
+        while (ws.loginQueue.length > 0) {
+          const data = ws.loginQueue.shift();
+
+          const player = userDatabase.get(data.username);
+          if (!player || player.password !== data.password) {
+            ws.send(JSON.stringify({ type: "loginFail" }));
+            continue;
+          }
+
+          // ── Основная логика логина (та же, что была раньше) ────────────────
+          clients.set(ws, data.username);
+
+          const playerData = {
+            ...player,
+            inventory: player.inventory || Array(20).fill(null),
+            equipment: player.equipment || {
+              head: null,
+              chest: null,
+              belt: null,
+              pants: null,
+              boots: null,
+              weapon: null,
+              gloves: null,
+            },
+            npcMet: player.npcMet || false,
+            jackMet: player.jackMet || false,
+            alexNeonMet: player.alexNeonMet || false,
+            captainMet: player.captainMet || false,
+            thimbleriggerMet: player.thimbleriggerMet || false,
+            torestosMet: player.torestosMet || false,
+            toremidosMet: player.toremidosMet || false,
+            selectedQuestId: player.selectedQuestId || null,
+            level: player.level || 0,
+            xp: player.xp || 0,
+            skills: player.skills || [],
+            meleeDamageBonus: player.meleeDamageBonus || 0,
+            skillPoints: player.skillPoints || 0,
+            upgradePoints: player.upgradePoints || 0,
+            availableQuests: player.availableQuests || [],
+            worldId: player.worldId || 0,
+            hasSeenWelcomeGuide: player.hasSeenWelcomeGuide || false,
+            worldPositions: player.worldPositions || {
+              0: { x: player.x, y: player.y },
+            },
+
+            healthUpgrade: player.healthUpgrade || 0,
+            energyUpgrade: player.energyUpgrade || 0,
+            foodUpgrade: player.foodUpgrade || 0,
+            waterUpgrade: player.waterUpgrade || 0,
+            neonQuest: player.neonQuest || {
+              currentQuestId: null,
+              progress: {},
+              completed: [],
+            },
+            medicalCertificate: player.medicalCertificate || false,
+            medicalCertificateStamped:
+              player.medicalCertificateStamped || false,
+            corporateDocumentsSubmitted:
+              player.corporateDocumentsSubmitted || false,
+
+            chatBubble: player.chatBubble || null,
+          };
+
+          playerData.maxStats = playerData.maxStats || {
+            health: 100 + (playerData.healthUpgrade || 0),
+            energy: 100 + (playerData.energyUpgrade || 0),
+            food: 100 + (playerData.foodUpgrade || 0),
+            water: 100 + (playerData.waterUpgrade || 0),
+            armor: 0,
+          };
+
+          // Ограничиваем текущие значения
+          playerData.health = Math.max(
+            0,
+            Math.min(playerData.health ?? 0, playerData.maxStats.health || 100),
+          );
+          playerData.energy = Math.max(
+            0,
+            Math.min(playerData.energy || 100, playerData.maxStats.energy),
+          );
+          playerData.food = Math.max(
+            0,
+            Math.min(playerData.food || 100, playerData.maxStats.food),
+          );
+          playerData.water = Math.max(
+            0,
+            Math.min(playerData.water || 100, playerData.maxStats.water),
+          );
+          playerData.armor = Math.max(
+            0,
+            Math.min(playerData.armor || 0, playerData.maxStats.armor),
+          );
+
+          calculateMaxStats(playerData, ITEM_CONFIG);
+          playerData.health = Math.max(
+            0,
+            Math.min(playerData.health, playerData.maxStats.health),
+          );
+
+          players.set(data.username, playerData);
+
+          // Отправляем успех + все данные
+          ws.send(
+            JSON.stringify({
+              type: "loginSuccess",
+              id: data.username,
+              x: playerData.x,
+              y: playerData.y,
+              health: playerData.health,
+              energy: playerData.energy,
+              food: playerData.food,
+              water: playerData.water,
+              armor: playerData.armor,
+              distanceTraveled: playerData.distanceTraveled || 0,
+              direction: playerData.direction || "down",
+              state: playerData.state || "idle",
+              frame: playerData.frame || 0,
+              inventory: playerData.inventory,
+              equipment: playerData.equipment,
+              npcMet: playerData.npcMet,
+              jackMet: playerData.jackMet,
+              alexNeonMet: playerData.alexNeonMet,
+              captainMet: playerData.captainMet,
+              thimbleriggerMet: playerData.thimbleriggerMet,
+              torestosMet: playerData.torestosMet || false,
+              toremidosMet: playerData.toremidosMet,
+              selectedQuestId: playerData.selectedQuestId,
+              level: playerData.level,
+              xp: playerData.xp,
+              skills: playerData.skills,
+              skillPoints: playerData.skillPoints,
+              upgradePoints: playerData.upgradePoints,
+              availableQuests: playerData.availableQuests,
+              worldId: playerData.worldId,
+              hasSeenWelcomeGuide: playerData.hasSeenWelcomeGuide || false,
+              worldPositions: playerData.worldPositions,
+              healthUpgrade: playerData.healthUpgrade,
+              energyUpgrade: playerData.energyUpgrade,
+              foodUpgrade: playerData.foodUpgrade,
+              waterUpgrade: playerData.waterUpgrade,
+              neonQuest: playerData.neonQuest,
+              medicalCertificate: playerData.medicalCertificate || false,
+              medicalCertificateStamped:
+                playerData.medicalCertificateStamped || false,
+              corporateDocumentsSubmitted:
+                playerData.corporateDocumentsSubmitted || false,
+              trashCooldowns: playerData.trashCooldowns || {},
+              players: Array.from(players.values()).filter(
+                (p) =>
+                  p.id !== data.username && p.worldId === playerData.worldId,
+              ),
+              items: Array.from(items.entries())
+                .filter(([_, item]) => item.worldId === playerData.worldId)
+                .map(([itemId, item]) => ({
+                  itemId,
+                  x: item.x,
+                  y: item.y,
+                  type: item.type,
+                  spawnTime: item.spawnTime,
+                  worldId: item.worldId,
+                })),
+              enemies: Array.from(enemies.entries())
+                .filter(([_, enemy]) => enemy.worldId === playerData.worldId)
+                .map(([enemyId, enemy]) => ({
+                  enemyId,
+                  x: enemy.x,
+                  y: enemy.y,
+                  health: enemy.health,
+                  direction: enemy.direction,
+                  state: enemy.state,
+                  frame: enemy.frame,
+                  worldId: enemy.worldId,
+                })),
+              lights:
+                lights
+                  .get(playerData.worldId)
+                  ?.map(({ id, ...rest }) => rest) || [],
+            }),
+          );
+
+          // Отправляем состояние мусорок
+          ws.send(
+            JSON.stringify({
+              type: "trashAllStates",
+              states: trashCansState.map((st, idx) => ({
+                index: idx,
+                guessed: st.guessed,
+                isOpened: st.isOpened || false,
+                nextAttemptAfter: st.nextAttemptAfter || 0,
+              })),
+            }),
+          );
+
+          // Уведомляем других игроков в мире
+          wss.clients.forEach((client) => {
+            if (client !== ws && client.readyState === WebSocket.OPEN) {
+              const clientPlayer = players.get(clients.get(client));
+              if (clientPlayer && clientPlayer.worldId === playerData.worldId) {
+                client.send(
+                  JSON.stringify({
+                    type: "newPlayer",
+                    player: players.get(data.username),
+                  }),
+                );
+              }
+            }
+          });
+        }
+
+        ws.isProcessingLogin = false;
       }
     });
 
