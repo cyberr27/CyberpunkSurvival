@@ -723,6 +723,16 @@ function setupWebSocket(
         processTradeCancelledQueue(ws);
         return;
       }
+      if (!ws.tradeChatQueue) {
+        ws.tradeChatQueue = [];
+        ws.isProcessingTradeChat = false;
+      }
+
+      if (data.type === "tradeChatMessage") {
+        ws.tradeChatQueue.push(data);
+        processTradeChatQueue(ws);
+        return;
+      }
       if (!ws.robotDoctorFreeHealQueue) {
         ws.robotDoctorFreeHealQueue = [];
         ws.isProcessingRobotDoctorFreeHeal = false;
@@ -732,58 +742,136 @@ function setupWebSocket(
         ws.robotDoctorFreeHealQueue.push(data);
         processRobotDoctorFreeHealQueue(ws);
         return;
-      } else if (data.type === "buyWater") {
-        const id = clients.get(ws);
-        if (!id) return;
+      }
+      if (!ws.completeDoctorQuestQueue) {
+        ws.completeDoctorQuestQueue = [];
+        ws.isProcessingCompleteDoctorQuest = false;
+      }
 
-        const player = players.get(id);
-        if (!player || !player.inventory) return;
+      if (data.type === "completeDoctorQuest") {
+        ws.completeDoctorQuestQueue.push(data);
+        processCompleteDoctorQuestQueue(ws);
+        return;
+      }
+      if (!ws.robotDoctorHeal20Queue) {
+        ws.robotDoctorHeal20Queue = [];
+        ws.isProcessingRobotDoctorHeal20 = false;
+      }
 
-        const balyarySlot = player.inventory.findIndex(
-          (slot) => slot && slot.type === "balyary",
-        );
-        const balyaryCount =
-          balyarySlot !== -1 ? player.inventory[balyarySlot].quantity || 1 : 0;
+      if (data.type === "robotDoctorHeal20") {
+        ws.robotDoctorHeal20Queue.push(data);
+        processRobotDoctorHeal20Queue(ws);
+        return;
+      }
+      if (!ws.robotDoctorFullHealQueue) {
+        ws.robotDoctorFullHealQueue = [];
+        ws.isProcessingRobotDoctorFullHeal = false;
+      }
 
-        if (balyaryCount < data.cost) {
-          ws.send(
-            JSON.stringify({
-              type: "buyWaterResult",
-              success: false,
-              error: "Not enough balyary!",
-            }),
-          );
-          return;
-        }
+      if (data.type === "robotDoctorFullHeal") {
+        ws.robotDoctorFullHealQueue.push(data);
+        processRobotDoctorFullHealQueue(ws);
+        return;
+      }
+      if (!ws.buyWaterQueue) {
+        ws.buyWaterQueue = [];
+        ws.isProcessingBuyWater = false;
+      }
 
-        if (balyaryCount === data.cost) {
-          player.inventory[balyarySlot] = null;
-        } else {
-          player.inventory[balyarySlot].quantity -= data.cost;
-        }
+      if (data.type === "buyWater") {
+        ws.buyWaterQueue.push(data);
+        processBuyWaterQueue(ws);
+        return;
+      }
+      if (!ws.updateLevelQueue) {
+        ws.updateLevelQueue = [];
+        ws.isProcessingUpdateLevel = false;
+      }
 
-        player.water = Math.min(
-          player.maxStats.water,
-          player.water + data.waterGain,
-        );
+      if (data.type === "updateLevel") {
+        ws.updateLevelQueue.push(data);
+        processUpdateLevelQueue(ws);
+        return;
+      }
+      if (!ws.updateMaxStatsQueue) {
+        ws.updateMaxStatsQueue = [];
+        ws.isProcessingUpdateMaxStats = false;
+      }
 
-        players.set(id, { ...player });
-        userDatabase.set(id, { ...player });
-        await saveUserDatabase(dbCollection, id, player);
+      if (data.type === "updateMaxStats") {
+        ws.updateMaxStatsQueue.push(data);
+        processUpdateMaxStatsQueue(ws);
+        return;
+      }
+      if (!ws.updateInventoryQueue) {
+        ws.updateInventoryQueue = [];
+        ws.isProcessingUpdateInventory = false;
+      }
 
-        ws.send(
-          JSON.stringify({
-            type: "buyWaterResult",
-            success: true,
-            option: data.option,
-            water: player.water,
-            inventory: player.inventory,
-            balyaryCount:
-              balyarySlot !== -1
-                ? player.inventory[balyarySlot]?.quantity || 0
-                : 0,
-          }),
-        );
+      if (data.type === "updateInventory") {
+        ws.updateInventoryQueue.push(data);
+        processUpdateInventoryQueue(ws);
+        return;
+      }
+      if (!ws.neonQuestSyncQueue) {
+        ws.neonQuestSyncQueue = [];
+        ws.isProcessingNeonQuestSync = false;
+      }
+
+      if (data.type === "requestNeonQuestSync") {
+        ws.neonQuestSyncQueue.push(data);
+        processNeonQuestSyncQueue(ws);
+        return;
+      }
+      if (!ws.neonQuestProgressQueue) {
+        ws.neonQuestProgressQueue = [];
+        ws.isProcessingNeonQuestProgress = false;
+      }
+
+      if (data.type === "neonQuestProgress") {
+        ws.neonQuestProgressQueue.push(data);
+        processNeonQuestProgressQueue(ws);
+        return;
+      }
+      if (!ws.neonQuestCompleteQueue) {
+        ws.neonQuestCompleteQueue = [];
+        ws.isProcessingNeonQuestComplete = false;
+      }
+
+      if (data.type === "neonQuestComplete") {
+        ws.neonQuestCompleteQueue.push(data);
+        processNeonQuestCompleteQueue(ws);
+        return;
+      }
+      if (!ws.updateQuestsQueue) {
+        ws.updateQuestsQueue = [];
+        ws.isProcessingUpdateQuests = false;
+      }
+
+      if (data.type === "updateQuests") {
+        ws.updateQuestsQueue.push(data);
+        processUpdateQuestsQueue(ws);
+        return;
+      }
+      if (!ws.selectQuestQueue) {
+        ws.selectQuestQueue = [];
+        ws.isProcessingSelectQuest = false;
+      }
+
+      if (data.type === "selectQuest") {
+        ws.selectQuestQueue.push(data);
+        processSelectQuestQueue(ws);
+        return;
+      }
+      if (!ws.neonQuestAcceptQueue) {
+        ws.neonQuestAcceptQueue = [];
+        ws.isProcessingNeonQuestAccept = false;
+      }
+
+      if (data.type === "neonQuestAccept") {
+        ws.neonQuestAcceptQueue.push(data);
+        processNeonQuestAcceptQueue(ws);
+        return;
       } else if (data.type === "meetNPC") {
         const id = clients.get(ws);
         if (id) {
@@ -796,6 +884,36 @@ function setupWebSocket(
           userDatabase.set(id, { ...player });
           await saveUserDatabase(dbCollection, id, player);
         }
+      }
+      if (!ws.vacuumBalyaryQueue) {
+        ws.vacuumBalyaryQueue = [];
+        ws.isProcessingVacuumBalyary = false;
+      }
+
+      if (data.type === "vacuumBalyaryReward") {
+        ws.vacuumBalyaryQueue.push(data);
+        processVacuumBalyaryQueue(ws);
+        return;
+      }
+      if (!ws.requestCaptainStampQueue) {
+        ws.requestCaptainStampQueue = [];
+        ws.isProcessingCaptainStamp = false;
+      }
+
+      if (data.type === "requestCaptainStamp") {
+        ws.requestCaptainStampQueue.push(data);
+        processRequestCaptainStampQueue(ws);
+        return;
+      }
+      if (!ws.submitCorporateDocumentsQueue) {
+        ws.submitCorporateDocumentsQueue = [];
+        ws.isProcessingCorporateDocuments = false;
+      }
+
+      if (data.type === "submitCorporateDocuments") {
+        ws.submitCorporateDocumentsQueue.push(data);
+        processSubmitCorporateDocumentsQueue(ws);
+        return;
       } else if (data.type === "meetJack") {
         const id = clients.get(ws);
         if (id) {
@@ -850,203 +968,6 @@ function setupWebSocket(
         await saveUserDatabase(dbCollection, playerId, player);
 
         ws.send(JSON.stringify({ type: "thimbleriggerMet", met: true }));
-      } else if (data.type === "requestNeonQuestSync") {
-        const id = clients.get(ws);
-        const player = players.get(id);
-        ws.send(
-          JSON.stringify({
-            type: "neonQuestSync",
-            progress: player.neonQuest || {
-              currentQuestId: null,
-              progress: 0,
-              completed: [],
-            },
-            isMet: player.alexNeonMet || false,
-          }),
-        );
-      } else if (data.type === "neonQuestProgress") {
-        const id = clients.get(ws);
-        const player = players.get(id);
-        if (player.neonQuest && player.neonQuest.currentQuestId) {
-          player.neonQuest.progress = {
-            ...player.neonQuest.progress,
-            ...data.progress,
-          };
-          players.set(id, player);
-          userDatabase.set(id, player);
-          await saveUserDatabase(dbCollection, id, player);
-        }
-      } else if (data.type === "neonQuestComplete") {
-        const id = clients.get(ws);
-        if (!id || !players.has(id)) return;
-
-        const player = players.get(id);
-        if (
-          !player.neonQuest ||
-          player.neonQuest.currentQuestId !== "neon_quest_1"
-        ) {
-          return;
-        }
-
-        const kills = player.neonQuest.progress?.killMutants || 0;
-        if (kills < 3) {
-          return; // Нельзя сдать
-        }
-
-        // Даём награду
-        player.xp = (player.xp || 0) + 150;
-        let xpToNext = calculateXPToNextLevel(player.level);
-        while (player.xp >= xpToNext && player.level < 100) {
-          player.level += 1;
-          player.xp -= xpToNext;
-          player.upgradePoints = (player.upgradePoints || 0) + 10;
-          xpToNext = calculateXPToNextLevel(player.level);
-        }
-
-        // Даём 50 баляров
-        let added = false;
-        for (let i = 0; i < player.inventory.length; i++) {
-          if (player.inventory[i]?.type === "balyary") {
-            player.inventory[i].quantity += 50;
-            added = true;
-            break;
-          }
-          if (!player.inventory[i]) {
-            player.inventory[i] = { type: "balyary", quantity: 50 };
-            added = true;
-            break;
-          }
-        }
-
-        // Завершаем квест
-        player.neonQuest.currentQuestId = null;
-        if (!player.neonQuest.completed) player.neonQuest.completed = [];
-        player.neonQuest.completed.push("neon_quest_1");
-        player.neonQuest.progress = {};
-
-        // Сохраняем
-        players.set(id, player);
-        userDatabase.set(id, player);
-        await saveUserDatabase(dbCollection, id, player);
-
-        // Отправляем клиенту
-        ws.send(
-          JSON.stringify({
-            type: "neonQuestCompleted",
-            reward: { xp: 150, balyary: 50 },
-            level: player.level,
-            xp: player.xp,
-            xpToNextLevel: xpToNext,
-            upgradePoints: player.upgradePoints,
-            inventory: player.inventory,
-          }),
-        );
-      } else if (data.type === "updateLevel") {
-        const id = clients.get(ws);
-        if (!id || !players.has(id)) return;
-
-        const player = players.get(id);
-
-        player.level = Number(data.level) || player.level || 0;
-        player.xp = Number(data.xp) || player.xp || 0;
-        player.upgradePoints =
-          Number(data.upgradePoints) || player.upgradePoints || 0;
-
-        // Самое важное — skillPoints
-        if (
-          data.skillPoints !== undefined &&
-          !isNaN(Number(data.skillPoints))
-        ) {
-          const newSkillPoints = Math.max(0, Number(data.skillPoints));
-          if (newSkillPoints !== player.skillPoints) {
-            console.log(
-              `[LevelUp] Игрок ${id} получил skillPoints: ${player.skillPoints} → ${newSkillPoints}`,
-            );
-            player.skillPoints = newSkillPoints;
-          }
-        }
-
-        players.set(id, { ...player });
-        userDatabase.set(id, { ...player });
-        await saveUserDatabase(dbCollection, id, player);
-
-        // Рассылаем обновление только этому игроку (или всем, если хочешь)
-        wss.clients.forEach((client) => {
-          if (
-            client.readyState === WebSocket.OPEN &&
-            clients.get(client) === id
-          ) {
-            client.send(
-              JSON.stringify({
-                type: "update",
-                player: {
-                  id,
-                  level: player.level,
-                  xp: player.xp,
-                  upgradePoints: player.upgradePoints,
-                  skillPoints: player.skillPoints,
-                },
-              }),
-            );
-          }
-        });
-      } else if (data.type === "updateMaxStats") {
-        const id = clients.get(ws);
-        if (id) {
-          const player = players.get(id);
-          player.upgradePoints = data.upgradePoints;
-          // СОХРАНЯЕМ UPGRADE ПОЛЯ
-          player.healthUpgrade =
-            data.healthUpgrade || player.healthUpgrade || 0;
-          player.energyUpgrade =
-            data.energyUpgrade || player.energyUpgrade || 0;
-          player.foodUpgrade = data.foodUpgrade || player.foodUpgrade || 0;
-          player.waterUpgrade = data.waterUpgrade || player.waterUpgrade || 0;
-          players.set(id, { ...player });
-          userDatabase.set(id, { ...player });
-          await saveUserDatabase(dbCollection, id, player);
-          wss.clients.forEach((client) => {
-            if (
-              client.readyState === WebSocket.OPEN &&
-              clients.get(client) === id
-            ) {
-              client.send(
-                JSON.stringify({ type: "update", player: { id, ...player } }),
-              );
-            }
-          });
-        }
-      } else if (data.type === "updateInventory") {
-        const id = clients.get(ws);
-        if (id) {
-          const player = players.get(id);
-          player.inventory = data.inventory;
-          player.availableQuests =
-            data.availableQuests || player.availableQuests;
-          players.set(id, { ...player });
-          userDatabase.set(id, { ...player });
-          await saveUserDatabase(dbCollection, id, player);
-          wss.clients.forEach((client) => {
-            if (
-              client.readyState === WebSocket.OPEN &&
-              clients.get(client) === id
-            ) {
-              client.send(
-                JSON.stringify({ type: "update", player: { id, ...player } }),
-              );
-            }
-          });
-        }
-      } else if (data.type === "updateQuests") {
-        const id = clients.get(ws);
-        if (id) {
-          const player = players.get(id);
-          player.availableQuests =
-            data.availableQuests || player.availableQuests;
-          players.set(id, { ...player });
-          userDatabase.set(id, { ...player });
-          await saveUserDatabase(dbCollection, id, player);
-        }
       } else if (data.type === "chat") {
         const id = clients.get(ws);
         if (id) {
@@ -1057,15 +978,6 @@ function setupWebSocket(
               );
             }
           });
-        }
-      } else if (data.type === "selectQuest") {
-        const id = clients.get(ws);
-        if (id) {
-          const player = players.get(id);
-          player.selectedQuestId = data.questId;
-          players.set(id, { ...player });
-          userDatabase.set(id, { ...player });
-          await saveUserDatabase(dbCollection, id, player);
         }
       } else if (data.type === "shoot") {
         const shooterId = clients.get(ws);
@@ -1130,36 +1042,6 @@ function setupWebSocket(
             }
           });
         }
-      } else if (data.type === "tradeChatMessage") {
-        const fromId = clients.get(ws);
-        if (!fromId) return;
-
-        const toId = data.toId;
-        if (!toId || !players.has(toId)) return;
-
-        // Находим активную торговлю между этими двумя игроками
-        const sortedIds = [fromId, toId].sort();
-        const tradeKey = `${sortedIds[0]}-${sortedIds[1]}`;
-
-        if (!tradeOffers.has(tradeKey) && !tradeRequests.has(tradeKey)) {
-          return; // Торговля не активна — игнорируем
-        }
-
-        const messagePacket = JSON.stringify({
-          type: "tradeChatMessage",
-          fromId: fromId,
-          message: data.message,
-        });
-
-        // Отправляем сообщение И партнёру, И обратно отправителю
-        wss.clients.forEach((client) => {
-          if (client.readyState === WebSocket.OPEN) {
-            const clientId = clients.get(client);
-            if (clientId === toId || clientId === fromId) {
-              client.send(messagePacket);
-            }
-          }
-        });
       } else if (data.type === "attackPlayer") {
         const attackerId = clients.get(ws);
         if (
@@ -1373,54 +1255,6 @@ function setupWebSocket(
             }),
           );
         }
-      } else if (data.type === "neonQuestAccept") {
-        const id = clients.get(ws);
-        if (id && players.has(id)) {
-          const player = players.get(id);
-
-          // ГАРАНТИРУЕМ правильную структуру
-          player.neonQuest = {
-            currentQuestId: "neon_quest_1",
-            progress: { killMutants: 0 },
-            completed: player.neonQuest?.completed || [], // сохраняем старые завершённые квесты
-          };
-
-          players.set(id, player);
-          userDatabase.set(id, player);
-          await saveUserDatabase(dbCollection, id, player);
-
-          ws.send(JSON.stringify({ type: "neonQuestStarted" }));
-        }
-      } else if (data.type === "vacuumBalyaryReward") {
-        const playerId = clients.get(ws);
-        if (!playerId) return;
-
-        const player = players.get(playerId);
-        if (!player || !player.inventory) return;
-        if (data.slot < 0 || data.slot >= 20) return;
-
-        if (data.isNewStack) {
-          player.inventory[data.slot] = {
-            type: "balyary",
-            quantity: data.quantity || 1,
-          };
-        } else {
-          if (!player.inventory[data.slot]) {
-            player.inventory[data.slot] = { type: "balyary", quantity: 0 };
-          }
-          player.inventory[data.slot].quantity = data.quantity || 1;
-        }
-
-        players.set(playerId, player);
-        userDatabase.set(playerId, player);
-        await saveUserDatabase(dbCollection, playerId, player);
-
-        ws.send(
-          JSON.stringify({
-            type: "useItemSuccess",
-            inventory: player.inventory,
-          }),
-        );
       } else if (data.type === "welcomeGuideSeen") {
         const id = clients.get(ws);
         if (id && players.has(id)) {
@@ -1433,386 +1267,6 @@ function setupWebSocket(
 
           ws.send(JSON.stringify({ type: "welcomeGuideSeenConfirm" }));
         }
-      } else if (data.type === "completeDoctorQuest") {
-        const playerId = clients.get(ws);
-        if (!playerId) return;
-
-        const player = players.get(playerId);
-        if (!player) return;
-
-        // Проверяем по флагу — не выдавали ли уже
-        if (player.medicalCertificate === true) {
-          ws.send(JSON.stringify({ type: "doctorQuestAlreadyDone" }));
-          return;
-        }
-
-        // Ищем свободный слот для справки
-        const freeSlot = player.inventory.findIndex((slot) => slot === null);
-        if (freeSlot === -1) {
-          ws.send(JSON.stringify({ type: "inventoryFull" }));
-          return;
-        }
-
-        // Выдаём предмет
-        player.inventory[freeSlot] = {
-          type: "medical_certificate",
-          quantity: 1,
-        };
-
-        // ГЛАВНОЕ: ставим флаг навсегда
-        player.medicalCertificate = true;
-
-        // Сохраняем
-        players.set(playerId, player);
-        userDatabase.set(playerId, player);
-        await saveUserDatabase(dbCollection, playerId, player);
-
-        ws.send(
-          JSON.stringify({
-            type: "doctorQuestCompleted",
-            inventory: player.inventory,
-            medicalCertificate: true, // отправляем клиенту
-          }),
-        );
-      } else if (data.type === "robotDoctorHeal20") {
-        const playerId = clients.get(ws);
-        if (!playerId || !players.has(playerId)) return;
-
-        const player = players.get(playerId);
-
-        // Ищем баляры
-        const balyarySlot = player.inventory.findIndex(
-          (s) => s && s.type === "balyary",
-        );
-        if (
-          balyarySlot === -1 ||
-          (player.inventory[balyarySlot].quantity || 0) < 1
-        ) {
-          ws.send(
-            JSON.stringify({
-              type: "robotDoctorResult",
-              success: false,
-              error: "Нет баляров",
-            }),
-          );
-          return;
-        }
-
-        // Снимаем 1 баляр
-        if (player.inventory[balyarySlot].quantity === 1) {
-          player.inventory[balyarySlot] = null;
-        } else {
-          player.inventory[balyarySlot].quantity -= 1;
-        }
-
-        // +20 HP (но не больше максимума)
-        player.health = Math.min(player.maxStats.health, player.health + 20);
-
-        players.set(playerId, player);
-        userDatabase.set(playerId, player);
-        await saveUserDatabase(dbCollection, playerId, player);
-
-        ws.send(
-          JSON.stringify({
-            type: "robotDoctorResult",
-            success: true,
-            action: "heal20",
-            health: player.health,
-            inventory: player.inventory,
-          }),
-        );
-      } else if (data.type === "robotDoctorFullHeal") {
-        const playerId = clients.get(ws);
-        if (!playerId || !players.has(playerId)) return;
-
-        const player = players.get(playerId);
-        const missingHP = player.maxStats.health - player.health;
-        if (missingHP <= 0) {
-          ws.send(
-            JSON.stringify({
-              type: "robotDoctorResult",
-              success: false,
-              error: "Здоровье уже полное",
-            }),
-          );
-          return;
-        }
-
-        const cost = Math.floor(missingHP / 20);
-        const balyarySlot = player.inventory.findIndex(
-          (s) => s && s.type === "balyary",
-        );
-        const balyaryCount =
-          balyarySlot !== -1 ? player.inventory[balyarySlot].quantity || 0 : 0;
-
-        if (balyaryCount < cost) {
-          ws.send(
-            JSON.stringify({
-              type: "robotDoctorResult",
-              success: false,
-              error: "Недостаточно баляров",
-            }),
-          );
-          return;
-        }
-
-        // Снимаем баляры
-        if (balyaryCount === cost) {
-          player.inventory[balyarySlot] = null;
-        } else {
-          player.inventory[balyarySlot].quantity -= cost;
-        }
-
-        player.health = player.maxStats.health;
-
-        players.set(playerId, player);
-        userDatabase.set(playerId, player);
-        await saveUserDatabase(dbCollection, playerId, player);
-
-        ws.send(
-          JSON.stringify({
-            type: "robotDoctorResult",
-            success: true,
-            action: "fullHeal",
-            health: player.health,
-            cost: cost,
-            inventory: player.inventory,
-          }),
-        );
-      } else if (data.type === "requestCaptainStamp") {
-        const playerId = clients.get(ws);
-        if (!playerId || !players.has(playerId)) return;
-
-        const player = players.get(playerId);
-
-        // Проверяем наличие обычной справки + флаг
-        const certSlot = player.inventory.findIndex(
-          (item) => item && item.type === "medical_certificate",
-        );
-
-        if (certSlot === -1 || !player.medicalCertificate) {
-          ws.send(
-            JSON.stringify({
-              type: "captainStampResult",
-              success: false,
-              error: "У вас нет медицинской справки МД-07!",
-            }),
-          );
-          return;
-        }
-
-        // Заменяем справку на проштампованную
-        player.inventory[certSlot] = {
-          type: "medical_certificate_stamped",
-          quantity: 1,
-        };
-
-        // Главное — ставим флаг!
-        player.medicalCertificateStamped = true;
-
-        // Сохраняем всё
-        players.set(playerId, player);
-        userDatabase.set(playerId, player);
-        await saveUserDatabase(dbCollection, playerId, player);
-
-        // Отправляем клиенту обновлённый инвентарь + флаг
-        ws.send(
-          JSON.stringify({
-            type: "captainStampResult",
-            success: true,
-            inventory: player.inventory,
-            medicalCertificateStamped: true, // ← важно!
-          }),
-        );
-
-        // Уведомляем всех в мире (опционально — звук/эффект)
-        broadcastToWorld(
-          wss,
-          clients,
-          players,
-          player.worldId,
-          JSON.stringify({
-            type: "playerGotStamp",
-            playerId: playerId,
-          }),
-        );
-      } else if (data.type === "submitCorporateDocuments") {
-        const playerId = clients.get(ws);
-        if (!playerId || !players.has(playerId)) return;
-
-        const player = players.get(playerId);
-
-        // Проверяем все три условия
-        if (
-          !player.medicalCertificate ||
-          !player.medicalCertificateStamped ||
-          !player.inventory.some(
-            (item) => item && item.type === "medical_certificate_stamped",
-          )
-        ) {
-          ws.send(
-            JSON.stringify({
-              type: "corporateDocumentsResult",
-              success: false,
-              error: "Документы не соответствуют требованиям корпорации.",
-            }),
-          );
-          return;
-        }
-
-        // Проверяем, не сдавал ли уже
-        if (player.corporateDocumentsSubmitted) {
-          ws.send(
-            JSON.stringify({
-              type: "corporateDocumentsResult",
-              success: false,
-              error: "Вы уже сдали документы ранее.",
-            }),
-          );
-          return;
-        }
-
-        // === УДАЛЯЕМ СПРАВКУ С ПЕЧАТЬЮ ИЗ ИНВЕНТАРЯ ===
-        const certIndex = player.inventory.findIndex(
-          (item) => item && item.type === "medical_certificate_stamped",
-        );
-        if (certIndex !== -1) {
-          player.inventory[certIndex] = null;
-        }
-
-        // === ОПЫТ +66 ===
-        player.xp = (player.xp || 0) + 66;
-
-        let xpToNext = calculateXPToNextLevel(player.level);
-        while (player.xp >= xpToNext && player.level < 100) {
-          player.level += 1;
-          player.xp -= xpToNext;
-          player.upgradePoints = (player.upgradePoints || 0) + 10;
-          xpToNext = calculateXPToNextLevel(player.level);
-        }
-
-        // === +10 БАЛЯРОВ ===
-        let balyaryAdded = false;
-        for (let i = 0; i < player.inventory.length; i++) {
-          if (player.inventory[i]?.type === "balyary") {
-            player.inventory[i].quantity =
-              (player.inventory[i].quantity || 1) + 10;
-            balyaryAdded = true;
-            break;
-          }
-          if (!player.inventory[i]) {
-            player.inventory[i] = { type: "balyary", quantity: 10 };
-            balyaryAdded = true;
-            break;
-          }
-        }
-
-        // === НАБОР НОВИЧКА КОРПОРАЦИИ ===
-        const starterArmor = [
-          "torn_health_t_shirt",
-          "torn_energy_t_shirt",
-          "torn_t_shirt_of_thirst",
-          "torn_t_shirt_of_gluttony",
-        ];
-        const starterPants = [
-          "torn_pants_of_health",
-          "torn_pants_of_energy",
-          "torn_pants_of_thirst",
-          "torn_pants_of_gluttony",
-        ];
-        const starterBoots = [
-          "torn_health_sneakers",
-          "torn_sneakers_of_energy",
-          "torn_sneakers_of_thirst",
-          "torn_sneakers_of_gluttony",
-        ];
-
-        const itemsToGive = [
-          starterArmor[Math.floor(Math.random() * starterArmor.length)],
-          starterPants[Math.floor(Math.random() * starterPants.length)],
-          starterBoots[Math.floor(Math.random() * starterBoots.length)],
-          "knuckles", // кастет — всегда
-        ];
-
-        const freeSlots = player.inventory.filter(
-          (slot) => slot === null,
-        ).length;
-
-        if (freeSlots >= itemsToGive.length) {
-          itemsToGive.forEach((type) => {
-            for (let i = 0; i < player.inventory.length; i++) {
-              if (!player.inventory[i]) {
-                player.inventory[i] = { type, quantity: 1 };
-                break;
-              }
-            }
-          });
-        } else {
-          const radius = 30;
-
-          itemsToGive.forEach((type, index) => {
-            const angle = Math.random() * Math.PI * 2;
-            const r = Math.random() * radius;
-
-            const x = player.x + Math.cos(angle) * r;
-            const y = player.y + Math.sin(angle) * r;
-
-            const itemId = `quest_${type}_${playerId}_${Date.now()}_${index}`;
-
-            const questItem = {
-              x,
-              y,
-              type,
-              spawnTime: Date.now(),
-              worldId: player.worldId,
-              questOwnerId: playerId,
-              isQuestItem: true,
-            };
-
-            items.set(itemId, questItem);
-
-            // 👁 Отправляем ТОЛЬКО этому игроку
-            ws.send(
-              JSON.stringify({
-                type: "newItem",
-                items: [
-                  {
-                    itemId,
-                    x,
-                    y,
-                    type,
-                    worldId: player.worldId,
-                    isQuestItem: true,
-                  },
-                ],
-              }),
-            );
-          });
-        }
-
-        // === ФЛАГ СДАЧИ ДОКУМЕНТОВ ===
-        player.corporateDocumentsSubmitted = true;
-
-        // === СОХРАНЯЕМ ===
-        players.set(playerId, player);
-        userDatabase.set(playerId, player);
-        await saveUserDatabase(dbCollection, playerId, player);
-
-        // === ОТПРАВЛЯЕМ КЛИЕНТУ ВСЁ ОБНОВЛЁННОЕ ===
-        ws.send(
-          JSON.stringify({
-            type: "corporateDocumentsResult",
-            success: true,
-            xpGained: 66,
-            balyaryGained: 10,
-            level: player.level,
-            xp: player.xp,
-            xpToNextLevel: xpToNext,
-            upgradePoints: player.upgradePoints,
-            inventory: player.inventory,
-            corporateDocumentsSubmitted: true,
-          }),
-        );
       } else if (data.type === "thimbleriggerBet") {
         const playerId = clients.get(ws);
         if (!playerId || !players.has(playerId)) return;
@@ -4233,6 +3687,46 @@ function setupWebSocket(
 
         ws.isProcessingTradeCancelled = false;
       }
+      async function processTradeChatQueue(ws) {
+        if (ws.isProcessingTradeChat) return;
+        ws.isProcessingTradeChat = true;
+
+        while (ws.tradeChatQueue.length > 0) {
+          const data = ws.tradeChatQueue.shift();
+
+          const fromId = clients.get(ws);
+          if (!fromId) continue;
+
+          const toId = data.toId;
+          if (!toId || !players.has(toId)) continue;
+
+          // Проверяем, что торговля всё ещё активна
+          const sortedIds = [fromId, toId].sort();
+          const tradeKey = `${sortedIds[0]}-${sortedIds[1]}`;
+
+          if (!tradeOffers.has(tradeKey) && !tradeRequests.has(tradeKey)) {
+            continue; // Торговля уже завершена/отменена — игнорируем
+          }
+
+          const messagePacket = JSON.stringify({
+            type: "tradeChatMessage",
+            fromId: fromId,
+            message: data.message,
+          });
+
+          // Рассылаем сообщение обоим участникам (отправителю и получателю)
+          wss.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+              const clientId = clients.get(client);
+              if (clientId === toId || clientId === fromId) {
+                client.send(messagePacket);
+              }
+            }
+          });
+        }
+
+        ws.isProcessingTradeChat = false;
+      }
       async function processRobotDoctorFreeHealQueue(ws) {
         if (ws.isProcessingRobotDoctorFreeHeal) return;
         ws.isProcessingRobotDoctorFreeHeal = true;
@@ -4277,6 +3771,980 @@ function setupWebSocket(
         }
 
         ws.isProcessingRobotDoctorFreeHeal = false;
+      }
+      async function processCompleteDoctorQuestQueue(ws) {
+        if (ws.isProcessingCompleteDoctorQuest) return;
+        ws.isProcessingCompleteDoctorQuest = true;
+
+        while (ws.completeDoctorQuestQueue.length > 0) {
+          const data = ws.completeDoctorQuestQueue.shift();
+
+          const playerId = clients.get(ws);
+          if (!playerId) continue;
+
+          const player = players.get(playerId);
+          if (!player) continue;
+
+          // Проверяем, не получал ли уже справку
+          if (player.medicalCertificate === true) {
+            ws.send(JSON.stringify({ type: "doctorQuestAlreadyDone" }));
+            continue;
+          }
+
+          // Ищем свободный слот
+          const freeSlot = player.inventory.findIndex((slot) => slot === null);
+          if (freeSlot === -1) {
+            ws.send(JSON.stringify({ type: "inventoryFull" }));
+            continue;
+          }
+
+          // Выдаём медицинскую справку
+          player.inventory[freeSlot] = {
+            type: "medical_certificate",
+            quantity: 1,
+          };
+
+          // Ставим флаг навсегда
+          player.medicalCertificate = true;
+
+          // Сохраняем изменения
+          players.set(playerId, { ...player });
+          userDatabase.set(playerId, { ...player });
+          await saveUserDatabase(dbCollection, playerId, player);
+
+          // Отправляем успешный результат клиенту
+          ws.send(
+            JSON.stringify({
+              type: "doctorQuestCompleted",
+              inventory: player.inventory,
+              medicalCertificate: true,
+            }),
+          );
+        }
+
+        ws.isProcessingCompleteDoctorQuest = false;
+      }
+      async function processRobotDoctorHeal20Queue(ws) {
+        if (ws.isProcessingRobotDoctorHeal20) return;
+        ws.isProcessingRobotDoctorHeal20 = true;
+
+        while (ws.robotDoctorHeal20Queue.length > 0) {
+          const data = ws.robotDoctorHeal20Queue.shift();
+
+          const playerId = clients.get(ws);
+          if (!playerId || !players.has(playerId)) continue;
+
+          const player = players.get(playerId);
+
+          // Ищем баляры
+          const balyarySlot = player.inventory.findIndex(
+            (s) => s && s.type === "balyary",
+          );
+
+          // Проверка наличия хотя бы 1 баляра
+          if (
+            balyarySlot === -1 ||
+            (player.inventory[balyarySlot].quantity || 0) < 1
+          ) {
+            ws.send(
+              JSON.stringify({
+                type: "robotDoctorResult",
+                success: false,
+                error: "Нет баляров",
+              }),
+            );
+            continue;
+          }
+
+          // Снимаем ровно 1 баляр
+          if (player.inventory[balyarySlot].quantity === 1) {
+            player.inventory[balyarySlot] = null;
+          } else {
+            player.inventory[balyarySlot].quantity -= 1;
+          }
+
+          // +20 HP, но не выше максимума
+          player.health = Math.min(player.maxStats.health, player.health + 20);
+
+          // Сохраняем изменения
+          players.set(playerId, { ...player });
+          userDatabase.set(playerId, { ...player });
+          await saveUserDatabase(dbCollection, playerId, player);
+
+          // Отправляем успешный результат
+          ws.send(
+            JSON.stringify({
+              type: "robotDoctorResult",
+              success: true,
+              action: "heal20",
+              health: player.health,
+              inventory: player.inventory,
+            }),
+          );
+        }
+
+        ws.isProcessingRobotDoctorHeal20 = false;
+      }
+      async function processRobotDoctorFullHealQueue(ws) {
+        if (ws.isProcessingRobotDoctorFullHeal) return;
+        ws.isProcessingRobotDoctorFullHeal = true;
+
+        while (ws.robotDoctorFullHealQueue.length > 0) {
+          const data = ws.robotDoctorFullHealQueue.shift();
+
+          const playerId = clients.get(ws);
+          if (!playerId || !players.has(playerId)) continue;
+
+          const player = players.get(playerId);
+
+          const missingHP = player.maxStats.health - player.health;
+          if (missingHP <= 0) {
+            ws.send(
+              JSON.stringify({
+                type: "robotDoctorResult",
+                success: false,
+                error: "Здоровье уже полное",
+              }),
+            );
+            continue;
+          }
+
+          const cost = Math.floor(missingHP / 20);
+
+          // Ищем баляры
+          const balyarySlot = player.inventory.findIndex(
+            (s) => s && s.type === "balyary",
+          );
+          const balyaryCount =
+            balyarySlot !== -1
+              ? player.inventory[balyarySlot].quantity || 0
+              : 0;
+
+          if (balyaryCount < cost) {
+            ws.send(
+              JSON.stringify({
+                type: "robotDoctorResult",
+                success: false,
+                error: "Недостаточно баляров",
+              }),
+            );
+            continue;
+          }
+
+          // Снимаем ровно нужное количество баляров
+          if (balyaryCount === cost) {
+            player.inventory[balyarySlot] = null;
+          } else {
+            player.inventory[balyarySlot].quantity -= cost;
+          }
+
+          // Полное восстановление здоровья
+          player.health = player.maxStats.health;
+
+          // Сохраняем изменения
+          players.set(playerId, { ...player });
+          userDatabase.set(playerId, { ...player });
+          await saveUserDatabase(dbCollection, playerId, player);
+
+          // Отправляем успешный результат
+          ws.send(
+            JSON.stringify({
+              type: "robotDoctorResult",
+              success: true,
+              action: "fullHeal",
+              health: player.health,
+              cost: cost,
+              inventory: player.inventory,
+            }),
+          );
+        }
+
+        ws.isProcessingRobotDoctorFullHeal = false;
+      }
+      async function processBuyWaterQueue(ws) {
+        if (ws.isProcessingBuyWater) return;
+        ws.isProcessingBuyWater = true;
+
+        while (ws.buyWaterQueue.length > 0) {
+          const data = ws.buyWaterQueue.shift();
+
+          const id = clients.get(ws);
+          if (!id) continue;
+
+          const player = players.get(id);
+          if (!player || !player.inventory) continue;
+
+          const balyarySlot = player.inventory.findIndex(
+            (slot) => slot && slot.type === "balyary",
+          );
+          const balyaryCount =
+            balyarySlot !== -1
+              ? player.inventory[balyarySlot].quantity || 0
+              : 0;
+
+          if (balyaryCount < data.cost) {
+            ws.send(
+              JSON.stringify({
+                type: "buyWaterResult",
+                success: false,
+                error: "Not enough balyary!",
+              }),
+            );
+            continue;
+          }
+
+          // Снимаем ровно data.cost баляров
+          if (balyaryCount === data.cost) {
+            player.inventory[balyarySlot] = null;
+          } else {
+            player.inventory[balyarySlot].quantity -= data.cost;
+          }
+
+          // Добавляем воду, но не выше максимума
+          player.water = Math.min(
+            player.maxStats.water,
+            player.water + data.waterGain,
+          );
+
+          // Сохраняем изменения
+          players.set(id, { ...player });
+          userDatabase.set(id, { ...player });
+          await saveUserDatabase(dbCollection, id, player);
+
+          // Отправляем успешный результат
+          ws.send(
+            JSON.stringify({
+              type: "buyWaterResult",
+              success: true,
+              option: data.option,
+              water: player.water,
+              inventory: player.inventory,
+              balyaryCount:
+                balyarySlot !== -1
+                  ? player.inventory[balyarySlot]?.quantity || 0
+                  : 0,
+            }),
+          );
+        }
+
+        ws.isProcessingBuyWater = false;
+      }
+      async function processUpdateLevelQueue(ws) {
+        if (ws.isProcessingUpdateLevel) return;
+        ws.isProcessingUpdateLevel = true;
+
+        while (ws.updateLevelQueue.length > 0) {
+          const data = ws.updateLevelQueue.shift();
+
+          const id = clients.get(ws);
+          if (!id || !players.has(id)) continue;
+
+          const player = players.get(id);
+
+          // Обновляем значения с защитой от NaN и отрицательных
+          player.level = Number(data.level) || player.level || 0;
+          player.xp = Number(data.xp) || player.xp || 0;
+          player.upgradePoints =
+            Number(data.upgradePoints) || player.upgradePoints || 0;
+
+          // Самое важное — skillPoints
+          if (
+            data.skillPoints !== undefined &&
+            !isNaN(Number(data.skillPoints))
+          ) {
+            const newSkillPoints = Math.max(0, Number(data.skillPoints));
+            if (newSkillPoints !== player.skillPoints) {
+              console.log(
+                `[LevelUp] Игрок ${id} получил skillPoints: ${player.skillPoints} → ${newSkillPoints}`,
+              );
+              player.skillPoints = newSkillPoints;
+            }
+          }
+
+          // Сохраняем изменения
+          players.set(id, { ...player });
+          userDatabase.set(id, { ...player });
+          await saveUserDatabase(dbCollection, id, player);
+
+          // Рассылаем обновление только этому игроку
+          wss.clients.forEach((client) => {
+            if (
+              client.readyState === WebSocket.OPEN &&
+              clients.get(client) === id
+            ) {
+              client.send(
+                JSON.stringify({
+                  type: "update",
+                  player: {
+                    id,
+                    level: player.level,
+                    xp: player.xp,
+                    upgradePoints: player.upgradePoints,
+                    skillPoints: player.skillPoints,
+                  },
+                }),
+              );
+            }
+          });
+        }
+
+        ws.isProcessingUpdateLevel = false;
+      }
+      async function processUpdateMaxStatsQueue(ws) {
+        if (ws.isProcessingUpdateMaxStats) return;
+        ws.isProcessingUpdateMaxStats = true;
+
+        while (ws.updateMaxStatsQueue.length > 0) {
+          const data = ws.updateMaxStatsQueue.shift();
+
+          const id = clients.get(ws);
+          if (!id) continue;
+
+          const player = players.get(id);
+          if (!player) continue;
+
+          // Обновляем upgradePoints и upgrade-поля
+          player.upgradePoints = data.upgradePoints;
+
+          // СОХРАНЯЕМ UPGRADE ПОЛЯ (fallback на старое значение, если не пришло)
+          player.healthUpgrade =
+            data.healthUpgrade !== undefined
+              ? data.healthUpgrade
+              : player.healthUpgrade || 0;
+          player.energyUpgrade =
+            data.energyUpgrade !== undefined
+              ? data.energyUpgrade
+              : player.energyUpgrade || 0;
+          player.foodUpgrade =
+            data.foodUpgrade !== undefined
+              ? data.foodUpgrade
+              : player.foodUpgrade || 0;
+          player.waterUpgrade =
+            data.waterUpgrade !== undefined
+              ? data.waterUpgrade
+              : player.waterUpgrade || 0;
+
+          // Сохраняем изменения
+          players.set(id, { ...player });
+          userDatabase.set(id, { ...player });
+          await saveUserDatabase(dbCollection, id, player);
+
+          // Рассылаем обновление только этому игроку
+          wss.clients.forEach((client) => {
+            if (
+              client.readyState === WebSocket.OPEN &&
+              clients.get(client) === id
+            ) {
+              client.send(
+                JSON.stringify({
+                  type: "update",
+                  player: {
+                    id,
+                    upgradePoints: player.upgradePoints,
+                    healthUpgrade: player.healthUpgrade,
+                    energyUpgrade: player.energyUpgrade,
+                    foodUpgrade: player.foodUpgrade,
+                    waterUpgrade: player.waterUpgrade,
+                    // Можно добавить maxStats/health/energy/food/water, если клиент их пересчитывает на основе upgrade
+                    // maxStats: player.maxStats, // если пересчитывается на сервере
+                  },
+                }),
+              );
+            }
+          });
+        }
+
+        ws.isProcessingUpdateMaxStats = false;
+      }
+      async function processUpdateInventoryQueue(ws) {
+        if (ws.isProcessingUpdateInventory) return;
+        ws.isProcessingUpdateInventory = true;
+
+        while (ws.updateInventoryQueue.length > 0) {
+          const data = ws.updateInventoryQueue.shift();
+
+          const id = clients.get(ws);
+          if (!id) continue;
+
+          const player = players.get(id);
+          if (!player) continue;
+
+          // Полностью заменяем инвентарь новым массивом
+          player.inventory = data.inventory;
+
+          // Обновляем availableQuests, если пришло
+          player.availableQuests =
+            data.availableQuests !== undefined
+              ? data.availableQuests
+              : player.availableQuests;
+
+          // Сохраняем изменения
+          players.set(id, { ...player });
+          userDatabase.set(id, { ...player });
+          await saveUserDatabase(dbCollection, id, player);
+
+          // Рассылаем обновление только этому игроку
+          wss.clients.forEach((client) => {
+            if (
+              client.readyState === WebSocket.OPEN &&
+              clients.get(client) === id
+            ) {
+              client.send(
+                JSON.stringify({
+                  type: "update",
+                  player: {
+                    id,
+                    inventory: player.inventory,
+                    availableQuests: player.availableQuests,
+                    // Можно добавить другие поля, если клиент их ждёт
+                  },
+                }),
+              );
+            }
+          });
+        }
+
+        ws.isProcessingUpdateInventory = false;
+      }
+      async function processNeonQuestSyncQueue(ws) {
+        if (ws.isProcessingNeonQuestSync) return;
+        ws.isProcessingNeonQuestSync = true;
+
+        while (ws.neonQuestSyncQueue.length > 0) {
+          const data = ws.neonQuestSyncQueue.shift();
+
+          const id = clients.get(ws);
+          if (!id) continue;
+
+          const player = players.get(id);
+          if (!player) continue;
+
+          // Отправляем текущее состояние квеста (без изменений в базе)
+          ws.send(
+            JSON.stringify({
+              type: "neonQuestSync",
+              progress: player.neonQuest || {
+                currentQuestId: null,
+                progress: 0,
+                completed: [],
+              },
+              isMet: player.alexNeonMet || false,
+            }),
+          );
+        }
+
+        ws.isProcessingNeonQuestSync = false;
+      }
+      async function processNeonQuestProgressQueue(ws) {
+        if (ws.isProcessingNeonQuestProgress) return;
+        ws.isProcessingNeonQuestProgress = true;
+
+        while (ws.neonQuestProgressQueue.length > 0) {
+          const data = ws.neonQuestProgressQueue.shift();
+
+          const id = clients.get(ws);
+          if (!id) continue;
+
+          const player = players.get(id);
+          if (!player) continue;
+
+          // Проверяем, есть ли активный квест
+          if (player.neonQuest && player.neonQuest.currentQuestId) {
+            // Сливаем пришедший прогресс в существующий
+            player.neonQuest.progress = {
+              ...player.neonQuest.progress,
+              ...data.progress,
+            };
+
+            // Сохраняем изменения
+            players.set(id, { ...player });
+            userDatabase.set(id, { ...player });
+            await saveUserDatabase(dbCollection, id, player);
+          }
+          // Ничего не отправляем клиенту — обновление одностороннее
+        }
+
+        ws.isProcessingNeonQuestProgress = false;
+      }
+      async function processNeonQuestCompleteQueue(ws) {
+        if (ws.isProcessingNeonQuestComplete) return;
+        ws.isProcessingNeonQuestComplete = true;
+
+        while (ws.neonQuestCompleteQueue.length > 0) {
+          const data = ws.neonQuestCompleteQueue.shift();
+
+          const id = clients.get(ws);
+          if (!id || !players.has(id)) continue;
+
+          const player = players.get(id);
+
+          // Проверяем, что квест активен и именно "neon_quest_1"
+          if (
+            !player.neonQuest ||
+            player.neonQuest.currentQuestId !== "neon_quest_1"
+          ) {
+            continue; // Нельзя сдать
+          }
+
+          const kills = player.neonQuest.progress?.killMutants || 0;
+          if (kills < 3) {
+            continue; // Нельзя сдать — прогресс не выполнен
+          }
+
+          // Даём награду
+          player.xp = (player.xp || 0) + 150;
+
+          let xpToNext = calculateXPToNextLevel(player.level);
+          while (player.xp >= xpToNext && player.level < 100) {
+            player.level += 1;
+            player.xp -= xpToNext;
+            player.upgradePoints = (player.upgradePoints || 0) + 10;
+            xpToNext = calculateXPToNextLevel(player.level);
+          }
+
+          // Даём 50 баляров (ищем слот или свободный)
+          let added = false;
+          for (let i = 0; i < player.inventory.length; i++) {
+            if (player.inventory[i]?.type === "balyary") {
+              player.inventory[i].quantity =
+                (player.inventory[i].quantity || 0) + 50;
+              added = true;
+              break;
+            }
+            if (!player.inventory[i]) {
+              player.inventory[i] = { type: "balyary", quantity: 50 };
+              added = true;
+              break;
+            }
+          }
+
+          // Если не добавили (инвентарь полный) — баляры потеряются (как было раньше)
+
+          // Завершаем квест навсегда
+          player.neonQuest.currentQuestId = null;
+          if (!player.neonQuest.completed) player.neonQuest.completed = [];
+          player.neonQuest.completed.push("neon_quest_1");
+          player.neonQuest.progress = {};
+
+          // Сохраняем изменения
+          players.set(id, { ...player });
+          userDatabase.set(id, { ...player });
+          await saveUserDatabase(dbCollection, id, player);
+
+          // Отправляем успешное завершение клиенту
+          ws.send(
+            JSON.stringify({
+              type: "neonQuestCompleted",
+              reward: { xp: 150, balyary: 50 },
+              level: player.level,
+              xp: player.xp,
+              xpToNextLevel: xpToNext,
+              upgradePoints: player.upgradePoints,
+              inventory: player.inventory,
+            }),
+          );
+        }
+
+        ws.isProcessingNeonQuestComplete = false;
+      }
+      async function processUpdateQuestsQueue(ws) {
+        if (ws.isProcessingUpdateQuests) return;
+        ws.isProcessingUpdateQuests = true;
+
+        while (ws.updateQuestsQueue.length > 0) {
+          const data = ws.updateQuestsQueue.shift();
+
+          const id = clients.get(ws);
+          if (!id) continue;
+
+          const player = players.get(id);
+          if (!player) continue;
+
+          // Заменяем список доступных квестов (fallback на старый, если не пришло)
+          player.availableQuests =
+            data.availableQuests !== undefined
+              ? data.availableQuests
+              : player.availableQuests;
+
+          // Сохраняем изменения
+          players.set(id, { ...player });
+          userDatabase.set(id, { ...player });
+          await saveUserDatabase(dbCollection, id, player);
+
+          // Ничего не отправляем клиенту — обновление одностороннее
+        }
+
+        ws.isProcessingUpdateQuests = false;
+      }
+      async function processSelectQuestQueue(ws) {
+        if (ws.isProcessingSelectQuest) return;
+        ws.isProcessingSelectQuest = true;
+
+        while (ws.selectQuestQueue.length > 0) {
+          const data = ws.selectQuestQueue.shift();
+
+          const id = clients.get(ws);
+          if (!id) continue;
+
+          const player = players.get(id);
+          if (!player) continue;
+
+          // Просто присваиваем выбранный ID квеста (без проверок, как было раньше)
+          player.selectedQuestId = data.questId;
+
+          // Сохраняем изменения
+          players.set(id, { ...player });
+          userDatabase.set(id, { ...player });
+          await saveUserDatabase(dbCollection, id, player);
+        }
+
+        ws.isProcessingSelectQuest = false;
+      }
+      async function processNeonQuestAcceptQueue(ws) {
+        if (ws.isProcessingNeonQuestAccept) return;
+        ws.isProcessingNeonQuestAccept = true;
+
+        while (ws.neonQuestAcceptQueue.length > 0) {
+          const data = ws.neonQuestAcceptQueue.shift();
+
+          const id = clients.get(ws);
+          if (!id || !players.has(id)) continue;
+
+          const player = players.get(id);
+
+          // ГАРАНТИРУЕМ правильную структуру (как было раньше)
+          player.neonQuest = {
+            currentQuestId: "neon_quest_1",
+            progress: { killMutants: 0 },
+            completed: player.neonQuest?.completed || [], // сохраняем старые завершённые
+          };
+
+          // Сохраняем изменения
+          players.set(id, { ...player });
+          userDatabase.set(id, { ...player });
+          await saveUserDatabase(dbCollection, id, player);
+
+          // Отправляем клиенту уведомление о начале квеста
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: "neonQuestStarted" }));
+          }
+        }
+
+        ws.isProcessingNeonQuestAccept = false;
+      }
+      async function processVacuumBalyaryQueue(ws) {
+        if (ws.isProcessingVacuumBalyary) return;
+        ws.isProcessingVacuumBalyary = true;
+
+        while (ws.vacuumBalyaryQueue.length > 0) {
+          const data = ws.vacuumBalyaryQueue.shift();
+
+          const playerId = clients.get(ws);
+          if (!playerId) continue;
+
+          const player = players.get(playerId);
+          if (!player || !player.inventory) continue;
+
+          // Проверяем слот (как было раньше)
+          if (data.slot < 0 || data.slot >= 20) continue;
+
+          if (data.isNewStack) {
+            // Новый стек баляров
+            player.inventory[data.slot] = {
+              type: "balyary",
+              quantity: data.quantity || 1,
+            };
+          } else {
+            // Добавляем в существующий слот
+            if (!player.inventory[data.slot]) {
+              player.inventory[data.slot] = { type: "balyary", quantity: 0 };
+            }
+            player.inventory[data.slot].quantity = data.quantity || 1;
+          }
+
+          // Сохраняем изменения
+          players.set(playerId, { ...player });
+          userDatabase.set(playerId, { ...player });
+          await saveUserDatabase(dbCollection, playerId, player);
+
+          // Отправляем клиенту обновлённый инвентарь (как useItemSuccess)
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(
+              JSON.stringify({
+                type: "useItemSuccess",
+                inventory: player.inventory,
+              }),
+            );
+          }
+        }
+
+        ws.isProcessingVacuumBalyary = false;
+      }
+      async function processRequestCaptainStampQueue(ws) {
+        if (ws.isProcessingCaptainStamp) return;
+        ws.isProcessingCaptainStamp = true;
+
+        while (ws.requestCaptainStampQueue.length > 0) {
+          const data = ws.requestCaptainStampQueue.shift();
+
+          const playerId = clients.get(ws);
+          if (!playerId || !players.has(playerId)) continue;
+
+          const player = players.get(playerId);
+
+          // Проверяем наличие обычной справки + флаг (как было раньше)
+          const certSlot = player.inventory.findIndex(
+            (item) => item && item.type === "medical_certificate",
+          );
+
+          if (certSlot === -1 || !player.medicalCertificate) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "captainStampResult",
+                  success: false,
+                  error: "У вас нет медицинской справки МД-07!",
+                }),
+              );
+            }
+            continue;
+          }
+
+          // Заменяем справку на проштампованную
+          player.inventory[certSlot] = {
+            type: "medical_certificate_stamped",
+            quantity: 1,
+          };
+
+          // Главное — ставим флаг!
+          player.medicalCertificateStamped = true;
+
+          // Сохраняем всё
+          players.set(playerId, { ...player });
+          userDatabase.set(playerId, { ...player });
+          await saveUserDatabase(dbCollection, playerId, player);
+
+          // Отправляем клиенту результат + обновлённый инвентарь + флаг
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(
+              JSON.stringify({
+                type: "captainStampResult",
+                success: true,
+                inventory: player.inventory,
+                medicalCertificateStamped: true,
+              }),
+            );
+          }
+
+          // Бродкастим событие в мир (для эффекта/звука у всех)
+          broadcastToWorld(
+            wss,
+            clients,
+            players,
+            player.worldId,
+            JSON.stringify({
+              type: "playerGotStamp",
+              playerId: playerId,
+            }),
+          );
+        }
+
+        ws.isProcessingCaptainStamp = false;
+      }
+      async function processSubmitCorporateDocumentsQueue(ws) {
+        if (ws.isProcessingCorporateDocuments) return;
+        ws.isProcessingCorporateDocuments = true;
+
+        while (ws.submitCorporateDocumentsQueue.length > 0) {
+          const data = ws.submitCorporateDocumentsQueue.shift();
+
+          const playerId = clients.get(ws);
+          if (!playerId || !players.has(playerId)) continue;
+
+          const player = players.get(playerId);
+
+          // Проверяем все три условия (как было раньше)
+          if (
+            !player.medicalCertificate ||
+            !player.medicalCertificateStamped ||
+            !player.inventory.some(
+              (item) => item && item.type === "medical_certificate_stamped",
+            )
+          ) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "corporateDocumentsResult",
+                  success: false,
+                  error: "Документы не соответствуют требованиям корпорации.",
+                }),
+              );
+            }
+            continue;
+          }
+
+          // Проверяем, не сдавал ли уже
+          if (player.corporateDocumentsSubmitted) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "corporateDocumentsResult",
+                  success: false,
+                  error: "Вы уже сдали документы ранее.",
+                }),
+              );
+            }
+            continue;
+          }
+
+          // === УДАЛЯЕМ СПРАВКУ С ПЕЧАТЬЮ ИЗ ИНВЕНТАРЯ ===
+          const certIndex = player.inventory.findIndex(
+            (item) => item && item.type === "medical_certificate_stamped",
+          );
+          if (certIndex !== -1) {
+            player.inventory[certIndex] = null;
+          }
+
+          // === ОПЫТ +66 ===
+          player.xp = (player.xp || 0) + 66;
+
+          let xpToNext = calculateXPToNextLevel(player.level);
+          while (player.xp >= xpToNext && player.level < 100) {
+            player.level += 1;
+            player.xp -= xpToNext;
+            player.upgradePoints = (player.upgradePoints || 0) + 10;
+            xpToNext = calculateXPToNextLevel(player.level);
+          }
+
+          // === +10 БАЛЯРОВ ===
+          let balyaryAdded = false;
+          for (let i = 0; i < player.inventory.length; i++) {
+            if (player.inventory[i]?.type === "balyary") {
+              player.inventory[i].quantity =
+                (player.inventory[i].quantity || 1) + 10;
+              balyaryAdded = true;
+              break;
+            }
+            if (!player.inventory[i]) {
+              player.inventory[i] = { type: "balyary", quantity: 10 };
+              balyaryAdded = true;
+              break;
+            }
+          }
+
+          // === НАБОР НОВИЧКА КОРПОРАЦИИ ===
+          const starterArmor = [
+            "torn_health_t_shirt",
+            "torn_energy_t_shirt",
+            "torn_t_shirt_of_thirst",
+            "torn_t_shirt_of_gluttony",
+          ];
+          const starterPants = [
+            "torn_pants_of_health",
+            "torn_pants_of_energy",
+            "torn_pants_of_thirst",
+            "torn_pants_of_gluttony",
+          ];
+          const starterBoots = [
+            "torn_health_sneakers",
+            "torn_sneakers_of_energy",
+            "torn_sneakers_of_thirst",
+            "torn_sneakers_of_gluttony",
+          ];
+
+          const itemsToGive = [
+            starterArmor[Math.floor(Math.random() * starterArmor.length)],
+            starterPants[Math.floor(Math.random() * starterPants.length)],
+            starterBoots[Math.floor(Math.random() * starterBoots.length)],
+            "knuckles", // кастет — всегда
+          ];
+
+          const freeSlots = player.inventory.filter(
+            (slot) => slot === null,
+          ).length;
+
+          if (freeSlots >= itemsToGive.length) {
+            itemsToGive.forEach((type) => {
+              for (let i = 0; i < player.inventory.length; i++) {
+                if (!player.inventory[i]) {
+                  player.inventory[i] = { type, quantity: 1 };
+                  break;
+                }
+              }
+            });
+          } else {
+            const radius = 30;
+
+            itemsToGive.forEach((type, index) => {
+              const angle = Math.random() * Math.PI * 2;
+              const r = Math.random() * radius;
+
+              const x = player.x + Math.cos(angle) * r;
+              const y = player.y + Math.sin(angle) * r;
+
+              const itemId = `quest_${type}_${playerId}_${Date.now()}_${index}`;
+
+              const questItem = {
+                x,
+                y,
+                type,
+                spawnTime: Date.now(),
+                worldId: player.worldId,
+                questOwnerId: playerId,
+                isQuestItem: true,
+              };
+
+              items.set(itemId, questItem);
+
+              // 👁 Отправляем ТОЛЬКО этому игроку
+              if (ws.readyState === WebSocket.OPEN) {
+                ws.send(
+                  JSON.stringify({
+                    type: "newItem",
+                    items: [
+                      {
+                        itemId,
+                        x,
+                        y,
+                        type,
+                        worldId: player.worldId,
+                        isQuestItem: true,
+                      },
+                    ],
+                  }),
+                );
+              }
+            });
+          }
+
+          // === ФЛАГ СДАЧИ ДОКУМЕНТОВ ===
+          player.corporateDocumentsSubmitted = true;
+
+          // === СОХРАНЯЕМ ===
+          players.set(playerId, { ...player });
+          userDatabase.set(playerId, { ...player });
+          await saveUserDatabase(dbCollection, playerId, player);
+
+          // === ОТПРАВЛЯЕМ КЛИЕНТУ ВСЁ ОБНОВЛЁННОЕ ===
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(
+              JSON.stringify({
+                type: "corporateDocumentsResult",
+                success: true,
+                xpGained: 66,
+                balyaryGained: 10,
+                level: player.level,
+                xp: player.xp,
+                xpToNextLevel: xpToNext,
+                upgradePoints: player.upgradePoints,
+                inventory: player.inventory,
+                corporateDocumentsSubmitted: true,
+              }),
+            );
+          }
+        }
+
+        ws.isProcessingCorporateDocuments = false;
       }
     });
 
