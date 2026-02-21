@@ -692,6 +692,36 @@ function setupWebSocket(
         ws.tradeOfferQueue.push(data);
         processTradeOfferQueue(ws);
         return;
+      }
+      if (!ws.tradeConfirmedQueue) {
+        ws.tradeConfirmedQueue = [];
+        ws.isProcessingTradeConfirmed = false;
+      }
+
+      if (data.type === "tradeConfirmed") {
+        ws.tradeConfirmedQueue.push(data);
+        processTradeConfirmedQueue(ws);
+        return;
+      }
+      if (!ws.tradeCompletedQueue) {
+        ws.tradeCompletedQueue = [];
+        ws.isProcessingTradeCompleted = false;
+      }
+
+      if (data.type === "tradeCompleted") {
+        ws.tradeCompletedQueue.push(data);
+        processTradeCompletedQueue(ws);
+        return;
+      }
+      if (!ws.tradeCancelledQueue) {
+        ws.tradeCancelledQueue = [];
+        ws.isProcessingTradeCancelled = false;
+      }
+
+      if (data.type === "tradeCancelled") {
+        ws.tradeCancelledQueue.push(data);
+        processTradeCancelledQueue(ws);
+        return;
       } else if (data.type === "buyWater") {
         const id = clients.get(ws);
         if (!id) return;
@@ -1090,293 +1120,6 @@ function setupWebSocket(
             }
           });
         }
-      } else if (data.type === "tradeConfirmed") {
-        const fromId = clients.get(ws);
-        const toId = data.toId;
-        const tradeKey =
-          fromId < toId ? `${fromId}-${toId}` : `${toId}-${fromId}`;
-
-        if (!tradeOffers.has(tradeKey)) return;
-
-        const offers = tradeOffers.get(tradeKey);
-        if (fromId === tradeKey.split("-")[0]) {
-          offers.myConfirmed = true;
-        } else {
-          offers.partnerConfirmed = true;
-        }
-
-        // Send confirmation to partner
-        wss.clients.forEach((client) => {
-          if (clients.get(client) === toId) {
-            client.send(JSON.stringify({ type: "tradeConfirmed", fromId }));
-          }
-        });
-      } else if (data.type === "tradeCompleted") {
-        const fromId = clients.get(ws);
-        if (!fromId || !players.has(fromId)) return;
-
-        // Получаем второго участника — он должен быть в данных или в tradeOffers
-        let toId = data.toId;
-        if (!toId || !players.has(toId)) {
-          // Если toId не пришёл — ищем по активным трейдам
-          for (const [key, offers] of tradeOffers.entries()) {
-            const [id1, id2] = key.split("-");
-            if (id1 === fromId || id2 === fromId) {
-              toId = id1 === fromId ? id2 : id1;
-              break;
-            }
-          }
-        }
-        if (!toId || !players.has(toId)) return;
-
-        // Нормализуем ключ торговли (всегда меньший ID первым)
-        const tradeKey =
-          fromId < toId ? `${fromId}-${toId}` : `${toId}-${fromId}`;
-        if (!tradeOffers.has(tradeKey)) return;
-
-        const offers = tradeOffers.get(tradeKey);
-        if (!offers.myConfirmed || !offers.partnerConfirmed) return;
-
-        // Определяем игроков
-        const playerAId = tradeKey.split("-")[0]; // меньший ID
-        const playerBId = tradeKey.split("-")[1]; // больший ID
-        const playerA = players.get(playerAId);
-        const playerB = players.get(playerBId);
-
-        if (!playerA || !playerB || !playerA.inventory || !playerB.inventory)
-          return;
-
-        // Определяем, чьё предложение чьё (симметрично!)
-        const offerFromA = offers.myOffer; // всегда от игрока A (меньший ID)
-        const offerFromB = offers.partnerOffer; // всегда от игрока B
-
-        // ВАЛИДАЦИЯ: предметы на месте
-        const validateOffer = (player, offer) => {
-          return offer.every((item) => {
-            if (!item) return true;
-            const invItem = player.inventory[item.originalSlot];
-            if (!invItem) return false;
-            if (invItem.type !== item.type) return false;
-            if (item.quantity && invItem.quantity < item.quantity) return false;
-            return true;
-          });
-        };
-
-        if (
-          !validateOffer(playerA, offerFromA) ||
-          !validateOffer(playerB, offerFromB)
-        ) {
-          broadcastTradeCancelled(wss, clients, playerAId, playerBId);
-          tradeRequests.delete(tradeKey);
-          tradeOffers.delete(tradeKey);
-          return;
-        }
-
-        // Проверка свободного места
-        const calculateRequiredSlots = (player, incomingOffer) => {
-          let requiredSlots = 0;
-
-          incomingOffer.forEach((item) => {
-            if (!item) return;
-
-            const type = item.type;
-            const isStackable = ITEM_CONFIG[type]?.stackable;
-
-            if (isStackable) {
-              // Проверяем, есть ли уже стек этого типа в инвентаре
-              const hasExistingStack = player.inventory.some(
-                (slot) => slot && slot.type === type,
-              );
-              if (!hasExistingStack) {
-                requiredSlots += 1; // Нужен новый слот только если нет стака
-              }
-              // Если есть — просто прибавим количество, слот не нужен
-            } else {
-              // Не-стакабельный — всегда нужен отдельный слот
-              requiredSlots += 1;
-            }
-          });
-
-          return requiredSlots;
-        };
-
-        const calculateFreedSlots = (player, ownOffer) => {
-          let freed = 0;
-
-          ownOffer.forEach((item) => {
-            if (!item || item.originalSlot === undefined) return;
-
-            const slotItem = player.inventory[item.originalSlot];
-            if (!slotItem) return;
-
-            if (ITEM_CONFIG[item.type]?.stackable && item.quantity) {
-              const remaining = (slotItem.quantity || 1) - (item.quantity || 1);
-              if (remaining <= 0) {
-                freed += 1; // Слот полностью освобождается
-              }
-              // Если осталось >0 — слот остаётся занятым
-            } else {
-              freed += 1; // Не-стакабельный — слот всегда освобождается
-            }
-          });
-
-          return freed;
-        };
-
-        // Текущие пустые слоты
-        const freeSlotsA = playerA.inventory.filter((s) => s === null).length;
-        const freeSlotsB = playerB.inventory.filter((s) => s === null).length;
-
-        // Освобождаются от своих отданных предметов
-        const freedByA = calculateFreedSlots(playerA, offerFromA);
-        const freedByB = calculateFreedSlots(playerB, offerFromB);
-
-        // Итого доступных слотов после отдачи
-        const totalAvailableA = freeSlotsA + freedByA;
-        const totalAvailableB = freeSlotsB + freedByB;
-
-        // Сколько реально нужно слотов для входящих предметов (с учётом стеков)
-        const requiredForA = calculateRequiredSlots(playerA, offerFromB);
-        const requiredForB = calculateRequiredSlots(playerB, offerFromA);
-
-        // Проверка: хватает ли места?
-        if (totalAvailableA < requiredForA || totalAvailableB < requiredForB) {
-          broadcastTradeCancelled(wss, clients, playerAId, playerBId);
-          tradeRequests.delete(tradeKey);
-          tradeOffers.delete(tradeKey);
-          return;
-        }
-
-        // УДАЛЕНИЕ предложенных предметов
-        // УДАЛЕНИЕ предложенных предметов (с поддержкой частичного стака)
-        offerFromA.forEach((item) => {
-          if (item && item.originalSlot !== undefined) {
-            const slotIndex = item.originalSlot;
-            const invItem = playerA.inventory[slotIndex];
-
-            // Защита от подлога
-            if (!invItem || invItem.type !== item.type) return;
-
-            if (ITEM_CONFIG[item.type]?.stackable && item.quantity) {
-              // Это stackable (баляры, атомы) — уменьшаем количество
-              invItem.quantity = (invItem.quantity || 1) - item.quantity;
-              if (invItem.quantity <= 0) {
-                playerA.inventory[slotIndex] = null;
-              }
-            } else {
-              // Не stackable — полностью удаляем
-              playerA.inventory[slotIndex] = null;
-            }
-          }
-        });
-
-        offerFromB.forEach((item) => {
-          if (item && item.originalSlot !== undefined) {
-            const slotIndex = item.originalSlot;
-            const invItem = playerB.inventory[slotIndex];
-
-            // Защита от подлога
-            if (!invItem || invItem.type !== item.type) return;
-
-            if (ITEM_CONFIG[item.type]?.stackable && item.quantity) {
-              // Это stackable — уменьшаем количество
-              invItem.quantity = (invItem.quantity || 1) - item.quantity;
-              if (invItem.quantity <= 0) {
-                playerB.inventory[slotIndex] = null;
-              }
-            } else {
-              // Не stackable — полностью удаляем
-              playerB.inventory[slotIndex] = null;
-            }
-          }
-        });
-
-        // ДОБАВЛЕНИЕ полученных предметов (с поддержкой стека для stackable)
-        const addItemsToPlayer = (player, itemsToAdd) => {
-          itemsToAdd.forEach((item) => {
-            if (!item) return;
-
-            const type = item.type;
-            const qty = item.quantity || 1;
-
-            // Если предмет stackable — ищем существующий стек
-            if (ITEM_CONFIG[type]?.stackable) {
-              let added = false;
-              for (let i = 0; i < player.inventory.length; i++) {
-                const slot = player.inventory[i];
-                if (slot && slot.type === type) {
-                  // Нашли существующий стек — прибавляем
-                  slot.quantity = (slot.quantity || 1) + qty;
-                  added = true;
-                  break;
-                }
-              }
-              if (added) return; // Уже добавили в существующий стек
-            }
-
-            // Если не stackable или не нашли стек — ищем свободный слот
-            const freeSlot = player.inventory.findIndex((s) => s === null);
-            if (freeSlot !== -1) {
-              player.inventory[freeSlot] = {
-                type: type,
-                quantity: qty,
-                itemId: `${type}_${Date.now()}_${Math.random()}`,
-              };
-            }
-            // Если нет места — предмет пропадает (уже проверено ранее через freeSlots)
-          });
-        };
-
-        // Применяем для обоих игроков
-        addItemsToPlayer(playerA, offerFromB);
-        addItemsToPlayer(playerB, offerFromA);
-
-        // Сохранение
-        players.set(playerAId, { ...playerA });
-        players.set(playerBId, { ...playerB });
-        userDatabase.set(playerAId, { ...playerA });
-        userDatabase.set(playerBId, { ...playerB });
-        await saveUserDatabase(dbCollection, playerAId, playerA);
-        await saveUserDatabase(dbCollection, playerBId, playerB);
-
-        // Отправляем каждому свой новый инвентарь
-        wss.clients.forEach((client) => {
-          if (client.readyState !== WebSocket.OPEN) return;
-          const clientId = clients.get(client);
-          if (clientId === playerAId) {
-            client.send(
-              JSON.stringify({
-                type: "tradeCompleted",
-                newInventory: playerA.inventory,
-              }),
-            );
-          } else if (clientId === playerBId) {
-            client.send(
-              JSON.stringify({
-                type: "tradeCompleted",
-                newInventory: playerB.inventory,
-              }),
-            );
-          }
-        });
-
-        // Очистка
-        tradeRequests.delete(tradeKey);
-        tradeOffers.delete(tradeKey);
-      } else if (data.type === "tradeCancelled") {
-        const fromId = clients.get(ws);
-        const toId = data.toId;
-        const tradeKey =
-          fromId < toId ? `${fromId}-${toId}` : `${toId}-${fromId}`;
-
-        tradeRequests.delete(tradeKey);
-        tradeOffers.delete(tradeKey);
-
-        wss.clients.forEach((client) => {
-          if (clients.get(client) === fromId || clients.get(client) === toId) {
-            client.send(JSON.stringify({ type: "tradeCancelled" }));
-          }
-        });
       } else if (data.type === "tradeChatMessage") {
         const fromId = clients.get(ws);
         if (!fromId) return;
@@ -4205,6 +3948,310 @@ function setupWebSocket(
         }
 
         ws.isProcessingTradeOffer = false;
+      }
+      async function processTradeConfirmedQueue(ws) {
+        if (ws.isProcessingTradeConfirmed) return;
+        ws.isProcessingTradeConfirmed = true;
+
+        while (ws.tradeConfirmedQueue.length > 0) {
+          const data = ws.tradeConfirmedQueue.shift();
+
+          const fromId = clients.get(ws);
+          if (!fromId) continue;
+
+          const toId = data.toId;
+          const tradeKey =
+            fromId < toId ? `${fromId}-${toId}` : `${toId}-${fromId}`;
+
+          if (!tradeOffers.has(tradeKey)) continue;
+
+          const offers = tradeOffers.get(tradeKey);
+
+          // Обновляем флаг подтверждения
+          if (fromId === tradeKey.split("-")[0]) {
+            // fromId — инициатор (A)
+            offers.myConfirmed = true;
+          } else {
+            // fromId — второй игрок (B)
+            offers.partnerConfirmed = true;
+          }
+
+          // Сохраняем изменения
+          tradeOffers.set(tradeKey, offers);
+
+          // Отправляем подтверждение ТОЛЬКО партнёру
+          wss.clients.forEach((client) => {
+            if (
+              client.readyState === WebSocket.OPEN &&
+              clients.get(client) === toId
+            ) {
+              client.send(
+                JSON.stringify({
+                  type: "tradeConfirmed",
+                  fromId,
+                }),
+              );
+            }
+          });
+        }
+
+        ws.isProcessingTradeConfirmed = false;
+      }
+      async function processTradeCompletedQueue(ws) {
+        if (ws.isProcessingTradeCompleted) return;
+        ws.isProcessingTradeCompleted = true;
+
+        while (ws.tradeCompletedQueue.length > 0) {
+          const data = ws.tradeCompletedQueue.shift();
+
+          const fromId = clients.get(ws);
+          if (!fromId || !players.has(fromId)) continue;
+
+          // Получаем второго участника
+          let toId = data.toId;
+          if (!toId || !players.has(toId)) {
+            // Если toId не пришёл — ищем по активным трейдам
+            for (const [key, offers] of tradeOffers.entries()) {
+              const [id1, id2] = key.split("-");
+              if (id1 === fromId || id2 === fromId) {
+                toId = id1 === fromId ? id2 : id1;
+                break;
+              }
+            }
+          }
+          if (!toId || !players.has(toId)) continue;
+
+          // Нормализуем ключ (меньший ID первым)
+          const tradeKey =
+            fromId < toId ? `${fromId}-${toId}` : `${toId}-${fromId}`;
+          if (!tradeOffers.has(tradeKey)) continue;
+
+          const offers = tradeOffers.get(tradeKey);
+          if (!offers.myConfirmed || !offers.partnerConfirmed) continue;
+
+          // Определяем игроков
+          const playerAId = tradeKey.split("-")[0]; // меньший ID
+          const playerBId = tradeKey.split("-")[1];
+          const playerA = players.get(playerAId);
+          const playerB = players.get(playerBId);
+
+          if (!playerA || !playerB || !playerA.inventory || !playerB.inventory)
+            continue;
+
+          // Определяем офферы (A — меньший ID)
+          const offerFromA = offers.myOffer;
+          const offerFromB = offers.partnerOffer;
+
+          // ВАЛИДАЦИЯ: предметы на месте
+          const validateOffer = (player, offer) => {
+            return offer.every((item) => {
+              if (!item) return true;
+              const invItem = player.inventory[item.originalSlot];
+              if (!invItem) return false;
+              if (invItem.type !== item.type) return false;
+              if (item.quantity && invItem.quantity < item.quantity)
+                return false;
+              return true;
+            });
+          };
+
+          if (
+            !validateOffer(playerA, offerFromA) ||
+            !validateOffer(playerB, offerFromB)
+          ) {
+            broadcastTradeCancelled(wss, clients, playerAId, playerBId);
+            tradeRequests.delete(tradeKey);
+            tradeOffers.delete(tradeKey);
+            continue;
+          }
+
+          // Проверка свободного места
+          const calculateRequiredSlots = (player, incomingOffer) => {
+            let required = 0;
+            incomingOffer.forEach((item) => {
+              if (!item) return;
+              const type = item.type;
+              const isStackable = ITEM_CONFIG[type]?.stackable;
+              if (isStackable) {
+                const hasStack = player.inventory.some(
+                  (s) => s && s.type === type,
+                );
+                if (!hasStack) required += 1;
+              } else {
+                required += 1;
+              }
+            });
+            return required;
+          };
+
+          const calculateFreedSlots = (player, ownOffer) => {
+            let freed = 0;
+            ownOffer.forEach((item) => {
+              if (!item || item.originalSlot === undefined) return;
+              const slotItem = player.inventory[item.originalSlot];
+              if (!slotItem) return;
+              if (ITEM_CONFIG[item.type]?.stackable && item.quantity) {
+                const remaining = (slotItem.quantity || 1) - item.quantity;
+                if (remaining <= 0) freed += 1;
+              } else {
+                freed += 1;
+              }
+            });
+            return freed;
+          };
+
+          const freeSlotsA = playerA.inventory.filter((s) => s === null).length;
+          const freeSlotsB = playerB.inventory.filter((s) => s === null).length;
+
+          const freedByA = calculateFreedSlots(playerA, offerFromA);
+          const freedByB = calculateFreedSlots(playerB, offerFromB);
+
+          const totalAvailableA = freeSlotsA + freedByA;
+          const totalAvailableB = freeSlotsB + freedByB;
+
+          const requiredForA = calculateRequiredSlots(playerA, offerFromB);
+          const requiredForB = calculateRequiredSlots(playerB, offerFromA);
+
+          if (
+            totalAvailableA < requiredForA ||
+            totalAvailableB < requiredForB
+          ) {
+            broadcastTradeCancelled(wss, clients, playerAId, playerBId);
+            tradeRequests.delete(tradeKey);
+            tradeOffers.delete(tradeKey);
+            continue;
+          }
+
+          // УДАЛЕНИЕ отданных предметов (с поддержкой частичного стака)
+          offerFromA.forEach((item) => {
+            if (item && item.originalSlot !== undefined) {
+              const slotIndex = item.originalSlot;
+              const invItem = playerA.inventory[slotIndex];
+              if (!invItem || invItem.type !== item.type) return;
+              if (ITEM_CONFIG[item.type]?.stackable && item.quantity) {
+                invItem.quantity = (invItem.quantity || 1) - item.quantity;
+                if (invItem.quantity <= 0) playerA.inventory[slotIndex] = null;
+              } else {
+                playerA.inventory[slotIndex] = null;
+              }
+            }
+          });
+
+          offerFromB.forEach((item) => {
+            if (item && item.originalSlot !== undefined) {
+              const slotIndex = item.originalSlot;
+              const invItem = playerB.inventory[slotIndex];
+              if (!invItem || invItem.type !== item.type) return;
+              if (ITEM_CONFIG[item.type]?.stackable && item.quantity) {
+                invItem.quantity = (invItem.quantity || 1) - item.quantity;
+                if (invItem.quantity <= 0) playerB.inventory[slotIndex] = null;
+              } else {
+                playerB.inventory[slotIndex] = null;
+              }
+            }
+          });
+
+          // ДОБАВЛЕНИЕ полученных предметов (с поиском стака)
+          const addItemsToPlayer = (player, itemsToAdd) => {
+            itemsToAdd.forEach((item) => {
+              if (!item) return;
+              const type = item.type;
+              const qty = item.quantity || 1;
+              if (ITEM_CONFIG[type]?.stackable) {
+                let added = false;
+                for (let i = 0; i < player.inventory.length; i++) {
+                  const slot = player.inventory[i];
+                  if (slot && slot.type === type) {
+                    slot.quantity = (slot.quantity || 1) + qty;
+                    added = true;
+                    break;
+                  }
+                }
+                if (added) return;
+              }
+              const freeSlot = player.inventory.findIndex((s) => s === null);
+              if (freeSlot !== -1) {
+                player.inventory[freeSlot] = {
+                  type,
+                  quantity: qty,
+                  itemId: `${type}_${Date.now()}_${Math.random()}`,
+                };
+              }
+            });
+          };
+
+          addItemsToPlayer(playerA, offerFromB);
+          addItemsToPlayer(playerB, offerFromA);
+
+          // Сохранение
+          players.set(playerAId, { ...playerA });
+          players.set(playerBId, { ...playerB });
+          userDatabase.set(playerAId, { ...playerA });
+          userDatabase.set(playerBId, { ...playerB });
+          await saveUserDatabase(dbCollection, playerAId, playerA);
+          await saveUserDatabase(dbCollection, playerBId, playerB);
+
+          // Отправка каждому новому инвентарю
+          wss.clients.forEach((client) => {
+            if (client.readyState !== WebSocket.OPEN) return;
+            const clientId = clients.get(client);
+            if (clientId === playerAId) {
+              client.send(
+                JSON.stringify({
+                  type: "tradeCompleted",
+                  newInventory: playerA.inventory,
+                }),
+              );
+            } else if (clientId === playerBId) {
+              client.send(
+                JSON.stringify({
+                  type: "tradeCompleted",
+                  newInventory: playerB.inventory,
+                }),
+              );
+            }
+          });
+
+          // Очистка
+          tradeRequests.delete(tradeKey);
+          tradeOffers.delete(tradeKey);
+        }
+
+        ws.isProcessingTradeCompleted = false;
+      }
+      async function processTradeCancelledQueue(ws) {
+        if (ws.isProcessingTradeCancelled) return;
+        ws.isProcessingTradeCancelled = true;
+
+        while (ws.tradeCancelledQueue.length > 0) {
+          const data = ws.tradeCancelledQueue.shift();
+
+          const fromId = clients.get(ws);
+          if (!fromId) continue;
+
+          const toId = data.toId;
+          if (!toId) continue;
+
+          // Симметричный ключ (меньший ID первым)
+          const tradeKey =
+            fromId < toId ? `${fromId}-${toId}` : `${toId}-${fromId}`;
+
+          // Очищаем состояние торговли
+          tradeRequests.delete(tradeKey);
+          tradeOffers.delete(tradeKey);
+
+          // Уведомляем обоих участников об отмене
+          wss.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+              const clientId = clients.get(client);
+              if (clientId === fromId || clientId === toId) {
+                client.send(JSON.stringify({ type: "tradeCancelled" }));
+              }
+            }
+          });
+        }
+
+        ws.isProcessingTradeCancelled = false;
       }
     });
 
