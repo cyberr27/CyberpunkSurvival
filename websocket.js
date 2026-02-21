@@ -672,6 +672,16 @@ function setupWebSocket(
         ws.tradeRequestQueue.push(data);
         processTradeRequestQueue(ws);
         return;
+      }
+      if (!ws.tradeAcceptedQueue) {
+        ws.tradeAcceptedQueue = [];
+        ws.isProcessingTradeAccepted = false;
+      }
+
+      if (data.type === "tradeAccepted") {
+        ws.tradeAcceptedQueue.push(data);
+        processTradeAcceptedQueue(ws);
+        return;
       } else if (data.type === "buyWater") {
         const id = clients.get(ws);
         if (!id) return;
@@ -1070,41 +1080,6 @@ function setupWebSocket(
             }
           });
         }
-      } else if (data.type === "tradeAccepted") {
-        const fromId = data.fromId; // B accepts, fromId = B, toId = A (initiator)
-        const toId = data.toId;
-        // ИСПРАВЛЕНИЕ: всегда сортированный ключ (меньший ID первым)
-        const sortedIds = [fromId, toId].sort();
-        const tradeKey = `${sortedIds[0]}-${sortedIds[1]}`;
-        if (
-          !tradeRequests.has(tradeKey) ||
-          tradeRequests.get(tradeKey).status !== "pending"
-        )
-          return;
-
-        tradeRequests.set(tradeKey, { status: "accepted" });
-        tradeOffers.set(tradeKey, {
-          myOffer: Array(4).fill(null),
-          partnerOffer: Array(4).fill(null),
-          myConfirmed: false,
-          partnerConfirmed: false,
-        });
-
-        // Notify both of trade start
-        wss.clients.forEach((client) => {
-          if (client.readyState === WebSocket.OPEN) {
-            const clientId = clients.get(client);
-            if (clientId === fromId || clientId === toId) {
-              client.send(
-                JSON.stringify({
-                  type: "tradeAccepted",
-                  fromId: toId,
-                  toId: fromId,
-                }),
-              ); // fromId = initiator for both
-            }
-          }
-        });
       } else if (data.type === "tradeOffer") {
         const fromId = clients.get(ws);
         if (!fromId) return;
@@ -4148,6 +4123,58 @@ function setupWebSocket(
         }
 
         ws.isProcessingTradeRequest = false;
+      }
+      async function processTradeAcceptedQueue(ws) {
+        if (ws.isProcessingTradeAccepted) return;
+        ws.isProcessingTradeAccepted = true;
+
+        while (ws.tradeAcceptedQueue.length > 0) {
+          const data = ws.tradeAcceptedQueue.shift();
+
+          const fromId = data.fromId; // кто принял (B)
+          const toId = data.toId; // инициатор (A)
+
+          // Всегда сортированный ключ (защита от дубликатов)
+          const sortedIds = [fromId, toId].sort();
+          const tradeKey = `${sortedIds[0]}-${sortedIds[1]}`;
+
+          // Проверяем, что запрос существует и ещё pending
+          if (
+            !tradeRequests.has(tradeKey) ||
+            tradeRequests.get(tradeKey).status !== "pending"
+          ) {
+            continue;
+          }
+
+          // Меняем статус и создаём офферы
+          tradeRequests.set(tradeKey, { status: "accepted" });
+
+          tradeOffers.set(tradeKey, {
+            myOffer: Array(4).fill(null),
+            partnerOffer: Array(4).fill(null),
+            myConfirmed: false,
+            partnerConfirmed: false,
+          });
+
+          // Уведомляем обоих о начале торговли
+          // fromId в сообщении = инициатор (A) для обоих клиентов
+          wss.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+              const clientId = clients.get(client);
+              if (clientId === fromId || clientId === toId) {
+                client.send(
+                  JSON.stringify({
+                    type: "tradeAccepted",
+                    fromId: toId, // initiator
+                    toId: fromId, // acceptor
+                  }),
+                );
+              }
+            }
+          });
+        }
+
+        ws.isProcessingTradeAccepted = false;
       }
     });
 
