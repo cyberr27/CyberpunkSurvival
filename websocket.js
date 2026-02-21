@@ -722,6 +722,16 @@ function setupWebSocket(
         ws.tradeCancelledQueue.push(data);
         processTradeCancelledQueue(ws);
         return;
+      }
+      if (!ws.robotDoctorFreeHealQueue) {
+        ws.robotDoctorFreeHealQueue = [];
+        ws.isProcessingRobotDoctorFreeHeal = false;
+      }
+
+      if (data.type === "robotDoctorFreeHeal") {
+        ws.robotDoctorFreeHealQueue.push(data);
+        processRobotDoctorFreeHealQueue(ws);
+        return;
       } else if (data.type === "buyWater") {
         const id = clients.get(ws);
         if (!id) return;
@@ -1462,36 +1472,6 @@ function setupWebSocket(
             type: "doctorQuestCompleted",
             inventory: player.inventory,
             medicalCertificate: true, // отправляем клиенту
-          }),
-        );
-      } else if (data.type === "robotDoctorFreeHeal") {
-        const playerId = clients.get(ws);
-        if (!playerId || !players.has(playerId)) return;
-
-        const player = players.get(playerId);
-        if (player.level > 5 || player.health >= player.maxStats.health) {
-          ws.send(
-            JSON.stringify({
-              type: "robotDoctorResult",
-              success: false,
-              error: "Условия не выполнены",
-            }),
-          );
-          return;
-        }
-
-        player.health = player.maxStats.health;
-
-        players.set(playerId, player);
-        userDatabase.set(playerId, player);
-        await saveUserDatabase(dbCollection, playerId, player);
-
-        ws.send(
-          JSON.stringify({
-            type: "robotDoctorResult",
-            success: true,
-            action: "freeHeal",
-            health: player.health,
           }),
         );
       } else if (data.type === "robotDoctorHeal20") {
@@ -4252,6 +4232,51 @@ function setupWebSocket(
         }
 
         ws.isProcessingTradeCancelled = false;
+      }
+      async function processRobotDoctorFreeHealQueue(ws) {
+        if (ws.isProcessingRobotDoctorFreeHeal) return;
+        ws.isProcessingRobotDoctorFreeHeal = true;
+
+        while (ws.robotDoctorFreeHealQueue.length > 0) {
+          const data = ws.robotDoctorFreeHealQueue.shift();
+
+          const playerId = clients.get(ws);
+          if (!playerId || !players.has(playerId)) continue;
+
+          const player = players.get(playerId);
+
+          // Проверка условий (уровень ≤ 5 и здоровье не полное)
+          if (player.level > 5 || player.health >= player.maxStats.health) {
+            ws.send(
+              JSON.stringify({
+                type: "robotDoctorResult",
+                success: false,
+                error: "Условия не выполнены",
+              }),
+            );
+            continue;
+          }
+
+          // Полное восстановление здоровья
+          player.health = player.maxStats.health;
+
+          // Сохраняем изменения
+          players.set(playerId, { ...player });
+          userDatabase.set(playerId, { ...player });
+          await saveUserDatabase(dbCollection, playerId, player);
+
+          // Отправляем успешный результат
+          ws.send(
+            JSON.stringify({
+              type: "robotDoctorResult",
+              success: true,
+              action: "freeHeal",
+              health: player.health,
+            }),
+          );
+        }
+
+        ws.isProcessingRobotDoctorFreeHeal = false;
       }
     });
 
