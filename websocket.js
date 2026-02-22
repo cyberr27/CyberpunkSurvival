@@ -37,6 +37,59 @@ function broadcastTradeCancelled(wss, clients, playerAId, playerBId) {
   });
 }
 
+function calculateResourceLoss(player) {
+  if (!player || typeof player.distanceTraveled !== "number") return false;
+
+  const oldDistance = player.lastProcessedDistance || 0;
+  const delta = player.distanceTraveled - oldDistance;
+
+  if (delta <= 0) return false; // не двигался
+
+  let changed = false;
+
+  // Вода: -1 каждые 500 пикселей
+  const waterLoss = Math.floor(player.distanceTraveled / 500);
+  const prevWaterLoss = Math.floor(oldDistance / 500);
+  if (waterLoss > prevWaterLoss) {
+    player.water = Math.max(0, player.water - (waterLoss - prevWaterLoss));
+    changed = true;
+  }
+
+  // Еда: -1 каждые 900 пикселей
+  const foodLoss = Math.floor(player.distanceTraveled / 900);
+  const prevFoodLoss = Math.floor(oldDistance / 900);
+  if (foodLoss > prevFoodLoss) {
+    player.food = Math.max(0, player.food - (foodLoss - prevFoodLoss));
+    changed = true;
+  }
+
+  // Энергия: -1 каждые 1300 пикселей
+  const energyLoss = Math.floor(player.distanceTraveled / 1300);
+  const prevEnergyLoss = Math.floor(oldDistance / 1300);
+  if (energyLoss > prevEnergyLoss) {
+    player.energy = Math.max(0, player.energy - (energyLoss - prevEnergyLoss));
+    changed = true;
+  }
+
+  // Здоровье: -1 каждые 200 пикселей, если любой из показателей 0
+  if (player.energy === 0 || player.food === 0 || player.water === 0) {
+    const healthLoss = Math.floor(player.distanceTraveled / 200);
+    const prevHealthLoss = Math.floor(oldDistance / 200);
+    if (healthLoss > prevHealthLoss) {
+      player.health = Math.max(
+        0,
+        player.health - (healthLoss - prevHealthLoss),
+      );
+      changed = true;
+    }
+  }
+
+  // Запоминаем обработанное расстояние
+  player.lastProcessedDistance = player.distanceTraveled;
+
+  return changed;
+}
+
 const tradeRequests = new Map();
 const tradeOffers = new Map();
 
@@ -1730,6 +1783,35 @@ function setupWebSocket(
           );
 
           players.set(data.username, playerData);
+
+          if (!playerData.resourceTimer) {
+            playerData.resourceTimer = setInterval(() => {
+              const changed = calculateResourceLoss(playerData);
+              if (changed) {
+                // Сохраняем в базу
+                saveUserDatabase(dbCollection, data.username, playerData);
+
+                // Рассылаем обновление всем в мире
+                broadcastToWorld(
+                  wss,
+                  clients,
+                  players,
+                  playerData.worldId,
+                  JSON.stringify({
+                    type: "update",
+                    player: {
+                      id: data.username,
+                      health: playerData.health,
+                      energy: playerData.energy,
+                      food: playerData.food,
+                      water: playerData.water,
+                      distanceTraveled: playerData.distanceTraveled,
+                    },
+                  }),
+                );
+              }
+            }, 5000); // каждые 5 секунд
+          }
 
           // Отправляем успех + все данные
           ws.send(
@@ -5515,6 +5597,10 @@ function setupWebSocket(
         }
         clients.delete(ws);
         players.delete(id);
+        if (player && player.resourceTimer) {
+          clearInterval(player.resourceTimer);
+          delete player.resourceTimer;
+        }
         console.log("Client disconnected:", id);
         wss.clients.forEach((client) => {
           if (client.readyState === WebSocket.OPEN) {
