@@ -338,13 +338,28 @@
   }
 
   function sendMovementUpdate(player) {
+    // Считаем дистанцию здесь, на каждом вызове
+    if (!player.lastSentX) player.lastSentX = player.x;
+    if (!player.lastSentY) player.lastSentY = player.y;
+
+    const dx = player.x - player.lastSentX;
+    const dy = player.y - player.lastSentY;
+    const distThisTick = Math.hypot(dx, dy);
+
+    // Накапливаем
+    player.distanceTraveled = (player.distanceTraveled || 0) + distThisTick;
+
+    // Запоминаем для следующего раза
+    player.lastSentX = player.x;
+    player.lastSentY = player.y;
+
     sendWhenReady(
       ws,
       JSON.stringify({
         type: "move",
         x: player.x,
         y: player.y,
-        distanceTraveled: player.distanceTraveled,
+        distanceTraveled: Math.floor(player.distanceTraveled), // целое число
         direction: player.direction,
         state: player.state,
         frame: player.frame,

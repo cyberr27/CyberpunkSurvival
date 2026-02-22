@@ -473,49 +473,68 @@ function setupWebSocket(
   function calculateResourceLoss(player, newDistanceTraveled) {
     const oldDistance = player.distanceTraveled || 0;
 
-    // Защита от накрутки назад
+    // Защита от читов: откат назад или слишком маленький прирост
     if (newDistanceTraveled < oldDistance) {
-      console.warn(`[AntiCheat] Игрок ${player.id} уменьшил distanceTraveled`);
-      return false; // не применяем изменения
+      console.warn(
+        `[AntiCheat] ${player.id} distanceTraveled уменьшился: ${oldDistance} → ${newDistanceTraveled}`,
+      );
+      return false;
+    }
+
+    // Слишком большой скачок за один пакет — тоже подозрительно
+    const deltaDist = newDistanceTraveled - oldDistance;
+    if (deltaDist > 300) {
+      // примерно 4–5 секунд бега на максимальной скорости
+      console.warn(
+        `[AntiCheat] ${player.id} слишком большой скачок дистанции: +${deltaDist}`,
+      );
+      // Можно либо отклонить, либо обрезать до разумного значения
+      // player.distanceTraveled = oldDistance + 300;
+      // return true;
+      return false; // пока просто отклоняем
     }
 
     let anyChange = false;
 
-    // Вода — 1 единица каждые 500 px
-    const waterLossCount =
+    // Вода — 1 ед. каждые 500 px
+    const waterLoss =
       Math.floor(newDistanceTraveled / 500) - Math.floor(oldDistance / 500);
-    if (waterLossCount > 0) {
-      player.water = Math.max(0, player.water - waterLossCount);
+    if (waterLoss > 0) {
+      player.water = Math.max(0, player.water - waterLoss);
       anyChange = true;
+      // console.log(`${player.id} -${waterLoss} water → ${player.water}`);
     }
 
-    // Еда — 1 единица каждые 900 px
-    const foodLossCount =
+    // Еда — 1 ед. каждые 900 px
+    const foodLoss =
       Math.floor(newDistanceTraveled / 900) - Math.floor(oldDistance / 900);
-    if (foodLossCount > 0) {
-      player.food = Math.max(0, player.food - foodLossCount);
+    if (foodLoss > 0) {
+      player.food = Math.max(0, player.food - foodLoss);
       anyChange = true;
+      // console.log(`${player.id} -${foodLoss} food → ${player.food}`);
     }
 
-    // Энергия — 1 единица каждые 1300 px
-    const energyLossCount =
+    // Энергия — 1 ед. каждые 1300 px
+    const energyLoss =
       Math.floor(newDistanceTraveled / 1300) - Math.floor(oldDistance / 1300);
-    if (energyLossCount > 0) {
-      player.energy = Math.max(0, player.energy - energyLossCount);
+    if (energyLoss > 0) {
+      player.energy = Math.max(0, player.energy - energyLoss);
       anyChange = true;
+      // console.log(`${player.id} -${energyLoss} energy → ${player.energy}`);
     }
 
-    // Урон здоровью, если что-то из ресурсов = 0
+    // Голод/жажда/усталость → урон по здоровью (1 ед. каждые 200 px)
     if (player.energy <= 0 || player.food <= 0 || player.water <= 0) {
-      const healthLossCount =
+      const healthLoss =
         Math.floor(newDistanceTraveled / 200) - Math.floor(oldDistance / 200);
-      if (healthLossCount > 0) {
-        player.health = Math.max(0, player.health - healthLossCount);
+      if (healthLoss > 0) {
+        player.health = Math.max(0, player.health - healthLoss);
         anyChange = true;
+        // console.log(`${player.id} -${healthLoss} health (starving) → ${player.health}`);
       }
     }
 
-    // Обновляем общее расстояние (только если не было отката)
+    // Применяем новое значение дистанции
     player.distanceTraveled = newDistanceTraveled;
 
     return anyChange;
