@@ -192,6 +192,7 @@
     window.npcSystem?.checkQuestCompletion?.();
     window.vendingMachine?.checkProximity?.();
     window.checkCollisions?.(); // если есть глобальная функция
+    updateResources?.(); // если определена
 
     if (currentTime - lastSendTime >= sendInterval) {
       sendMovementUpdate(me);
@@ -344,6 +345,11 @@
         type: "move",
         x: player.x,
         y: player.y,
+        health: player.health,
+        energy: player.energy,
+        food: player.food,
+        water: player.water,
+        armor: player.armor,
         distanceTraveled: player.distanceTraveled,
         direction: player.direction,
         state: player.state,
