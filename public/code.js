@@ -1892,7 +1892,7 @@ async function handleGameMessageLogic(data) {
         const me = players.get(myId);
         if (!me) break;
 
-        // ─── Самое важное место для детекта урона и восстановления ───
+        // ← Самое важное место для детекта урона
         if (data.player.health !== undefined) {
           const oldHealth = Number(me.health) || 0;
           let newHealth = Number(data.player.health);
@@ -1900,41 +1900,16 @@ async function handleGameMessageLogic(data) {
           // Защита от отрицательного здоровья с сервера
           newHealth = Math.max(0, newHealth);
 
-          // Детект урона (для сброса регенерации)
           if (newHealth < oldHealth && window.regenerationSystem) {
             window.regenerationSystem.resetTimerOnDamage();
           }
 
-          // Применяем значение с сервера, но не выше текущего максимума
           me.health = Math.max(
             0,
             Math.min(newHealth, me.maxStats?.health || 100),
           );
         }
 
-        // Аналогично для остальных характеристик (теперь сервер может их присылать при левел-апе)
-        if (data.player.energy !== undefined) {
-          me.energy = Math.max(
-            0,
-            Math.min(Number(data.player.energy), me.maxStats?.energy || 100),
-          );
-        }
-
-        if (data.player.food !== undefined) {
-          me.food = Math.max(
-            0,
-            Math.min(Number(data.player.food), me.maxStats?.food || 100),
-          );
-        }
-
-        if (data.player.water !== undefined) {
-          me.water = Math.max(
-            0,
-            Math.min(Number(data.player.water), me.maxStats?.water || 100),
-          );
-        }
-
-        // ─── Остальная логика движения и синхронизации (без изменений) ───
         const isMoving = me.state === "walking" || me.state === "attacking";
 
         if (isMoving) {
@@ -1958,13 +1933,11 @@ async function handleGameMessageLogic(data) {
           }
           const { x, y, ...stats } = data.player;
           Object.assign(me, stats);
-
           if (data.player.meleeDamageBonus !== undefined) {
             me.meleeDamageBonus = Number(data.player.meleeDamageBonus);
           }
         }
 
-        // Инвентарь
         if (data.player.inventory) {
           // Глубокая копия, чтобы не было неожиданных мутаций
           inventory = data.player.inventory.map((slot) =>
@@ -1983,16 +1956,14 @@ async function handleGameMessageLogic(data) {
           }
         }
 
-        // Оборудование
+        // Оборудование (оставляем как было)
         if (data.player.equipment) {
           window.equipmentSystem.syncEquipment(data.player.equipment);
         }
 
-        // Обновляем статы в любом случае (полоски здоровья/энергии/еды/воды)
+        // Обновляем статы в любом случае
         updateStatsDisplay();
-      }
-      // ─── Обработка других игроков (без изменений) ───
-      else if (data.player?.id) {
+      } else if (data.player?.id) {
         const existing = players.get(data.player.id) || {};
 
         const updatedPlayer = {
@@ -2016,17 +1987,39 @@ async function handleGameMessageLogic(data) {
           updatedPlayer.attackFrameTime = 0;
         }
 
+        // Если атака только началась — гарантируем сброс
+        if (
+          data.player.state === "attacking" &&
+          existing.state !== "attacking"
+        ) {
+          updatedPlayer.attackFrame = 0;
+          updatedPlayer.attackFrameTime = 0;
+        }
+
+        if (data.player.attackFrameTime !== undefined) {
+          updatedPlayer.attackFrameTime = data.player.attackFrameTime;
+        }
+        if (data.player.attackFrame !== undefined) {
+          updatedPlayer.attackFrame = data.player.attackFrame;
+        }
+
+        // Добавь это:
+        if (data.player.attackFrame !== undefined) {
+          updatedPlayer.attackFrame = data.player.attackFrame;
+          updatedPlayer.attackFrameTime = data.player.attackFrameTime || 0;
+        }
+
         // КРИТИЧНО ВАЖНЫЙ БЛОК: детект начала атаки у других игроков
         const wasAttacking = existing.state === "attacking";
         const isAttacking = data.player.state === "attacking";
 
         if (isAttacking && !wasAttacking) {
-          // Игрок ТОЛЬКО ЧТО начал атаковать
+          // Игрок ТОЛЬКО ЧТО начал атаковать (даже стоя на месте!)
           updatedPlayer.attackFrame = 0;
           updatedPlayer.attackFrameTime = 0;
-          updatedPlayer.animTime = 0;
+          updatedPlayer.animTime = 0; // сбрасываем анимацию ходьбы
           updatedPlayer.frame = 0;
-          updatedPlayer.prevState = existing.state || "idle";
+          updatedPlayer.prevState = existing.state || "idle"; // на всякий
         } else if (!isAttacking && wasAttacking) {
           // Закончил атаку
           updatedPlayer.attackFrame = 0;
@@ -2041,7 +2034,7 @@ async function handleGameMessageLogic(data) {
           updatedPlayer.attackFrameTime = 0;
         }
 
-        // Анимация ходьбы
+        // Анимация ходьбы — только если не атакует
         if (data.player.state === "walking") {
           updatedPlayer.animTime = existing.animTime || 0;
           updatedPlayer.frame = existing.frame ?? 0;

@@ -3516,8 +3516,6 @@ function setupWebSocket(
 
           const player = players.get(id);
 
-          const oldLevel = player.level || 0;
-
           // Обновляем значения с защитой от NaN и отрицательных
           player.level = Number(data.level) || player.level || 0;
           player.xp = Number(data.xp) || player.xp || 0;
@@ -3536,14 +3534,6 @@ function setupWebSocket(
               );
               player.skillPoints = newSkillPoints;
             }
-          }
-
-          if (player.level > oldLevel) {
-            // Предполагаем, что calculateMaxStats уже вызывалась ранее и maxStats актуальны
-            player.health = player.maxStats?.health || 100;
-            player.energy = player.maxStats?.energy || 100;
-            player.food = player.maxStats?.food || 100;
-            player.water = player.maxStats?.water || 100;
           }
 
           // Сохраняем изменения
@@ -3566,10 +3556,6 @@ function setupWebSocket(
                     xp: player.xp,
                     upgradePoints: player.upgradePoints,
                     skillPoints: player.skillPoints,
-                    health: player.health,
-                    energy: player.energy,
-                    food: player.food,
-                    water: player.water,
                   },
                 }),
               );
