@@ -872,18 +872,6 @@ function setupWebSocket(
         ws.neonQuestAcceptQueue.push(data);
         processNeonQuestAcceptQueue(ws);
         return;
-      } else if (data.type === "meetNPC") {
-        const id = clients.get(ws);
-        if (id) {
-          const player = players.get(id);
-          player.npcMet = data.npcMet;
-          if (data.npcMet && data.availableQuests) {
-            player.availableQuests = data.availableQuests;
-          }
-          players.set(id, { ...player });
-          userDatabase.set(id, { ...player });
-          await saveUserDatabase(dbCollection, id, player);
-        }
       }
       if (!ws.vacuumBalyaryQueue) {
         ws.vacuumBalyaryQueue = [];
@@ -914,71 +902,224 @@ function setupWebSocket(
         ws.submitCorporateDocumentsQueue.push(data);
         processSubmitCorporateDocumentsQueue(ws);
         return;
-      } else if (data.type === "meetJack") {
-        const id = clients.get(ws);
-        if (id) {
-          const player = players.get(id);
-          player.jackMet = true;
-          players.set(id, { ...player });
-          userDatabase.set(id, { ...player });
-          await saveUserDatabase(dbCollection, id, player);
-        }
-      } else if (data.type === "meetNeonAlex") {
-        const id = clients.get(ws);
-        if (id) {
-          const player = players.get(id);
-          player.alexNeonMet = true;
-          players.set(id, { ...player });
-          userDatabase.set(id, { ...player });
-          await saveUserDatabase(dbCollection, id, player);
+      }
+      if (!ws.thimbleriggerBetQueue) {
+        ws.thimbleriggerBetQueue = [];
+        ws.isProcessingThimbleriggerBet = false;
+      }
 
-          // Рассылаем всем в мире обновление (чтобы у других игроков тоже обновился флаг)
-          broadcastToWorld(
-            wss,
-            clients,
-            players,
-            player.worldId,
-            JSON.stringify({
-              type: "update",
-              player: {
-                id: player.id,
-                alexNeonMet: true,
-              },
-            }),
-          );
-        }
-      } else if (data.type === "meetCaptain") {
-        const id = clients.get(ws);
-        if (id) {
-          const player = players.get(id);
-          player.captainMet = data.captainMet;
-          players.set(id, { ...player });
-          userDatabase.set(id, { ...player });
-          await saveUserDatabase(dbCollection, id, player);
-        }
-      } else if (data.type === "meetThimblerigger") {
-        const playerId = clients.get(ws);
-        if (!playerId || !players.has(playerId)) return;
+      if (data.type === "thimbleriggerBet") {
+        ws.thimbleriggerBetQueue.push(data);
+        processThimbleriggerBetQueue(ws);
+        return;
+      }
+      if (!ws.thimbleriggerGameResultQueue) {
+        ws.thimbleriggerGameResultQueue = [];
+        ws.isProcessingThimbleriggerGameResult = false;
+      }
 
-        const player = players.get(playerId);
-        player.thimbleriggerMet = true;
+      if (data.type === "thimbleriggerGameResult") {
+        ws.thimbleriggerGameResultQueue.push(data);
+        processThimbleriggerGameResultQueue(ws);
+        return;
+      }
+      if (!ws.buyFromJackQueue) {
+        ws.buyFromJackQueue = [];
+        ws.isProcessingBuyFromJack = false;
+      }
 
-        players.set(playerId, player);
-        userDatabase.set(playerId, player);
-        await saveUserDatabase(dbCollection, playerId, player);
+      if (data.type === "buyFromJack") {
+        ws.buyFromJackQueue.push(data);
+        processBuyFromJackQueue(ws);
+        return;
+      }
+      if (!ws.sellToJackQueue) {
+        ws.sellToJackQueue = [];
+        ws.isProcessingSellToJack = false;
+      }
 
-        ws.send(JSON.stringify({ type: "thimbleriggerMet", met: true }));
-      } else if (data.type === "chat") {
-        const id = clients.get(ws);
-        if (id) {
-          wss.clients.forEach((client) => {
-            if (client.readyState === WebSocket.OPEN) {
-              client.send(
-                JSON.stringify({ type: "chat", id, message: data.message }),
-              );
-            }
-          });
+      if (data.type === "sellToJack") {
+        ws.sellToJackQueue.push(data);
+        processSellToJackQueue(ws);
+        return;
+      }
+      if (!ws.twisterQueue) {
+        ws.twisterQueue = [];
+        ws.isProcessingTwister = false;
+      }
+
+      if (data.type === "twister") {
+        ws.twisterQueue.push(data);
+        processTwisterQueue(ws);
+        return;
+      }
+      if (!ws.trashGuessQueue) {
+        ws.trashGuessQueue = [];
+        ws.isProcessingTrashGuess = false;
+      }
+
+      if (data.type === "trashGuess") {
+        ws.trashGuessQueue.push(data);
+        processTrashGuessQueue(ws);
+        return;
+      }
+      if (!ws.getTrashStateQueue) {
+        ws.getTrashStateQueue = [];
+        ws.isProcessingGetTrashState = false;
+      }
+
+      if (data.type === "getTrashState") {
+        ws.getTrashStateQueue.push(data);
+        processGetTrashStateQueue(ws);
+        return;
+      }
+      if (!ws.getAllTrashStatesQueue) {
+        ws.getAllTrashStatesQueue = [];
+        ws.isProcessingGetAllTrashStates = false;
+      }
+
+      if (data.type === "getAllTrashStates") {
+        ws.getAllTrashStatesQueue.push(data);
+        processGetAllTrashStatesQueue(ws);
+        return;
+      }
+      if (!ws.torestosUpgradeQueue) {
+        ws.torestosUpgradeQueue = [];
+        ws.isProcessingTorestosUpgrade = false;
+      }
+
+      if (data.type === "torestosUpgrade") {
+        ws.torestosUpgradeQueue.push(data);
+        processTorestosUpgradeQueue(ws);
+        return;
+      }
+      if (!ws.upgradeSkillQueue) {
+        ws.upgradeSkillQueue = [];
+        ws.isProcessingUpgradeSkill = false;
+      }
+
+      if (data.type === "upgradeSkill") {
+        ws.upgradeSkillQueue.push(data);
+        processUpgradeSkillQueue(ws);
+        return;
+      }
+      if (!ws.homelessOpenStorageQueue) {
+        ws.homelessOpenStorageQueue = [];
+        ws.isProcessingHomelessOpenStorage = false;
+      }
+
+      if (data.type === "homelessOpenStorage") {
+        ws.homelessOpenStorageQueue.push(data);
+        processHomelessOpenStorageQueue(ws);
+        return;
+      }
+      if (!ws.homelessRentConfirmQueue) {
+        ws.homelessRentConfirmQueue = [];
+        ws.isProcessingHomelessRentConfirm = false;
+      }
+
+      if (data.type === "homelessRentConfirm") {
+        ws.homelessRentConfirmQueue.push(data);
+        processHomelessRentConfirmQueue(ws);
+        return;
+      }
+      if (!ws.homelessPutItemQueue) {
+        ws.homelessPutItemQueue = [];
+        ws.isProcessingHomelessPutItem = false;
+      }
+
+      if (data.type === "homelessPutItem") {
+        ws.homelessPutItemQueue.push(data);
+        processHomelessPutItemQueue(ws);
+        return;
+      }
+      if (!ws.homelessTakeItemQueue) {
+        ws.homelessTakeItemQueue = [];
+        ws.isProcessingHomelessTakeItem = false;
+      }
+
+      if (data.type === "homelessTakeItem") {
+        ws.homelessTakeItemQueue.push(data);
+        processHomelessTakeItemQueue(ws);
+        return;
+      }
+      if (!ws.requestRegenerationQueue) {
+        ws.requestRegenerationQueue = [];
+        ws.isProcessingRequestRegeneration = false;
+      }
+
+      if (data.type === "requestRegeneration") {
+        ws.requestRegenerationQueue.push(data);
+        processRequestRegenerationQueue(ws);
+        return;
+      }
+      if (!ws.welcomeGuideSeenQueue) {
+        ws.welcomeGuideSeenQueue = [];
+        ws.isProcessingWelcomeGuideSeen = false;
+      }
+
+      if (data.type === "welcomeGuideSeen") {
+        ws.welcomeGuideSeenQueue.push(data);
+        processWelcomeGuideSeenQueue(ws);
+        return;
+      }
+      if (!ws.chatQueue) {
+        ws.chatQueue = [];
+        ws.isProcessingChat = false;
+        ws.chatTimestamps = [];
+        ws.CHAT_RATE_LIMIT = 5;
+        ws.CHAT_RATE_WINDOW = 3000;
+      }
+
+      if (data.type === "chat") {
+        const now = Date.now();
+        ws.chatTimestamps = ws.chatTimestamps.filter(
+          (ts) => now - ts < ws.CHAT_RATE_WINDOW,
+        );
+
+        if (ws.chatTimestamps.length >= ws.CHAT_RATE_LIMIT) {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(
+              JSON.stringify({
+                type: "chatError",
+                message: "Слишком быстро! Подожди пару секунд.",
+              }),
+            );
+          }
+          return;
         }
+
+        ws.chatTimestamps.push(now);
+
+        if (typeof data.message === "string") {
+          data.message = data.message.trim().substring(0, 200);
+        } else {
+          data.message = "";
+        }
+
+        if (!data.message) return;
+
+        ws.chatQueue.push(data);
+        processChatQueue(ws);
+        return;
+      }
+      if (!ws.meetNpcQueue) {
+        ws.meetNpcQueue = [];
+        ws.isProcessingMeetNpc = false;
+      }
+
+      if (
+        data.type === "meetNPC" ||
+        data.type === "meetJack" ||
+        data.type === "meetNeonAlex" ||
+        data.type === "meetCaptain" ||
+        data.type === "meetThimblerigger" ||
+        data.type === "meetTorestos" ||
+        data.type === "meetToremidos"
+      ) {
+        ws.meetNpcQueue.push(data);
+        processMeetNpcQueue(ws);
+        return;
       } else if (data.type === "shoot") {
         const shooterId = clients.get(ws);
         if (shooterId && players.has(shooterId)) {
@@ -1255,672 +1396,6 @@ function setupWebSocket(
             }),
           );
         }
-      } else if (data.type === "welcomeGuideSeen") {
-        const id = clients.get(ws);
-        if (id && players.has(id)) {
-          const player = players.get(id);
-          player.hasSeenWelcomeGuide = true;
-
-          players.set(id, player);
-          userDatabase.set(id, player);
-          await saveUserDatabase(dbCollection, id, player); // ← лучше await, а не .catch
-
-          ws.send(JSON.stringify({ type: "welcomeGuideSeenConfirm" }));
-        }
-      } else if (data.type === "thimbleriggerBet") {
-        const playerId = clients.get(ws);
-        if (!playerId || !players.has(playerId)) return;
-
-        const player = players.get(playerId);
-        const bet = data.bet;
-
-        // Находим слот с балярами
-        let balyarySlot = player.inventory.findIndex(
-          (item) => item && item.type === "balyary",
-        );
-        if (
-          balyarySlot === -1 ||
-          (player.inventory[balyarySlot].quantity || 0) < bet
-        ) {
-          ws.send(
-            JSON.stringify({
-              type: "thimbleriggerBetResult",
-              success: false,
-              error: "Недостаточно баляров!",
-            }),
-          );
-          return;
-        }
-
-        // Вычитаем ставку
-        player.inventory[balyarySlot].quantity -= bet;
-        if (player.inventory[balyarySlot].quantity <= 0) {
-          player.inventory[balyarySlot] = null;
-        }
-
-        // Сохраняем
-        players.set(playerId, player);
-        userDatabase.set(playerId, player);
-        await saveUserDatabase(dbCollection, playerId, player);
-
-        // Отправляем ок с обновлённым инвентарём
-        ws.send(
-          JSON.stringify({
-            type: "thimbleriggerBetResult",
-            success: true,
-            bet,
-            inventory: player.inventory,
-          }),
-        );
-      } else if (data.type === "thimbleriggerGameResult") {
-        const playerId = clients.get(ws);
-        if (!playerId || !players.has(playerId)) return;
-
-        const player = players.get(playerId);
-        const { won, bet, selectedCup, correctCup } = data;
-
-        let xpToNext = calculateXPToNextLevel(player.level); // ← ДОБАВЛЕНО: выносим расчёт xpToNext наружу, чтобы он был всегда (даже при проигрыше)
-
-        // Валидация: просто проверим won === (selectedCup === correctCup), чтобы избежать читов
-        const validatedWon = selectedCup === correctCup;
-        if (won !== validatedWon) {
-          ws.send(
-            JSON.stringify({
-              type: "thimbleriggerGameResultSync",
-              success: false,
-              error: "Неверный результат! Игра отменена.",
-            }),
-          );
-          return;
-        }
-
-        let xpGained = 0;
-        if (won) {
-          // Добавляем выигрыш bet*2 баляров
-          let balyarySlot = player.inventory.findIndex(
-            (item) => item && item.type === "balyary",
-          );
-          const winAmount = bet * 2;
-          if (balyarySlot !== -1) {
-            player.inventory[balyarySlot].quantity =
-              (player.inventory[balyarySlot].quantity || 0) + winAmount;
-          } else {
-            balyarySlot = player.inventory.findIndex((item) => !item);
-            if (balyarySlot !== -1) {
-              player.inventory[balyarySlot] = {
-                type: "balyary",
-                quantity: winAmount,
-              };
-            }
-          }
-
-          // Добавляем XP = bet
-          player.xp = (player.xp || 0) + bet;
-          xpGained = bet;
-
-          // Проверяем level up
-          while (player.xp >= xpToNext && player.level < 100) {
-            player.level += 1;
-            player.xp -= xpToNext;
-            player.upgradePoints = (player.upgradePoints || 0) + 10;
-            xpToNext = calculateXPToNextLevel(player.level);
-          }
-        }
-
-        // Сохраняем всё
-        players.set(playerId, player);
-        userDatabase.set(playerId, player);
-        await saveUserDatabase(dbCollection, playerId, player);
-
-        // Отправляем синхронизацию
-        ws.send(
-          JSON.stringify({
-            type: "thimbleriggerGameResultSync",
-            success: true,
-            won,
-            inventory: player.inventory,
-            xp: player.xp,
-            level: player.level,
-            upgradePoints: player.upgradePoints,
-            xpToNext: xpToNext,
-            xpGained,
-          }),
-        );
-      } else if (data.type === "buyFromJack") {
-        const playerId = clients.get(ws);
-        if (!playerId || !players.has(playerId)) {
-          ws.send(
-            JSON.stringify({
-              type: "buyFromJackFail",
-              error: "Игрок не найден",
-            }),
-          );
-          return;
-        }
-
-        const player = players.get(playerId);
-        const type = data.itemType;
-        const cfg = ITEM_CONFIG[type];
-        if (!cfg) {
-          ws.send(
-            JSON.stringify({
-              type: "buyFromJackFail",
-              error: "Неверный тип предмета",
-            }),
-          );
-          return;
-        }
-
-        // Проверка: это еда rarity 1-3, не оружие, не чёрный список
-        const BLACKLIST = ["balyary", "atom", "blood_pack", "blood_syringe"];
-        const isValid =
-          cfg.rarity >= 1 &&
-          cfg.rarity <= 3 &&
-          !BLACKLIST.includes(type) &&
-          cfg.category !== "weapon";
-        if (!isValid) {
-          ws.send(
-            JSON.stringify({
-              type: "buyFromJackFail",
-              error: "Этот предмет нельзя купить у Джека",
-            }),
-          );
-          return;
-        }
-
-        const price = cfg.rarity; // Цена = rarity
-        if (data.price !== price) {
-          ws.send(
-            JSON.stringify({ type: "buyFromJackFail", error: "Неверная цена" }),
-          );
-          return;
-        }
-
-        // Находим баляры
-        const balyarySlot = player.inventory.findIndex(
-          (s) => s && s.type === "balyary",
-        );
-        const balyaryQty =
-          balyarySlot !== -1 ? player.inventory[balyarySlot].quantity || 0 : 0;
-        if (balyaryQty < price) {
-          ws.send(
-            JSON.stringify({
-              type: "buyFromJackFail",
-              error: "Не хватает баляров",
-            }),
-          );
-          return;
-        }
-
-        // Вычитаем баляры
-        if (balyaryQty === price) {
-          player.inventory[balyarySlot] = null;
-        } else {
-          player.inventory[balyarySlot].quantity -= price;
-        }
-
-        // Находим свободный слот
-        const freeSlot = player.inventory.findIndex((s) => s === null);
-        if (freeSlot === -1) {
-          ws.send(
-            JSON.stringify({
-              type: "buyFromJackFail",
-              error: "Инвентарь полон",
-            }),
-          );
-          return;
-        }
-
-        // Добавляем предмет
-        player.inventory[freeSlot] = {
-          type,
-          quantity: 1,
-          itemId: `${type}_${Date.now()}`,
-        };
-
-        // Сохраняем
-        players.set(playerId, { ...player });
-        userDatabase.set(playerId, { ...player });
-        await saveUserDatabase(dbCollection, playerId, player);
-
-        // Отправляем success с новым inventory
-        ws.send(
-          JSON.stringify({
-            type: "buyFromJackSuccess",
-            inventory: player.inventory,
-          }),
-        );
-      } else if (data.type === "sellToJack") {
-        const playerId = clients.get(ws);
-        if (!playerId || !players.has(playerId)) {
-          ws.send(
-            JSON.stringify({
-              type: "sellToJackFail",
-              error: "Игрок не найден",
-            }),
-          );
-          return;
-        }
-
-        const player = players.get(playerId);
-        const slotIndex = data.slotIndex;
-        if (slotIndex < 0 || slotIndex >= player.inventory.length) {
-          ws.send(
-            JSON.stringify({ type: "sellToJackFail", error: "Неверный слот" }),
-          );
-          return;
-        }
-
-        const item = player.inventory[slotIndex];
-        if (!item) {
-          ws.send(
-            JSON.stringify({ type: "sellToJackFail", error: "Слот пустой" }),
-          );
-          return;
-        }
-
-        // Проверка: это еда (та же как в покупке)
-        const cfg = ITEM_CONFIG[item.type];
-        if (!cfg) {
-          ws.send(
-            JSON.stringify({
-              type: "sellToJackFail",
-              error: "Неверный тип предмета",
-            }),
-          );
-          return;
-        }
-
-        const BLACKLIST = ["balyary", "atom", "blood_pack", "blood_syringe"];
-        const isFood =
-          cfg.rarity >= 1 &&
-          cfg.rarity <= 3 &&
-          !BLACKLIST.includes(item.type) &&
-          cfg.category !== "weapon";
-        if (!isFood) {
-          ws.send(
-            JSON.stringify({
-              type: "sellToJackFail",
-              error: "Джек покупает только продукты питания",
-            }),
-          );
-          return;
-        }
-
-        player.inventory[slotIndex] = null;
-
-        let balyarySlot = player.inventory.findIndex(
-          (s) => s && s.type === "balyary",
-        );
-        if (balyarySlot !== -1) {
-          player.inventory[balyarySlot].quantity =
-            (player.inventory[balyarySlot].quantity || 0) + 1;
-        } else {
-          const freeSlot = player.inventory.findIndex((s) => s === null);
-          if (freeSlot !== -1) {
-            player.inventory[freeSlot] = {
-              type: "balyary",
-              quantity: 1,
-              itemId: `balyary_${Date.now()}`,
-            };
-          } else {
-            // Редко: но если нет места — не добавляем (хотя проверено ранее? Нет, добавить проверку
-            ws.send(
-              JSON.stringify({
-                type: "sellToJackFail",
-                error: "Нет места для баляра",
-              }),
-            );
-            return;
-          }
-        }
-
-        // Сохраняем
-        players.set(playerId, { ...player });
-        userDatabase.set(playerId, { ...player });
-        await saveUserDatabase(dbCollection, playerId, player);
-
-        // Отправляем success с новым inventory
-        ws.send(
-          JSON.stringify({
-            type: "sellToJackSuccess",
-            inventory: player.inventory,
-          }),
-        );
-      } else if (data.type === "twister") {
-        const playerId = clients.get(ws);
-        if (!playerId) {
-          console.warn("Twister сообщение без playerId");
-          return;
-        }
-
-        handleTwisterMessage(
-          ws,
-          data,
-          players,
-          clients,
-          wss,
-          playerId,
-          saveUserDatabase,
-          dbCollection,
-          broadcastToWorld,
-        );
-        return;
-      } else if (data.type === "trashGuess") {
-        handleTrashGuess(
-          ws,
-          data,
-          players,
-          clients,
-          wss,
-          userDatabase,
-          dbCollection,
-          broadcastToWorld,
-        );
-      } else if (data.type === "getTrashState") {
-        const idx = data.trashIndex;
-        if (idx >= 0 && idx < trashCansState.length) {
-          const st = trashCansState[idx];
-          ws.send(
-            JSON.stringify({
-              type: "trashState",
-              index: idx,
-              guessed: st.guessed,
-              isOpened: st.isOpened,
-              secretSuit: st.guessed ? st.secretSuit : null,
-              nextAttemptAfter: st.nextAttemptAfter,
-            }),
-          );
-        }
-      } else if (data.type === "getAllTrashStates") {
-        ws.send(
-          JSON.stringify({
-            type: "trashAllStates",
-            states: trashCansState.map((st, idx) => ({
-              index: idx,
-              guessed: st.guessed,
-              isOpened: st.isOpened,
-              nextAttemptAfter: st.nextAttemptAfter,
-            })),
-          }),
-        );
-      } else if (data.type === "meetTorestos") {
-        const player = players.get(clients.get(ws));
-        if (!player) return;
-
-        if (!player.torestosMet) {
-          player.torestosMet = true;
-          userDatabase.set(player.id, { ...player });
-          await saveUserDatabase(dbCollection, player.id, player);
-
-          // Отправляем клиенту обновление флага
-          ws.send(
-            JSON.stringify({
-              type: "torestosMet",
-              met: true,
-            }),
-          );
-
-          // Можно сразу уведомить всех в мире (опционально)
-          broadcastToWorld(
-            wss,
-            clients,
-            players,
-            player.worldId,
-            JSON.stringify({
-              type: "update",
-              player: { id: player.id, torestosMet: true },
-            }),
-          );
-        }
-      } else if (data.type === "torestosUpgrade") {
-        const playerId = clients.get(ws);
-        if (!playerId || !players.has(playerId)) return;
-
-        const player = players.get(playerId);
-
-        // Координаты Торестоса — те же, что и на клиенте
-        const TORESTOS_X = 800;
-        const TORESTOS_Y = 1200;
-        const INTERACTION_RADIUS = 70; // чуть больше, чем на клиенте (50), чтобы был запас
-
-        const dx = player.x - TORESTOS_X;
-        const dy = player.y - TORESTOS_Y;
-        const distance = Math.hypot(dx, dy);
-
-        if (distance > INTERACTION_RADIUS) {
-          ws.send(
-            JSON.stringify({
-              type: "torestosUpgradeResult",
-              success: false,
-              error: "Подойди ближе к Торестосу",
-            }),
-          );
-          return;
-        }
-
-        handleTorestosUpgrade(
-          ws,
-          data,
-          player,
-          players,
-          userDatabase,
-          dbCollection,
-          saveUserDatabase,
-        );
-      } else if (data.type === "meetToremidos") {
-        const id = clients.get(ws);
-        if (id) {
-          const player = players.get(id);
-          player.toremidosMet = true;
-          players.set(id, { ...player });
-          userDatabase.set(id, { ...player });
-          await saveUserDatabase(dbCollection, id, player);
-
-          ws.send(JSON.stringify({ type: "toremidosMet", met: true }));
-        }
-      } else if (data.type === "homelessOpenStorage") {
-        const playerId = clients.get(ws);
-        if (!playerId || !players.has(playerId)) return;
-
-        handleHomelessRentRequest(
-          wss,
-          clients,
-          players,
-          userDatabase,
-          dbCollection,
-          playerId,
-        );
-      } else if (data.type === "homelessRentConfirm") {
-        const playerId = clients.get(ws);
-        if (!playerId || !players.has(playerId)) return;
-
-        const days = Number(data.days);
-        if (isNaN(days) || days < 1) {
-          ws.send(
-            JSON.stringify({
-              type: "homelessError",
-              message: "Количество дней должно быть целым числом ≥ 1",
-            }),
-          );
-          return;
-        }
-
-        handleHomelessRentConfirm(
-          wss,
-          clients,
-          players,
-          userDatabase,
-          dbCollection,
-          playerId,
-          days,
-        );
-      } else if (data.type === "homelessPutItem") {
-        const playerId = clients.get(ws);
-        if (!playerId || !players.has(playerId)) return;
-
-        const { playerSlot, quantity } = data; // storageSlot больше НЕ нужен
-
-        if (typeof playerSlot !== "number" || playerSlot < 0) {
-          ws.send(
-            JSON.stringify({
-              type: "homelessError",
-              message: "Некорректный слот инвентаря",
-            }),
-          );
-          return;
-        }
-
-        handleHomelessStorageAction(
-          wss,
-          clients,
-          players,
-          dbCollection,
-          playerId,
-          "put",
-          playerSlot,
-          null, // ← storageSlot больше НЕ передаём (null)
-          quantity,
-        );
-      } else if (data.type === "homelessTakeItem") {
-        const playerId = clients.get(ws);
-        if (!playerId || !players.has(playerId)) return;
-
-        const { storageSlot, quantity } = data;
-
-        if (typeof storageSlot !== "number" || storageSlot < 0) {
-          ws.send(
-            JSON.stringify({
-              type: "homelessError",
-              message: "Некорректный номер слота хранилища",
-            }),
-          );
-          return;
-        }
-
-        handleHomelessStorageAction(
-          wss,
-          clients,
-          players,
-          dbCollection,
-          playerId,
-          "take",
-          null,
-          storageSlot,
-          quantity, // ← передаём quantity четвёртым параметром действия
-        );
-      } else if (data.type === "upgradeSkill") {
-        const playerId = clients.get(ws);
-        if (!playerId || !players.has(playerId)) return;
-
-        const player = players.get(playerId);
-
-        handleSkillUpgrade(
-          ws,
-          data,
-          player,
-          players,
-          userDatabase,
-          dbCollection,
-          saveUserDatabase,
-        );
-      } else if (data.type === "requestRegeneration") {
-        const playerId = clients.get(ws);
-        const player = players.get(playerId);
-        if (!player) return;
-
-        const requestedHeal = Number(data.amount);
-        if (
-          !Number.isInteger(requestedHeal) ||
-          requestedHeal <= 0 ||
-          requestedHeal > 50
-        ) {
-          ws.send(
-            JSON.stringify({
-              type: "regenerationRejected",
-              playerId, // ← теперь работает
-              reason: "invalid_amount",
-            }),
-          );
-          return;
-        }
-
-        // Проверяем наличие и уровень навыка
-        const regSkill = player.skills?.find((s) => s.id === 2);
-        if (!regSkill || regSkill.level < 1) {
-          ws.send(
-            JSON.stringify({
-              type: "regenerationRejected",
-              playerId,
-              reason: "no_skill",
-            }),
-          );
-          return;
-        }
-
-        // Проверяем допустимый процент лечения
-        const allowedPercent = regSkill.level * 1;
-        const maxAllowedHeal = Math.floor((100 * allowedPercent) / 100);
-
-        if (requestedHeal > maxAllowedHeal + 2) {
-          // +2 — небольшой запас на rounding
-          console.warn(
-            `[AntiCheat] Игрок ${playerId} запросил слишком много регенерации: ${requestedHeal} > ${maxAllowedHeal}`,
-          );
-          ws.send(
-            JSON.stringify({
-              type: "regenerationRejected",
-              playerId,
-              reason: "cheat_suspected",
-            }),
-          );
-          return;
-        }
-
-        // Проверяем, что здоровье не превысит максимум
-        const newHealth = Math.min(
-          player.health + requestedHeal,
-          player.maxStats?.health || 100,
-        );
-
-        if (newHealth <= player.health) {
-          // Уже полное здоровье
-          return;
-        }
-
-        // Применяем
-        player.health = newHealth;
-
-        // Сохраняем в базу (если ваша система это делает)
-        userDatabase.set(playerId, { ...player });
-        saveUserDatabase?.(dbCollection, playerId, player);
-
-        // Рассылаем обновление всем
-        const updatePayload = {
-          id: playerId,
-          health: player.health,
-          // можно добавить и другие поля, если нужно
-        };
-
-        broadcastToWorld(
-          wss,
-          clients,
-          players,
-          player.worldId,
-          JSON.stringify({
-            type: "update",
-            player: updatePayload,
-          }),
-        );
-
-        // Подтверждаем игроку
-        ws.send(
-          JSON.stringify({
-            type: "regenerationApplied",
-            playerId,
-            newHealth: player.health,
-          }),
-        );
       }
       async function processRegisterQueue(ws) {
         if (ws.isProcessingRegister) return;
@@ -4745,6 +4220,1042 @@ function setupWebSocket(
         }
 
         ws.isProcessingCorporateDocuments = false;
+      }
+      async function processThimbleriggerBetQueue(ws) {
+        if (ws.isProcessingThimbleriggerBet) return;
+        ws.isProcessingThimbleriggerBet = true;
+
+        while (ws.thimbleriggerBetQueue.length > 0) {
+          const data = ws.thimbleriggerBetQueue.shift();
+
+          const playerId = clients.get(ws);
+          if (!playerId || !players.has(playerId)) continue;
+
+          const player = players.get(playerId);
+          const bet = data.bet;
+
+          // Находим слот с балярами
+          let balyarySlot = player.inventory.findIndex(
+            (item) => item && item.type === "balyary",
+          );
+
+          if (
+            balyarySlot === -1 ||
+            (player.inventory[balyarySlot].quantity || 0) < bet
+          ) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "thimbleriggerBetResult",
+                  success: false,
+                  error: "Недостаточно баляров!",
+                }),
+              );
+            }
+            continue;
+          }
+
+          // Вычитаем ставку
+          player.inventory[balyarySlot].quantity -= bet;
+          if (player.inventory[balyarySlot].quantity <= 0) {
+            player.inventory[balyarySlot] = null;
+          }
+
+          // Сохраняем изменения
+          players.set(playerId, { ...player });
+          userDatabase.set(playerId, { ...player });
+          await saveUserDatabase(dbCollection, playerId, player);
+
+          // Отправляем успех + новый инвентарь
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(
+              JSON.stringify({
+                type: "thimbleriggerBetResult",
+                success: true,
+                bet,
+                inventory: player.inventory,
+              }),
+            );
+          }
+        }
+
+        ws.isProcessingThimbleriggerBet = false;
+      }
+      async function processThimbleriggerGameResultQueue(ws) {
+        if (ws.isProcessingThimbleriggerGameResult) return;
+        ws.isProcessingThimbleriggerGameResult = true;
+
+        while (ws.thimbleriggerGameResultQueue.length > 0) {
+          const data = ws.thimbleriggerGameResultQueue.shift();
+
+          const playerId = clients.get(ws);
+          if (!playerId || !players.has(playerId)) continue;
+
+          const player = players.get(playerId);
+          const { won, bet, selectedCup, correctCup } = data;
+
+          // Вычисляем xpToNext заранее (как было)
+          let xpToNext = calculateXPToNextLevel(player.level);
+
+          // Валидация результата (защита от читов)
+          const validatedWon = selectedCup === correctCup;
+          if (won !== validatedWon) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "thimbleriggerGameResultSync",
+                  success: false,
+                  error: "Неверный результат! Игра отменена.",
+                }),
+              );
+            }
+            continue;
+          }
+
+          let xpGained = 0;
+          if (won) {
+            // Добавляем выигрыш bet*2 баляров
+            let balyarySlot = player.inventory.findIndex(
+              (item) => item && item.type === "balyary",
+            );
+            const winAmount = bet * 2;
+            if (balyarySlot !== -1) {
+              player.inventory[balyarySlot].quantity =
+                (player.inventory[balyarySlot].quantity || 0) + winAmount;
+            } else {
+              balyarySlot = player.inventory.findIndex((item) => !item);
+              if (balyarySlot !== -1) {
+                player.inventory[balyarySlot] = {
+                  type: "balyary",
+                  quantity: winAmount,
+                };
+              }
+            }
+
+            // Добавляем XP = bet
+            player.xp = (player.xp || 0) + bet;
+            xpGained = bet;
+
+            // Проверяем level up
+            while (player.xp >= xpToNext && player.level < 100) {
+              player.level += 1;
+              player.xp -= xpToNext;
+              player.upgradePoints = (player.upgradePoints || 0) + 10;
+              xpToNext = calculateXPToNextLevel(player.level);
+            }
+          }
+
+          // Сохраняем изменения
+          players.set(playerId, { ...player });
+          userDatabase.set(playerId, { ...player });
+          await saveUserDatabase(dbCollection, playerId, player);
+
+          // Отправляем синхронизацию клиенту
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(
+              JSON.stringify({
+                type: "thimbleriggerGameResultSync",
+                success: true,
+                won,
+                inventory: player.inventory,
+                xp: player.xp,
+                level: player.level,
+                upgradePoints: player.upgradePoints,
+                xpToNext: xpToNext,
+                xpGained,
+              }),
+            );
+          }
+        }
+
+        ws.isProcessingThimbleriggerGameResult = false;
+      }
+      async function processBuyFromJackQueue(ws) {
+        if (ws.isProcessingBuyFromJack) return;
+        ws.isProcessingBuyFromJack = true;
+
+        while (ws.buyFromJackQueue.length > 0) {
+          const data = ws.buyFromJackQueue.shift();
+
+          const playerId = clients.get(ws);
+          if (!playerId || !players.has(playerId)) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "buyFromJackFail",
+                  error: "Игрок не найден",
+                }),
+              );
+            }
+            continue;
+          }
+
+          const player = players.get(playerId);
+          const type = data.itemType;
+          const cfg = ITEM_CONFIG[type];
+          if (!cfg) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "buyFromJackFail",
+                  error: "Неверный тип предмета",
+                }),
+              );
+            }
+            continue;
+          }
+
+          // Проверка: это еда rarity 1-3, не оружие, не чёрный список
+          const BLACKLIST = ["balyary", "atom", "blood_pack", "blood_syringe"];
+          const isValid =
+            cfg.rarity >= 1 &&
+            cfg.rarity <= 3 &&
+            !BLACKLIST.includes(type) &&
+            cfg.category !== "weapon";
+          if (!isValid) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "buyFromJackFail",
+                  error: "Этот предмет нельзя купить у Джека",
+                }),
+              );
+            }
+            continue;
+          }
+
+          const price = cfg.rarity; // Цена = rarity
+          if (data.price !== price) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "buyFromJackFail",
+                  error: "Неверная цена",
+                }),
+              );
+            }
+            continue;
+          }
+
+          // Находим баляры
+          const balyarySlot = player.inventory.findIndex(
+            (s) => s && s.type === "balyary",
+          );
+          const balyaryQty =
+            balyarySlot !== -1
+              ? player.inventory[balyarySlot].quantity || 0
+              : 0;
+          if (balyaryQty < price) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "buyFromJackFail",
+                  error: "Не хватает баляров",
+                }),
+              );
+            }
+            continue;
+          }
+
+          // Вычитаем баляры
+          if (balyaryQty === price) {
+            player.inventory[balyarySlot] = null;
+          } else {
+            player.inventory[balyarySlot].quantity -= price;
+          }
+
+          // Находим свободный слот
+          const freeSlot = player.inventory.findIndex((s) => s === null);
+          if (freeSlot === -1) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "buyFromJackFail",
+                  error: "Инвентарь полон",
+                }),
+              );
+            }
+            continue;
+          }
+
+          // Добавляем предмет
+          player.inventory[freeSlot] = {
+            type,
+            quantity: 1,
+            itemId: `${type}_${Date.now()}`,
+          };
+
+          // Сохраняем изменения
+          players.set(playerId, { ...player });
+          userDatabase.set(playerId, { ...player });
+          await saveUserDatabase(dbCollection, playerId, player);
+
+          // Отправляем успех с новым инвентарём
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(
+              JSON.stringify({
+                type: "buyFromJackSuccess",
+                inventory: player.inventory,
+              }),
+            );
+          }
+        }
+
+        ws.isProcessingBuyFromJack = false;
+      }
+      async function processSellToJackQueue(ws) {
+        if (ws.isProcessingSellToJack) return;
+        ws.isProcessingSellToJack = true;
+
+        while (ws.sellToJackQueue.length > 0) {
+          const data = ws.sellToJackQueue.shift();
+
+          const playerId = clients.get(ws);
+          if (!playerId || !players.has(playerId)) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "sellToJackFail",
+                  error: "Игрок не найден",
+                }),
+              );
+            }
+            continue;
+          }
+
+          const player = players.get(playerId);
+          const slotIndex = data.slotIndex;
+          if (slotIndex < 0 || slotIndex >= player.inventory.length) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "sellToJackFail",
+                  error: "Неверный слот",
+                }),
+              );
+            }
+            continue;
+          }
+
+          const item = player.inventory[slotIndex];
+          if (!item) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "sellToJackFail",
+                  error: "Слот пустой",
+                }),
+              );
+            }
+            continue;
+          }
+
+          // Проверка: это еда (та же как в покупке)
+          const cfg = ITEM_CONFIG[item.type];
+          if (!cfg) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "sellToJackFail",
+                  error: "Неверный тип предмета",
+                }),
+              );
+            }
+            continue;
+          }
+
+          const BLACKLIST = ["balyary", "atom", "blood_pack", "blood_syringe"];
+          const isFood =
+            cfg.rarity >= 1 &&
+            cfg.rarity <= 3 &&
+            !BLACKLIST.includes(item.type) &&
+            cfg.category !== "weapon";
+          if (!isFood) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "sellToJackFail",
+                  error: "Джек покупает только продукты питания",
+                }),
+              );
+            }
+            continue;
+          }
+
+          // Удаляем предмет
+          player.inventory[slotIndex] = null;
+
+          // Добавляем +1 баляр
+          let balyarySlot = player.inventory.findIndex(
+            (s) => s && s.type === "balyary",
+          );
+          if (balyarySlot !== -1) {
+            player.inventory[balyarySlot].quantity =
+              (player.inventory[balyarySlot].quantity || 0) + 1;
+          } else {
+            const freeSlot = player.inventory.findIndex((s) => s === null);
+            if (freeSlot !== -1) {
+              player.inventory[freeSlot] = {
+                type: "balyary",
+                quantity: 1,
+                itemId: `balyary_${Date.now()}`,
+              };
+            } else {
+              // Если нет места для баляра (очень редкий случай)
+              if (ws.readyState === WebSocket.OPEN) {
+                ws.send(
+                  JSON.stringify({
+                    type: "sellToJackFail",
+                    error: "Нет места для баляра",
+                  }),
+                );
+              }
+              continue;
+            }
+          }
+
+          // Сохраняем изменения
+          players.set(playerId, { ...player });
+          userDatabase.set(playerId, { ...player });
+          await saveUserDatabase(dbCollection, playerId, player);
+
+          // Отправляем успех с новым инвентарём
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(
+              JSON.stringify({
+                type: "sellToJackSuccess",
+                inventory: player.inventory,
+              }),
+            );
+          }
+        }
+
+        ws.isProcessingSellToJack = false;
+      }
+      async function processTwisterQueue(ws) {
+        if (ws.isProcessingTwister) return;
+        ws.isProcessingTwister = true;
+
+        while (ws.twisterQueue.length > 0) {
+          const data = ws.twisterQueue.shift();
+
+          const playerId = clients.get(ws);
+          if (!playerId) {
+            console.warn("Twister сообщение без playerId");
+            continue;
+          }
+
+          // Вызываем тот же обработчик, что и раньше
+          handleTwisterMessage(
+            ws,
+            data,
+            players,
+            clients,
+            wss,
+            playerId,
+            saveUserDatabase,
+            dbCollection,
+            broadcastToWorld,
+          );
+        }
+
+        ws.isProcessingTwister = false;
+      }
+      async function processTrashGuessQueue(ws) {
+        if (ws.isProcessingTrashGuess) return;
+        ws.isProcessingTrashGuess = true;
+
+        while (ws.trashGuessQueue.length > 0) {
+          const data = ws.trashGuessQueue.shift();
+
+          // Вызываем тот же обработчик, что и раньше — вся логика внутри handleTrashGuess
+          handleTrashGuess(
+            ws,
+            data,
+            players,
+            clients,
+            wss,
+            userDatabase,
+            dbCollection,
+            broadcastToWorld,
+          );
+        }
+
+        ws.isProcessingTrashGuess = false;
+      }
+      async function processGetTrashStateQueue(ws) {
+        if (ws.isProcessingGetTrashState) return;
+        ws.isProcessingGetTrashState = true;
+
+        while (ws.getTrashStateQueue.length > 0) {
+          const data = ws.getTrashStateQueue.shift();
+
+          const idx = data.trashIndex;
+          if (idx >= 0 && idx < trashCansState.length) {
+            const st = trashCansState[idx];
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "trashState",
+                  index: idx,
+                  guessed: st.guessed,
+                  isOpened: st.isOpened,
+                  secretSuit: st.guessed ? st.secretSuit : null,
+                  nextAttemptAfter: st.nextAttemptAfter,
+                }),
+              );
+            }
+          }
+          // Если индекс неверный — просто молча игнорируем (как было раньше)
+        }
+
+        ws.isProcessingGetTrashState = false;
+      }
+      async function processGetAllTrashStatesQueue(ws) {
+        if (ws.isProcessingGetAllTrashStates) return;
+        ws.isProcessingGetAllTrashStates = true;
+
+        while (ws.getAllTrashStatesQueue.length > 0) {
+          const data = ws.getAllTrashStatesQueue.shift();
+
+          // Отправляем текущее состояние всех баков (как было раньше)
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(
+              JSON.stringify({
+                type: "trashAllStates",
+                states: trashCansState.map((st, idx) => ({
+                  index: idx,
+                  guessed: st.guessed,
+                  isOpened: st.isOpened,
+                  nextAttemptAfter: st.nextAttemptAfter,
+                })),
+              }),
+            );
+          }
+        }
+
+        ws.isProcessingGetAllTrashStates = false;
+      }
+      async function processTorestosUpgradeQueue(ws) {
+        if (ws.isProcessingTorestosUpgrade) return;
+        ws.isProcessingTorestosUpgrade = true;
+
+        while (ws.torestosUpgradeQueue.length > 0) {
+          const data = ws.torestosUpgradeQueue.shift();
+
+          const playerId = clients.get(ws);
+          if (!playerId || !players.has(playerId)) continue;
+
+          const player = players.get(playerId);
+
+          // Координаты Торестоса — те же, что и на клиенте
+          const TORESTOS_X = 800;
+          const TORESTOS_Y = 1200;
+          const INTERACTION_RADIUS = 70; // чуть больше, чем на клиенте (50), чтобы был запас
+
+          const dx = player.x - TORESTOS_X;
+          const dy = player.y - TORESTOS_Y;
+          const distance = Math.hypot(dx, dy);
+
+          if (distance > INTERACTION_RADIUS) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "torestosUpgradeResult",
+                  success: false,
+                  error: "Подойди ближе к Торестосу",
+                }),
+              );
+            }
+            continue;
+          }
+
+          // Вызываем оригинальный обработчик — вся логика внутри handleTorestosUpgrade
+          handleTorestosUpgrade(
+            ws,
+            data,
+            player,
+            players,
+            userDatabase,
+            dbCollection,
+            saveUserDatabase,
+          );
+        }
+
+        ws.isProcessingTorestosUpgrade = false;
+      }
+      async function processUpgradeSkillQueue(ws) {
+        if (ws.isProcessingUpgradeSkill) return;
+        ws.isProcessingUpgradeSkill = true;
+
+        while (ws.upgradeSkillQueue.length > 0) {
+          const data = ws.upgradeSkillQueue.shift();
+
+          const playerId = clients.get(ws);
+          if (!playerId || !players.has(playerId)) continue;
+
+          const player = players.get(playerId);
+
+          // Вызываем оригинальный обработчик — вся логика внутри handleSkillUpgrade
+          handleSkillUpgrade(
+            ws,
+            data,
+            player,
+            players,
+            userDatabase,
+            dbCollection,
+            saveUserDatabase,
+          );
+        }
+
+        ws.isProcessingUpgradeSkill = false;
+      }
+      async function processHomelessOpenStorageQueue(ws) {
+        if (ws.isProcessingHomelessOpenStorage) return;
+        ws.isProcessingHomelessOpenStorage = true;
+
+        while (ws.homelessOpenStorageQueue.length > 0) {
+          const data = ws.homelessOpenStorageQueue.shift();
+
+          const playerId = clients.get(ws);
+          if (!playerId || !players.has(playerId)) continue;
+
+          // Вызываем оригинальный обработчик — вся логика внутри handleHomelessRentRequest
+          handleHomelessRentRequest(
+            wss,
+            clients,
+            players,
+            userDatabase,
+            dbCollection,
+            playerId,
+          );
+        }
+
+        ws.isProcessingHomelessOpenStorage = false;
+      }
+      async function processHomelessRentConfirmQueue(ws) {
+        if (ws.isProcessingHomelessRentConfirm) return;
+        ws.isProcessingHomelessRentConfirm = true;
+
+        while (ws.homelessRentConfirmQueue.length > 0) {
+          const data = ws.homelessRentConfirmQueue.shift();
+
+          const playerId = clients.get(ws);
+          if (!playerId || !players.has(playerId)) continue;
+
+          const days = Number(data.days);
+          if (isNaN(days) || days < 1) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "homelessError",
+                  message: "Количество дней должно быть целым числом ≥ 1",
+                }),
+              );
+            }
+            continue;
+          }
+
+          // Вызываем оригинальный обработчик — вся логика внутри handleHomelessRentConfirm
+          handleHomelessRentConfirm(
+            wss,
+            clients,
+            players,
+            userDatabase,
+            dbCollection,
+            playerId,
+            days,
+          );
+        }
+
+        ws.isProcessingHomelessRentConfirm = false;
+      }
+      async function processHomelessPutItemQueue(ws) {
+        if (ws.isProcessingHomelessPutItem) return;
+        ws.isProcessingHomelessPutItem = true;
+
+        while (ws.homelessPutItemQueue.length > 0) {
+          const data = ws.homelessPutItemQueue.shift();
+
+          const playerId = clients.get(ws);
+          if (!playerId || !players.has(playerId)) continue;
+
+          const { playerSlot, quantity } = data;
+
+          if (typeof playerSlot !== "number" || playerSlot < 0) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "homelessError",
+                  message: "Некорректный слот инвентаря",
+                }),
+              );
+            }
+            continue;
+          }
+
+          // Вызываем оригинальный обработчик — вся логика внутри handleHomelessStorageAction
+          handleHomelessStorageAction(
+            wss,
+            clients,
+            players,
+            dbCollection,
+            playerId,
+            "put",
+            playerSlot,
+            null, // storageSlot не нужен при "put"
+            quantity,
+          );
+        }
+
+        ws.isProcessingHomelessPutItem = false;
+      }
+      async function processHomelessTakeItemQueue(ws) {
+        if (ws.isProcessingHomelessTakeItem) return;
+        ws.isProcessingHomelessTakeItem = true;
+
+        while (ws.homelessTakeItemQueue.length > 0) {
+          const data = ws.homelessTakeItemQueue.shift();
+
+          const playerId = clients.get(ws);
+          if (!playerId || !players.has(playerId)) continue;
+
+          const { storageSlot, quantity } = data;
+
+          if (typeof storageSlot !== "number" || storageSlot < 0) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "homelessError",
+                  message: "Некорректный номер слота хранилища",
+                }),
+              );
+            }
+            continue;
+          }
+
+          // Вызываем оригинальный обработчик — вся логика внутри handleHomelessStorageAction
+          handleHomelessStorageAction(
+            wss,
+            clients,
+            players,
+            dbCollection,
+            playerId,
+            "take",
+            null, // playerSlot = null (сервер сам найдёт куда положить)
+            storageSlot,
+            quantity,
+          );
+        }
+
+        ws.isProcessingHomelessTakeItem = false;
+      }
+      async function processRequestRegenerationQueue(ws) {
+        if (ws.isProcessingRequestRegeneration) return;
+        ws.isProcessingRequestRegeneration = true;
+
+        while (ws.requestRegenerationQueue.length > 0) {
+          const data = ws.requestRegenerationQueue.shift();
+
+          const playerId = clients.get(ws);
+          const player = players.get(playerId);
+          if (!player) continue;
+
+          const requestedHeal = Number(data.amount);
+          if (
+            !Number.isInteger(requestedHeal) ||
+            requestedHeal <= 0 ||
+            requestedHeal > 50
+          ) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "regenerationRejected",
+                  playerId,
+                  reason: "invalid_amount",
+                }),
+              );
+            }
+            continue;
+          }
+
+          // Проверяем наличие и уровень навыка
+          const regSkill = player.skills?.find((s) => s.id === 2);
+          if (!regSkill || regSkill.level < 1) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "regenerationRejected",
+                  playerId,
+                  reason: "no_skill",
+                }),
+              );
+            }
+            continue;
+          }
+
+          // Проверяем допустимый процент лечения
+          const allowedPercent = regSkill.level * 1;
+          const maxAllowedHeal = Math.floor((100 * allowedPercent) / 100);
+
+          if (requestedHeal > maxAllowedHeal + 2) {
+            console.warn(
+              `[AntiCheat] Игрок ${playerId} запросил слишком много регенерации: ${requestedHeal} > ${maxAllowedHeal}`,
+            );
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "regenerationRejected",
+                  playerId,
+                  reason: "cheat_suspected",
+                }),
+              );
+            }
+            continue;
+          }
+
+          // Проверяем, что здоровье не превысит максимум
+          const newHealth = Math.min(
+            player.health + requestedHeal,
+            player.maxStats?.health || 100,
+          );
+
+          if (newHealth <= player.health) {
+            // Уже полное здоровье — молча игнорируем
+            continue;
+          }
+
+          // Применяем
+          player.health = newHealth;
+
+          // Сохраняем в базу
+          userDatabase.set(playerId, { ...player });
+          saveUserDatabase?.(dbCollection, playerId, player);
+
+          // Рассылаем обновление всем в мире
+          const updatePayload = {
+            id: playerId,
+            health: player.health,
+            // можно добавить и другие поля, если нужно
+          };
+
+          broadcastToWorld(
+            wss,
+            clients,
+            players,
+            player.worldId,
+            JSON.stringify({
+              type: "update",
+              player: updatePayload,
+            }),
+          );
+
+          // Подтверждаем игроку
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(
+              JSON.stringify({
+                type: "regenerationApplied",
+                playerId,
+                newHealth: player.health,
+              }),
+            );
+          }
+        }
+
+        ws.isProcessingRequestRegeneration = false;
+      }
+      async function processWelcomeGuideSeenQueue(ws) {
+        if (ws.isProcessingWelcomeGuideSeen) return;
+        ws.isProcessingWelcomeGuideSeen = true;
+
+        while (ws.welcomeGuideSeenQueue.length > 0) {
+          const data = ws.welcomeGuideSeenQueue.shift();
+
+          const id = clients.get(ws);
+          if (!id || !players.has(id)) continue;
+
+          const player = players.get(id);
+
+          // Если уже отмечено — можно просто пропустить (оптимизация)
+          if (player.hasSeenWelcomeGuide === true) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({ type: "welcomeGuideSeenConfirm" }));
+            }
+            continue;
+          }
+
+          // Отмечаем
+          player.hasSeenWelcomeGuide = true;
+
+          // Обновляем в памяти
+          players.set(id, player);
+
+          // Сохраняем в базу
+          userDatabase.set(id, player);
+          await saveUserDatabase(dbCollection, id, player);
+
+          // Подтверждаем клиенту
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: "welcomeGuideSeenConfirm" }));
+          }
+        }
+
+        ws.isProcessingWelcomeGuideSeen = false;
+      }
+      async function processChatQueue(ws) {
+        if (ws.isProcessingChat) return;
+        ws.isProcessingChat = true;
+
+        while (ws.chatQueue.length > 0) {
+          const data = ws.chatQueue.shift();
+
+          const id = clients.get(ws);
+          if (!id) continue;
+
+          // Рассылаем всем подключённым (как было раньше)
+          wss.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+              client.send(
+                JSON.stringify({
+                  type: "chat",
+                  id,
+                  message: data.message,
+                }),
+              );
+            }
+          });
+        }
+
+        ws.isProcessingChat = false;
+      }
+      async function processMeetNpcQueue(ws) {
+        if (ws.isProcessingMeetNpc) return;
+        ws.isProcessingMeetNpc = true;
+
+        while (ws.meetNpcQueue.length > 0) {
+          const data = ws.meetNpcQueue.shift();
+
+          const id = clients.get(ws);
+          if (!id || !players.has(id)) continue;
+
+          const player = players.get(id);
+
+          let changed = false;
+
+          switch (data.type) {
+            case "meetNPC":
+              if (data.npcMet !== undefined) {
+                player.npcMet = data.npcMet;
+                changed = true;
+              }
+              if (data.npcMet && data.availableQuests) {
+                player.availableQuests = data.availableQuests;
+                changed = true;
+              }
+              break;
+
+            case "meetJack":
+              if (!player.jackMet) {
+                player.jackMet = true;
+                changed = true;
+              }
+              break;
+
+            case "meetNeonAlex":
+              if (!player.alexNeonMet) {
+                player.alexNeonMet = true;
+                changed = true;
+
+                // Бродкаст обновления всем в мире (как было)
+                broadcastToWorld(
+                  wss,
+                  clients,
+                  players,
+                  player.worldId,
+                  JSON.stringify({
+                    type: "update",
+                    player: {
+                      id: player.id,
+                      alexNeonMet: true,
+                    },
+                  }),
+                );
+              }
+              break;
+
+            case "meetCaptain":
+              if (
+                data.captainMet !== undefined &&
+                player.captainMet !== data.captainMet
+              ) {
+                player.captainMet = data.captainMet;
+                changed = true;
+              }
+              break;
+
+            case "meetThimblerigger":
+              if (!player.thimbleriggerMet) {
+                player.thimbleriggerMet = true;
+                changed = true;
+
+                // Отправляем подтверждение клиенту (как было)
+                if (ws.readyState === WebSocket.OPEN) {
+                  ws.send(
+                    JSON.stringify({ type: "thimbleriggerMet", met: true }),
+                  );
+                }
+              }
+              break;
+
+            case "meetTorestos":
+              if (!player.torestosMet) {
+                player.torestosMet = true;
+                changed = true;
+
+                // Отправляем подтверждение клиенту
+                if (ws.readyState === WebSocket.OPEN) {
+                  ws.send(JSON.stringify({ type: "torestosMet", met: true }));
+                }
+
+                // Опциональный бродкаст (как было)
+                broadcastToWorld(
+                  wss,
+                  clients,
+                  players,
+                  player.worldId,
+                  JSON.stringify({
+                    type: "update",
+                    player: { id: player.id, torestosMet: true },
+                  }),
+                );
+              }
+              break;
+
+            case "meetToremidos":
+              if (!player.toremidosMet) {
+                player.toremidosMet = true;
+                changed = true;
+
+                // Отправляем подтверждение клиенту
+                if (ws.readyState === WebSocket.OPEN) {
+                  ws.send(JSON.stringify({ type: "toremidosMet", met: true }));
+                }
+              }
+              break;
+          }
+
+          // Если ничего не изменилось — не сохраняем в базу
+          if (!changed) continue;
+
+          // Обновляем в памяти
+          players.set(id, { ...player });
+
+          // Сохраняем в базу
+          userDatabase.set(id, { ...player });
+          await saveUserDatabase(dbCollection, id, player);
+        }
+
+        ws.isProcessingMeetNpc = false;
       }
     });
 
