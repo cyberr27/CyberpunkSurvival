@@ -470,76 +470,6 @@ function setupWebSocket(
     );
   }
 
-  function calculateResourceLoss(player, newDistanceTraveled) {
-    const oldDistance = player.distanceTraveled || 0;
-
-    // Защита от читов: откат назад или слишком маленький прирост
-    if (newDistanceTraveled < oldDistance) {
-      console.warn(
-        `[AntiCheat] ${player.id} distanceTraveled уменьшился: ${oldDistance} → ${newDistanceTraveled}`,
-      );
-      return false;
-    }
-
-    // Слишком большой скачок за один пакет — тоже подозрительно
-    const deltaDist = newDistanceTraveled - oldDistance;
-    if (deltaDist > 300) {
-      // примерно 4–5 секунд бега на максимальной скорости
-      console.warn(
-        `[AntiCheat] ${player.id} слишком большой скачок дистанции: +${deltaDist}`,
-      );
-      // Можно либо отклонить, либо обрезать до разумного значения
-      // player.distanceTraveled = oldDistance + 300;
-      // return true;
-      return false; // пока просто отклоняем
-    }
-
-    let anyChange = false;
-
-    // Вода — 1 ед. каждые 500 px
-    const waterLoss =
-      Math.floor(newDistanceTraveled / 500) - Math.floor(oldDistance / 500);
-    if (waterLoss > 0) {
-      player.water = Math.max(0, player.water - waterLoss);
-      anyChange = true;
-      // console.log(`${player.id} -${waterLoss} water → ${player.water}`);
-    }
-
-    // Еда — 1 ед. каждые 900 px
-    const foodLoss =
-      Math.floor(newDistanceTraveled / 900) - Math.floor(oldDistance / 900);
-    if (foodLoss > 0) {
-      player.food = Math.max(0, player.food - foodLoss);
-      anyChange = true;
-      // console.log(`${player.id} -${foodLoss} food → ${player.food}`);
-    }
-
-    // Энергия — 1 ед. каждые 1300 px
-    const energyLoss =
-      Math.floor(newDistanceTraveled / 1300) - Math.floor(oldDistance / 1300);
-    if (energyLoss > 0) {
-      player.energy = Math.max(0, player.energy - energyLoss);
-      anyChange = true;
-      // console.log(`${player.id} -${energyLoss} energy → ${player.energy}`);
-    }
-
-    // Голод/жажда/усталость → урон по здоровью (1 ед. каждые 200 px)
-    if (player.energy <= 0 || player.food <= 0 || player.water <= 0) {
-      const healthLoss =
-        Math.floor(newDistanceTraveled / 200) - Math.floor(oldDistance / 200);
-      if (healthLoss > 0) {
-        player.health = Math.max(0, player.health - healthLoss);
-        anyChange = true;
-        // console.log(`${player.id} -${healthLoss} health (starving) → ${player.health}`);
-      }
-    }
-
-    // Применяем новое значение дистанции
-    player.distanceTraveled = newDistanceTraveled;
-
-    return anyChange;
-  }
-
   const EQUIPMENT_TYPES = {
     headgear: "head",
     armor: "chest",
@@ -1973,35 +1903,6 @@ function setupWebSocket(
           if (data.armor !== undefined) player.armor = Number(data.armor);
           if (data.distanceTraveled !== undefined)
             player.distanceTraveled = Number(data.distanceTraveled);
-
-          if (data.distanceTraveled !== undefined) {
-            const newDist = Number(data.distanceTraveled);
-
-            const statsWereChanged = calculateResourceLoss(player, newDist);
-
-            if (statsWereChanged) {
-              // Пересчитываем максимумы (на всякий случай — экипировка могла поменяться)
-              calculateMaxStats(player, ITEM_CONFIG);
-
-              // Жёсткое ограничение текущих значений
-              player.health = Math.max(
-                0,
-                Math.min(player.health ?? 0, player.maxStats.health),
-              );
-              player.energy = Math.max(
-                0,
-                Math.min(player.energy ?? 0, player.maxStats.energy),
-              );
-              player.food = Math.max(
-                0,
-                Math.min(player.food ?? 0, player.maxStats.food),
-              );
-              player.water = Math.max(
-                0,
-                Math.min(player.water ?? 0, player.maxStats.water),
-              );
-            }
-          }
 
           // ─── ПРОВЕРКА ПРЕПЯТСТВИЙ (как было) ────────────────────────────────
           let positionValid = true;
