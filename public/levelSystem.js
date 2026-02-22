@@ -387,6 +387,15 @@ function checkLevelUp() {
       showLevelUpEffect();
       updateUpgradeButtons();
 
+      const me = players.get(myId);
+      if (me) {
+        me.health = me.maxStats?.health || 100;
+        me.energy = me.maxStats?.energy || 100;
+        me.food = me.maxStats?.food || 100;
+        me.water = me.maxStats?.water || 100;
+        updateStatsDisplay();
+      }
+
       // Обновляем отображение очков навыков, если окно навыков открыто
       if (window.skillsSystem?.updateSkillPointsDisplay) {
         window.skillsSystem.updateSkillPointsDisplay();
