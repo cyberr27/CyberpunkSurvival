@@ -470,6 +470,57 @@ function setupWebSocket(
     );
   }
 
+  function calculateResourceLoss(player, newDistanceTraveled) {
+    const oldDistance = player.distanceTraveled || 0;
+
+    // Защита от накрутки назад
+    if (newDistanceTraveled < oldDistance) {
+      console.warn(`[AntiCheat] Игрок ${player.id} уменьшил distanceTraveled`);
+      return false; // не применяем изменения
+    }
+
+    let anyChange = false;
+
+    // Вода — 1 единица каждые 500 px
+    const waterLossCount =
+      Math.floor(newDistanceTraveled / 500) - Math.floor(oldDistance / 500);
+    if (waterLossCount > 0) {
+      player.water = Math.max(0, player.water - waterLossCount);
+      anyChange = true;
+    }
+
+    // Еда — 1 единица каждые 900 px
+    const foodLossCount =
+      Math.floor(newDistanceTraveled / 900) - Math.floor(oldDistance / 900);
+    if (foodLossCount > 0) {
+      player.food = Math.max(0, player.food - foodLossCount);
+      anyChange = true;
+    }
+
+    // Энергия — 1 единица каждые 1300 px
+    const energyLossCount =
+      Math.floor(newDistanceTraveled / 1300) - Math.floor(oldDistance / 1300);
+    if (energyLossCount > 0) {
+      player.energy = Math.max(0, player.energy - energyLossCount);
+      anyChange = true;
+    }
+
+    // Урон здоровью, если что-то из ресурсов = 0
+    if (player.energy <= 0 || player.food <= 0 || player.water <= 0) {
+      const healthLossCount =
+        Math.floor(newDistanceTraveled / 200) - Math.floor(oldDistance / 200);
+      if (healthLossCount > 0) {
+        player.health = Math.max(0, player.health - healthLossCount);
+        anyChange = true;
+      }
+    }
+
+    // Обновляем общее расстояние (только если не было отката)
+    player.distanceTraveled = newDistanceTraveled;
+
+    return anyChange;
+  }
+
   const EQUIPMENT_TYPES = {
     headgear: "head",
     armor: "chest",
@@ -1903,6 +1954,35 @@ function setupWebSocket(
           if (data.armor !== undefined) player.armor = Number(data.armor);
           if (data.distanceTraveled !== undefined)
             player.distanceTraveled = Number(data.distanceTraveled);
+
+          if (data.distanceTraveled !== undefined) {
+            const newDist = Number(data.distanceTraveled);
+
+            const statsWereChanged = calculateResourceLoss(player, newDist);
+
+            if (statsWereChanged) {
+              // Пересчитываем максимумы (на всякий случай — экипировка могла поменяться)
+              calculateMaxStats(player, ITEM_CONFIG);
+
+              // Жёсткое ограничение текущих значений
+              player.health = Math.max(
+                0,
+                Math.min(player.health ?? 0, player.maxStats.health),
+              );
+              player.energy = Math.max(
+                0,
+                Math.min(player.energy ?? 0, player.maxStats.energy),
+              );
+              player.food = Math.max(
+                0,
+                Math.min(player.food ?? 0, player.maxStats.food),
+              );
+              player.water = Math.max(
+                0,
+                Math.min(player.water ?? 0, player.maxStats.water),
+              );
+            }
+          }
 
           // ─── ПРОВЕРКА ПРЕПЯТСТВИЙ (как было) ────────────────────────────────
           let positionValid = true;
