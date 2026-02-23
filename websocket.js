@@ -149,7 +149,6 @@ function setupWebSocket(
             // ← добавляем сюда
             if (closestPlayer.health <= 0) {
               enemy.state = "idle";
-              return;
             }
 
             enemy.lastAttackTime = now;
