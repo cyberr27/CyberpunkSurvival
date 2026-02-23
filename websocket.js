@@ -39,7 +39,6 @@ function broadcastTradeCancelled(wss, clients, playerAId, playerBId) {
 
 const tradeRequests = new Map();
 const tradeOffers = new Map();
-const playerLastDistance = new Map();
 
 const ENEMY_SPEED = 2;
 const AGGRO_RANGE = 300;
@@ -471,61 +470,6 @@ function setupWebSocket(
     );
   }
 
-  function applyDistanceResourceDrain(player) {
-    if (!player || typeof player.distanceTraveled !== "number") return;
-
-    let currentDistance = Math.floor(player.distanceTraveled || 0);
-    let lastDistance = playerLastDistance.get(player.id) || 0;
-
-    // Защита от читов и багов (если значение уменьшилось)
-    if (currentDistance < lastDistance) {
-      // возможно сбросили или чит → просто обновляем и выходим
-      playerLastDistance.set(player.id, currentDistance);
-      return;
-    }
-
-    const delta = currentDistance - lastDistance;
-
-    if (delta <= 0) {
-      // ничего не изменилось → выходим
-      playerLastDistance.set(player.id, currentDistance);
-      return;
-    }
-
-    // Вода: -1 каждые 500 пикселей
-    let waterToLose = Math.floor(delta / 500);
-    if (waterToLose > 0) {
-      player.water = Math.max(0, (player.water || 0) - waterToLose);
-    }
-
-    // Еда: -1 каждые 900 пикселей
-    let foodToLose = Math.floor(delta / 900);
-    if (foodToLose > 0) {
-      player.food = Math.max(0, (player.food || 0) - foodToLose);
-    }
-
-    // Энергия: -1 каждые 1300 пикселей
-    let energyToLose = Math.floor(delta / 1300);
-    if (energyToLose > 0) {
-      player.energy = Math.max(0, (player.energy || 0) - energyToLose);
-    }
-
-    // Здоровье: -1 каждые 200 пикселей, если любой ресурс на нуле
-    if (
-      (player.energy || 0) === 0 ||
-      (player.food || 0) === 0 ||
-      (player.water || 0) === 0
-    ) {
-      let healthToLose = Math.floor(delta / 200);
-      if (healthToLose > 0) {
-        player.health = Math.max(0, (player.health || 0) - healthToLose);
-      }
-    }
-
-    // Обновляем последнюю дистанцию **только после расчёта**
-    playerLastDistance.set(player.id, currentDistance);
-  }
-
   const EQUIPMENT_TYPES = {
     headgear: "head",
     armor: "chest",
@@ -859,18 +803,6 @@ function setupWebSocket(
         processUpdateMaxStatsQueue(ws);
         return;
       }
-
-      if (!ws.moveQueue) {
-        ws.moveQueue = [];
-        ws.isProcessingMove = false;
-      }
-
-      if (data.type === "move") {
-        ws.moveQueue.push(data);
-        processMoveQueue(ws);
-        return;
-      }
-
       if (!ws.updateInventoryQueue) {
         ws.updateInventoryQueue = [];
         ws.isProcessingUpdateInventory = false;
@@ -5324,98 +5256,6 @@ function setupWebSocket(
         }
 
         ws.isProcessingMeetNpc = false;
-      }
-      async function processMoveQueue(ws) {
-        if (ws.isProcessingMove) return;
-        ws.isProcessingMove = true;
-
-        while (ws.moveQueue.length > 0) {
-          const data = ws.moveQueue.shift();
-
-          const playerId = clients.get(ws);
-          if (!playerId) continue;
-
-          const player = players.get(playerId);
-          if (!player) continue;
-
-          // ─── Применяем новые координаты ────────────────────────────────────────
-          if (typeof data.x === "number") player.x = data.x;
-          if (typeof data.y === "number") player.y = data.y;
-
-          // Направление, состояние, кадры и т.д.
-          if (data.direction) player.direction = data.direction;
-          if (data.state) player.state = data.state;
-          if (typeof data.frame === "number") player.frame = data.frame;
-          if (typeof data.attackFrame === "number")
-            player.attackFrame = data.attackFrame;
-          if (typeof data.attackFrameTime === "number")
-            player.attackFrameTime = data.attackFrameTime;
-
-          // Самое важное — дистанция
-          if (typeof data.distanceTraveled === "number") {
-            player.distanceTraveled = data.distanceTraveled;
-          }
-
-          // ─── Применяем расход ресурсов ─────────────────────────────────────────
-          applyDistanceResourceDrain(player);
-
-          // Пересчитываем максимумы (на всякий случай, если что-то изменилось)
-          calculateMaxStats(player, ITEM_CONFIG);
-
-          // Ограничиваем текущие значения максимумами
-          player.health = Math.max(
-            0,
-            Math.min(player.health ?? 0, player.maxStats.health),
-          );
-          player.energy = Math.max(
-            0,
-            Math.min(player.energy ?? 0, player.maxStats.energy),
-          );
-          player.food = Math.max(
-            0,
-            Math.min(player.food ?? 0, player.maxStats.food),
-          );
-          player.water = Math.max(
-            0,
-            Math.min(player.water ?? 0, player.maxStats.water),
-          );
-
-          // Сохраняем в базу
-          userDatabase.set(playerId, { ...player });
-          saveUserDatabase?.(dbCollection, playerId, player);
-
-          // Рассылаем обновление всем в мире (включая самого игрока)
-          const updatePayload = {
-            id: playerId,
-            x: player.x,
-            y: player.y,
-            health: player.health,
-            energy: player.energy,
-            food: player.food,
-            water: player.water,
-            armor: player.armor,
-            distanceTraveled: player.distanceTraveled,
-            direction: player.direction,
-            state: player.state,
-            frame: player.frame,
-            attackFrame: player.attackFrame || 0,
-            attackFrameTime: player.attackFrameTime || 0,
-            // можно добавить maxStats, если клиент их использует напрямую
-          };
-
-          broadcastToWorld(
-            wss,
-            clients,
-            players,
-            player.worldId,
-            JSON.stringify({
-              type: "update",
-              player: updatePayload,
-            }),
-          );
-        }
-
-        ws.isProcessingMove = false;
       }
     });
 
