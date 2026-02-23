@@ -919,7 +919,15 @@ function setupWebSocket(
 
           // Респавн через 8–15 секунд
           setTimeout(
-            () => spawnNewEnemy(data.worldId),
+            () =>
+              spawnNewEnemy(
+                data.worldId,
+                worlds,
+                players,
+                enemies,
+                wss,
+                clients,
+              ),
             8000 + Math.random() * 7000,
           );
         } else {
