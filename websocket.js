@@ -927,6 +927,7 @@ function setupWebSocket(
                 enemies,
                 wss,
                 clients,
+                broadcastToWorld,
               ),
             8000 + Math.random() * 7000,
           );

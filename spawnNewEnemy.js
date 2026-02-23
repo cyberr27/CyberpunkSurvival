@@ -1,6 +1,12 @@
-// spawnNewEnemy.js
-
-function spawnNewEnemy(worldId, worlds, players, enemies, wss, clients) {
+function spawnNewEnemy(
+  worldId,
+  worlds,
+  players,
+  enemies,
+  wss,
+  clients,
+  broadcastToWorld,
+) {
   const world = worlds.find((w) => w.id === worldId);
   if (!world) return;
 
