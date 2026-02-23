@@ -191,9 +191,9 @@
     window.jackSystem?.checkJackProximity?.();
     window.npcSystem?.checkQuestCompletion?.();
     window.vendingMachine?.checkProximity?.();
-    window.checkCollisions?.(); 
+    window.checkCollisions?.();
 
-    if (currentTime - lastSendTime >= sendInterval) {
+    if (currentTime - lastSendTime >= sendInterval || traveled > 1) {
       sendMovementUpdate(me);
       lastSendTime = currentTime;
     }

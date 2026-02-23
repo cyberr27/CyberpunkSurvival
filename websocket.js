@@ -474,44 +474,55 @@ function setupWebSocket(
   function applyDistanceResourceDrain(player) {
     if (!player || typeof player.distanceTraveled !== "number") return;
 
-    const currentDistance = Math.floor(player.distanceTraveled || 0);
-    const lastDistance = playerLastDistance.get(player.id) || 0;
+    let currentDistance = Math.floor(player.distanceTraveled || 0);
+    let lastDistance = playerLastDistance.get(player.id) || 0;
 
-    // Чтобы не было отрицательного приращения
-    if (currentDistance <= lastDistance) {
+    // Защита от читов и багов (если значение уменьшилось)
+    if (currentDistance < lastDistance) {
+      // возможно сбросили или чит → просто обновляем и выходим
       playerLastDistance.set(player.id, currentDistance);
       return;
     }
 
     const delta = currentDistance - lastDistance;
 
-    // Вода: -1 каждые 500 пикселей пройдено
-    const waterLoss = Math.floor(delta / 500);
-    if (waterLoss > 0) {
-      player.water = Math.max(0, (player.water || 0) - waterLoss);
+    if (delta <= 0) {
+      // ничего не изменилось → выходим
+      playerLastDistance.set(player.id, currentDistance);
+      return;
+    }
+
+    // Вода: -1 каждые 500 пикселей
+    let waterToLose = Math.floor(delta / 500);
+    if (waterToLose > 0) {
+      player.water = Math.max(0, (player.water || 0) - waterToLose);
     }
 
     // Еда: -1 каждые 900 пикселей
-    const foodLoss = Math.floor(delta / 900);
-    if (foodLoss > 0) {
-      player.food = Math.max(0, (player.food || 0) - foodLoss);
+    let foodToLose = Math.floor(delta / 900);
+    if (foodToLose > 0) {
+      player.food = Math.max(0, (player.food || 0) - foodToLose);
     }
 
     // Энергия: -1 каждые 1300 пикселей
-    const energyLoss = Math.floor(delta / 1300);
-    if (energyLoss > 0) {
-      player.energy = Math.max(0, (player.energy || 0) - energyLoss);
+    let energyToLose = Math.floor(delta / 1300);
+    if (energyToLose > 0) {
+      player.energy = Math.max(0, (player.energy || 0) - energyToLose);
     }
 
     // Здоровье: -1 каждые 200 пикселей, если любой ресурс на нуле
-    if (player.energy === 0 || player.food === 0 || player.water === 0) {
-      const healthLoss = Math.floor(delta / 200);
-      if (healthLoss > 0) {
-        player.health = Math.max(0, (player.health || 0) - healthLoss);
+    if (
+      (player.energy || 0) === 0 ||
+      (player.food || 0) === 0 ||
+      (player.water || 0) === 0
+    ) {
+      let healthToLose = Math.floor(delta / 200);
+      if (healthToLose > 0) {
+        player.health = Math.max(0, (player.health || 0) - healthToLose);
       }
     }
 
-    // Обновляем последнюю дистанцию
+    // Обновляем последнюю дистанцию **только после расчёта**
     playerLastDistance.set(player.id, currentDistance);
   }
 
