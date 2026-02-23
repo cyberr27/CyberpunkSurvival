@@ -5036,6 +5036,7 @@ function setupWebSocket(
         );
       });
     }, 200); // 200 мс — оптимально
+    clearInterval(enemyUpdateInterval);
 
     ws.on("close", async (code, reason) => {
       const id = clients.get(ws);
@@ -5075,7 +5076,6 @@ function setupWebSocket(
         });
       }
       clearTimeout(inactivityTimer);
-      clearInterval(enemyUpdateInterval);
     });
 
     ws.on("error", (error) => {
