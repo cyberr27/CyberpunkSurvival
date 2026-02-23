@@ -149,35 +149,35 @@ function setupWebSocket(
             // ← добавляем сюда
             if (closestPlayer.health <= 0) {
               enemy.state = "idle";
+            } else {
+              enemy.lastAttackTime = now;
+              enemy.state = "attacking";
+
+              const angle = Math.atan2(dy, dx);
+              const bulletId = `blood_proj_${enemyId}_${Date.now()}`;
+
+              // Отправляем событие выстрела ВСЕМ в мире
+              broadcastToWorld(
+                wss,
+                clients,
+                players,
+                enemy.worldId,
+                JSON.stringify({
+                  type: "enemyShoot",
+                  enemyId: enemyId,
+                  bulletId: bulletId,
+                  x: enemy.x,
+                  y: enemy.y,
+                  angle: angle,
+                  speed: projectileSpeed,
+                  damage:
+                    Math.floor(Math.random() * (maxDamage - minDamage + 1)) +
+                    minDamage,
+                  worldId: enemy.worldId,
+                  spawnTime: now,
+                }),
+              );
             }
-
-            enemy.lastAttackTime = now;
-            enemy.state = "attacking";
-
-            const angle = Math.atan2(dy, dx);
-            const bulletId = `blood_proj_${enemyId}_${Date.now()}`;
-
-            // Отправляем событие выстрела ВСЕМ в мире
-            broadcastToWorld(
-              wss,
-              clients,
-              players,
-              enemy.worldId,
-              JSON.stringify({
-                type: "enemyShoot",
-                enemyId: enemyId,
-                bulletId: bulletId,
-                x: enemy.x,
-                y: enemy.y,
-                angle: angle,
-                speed: projectileSpeed,
-                damage:
-                  Math.floor(Math.random() * (maxDamage - minDamage + 1)) +
-                  minDamage,
-                worldId: enemy.worldId,
-                spawnTime: now,
-              }),
-            );
           }
 
           // Движение: держим дистанцию ~150–200 пикселей
