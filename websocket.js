@@ -5193,7 +5193,6 @@ function setupWebSocket(
         });
       }
       clearTimeout(inactivityTimer);
-      clearInterval(projectileSyncInterval);
     });
 
     ws.on("error", (error) => {
