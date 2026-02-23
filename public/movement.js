@@ -191,8 +191,7 @@
     window.jackSystem?.checkJackProximity?.();
     window.npcSystem?.checkQuestCompletion?.();
     window.vendingMachine?.checkProximity?.();
-    window.checkCollisions?.(); // если есть глобальная функция
-    updateResources?.(); // если определена
+    window.checkCollisions?.(); 
 
     if (currentTime - lastSendTime >= sendInterval) {
       sendMovementUpdate(me);
