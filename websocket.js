@@ -5037,9 +5037,6 @@ function setupWebSocket(
       });
     }, 200); // 200 мс — оптимально
 
-    // Очистка интервала при disconnect (в ws.on("close"))
-    clearInterval(enemyUpdateInterval);
-
     ws.on("close", async (code, reason) => {
       const id = clients.get(ws);
       if (id) {
@@ -5078,6 +5075,7 @@ function setupWebSocket(
         });
       }
       clearTimeout(inactivityTimer);
+      clearInterval(enemyUpdateInterval);
     });
 
     ws.on("error", (error) => {
