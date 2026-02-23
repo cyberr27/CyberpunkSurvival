@@ -2274,6 +2274,14 @@ async function handleGameMessageLogic(data) {
         }
       }
       break;
+    case "enemyProjectilesSync":
+      if (data.projectiles && Array.isArray(data.projectiles)) {
+        console.log(`Получено ${data.projectiles.length} вражеских снарядов`);
+        window.enemySystem.syncEnemyProjectiles(data.projectiles);
+      } else {
+        console.warn("Плохой enemyProjectilesSync:", data);
+      }
+      break;
     case "neonQuestStarted":
       showNotification("Заказ принят: Очистка пустошей", "#00ff44");
       break;

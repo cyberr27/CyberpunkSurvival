@@ -4929,7 +4929,12 @@ function setupWebSocket(
 
           if (isRanged) {
             // ─── blood_eye ───────────────────────────────────────
-            if (now - (enemy.lastAttackTime || 0) >= attackCooldown) {
+
+            // Всегда проверяем, можем ли стрелять (независимо от предыдущего состояния)
+            if (
+              now - (enemy.lastAttackTime || 0) >= attackCooldown &&
+              dist <= aggroRange
+            ) {
               enemy.lastAttackTime = now;
               enemy.state = "attacking";
 
@@ -4952,7 +4957,7 @@ function setupWebSocket(
                 worldId: enemy.worldId,
               });
 
-              // Можно сразу отправить создание (опционально, но красиво)
+              // Отправляем мгновенное событие создания снаряда (для эффекта появления)
               broadcastToWorld(
                 wss,
                 clients,
@@ -4965,14 +4970,14 @@ function setupWebSocket(
                   x: enemy.x,
                   y: enemy.y,
                   angle,
-                  speed: projectileSpeed * 5, // для визуального предикта, если хочешь
+                  speed: projectileSpeed * 5, // для клиента, если хочешь визуальный предикт
                   damage: enemyProjectiles.get(bulletId).damage,
                   worldId: enemy.worldId,
                 }),
               );
             }
 
-            // Движение с сохранением дистанции
+            // Движение и состояние — всегда выполняем
             const desired = 180;
             if (dist > desired + 30) {
               enemy.x += (dx / dist) * speed;
@@ -4983,6 +4988,7 @@ function setupWebSocket(
               enemy.y -= (dy / dist) * speed * 0.8;
               enemy.state = "walking";
             } else {
+              // стоим на дистанции → attacking (но стрельба уже проверена выше)
               enemy.state = "attacking";
             }
           } else {

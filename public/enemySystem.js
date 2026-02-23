@@ -11,6 +11,7 @@ const ENEMY_TYPES = Object.freeze({
     spriteKey: "mutantSprite",
     speed: 2,
     color: "#fbff00",
+    lastAttackTime: 0,
   },
   scorpion: {
     size: 70,
@@ -26,6 +27,7 @@ const ENEMY_TYPES = Object.freeze({
     minEnergy: 1,
     maxEnergy: 2,
     color: "#00eaff",
+    lastAttackTime: 0,
   },
   blood_eye: {
     size: 70,
@@ -41,6 +43,7 @@ const ENEMY_TYPES = Object.freeze({
     maxDamage: 18,
     attackType: "projectile",
     color: "#ff0000",
+    lastAttackTime: 0,
   },
 });
 
