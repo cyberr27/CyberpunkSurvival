@@ -304,6 +304,7 @@ function setupWebSocket(
           },
         }),
       );
+      enemies.set(enemyId, enemy);
     });
   }, 200); // 200 мс — оптимально
 
