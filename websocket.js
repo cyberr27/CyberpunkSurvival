@@ -5154,9 +5154,6 @@ function setupWebSocket(
       });
     }, 200); // 200 мс — оптимально
 
-    // Очистка интервала при disconnect (в ws.on("close"))
-    clearInterval(enemyUpdateInterval);
-
     ws.on("close", async (code, reason) => {
       const id = clients.get(ws);
       if (id) {
@@ -5187,6 +5184,7 @@ function setupWebSocket(
         }
         clients.delete(ws);
         players.delete(id);
+        clearInterval(enemyUpdateInterval);
         console.log("Client disconnected:", id);
         wss.clients.forEach((client) => {
           if (client.readyState === WebSocket.OPEN) {
