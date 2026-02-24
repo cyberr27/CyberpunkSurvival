@@ -344,7 +344,6 @@
         type: "move",
         x: player.x,
         y: player.y,
-        health: player.health,
         energy: player.energy,
         food: player.food,
         water: player.water,
