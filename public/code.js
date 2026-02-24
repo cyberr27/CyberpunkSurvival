@@ -1080,6 +1080,7 @@ function handleAuthMessage(event) {
         water: data.water,
         armor: data.armor || 0,
         distanceTraveled: data.distanceTraveled || 0,
+        lastResourceCheckDistance: data.lastResourceCheckDistance || 0,
         hasSeenWelcomeGuide: data.hasSeenWelcomeGuide || false,
         direction: data.direction || "down",
         state: data.state || "idle",
