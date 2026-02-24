@@ -975,6 +975,7 @@ function setupWebSocket(
               armor: 0,
               distanceTraveled: 0,
               lastResourceCheckDistance: 0,
+              lastConfirmedPosition: { x: 474, y: 2474 },
               direction: "down",
               state: "idle",
               frame: 0,
@@ -1213,6 +1214,10 @@ function setupWebSocket(
             distanceTraveled: player.distanceTraveled || 0,
             lastResourceCheckDistance:
               player.lastResourceCheckDistance ?? player.distanceTraveled ?? 0,
+            lastConfirmedPosition: player.lastConfirmedPosition || {
+              x: player.x,
+              y: player.y,
+            },
             npcMet: player.npcMet || false,
             jackMet: player.jackMet || false,
             alexNeonMet: player.alexNeonMet || false,
@@ -1305,6 +1310,10 @@ function setupWebSocket(
               distanceTraveled: playerData.distanceTraveled || 0,
               lastResourceCheckDistance:
                 playerData.lastResourceCheckDistance || 0,
+              lastConfirmedPosition: playerData.lastConfirmedPosition || {
+                x: playerData.x,
+                y: playerData.y,
+              },
               direction: playerData.direction || "down",
               state: playerData.state || "idle",
               frame: playerData.frame || 0,
@@ -1462,78 +1471,97 @@ function setupWebSocket(
               Math.min(player.maxStats?.water || 100, Number(data.water)),
             );
           if (data.armor !== undefined) player.armor = Number(data.armor);
-          if (data.distanceTraveled !== undefined)
-            player.distanceTraveled = Number(data.distanceTraveled);
 
-          // ─── РАСХОД РЕСУРСОВ ПРИ ДВИЖЕНИИ ──────────────────────────────────────
-          const currentDistance = Math.floor(player.distanceTraveled || 0);
-          const prevDistance = player.lastResourceCheckDistance || 0;
-
+          // ─── СЕРВЕРНЫЙ КОНТРОЛЬ ДИСТАНЦИИ И РАСХОДА РЕСУРСОВ ────────────────────────
           let resourcesChanged = false;
 
-          // Вода: -1 каждые 500 px
-          const waterLossNow = Math.floor(currentDistance / 500);
-          const waterLossPrev = Math.floor(prevDistance / 500);
-          if (waterLossNow > waterLossPrev) {
-            player.water = Math.max(
-              0,
-              player.water - (waterLossNow - waterLossPrev),
-            );
-            resourcesChanged = true;
-          }
+          if (data.x !== undefined || data.y !== undefined) {
+            const newX = player.x;
+            const newY = player.y;
 
-          // Еда: -1 каждые 900 px
-          const foodLossNow = Math.floor(currentDistance / 1000);
-          const foodLossPrev = Math.floor(prevDistance / 1000);
-          if (foodLossNow > foodLossPrev) {
-            player.food = Math.max(
-              0,
-              player.food - (foodLossNow - foodLossPrev),
-            );
-            resourcesChanged = true;
-          }
+            // Если это первый move после логина — просто запоминаем позицию
+            if (!player.lastConfirmedPosition) {
+              player.lastConfirmedPosition = { x: newX, y: newY };
+            } else {
+              // Считаем реально пройденное расстояние
+              const dx = newX - player.lastConfirmedPosition.x;
+              const dy = newY - player.lastConfirmedPosition.y;
+              const traveledThisTick = Math.hypot(dx, dy);
 
-          // Энергия: -1 каждые 1300 px
-          const energyLossNow = Math.floor(currentDistance / 1500);
-          const energyLossPrev = Math.floor(prevDistance / 1500);
-          if (energyLossNow > energyLossPrev) {
-            player.energy = Math.max(
-              0,
-              player.energy - (energyLossNow - energyLossPrev),
-            );
-            resourcesChanged = true;
-          }
+              // Добавляем к общей дистанции
+              player.distanceTraveled =
+                (player.distanceTraveled || 0) + traveledThisTick;
 
-          // Голод / жажда / усталость → урон по здоровью
-          if (player.energy <= 0 || player.food <= 0 || player.water <= 0) {
-            const healthLossNow = Math.floor(currentDistance / 200);
-            const healthLossPrev = Math.floor(prevDistance / 200);
-            if (healthLossNow > healthLossPrev) {
-              player.health = Math.max(
-                0,
-                player.health - (healthLossNow - healthLossPrev),
-              );
-              resourcesChanged = true;
+              // Обновляем последнюю подтверждённую позицию
+              player.lastConfirmedPosition = { x: newX, y: newY };
+
+              // Теперь считаем расход (как раньше, но от серверной дистанции)
+              const currentDistance = Math.floor(player.distanceTraveled);
+              const prevDistance = player.lastResourceCheckDistance || 0;
+
+              // Вода: -1 каждые 500 px
+              const waterLossNow = Math.floor(currentDistance / 500);
+              const waterLossPrev = Math.floor(prevDistance / 500);
+              if (waterLossNow > waterLossPrev) {
+                player.water = Math.max(
+                  0,
+                  player.water - (waterLossNow - waterLossPrev),
+                );
+                resourcesChanged = true;
+              }
+
+              // Еда: -1 каждые 900 px
+              const foodLossNow = Math.floor(currentDistance / 900);
+              const foodLossPrev = Math.floor(prevDistance / 900);
+              if (foodLossNow > foodLossPrev) {
+                player.food = Math.max(
+                  0,
+                  player.food - (foodLossNow - foodLossPrev),
+                );
+                resourcesChanged = true;
+              }
+
+              // Энергия: -1 каждые 1300 px
+              const energyLossNow = Math.floor(currentDistance / 1300);
+              const energyLossPrev = Math.floor(prevDistance / 1300);
+              if (energyLossNow > energyLossPrev) {
+                player.energy = Math.max(
+                  0,
+                  player.energy - (energyLossNow - energyLossPrev),
+                );
+                resourcesChanged = true;
+              }
+
+              // Урон по здоровью, если голод/жажда/усталость
+              if (player.energy <= 0 || player.food <= 0 || player.water <= 0) {
+                const healthLossNow = Math.floor(currentDistance / 200);
+                const healthLossPrev = Math.floor(prevDistance / 200);
+                if (healthLossNow > healthLossPrev) {
+                  player.health = Math.max(
+                    0,
+                    player.health - (healthLossNow - healthLossPrev),
+                  );
+                  resourcesChanged = true;
+                }
+              }
+
+              // Запоминаем дистанцию для следующего раза
+              player.lastResourceCheckDistance = currentDistance;
             }
           }
 
-          // Запоминаем дистанцию, на которой последний раз считали расход
-          player.lastResourceCheckDistance = currentDistance;
-
-          // ─── Если что-то изменилось — сохраняем и рассылаем ─────────────────────
+          // Если что-то изменилось — сохраняем и рассылаем
           if (resourcesChanged) {
-            // Сохраняем в базу
             userDatabase.set(playerId, { ...player });
             await saveUserDatabase?.(dbCollection, playerId, player);
 
-            // Готовим данные для рассылки (только изменённые поля + id)
             const updatePayload = {
               id: playerId,
               health: player.health,
               energy: player.energy,
               food: player.food,
               water: player.water,
-              distanceTraveled: player.distanceTraveled, // на всякий случай
+              distanceTraveled: player.distanceTraveled,
             };
 
             broadcastToWorld(

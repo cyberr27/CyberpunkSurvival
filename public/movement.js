@@ -183,9 +183,6 @@
 
     me.direction = getDirection(dx / distance, dy / distance, me);
 
-    const traveled = Math.hypot(me.x - prevX, me.y - prevY);
-    me.distanceTraveled = (me.distanceTraveled || 0) + traveled;
-
     // Взаимодействия (один раз за тик)
     window.npcSystem?.checkNPCProximity?.();
     window.jackSystem?.checkJackProximity?.();
@@ -348,7 +345,6 @@
         food: player.food,
         water: player.water,
         armor: player.armor,
-        distanceTraveled: player.distanceTraveled,
         direction: player.direction,
         state: player.state,
         frame: player.frame,
