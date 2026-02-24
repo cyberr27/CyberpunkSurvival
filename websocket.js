@@ -1483,8 +1483,8 @@ function setupWebSocket(
           }
 
           // Еда: -1 каждые 900 px
-          const foodLossNow = Math.floor(currentDistance / 900);
-          const foodLossPrev = Math.floor(prevDistance / 900);
+          const foodLossNow = Math.floor(currentDistance / 1000);
+          const foodLossPrev = Math.floor(prevDistance / 1000);
           if (foodLossNow > foodLossPrev) {
             player.food = Math.max(
               0,
@@ -1494,8 +1494,8 @@ function setupWebSocket(
           }
 
           // Энергия: -1 каждые 1300 px
-          const energyLossNow = Math.floor(currentDistance / 1300);
-          const energyLossPrev = Math.floor(prevDistance / 1300);
+          const energyLossNow = Math.floor(currentDistance / 1500);
+          const energyLossPrev = Math.floor(prevDistance / 1500);
           if (energyLossNow > energyLossPrev) {
             player.energy = Math.max(
               0,
