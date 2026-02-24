@@ -85,7 +85,7 @@ function setupWebSocket(
   if (!setupWebSocket.enemyUpdateIntervalRunning) {
     setupWebSocket.enemyUpdateIntervalRunning = true;
 
-    const ENEMY_UPDATE_INTERVAL_MS = 200;
+    const ENEMY_UPDATE_INTERVAL_MS = 500;
 
     const enemyUpdateInterval = setInterval(() => {
       const now = Date.now();
