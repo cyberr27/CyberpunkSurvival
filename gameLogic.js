@@ -23,76 +23,105 @@ function runGameLoop(
   worlds,
   ITEM_CONFIG,
   userDatabase,
-  enemies
+  enemies,
 ) {
-  // === AI МУТАНТОВ (каждые 200 мс для оптимизации) ===
-  const mutantAIInterval = setInterval(() => {
+  // === ГЛОБАЛЬНОЕ ОБНОВЛЕНИЕ ВРАГОВ (AI + движение + атака) каждые 200 мс ===
+  const enemyAIInterval = setInterval(() => {
     const now = Date.now();
 
     for (const [worldId, worldEnemiesMap] of worldEnemyCache) {
-      if (worldId === 0) continue;
+      if (worldId === 0) continue; // безопасный/лобби мир без врагов
+
       const playerIds = worldPlayerCache.get(worldId) || new Set();
-      if (playerIds.size === 0) continue;
+      if (playerIds.size === 0) continue; // нет игроков → нет смысла считать
+
       worldEnemiesMap.forEach((enemy) => {
         if (enemy.health <= 0) return;
+
+        // ─── Параметры в зависимости от типа ───────────────────────────────
+        let speed = ENEMY_SPEED;
+        let aggroRangeSq = AGGRO_RANGE * AGGRO_RANGE;
+        let attackRangeSq = ATTACK_RANGE * ATTACK_RANGE;
+        let attackCooldown = ENEMY_ATTACK_COOLDOWN;
+        let minDmg = 10;
+        let maxDmg = 15;
+        let minEnergyDmg = 0;
+        let maxEnergyDmg = 0;
+
+        if (enemy.type === "scorpion") {
+          speed = 4;
+          attackCooldown = 1000;
+          minDmg = 5;
+          maxDmg = 10;
+          minEnergyDmg = 1;
+          maxEnergyDmg = 2;
+        } else if (enemy.type === "blood_eye") {
+          speed = 3.2;
+          attackCooldown = 2000;
+          minDmg = 12;
+          maxDmg = 18;
+        }
+
+        // ─── Поиск ближайшего игрока ───────────────────────────────────────
         let closestPlayer = null;
-        let minDist = Infinity;
+        let minDistSq = Infinity;
+
         for (const playerId of playerIds) {
-          const player = players.get(playerId);
-          if (!player || player.health <= 0) continue;
-          const dx = player.x - enemy.x;
-          const dy = player.y - enemy.y;
-          const dist = dx * dx + dy * dy;
-          if (dist < minDist) {
-            minDist = dist;
-            closestPlayer = player;
+          const p = players.get(playerId);
+          if (!p || p.health <= 0) continue;
+
+          const dx = p.x - enemy.x;
+          const dy = p.y - enemy.y;
+          const distSq = dx * dx + dy * dy;
+
+          if (distSq < minDistSq) {
+            minDistSq = distSq;
+            closestPlayer = p;
           }
         }
-        if (closestPlayer && minDist <= AGGRO_RANGE * AGGRO_RANGE) {
+
+        if (closestPlayer && minDistSq <= aggroRangeSq) {
           enemy.targetId = closestPlayer.id;
+
           const dx = closestPlayer.x - enemy.x;
           const dy = closestPlayer.y - enemy.y;
-          let speed = ENEMY_SPEED;
-          let attackCooldown = ENEMY_ATTACK_COOLDOWN;
-          let minDmg = 10,
-            maxDmg = 15,
-            minEnergy = 0,
-            maxEnergy = 0;
-          if (enemy.type === "scorpion") {
-            speed = 4;
-            attackCooldown = 1000;
-            minDmg = 5;
-            maxDmg = 10;
-            minEnergy = 1;
-            maxEnergy = 2;
-          }
+          const distSq = minDistSq; // уже посчитано
+
+          // Движение к игроку
           const angle = Math.atan2(dy, dx);
           enemy.x += Math.cos(angle) * speed;
           enemy.y += Math.sin(angle) * speed;
           enemy.state = "walking";
+
+          // Направление спрайта
           if (Math.abs(dx) > Math.abs(dy)) {
             enemy.direction = dx > 0 ? "right" : "left";
           } else {
             enemy.direction = dy > 0 ? "down" : "up";
           }
+
+          // Атака, если в радиусе
           if (
-            minDist <= ATTACK_RANGE * ATTACK_RANGE &&
-            now - enemy.lastAttackTime >= attackCooldown
+            distSq <= attackRangeSq &&
+            now - (enemy.lastAttackTime || 0) >= attackCooldown
           ) {
             const damage =
               Math.floor(Math.random() * (maxDmg - minDmg + 1)) + minDmg;
             let energyDmg = 0;
+
             if (enemy.type === "scorpion") {
               energyDmg =
-                Math.floor(Math.random() * (maxEnergy - minEnergy + 1)) +
-                minEnergy;
+                Math.floor(Math.random() * (maxEnergyDmg - minEnergyDmg + 1)) +
+                minEnergyDmg;
               closestPlayer.energy = Math.max(
                 0,
-                closestPlayer.energy - energyDmg
+                closestPlayer.energy - energyDmg,
               );
             }
+
             closestPlayer.health = Math.max(0, closestPlayer.health - damage);
             enemy.lastAttackTime = now;
+
             broadcastToWorld(
               wss,
               clients,
@@ -104,8 +133,9 @@ function runGameLoop(
                 targetId: closestPlayer.id,
                 damage,
                 energyDmg,
-              })
+              }),
             );
+
             broadcastToWorld(
               wss,
               clients,
@@ -114,18 +144,23 @@ function runGameLoop(
               JSON.stringify({
                 type: "update",
                 player: { id: closestPlayer.id, ...closestPlayer },
-              })
+              }),
             );
           }
         } else {
+          // Нет цели
           enemy.targetId = null;
           enemy.state = "idle";
-          if (Math.random() < 0.1) {
+
+          // Случайное блуждание
+          if (Math.random() < 0.08) {
             const wanderAngle = Math.random() * Math.PI * 2;
-            enemy.x += Math.cos(wanderAngle) * ENEMY_SPEED * 0.5;
-            enemy.y += Math.sin(wanderAngle) * ENEMY_SPEED * 0.5;
+            enemy.x += Math.cos(wanderAngle) * speed * 0.5;
+            enemy.y += Math.sin(wanderAngle) * speed * 0.5;
           }
         }
+
+        // ─── Отправка обновления врага всем в мире ─────────────────────────
         broadcastToWorld(
           wss,
           clients,
@@ -133,12 +168,20 @@ function runGameLoop(
           worldId,
           JSON.stringify({
             type: "enemyUpdate",
-            enemy: { id: enemy.id, ...enemy },
-          })
+            enemy: {
+              id: enemy.id,
+              x: enemy.x,
+              y: enemy.y,
+              state: enemy.state,
+              direction: enemy.direction,
+              health: enemy.health,
+              lastAttackTime: enemy.lastAttackTime || 0,
+            },
+          }),
         );
       });
     }
-  }, 200); // 200ms для оптимизации (5 FPS update, клиент интерполирует)
+  }, 200);
 
   // === ОСНОВНОЙ ЦИКЛ (30 сек) ===
   const mainLoop = setInterval(() => {
@@ -222,13 +265,13 @@ function runGameLoop(
         let commonCount = playerCount * 5;
 
         const rareItems = Object.keys(ITEM_CONFIG).filter(
-          (t) => ITEM_CONFIG[t].rarity === 1
+          (t) => ITEM_CONFIG[t].rarity === 1,
         );
         const mediumItems = Object.keys(ITEM_CONFIG).filter(
-          (t) => ITEM_CONFIG[t].rarity === 2
+          (t) => ITEM_CONFIG[t].rarity === 2,
         );
         const commonItems = Object.keys(ITEM_CONFIG).filter(
-          (t) => ITEM_CONFIG[t].rarity === 3
+          (t) => ITEM_CONFIG[t].rarity === 3,
         );
 
         const newItems = [];
@@ -259,7 +302,7 @@ function runGameLoop(
             commonCount--;
           } else {
             const allTypes = Object.keys(ITEM_CONFIG).filter(
-              (t) => ITEM_CONFIG[t].rarity !== 4 && ITEM_CONFIG[t].rarity !== 5
+              (t) => ITEM_CONFIG[t].rarity !== 4 && ITEM_CONFIG[t].rarity !== 5,
             );
             type = allTypes[Math.floor(Math.random() * allTypes.length)];
           }
@@ -283,7 +326,7 @@ function runGameLoop(
 
             if (type === "atom") {
               atomSpawns.push(
-                `Создан атом (${itemId}) в мире ${worldId} на x:${x}, y:${y}`
+                `Создан атом (${itemId}) в мире ${worldId} на x:${x}, y:${y}`,
               );
             }
           }
@@ -307,7 +350,7 @@ function runGameLoop(
         const worldEnemiesMap = worldEnemyCache.get(worldId) || new Map();
         const desiredMutants = 10;
         const currentMutants = Array.from(worldEnemiesMap.values()).filter(
-          (e) => !e.type || e.type === "mutant"
+          (e) => !e.type || e.type === "mutant",
         ).length;
         if (currentMutants < desiredMutants) {
           const toSpawn = desiredMutants - currentMutants;
@@ -356,7 +399,7 @@ function runGameLoop(
         const worldEnemiesMap = worldEnemyCache.get(worldId) || new Map();
         const desiredScorpions = 10;
         const currentScorpions = Array.from(worldEnemiesMap.values()).filter(
-          (e) => e.type === "scorpion"
+          (e) => e.type === "scorpion",
         ).length;
         if (currentScorpions < desiredScorpions) {
           const toSpawn = desiredScorpions - currentScorpions;
@@ -405,7 +448,7 @@ function runGameLoop(
         const desiredBloodEyes = 10;
         const worldEnemiesMap = worldEnemyCache.get(worldId) || new Map();
         const currentBloodEyes = Array.from(worldEnemiesMap.values()).filter(
-          (e) => e.type === "blood_eye"
+          (e) => e.type === "blood_eye",
         ).length;
 
         if (currentBloodEyes < desiredBloodEyes) {
@@ -455,7 +498,7 @@ function runGameLoop(
               JSON.stringify({
                 type: "newEnemies",
                 enemies: newBloodEyes,
-              })
+              }),
             );
           }
         }
@@ -469,7 +512,7 @@ function runGameLoop(
           type: item.type,
           spawnTime: item.spawnTime,
           worldId,
-        })
+        }),
       );
 
       if (allItems.length > 0) {
@@ -498,7 +541,7 @@ function runGameLoop(
               type: "syncItems",
               items: visibleItems,
               worldId,
-            })
+            }),
           );
         });
       }
@@ -506,7 +549,7 @@ function runGameLoop(
   }, 30_000);
 
   // Возвращаем интервалы, чтобы можно было остановить при выключении
-  return { mainLoop, mutantAIInterval };
+  return { mainLoop, enemyAIInterval };
 }
 
 function broadcastToWorld(wss, clients, players, worldId, message) {
