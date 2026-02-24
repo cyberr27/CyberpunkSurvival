@@ -17,6 +17,48 @@ const { obstacles } = require("./obstacles");
 const { calculateMaxStats, EQUIPMENT_TYPES } = require("./calculateMaxStats");
 const { spawnNewEnemy } = require("./spawnNewEnemy");
 
+const ENEMY_TYPES = Object.freeze({
+  mutant: {
+    size: 70,
+    frames: 13,
+    frameDuration: 110,
+    maxHealth: 200,
+    speed: 2,
+    color: "#fbff00",
+  },
+  scorpion: {
+    size: 70,
+    frames: 13,
+    frameDuration: 110,
+    maxHealth: 250,
+    speed: 6,
+    aggroRange: 300,
+    attackCooldown: 1000,
+    minDamage: 5,
+    maxDamage: 10,
+    minEnergy: 1,
+    maxEnergy: 2,
+    color: "#00eaff",
+  },
+  blood_eye: {
+    size: 70,
+    frames: 13,
+    frameDuration: 90,
+    maxHealth: 300,
+    speed: 3.2,
+    aggroRange: 300,
+    attackCooldown: 2000,
+    projectileSpeed: 5, // было 20 на клиенте — уменьшаем для баланса на сервере
+    minDamage: 12,
+    maxDamage: 18,
+    attackType: "projectile",
+    color: "#ff0000",
+  },
+});
+
+const PROJECTILE_LIFETIME = 8000; // мс
+const HITBOX_RADIUS_SQ = 40 * 40;
+
 function broadcastToWorld(wss, clients, players, worldId, message) {
   wss.clients.forEach((client) => {
     if (client.readyState === WebSocket.OPEN) {
@@ -42,6 +84,7 @@ function broadcastTradeCancelled(wss, clients, playerAId, playerBId) {
 
 const tradeRequests = new Map();
 const tradeOffers = new Map();
+const enemyProjectiles = new Map();
 
 const ENEMY_SPEED = 2;
 const AGGRO_RANGE = 300;
@@ -82,123 +125,153 @@ function setupWebSocket(
   INACTIVITY_TIMEOUT,
   enemies,
 ) {
-  // ─── ГЛОБАЛЬНЫЙ ИНТЕРВАЛ ОБНОВЛЕНИЯ ВРАГОВ (СОЗДАЁТСЯ ОДИН РАЗ) ────────
+  // ─── ГЛОБАЛЬНЫЙ ИНТЕРВАЛ ОБНОВЛЕНИЯ ВРАГОВ И ПРОЕКТИЛ ─────────────────────
   if (!setupWebSocket.enemyUpdateInterval) {
     setupWebSocket.enemyUpdateInterval = setInterval(() => {
       const now = Date.now();
 
+      // 1. Обновляем всех врагов
       enemies.forEach((enemy, enemyId) => {
         const worldId = enemy.worldId;
         if (!worldId) return;
 
-        // Находим всех живых игроков в этом мире
-        const playersInWorld = [];
-        players.forEach((player) => {
-          if (player.worldId === worldId && player.health > 0) {
-            playersInWorld.push(player);
-          }
-        });
+        const config = ENEMY_TYPES[enemy.type] || ENEMY_TYPES.mutant;
+
+        // Находим живых игроков в мире
+        const playersInWorld = Array.from(players.values()).filter(
+          (p) => p.worldId === worldId && p.health > 0,
+        );
 
         if (playersInWorld.length === 0) {
           enemy.state = "idle";
           return;
         }
 
-        // Ищем ближайшего игрока
-        let closestPlayer = null;
-        let minDistance = Infinity;
+        // Ближайший игрок
+        let closest = null;
+        let minDist = Infinity;
 
-        playersInWorld.forEach((player) => {
-          const dx = player.x - enemy.x;
-          const dy = player.y - enemy.y;
-          const dist = Math.hypot(dx, dy);
-
-          if (dist < minDistance) {
-            minDistance = dist;
-            closestPlayer = player;
+        playersInWorld.forEach((p) => {
+          const d = Math.hypot(p.x - enemy.x, p.y - enemy.y);
+          if (d < minDist) {
+            minDist = d;
+            closest = p;
           }
         });
 
-        const speed = ENEMY_TYPES?.[enemy.type]?.speed || ENEMY_SPEED;
-        const aggroRange = ENEMY_TYPES?.[enemy.type]?.aggroRange || AGGRO_RANGE;
-
-        if (closestPlayer && minDistance < aggroRange) {
-          // Движемся к цели
-          const dx = closestPlayer.x - enemy.x;
-          const dy = closestPlayer.y - enemy.y;
+        if (closest && minDist < config.aggroRange) {
+          // Движение
+          const dx = closest.x - enemy.x;
+          const dy = closest.y - enemy.y;
           const dist = Math.hypot(dx, dy);
 
           if (dist > 1) {
-            const moveX = (dx / dist) * speed;
-            const moveY = (dy / dist) * speed;
+            const moveX = (dx / dist) * config.speed;
+            const moveY = (dy / dist) * config.speed;
 
             enemy.x += moveX;
             enemy.y += moveY;
 
             enemy.state = "walking";
 
-            // Направление
-            if (Math.abs(dx) > Math.abs(dy)) {
-              enemy.direction = dx > 0 ? "right" : "left";
-            } else {
-              enemy.direction = dy > 0 ? "down" : "up";
-            }
+            enemy.direction =
+              Math.abs(dx) > Math.abs(dy)
+                ? dx > 0
+                  ? "right"
+                  : "left"
+                : dy > 0
+                  ? "down"
+                  : "up";
           }
 
           // Атака
-          const attackCooldown =
-            ENEMY_TYPES?.[enemy.type]?.attackCooldown || ENEMY_ATTACK_COOLDOWN;
-          const attackRange =
-            ENEMY_TYPES?.[enemy.type]?.attackRange || ATTACK_RANGE;
+          const canAttack =
+            now - (enemy.lastAttackTime || 0) >= config.attackCooldown;
 
-          if (
-            minDistance <= attackRange &&
-            now - (enemy.lastAttackTime || 0) >= attackCooldown
-          ) {
-            const damage = ENEMY_TYPES?.[enemy.type]?.damage || 10;
+          if (minDist <= ATTACK_RANGE && canAttack) {
+            if (config.attackType === "projectile") {
+              // Blood Eye — стреляет
+              const angle = Math.atan2(
+                closest.y - enemy.y,
+                closest.x - enemy.x,
+              );
+              const speedPxPerMs = config.projectileSpeed;
 
-            closestPlayer.health = Math.max(0, closestPlayer.health - damage);
-            enemy.lastAttackTime = now;
-            enemy.state = "attacking";
+              const projId = `proj_${enemyId}_${now}`;
+              enemyProjectiles.set(projId, {
+                id: projId,
+                x: enemy.x,
+                y: enemy.y,
+                vx: Math.cos(angle) * speedPxPerMs,
+                vy: Math.sin(angle) * speedPxPerMs,
+                damage:
+                  Math.floor(
+                    Math.random() * (config.maxDamage - config.minDamage + 1),
+                  ) + config.minDamage,
+                spawnTime: now,
+                ownerEnemyId: enemyId,
+                worldId,
+              });
 
-            // Уведомляем о атаке
-            broadcastToWorld(
-              wss,
-              clients,
-              players,
-              worldId,
-              JSON.stringify({
-                type: "enemyAttack",
-                targetId: closestPlayer.id,
-                damage,
-                enemyId,
-              }),
-            );
+              enemy.lastAttackTime = now;
+              enemy.state = "attacking";
 
-            // Обновляем здоровье жертвы всем в мире
-            broadcastToWorld(
-              wss,
-              clients,
-              players,
-              worldId,
-              JSON.stringify({
-                type: "update",
-                player: { id: closestPlayer.id, health: closestPlayer.health },
-              }),
-            );
-          } else {
-            enemy.state = "attacking"; // держим анимацию
+              // Сообщаем клиенту о новом проектиле
+              broadcastToWorld(
+                wss,
+                clients,
+                players,
+                worldId,
+                JSON.stringify({
+                  type: "newEnemyProjectile",
+                  projectile: enemyProjectiles.get(projId),
+                }),
+              );
+            } else {
+              // Обычная ближняя атака
+              const damage =
+                Math.floor(
+                  Math.random() * (config.maxDamage - config.minDamage + 1),
+                ) + config.minDamage;
+              closest.health = Math.max(0, closest.health - damage);
+              enemy.lastAttackTime = now;
+              enemy.state = "attacking";
+
+              broadcastToWorld(
+                wss,
+                clients,
+                players,
+                worldId,
+                JSON.stringify({
+                  type: "enemyAttack",
+                  targetId: closest.id,
+                  damage,
+                  enemyId,
+                }),
+              );
+
+              broadcastToWorld(
+                wss,
+                clients,
+                players,
+                worldId,
+                JSON.stringify({
+                  type: "update",
+                  player: { id: closest.id, health: closest.health },
+                }),
+              );
+            }
           }
         } else {
           enemy.state = "idle";
           if (Math.random() < 0.08) {
-            const wanderAngle = Math.random() * Math.PI * 2;
-            enemy.x += Math.cos(wanderAngle) * speed * 0.5;
-            enemy.y += Math.sin(wanderAngle) * speed * 0.5;
+            const angle = Math.random() * Math.PI * 2;
+            enemy.x += Math.cos(angle) * config.speed * 0.5;
+            enemy.y += Math.sin(angle) * config.speed * 0.5;
           }
         }
 
-        // Отправляем обновление врага ВСЕМ в мире
+        // Обновление врага всем в мире
         broadcastToWorld(
           wss,
           clients,
@@ -218,9 +291,44 @@ function setupWebSocket(
           }),
         );
       });
+
+      // 2. Обновляем и чистим проектили
+      enemyProjectiles.forEach((proj, projId) => {
+        proj.x += proj.vx;
+        proj.y += proj.vy;
+
+        if (now - proj.spawnTime > PROJECTILE_LIFETIME) {
+          enemyProjectiles.delete(projId);
+          return;
+        }
+
+        // Проверяем попадание по игрокам в том же мире
+        players.forEach((player) => {
+          if (player.worldId !== proj.worldId || player.health <= 0) return;
+
+          const dx = player.x + 35 - proj.x;
+          const dy = player.y + 35 - proj.y;
+          if (dx * dx + dy * dy < HITBOX_RADIUS_SQ) {
+            player.health = Math.max(0, player.health - proj.damage);
+
+            broadcastToWorld(
+              wss,
+              clients,
+              players,
+              proj.worldId,
+              JSON.stringify({
+                type: "update",
+                player: { id: player.id, health: player.health },
+              }),
+            );
+
+            enemyProjectiles.delete(projId);
+          }
+        });
+      });
     }, 200);
 
-    // Очистка при завершении процесса (опционально, но полезно)
+    // Очистка при выходе сервера
     process.on("exit", () => {
       clearInterval(setupWebSocket.enemyUpdateInterval);
     });

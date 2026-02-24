@@ -2146,7 +2146,17 @@ async function handleGameMessageLogic(data) {
         }
       }
       break;
+    case "newEnemyProjectile":
+      if (window.enemySystem?.handleNewEnemyProjectile) {
+        window.enemySystem.handleNewEnemyProjectile(data.projectile);
+      }
+      break;
 
+    case "removeEnemyProjectile":
+      if (window.enemySystem?.removeEnemyProjectile) {
+        window.enemySystem.removeEnemyProjectile(data.projId);
+      }
+      break;
     case "enemyDied":
       const deadId = data.enemyId;
       if (enemies.has(deadId)) {
@@ -2157,7 +2167,6 @@ async function handleGameMessageLogic(data) {
         window.enemySystem.handleEnemyDeath(deadId);
       }
       break;
-
     case "newEnemy":
       // Это сообщение приходит при спавне нового врага (у тебя есть spawnNewEnemy на сервере)
       if (data.enemy && data.enemy.id) {
