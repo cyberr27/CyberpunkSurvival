@@ -60,19 +60,7 @@ function spawnNewEnemy(
     worldId,
     JSON.stringify({
       type: "newEnemy",
-      enemy: {
-        id: newEnemy.id,
-        x: newEnemy.x,
-        y: newEnemy.y,
-        health: newEnemy.health,
-        maxHealth: newEnemy.maxHealth,
-        direction: newEnemy.direction,
-        state: newEnemy.state,
-        frame: newEnemy.frame || 0,
-        worldId: newEnemy.worldId,
-        type: newEnemy.type,
-        lastAttackTime: newEnemy.lastAttackTime || 0,
-      },
+      enemy: newEnemy,
     }),
   );
 }
