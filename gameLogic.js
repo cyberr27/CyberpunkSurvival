@@ -30,15 +30,14 @@ function runGameLoop(
     const now = Date.now();
 
     for (const [worldId, worldEnemiesMap] of worldEnemyCache) {
-      if (worldId === 0) continue; // безопасный/лобби мир без врагов
+      if (worldId === 0) continue;
 
       const playerIds = worldPlayerCache.get(worldId) || new Set();
-      if (playerIds.size === 0) continue; // нет игроков → нет смысла считать
+      if (playerIds.size === 0) continue;
 
       worldEnemiesMap.forEach((enemy) => {
         if (enemy.health <= 0) return;
 
-        // ─── Параметры в зависимости от типа ───────────────────────────────
         let speed = ENEMY_SPEED;
         let aggroRangeSq = AGGRO_RANGE * AGGRO_RANGE;
         let attackRangeSq = ATTACK_RANGE * ATTACK_RANGE;
@@ -62,7 +61,6 @@ function runGameLoop(
           maxDmg = 18;
         }
 
-        // ─── Поиск ближайшего игрока ───────────────────────────────────────
         let closestPlayer = null;
         let minDistSq = Infinity;
 
@@ -85,22 +83,19 @@ function runGameLoop(
 
           const dx = closestPlayer.x - enemy.x;
           const dy = closestPlayer.y - enemy.y;
-          const distSq = minDistSq; // уже посчитано
+          const distSq = minDistSq;
 
-          // Движение к игроку
           const angle = Math.atan2(dy, dx);
           enemy.x += Math.cos(angle) * speed;
           enemy.y += Math.sin(angle) * speed;
           enemy.state = "walking";
 
-          // Направление спрайта
           if (Math.abs(dx) > Math.abs(dy)) {
             enemy.direction = dx > 0 ? "right" : "left";
           } else {
             enemy.direction = dy > 0 ? "down" : "up";
           }
 
-          // Атака, если в радиусе
           if (
             distSq <= attackRangeSq &&
             now - (enemy.lastAttackTime || 0) >= attackCooldown
@@ -148,11 +143,9 @@ function runGameLoop(
             );
           }
         } else {
-          // Нет цели
           enemy.targetId = null;
           enemy.state = "idle";
 
-          // Случайное блуждание
           if (Math.random() < 0.08) {
             const wanderAngle = Math.random() * Math.PI * 2;
             enemy.x += Math.cos(wanderAngle) * speed * 0.5;
@@ -160,7 +153,6 @@ function runGameLoop(
           }
         }
 
-        // ─── Отправка обновления врага всем в мире ─────────────────────────
         broadcastToWorld(
           wss,
           clients,
@@ -176,6 +168,8 @@ function runGameLoop(
               direction: enemy.direction,
               health: enemy.health,
               lastAttackTime: enemy.lastAttackTime || 0,
+              type: enemy.type, 
+              targetId: enemy.targetId || null, 
             },
           }),
         );
