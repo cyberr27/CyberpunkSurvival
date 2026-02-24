@@ -204,7 +204,7 @@ function runGameLoop(
         }
       });
     }
-  }, 200);
+  }, 500);
 
   // === ОСНОВНОЙ ЦИКЛ (30 сек) — кэширование, спавн и т.д. ===
   const mainLoop = setInterval(() => {
