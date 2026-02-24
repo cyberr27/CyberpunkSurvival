@@ -43,17 +43,6 @@ function broadcastTradeCancelled(wss, clients, playerAId, playerBId) {
 const tradeRequests = new Map();
 const tradeOffers = new Map();
 
-const ENEMY_SPEED = 2;
-const AGGRO_RANGE = 300;
-const ATTACK_RANGE = 50;
-const ENEMY_ATTACK_COOLDOWN = 1000;
-const BLOOD_EYE_SPEED = 3.2;
-const BLOOD_EYE_AGGRO = 300;
-const BLOOD_EYE_COOLDOWN = 2000;
-const BLOOD_EYE_PROJ_SPEED = 5; // px/s
-const BLOOD_EYE_DAMAGE_MIN = 12;
-const BLOOD_EYE_DAMAGE_MAX = 18;
-
 function segmentsIntersect(x1, y1, x2, y2, x3, y3, x4, y4) {
   const denom = (y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1);
   if (denom === 0) return false;
