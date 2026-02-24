@@ -168,8 +168,8 @@ function runGameLoop(
               direction: enemy.direction,
               health: enemy.health,
               lastAttackTime: enemy.lastAttackTime || 0,
-              type: enemy.type, 
-              targetId: enemy.targetId || null, 
+              type: enemy.type || "mutant",
+              targetId: enemy.targetId || null,
             },
           }),
         );
@@ -479,7 +479,19 @@ function runGameLoop(
               };
               enemies.set(enemyId, newEnemy);
               worldEnemiesMap.set(enemyId, newEnemy);
-              newBloodEyes.push({ ...newEnemy });
+              newBloodEyes.push({
+                id: newEnemy.id,
+                x: newEnemy.x,
+                y: newEnemy.y,
+                health: newEnemy.health,
+                maxHealth: newEnemy.maxHealth,
+                direction: newEnemy.direction,
+                state: newEnemy.state,
+                frame: newEnemy.frame || 0,
+                worldId: newEnemy.worldId,
+                type: newEnemy.type, // ← важно
+                lastAttackTime: newEnemy.lastAttackTime || 0,
+              });
             }
           }
 

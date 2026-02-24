@@ -1106,16 +1106,18 @@ function setupWebSocket(
           const worldEnemies = Array.from(enemies.entries())
             .filter(([_, enemy]) => enemy.worldId === targetWorldId)
             .map(([enemyId, enemy]) => ({
-              enemyId,
+              id: enemyId, // лучше использовать id вместо enemyId
               x: enemy.x,
               y: enemy.y,
               health: enemy.health,
-              direction: enemy.direction,
-              state: enemy.state,
-              frame: enemy.frame,
+              maxHealth: enemy.maxHealth || 200, // на всякий случай
+              direction: enemy.direction || "down",
+              state: enemy.state || "idle",
+              frame: enemy.frame || 0,
               worldId: enemy.worldId,
+              type: enemy.type || "mutant", // ← критически важно!
+              lastAttackTime: enemy.lastAttackTime || 0,
             }));
-
           // Отправляем успех текущему игроку + все данные нового мира
           ws.send(
             JSON.stringify({
