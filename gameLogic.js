@@ -23,9 +23,8 @@ function runGameLoop(
   worlds,
   ITEM_CONFIG,
   userDatabase,
-  enemies
+  enemies,
 ) {
-
   // === ОСНОВНОЙ ЦИКЛ (30 сек) ===
   const mainLoop = setInterval(() => {
     const currentTime = Date.now();
@@ -108,13 +107,13 @@ function runGameLoop(
         let commonCount = playerCount * 5;
 
         const rareItems = Object.keys(ITEM_CONFIG).filter(
-          (t) => ITEM_CONFIG[t].rarity === 1
+          (t) => ITEM_CONFIG[t].rarity === 1,
         );
         const mediumItems = Object.keys(ITEM_CONFIG).filter(
-          (t) => ITEM_CONFIG[t].rarity === 2
+          (t) => ITEM_CONFIG[t].rarity === 2,
         );
         const commonItems = Object.keys(ITEM_CONFIG).filter(
-          (t) => ITEM_CONFIG[t].rarity === 3
+          (t) => ITEM_CONFIG[t].rarity === 3,
         );
 
         const newItems = [];
@@ -145,7 +144,7 @@ function runGameLoop(
             commonCount--;
           } else {
             const allTypes = Object.keys(ITEM_CONFIG).filter(
-              (t) => ITEM_CONFIG[t].rarity !== 4 && ITEM_CONFIG[t].rarity !== 5
+              (t) => ITEM_CONFIG[t].rarity !== 4 && ITEM_CONFIG[t].rarity !== 5,
             );
             type = allTypes[Math.floor(Math.random() * allTypes.length)];
           }
@@ -169,7 +168,7 @@ function runGameLoop(
 
             if (type === "atom") {
               atomSpawns.push(
-                `Создан атом (${itemId}) в мире ${worldId} на x:${x}, y:${y}`
+                `Создан атом (${itemId}) в мире ${worldId} на x:${x}, y:${y}`,
               );
             }
           }
@@ -193,7 +192,7 @@ function runGameLoop(
         const worldEnemiesMap = worldEnemyCache.get(worldId) || new Map();
         const desiredMutants = 10;
         const currentMutants = Array.from(worldEnemiesMap.values()).filter(
-          (e) => !e.type || e.type === "mutant"
+          (e) => !e.type || e.type === "mutant",
         ).length;
         if (currentMutants < desiredMutants) {
           const toSpawn = desiredMutants - currentMutants;
@@ -242,7 +241,7 @@ function runGameLoop(
         const worldEnemiesMap = worldEnemyCache.get(worldId) || new Map();
         const desiredScorpions = 10;
         const currentScorpions = Array.from(worldEnemiesMap.values()).filter(
-          (e) => e.type === "scorpion"
+          (e) => e.type === "scorpion",
         ).length;
         if (currentScorpions < desiredScorpions) {
           const toSpawn = desiredScorpions - currentScorpions;
@@ -291,7 +290,7 @@ function runGameLoop(
         const desiredBloodEyes = 10;
         const worldEnemiesMap = worldEnemyCache.get(worldId) || new Map();
         const currentBloodEyes = Array.from(worldEnemiesMap.values()).filter(
-          (e) => e.type === "blood_eye"
+          (e) => e.type === "blood_eye",
         ).length;
 
         if (currentBloodEyes < desiredBloodEyes) {
@@ -341,7 +340,7 @@ function runGameLoop(
               JSON.stringify({
                 type: "newEnemies",
                 enemies: newBloodEyes,
-              })
+              }),
             );
           }
         }
@@ -355,7 +354,7 @@ function runGameLoop(
           type: item.type,
           spawnTime: item.spawnTime,
           worldId,
-        })
+        }),
       );
 
       if (allItems.length > 0) {
@@ -384,7 +383,7 @@ function runGameLoop(
               type: "syncItems",
               items: visibleItems,
               worldId,
-            })
+            }),
           );
         });
       }
@@ -392,7 +391,7 @@ function runGameLoop(
   }, 30_000);
 
   // Возвращаем интервалы, чтобы можно было остановить при выключении
-  return { mainLoop, mutantAIInterval };
+  return { mainLoop };
 }
 
 function broadcastToWorld(wss, clients, players, worldId, message) {
