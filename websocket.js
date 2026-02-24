@@ -42,6 +42,8 @@ function broadcastTradeCancelled(wss, clients, playerAId, playerBId) {
 
 const tradeRequests = new Map();
 const tradeOffers = new Map();
+const RESOURCE_TICK_INTERVAL = 1000;
+const RESOURCE_LAST_CHECK = new Map();
 
 const ENEMY_SPEED = 2;
 const AGGRO_RANGE = 300;
@@ -665,6 +667,15 @@ function setupWebSocket(
       ) {
         ws.meetNpcQueue.push(data);
         processMeetNpcQueue(ws);
+        return;
+      }
+      if (!ws.resourceTickQueue) {
+        ws.resourceTickQueue = [];
+        ws.isProcessingResourceTick = false;
+      }
+      if (data.type === "resourceTick") {
+        ws.resourceTickQueue.push(data);
+        processResourceTickQueue(ws);
         return;
       } else if (data.type === "shoot") {
         const shooterId = clients.get(ws);
@@ -4812,6 +4823,109 @@ function setupWebSocket(
 
         ws.isProcessingMeetNpc = false;
       }
+      async function processResourceTickQueue(ws) {
+        if (ws.isProcessingResourceTick) return;
+        ws.isProcessingResourceTick = true;
+
+        while (ws.resourceTickQueue.length > 0) {
+          const data = ws.resourceTickQueue.shift();
+
+          const playerId = clients.get(ws);
+          if (!playerId) continue;
+
+          const player = players.get(playerId);
+          if (!player) continue;
+
+          const now = Date.now();
+
+          // Проверяем, прошло ли достаточно времени
+          const lastCheck = RESOURCE_LAST_CHECK.get(playerId) || 0;
+          if (now - lastCheck < RESOURCE_TICK_INTERVAL) {
+            continue; // слишком рано
+          }
+
+          RESOURCE_LAST_CHECK.set(playerId, now);
+
+          const distance = Math.floor(player.distanceTraveled || 0);
+          const lastDistance = player.lastResourceDistance || 0;
+
+          let changed = false;
+
+          // Вода: -1 каждые 500 пикселей
+          const waterLoss = Math.floor(distance / 500);
+          const prevWaterLoss = Math.floor(lastDistance / 500);
+          if (waterLoss > prevWaterLoss) {
+            player.water = Math.max(
+              0,
+              player.water - (waterLoss - prevWaterLoss),
+            );
+            changed = true;
+          }
+
+          // Еда: -1 каждые 900 пикселей
+          const foodLoss = Math.floor(distance / 900);
+          const prevFoodLoss = Math.floor(lastDistance / 900);
+          if (foodLoss > prevFoodLoss) {
+            player.food = Math.max(0, player.food - (foodLoss - prevFoodLoss));
+            changed = true;
+          }
+
+          // Энергия: -1 каждые 1300 пикселей
+          const energyLoss = Math.floor(distance / 1300);
+          const prevEnergyLoss = Math.floor(lastDistance / 1300);
+          if (energyLoss > prevEnergyLoss) {
+            player.energy = Math.max(
+              0,
+              player.energy - (energyLoss - prevEnergyLoss),
+            );
+            changed = true;
+          }
+
+          // Здоровье: -1 каждые 200 пикселей, если любой ресурс = 0
+          if (player.energy <= 0 || player.food <= 0 || player.water <= 0) {
+            const healthLoss = Math.floor(distance / 200);
+            const prevHealthLoss = Math.floor(lastDistance / 200);
+            if (healthLoss > prevHealthLoss) {
+              player.health = Math.max(
+                0,
+                player.health - (healthLoss - prevHealthLoss),
+              );
+              changed = true;
+            }
+          }
+
+          // Сохраняем текущую дистанцию как последнюю проверенную
+          player.lastResourceDistance = distance;
+
+          if (changed) {
+            // Сохраняем в базу
+            userDatabase.set(playerId, { ...player });
+            await saveUserDatabase?.(dbCollection, playerId, player);
+
+            // Рассылаем обновление ВСЕМ в мире (включая самого игрока)
+            broadcastToWorld(
+              wss,
+              clients,
+              players,
+              player.worldId,
+              JSON.stringify({
+                type: "update",
+                player: {
+                  id: playerId,
+                  health: player.health,
+                  energy: player.energy,
+                  food: player.food,
+                  water: player.water,
+                  distanceTraveled: player.distanceTraveled,
+                  // можно добавить maxStats, если они меняются (но обычно нет)
+                },
+              }),
+            );
+          }
+        }
+
+        ws.isProcessingResourceTick = false;
+      }
     });
 
     // ================== ИНТЕРВАЛ ОБНОВЛЕНИЯ ВРАГОВ ==================
@@ -5037,6 +5151,13 @@ function setupWebSocket(
       });
     }, 200); // 200 мс — оптимально
 
+    // Периодический тик расхода ресурсов
+    const resourceInterval = setInterval(() => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "resourceTick" }));
+      }
+    }, RESOURCE_TICK_INTERVAL);
+
     // Очистка интервала при disconnect (в ws.on("close"))
     clearInterval(enemyUpdateInterval);
 
@@ -5070,6 +5191,7 @@ function setupWebSocket(
         }
         clients.delete(ws);
         players.delete(id);
+        clearInterval(resourceInterval);
         console.log("Client disconnected:", id);
         wss.clients.forEach((client) => {
           if (client.readyState === WebSocket.OPEN) {
