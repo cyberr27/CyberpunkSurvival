@@ -50,7 +50,6 @@ const ENEMY_ATTACK_COOLDOWN = 1000;
 const BLOOD_EYE_SPEED = 3.2;
 const BLOOD_EYE_AGGRO = 300;
 const BLOOD_EYE_COOLDOWN = 2000;
-const BLOOD_EYE_PROJ_SPEED = 5; // px/s
 const BLOOD_EYE_DAMAGE_MIN = 12;
 const BLOOD_EYE_DAMAGE_MAX = 18;
 
@@ -4945,8 +4944,6 @@ function setupWebSocket(
         let attackCooldown = ENEMY_ATTACK_COOLDOWN;
         let minDamage = 10;
         let maxDamage = 15;
-        let isRanged = false;
-        let projectileSpeed = 0;
 
         if (enemy.type === "scorpion") {
           speed = 4;
@@ -4954,13 +4951,11 @@ function setupWebSocket(
           minDamage = 5;
           maxDamage = 10;
         } else if (enemy.type === "blood_eye") {
-          speed = BLOOD_EYE_SPEED; // 3.2
-          aggroRange = BLOOD_EYE_AGGRO; // 400
-          attackCooldown = BLOOD_EYE_COOLDOWN; // 2000
-          minDamage = BLOOD_EYE_DAMAGE_MIN; // 12
-          maxDamage = BLOOD_EYE_DAMAGE_MAX; // 18
-          isRanged = true;
-          projectileSpeed = BLOOD_EYE_PROJ_SPEED; // 200 px/s
+          speed = 3.2;
+          aggroRange = 300;
+          attackCooldown = 2000;
+          minDamage = 12;
+          maxDamage = 18;
         }
 
         // === Поиск ближайшего живого игрока в радиусе аггро ===
@@ -4986,149 +4981,74 @@ function setupWebSocket(
           const dy = closestPlayer.y - enemy.y;
           const dist = Math.hypot(dx, dy);
 
-          if (isRanged) {
-            // ────────────────────── ЛОГИКА ДАЛЬНОБОЙНОГО ВРАГА (blood_eye) ──────────────────────
-            // Стреляет раз в 2000 мс
+          // ─── Логика ближнего боя для всех типов ───────────────────────
+          if (dist > attackRange) {
+            // Идём к игроку
+            enemy.x += (dx / dist) * speed;
+            enemy.y += (dy / dist) * speed;
+            enemy.state = "walking";
+
+            // Направление движения
+            if (Math.abs(dx) > Math.abs(dy)) {
+              enemy.direction = dx > 0 ? "right" : "left";
+            } else {
+              enemy.direction = dy > 0 ? "down" : "up";
+            }
+          } else {
+            // Атакуем в ближнем бою
             if (now - (enemy.lastAttackTime || 0) >= attackCooldown) {
-              // ← добавляем сюда
+              enemy.lastAttackTime = now;
+              enemy.state = "attacking";
+
+              const damage =
+                Math.floor(Math.random() * (maxDamage - minDamage + 1)) +
+                minDamage;
+
               if (closestPlayer.health <= 0) {
                 enemy.state = "idle";
                 return;
               }
 
-              enemy.lastAttackTime = now;
-              enemy.state = "attacking";
+              closestPlayer.health = Math.max(0, closestPlayer.health - damage);
 
-              const angle = Math.atan2(dy, dx);
-              const bulletId = `blood_proj_${enemyId}_${Date.now()}`;
+              players.set(closestPlayer.id, { ...closestPlayer });
+              userDatabase.set(closestPlayer.id, { ...closestPlayer });
+              saveUserDatabase(dbCollection, closestPlayer.id, closestPlayer);
 
-              // Отправляем событие выстрела ВСЕМ в мире
               broadcastToWorld(
                 wss,
                 clients,
                 players,
                 enemy.worldId,
                 JSON.stringify({
-                  type: "enemyShoot",
+                  type: "enemyAttack",
+                  targetId: closestPlayer.id,
+                  damage: damage,
                   enemyId: enemyId,
-                  bulletId: bulletId,
-                  x: enemy.x,
-                  y: enemy.y,
-                  angle: angle,
-                  speed: projectileSpeed,
-                  damage:
-                    Math.floor(Math.random() * (maxDamage - minDamage + 1)) +
-                    minDamage,
-                  worldId: enemy.worldId,
-                  spawnTime: now,
                 }),
               );
-            }
 
-            // Движение: держим дистанцию ~150–200 пикселей
-            const desiredDistance = 180; // можно подкрутить
-            if (dist > desiredDistance + 30) {
-              // Идём ближе
-              enemy.x += (dx / dist) * speed;
-              enemy.y += (dy / dist) * speed;
-              enemy.state = "walking";
-            } else if (dist < desiredDistance - 30) {
-              // Отходим назад
-              enemy.x -= (dx / dist) * speed * 0.8;
-              enemy.y -= (dy / dist) * speed * 0.8;
-              enemy.state = "walking";
+              broadcastToWorld(
+                wss,
+                clients,
+                players,
+                enemy.worldId,
+                JSON.stringify({
+                  type: "update",
+                  player: { id: closestPlayer.id, ...closestPlayer },
+                }),
+              );
             } else {
-              // Стоим на месте и атакуем
-              enemy.state = "attacking";
-            }
-          } else {
-            // ────────────────────── ЛОГИКА БЛИЖНЕГО БОЯ (mutant, scorpion) ──────────────────────
-            if (dist > attackRange) {
-              // Идём к игроку
-              enemy.x += (dx / dist) * speed;
-              enemy.y += (dy / dist) * speed;
-              enemy.state = "walking";
-
-              // Направление движения
-              if (Math.abs(dx) > Math.abs(dy)) {
-                enemy.direction = dx > 0 ? "right" : "left";
-              } else {
-                enemy.direction = dy > 0 ? "down" : "up";
-              }
-            } else {
-              // Атакуем в ближнем бою
-              if (now - (enemy.lastAttackTime || 0) >= attackCooldown) {
-                enemy.lastAttackTime = now;
-                enemy.state = "attacking";
-
-                const damage =
-                  Math.floor(Math.random() * (maxDamage - minDamage + 1)) +
-                  minDamage;
-
-                // Защита: не наносим урон мёртвому
-                if (closestPlayer.health <= 0) {
-                  enemy.state = "idle"; // или "walking" — чтобы не замирал
-                  return;
-                }
-
-                closestPlayer.health = Math.max(
-                  0,
-                  closestPlayer.health - damage,
-                );
-
-                players.set(closestPlayer.id, { ...closestPlayer });
-                userDatabase.set(closestPlayer.id, { ...closestPlayer });
-                saveUserDatabase(dbCollection, closestPlayer.id, closestPlayer);
-
-                // Уведомляем всех о попадании
-                broadcastToWorld(
-                  wss,
-                  clients,
-                  players,
-                  enemy.worldId,
-                  JSON.stringify({
-                    type: "enemyAttack",
-                    targetId: closestPlayer.id,
-                    damage: damage,
-                    enemyId: enemyId,
-                  }),
-                );
-
-                broadcastToWorld(
-                  wss,
-                  clients,
-                  players,
-                  enemy.worldId,
-                  JSON.stringify({
-                    type: "update",
-                    player: { id: closestPlayer.id, ...closestPlayer },
-                  }),
-                );
-              } else {
-                enemy.state = "attacking"; // держим анимацию
-              }
+              enemy.state = "attacking"; // держим анимацию атаки
             }
           }
         } else {
           // Нет цели — idle + лёгкий wander
           enemy.state = "idle";
           if (Math.random() < 0.08) {
-            // ~8% шанс каждый тик
             const wanderAngle = Math.random() * Math.PI * 2;
             enemy.x += Math.cos(wanderAngle) * speed * 0.5;
             enemy.y += Math.sin(wanderAngle) * speed * 0.5;
-          }
-        }
-
-        // === Обновляем направление при движении (для всех типов) ===
-        if (enemy.state === "walking" && closestPlayer) {
-          const dx = closestPlayer.x - enemy.x;
-          const dy = closestPlayer.y - enemy.y;
-
-          if (Math.abs(dx) > Math.abs(dy)) {
-            enemy.direction = dx > 0 ? "right" : "left";
-          } else {
-            enemy.direction = dy > 0 ? "down" : "up";
           }
         }
 
