@@ -1769,33 +1769,27 @@ function setupWebSocket(
           let positionValid = true;
 
           if (data.x !== undefined || data.y !== undefined) {
-            // Первый move после логина — принимаем без проверки дистанции
-            if (!player.lastConfirmedPosition) {
+            const dx = player.x - (player.lastConfirmedPosition?.x ?? player.x);
+            const dy = player.y - (player.lastConfirmedPosition?.y ?? player.y);
+            const distanceThisTick = Math.hypot(dx, dy);
+
+            // Жёсткий лимит: максимум 120 px за один пакет — без исключений
+            const MAX_DISTANCE_PER_TICK = 120; // ~2× нормальная скорость + запас на лаги
+
+            if (distanceThisTick > MAX_DISTANCE_PER_TICK) {
+              console.warn(
+                `[AntiCheat STRICT] Игрок ${playerId} прыгнул на ${distanceThisTick.toFixed(1)} px ` +
+                  `за один тик (макс разрешено ${MAX_DISTANCE_PER_TICK} px)`,
+              );
+              positionValid = false;
+            }
+
+            // Обновляем дистанцию и last позицию ТОЛЬКО если валидно
+            if (positionValid) {
+              player.distanceTraveled =
+                (player.distanceTraveled || 0) + distanceThisTick;
               player.lastConfirmedPosition = { x: player.x, y: player.y };
               player.lastMoveTime = now;
-            } else {
-              const dx = player.x - player.lastConfirmedPosition.x;
-              const dy = player.y - player.lastConfirmedPosition.y;
-              const distanceThisTick = Math.hypot(dx, dy);
-
-              // Фиксированный лимит: максимум 120 px за один пакет (даже после долгого стояния)
-              const MAX_DISTANCE_PER_TICK = 120; // ~2× нормальная скорость + запас
-
-              if (distanceThisTick > MAX_DISTANCE_PER_TICK) {
-                console.warn(
-                  `[AntiCheat FIXED] Игрок ${playerId} прыгнул на ${distanceThisTick.toFixed(1)} px ` +
-                    `за один тик (макс разрешено ${MAX_DISTANCE_PER_TICK} px)`,
-                );
-                positionValid = false;
-              }
-
-              // Обновляем дистанцию и last позицию ТОЛЬКО если валидно
-              if (positionValid) {
-                player.distanceTraveled =
-                  (player.distanceTraveled || 0) + distanceThisTick;
-                player.lastConfirmedPosition = { x: player.x, y: player.y };
-                player.lastMoveTime = now;
-              }
             }
           }
 
