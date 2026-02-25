@@ -1305,6 +1305,25 @@ function setupWebSocket(
             continue;
           }
 
+          const MAX_POSITION_AGE_MS = 1500; // 1.5 секунды — достаточно для подхода пешком
+
+          if (
+            !player.lastMoveTime ||
+            now - player.lastMoveTime > MAX_POSITION_AGE_MS
+          ) {
+            ws.send(
+              JSON.stringify({
+                type: "worldTransitionFail",
+                reason: "position_not_recently_confirmed",
+              }),
+            );
+            console.log(
+              `[Anti-Teleport Transition] Игрок ${playerId} пытался перейти без свежего move | ` +
+                `возраст позиции: ${player.lastMoveTime ? now - player.lastMoveTime : "нет"} мс`,
+            );
+            continue;
+          }
+
           // ── Если все проверки пройдены — выполняем переход ────────────────────────
           const oldWorldId = currentWorldId;
 
