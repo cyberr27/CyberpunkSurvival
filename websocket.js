@@ -1769,10 +1769,20 @@ function setupWebSocket(
           let positionValid = true;
 
           if (data.x !== undefined || data.y !== undefined) {
-            // Первый move после логина — принимаем без проверки
+            // Всегда проверяем дистанцию, даже для первого move
             if (!player.lastConfirmedPosition || !player.lastMoveTime) {
-              player.lastConfirmedPosition = { x: player.x, y: player.y };
-              player.lastMoveTime = now;
+              // Если позиция никогда не подтверждалась — запрещаем любое изменение
+              // (игрок должен сначала отправить move с текущей позицией)
+              if (player.x !== oldX || player.y !== oldY) {
+                console.warn(
+                  `[AntiCheat] Игрок ${playerId} пытался изменить позицию без предыдущего подтверждения`,
+                );
+                positionValid = false;
+              } else {
+                // Если прислал свою текущую позицию — принимаем и запоминаем
+                player.lastConfirmedPosition = { x: player.x, y: player.y };
+                player.lastMoveTime = now;
+              }
             } else {
               const dx = player.x - player.lastConfirmedPosition.x;
               const dy = player.y - player.lastConfirmedPosition.y;
@@ -1781,20 +1791,20 @@ function setupWebSocket(
               const timeDeltaMs = now - player.lastMoveTime;
               const timeDeltaSec = timeDeltaMs / 1000;
 
-              // Максимально допустимая скорость ~70 px/s + запас на лаги
+              // Максимально допустимая скорость ~80 px/s + запас на лаги
               const MAX_SPEED_PX_PER_SEC = 80;
               const maxAllowedDistance =
-                MAX_SPEED_PX_PER_SEC * timeDeltaSec + 40; // запас
+                MAX_SPEED_PX_PER_SEC * timeDeltaSec + 40;
 
               if (distanceThisTick > maxAllowedDistance) {
                 console.warn(
                   `[AntiCheat] Игрок ${playerId} телепортировался на ${distanceThisTick.toFixed(1)} px ` +
-                    `за ${timeDeltaMs} мс (макс разрешено ~${maxAllowedDistance.toFixed(1)})`,
+                    `за ${timeDeltaMs} мс (макс ~${maxAllowedDistance.toFixed(1)})`,
                 );
                 positionValid = false;
               }
 
-              // Обновляем дистанцию (только если позиция валидна)
+              // Обновляем дистанцию и время только если позиция валидна
               if (positionValid) {
                 player.distanceTraveled =
                   (player.distanceTraveled || 0) + distanceThisTick;
