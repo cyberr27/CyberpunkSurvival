@@ -1178,6 +1178,7 @@ function setupWebSocket(
               worldPositions: { 0: { x: 222, y: 3205 } },
               lastMoveTime: Date.now(),
               lastConfirmedPosition: { x: 474, y: 2474 },
+              lastProcessedMoveTime: 0,
               healthUpgrade: 0,
               energyUpgrade: 0,
               foodUpgrade: 0,
@@ -1479,6 +1480,7 @@ function setupWebSocket(
             },
             lastMoveTime: Date.now(),
             lastConfirmedPosition: { x: player.x, y: player.y },
+            lastProcessedMoveTime: player.lastProcessedMoveTime || 0,
             healthUpgrade: player.healthUpgrade || 0,
             energyUpgrade: player.energyUpgrade || 0,
             foodUpgrade: player.foodUpgrade || 0,
@@ -1674,6 +1676,36 @@ function setupWebSocket(
 
           const oldX = player.x;
           const oldY = player.y;
+
+          const MIN_PROCESS_INTERVAL_MS = 70; // 70 мс ≈ 14 пакетов в секунду max
+
+          if (
+            player.lastProcessedMoveTime &&
+            now - player.lastProcessedMoveTime < MIN_PROCESS_INTERVAL_MS
+          ) {
+            console.log(
+              `[AntiSpam] Игрок ${playerId} отправляет move слишком часто: ` +
+                `${now - player.lastProcessedMoveTime} мс (мин ${MIN_PROCESS_INTERVAL_MS} мс)`,
+            );
+
+            // Откатываем на последнюю валидную позицию
+            player.x = oldX;
+            player.y = oldY;
+
+            ws.send(
+              JSON.stringify({
+                type: "forcePosition",
+                x: oldX,
+                y: oldY,
+                reason: "move_too_frequent",
+              }),
+            );
+
+            continue;
+          }
+
+          player.lastProcessedMoveTime = now;
+
           const oldTime = player.lastMoveTime || Date.now();
 
           // Принимаем только разрешённые поля
