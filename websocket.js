@@ -1176,7 +1176,8 @@ function setupWebSocket(
               worldId: 0,
               hasSeenWelcomeGuide: false,
               worldPositions: { 0: { x: 222, y: 3205 } },
-
+              lastMoveTime: Date.now(),
+              lastConfirmedPosition: { x: 474, y: 2474 },
               healthUpgrade: 0,
               energyUpgrade: 0,
               foodUpgrade: 0,
@@ -1476,7 +1477,8 @@ function setupWebSocket(
             worldPositions: player.worldPositions || {
               0: { x: player.x, y: player.y },
             },
-
+            lastMoveTime: Date.now(),
+            lastConfirmedPosition: { x: player.x, y: player.y },
             healthUpgrade: player.healthUpgrade || 0,
             energyUpgrade: player.energyUpgrade || 0,
             foodUpgrade: player.foodUpgrade || 0,
@@ -1657,8 +1659,6 @@ function setupWebSocket(
           const data = ws.updateQueue.shift();
 
           const playerId = clients.get(ws);
-
-          // Защита: игрок не авторизован или уже отключился
           if (!playerId || !players.has(playerId)) {
             ws.send(
               JSON.stringify({
@@ -1672,11 +1672,11 @@ function setupWebSocket(
           const player = players.get(playerId);
           const currentWorldId = player.worldId;
 
-          // Сохраняем старую позицию для проверки коллизий
           const oldX = player.x;
           const oldY = player.y;
+          const oldTime = player.lastMoveTime || Date.now();
 
-          // Принимаем только разрешённые поля (как было раньше)
+          // Принимаем только разрешённые поля
           if (data.x !== undefined) player.x = Number(data.x);
           if (data.y !== undefined) player.y = Number(data.y);
           if (data.direction) player.direction = data.direction;
@@ -1687,7 +1687,7 @@ function setupWebSocket(
             player.attackFrameTime = Number(data.attackFrameTime);
           if (data.frame !== undefined) player.frame = Number(data.frame);
 
-          // Ограничиваем статы безопасными значениями
+          // Ограничиваем статы (без изменений)
           if (data.health !== undefined)
             player.health = Math.max(
               0,
@@ -1710,7 +1710,91 @@ function setupWebSocket(
             );
           if (data.armor !== undefined) player.armor = Number(data.armor);
 
-          // ─── СЕРВЕРНЫЙ КОНТРОЛЬ ДИСТАНЦИИ И РАСХОДА РЕСУРСОВ ────────────────────────
+          // ─── АНТИ-ТЕЛЕПОРТ И КОНТРОЛЬ СКОРОСТИ ───────────────────────────────────────
+          let positionValid = true;
+          const now = Date.now();
+
+          if (data.x !== undefined || data.y !== undefined) {
+            // Первый move после логина — принимаем без проверки
+            if (!player.lastConfirmedPosition || !player.lastMoveTime) {
+              player.lastConfirmedPosition = { x: player.x, y: player.y };
+              player.lastMoveTime = now;
+            } else {
+              const dx = player.x - player.lastConfirmedPosition.x;
+              const dy = player.y - player.lastConfirmedPosition.y;
+              const distanceThisTick = Math.hypot(dx, dy);
+
+              const timeDeltaMs = now - player.lastMoveTime;
+              const timeDeltaSec = timeDeltaMs / 1000;
+
+              // Максимально допустимая скорость ~70 px/s + запас на лаги
+              const MAX_SPEED_PX_PER_SEC = 80;
+              const maxAllowedDistance =
+                MAX_SPEED_PX_PER_SEC * timeDeltaSec + 40; // запас
+
+              if (distanceThisTick > maxAllowedDistance) {
+                console.warn(
+                  `[AntiCheat] Игрок ${playerId} телепортировался на ${distanceThisTick.toFixed(1)} px ` +
+                    `за ${timeDeltaMs} мс (макс разрешено ~${maxAllowedDistance.toFixed(1)})`,
+                );
+                positionValid = false;
+              }
+
+              // Обновляем дистанцию (только если позиция валидна)
+              if (positionValid) {
+                player.distanceTraveled =
+                  (player.distanceTraveled || 0) + distanceThisTick;
+                player.lastConfirmedPosition = { x: player.x, y: player.y };
+                player.lastMoveTime = now;
+              }
+            }
+          }
+
+          // ─── ПРОВЕРКА ПРЕПЯТСТВИЙ (оставляем как было) ────────────────────────────────
+          if (positionValid && (data.x !== undefined || data.y !== undefined)) {
+            for (const obs of obstacles) {
+              if (obs.worldId !== currentWorldId) continue;
+
+              if (
+                segmentsIntersect(
+                  oldX,
+                  oldY,
+                  player.x,
+                  player.y,
+                  obs.x1,
+                  obs.y1,
+                  obs.x2,
+                  obs.y2,
+                )
+              ) {
+                positionValid = false;
+                console.log(
+                  `[Collision] Игрок ${playerId} пытался пройти сквозь препятствие`,
+                );
+                break;
+              }
+            }
+          }
+
+          // Если позиция невалидна — откатываем
+          if (!positionValid) {
+            player.x = oldX;
+            player.y = oldY;
+
+            ws.send(
+              JSON.stringify({
+                type: "forcePosition",
+                x: oldX,
+                y: oldY,
+                reason: "invalid_movement",
+              }),
+            );
+
+            // Можно не сохранять и не бродкастить изменения
+            continue;
+          }
+
+          // ─── Расход ресурсов по дистанции (без изменений) ─────────────────────────────
           let resourcesChanged = false;
 
           if (data.x !== undefined || data.y !== undefined) {
@@ -1787,8 +1871,6 @@ function setupWebSocket(
               player.lastResourceCheckDistance = currentDistance;
             }
           }
-
-          // Если что-то изменилось — сохраняем и рассылаем
           if (resourcesChanged) {
             userDatabase.set(playerId, { ...player });
             await saveUserDatabase?.(dbCollection, playerId, player);
@@ -1814,49 +1896,10 @@ function setupWebSocket(
             );
           }
 
-          // ─── ПРОВЕРКА ПРЕПЯТСТВИЙ (как было) ────────────────────────────────
-          let positionValid = true;
-
-          if (data.x !== undefined || data.y !== undefined) {
-            for (const obs of obstacles) {
-              if (obs.worldId !== currentWorldId) continue;
-
-              if (
-                segmentsIntersect(
-                  oldX,
-                  oldY,
-                  player.x,
-                  player.y,
-                  obs.x1,
-                  obs.y1,
-                  obs.x2,
-                  obs.y2,
-                )
-              ) {
-                positionValid = false;
-                break;
-              }
-            }
-          }
-
-          if (!positionValid) {
-            player.x = oldX;
-            player.y = oldY;
-
-            ws.send(
-              JSON.stringify({
-                type: "forcePosition",
-                x: oldX,
-                y: oldY,
-                reason: "collision",
-              }),
-            );
-          }
-
-          // Сохраняем изменения в Map
+          // Сохраняем изменения
           players.set(playerId, { ...player });
 
-          // Готовим данные для broadcast (как было)
+          // Готовим данные для broadcast (без изменений)
           const updateData = {
             id: playerId,
             x: player.x,
@@ -1878,7 +1921,6 @@ function setupWebSocket(
             updateData.attackFrameTime = player.attackFrameTime ?? 0;
           }
 
-          // Рассылаем обновление всем в мире
           broadcastToWorld(
             wss,
             clients,

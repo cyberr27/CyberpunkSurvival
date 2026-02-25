@@ -335,6 +335,8 @@
   }
 
   function sendMovementUpdate(player) {
+    if (!player || player.health <= 0) return;
+
     sendWhenReady(
       ws,
       JSON.stringify({

@@ -1110,7 +1110,8 @@ function handleAuthMessage(event) {
         upgradePoints: data.upgradePoints || 0,
         worldId: data.worldId || 0,
         worldPositions: data.worldPositions || { 0: { x: 222, y: 3205 } },
-
+        lastMoveTime: data.lastMoveTime || 0,
+        lastConfirmedPosition: { x: data.x || 474, y: data.y || 2474 },
         healthUpgrade: data.healthUpgrade || 0,
         energyUpgrade: data.energyUpgrade || 0,
         foodUpgrade: data.foodUpgrade || 0,
@@ -2598,11 +2599,22 @@ async function handleGameMessageLogic(data) {
       break;
     case "forcePosition": {
       const me = players.get(myId);
-      if (me) {
-        me.x = data.x;
-        me.y = data.y;
-        // можно сбросить target, чтобы не пыталась снова идти туда же
-        window.movementSystem.stopMovement?.();
+      if (!me) break;
+
+      const reason = data.reason || "server_correction";
+
+      // Принудительно ставим позицию от сервера
+      me.x = Number(data.x);
+      me.y = Number(data.y);
+
+      // Останавливаем любое движение по клику / тачу / джойстику
+      window.movementSystem?.stopMovement?.();
+
+      // Сбрасываем анимацию ходьбы, если была
+      if (me.state === "walking") {
+        me.state = "idle";
+        me.frame = 0;
+        me.frameTime = 0;
       }
       break;
     }
