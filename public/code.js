@@ -1110,7 +1110,10 @@ function handleAuthMessage(event) {
         upgradePoints: data.upgradePoints || 0,
         worldId: data.worldId || 0,
         worldPositions: data.worldPositions || { 0: { x: 222, y: 3205 } },
-
+        lastConfirmedX: data.x || 474,
+        lastConfirmedY: data.y || 2474,
+        lastConfirmedPositionTime: Date.now(),
+        lastTransitionAttemptTime: 0,
         healthUpgrade: data.healthUpgrade || 0,
         energyUpgrade: data.energyUpgrade || 0,
         foodUpgrade: data.foodUpgrade || 0,

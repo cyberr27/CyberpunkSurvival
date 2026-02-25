@@ -1171,7 +1171,10 @@ function setupWebSocket(
               worldId: 0,
               hasSeenWelcomeGuide: false,
               worldPositions: { 0: { x: 222, y: 3205 } },
-
+              lastConfirmedX: 474,
+              lastConfirmedY: 2474,
+              lastConfirmedPositionTime: Date.now(),
+              lastTransitionAttemptTime: 0,
               healthUpgrade: 0,
               energyUpgrade: 0,
               foodUpgrade: 0,
@@ -1211,6 +1214,8 @@ function setupWebSocket(
       async function processWorldTransitionQueue(ws) {
         if (ws.isProcessingTransition) return;
         ws.isProcessingTransition = true;
+
+        const now = Date.now();
 
         while (ws.transitionQueue.length > 0) {
           const data = ws.transitionQueue.shift();
@@ -1288,17 +1293,62 @@ function setupWebSocket(
             }
           }
 
-          if (!transitionAllowed) {
+          // ─────────────────────────────── НОВЫЕ ПРОВЕРКИ ───────────────────────────────
+
+          // A. Жёсткий кулдаун на попытки перехода (4.5 секунды)
+          if (
+            !player.lastTransitionAttemptTime ||
+            now - player.lastTransitionAttemptTime < 4500
+          ) {
             ws.send(
               JSON.stringify({
                 type: "worldTransitionFail",
-                reason: "position_not_in_transition_zone",
+                reason: "transition_cooldown",
+              }),
+            );
+            // логируем попытку на кулдауне
+            console.log(
+              `[Transition COOLDOWN] player=${playerId} | from=${currentWorldId} → to=${targetWorldId} | pos=${px.toFixed(0)},${py.toFixed(0)} | time since last: ${(now - (player.lastTransitionAttemptTime || 0)) / 1000}s`,
+            );
+            continue;
+          }
+
+          // B. Проверка дистанции и времени с последнего подтверждённого перемещения
+          let distanceOk = true;
+
+          if (
+            player.lastConfirmedPositionTime &&
+            player.lastConfirmedX !== undefined &&
+            player.lastConfirmedY !== undefined
+          ) {
+            const timeDeltaMs = now - player.lastConfirmedPositionTime;
+            const dx = px - player.lastConfirmedX;
+            const dy = py - player.lastConfirmedY;
+            const distMoved = Math.hypot(dx, dy);
+
+            // Максимально разрешённая скорость — 420 px/с (очень щедро, с учётом рывков и лагов)
+            const maxAllowedDist = 420 * (timeDeltaMs / 1000) * 1.5; // запас 50%
+
+            if (distMoved > maxAllowedDist) {
+              distanceOk = false;
+              console.log(
+                `[Transition FAST MOVE] player=${playerId} | from=${currentWorldId} → to=${targetWorldId} | moved=${distMoved.toFixed(1)}px in ${timeDeltaMs}ms | max allowed=${maxAllowedDist.toFixed(1)}`,
+              );
+            }
+          }
+
+          if (!distanceOk) {
+            ws.send(
+              JSON.stringify({
+                type: "worldTransitionFail",
+                reason: "moved_too_fast_for_transition",
               }),
             );
             continue;
           }
 
           // ── Если все проверки пройдены — выполняем переход ────────────────────────
+
           const oldWorldId = currentWorldId;
 
           player.worldId = targetWorldId;
@@ -1308,6 +1358,12 @@ function setupWebSocket(
           // Сохраняем позицию в историю миров (как было)
           player.worldPositions = player.worldPositions || {};
           player.worldPositions[targetWorldId] = { x: px, y: py };
+
+          // Обновляем время и позицию последнего успешного перемещения (важно!)
+          player.lastConfirmedX = px;
+          player.lastConfirmedY = py;
+          player.lastConfirmedPositionTime = now;
+          player.lastTransitionAttemptTime = now;
 
           players.set(playerId, { ...player });
           userDatabase.set(playerId, { ...player });
@@ -1471,7 +1527,10 @@ function setupWebSocket(
             worldPositions: player.worldPositions || {
               0: { x: player.x, y: player.y },
             },
-
+            lastConfirmedX: player.x,
+            lastConfirmedY: player.y,
+            lastConfirmedPositionTime: Date.now(),
+            lastTransitionAttemptTime: player.lastTransitionAttemptTime || 0,
             healthUpgrade: player.healthUpgrade || 0,
             energyUpgrade: player.energyUpgrade || 0,
             foodUpgrade: player.foodUpgrade || 0,
