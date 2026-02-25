@@ -1307,6 +1307,30 @@ function setupWebSocket(
             continue;
           }
 
+          if (player.lastConfirmedPosition) {
+            const dxConfirmed = px - player.lastConfirmedPosition.x;
+            const dyConfirmed = py - player.lastConfirmedPosition.y;
+            const distFromConfirmed = Math.hypot(dxConfirmed, dyConfirmed);
+
+            const MAX_CONFIRMED_DIST = 120; // тот же лимит, что и в move
+
+            if (distFromConfirmed > MAX_CONFIRMED_DIST) {
+              ws.send(
+                JSON.stringify({
+                  type: "worldTransitionFail",
+                  reason: "position_mismatch_with_confirmed",
+                }),
+              );
+              console.log(
+                `[Anti-Teleport Transition MISMATCH] Игрок ${playerId} | ` +
+                  `прислал transition на ${px.toFixed(0)},${py.toFixed(0)} | ` +
+                  `но lastConfirmed: ${player.lastConfirmedPosition.x.toFixed(0)},${player.lastConfirmedPosition.y.toFixed(0)} | ` +
+                  `расстояние: ${distFromConfirmed.toFixed(1)} px (макс ${MAX_CONFIRMED_DIST})`,
+              );
+              continue;
+            }
+          }
+
           const MAX_POSITION_AGE_MS = 1500; // 1.5 секунды — достаточно для подхода пешком
 
           if (
