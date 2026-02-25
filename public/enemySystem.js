@@ -50,6 +50,8 @@ const HP_COLORS = Object.freeze({
 // ─── Вспомогательные константы ───────────────────────────────────────
 const CULLING_MARGIN = 120;
 const HITBOX_RADIUS_SQ = 40 * 40;
+const MAX_DELTA_FOR_ANIMATION = 400; // мс — выше этого считаем "вкладка была свёрнута"
+const ANIMATION_CATCHUP_THRESHOLD = 1200; // мс — если больше, вообще сбрасываем анимацию
 
 // ─── Инициализация ───────────────────────────────────────────────────
 function initializeEnemySystem() {}
@@ -75,6 +77,11 @@ function syncEnemies(serverEnemies) {
       enemy.direction = srv.direction || "down";
       enemy.state = srv.state || "idle";
       enemy.worldId = srv.worldId;
+
+      // Важно: при синхронизации сбрасываем локальную анимацию,
+      // чтобы не было рассинхрона после долгого оффлайна вкладки
+      enemy.walkFrame = 0;
+      enemy.walkFrameTime = 0;
     } else {
       enemies.set(id, {
         id,
@@ -121,21 +128,34 @@ function updateEnemies(deltaTime) {
   const currentWorldId = window.worldSystem?.currentWorldId;
   if (currentWorldId === undefined) return;
 
-  const now = performance.now();
+  // Защита от огромных скачков времени (вкладка была свёрнута)
+  let safeDelta = deltaTime;
+  if (deltaTime > MAX_DELTA_FOR_ANIMATION) {
+    safeDelta = MAX_DELTA_FOR_ANIMATION;
+  }
 
   for (const enemy of enemies.values()) {
     if (enemy.worldId !== currentWorldId || enemy.health <= 0) continue;
 
     const config = ENEMY_TYPES[enemy.type] || ENEMY_TYPES.mutant;
 
-    // Плавная анимация ходьбы / атаки
+    // ─── Обработка анимации ────────────────────────────────────────
     if (enemy.state === "walking" || enemy.state === "attacking") {
-      enemy.walkFrameTime += deltaTime;
-      if (enemy.walkFrameTime >= config.frameDuration) {
+      enemy.walkFrameTime += safeDelta;
+
+      // Если накопилось слишком много времени → резетим, чтобы не дёргалось
+      if (enemy.walkFrameTime > ANIMATION_CATCHUP_THRESHOLD) {
+        enemy.walkFrameTime = enemy.walkFrameTime % config.frameDuration;
+        enemy.walkFrame = Math.floor(Math.random() * config.frames); // случайный кадр, чтобы не стояло на месте
+      }
+
+      // Обычный цикл кадров
+      while (enemy.walkFrameTime >= config.frameDuration) {
         enemy.walkFrame = (enemy.walkFrame + 1) % config.frames;
         enemy.walkFrameTime -= config.frameDuration;
       }
     } else {
+      // idle / dead / другие состояния → ресет анимации
       enemy.walkFrame = 0;
       enemy.walkFrameTime = 0;
     }
@@ -181,6 +201,7 @@ function drawEnemies() {
     if (sprite?.complete && sprite.width >= 910) {
       ctx.drawImage(sprite, sourceX, 0, 70, 70, screenX, screenY, 70, 70);
     } else {
+      // fallback
       ctx.fillStyle = enemy.type === "scorpion" ? "#00eaff" : "purple";
       ctx.fillRect(screenX, screenY, 70, 70);
       ctx.fillStyle = enemy.type === "scorpion" ? "#003344" : "red";
