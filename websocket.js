@@ -1219,6 +1219,8 @@ function setupWebSocket(
         if (ws.isProcessingTransition) return;
         ws.isProcessingTransition = true;
 
+        const now = Date.now();
+
         while (ws.transitionQueue.length > 0) {
           const data = ws.transitionQueue.shift();
 
