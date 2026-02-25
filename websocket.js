@@ -1319,11 +1319,7 @@ function setupWebSocket(
                 type: "worldTransitionFail",
                 reason: "transition_cooldown",
               }),
-            );
-            // Логируем кулдаун отдельно
-            console.log(
-              `[Transition COOLDOWN] player=${playerId} | from=${currentWorldId} → to=${targetWorldId} | time since last: ${((now - (player.lastTransitionAttemptTime || 0)) / 1000).toFixed(1)}s`,
-            );
+            );          
             continue;
           }
 
@@ -1352,11 +1348,6 @@ function setupWebSocket(
 
               if (distMoved > maxAllowedDist) {
                 distanceOk = false;
-
-                // Логируем, почему отклонили
-                console.log(
-                  `[Transition BLOCKED - too fast] player=${playerId} | from=${currentWorldId} → to=${targetWorldId} | moved=${distMoved.toFixed(1)}px in ${timeDeltaMs}ms | max=${maxAllowedDist.toFixed(1)}px`,
-                );
               }
             }
           }
