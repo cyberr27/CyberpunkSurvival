@@ -1769,42 +1769,27 @@ function setupWebSocket(
           let positionValid = true;
 
           if (data.x !== undefined || data.y !== undefined) {
-            // Всегда проверяем дистанцию, даже для первого move
-            if (!player.lastConfirmedPosition || !player.lastMoveTime) {
-              // Если позиция никогда не подтверждалась — запрещаем любое изменение
-              // (игрок должен сначала отправить move с текущей позицией)
-              if (player.x !== oldX || player.y !== oldY) {
-                console.warn(
-                  `[AntiCheat] Игрок ${playerId} пытался изменить позицию без предыдущего подтверждения`,
-                );
-                positionValid = false;
-              } else {
-                // Если прислал свою текущую позицию — принимаем и запоминаем
-                player.lastConfirmedPosition = { x: player.x, y: player.y };
-                player.lastMoveTime = now;
-              }
+            // Первый move после логина — принимаем без проверки дистанции
+            if (!player.lastConfirmedPosition) {
+              player.lastConfirmedPosition = { x: player.x, y: player.y };
+              player.lastMoveTime = now;
             } else {
               const dx = player.x - player.lastConfirmedPosition.x;
               const dy = player.y - player.lastConfirmedPosition.y;
               const distanceThisTick = Math.hypot(dx, dy);
 
-              const timeDeltaMs = now - player.lastMoveTime;
-              const timeDeltaSec = timeDeltaMs / 1000;
+              // Фиксированный лимит: максимум 120 px за один пакет (даже после долгого стояния)
+              const MAX_DISTANCE_PER_TICK = 120; // ~2× нормальная скорость + запас
 
-              // Максимально допустимая скорость ~80 px/s + запас на лаги
-              const MAX_SPEED_PX_PER_SEC = 80;
-              const maxAllowedDistance =
-                MAX_SPEED_PX_PER_SEC * timeDeltaSec + 40;
-
-              if (distanceThisTick > maxAllowedDistance) {
+              if (distanceThisTick > MAX_DISTANCE_PER_TICK) {
                 console.warn(
-                  `[AntiCheat] Игрок ${playerId} телепортировался на ${distanceThisTick.toFixed(1)} px ` +
-                    `за ${timeDeltaMs} мс (макс ~${maxAllowedDistance.toFixed(1)})`,
+                  `[AntiCheat FIXED] Игрок ${playerId} прыгнул на ${distanceThisTick.toFixed(1)} px ` +
+                    `за один тик (макс разрешено ${MAX_DISTANCE_PER_TICK} px)`,
                 );
                 positionValid = false;
               }
 
-              // Обновляем дистанцию и время только если позиция валидна
+              // Обновляем дистанцию и last позицию ТОЛЬКО если валидно
               if (positionValid) {
                 player.distanceTraveled =
                   (player.distanceTraveled || 0) + distanceThisTick;
