@@ -1657,6 +1657,8 @@ function setupWebSocket(
         if (ws.isProcessingUpdate) return;
         ws.isProcessingUpdate = true;
 
+        const now = Date.now();
+
         while (ws.updateQueue.length > 0) {
           const data = ws.updateQueue.shift();
 
@@ -1744,7 +1746,6 @@ function setupWebSocket(
 
           // ─── АНТИ-ТЕЛЕПОРТ И КОНТРОЛЬ СКОРОСТИ ───────────────────────────────────────
           let positionValid = true;
-          const now = Date.now();
 
           if (data.x !== undefined || data.y !== undefined) {
             // Первый move после логина — принимаем без проверки
