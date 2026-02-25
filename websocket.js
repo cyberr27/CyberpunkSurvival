@@ -1293,6 +1293,20 @@ function setupWebSocket(
             }
           }
 
+          if (!transitionAllowed) {
+            ws.send(
+              JSON.stringify({
+                type: "worldTransitionFail",
+                reason: "position_not_in_transition_zone",
+              }),
+            );
+            // Логируем только реальные подозрительные позиции (не кулдаун)
+            console.log(
+              `[Transition DENIED - wrong pos] player=${playerId} | from=${currentWorldId} → to=${targetWorldId} | pos=${px.toFixed(0)},${py.toFixed(0)}`,
+            );
+            continue;
+          }
+
           // ─────────────────────────────── НОВЫЕ ПРОВЕРКИ ───────────────────────────────
 
           // A. Жёсткий кулдаун на попытки перехода (4.5 секунды)
@@ -1306,9 +1320,9 @@ function setupWebSocket(
                 reason: "transition_cooldown",
               }),
             );
-            // логируем попытку на кулдауне
+            // Логируем кулдаун отдельно
             console.log(
-              `[Transition COOLDOWN] player=${playerId} | from=${currentWorldId} → to=${targetWorldId} | pos=${px.toFixed(0)},${py.toFixed(0)} | time since last: ${(now - (player.lastTransitionAttemptTime || 0)) / 1000}s`,
+              `[Transition COOLDOWN] player=${playerId} | from=${currentWorldId} → to=${targetWorldId} | time since last: ${((now - (player.lastTransitionAttemptTime || 0)) / 1000).toFixed(1)}s`,
             );
             continue;
           }
@@ -1326,14 +1340,24 @@ function setupWebSocket(
             const dy = py - player.lastConfirmedY;
             const distMoved = Math.hypot(dx, dy);
 
-            // Максимально разрешённая скорость — 420 px/с (очень щедро, с учётом рывков и лагов)
-            const maxAllowedDist = 420 * (timeDeltaMs / 1000) * 1.5; // запас 50%
+            // Если времени прошло мало (< 300 мс) — считаем продолжением движения, пропускаем строгую проверку
+            if (timeDeltaMs < 300) {
+              // разрешаем без проверки дистанции
+            } else {
+              // нормальная проверка
+              // Увеличиваем допуск: 800 px/s + запас ×2.0 (учитывая лаги, интерполяцию, задержки пакетов)
+              const maxAllowedSpeed = 800;
+              const maxAllowedDist =
+                maxAllowedSpeed * (timeDeltaMs / 1000) * 2.0;
 
-            if (distMoved > maxAllowedDist) {
-              distanceOk = false;
-              console.log(
-                `[Transition FAST MOVE] player=${playerId} | from=${currentWorldId} → to=${targetWorldId} | moved=${distMoved.toFixed(1)}px in ${timeDeltaMs}ms | max allowed=${maxAllowedDist.toFixed(1)}`,
-              );
+              if (distMoved > maxAllowedDist) {
+                distanceOk = false;
+
+                // Логируем, почему отклонили
+                console.log(
+                  `[Transition BLOCKED - too fast] player=${playerId} | from=${currentWorldId} → to=${targetWorldId} | moved=${distMoved.toFixed(1)}px in ${timeDeltaMs}ms | max=${maxAllowedDist.toFixed(1)}px`,
+                );
+              }
             }
           }
 
