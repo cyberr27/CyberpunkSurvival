@@ -183,7 +183,7 @@ function useItem(slotIndex) {
     showRecipeDialog(item.type);
     return; // ничего больше не делаем
   } else if (window.equipmentSystem.EQUIPMENT_CONFIG[item.type]) {
-    // ─── Обычная логика использования (еда, напитки, медикаменты и т.д.) ───
+    // ─── Обычная логика экипировки ───
     window.equipmentSystem.equipItem(slotIndex);
     selectedSlot = null;
     document.getElementById("useBtn").disabled = true;
@@ -207,49 +207,17 @@ function useItem(slotIndex) {
   )
     return;
 
-  const effect = ITEM_CONFIG[item.type].effect;
-  if (effect.health)
-    me.health = Math.min(me.maxStats.health, me.health + effect.health);
-  if (effect.energy)
-    me.energy = Math.min(me.maxStats.energy, me.energy + effect.energy);
-  if (effect.food) me.food = Math.min(me.maxStats.food, me.food + effect.food);
-  if (effect.water)
-    me.water = Math.min(me.maxStats.water, me.water + effect.water);
-  if (effect.armor)
-    me.armor = Math.min(me.maxStats.armor, me.armor + effect.armor);
-
-  if (ITEM_CONFIG[item.type].stackable) {
-    if (item.quantity > 1) {
-      window.inventory[slotIndex].quantity -= 1;
-    } else {
-      window.inventory[slotIndex] = null;
-    }
-  } else {
-    window.inventory[slotIndex] = null;
-  }
-
+  // Клиент только просит сервер использовать предмет — эффекты и удаление делает сервер
   sendWhenReady(
     ws,
     JSON.stringify({
       type: "useItem",
       slotIndex,
-      stats: {
-        health: me.health,
-        energy: me.energy,
-        food: me.food,
-        water: me.water,
-        armor: me.armor,
-      },
-      inventory: window.inventory,
     }),
   );
 
-  selectedSlot = null;
+  // Отключаем кнопку, чтобы избежать двойного клика, пока ждём ответа
   document.getElementById("useBtn").disabled = true;
-  document.getElementById("dropBtn").disabled = true;
-  document.getElementById("inventoryScreen").textContent = "";
-  updateStatsDisplay();
-  updateInventoryDisplay();
 }
 
 // Выброс предмета
