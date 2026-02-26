@@ -2006,12 +2006,34 @@ function setupWebSocket(
         if (ws.isProcessingPickup) return;
         ws.isProcessingPickup = true;
 
+        const now = Date.now();
+
         while (ws.pickupQueue.length > 0) {
           const data = ws.pickupQueue.shift();
 
           const id = clients.get(ws);
           if (!id) continue;
 
+          const player = players.get(id);
+          if (!player) continue;
+
+          // Rate-limit: не чаще 300 мс на одного игрока
+          if (!player.lastPickupTime || now - player.lastPickupTime < 300) {
+            console.log(
+              `[AntiSpam PICKUP] Игрок ${id} спамит pickup слишком часто`,
+            );
+            ws.send(
+              JSON.stringify({
+                type: "pickupFail",
+                itemId: data.itemId,
+                reason: "pickup_too_frequent",
+              }),
+            );
+            continue;
+          }
+          player.lastPickupTime = now;
+
+          // Двойная проверка существования предмета
           if (!items.has(data.itemId)) {
             ws.send(
               JSON.stringify({ type: "itemNotFound", itemId: data.itemId }),
@@ -2020,10 +2042,9 @@ function setupWebSocket(
           }
 
           const item = items.get(data.itemId);
-          const player = players.get(id);
 
+          // Защита расстояния (как было)
           const MAX_PICKUP_DISTANCE = 100;
-
           const dx = player.x - item.x;
           const dy = player.y - item.y;
           const distToItem = Math.hypot(dx, dy);
@@ -2046,10 +2067,19 @@ function setupWebSocket(
             continue;
           }
 
-          if (!player) continue;
-
-          // Защита квестовых предметов
+          // Защита квестовых предметов (как было)
           if (item.isQuestItem && item.questOwnerId !== id) {
+            console.log(
+              `[AntiCheat PICKUP] Игрок ${id} пытался взять чужой квестовый предмет ${item.type}`,
+            );
+            continue;
+          }
+
+          // Финальная проверка: предмет всё ещё существует (race condition защита)
+          if (!items.has(data.itemId)) {
+            ws.send(
+              JSON.stringify({ type: "itemNotFound", itemId: data.itemId }),
+            );
             continue;
           }
 
@@ -2057,7 +2087,7 @@ function setupWebSocket(
 
           let picked = false;
 
-          // Стекируемые предметы (balyary, atom, кристаллы, рецепты и т.д.)
+          // Стекируемые предметы — строго берём количество с сервера
           if (
             item.type === "balyary" ||
             item.type === "atom" ||
@@ -2072,7 +2102,7 @@ function setupWebSocket(
             (item.type.startsWith("recipe_") &&
               item.type.includes("_equipment"))
           ) {
-            const quantityToAdd = item.quantity || 1;
+            const quantityToAdd = item.quantity || 1; // строго с сервера!
             const stackSlot = player.inventory.findIndex(
               (slot) => slot && slot.type === item.type,
             );
@@ -2115,7 +2145,7 @@ function setupWebSocket(
             continue;
           }
 
-          // Удаляем предмет с карты
+          // Удаляем предмет с карты (теперь безопасно)
           items.delete(data.itemId);
 
           // Сохраняем игрока
@@ -2123,7 +2153,7 @@ function setupWebSocket(
           userDatabase.set(id, { ...player });
           await saveUserDatabase(dbCollection, id, player);
 
-          // Рассылаем всем в мире
+          // Рассылаем всем в мире (с реальным количеством)
           wss.clients.forEach((client) => {
             if (client.readyState === WebSocket.OPEN) {
               const clientPlayer = players.get(clients.get(client));
@@ -2136,7 +2166,7 @@ function setupWebSocket(
                     item: {
                       type: item.type,
                       itemId: data.itemId,
-                      quantity: item.quantity || 1,
+                      quantity: item.quantity || 1, // строго с сервера!
                       isDroppedByPlayer: item.isDroppedByPlayer || false,
                     },
                   }),
