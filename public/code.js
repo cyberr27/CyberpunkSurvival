@@ -1113,6 +1113,7 @@ function handleAuthMessage(event) {
         lastMoveTime: data.lastMoveTime || 0,
         lastConfirmedPosition: { x: data.x || 474, y: data.y || 2474 },
         lastProcessedMoveTime: data.lastProcessedMoveTime || 0,
+        lastPickupTime: data.lastPickupTime || 0,
         healthUpgrade: data.healthUpgrade || 0,
         energyUpgrade: data.energyUpgrade || 0,
         foodUpgrade: data.foodUpgrade || 0,
