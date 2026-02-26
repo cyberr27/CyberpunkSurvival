@@ -2019,24 +2019,25 @@ function setupWebSocket(
           const player = players.get(id);
           if (!player) continue;
 
-          // Rate-limit: не чаще 50 мс на одного игрока (для автоматического подбора)
-          if (!player.lastPickupTime || now - player.lastPickupTime < 50) {
+          // Очень мягкий анти-спам: блокируем только ультра-спам (< 10 мс)
+          // Это не мешает автоматическому подбору, но ловит читерский флуд
+          if (player.lastPickupTime && now - player.lastPickupTime < 10) {
             console.log(
-              `[AntiSpam PICKUP] Игрок ${id} спамит pickup слишком часто: ` +
-                `${now - player.lastPickupTime} мс (мин 50 мс)`,
+              `[AntiSpam PICKUP] Игрок ${id} ультра-спамит pickup: ` +
+                `${now - player.lastPickupTime} мс (мин 10 мс)`,
             );
             ws.send(
               JSON.stringify({
                 type: "pickupFail",
                 itemId: data.itemId,
-                reason: "pickup_too_frequent",
+                reason: "pickup_ultra_frequent",
               }),
             );
             continue;
           }
           player.lastPickupTime = now;
 
-          // Двойная проверка существования предмета
+          // Двойная проверка существования предмета (защита race condition)
           if (!items.has(data.itemId)) {
             ws.send(
               JSON.stringify({ type: "itemNotFound", itemId: data.itemId }),
