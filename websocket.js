@@ -2019,10 +2019,11 @@ function setupWebSocket(
           const player = players.get(id);
           if (!player) continue;
 
-          // Rate-limit: не чаще 300 мс на одного игрока
-          if (!player.lastPickupTime || now - player.lastPickupTime < 300) {
+          // Rate-limit: не чаще 50 мс на одного игрока (для автоматического подбора)
+          if (!player.lastPickupTime || now - player.lastPickupTime < 50) {
             console.log(
-              `[AntiSpam PICKUP] Игрок ${id} спамит pickup слишком часто`,
+              `[AntiSpam PICKUP] Игрок ${id} спамит pickup слишком часто: ` +
+                `${now - player.lastPickupTime} мс (мин 50 мс)`,
             );
             ws.send(
               JSON.stringify({
