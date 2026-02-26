@@ -1531,7 +1531,7 @@ function setupWebSocket(
             lastProcessedMoveTime: player.lastProcessedMoveTime || 0,
             lastPickupTime: player.lastPickupTime || 0,
             pickupSpamCount: player.pickupSpamCount || 0,
-            lastUseItemTime: player.lastUseItemTime || 0,
+            lastUseItemTime: 0,
             healthUpgrade: player.healthUpgrade || 0,
             energyUpgrade: player.energyUpgrade || 0,
             foodUpgrade: player.foodUpgrade || 0,
