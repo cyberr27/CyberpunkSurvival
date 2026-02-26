@@ -1115,6 +1115,7 @@ function handleAuthMessage(event) {
         lastProcessedMoveTime: data.lastProcessedMoveTime || 0,
         lastPickupTime: data.lastPickupTime || 0,
         pickupSpamCount: data.pickupSpamCount || 0,
+        lastUseItemTime: data.lastUseItemTime || 0,
         healthUpgrade: data.healthUpgrade || 0,
         energyUpgrade: data.energyUpgrade || 0,
         foodUpgrade: data.foodUpgrade || 0,
