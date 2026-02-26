@@ -2369,11 +2369,11 @@ function setupWebSocket(
 
           const slotIndex = data.slotIndex;
 
-          // Rate-limit: не чаще 500 мс на использование (защита от спама регенерации)
-          if (!player.lastUseItemTime || now - player.lastUseItemTime < 500) {
+          // Rate-limit: не чаще 1200 мс на использование (комфорт для нормальной игры + защита от спама)
+          if (!player.lastUseItemTime || now - player.lastUseItemTime < 1200) {
             console.log(
               `[AntiSpam USE] Игрок ${id} спамит useItem слишком часто: ` +
-                `${now - (player.lastUseItemTime || 0)} мс (мин 500 мс)`,
+                `${now - (player.lastUseItemTime || 0)} мс (мин 1200 мс)`,
             );
             ws.send(
               JSON.stringify({
