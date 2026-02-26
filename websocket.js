@@ -1586,6 +1586,7 @@ function setupWebSocket(
             Math.min(playerData.health, playerData.maxStats.health),
           );
 
+          playerData.lastUseItemTime = 0;
           players.set(data.username, playerData);
 
           // Отправляем успех + все данные
