@@ -1115,7 +1115,6 @@ function handleAuthMessage(event) {
         lastProcessedMoveTime: data.lastProcessedMoveTime || 0,
         lastPickupTime: data.lastPickupTime || 0,
         pickupSpamCount: data.pickupSpamCount || 0,
-        lastUseItemTime: 0,
         healthUpgrade: data.healthUpgrade || 0,
         energyUpgrade: data.energyUpgrade || 0,
         foodUpgrade: data.foodUpgrade || 0,
@@ -1834,8 +1833,6 @@ async function handleGameMessageLogic(data) {
         const me = players.get(myId);
         if (!me) break;
 
-        const oldLastUseItemTime = me.lastUseItemTime;
-
         // ← Самое важное место для детекта урона
         if (data.player.health !== undefined) {
           const oldHealth = Number(me.health) || 0;
@@ -1905,7 +1902,6 @@ async function handleGameMessageLogic(data) {
           window.equipmentSystem.syncEquipment(data.player.equipment);
         }
 
-        me.lastUseItemTime = oldLastUseItemTime;
         // Обновляем статы в любом случае
         updateStatsDisplay();
       } else if (data.player?.id) {

@@ -1181,7 +1181,6 @@ function setupWebSocket(
               lastProcessedMoveTime: 0,
               lastPickupTime: 0,
               pickupSpamCount: 0,
-              lastUseItemTime: 0,
               healthUpgrade: 0,
               energyUpgrade: 0,
               foodUpgrade: 0,
@@ -1531,7 +1530,6 @@ function setupWebSocket(
             lastProcessedMoveTime: player.lastProcessedMoveTime || 0,
             lastPickupTime: player.lastPickupTime || 0,
             pickupSpamCount: player.pickupSpamCount || 0,
-            lastUseItemTime: 0,
             healthUpgrade: player.healthUpgrade || 0,
             energyUpgrade: player.energyUpgrade || 0,
             foodUpgrade: player.foodUpgrade || 0,
@@ -1586,7 +1584,6 @@ function setupWebSocket(
             Math.min(playerData.health, playerData.maxStats.health),
           );
 
-          playerData.lastUseItemTime = 0;
           players.set(data.username, playerData);
 
           // Отправляем успех + все данные
@@ -2358,8 +2355,6 @@ function setupWebSocket(
         if (ws.isProcessingUseItem) return;
         ws.isProcessingUseItem = true;
 
-        const now = Date.now();
-
         while (ws.useItemQueue.length > 0) {
           const data = ws.useItemQueue.shift();
 
@@ -2367,7 +2362,6 @@ function setupWebSocket(
           if (!id || !players.has(id)) continue;
 
           const player = players.get(id);
-
           const slotIndex = data.slotIndex;
 
           // Проверяем, что слот существует и предмет есть
@@ -2376,54 +2370,11 @@ function setupWebSocket(
             slotIndex >= player.inventory.length ||
             !player.inventory[slotIndex]
           ) {
-            console.log(
-              `[AntiCheat USE] Игрок ${id} использовал неверный слот ${slotIndex}`,
-            );
-            ws.send(
-              JSON.stringify({
-                type: "useItemFail",
-                slotIndex,
-                reason: "invalid_slot",
-              }),
-            );
             continue;
           }
 
           const item = player.inventory[slotIndex];
-
-          // Проверка конфига и эффекта
-          if (!ITEM_CONFIG[item.type]?.effect) {
-            console.log(
-              `[AntiCheat USE] Игрок ${id} пытался использовать предмет без эффекта ${item.type}`,
-            );
-            continue;
-          }
-
-          // Для стекаемых — проверяем quantity > 0
-          if (ITEM_CONFIG[item.type].stackable && (item.quantity || 1) <= 0) {
-            console.log(
-              `[AntiCheat USE] Игрок ${id} пытался использовать стекаемый предмет с quantity <= 0: ${item.type}`,
-            );
-            player.inventory[slotIndex] = null; // чистим слот
-            continue;
-          }
-
-          // Rate-limit: не чаще 1200 мс — ставим ПОСЛЕ всех проверок, ПЕРЕД эффектами
-          if (!player.lastUseItemTime || now - player.lastUseItemTime < 1200) {
-            console.log(
-              `[AntiSpam USE] Игрок ${id} спамит useItem слишком часто: ` +
-                `${now - (player.lastUseItemTime || 0)} мс (мин 1200 мс)`,
-            );
-            ws.send(
-              JSON.stringify({
-                type: "useItemFail",
-                slotIndex,
-                reason: "use_too_frequent",
-              }),
-            );
-            continue;
-          }
-          player.lastUseItemTime = now;
+          if (!ITEM_CONFIG[item.type]?.effect) continue;
 
           const effect = ITEM_CONFIG[item.type].effect;
 
@@ -2478,10 +2429,9 @@ function setupWebSocket(
 
           // Уменьшаем/удаляем предмет
           if (ITEM_CONFIG[item.type].stackable) {
-            player.inventory[slotIndex].quantity =
-              (player.inventory[slotIndex].quantity || 1) - 1;
-
-            if (player.inventory[slotIndex].quantity <= 0) {
+            if (item.quantity > 1) {
+              player.inventory[slotIndex].quantity -= 1;
+            } else {
               player.inventory[slotIndex] = null;
             }
           } else {
