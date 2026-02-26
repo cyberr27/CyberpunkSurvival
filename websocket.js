@@ -1180,6 +1180,7 @@ function setupWebSocket(
               lastConfirmedPosition: { x: 474, y: 2474 },
               lastProcessedMoveTime: 0,
               lastPickupTime: 0,
+              pickupSpamCount: 0,
               healthUpgrade: 0,
               energyUpgrade: 0,
               foodUpgrade: 0,
@@ -1528,6 +1529,7 @@ function setupWebSocket(
             lastConfirmedPosition: { x: player.x, y: player.y },
             lastProcessedMoveTime: player.lastProcessedMoveTime || 0,
             lastPickupTime: player.lastPickupTime || 0,
+            pickupSpamCount: player.pickupSpamCount || 0,
             healthUpgrade: player.healthUpgrade || 0,
             energyUpgrade: player.energyUpgrade || 0,
             foodUpgrade: player.foodUpgrade || 0,
@@ -2019,25 +2021,27 @@ function setupWebSocket(
           const player = players.get(id);
           if (!player) continue;
 
-          // Очень мягкий анти-спам: блокируем только ультра-спам (< 10 мс)
-          // Это не мешает автоматическому подбору, но ловит читерский флуд
-          if (player.lastPickupTime && now - player.lastPickupTime < 10) {
-            console.log(
-              `[AntiSpam PICKUP] Игрок ${id} ультра-спамит pickup: ` +
-                `${now - player.lastPickupTime} мс (мин 10 мс)`,
-            );
-            ws.send(
-              JSON.stringify({
-                type: "pickupFail",
-                itemId: data.itemId,
-                reason: "pickup_ultra_frequent",
-              }),
-            );
-            continue;
+          if (player.lastPickupTime && now - player.lastPickupTime < 5) {
+            player.pickupSpamCount = (player.pickupSpamCount || 0) + 1;
+            if (player.pickupSpamCount > 5) {
+              console.log(
+                `[AntiSpam PICKUP] Игрок ${id} ультра-спамит после 5 быстрых: ` +
+                  `${now - player.lastPickupTime} мс`,
+              );
+              ws.send(
+                JSON.stringify({
+                  type: "pickupFail",
+                  itemId: data.itemId,
+                  reason: "pickup_ultra_frequent",
+                }),
+              );
+              continue;
+            }
+          } else {
+            player.pickupSpamCount = 0;
           }
           player.lastPickupTime = now;
 
-          // Двойная проверка существования предмета (защита race condition)
           if (!items.has(data.itemId)) {
             ws.send(
               JSON.stringify({ type: "itemNotFound", itemId: data.itemId }),
