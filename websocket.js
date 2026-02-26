@@ -2022,6 +2022,30 @@ function setupWebSocket(
           const item = items.get(data.itemId);
           const player = players.get(id);
 
+          const MAX_PICKUP_DISTANCE = 100;
+
+          const dx = player.x - item.x;
+          const dy = player.y - item.y;
+          const distToItem = Math.hypot(dx, dy);
+
+          if (distToItem > MAX_PICKUP_DISTANCE) {
+            console.log(
+              `[AntiCheat PICKUP] Игрок ${id} пытался подобрать ${item.type} ` +
+                `на расстоянии ${distToItem.toFixed(1)} px (макс ${MAX_PICKUP_DISTANCE}) ` +
+                `игрок: (${player.x.toFixed(0)}, ${player.y.toFixed(0)}) | предмет: (${item.x.toFixed(0)}, ${item.y.toFixed(0)})`,
+            );
+
+            ws.send(
+              JSON.stringify({
+                type: "pickupFail",
+                itemId: data.itemId,
+                reason: "too_far_from_item",
+              }),
+            );
+
+            continue;
+          }
+
           if (!player) continue;
 
           // Защита квестовых предметов
