@@ -2369,23 +2369,6 @@ function setupWebSocket(
 
           const slotIndex = data.slotIndex;
 
-          // Rate-limit: не чаще 1200 мс на использование (комфорт для нормальной игры + защита от спама)
-          if (!player.lastUseItemTime || now - player.lastUseItemTime < 1200) {
-            console.log(
-              `[AntiSpam USE] Игрок ${id} спамит useItem слишком часто: ` +
-                `${now - (player.lastUseItemTime || 0)} мс (мин 1200 мс)`,
-            );
-            ws.send(
-              JSON.stringify({
-                type: "useItemFail",
-                slotIndex,
-                reason: "use_too_frequent",
-              }),
-            );
-            continue;
-          }
-          player.lastUseItemTime = now;
-
           // Проверка слота (0–19)
           if (
             slotIndex < 0 ||
@@ -2423,6 +2406,23 @@ function setupWebSocket(
             player.inventory[slotIndex] = null; // чистим слот
             continue;
           }
+
+          // Rate-limit: не чаще 1200 мс — ставим ПОСЛЕ всех проверок, но ПЕРЕД эффектами
+          if (!player.lastUseItemTime || now - player.lastUseItemTime < 1200) {
+            console.log(
+              `[AntiSpam USE] Игрок ${id} спамит useItem слишком часто: ` +
+                `${now - (player.lastUseItemTime || 0)} мс (мин 1200 мс)`,
+            );
+            ws.send(
+              JSON.stringify({
+                type: "useItemFail",
+                slotIndex,
+                reason: "use_too_frequent",
+              }),
+            );
+            continue;
+          }
+          player.lastUseItemTime = now;
 
           const effect = ITEM_CONFIG[item.type].effect;
 
@@ -2475,7 +2475,7 @@ function setupWebSocket(
             Math.min(player.armor, player.maxStats?.armor || 0),
           );
 
-          // Уменьшаем/удаляем предмет — СТРОГО ПОСЛЕ ЭФФЕКТОВ И ПЕРЕД СОХРАНЕНИЕМ
+          // Уменьшаем/удаляем предмет — СТРОГО ПОСЛЕ ЭФФЕКТОВ
           if (ITEM_CONFIG[item.type].stackable) {
             player.inventory[slotIndex].quantity =
               (player.inventory[slotIndex].quantity || 1) - 1;
