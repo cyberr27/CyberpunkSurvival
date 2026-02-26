@@ -2369,23 +2369,6 @@ function setupWebSocket(
 
           const slotIndex = data.slotIndex;
 
-          // Rate-limit: не чаще 1200 мс на использование (защита от спама)
-          if (!player.lastUseItemTime || now - player.lastUseItemTime < 1200) {
-            console.log(
-              `[AntiSpam USE] Игрок ${id} спамит useItem слишком часто: ` +
-                `${now - (player.lastUseItemTime || 0)} мс (мин 1200 мс)`,
-            );
-            ws.send(
-              JSON.stringify({
-                type: "useItemFail",
-                slotIndex,
-                reason: "use_too_frequent",
-              }),
-            );
-            continue;
-          }
-          player.lastUseItemTime = now;
-
           // Проверяем, что слот существует и предмет есть
           if (
             slotIndex < 0 ||
@@ -2406,6 +2389,8 @@ function setupWebSocket(
           }
 
           const item = player.inventory[slotIndex];
+
+          // Проверка конфига и эффекта
           if (!ITEM_CONFIG[item.type]?.effect) {
             console.log(
               `[AntiCheat USE] Игрок ${id} пытался использовать предмет без эффекта ${item.type}`,
@@ -2421,6 +2406,23 @@ function setupWebSocket(
             player.inventory[slotIndex] = null; // чистим слот
             continue;
           }
+
+          // Rate-limit: не чаще 1200 мс — ставим ПОСЛЕ всех проверок, ПЕРЕД эффектами
+          if (!player.lastUseItemTime || now - player.lastUseItemTime < 1200) {
+            console.log(
+              `[AntiSpam USE] Игрок ${id} спамит useItem слишком часто: ` +
+                `${now - (player.lastUseItemTime || 0)} мс (мин 1200 мс)`,
+            );
+            ws.send(
+              JSON.stringify({
+                type: "useItemFail",
+                slotIndex,
+                reason: "use_too_frequent",
+              }),
+            );
+            continue;
+          }
+          player.lastUseItemTime = now;
 
           const effect = ITEM_CONFIG[item.type].effect;
 
