@@ -2475,22 +2475,15 @@ function setupWebSocket(
             Math.min(player.armor, player.maxStats?.armor || 0),
           );
 
-          // Уменьшаем/удаляем предмет
+          // Уменьшаем/удаляем предмет — СТРОГО ПОСЛЕ ЭФФЕКТОВ И ПЕРЕД СОХРАНЕНИЕМ
           if (ITEM_CONFIG[item.type].stackable) {
-            if (item.quantity > 1) {
-              player.inventory[slotIndex].quantity -= 1;
-            } else {
+            player.inventory[slotIndex].quantity =
+              (player.inventory[slotIndex].quantity || 1) - 1;
+
+            if (player.inventory[slotIndex].quantity <= 0) {
               player.inventory[slotIndex] = null;
             }
           } else {
-            player.inventory[slotIndex] = null;
-          }
-
-          // Финальная проверка: предмет всё ещё в слоте после уменьшения (race condition защита)
-          if (
-            player.inventory[slotIndex] &&
-            player.inventory[slotIndex].quantity <= 0
-          ) {
             player.inventory[slotIndex] = null;
           }
 
