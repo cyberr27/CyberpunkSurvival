@@ -1963,6 +1963,45 @@ function setupWebSocket(
             );
           }
 
+          if (data.x !== undefined || data.y !== undefined) {
+            let insideObstacle = false;
+
+            for (const obs of obstacles) {
+              if (obs.worldId !== currentWorldId) continue;
+
+              // Простая проверка: если новая позиция лежит внутри отрезка препятствия
+              if (
+                player.x >= Math.min(obs.x1, obs.x2) &&
+                player.x <= Math.max(obs.x1, obs.x2) &&
+                player.y >= Math.min(obs.y1, obs.y2) &&
+                player.y <= Math.max(obs.y1, obs.y2)
+              ) {
+                insideObstacle = true;
+                console.log(
+                  `[AntiCheat INSIDE] Игрок ${playerId} оказался внутри препятствия после move ` +
+                    `(${player.x.toFixed(0)}, ${player.y.toFixed(0)})`,
+                );
+                break;
+              }
+            }
+
+            if (insideObstacle) {
+              player.x = oldX;
+              player.y = oldY;
+
+              ws.send(
+                JSON.stringify({
+                  type: "forcePosition",
+                  x: oldX,
+                  y: oldY,
+                  reason: "inside_obstacle",
+                }),
+              );
+
+              continue;
+            }
+          }
+
           // Сохраняем изменения
           players.set(playerId, { ...player });
 
