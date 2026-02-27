@@ -14,7 +14,7 @@ const obfuscationOptions = {
   deadCodeInjection: true,
   deadCodeInjectionThreshold: 0.4,
   disableConsoleOutput: true,
-  identifierNamesGenerator: "mangled-shuffled",
+  identifierNamesGenerator: "hexadecimal",
   renameGlobals: false,
   rotateStringArray: true,
   selfDefending: true,
