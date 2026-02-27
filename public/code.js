@@ -2759,22 +2759,33 @@ async function handleGameMessageLogic(data) {
       break;
     }
     case "xpUpdate": {
-      // Обновляем только XP и связанные значения
-      window.levelSystem.currentXP = Number(data.xp) || 0;
-      window.levelSystem.xpToNextLevel = Number(data.xpToNextLevel) || 100;
-      window.levelSystem.currentLevel = Number(data.level) || 0;
+      try {
+        console.log("[DEBUG xpUpdate] Получены данные:", data);
 
-      // Синхронизируем в объекте игрока (на всякий случай)
-      const me = players.get(myId);
-      if (me) {
-        me.xp = window.levelSystem.currentXP;
-        me.level = window.levelSystem.currentLevel;
+        window.levelSystem.currentLevel = Number(data.level) || 0;
+        window.levelSystem.currentXP = Number(data.xp) || 0;
+        window.levelSystem.xpToNextLevel = Number(data.xpToNextLevel) || 100;
+
+        const me = players.get(myId);
+        if (me) {
+          me.level = window.levelSystem.currentLevel;
+          me.xp = window.levelSystem.currentXP;
+        }
+
+        console.log("[DEBUG] Вызываем updateLevelDisplay");
+        if (typeof window.levelSystem.updateLevelDisplay === "function") {
+          window.levelSystem.updateLevelDisplay();
+        } else {
+          console.error("updateLevelDisplay НЕ функция!");
+        }
+
+        console.log("[DEBUG] Вызываем updateStatsDisplay");
+        if (typeof window.levelSystem.updateStatsDisplay === "function") {
+          window.levelSystem.updateStatsDisplay();
+        }
+      } catch (err) {
+        console.error("Ошибка в case xpUpdate:", err);
       }
-
-      // Перерисовываем уровень и статы
-      window.levelSystem.updateLevelDisplay();
-      window.levelSystem.updateStatsDisplay();
-
       break;
     }
     case "regenerationApplied":
