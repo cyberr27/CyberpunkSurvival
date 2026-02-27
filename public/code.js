@@ -1116,6 +1116,7 @@ function handleAuthMessage(event) {
         lastPickupTime: data.lastPickupTime || 0,
         pickupSpamCount: data.pickupSpamCount || 0,
         lastUseItemTime: 0,
+        lastXPAddTime: 0,
         healthUpgrade: data.healthUpgrade || 0,
         energyUpgrade: data.energyUpgrade || 0,
         foodUpgrade: data.foodUpgrade || 0,
@@ -2724,8 +2725,9 @@ async function handleGameMessageLogic(data) {
         showNotification(data.error || "Не удалось улучшить навык", "#ff4444");
       }
       break;
-    case "updateLevel":
-      // Обновляем уровень, XP, очки улучшений
+    case "levelUpSuccess": {
+      const data = message; // уже распарсено
+
       window.levelSystem.setLevelData(
         data.level,
         data.xp,
@@ -2733,12 +2735,11 @@ async function handleGameMessageLogic(data) {
         data.upgradePoints,
       );
 
-      // Обновляем очки навыков (самое важное!)
+      // Обновляем skillPoints
       if (data.skillPoints !== undefined) {
         const oldPoints = window.skillsSystem.skillPoints;
         window.skillsSystem.skillPoints = Number(data.skillPoints);
 
-        // Если очки увеличились — показываем уведомление
         if (data.skillPoints > oldPoints) {
           showNotification(
             `+${data.skillPoints - oldPoints} очков навыков за уровень!`,
@@ -2746,14 +2747,18 @@ async function handleGameMessageLogic(data) {
           );
         }
 
-        // Если окно навыков открыто — обновляем
         if (window.skillsSystem.isSkillsOpen) {
           window.skillsSystem.updateSkillPointsDisplay();
         }
       }
 
+      // Показываем красивый level up эффект
+      showLevelUpEffect();
+      updateLevelDisplay();
       updateStatsDisplay();
+      updateUpgradeButtons();
       break;
+    }
     case "regenerationApplied":
       if (data.playerId === myId) {
         // Здоровье уже пришло через "update" → просто синхронизируем на всякий случай

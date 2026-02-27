@@ -501,16 +501,6 @@ function setupWebSocket(
         processBuyWaterQueue(ws);
         return;
       }
-      if (!ws.updateLevelQueue) {
-        ws.updateLevelQueue = [];
-        ws.isProcessingUpdateLevel = false;
-      }
-
-      if (data.type === "updateLevel") {
-        ws.updateLevelQueue.push(data);
-        processUpdateLevelQueue(ws);
-        return;
-      }
       if (!ws.updateMaxStatsQueue) {
         ws.updateMaxStatsQueue = [];
         ws.isProcessingUpdateMaxStats = false;
@@ -837,6 +827,16 @@ function setupWebSocket(
       ) {
         ws.meetNpcQueue.push(data);
         processMeetNpcQueue(ws);
+        return;
+      }
+      if (!ws.addXPQueue) {
+        ws.addXPQueue = [];
+        ws.isProcessingAddXP = false;
+      }
+
+      if (data.type === "addXP") {
+        ws.addXPQueue.push(data);
+        processAddXPQueue(ws);
         return;
       } else if (data.type === "shoot") {
         const shooterId = clients.get(ws);
@@ -1182,6 +1182,7 @@ function setupWebSocket(
               lastPickupTime: 0,
               pickupSpamCount: 0,
               lastUseItemTime: 0,
+              lastXPAddTime: 0,
               healthUpgrade: 0,
               energyUpgrade: 0,
               foodUpgrade: 0,
@@ -1522,6 +1523,7 @@ function setupWebSocket(
             lastPickupTime: player.lastPickupTime || 0,
             pickupSpamCount: player.pickupSpamCount || 0,
             lastUseItemTime: 0,
+            lastXPAddTime: 0,
             healthUpgrade: player.healthUpgrade || 0,
             energyUpgrade: player.energyUpgrade || 0,
             foodUpgrade: player.foodUpgrade || 0,
@@ -3650,64 +3652,6 @@ function setupWebSocket(
 
         ws.isProcessingBuyWater = false;
       }
-      async function processUpdateLevelQueue(ws) {
-        if (ws.isProcessingUpdateLevel) return;
-        ws.isProcessingUpdateLevel = true;
-
-        while (ws.updateLevelQueue.length > 0) {
-          const data = ws.updateLevelQueue.shift();
-
-          const id = clients.get(ws);
-          if (!id || !players.has(id)) continue;
-
-          const player = players.get(id);
-
-          // Обновляем значения с защитой от NaN и отрицательных
-          player.level = Number(data.level) || player.level || 0;
-          player.xp = Number(data.xp) || player.xp || 0;
-          player.upgradePoints =
-            Number(data.upgradePoints) || player.upgradePoints || 0;
-
-          // Самое важное — skillPoints
-          if (
-            data.skillPoints !== undefined &&
-            !isNaN(Number(data.skillPoints))
-          ) {
-            const newSkillPoints = Math.max(0, Number(data.skillPoints));
-            if (newSkillPoints !== player.skillPoints) {
-              player.skillPoints = newSkillPoints;
-            }
-          }
-
-          // Сохраняем изменения
-          players.set(id, { ...player });
-          userDatabase.set(id, { ...player });
-          await saveUserDatabase(dbCollection, id, player);
-
-          // Рассылаем обновление только этому игроку
-          wss.clients.forEach((client) => {
-            if (
-              client.readyState === WebSocket.OPEN &&
-              clients.get(client) === id
-            ) {
-              client.send(
-                JSON.stringify({
-                  type: "update",
-                  player: {
-                    id,
-                    level: player.level,
-                    xp: player.xp,
-                    upgradePoints: player.upgradePoints,
-                    skillPoints: player.skillPoints,
-                  },
-                }),
-              );
-            }
-          });
-        }
-
-        ws.isProcessingUpdateLevel = false;
-      }
       async function processUpdateMaxStatsQueue(ws) {
         if (ws.isProcessingUpdateMaxStats) return;
         ws.isProcessingUpdateMaxStats = true;
@@ -5399,6 +5343,84 @@ function setupWebSocket(
         }
 
         ws.isProcessingMeetNpc = false;
+      }
+      async function processAddXPQueue(ws) {
+        if (ws.isProcessingAddXP) return;
+        ws.isProcessingAddXP = true;
+
+        const now = Date.now();
+
+        while (ws.addXPQueue.length > 0) {
+          const data = ws.addXPQueue.shift();
+
+          const playerId = clients.get(ws);
+          if (!playerId || !players.has(playerId)) continue;
+
+          const player = players.get(playerId);
+
+          // 1. Проверяем валидность пакета
+          if (
+            typeof data.amount !== "number" ||
+            data.amount <= 0 ||
+            data.amount > 100
+          ) {
+            console.warn(
+              `[AntiCheat] Игрок ${playerId} прислал некорректный addXP: ${data.amount}`,
+            );
+            continue;
+          }
+
+          // 2. Rate-limit: не чаще 1 запроса в 800 мс (защита от спама)
+          if (player.lastXPAddTime && now - player.lastXPAddTime < 800) {
+            continue;
+          }
+          player.lastXPAddTime = now;
+
+          // 3. Добавляем XP
+          player.xp = (player.xp || 0) + data.amount;
+
+          let leveledUp = false;
+          let xpGainedThisLevel = data.amount;
+          let levelsGained = 0;
+
+          // 4. Проверяем level up (цикл, если сразу много уровней)
+          while (player.xp >= calculateXPToNextLevel(player.level || 0)) {
+            const xpToNext = calculateXPToNextLevel(player.level || 0);
+            player.xp -= xpToNext;
+
+            player.level = (player.level || 0) + 1;
+            levelsGained++;
+
+            // Начисляем награды
+            player.upgradePoints = (player.upgradePoints || 0) + 10;
+            player.skillPoints = (player.skillPoints || 0) + 3;
+
+            leveledUp = true;
+          }
+
+          // 5. Сохраняем изменения
+          players.set(playerId, { ...player });
+          userDatabase.set(playerId, { ...player });
+          await saveUserDatabase(dbCollection, playerId, player);
+
+          // 6. Отправляем клиенту подтверждение
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(
+              JSON.stringify({
+                type: "levelUpSuccess",
+                level: player.level,
+                xp: player.xp,
+                xpToNextLevel: calculateXPToNextLevel(player.level),
+                upgradePoints: player.upgradePoints,
+                skillPoints: player.skillPoints,
+                xpGained: xpGainedThisLevel,
+                levelsGained: levelsGained,
+              }),
+            );
+          }
+        }
+
+        ws.isProcessingAddXP = false;
       }
     });
 

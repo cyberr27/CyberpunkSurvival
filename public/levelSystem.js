@@ -255,13 +255,9 @@ function calculateXPToNextLevel(level) {
 function handleItemPickup(itemType, isDroppedByPlayer) {
   try {
     const me = players.get(myId);
-    if (!me) {
-      return;
-    }
+    if (!me) return;
 
-    if (isDroppedByPlayer) {
-      return;
-    }
+    if (isDroppedByPlayer) return;
 
     const rarity = ITEM_CONFIG[itemType]?.rarity || 3;
     let xpGained;
@@ -279,33 +275,25 @@ function handleItemPickup(itemType, isDroppedByPlayer) {
         xpGained = 1;
     }
 
-    currentXP += xpGained;
-    checkLevelUp();
+    // Только визуал — сервер сам добавит XP
+    showXPEffect(xpGained);
 
+    // Сообщаем серверу, что подобрали предмет → он добавит XP
     if (ws.readyState === WebSocket.OPEN) {
       sendWhenReady(
         ws,
         JSON.stringify({
-          type: "updateLevel",
-          level: currentLevel,
-          xp: currentXP,
-          upgradePoints,
+          type: "addXP",
+          amount: xpGained,
+          source: "item_" + itemType,
         }),
       );
-    } else {
     }
-
-    showXPEffect(xpGained);
   } catch (error) {}
 }
 
 function handleQuestCompletion(rarity) {
   try {
-    const me = players.get(myId);
-    if (!me) {
-      return;
-    }
-
     let xpGained;
     switch (rarity) {
       case 1:
@@ -321,23 +309,18 @@ function handleQuestCompletion(rarity) {
         xpGained = 1;
     }
 
-    currentXP += xpGained;
-    checkLevelUp();
+    showXPEffect(xpGained);
 
     if (ws.readyState === WebSocket.OPEN) {
       sendWhenReady(
         ws,
         JSON.stringify({
-          type: "updateLevel",
-          level: currentLevel,
-          xp: currentXP,
-          upgradePoints,
+          type: "addXP",
+          amount: xpGained,
+          source: "quest",
         }),
       );
-    } else {
     }
-
-    showXPEffect(xpGained);
   } catch (error) {}
 }
 
@@ -369,51 +352,8 @@ function handleEnemyKill(data) {
 }
 
 function checkLevelUp() {
-  try {
-    while (currentXP >= xpToNextLevel && currentLevel < 100) {
-      currentLevel++;
-      currentXP -= xpToNextLevel;
-      xpToNextLevel = calculateXPToNextLevel(currentLevel);
-      upgradePoints += 10;
-
-      // НОВОЕ: +3 очка навыков при каждом уровне
-      const skillPointsEarned = 3;
-      window.skillsSystem.skillPoints =
-        (window.skillsSystem.skillPoints || 0) + skillPointsEarned;
-
-      // НОВОЕ: Увеличиваем бонус melee damage на +1 при level up
-      window.levelSystem.meleeDamageBonus += 1;
-
-      showLevelUpEffect();
-      updateUpgradeButtons();
-
-      // Обновляем отображение очков навыков, если окно навыков открыто
-      if (window.skillsSystem?.updateSkillPointsDisplay) {
-        window.skillsSystem.updateSkillPointsDisplay();
-      }
-
-      if (ws.readyState === WebSocket.OPEN) {
-        sendWhenReady(
-          ws,
-          JSON.stringify({
-            type: "updateLevel",
-            level: currentLevel,
-            xp: currentXP,
-            upgradePoints,
-            skillPoints: window.skillsSystem.skillPoints,
-          }),
-        );
-      }
-
-      // Показываем уведомление о полученных очках навыков
-      showNotification(`+${skillPointsEarned} очков навыков!`, "#ffaa00");
-    }
-
-    updateLevelDisplay();
-    updateStatsDisplay();
-  } catch (error) {
-    console.error("Ошибка в checkLevelUp:", error);
-  }
+  updateLevelDisplay();
+  updateStatsDisplay();
 }
 
 function showXPEffect(xpGained) {
