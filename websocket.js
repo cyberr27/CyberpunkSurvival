@@ -5415,7 +5415,7 @@ function setupWebSocket(
           await saveUserDatabase(dbCollection, playerId, player);
 
           // 6. Отправляем клиенту подтверждение
-          if (ws.readyState === WebSocket.OPEN) {
+          if (leveledUp && ws.readyState === WebSocket.OPEN) {
             ws.send(
               JSON.stringify({
                 type: "levelUpSuccess",

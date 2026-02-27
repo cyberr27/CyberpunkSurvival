@@ -420,6 +420,10 @@ window.levelSystem = {
   maxStats,
   updateUpgradeButtons,
   handleEnemyKill,
-  // НОВОЕ: Экспортируем бонус для доступа из других систем
   meleeDamageBonus,
+  updateLevelDisplay,
+  updateStatsDisplay,
+  showXPEffect,
+  showLevelUpEffect,
+  checkLevelUp,
 };

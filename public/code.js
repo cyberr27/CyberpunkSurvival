@@ -2726,8 +2726,6 @@ async function handleGameMessageLogic(data) {
       }
       break;
     case "levelUpSuccess": {
-      const data = message; // уже распарсено
-
       window.levelSystem.setLevelData(
         data.level,
         data.xp,
@@ -2761,8 +2759,6 @@ async function handleGameMessageLogic(data) {
       break;
     }
     case "xpUpdate": {
-      const data = message; // уже распарсено
-
       // Обновляем только XP и связанные значения
       window.levelSystem.currentXP = Number(data.xp) || 0;
       window.levelSystem.xpToNextLevel = Number(data.xpToNextLevel) || 100;
