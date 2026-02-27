@@ -2760,6 +2760,27 @@ async function handleGameMessageLogic(data) {
       updateUpgradeButtons();
       break;
     }
+    case "xpUpdate": {
+      const data = message; // уже распарсено
+
+      // Обновляем только XP и связанные значения
+      window.levelSystem.currentXP = Number(data.xp) || 0;
+      window.levelSystem.xpToNextLevel = Number(data.xpToNextLevel) || 100;
+      window.levelSystem.currentLevel = Number(data.level) || 0;
+
+      // Синхронизируем в объекте игрока (на всякий случай)
+      const me = players.get(myId);
+      if (me) {
+        me.xp = window.levelSystem.currentXP;
+        me.level = window.levelSystem.currentLevel;
+      }
+
+      // Перерисовываем уровень и статы
+      window.levelSystem.updateLevelDisplay();
+      window.levelSystem.updateStatsDisplay();
+
+      break;
+    }
     case "regenerationApplied":
       if (data.playerId === myId) {
         // Здоровье уже пришло через "update" → просто синхронизируем на всякий случай
