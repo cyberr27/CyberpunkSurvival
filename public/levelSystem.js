@@ -197,12 +197,23 @@ function updateLevelDisplay() {
   } catch (error) {}
 }
 
-function setLevelData(level, xp, maxStatsData, upgradePointsData) {
+function setLevelData(
+  level,
+  xp,
+  maxStatsData,
+  upgradePointsData,
+  skillPointsData,
+) {
   try {
     currentLevel = level || 0;
     currentXP = xp || 0;
     upgradePoints = upgradePointsData || 0;
     xpToNextLevel = calculateXPToNextLevel(currentLevel);
+
+    // НОВОЕ: принимаем и устанавливаем skillPoints, если пришло
+    if (skillPointsData !== undefined && !isNaN(Number(skillPointsData))) {
+      window.skillsSystem.skillPoints = Math.max(0, Number(skillPointsData));
+    }
 
     const me = players.get(myId);
     if (!me) {
@@ -219,7 +230,7 @@ function setLevelData(level, xp, maxStatsData, upgradePointsData) {
     // НОВОЕ: Устанавливаем бонус melee damage от текущего уровня (level = bonus)
     window.levelSystem.meleeDamageBonus = currentLevel;
 
-    // ВЫЧИСЛЯЕМ maxStats ИЗ UPGRADE (base 100 + upgrades, armor 0; equip добавится позже в applyEquipmentEffects)
+    // ВЫЧИСЛЯЕМ maxStats ИЗ UPGRADE (base 100 + upgrades, armor 0; equip добавится позже)
     maxStats = {
       health: 100 + window.levelSystem.healthUpgrade,
       energy: 100 + window.levelSystem.energyUpgrade,
@@ -240,7 +251,9 @@ function setLevelData(level, xp, maxStatsData, upgradePointsData) {
     updateLevelDisplay();
     updateStatsDisplay();
     updateUpgradeButtons();
-  } catch (error) {}
+  } catch (error) {
+    console.error("Ошибка в setLevelData:", error);
+  }
 }
 
 function calculateXPToNextLevel(level) {
