@@ -1181,6 +1181,7 @@ function setupWebSocket(
               lastProcessedMoveTime: 0,
               lastPickupTime: 0,
               pickupSpamCount: 0,
+              lastUseItemTime: 0,
               healthUpgrade: 0,
               energyUpgrade: 0,
               foodUpgrade: 0,
@@ -1520,6 +1521,7 @@ function setupWebSocket(
             lastProcessedMoveTime: player.lastProcessedMoveTime || 0,
             lastPickupTime: player.lastPickupTime || 0,
             pickupSpamCount: player.pickupSpamCount || 0,
+            lastUseItemTime: 0,
             healthUpgrade: player.healthUpgrade || 0,
             energyUpgrade: player.energyUpgrade || 0,
             foodUpgrade: player.foodUpgrade || 0,
@@ -1724,7 +1726,6 @@ function setupWebSocket(
             player.lastProcessedMoveTime &&
             now - player.lastProcessedMoveTime < MIN_PROCESS_INTERVAL_MS
           ) {
-
             // Откатываем на последнюю валидную позицию
             player.x = oldX;
             player.y = oldY;
@@ -2033,7 +2034,6 @@ function setupWebSocket(
           const distToItem = Math.hypot(dx, dy);
 
           if (distToItem > MAX_PICKUP_DISTANCE) {
-
             ws.send(
               JSON.stringify({
                 type: "pickupFail",
@@ -2322,57 +2322,157 @@ function setupWebSocket(
         if (ws.isProcessingUseItem) return;
         ws.isProcessingUseItem = true;
 
+        const now = Date.now();
+
         while (ws.useItemQueue.length > 0) {
           const data = ws.useItemQueue.shift();
 
-          const id = clients.get(ws);
-          if (!id || !players.has(id)) continue;
+          const playerId = clients.get(ws);
+          if (!playerId || !players.has(playerId)) {
+            continue;
+          }
 
-          const player = players.get(id);
+          const player = players.get(playerId);
           const slotIndex = data.slotIndex;
 
-          // Проверяем, что слот существует и предмет есть
+          // 1. Проверка слота
           if (
+            typeof slotIndex !== "number" ||
             slotIndex < 0 ||
             slotIndex >= player.inventory.length ||
             !player.inventory[slotIndex]
           ) {
+            // Можно отправить ошибку, но чаще всего просто игнорируем
             continue;
           }
 
           const item = player.inventory[slotIndex];
-          if (!ITEM_CONFIG[item.type]?.effect) continue;
 
-          const effect = ITEM_CONFIG[item.type].effect;
+          // 2. Проверка, что предмет существует в конфиге
+          const config = ITEM_CONFIG[item.type];
+          if (!config) {
+            console.warn(
+              `[AntiCheat] Игрок ${playerId} пытается использовать неизвестный предмет: ${item.type}`,
+            );
+            continue;
+          }
 
-          // Применяем эффекты (как было)
-          if (effect.health)
-            player.health = Math.min(
-              player.health + effect.health,
-              player.maxStats.health,
-            );
-          if (effect.energy)
-            player.energy = Math.min(
-              player.energy + effect.energy,
-              player.maxStats.energy,
-            );
-          if (effect.food)
-            player.food = Math.min(
-              player.food + effect.food,
-              player.maxStats.food,
-            );
-          if (effect.water)
-            player.water = Math.min(
-              player.water + effect.water,
-              player.maxStats.water,
-            );
-          if (effect.armor)
-            player.armor = Math.min(
-              player.armor + effect.armor,
-              player.maxStats.armor,
-            );
+          // 3. Запрещённые для использования через useItem типы
+          const nonUsableTypes = [
+            "balyary",
+            "blue_crystal",
+            "green_crystal",
+            "red_crystal",
+            "white_crystal",
+            "yellow_crystal",
+            "chameleon_crystal",
+            "nanofilament",
+            "nanoalloy",
+            "recipe_torn_equipment",
+            "recipe_chameleon_equipment",
+            // можно добавить и другие, если появятся
+          ];
 
-          // Жёсткие ограничения (как было)
+          if (nonUsableTypes.includes(item.type)) {
+            console.warn(
+              `[AntiCheat] Игрок ${playerId} пытается использовать запрещённый тип: ${item.type}`,
+            );
+            continue;
+          }
+
+          // 4. Предметы, которые экипируются, а не используются
+          if (
+            config.type &&
+            [
+              "headgear",
+              "armor",
+              "belt",
+              "pants",
+              "boots",
+              "gloves",
+              "weapon",
+            ].includes(config.type)
+          ) {
+            console.warn(
+              `[AntiCheat] Игрок ${playerId} пытается использовать экипировку через useItem: ${item.type}`,
+            );
+            continue;
+          }
+
+          // 5. Rate limit — не чаще 1 раза в 450 мс
+          const USE_COOLDOWN_MS = 450;
+          if (
+            player.lastUseItemTime &&
+            now - player.lastUseItemTime < USE_COOLDOWN_MS
+          ) {
+            // Можно отправить предупреждение, но чаще просто игнорируем
+            continue;
+          }
+
+          player.lastUseItemTime = now;
+
+          // 6. Применяем только те эффекты, которые есть в конфиге
+          const effect = config.effect || {};
+
+          let statsChanged = false;
+
+          if (effect.health) {
+            const add = Number(effect.health);
+            if (add > 0 && add <= 100) {
+              // разумный лимит на один предмет
+              player.health = Math.min(
+                player.health + add,
+                player.maxStats?.health || 100,
+              );
+              statsChanged = true;
+            }
+          }
+
+          if (effect.energy) {
+            const add = Number(effect.energy);
+            if (add > 0 && add <= 50) {
+              player.energy = Math.min(
+                player.energy + add,
+                player.maxStats?.energy || 100,
+              );
+              statsChanged = true;
+            }
+          }
+
+          if (effect.food) {
+            const add = Number(effect.food);
+            if (add > 0 && add <= 50) {
+              player.food = Math.min(
+                player.food + add,
+                player.maxStats?.food || 100,
+              );
+              statsChanged = true;
+            }
+          }
+
+          if (effect.water) {
+            const add = Number(effect.water);
+            if (add > 0 && add <= 50) {
+              player.water = Math.min(
+                player.water + add,
+                player.maxStats?.water || 100,
+              );
+              statsChanged = true;
+            }
+          }
+
+          if (effect.armor) {
+            const add = Number(effect.armor);
+            if (add > 0 && add <= 20) {
+              player.armor = Math.min(
+                player.armor + add,
+                player.maxStats?.armor || 0,
+              );
+              statsChanged = true;
+            }
+          }
+
+          // Защита от отрицательных / некорректных значений
           player.health = Math.max(
             0,
             Math.min(player.health, player.maxStats?.health || 100),
@@ -2394,36 +2494,34 @@ function setupWebSocket(
             Math.min(player.armor, player.maxStats?.armor || 0),
           );
 
-          // Уменьшаем/удаляем предмет
-          if (ITEM_CONFIG[item.type].stackable) {
-            if (item.quantity > 1) {
-              player.inventory[slotIndex].quantity -= 1;
-            } else {
-              player.inventory[slotIndex] = null;
-            }
+          // Удаляем / уменьшаем количество
+          if (config.stackable && item.quantity > 1) {
+            item.quantity -= 1;
           } else {
             player.inventory[slotIndex] = null;
           }
 
-          // Сохраняем изменения
-          players.set(id, { ...player });
-          userDatabase.set(id, { ...player });
-          await saveUserDatabase(dbCollection, id, player);
+          // Сохраняем игрока
+          players.set(playerId, { ...player });
+          userDatabase.set(playerId, { ...player });
+          await saveUserDatabase(dbCollection, playerId, player);
 
-          // Отправляем успех клиенту (как было)
-          ws.send(
-            JSON.stringify({
-              type: "useItemSuccess",
-              stats: {
-                health: player.health,
-                energy: player.energy,
-                food: player.food,
-                water: player.water,
-                armor: player.armor,
-              },
-              inventory: player.inventory,
-            }),
-          );
+          // Отправляем клиенту результат
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(
+              JSON.stringify({
+                type: "useItemSuccess",
+                stats: {
+                  health: player.health,
+                  energy: player.energy,
+                  food: player.food,
+                  water: player.water,
+                  armor: player.armor,
+                },
+                inventory: player.inventory,
+              }),
+            );
+          }
         }
 
         ws.isProcessingUseItem = false;
