@@ -5376,6 +5376,9 @@ function setupWebSocket(
           }
           player.lastXPAddTime = now;
 
+          // 3. Добавляем XP
+          player.xp = (player.xp || 0) + data.amount;
+
           if (ws.readyState === WebSocket.OPEN) {
             ws.send(
               JSON.stringify({
@@ -5386,9 +5389,6 @@ function setupWebSocket(
               }),
             );
           }
-
-          // 3. Добавляем XP
-          player.xp = (player.xp || 0) + data.amount;
 
           let leveledUp = false;
           let xpGainedThisLevel = data.amount;
