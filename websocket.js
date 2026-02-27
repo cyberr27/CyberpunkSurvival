@@ -1323,12 +1323,6 @@ function setupWebSocket(
                   reason: "position_mismatch_with_confirmed",
                 }),
               );
-              console.log(
-                `[Anti-Teleport Transition MISMATCH] Игрок ${playerId} | ` +
-                  `прислал transition на ${px.toFixed(0)},${py.toFixed(0)} | ` +
-                  `но lastConfirmed: ${player.lastConfirmedPosition.x.toFixed(0)},${player.lastConfirmedPosition.y.toFixed(0)} | ` +
-                  `расстояние: ${distFromConfirmed.toFixed(1)} px (макс ${MAX_CONFIRMED_DIST})`,
-              );
               continue;
             }
           }
@@ -1344,10 +1338,6 @@ function setupWebSocket(
                 type: "worldTransitionFail",
                 reason: "position_not_recently_confirmed",
               }),
-            );
-            console.log(
-              `[Anti-Teleport Transition] Игрок ${playerId} пытался перейти без свежего move | ` +
-                `возраст позиции: ${player.lastMoveTime ? now - player.lastMoveTime : "нет"} мс`,
             );
             continue;
           }
@@ -1734,10 +1724,6 @@ function setupWebSocket(
             player.lastProcessedMoveTime &&
             now - player.lastProcessedMoveTime < MIN_PROCESS_INTERVAL_MS
           ) {
-            console.log(
-              `[AntiSpam] Игрок ${playerId} отправляет move слишком часто: ` +
-                `${now - player.lastProcessedMoveTime} мс (мин ${MIN_PROCESS_INTERVAL_MS} мс)`,
-            );
 
             // Откатываем на последнюю валидную позицию
             player.x = oldX;
@@ -1805,10 +1791,6 @@ function setupWebSocket(
             const MAX_DISTANCE_PER_TICK = 120; // ~2× нормальная скорость + запас на лаги
 
             if (distanceThisTick > MAX_DISTANCE_PER_TICK) {
-              console.warn(
-                `[AntiCheat STRICT] Игрок ${playerId} прыгнул на ${distanceThisTick.toFixed(1)} px ` +
-                  `за один тик (макс разрешено ${MAX_DISTANCE_PER_TICK} px)`,
-              );
               positionValid = false;
             }
 
@@ -1839,9 +1821,6 @@ function setupWebSocket(
                 )
               ) {
                 positionValid = false;
-                console.log(
-                  `[Collision] Игрок ${playerId} пытался пройти сквозь препятствие`,
-                );
                 break;
               }
             }
@@ -2024,10 +2003,6 @@ function setupWebSocket(
           if (player.lastPickupTime && now - player.lastPickupTime < 5) {
             player.pickupSpamCount = (player.pickupSpamCount || 0) + 1;
             if (player.pickupSpamCount > 5) {
-              console.log(
-                `[AntiSpam PICKUP] Игрок ${id} ультра-спамит после 5 быстрых: ` +
-                  `${now - player.lastPickupTime} мс`,
-              );
               ws.send(
                 JSON.stringify({
                   type: "pickupFail",
@@ -2058,11 +2033,6 @@ function setupWebSocket(
           const distToItem = Math.hypot(dx, dy);
 
           if (distToItem > MAX_PICKUP_DISTANCE) {
-            console.log(
-              `[AntiCheat PICKUP] Игрок ${id} пытался подобрать ${item.type} ` +
-                `на расстоянии ${distToItem.toFixed(1)} px (макс ${MAX_PICKUP_DISTANCE}) ` +
-                `игрок: (${player.x.toFixed(0)}, ${player.y.toFixed(0)}) | предмет: (${item.x.toFixed(0)}, ${item.y.toFixed(0)})`,
-            );
 
             ws.send(
               JSON.stringify({
@@ -2077,9 +2047,6 @@ function setupWebSocket(
 
           // Защита квестовых предметов (как было)
           if (item.isQuestItem && item.questOwnerId !== id) {
-            console.log(
-              `[AntiCheat PICKUP] Игрок ${id} пытался взять чужой квестовый предмет ${item.type}`,
-            );
             continue;
           }
 
@@ -3610,9 +3577,6 @@ function setupWebSocket(
           ) {
             const newSkillPoints = Math.max(0, Number(data.skillPoints));
             if (newSkillPoints !== player.skillPoints) {
-              console.log(
-                `[LevelUp] Игрок ${id} получил skillPoints: ${player.skillPoints} → ${newSkillPoints}`,
-              );
               player.skillPoints = newSkillPoints;
             }
           }
