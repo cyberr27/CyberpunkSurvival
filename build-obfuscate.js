@@ -10,73 +10,26 @@ const OUT_DIR = path.join(__dirname, "public_obf");
 const obfuscationOptions = {
   compact: true,
   controlFlowFlattening: true,
-  controlFlowFlatteningThreshold: 0.85, // 0.75–0.9 — хороший баланс
+  controlFlowFlatteningThreshold: 0.75,
   deadCodeInjection: true,
-  deadCodeInjectionThreshold: 0.5, // 0.4–0.6
-  debugProtection: false, // ← включай только для тестов, ломает отладку
-  debugProtectionInterval: 4000,
-  disableConsoleOutput: true, // убирает console.log / warn / error
-  identifierNamesCache: {},
-  identifierNamesGenerator: "dictionary", // ← сильно уменьшает читаемость
-  dictionary: [
-    "a",
-    "b",
-    "c",
-    "d",
-    "e",
-    "f",
-    "g",
-    "h",
-    "i",
-    "j",
-    "k",
-    "l",
-    "m",
-    "n",
-    "o",
-    "p",
-    "q",
-    "r",
-    "s",
-    "t",
-    "u",
-    "v",
-    "w",
-    "x",
-    "y",
-    "z",
-    "_0",
-    "_1",
-    "_2",
-    "_3",
-    "_4",
-    "_5",
-    "_6",
-    "_7",
-    "_8",
-    "_9",
-  ],
-  renameGlobals: false, // ← true часто ломает глобальные window.xxx
+  deadCodeInjectionThreshold: 0.4,
+  disableConsoleOutput: true,
+  identifierNamesGenerator: "mangled-shuffled",
+  renameGlobals: false,
   rotateStringArray: true,
-  selfDefending: true, // ломает форматирование кода в devtools
+  selfDefending: true,
   stringArray: true,
-  stringArrayThreshold: 0.9, // 0.75–0.95
+  stringArrayThreshold: 0.8,
   stringArrayCallsTransform: true,
-  stringArrayCallsTransformThreshold: 0.8,
-  stringArrayEncoding: ["rc4"], // ['base64','rc4'] тоже можно
-  stringArrayWrappersCount: 3,
+  stringArrayCallsTransformThreshold: 0.75,
+  stringArrayEncoding: ["rc4"],
+  stringArrayWrappersCount: 2,
   stringArrayWrappersChainedCalls: true,
-  stringArrayWrappersParametersMaxCount: 5,
-  stringArrayWrappersType: "function",
-  stringArrayIndexShift: true,
-  splitStrings: true,
-  splitStringsChunkLength: 5,
   transformObjectKeys: true,
-  unicodeEscapeSequence: false, // true сильно увеличивает размер
+  unicodeEscapeSequence: false,
   target: "browser",
-  domainLock: [], // можно добавить свои домены позже
   sourceMap: false,
-  sourceMapMode: "off",
+  sourceMapMode: "inline",
 };
 
 async function obfuscateFile(inputPath, outputPath) {
