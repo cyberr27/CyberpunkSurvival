@@ -5358,8 +5358,6 @@ function setupWebSocket(
 
           const player = players.get(playerId);
 
-          const oldPoints = player.skillPoints || 0;
-
           // 1. Проверяем валидность пакета
           if (
             typeof data.amount !== "number" ||
@@ -5377,6 +5375,17 @@ function setupWebSocket(
 
           // 3. Добавляем XP
           player.xp = (player.xp || 0) + data.amount;
+
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(
+              JSON.stringify({
+                type: "xpUpdate",
+                xp: player.xp,
+                xpToNextLevel: calculateXPToNextLevel(player.level || 0),
+                level: player.level || 0,
+              }),
+            );
+          }
 
           let leveledUp = false;
           let xpGainedThisLevel = data.amount;
@@ -5401,21 +5410,6 @@ function setupWebSocket(
           players.set(playerId, { ...player });
           userDatabase.set(playerId, { ...player });
           await saveUserDatabase(dbCollection, playerId, player);
-
-          const nowPoints = player.skillPoints || 0;
-          if (nowPoints === oldPoints) {
-            if (ws.readyState === WebSocket.OPEN) {
-              ws.send(
-                JSON.stringify({
-                  type: "xpUpdate",
-                  xp: player.xp,
-                  xpToNextLevel: calculateXPToNextLevel(player.level || 0),
-                  level: player.level || 0,
-                }),
-              );
-            }
-            continue;
-          }
 
           // 6. Отправляем клиенту подтверждение
           if (ws.readyState === WebSocket.OPEN) {
