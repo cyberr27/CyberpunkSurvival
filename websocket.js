@@ -5358,6 +5358,8 @@ function setupWebSocket(
 
           const player = players.get(playerId);
 
+          const oldPoints = player.skillPoints || 0;
+
           // 1. Проверяем валидность пакета
           if (
             typeof data.amount !== "number" ||
@@ -5400,7 +5402,6 @@ function setupWebSocket(
           userDatabase.set(playerId, { ...player });
           await saveUserDatabase(dbCollection, playerId, player);
 
-          const oldPoints = window.skillsSystem.skillPoints;
           const nowPoints = player.skillPoints || 0;
           if (nowPoints === oldPoints) {
             if (ws.readyState === WebSocket.OPEN) {
