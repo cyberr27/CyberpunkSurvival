@@ -23,7 +23,7 @@ function runGameLoop(
   worlds,
   ITEM_CONFIG,
   userDatabase,
-  enemies
+  enemies,
 ) {
   // === AI МУТАНТОВ (каждые 200 мс для оптимизации) ===
   const mutantAIInterval = setInterval(() => {
@@ -88,7 +88,7 @@ function runGameLoop(
                 minEnergy;
               closestPlayer.energy = Math.max(
                 0,
-                closestPlayer.energy - energyDmg
+                closestPlayer.energy - energyDmg,
               );
             }
             closestPlayer.health = Math.max(0, closestPlayer.health - damage);
@@ -104,7 +104,7 @@ function runGameLoop(
                 targetId: closestPlayer.id,
                 damage,
                 energyDmg,
-              })
+              }),
             );
             broadcastToWorld(
               wss,
@@ -114,7 +114,7 @@ function runGameLoop(
               JSON.stringify({
                 type: "update",
                 player: { id: closestPlayer.id, ...closestPlayer },
-              })
+              }),
             );
           }
         } else {
@@ -134,7 +134,7 @@ function runGameLoop(
           JSON.stringify({
             type: "enemyUpdate",
             enemy: { id: enemy.id, ...enemy },
-          })
+          }),
         );
       });
     }
@@ -222,13 +222,13 @@ function runGameLoop(
         let commonCount = playerCount * 5;
 
         const rareItems = Object.keys(ITEM_CONFIG).filter(
-          (t) => ITEM_CONFIG[t].rarity === 1
+          (t) => ITEM_CONFIG[t].rarity === 1,
         );
         const mediumItems = Object.keys(ITEM_CONFIG).filter(
-          (t) => ITEM_CONFIG[t].rarity === 2
+          (t) => ITEM_CONFIG[t].rarity === 2,
         );
         const commonItems = Object.keys(ITEM_CONFIG).filter(
-          (t) => ITEM_CONFIG[t].rarity === 3
+          (t) => ITEM_CONFIG[t].rarity === 3,
         );
 
         const newItems = [];
@@ -236,32 +236,48 @@ function runGameLoop(
 
         for (let i = 0; i < itemsToSpawn; i++) {
           let type;
-          if (
-            rareCount > 0 &&
-            rareItems.length > 0 &&
-            itemCounts[rareItems[0]] < rareCount
-          ) {
-            type = rareItems[Math.floor(Math.random() * rareItems.length)];
+
+          const allowedRare = Object.keys(ITEM_CONFIG).filter(
+            (t) =>
+              ITEM_CONFIG[t].canBeAutoSpawned && ITEM_CONFIG[t].rarity === 1,
+          );
+          const allowedMedium = Object.keys(ITEM_CONFIG).filter(
+            (t) =>
+              ITEM_CONFIG[t].canBeAutoSpawned && ITEM_CONFIG[t].rarity === 2,
+          );
+          const allowedCommon = Object.keys(ITEM_CONFIG).filter(
+            (t) =>
+              ITEM_CONFIG[t].canBeAutoSpawned && ITEM_CONFIG[t].rarity === 3,
+          );
+
+          if (rareCount > 0 && allowedRare.length > 0) {
+            // берём из разрешённых rare
+            const idx = Math.floor(Math.random() * allowedRare.length);
+            type = allowedRare[idx];
             rareCount--;
-          } else if (
-            mediumCount > 0 &&
-            mediumItems.length > 0 &&
-            itemCounts[mediumItems[0]] < mediumCount
-          ) {
-            type = mediumItems[Math.floor(Math.random() * mediumItems.length)];
+          } else if (mediumCount > 0 && allowedMedium.length > 0) {
+            const idx = Math.floor(Math.random() * allowedMedium.length);
+            type = allowedMedium[idx];
             mediumCount--;
-          } else if (
-            commonCount > 0 &&
-            commonItems.length > 0 &&
-            itemCounts[commonItems[0]] < commonCount
-          ) {
-            type = commonItems[Math.floor(Math.random() * commonItems.length)];
+          } else if (commonCount > 0 && allowedCommon.length > 0) {
+            const idx = Math.floor(Math.random() * allowedCommon.length);
+            type = allowedCommon[idx];
             commonCount--;
           } else {
-            const allTypes = Object.keys(ITEM_CONFIG).filter(
-              (t) => ITEM_CONFIG[t].rarity !== 4 && ITEM_CONFIG[t].rarity !== 5
-            );
-            type = allTypes[Math.floor(Math.random() * allTypes.length)];
+            // запасной вариант — только из разрешённых
+            const fallback = [
+              ...allowedRare,
+              ...allowedMedium,
+              ...allowedCommon,
+            ];
+            if (fallback.length === 0) {
+              console.warn(
+                "Нет доступных предметов для спавна в мире",
+                worldId,
+              );
+              continue; // вообще ничего не спавним в этом тике
+            }
+            type = fallback[Math.floor(Math.random() * fallback.length)];
           }
 
           let x,
@@ -283,7 +299,7 @@ function runGameLoop(
 
             if (type === "atom") {
               atomSpawns.push(
-                `Создан атом (${itemId}) в мире ${worldId} на x:${x}, y:${y}`
+                `Создан атом (${itemId}) в мире ${worldId} на x:${x}, y:${y}`,
               );
             }
           }
@@ -307,7 +323,7 @@ function runGameLoop(
         const worldEnemiesMap = worldEnemyCache.get(worldId) || new Map();
         const desiredMutants = 10;
         const currentMutants = Array.from(worldEnemiesMap.values()).filter(
-          (e) => !e.type || e.type === "mutant"
+          (e) => !e.type || e.type === "mutant",
         ).length;
         if (currentMutants < desiredMutants) {
           const toSpawn = desiredMutants - currentMutants;
@@ -356,7 +372,7 @@ function runGameLoop(
         const worldEnemiesMap = worldEnemyCache.get(worldId) || new Map();
         const desiredScorpions = 10;
         const currentScorpions = Array.from(worldEnemiesMap.values()).filter(
-          (e) => e.type === "scorpion"
+          (e) => e.type === "scorpion",
         ).length;
         if (currentScorpions < desiredScorpions) {
           const toSpawn = desiredScorpions - currentScorpions;
@@ -405,7 +421,7 @@ function runGameLoop(
         const desiredBloodEyes = 10;
         const worldEnemiesMap = worldEnemyCache.get(worldId) || new Map();
         const currentBloodEyes = Array.from(worldEnemiesMap.values()).filter(
-          (e) => e.type === "blood_eye"
+          (e) => e.type === "blood_eye",
         ).length;
 
         if (currentBloodEyes < desiredBloodEyes) {
@@ -455,7 +471,7 @@ function runGameLoop(
               JSON.stringify({
                 type: "newEnemies",
                 enemies: newBloodEyes,
-              })
+              }),
             );
           }
         }
@@ -469,7 +485,7 @@ function runGameLoop(
           type: item.type,
           spawnTime: item.spawnTime,
           worldId,
-        })
+        }),
       );
 
       if (allItems.length > 0) {
@@ -498,7 +514,7 @@ function runGameLoop(
               type: "syncItems",
               items: visibleItems,
               worldId,
-            })
+            }),
           );
         });
       }

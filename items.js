@@ -9,86 +9,103 @@ const ITEM_CONFIG = {
     effect: { energy: 20, water: 5 },
     description: "Энергетик: +20 эн. +5 воды.",
     rarity: 2,
+    canBeAutoSpawned: true,
   },
   nut: {
     effect: { food: 7 },
     description: "Орех: +7 еды.",
     rarity: 3,
+    canBeAutoSpawned: true,
   },
   water_bottle: {
     effect: { water: 30 },
     description: "Вода: +30 воды.",
     rarity: 3,
+    canBeAutoSpawned: true,
   },
   apple: {
     effect: { food: 8, water: 5 },
     description: "Яблоко: +8 еды, +5 воды.",
     rarity: 3,
+    canBeAutoSpawned: true,
   },
   berries: {
     effect: { food: 6, water: 6 },
     description: "Ягоды: +6 еды, +6 воды.",
     rarity: 3,
+    canBeAutoSpawned: true,
   },
   carrot: {
     effect: { food: 5, energy: 3 },
     description: "Морковь: +5 еды, +3 энергии.",
     rarity: 3,
+    canBeAutoSpawned: true,
   },
   canned_meat: {
     effect: { food: 20 },
     description: "Банка тушёнки: +20 еды.",
     rarity: 1,
+    canBeAutoSpawned: true,
   },
   mushroom: {
     effect: { food: 5, energy: 15 },
     description: "Гриб прущий: +15 энергии, +5 еды.",
     rarity: 1,
+    canBeAutoSpawned: true,
   },
   sausage: {
     effect: { food: 16, energy: 3 },
     description: "Колбаса: +16 еды, +3 энергии.",
     rarity: 2,
+    canBeAutoSpawned: true,
   },
   blood_pack: {
     effect: { health: 40 },
     description: "Пакет крови: +40 здоровья.",
     rarity: 1,
+    canBeAutoSpawned: true,
   },
   bread: {
     effect: { food: 13, water: -2 },
     description: "Хлеб: +13 еды, -2 воды.",
     rarity: 2,
+    canBeAutoSpawned: true,
   },
   vodka_bottle: {
     effect: { health: 5, energy: -2, water: 1, food: 2 },
     description: "Водка: +5 здоровья, -2 эн. +1 воды, +2 еды.",
     rarity: 2,
+    canBeAutoSpawned: true,
   },
   meat_chunk: {
     effect: { food: 20, energy: 5, water: -2 },
     description: "Кусок мяса: +20 еды, +5 эн., -2 воды.",
     rarity: 2,
+    canBeAutoSpawned: true,
   },
   blood_syringe: {
     effect: { health: 10 },
     description: "Шприц с кровью: +10 здоровья.",
     rarity: 2,
+    canBeAutoSpawned: true,
   },
   milk: {
     effect: { water: 15, food: 5 },
     description: "Молоко: +15 воды, +5 еды.",
     rarity: 2,
+    canBeAutoSpawned: true,
   },
   condensed_milk: {
     effect: { water: 5, food: 11, energy: 2 },
     description: "Сгущёнка: +11 еды, +5 воды, +2 эн.",
     rarity: 2,
+    canBeAutoSpawned: true,
   },
   dried_fish: {
     effect: { food: 10, water: -3 },
     description: "Сушёная рыба: +10 еды, -3 воды.",
     rarity: 2,
+    canBeAutoSpawned: true,
   },
 
   // === ВАЛЮТА ===
@@ -97,6 +114,7 @@ const ITEM_CONFIG = {
     stackable: true,
     balyary: true,
     rarity: 1,
+    canBeAutoSpawned: true,
   },
 
   // === СПЕЦПРЕДМЕТЫ ===
@@ -105,6 +123,7 @@ const ITEM_CONFIG = {
     description: "Атом — даёт +5 брони при использовании.",
     stackable: true,
     rarity: 1,
+    canBeAutoSpawned: true,
   },
   medical_certificate: {
     description: "Мед. справка МД-07: подтверждает, что ты не зомби.",
@@ -539,41 +558,49 @@ const ITEM_CONFIG = {
     description: "Синий кристал — материал для улучшений у Торестоса",
     rarity: 1,
     stackable: true,
+    canBeAutoSpawned: true,
   },
   green_crystal: {
     description: "Зеленый кристал — материал для улучшений у Торестоса",
     rarity: 1,
     stackable: true,
+    canBeAutoSpawned: true,
   },
   red_crystal: {
     description: "Красный кристал — материал для улучшений у Торестоса",
     rarity: 1,
     stackable: true,
+    canBeAutoSpawned: true,
   },
   white_crystal: {
     description: "Белый кристал — материал для улучшений у Торестоса",
     rarity: 1,
     stackable: true,
+    canBeAutoSpawned: true,
   },
   yellow_crystal: {
     description: "Желтый кристал — материал для улучшений у Торестоса",
     rarity: 1,
     stackable: true,
+    canBeAutoSpawned: true,
   },
   chameleon_crystal: {
     description: "Хамелион кристал — материал для улучшений у Торестоса",
     rarity: 1,
     stackable: true,
+    canBeAutoSpawned: true,
   },
   nanoalloy: {
     description: "Наносплав.",
     rarity: 1,
     stackable: true,
+    canBeAutoSpawned: true,
   },
   nanofilament: {
     description: "Нановолокно.",
     rarity: 1,
     stackable: true,
+    canBeAutoSpawned: true,
   },
 };
 

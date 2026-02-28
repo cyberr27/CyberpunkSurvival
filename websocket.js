@@ -2264,6 +2264,7 @@ function setupWebSocket(
               spawnTime: Date.now(),
               quantity: quantityToDrop,
               isDroppedByPlayer: true,
+              noAutoRespawn: true,
               worldId: player.worldId,
             });
           } else {
@@ -2300,6 +2301,7 @@ function setupWebSocket(
                       ? quantityToDrop
                       : undefined,
                     isDroppedByPlayer: true,
+                    noAutoRespawn: true,
                     worldId: player.worldId,
                   }),
                 );

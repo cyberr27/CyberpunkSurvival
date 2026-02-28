@@ -224,102 +224,119 @@ const ITEM_CONFIG = {
     image: images.energyDrinkImage,
     description: "Энергетик: +20 эн. +5 воды.",
     rarity: 2,
+    canBeAutoSpawned: true,
   },
   nut: {
     effect: { food: 7 },
     image: images.nutImage,
     description: "Орех: +7 еды.",
     rarity: 3,
+    canBeAutoSpawned: true,
   },
   water_bottle: {
     effect: { water: 30 },
     image: images.waterBottleImage,
     description: "Вода: +30 воды.",
     rarity: 3,
+    canBeAutoSpawned: true,
   },
   apple: {
     effect: { food: 8, water: 5 },
     image: images.appleImage,
     description: "Яблоко: +8 еды, +5 воды.",
     rarity: 3,
+    canBeAutoSpawned: true,
   },
   berries: {
     effect: { food: 6, water: 6 },
     image: images.berriesImage,
     description: "Ягоды: +6 еды, +6 воды.",
     rarity: 3,
+    canBeAutoSpawned: true,
   },
   carrot: {
     effect: { food: 5, energy: 3 },
     image: images.carrotImage,
     description: "Морковь: +5 еды, +3 энергии.",
     rarity: 3,
+    canBeAutoSpawned: true,
   },
   canned_meat: {
     effect: { food: 20 },
     image: images.cannedMeatImage,
     description: "Банка тушёнки: +20 еды.",
     rarity: 1,
+    canBeAutoSpawned: true,
   },
   mushroom: {
     effect: { food: 5, energy: 15 },
     image: images.mushroomImage,
     description: "Гриб прущий: +15 энергии, +5 еды.",
     rarity: 1,
+    canBeAutoSpawned: true,
   },
   sausage: {
     effect: { food: 16, energy: 3 },
     image: images.sausageImage,
     description: "Колбаса: +16 еды, +3 энергии.",
     rarity: 2,
+    canBeAutoSpawned: true,
   },
   blood_pack: {
     effect: { health: 40 },
     image: images.bloodPackImage,
     description: "Пакет крови: +40 здоровья.",
     rarity: 1,
+    canBeAutoSpawned: true,
   },
   bread: {
     effect: { food: 13, water: -2 },
     image: images.breadImage,
     description: "Хлеб: +13 еды, -2 воды.",
     rarity: 2,
+    canBeAutoSpawned: true,
   },
   vodka_bottle: {
     effect: { health: 5, energy: -2, water: 1, food: 2 },
     image: images.vodkaBottleImage,
     description: "Водка: +5 здоровья, -2 эн. +1 воды, +2 еды.",
     rarity: 2,
+    canBeAutoSpawned: true,
   },
   meat_chunk: {
     effect: { food: 20, energy: 5, water: -2 },
     image: images.meatChunkImage,
     description: "Кусок мяса: +20 еды, +5 эн., -2 воды.",
     rarity: 2,
+    canBeAutoSpawned: true,
   },
   blood_syringe: {
     effect: { health: 10 },
     image: images.bloodSyringeImage,
     description: "Шприц с кровью: +10 здоровья.",
     rarity: 2,
+    canBeAutoSpawned: true,
   },
   milk: {
     effect: { water: 15, food: 5 },
     image: images.milkImage,
     description: "Молоко: +15 воды, +5 еды.",
     rarity: 2,
+    canBeAutoSpawned: true,
   },
   condensed_milk: {
     effect: { water: 5, food: 11, energy: 2 },
     image: images.condensedMilkImage,
     description: "Сгущёнка: +11 еды, +5 воды, +2 эн.",
     rarity: 2,
+    canBeAutoSpawned: true,
   },
   dried_fish: {
     effect: { food: 10, water: -3 },
     image: images.driedFishImage,
     description: "Сушёная рыба: +10 еды, -3 воды.",
     rarity: 2,
+    canBeAutoSpawned: true,
   },
 
   // === ВАЛЮТА И СПЕЦПРЕДМЕТЫ ===
@@ -329,6 +346,7 @@ const ITEM_CONFIG = {
     stackable: true,
     balyary: true,
     rarity: 1,
+    canBeAutoSpawned: true,
   },
   atom: {
     effect: { armor: 5 },
@@ -336,6 +354,7 @@ const ITEM_CONFIG = {
     description: "Атом — даёт +5 брони при использовании.",
     stackable: true,
     rarity: 1,
+    canBeAutoSpawned: true,
   },
   medical_certificate: {
     image: images.medicalCertificateImage,
@@ -823,48 +842,56 @@ const ITEM_CONFIG = {
     description: "Синий кристал — материал для улучшений у Торестоса",
     rarity: 1,
     stackable: true,
+    canBeAutoSpawned: true,
   },
   green_crystal: {
     image: images.green_crystal,
     description: "Зеленый кристал — материал для улучшений у Торестоса",
     rarity: 1,
     stackable: true,
+    canBeAutoSpawned: true,
   },
   red_crystal: {
     image: images.red_crystal,
     description: "Красный кристал — материал для улучшений у Торестоса",
     rarity: 1,
     stackable: true,
+    canBeAutoSpawned: true,
   },
   white_crystal: {
     image: images.white_crystal,
     description: "Белый кристал — материал для улучшений у Торестоса",
     rarity: 1,
     stackable: true,
+    canBeAutoSpawned: true,
   },
   yellow_crystal: {
     image: images.yellow_crystal,
     description: "Желтый кристал — материал для улучшений у Торестоса",
     rarity: 1,
     stackable: true,
+    canBeAutoSpawned: true,
   },
   chameleon_crystal: {
     image: images.chameleon_crystal,
     description: "Хамелион кристал — материал для улучшений у Торестоса",
     rarity: 1,
     stackable: true,
+    canBeAutoSpawned: true,
   },
   nanoalloy: {
     image: images.nanoalloy,
     description: "Наносплав.",
     rarity: 1,
     stackable: true,
+    canBeAutoSpawned: true,
   },
   nanofilament: {
     image: images.nanofilament,
     description: "Нановолокно.",
     rarity: 1,
     stackable: true,
+    canBeAutoSpawned: true,
   },
 };
 
@@ -2726,6 +2753,8 @@ async function handleGameMessageLogic(data) {
       }
       break;
     case "levelUpSuccess": {
+      const oldSkillPoints = window.skillsSystem.skillPoints ?? 0;
+
       window.levelSystem.setLevelData(
         data.level,
         data.xp,
@@ -2736,12 +2765,11 @@ async function handleGameMessageLogic(data) {
 
       // Обновляем skillPoints
       if (data.skillPoints !== undefined) {
-        const oldPoints = window.skillsSystem.skillPoints;
         window.skillsSystem.skillPoints = Number(data.skillPoints);
 
-        if (data.skillPoints > oldPoints) {
+        if (data.skillPoints > oldSkillPoints) {
           showNotification(
-            `+${data.skillPoints - oldPoints} очков навыков за уровень!`,
+            `+${data.skillPoints - oldSkillPoints} очков навыков за уровень!`,
             "#ffaa00",
           );
         }
