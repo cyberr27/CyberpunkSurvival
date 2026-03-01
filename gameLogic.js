@@ -1,4 +1,8 @@
 const { saveUserDatabase } = require("./database");
+console.log(
+  "plasma_rifle canBeAutoSpawned:",
+  ITEM_CONFIG["plasma_rifle"]?.canBeAutoSpawned,
+);
 // === КОНСТАНТЫ ВРАГОВ (переносим с клиента на сервер!) ===
 const ENEMY_SPEED = 2;
 const AGGRO_RANGE = 300;
