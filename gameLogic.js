@@ -314,11 +314,14 @@ function runGameLoop(
             worldItemsMap.set(itemId, newItem);
             newItems.push({ itemId, x, y, type, spawnTime: now, worldId });
 
-            if (type === "atom") {
-              atomSpawns.push(
-                `Создан атом (${itemId}) в мире ${worldId} на x:${x}, y:${y}`,
-              );
-            }
+            // ─── ЛОГ АВТОСПАВНА (только для проверки механики) ────────────────────────
+            console.log(
+              `[AUTO-SPAWN] Мир ${worldId} | ${type} (${itemId}) | ` +
+                `rarity: ${ITEM_CONFIG[type]?.rarity || "?"} | ` +
+                `canAuto: ${ITEM_CONFIG[type]?.canBeAutoSpawned ?? false} | ` +
+                `x:${Math.round(x)}, y:${Math.round(y)}`,
+            );
+            // ────────────────────────────────────────────────────────────────────────
           }
         }
 
