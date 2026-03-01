@@ -1,5 +1,7 @@
 // dropGenerator.js
 
+const { ITEM_CONFIG } = require("./items");
+
 const TORN_ITEMS = [
   "torn_baseball_cap_of_health",
   "torn_health_t_shirt",
