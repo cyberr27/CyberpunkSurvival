@@ -379,12 +379,14 @@ const ITEM_CONFIG = {
     image: images.medicalCertificateImage,
     description: "Мед. справка МД-07: подтверждает, что ты не зомби.",
     rarity: 5,
+    canBeAutoSpawned: false,
     canDropFromEnemy: false,
   },
   medical_certificate_stamped: {
     image: images.medicalCertificateStampedImage,
     description: "Мед. справка с печатью заставы. Допуск в Неоновый Город.",
     rarity: 5,
+    canBeAutoSpawned: false,
     canDropFromEnemy: false,
   },
 
@@ -396,6 +398,7 @@ const ITEM_CONFIG = {
     description: "Кибершлем: +10 брони, +5 энергии",
     rarity: 4,
     level: 5,
+    canBeAutoSpawned: false,
     canDropFromEnemy: false,
   },
   nano_armor: {
@@ -405,6 +408,7 @@ const ITEM_CONFIG = {
     description: "Нано-броня: +20 брони, +10 здоровья",
     rarity: 4,
     level: 5,
+    canBeAutoSpawned: false,
     canDropFromEnemy: false,
   },
   tactical_belt: {
@@ -414,6 +418,7 @@ const ITEM_CONFIG = {
     description: "Тактический пояс: +5 брони, +5 еды",
     rarity: 4,
     level: 5,
+    canBeAutoSpawned: false,
     canDropFromEnemy: false,
   },
   cyber_pants: {
@@ -423,6 +428,7 @@ const ITEM_CONFIG = {
     description: "Киберштаны: +10 брони, +5 воды",
     rarity: 4,
     level: 5,
+    canBeAutoSpawned: false,
     canDropFromEnemy: false,
   },
   speed_boots: {
@@ -432,6 +438,7 @@ const ITEM_CONFIG = {
     description: "Скоростные ботинки: +5 брони, +10 энергии",
     rarity: 4,
     level: 5,
+    canBeAutoSpawned: false,
     canDropFromEnemy: false,
   },
   tech_gloves: {
@@ -441,6 +448,7 @@ const ITEM_CONFIG = {
     description: "Технические перчатки: +5 брони, +5 энергии",
     rarity: 4,
     level: 5,
+    canBeAutoSpawned: false,
     canDropFromEnemy: false,
   },
   plasma_rifle: {
@@ -451,6 +459,7 @@ const ITEM_CONFIG = {
     rarity: 4,
     hands: "twohanded",
     level: 0,
+    canBeAutoSpawned: false,
     canDropFromEnemy: false,
   },
   knuckles: {
@@ -461,6 +470,7 @@ const ITEM_CONFIG = {
     rarity: 4,
     hands: "onehanded",
     level: 2,
+    canBeAutoSpawned: false,
     canDropFromEnemy: true,
   },
   knife: {
@@ -471,6 +481,7 @@ const ITEM_CONFIG = {
     rarity: 4,
     hands: "onehanded",
     level: 3,
+    canBeAutoSpawned: false,
     canDropFromEnemy: true,
   },
   nano_absorbing_knife: {
@@ -481,6 +492,7 @@ const ITEM_CONFIG = {
     rarity: 4,
     hands: "onehanded",
     level: 3,
+    canBeAutoSpawned: false,
     canDropFromEnemy: false,
   },
   bat: {
@@ -491,6 +503,7 @@ const ITEM_CONFIG = {
     rarity: 4,
     hands: "onehanded",
     level: 4,
+    canBeAutoSpawned: false,
     canDropFromEnemy: true,
   },
   // === ПОРВАННАЯ СТАРТОВАЯ ЭКИПИРОВКА — АКТУАЛЬНЫЕ ЗНАЧЕНИЯ ИЗ items.js ===
@@ -503,6 +516,7 @@ const ITEM_CONFIG = {
     rarity: 4,
     collection: "Torn Health",
     level: 0,
+    canBeAutoSpawned: false,
     canDropFromEnemy: true,
   },
   torn_health_t_shirt: {
@@ -514,6 +528,7 @@ const ITEM_CONFIG = {
     rarity: 4,
     collection: "Torn Health",
     level: 0,
+    canBeAutoSpawned: false,
     canDropFromEnemy: true,
   },
   torn_health_gloves: {
@@ -525,6 +540,7 @@ const ITEM_CONFIG = {
     rarity: 4,
     collection: "Torn Health",
     level: 0,
+    canBeAutoSpawned: false,
     canDropFromEnemy: true,
   },
   torn_belt_of_health: {
@@ -536,6 +552,7 @@ const ITEM_CONFIG = {
     rarity: 4,
     collection: "Torn Health",
     level: 0,
+    canBeAutoSpawned: false,
     canDropFromEnemy: true,
   },
   torn_pants_of_health: {
@@ -547,6 +564,7 @@ const ITEM_CONFIG = {
     rarity: 4,
     collection: "Torn Health",
     level: 0,
+    canBeAutoSpawned: false,
     canDropFromEnemy: true,
   },
   torn_health_sneakers: {
@@ -558,6 +576,7 @@ const ITEM_CONFIG = {
     rarity: 4,
     collection: "Torn Health",
     level: 0,
+    canBeAutoSpawned: false,
     canDropFromEnemy: true,
   },
 
@@ -571,6 +590,7 @@ const ITEM_CONFIG = {
     rarity: 4,
     collection: "Torn Energy",
     level: 0,
+    canBeAutoSpawned: false,
     canDropFromEnemy: true,
   },
   torn_energy_t_shirt: {
@@ -582,6 +602,7 @@ const ITEM_CONFIG = {
     rarity: 4,
     collection: "Torn Energy",
     level: 0,
+    canBeAutoSpawned: false,
     canDropFromEnemy: true,
   },
   torn_gloves_of_energy: {
@@ -593,6 +614,7 @@ const ITEM_CONFIG = {
     rarity: 4,
     collection: "Torn Energy",
     level: 0,
+    canBeAutoSpawned: false,
     canDropFromEnemy: true,
   },
   torn_energy_belt: {
@@ -604,6 +626,7 @@ const ITEM_CONFIG = {
     rarity: 4,
     collection: "Torn Energy",
     level: 0,
+    canBeAutoSpawned: false,
     canDropFromEnemy: true,
   },
   torn_pants_of_energy: {
@@ -615,6 +638,7 @@ const ITEM_CONFIG = {
     rarity: 4,
     collection: "Torn Energy",
     level: 0,
+    canBeAutoSpawned: false,
     canDropFromEnemy: true,
   },
   torn_sneakers_of_energy: {
@@ -626,6 +650,7 @@ const ITEM_CONFIG = {
     rarity: 4,
     collection: "Torn Energy",
     level: 0,
+    canBeAutoSpawned: false,
     canDropFromEnemy: true,
   },
 
@@ -638,6 +663,7 @@ const ITEM_CONFIG = {
     rarity: 4,
     collection: "Torn Gluttony",
     level: 0,
+    canBeAutoSpawned: false,
     canDropFromEnemy: true,
   },
   torn_t_shirt_of_gluttony: {
@@ -649,6 +675,7 @@ const ITEM_CONFIG = {
     rarity: 4,
     collection: "Torn Gluttony",
     level: 0,
+    canBeAutoSpawned: false,
     canDropFromEnemy: true,
   },
   torn_gloves_of_gluttony: {
@@ -660,6 +687,7 @@ const ITEM_CONFIG = {
     rarity: 4,
     collection: "Torn Gluttony",
     level: 0,
+    canBeAutoSpawned: false,
     canDropFromEnemy: true,
   },
   torn_belt_of_gluttony: {
@@ -670,6 +698,7 @@ const ITEM_CONFIG = {
     rarity: 4,
     collection: "Torn Gluttony",
     level: 0,
+    canBeAutoSpawned: false,
     canDropFromEnemy: true,
   },
   torn_pants_of_gluttony: {
@@ -680,6 +709,7 @@ const ITEM_CONFIG = {
     rarity: 4,
     collection: "Torn Gluttony",
     level: 0,
+    canBeAutoSpawned: false,
     canDropFromEnemy: true,
   },
   torn_sneakers_of_gluttony: {
@@ -691,6 +721,7 @@ const ITEM_CONFIG = {
     rarity: 4,
     collection: "Torn Gluttony",
     level: 0,
+    canBeAutoSpawned: false,
     canDropFromEnemy: true,
   },
 
@@ -703,6 +734,7 @@ const ITEM_CONFIG = {
     rarity: 4,
     collection: "Torn Thirst",
     level: 0,
+    canBeAutoSpawned: false,
     canDropFromEnemy: true,
   },
   torn_t_shirt_of_thirst: {
@@ -714,6 +746,7 @@ const ITEM_CONFIG = {
     rarity: 4,
     collection: "Torn Thirst",
     level: 0,
+    canBeAutoSpawned: false,
     canDropFromEnemy: true,
   },
   torn_gloves_of_thirst: {
@@ -724,6 +757,7 @@ const ITEM_CONFIG = {
     rarity: 4,
     collection: "Torn Thirst",
     level: 0,
+    canBeAutoSpawned: false,
     canDropFromEnemy: true,
   },
   torn_belt_of_thirst: {
@@ -734,6 +768,7 @@ const ITEM_CONFIG = {
     rarity: 4,
     collection: "Torn Thirst",
     level: 0,
+    canBeAutoSpawned: false,
     canDropFromEnemy: true,
   },
   torn_pants_of_thirst: {
@@ -744,6 +779,7 @@ const ITEM_CONFIG = {
     rarity: 4,
     collection: "Torn Thirst",
     level: 0,
+    canBeAutoSpawned: false,
     canDropFromEnemy: true,
   },
   torn_sneakers_of_thirst: {
@@ -755,6 +791,7 @@ const ITEM_CONFIG = {
     rarity: 4,
     collection: "Torn Thirst",
     level: 0,
+    canBeAutoSpawned: false,
     canDropFromEnemy: true,
   },
 
@@ -767,6 +804,7 @@ const ITEM_CONFIG = {
     rarity: 4,
     collection: "Light Chameleon",
     level: 5,
+    canBeAutoSpawned: false,
     canDropFromEnemy: true,
   },
   chameleon_cap: {
@@ -778,6 +816,7 @@ const ITEM_CONFIG = {
     rarity: 4,
     collection: "Light Chameleon",
     level: 5,
+    canBeAutoSpawned: false,
     canDropFromEnemy: true,
   },
   chameleon_gloves: {
@@ -789,6 +828,7 @@ const ITEM_CONFIG = {
     rarity: 4,
     collection: "Light Chameleon",
     level: 5,
+    canBeAutoSpawned: false,
     canDropFromEnemy: true,
   },
   chameleon_pants: {
@@ -800,6 +840,7 @@ const ITEM_CONFIG = {
     rarity: 4,
     collection: "Light Chameleon",
     level: 5,
+    canBeAutoSpawned: false,
     canDropFromEnemy: true,
   },
   chameleon_sneakers: {
@@ -811,6 +852,7 @@ const ITEM_CONFIG = {
     rarity: 4,
     collection: "Light Chameleon",
     level: 5,
+    canBeAutoSpawned: false,
     canDropFromEnemy: true,
   },
   chameleon_t_shirt: {
@@ -822,6 +864,7 @@ const ITEM_CONFIG = {
     rarity: 4,
     collection: "Light Chameleon",
     level: 5,
+    canBeAutoSpawned: false,
     canDropFromEnemy: true,
   },
 
@@ -833,6 +876,7 @@ const ITEM_CONFIG = {
     rarity: 4,
     collection: "White Void",
     level: 0,
+    canBeAutoSpawned: false,
     canDropFromEnemy: true,
   },
   white_void_t_shirt: {
@@ -843,6 +887,7 @@ const ITEM_CONFIG = {
     rarity: 4,
     collection: "White Void",
     level: 0,
+    canBeAutoSpawned: false,
     canDropFromEnemy: true,
   },
   white_void_gloves: {
@@ -853,6 +898,7 @@ const ITEM_CONFIG = {
     rarity: 4,
     collection: "White Void",
     level: 0,
+    canBeAutoSpawned: false,
     canDropFromEnemy: true,
   },
   white_void_belt: {
@@ -863,6 +909,7 @@ const ITEM_CONFIG = {
     rarity: 4,
     collection: "White Void",
     level: 0,
+    canBeAutoSpawned: false,
     canDropFromEnemy: true,
   },
   white_void_pants: {
@@ -873,6 +920,7 @@ const ITEM_CONFIG = {
     rarity: 4,
     collection: "White Void",
     level: 0,
+    canBeAutoSpawned: false,
     canDropFromEnemy: true,
   },
   white_void_sneakers: {
@@ -883,6 +931,7 @@ const ITEM_CONFIG = {
     rarity: 4,
     collection: "White Void",
     level: 0,
+    canBeAutoSpawned: false,
     canDropFromEnemy: true,
   },
 
@@ -894,6 +943,7 @@ const ITEM_CONFIG = {
     rarity: 6,
     stackable: true,
     recipe: "recipe_torn_equipment",
+    canBeAutoSpawned: false,
     canDropFromEnemy: true,
   },
   recipe_chameleon_equipment: {
@@ -904,6 +954,7 @@ const ITEM_CONFIG = {
     rarity: 6,
     stackable: true,
     recipe: "recipe_chameleon_equipment",
+    canBeAutoSpawned: false,
     canDropFromEnemy: true,
   },
 
