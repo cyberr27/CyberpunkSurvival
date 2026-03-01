@@ -543,7 +543,7 @@ function runGameLoop(
   }, 30_000);
 
   // Возвращаем интервалы, чтобы можно было остановить при выключении
-  return { mainLoop, mutantAIInterval };
+  return { mainLoop /*mutantAIInterval*/ };
 }
 
 function broadcastToWorld(wss, clients, players, worldId, message) {
