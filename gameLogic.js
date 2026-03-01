@@ -1,4 +1,5 @@
 const { saveUserDatabase } = require("./database");
+const { ITEM_CONFIG } = require("./items");
 console.log(
   "plasma_rifle canBeAutoSpawned:",
   ITEM_CONFIG["plasma_rifle"]?.canBeAutoSpawned,
