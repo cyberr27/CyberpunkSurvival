@@ -33,8 +33,10 @@ function runGameLoop(
       if (worldId === 0) continue;
       const playerIds = worldPlayerCache.get(worldId) || new Set();
       if (playerIds.size === 0) continue;
+
       worldEnemiesMap.forEach((enemy) => {
         if (enemy.health <= 0) return;
+
         let closestPlayer = null;
         let minDist = Infinity;
         for (const playerId of playerIds) {
@@ -48,6 +50,7 @@ function runGameLoop(
             closestPlayer = player;
           }
         }
+
         if (closestPlayer && minDist <= AGGRO_RANGE * AGGRO_RANGE) {
           enemy.targetId = closestPlayer.id;
           const dx = closestPlayer.x - enemy.x;
@@ -75,6 +78,7 @@ function runGameLoop(
           } else {
             enemy.direction = dy > 0 ? "down" : "up";
           }
+
           if (
             minDist <= ATTACK_RANGE * ATTACK_RANGE &&
             now - enemy.lastAttackTime >= attackCooldown
@@ -93,6 +97,7 @@ function runGameLoop(
             }
             closestPlayer.health = Math.max(0, closestPlayer.health - damage);
             enemy.lastAttackTime = now;
+
             broadcastToWorld(
               wss,
               clients,
@@ -126,6 +131,7 @@ function runGameLoop(
             enemy.y += Math.sin(wanderAngle) * ENEMY_SPEED * 0.5;
           }
         }
+
         broadcastToWorld(
           wss,
           clients,
@@ -182,12 +188,35 @@ function runGameLoop(
       }
     });
 
-    const expiredItems = [];
+    // ──────────────────────────────── УДАЛЕНИЕ ПРЕДМЕТОВ ────────────────────────────────
+    const expiredItems = []; // обычные предметы → могут респауниться
+    const enemyDropExpired = []; // дроп с мобов → удаляем навсегда
+
     for (const [itemId, item] of items) {
-      if (now - item.spawnTime > 10 * 60 * 1000) {
-        expiredItems.push({ itemId, worldId: item.worldId });
-        items.delete(itemId);
+      const age = now - item.spawnTime;
+
+      if (item.isEnemyDrop === true) {
+        // Дроп с врагов — 2 минуты
+        if (age > 2 * 60 * 1000) {
+          items.delete(itemId);
+          enemyDropExpired.push({
+            itemId,
+            type: item.type,
+            worldId: item.worldId,
+          });
+        }
+      } else {
+        // Всё остальное — 10 минут
+        if (age > 10 * 60 * 1000) {
+          expiredItems.push({ itemId, worldId: item.worldId });
+          items.delete(itemId);
+        }
       }
+    }
+
+    // (опционально) логируем удаление дропа с мобов
+    if (enemyDropExpired.length > 0) {
+      console.log(`Удалено ${enemyDropExpired.length} дропов с врагов (2 мин)`);
     }
 
     const removeItemByWorld = new Map();
@@ -195,6 +224,7 @@ function runGameLoop(
       if (!removeItemByWorld.has(worldId)) removeItemByWorld.set(worldId, []);
       removeItemByWorld.get(worldId).push(itemId);
     }
+    // ────────────────────────────────────────────────────────────────────────────────────
 
     for (const world of worlds) {
       const worldId = world.id;
@@ -205,7 +235,7 @@ function runGameLoop(
         itemCounts[item.type] = (itemCounts[item.type] || 0) + 1;
       });
 
-      // Удаляем expired items per world
+      // Удаляем expired items per world (только обычные)
       const itemsToRemove = removeItemByWorld.get(worldId) || [];
       if (itemsToRemove.length > 0) {
         const removeMsg = JSON.stringify({
@@ -221,14 +251,14 @@ function runGameLoop(
         let mediumCount = playerCount * 3;
         let commonCount = playerCount * 5;
 
-        const rareItems = Object.keys(ITEM_CONFIG).filter(
-          (t) => ITEM_CONFIG[t].rarity === 1,
+        const allowedRare = Object.keys(ITEM_CONFIG).filter(
+          (t) => ITEM_CONFIG[t].canBeAutoSpawned && ITEM_CONFIG[t].rarity === 1,
         );
-        const mediumItems = Object.keys(ITEM_CONFIG).filter(
-          (t) => ITEM_CONFIG[t].rarity === 2,
+        const allowedMedium = Object.keys(ITEM_CONFIG).filter(
+          (t) => ITEM_CONFIG[t].canBeAutoSpawned && ITEM_CONFIG[t].rarity === 2,
         );
-        const commonItems = Object.keys(ITEM_CONFIG).filter(
-          (t) => ITEM_CONFIG[t].rarity === 3,
+        const allowedCommon = Object.keys(ITEM_CONFIG).filter(
+          (t) => ITEM_CONFIG[t].canBeAutoSpawned && ITEM_CONFIG[t].rarity === 3,
         );
 
         const newItems = [];
@@ -237,21 +267,7 @@ function runGameLoop(
         for (let i = 0; i < itemsToSpawn; i++) {
           let type;
 
-          const allowedRare = Object.keys(ITEM_CONFIG).filter(
-            (t) =>
-              ITEM_CONFIG[t].canBeAutoSpawned && ITEM_CONFIG[t].rarity === 1,
-          );
-          const allowedMedium = Object.keys(ITEM_CONFIG).filter(
-            (t) =>
-              ITEM_CONFIG[t].canBeAutoSpawned && ITEM_CONFIG[t].rarity === 2,
-          );
-          const allowedCommon = Object.keys(ITEM_CONFIG).filter(
-            (t) =>
-              ITEM_CONFIG[t].canBeAutoSpawned && ITEM_CONFIG[t].rarity === 3,
-          );
-
           if (rareCount > 0 && allowedRare.length > 0) {
-            // берём из разрешённых rare
             const idx = Math.floor(Math.random() * allowedRare.length);
             type = allowedRare[idx];
             rareCount--;
@@ -264,7 +280,6 @@ function runGameLoop(
             type = allowedCommon[idx];
             commonCount--;
           } else {
-            // запасной вариант — только из разрешённых
             const fallback = [
               ...allowedRare,
               ...allowedMedium,
@@ -275,7 +290,7 @@ function runGameLoop(
                 "Нет доступных предметов для спавна в мире",
                 worldId,
               );
-              continue; // вообще ничего не спавним в этом тике
+              continue;
             }
             type = fallback[Math.floor(Math.random() * fallback.length)];
           }
@@ -318,7 +333,7 @@ function runGameLoop(
         }
       }
 
-      // Мутанты: 10 на мир, кроме мира 0, если есть игроки
+      // Мутанты: 10 на мир, кроме мира 0
       if (worldId !== 0 && playerCount > 0) {
         const worldEnemiesMap = worldEnemyCache.get(worldId) || new Map();
         const desiredMutants = 10;
@@ -367,7 +382,8 @@ function runGameLoop(
           }
         }
       }
-      // Скорпионы: 10 на мир, кроме мира 0 и неонового города (worldId == 3), если есть игроки
+
+      // Скорпионы
       if (worldId !== 0 && worldId !== 3 && playerCount > 0) {
         const worldEnemiesMap = worldEnemyCache.get(worldId) || new Map();
         const desiredScorpions = 10;
@@ -417,9 +433,10 @@ function runGameLoop(
         }
       }
 
+      // Blood Eyes
       if (worldId !== 0 && worldId !== 3 && playerCount > 0) {
-        const desiredBloodEyes = 10;
         const worldEnemiesMap = worldEnemyCache.get(worldId) || new Map();
+        const desiredBloodEyes = 10;
         const currentBloodEyes = Array.from(worldEnemiesMap.values()).filter(
           (e) => e.type === "blood_eye",
         ).length;
@@ -429,7 +446,6 @@ function runGameLoop(
           const newBloodEyes = [];
 
           for (let i = 0; i < toSpawn; i++) {
-            // тот же алгоритм поиска координат что и у остальных
             let x,
               y,
               attempts = 0;

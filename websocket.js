@@ -990,6 +990,7 @@ function setupWebSocket(
                 quantity: drop.quantity || 1,
                 spawnTime: drop.spawnTime,
                 worldId: drop.worldId,
+                isEnemyDrop: true, // ← КЛЮЧЕВОЕ ИЗМЕНЕНИЕ
               });
             }
 
@@ -1001,7 +1002,10 @@ function setupWebSocket(
               data.worldId,
               JSON.stringify({
                 type: "newItem",
-                items: dropItems,
+                items: dropItems.map((item) => ({
+                  ...item,
+                  isEnemyDrop: true, 
+                })),
               }),
             );
           }

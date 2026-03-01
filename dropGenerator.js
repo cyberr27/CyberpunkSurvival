@@ -39,7 +39,6 @@ const LOW_RARITY_FOOD = [
   "milk",
   "condensed_milk",
   "dried_fish",
-  // можно добавить остальные rarity 1-3, если нужно
 ];
 
 const MELEE_WEAPONS = ["knuckles", "knife", "bat"];
@@ -66,7 +65,14 @@ function generateEnemyDrop(enemyType, x, y, worldId, now = Date.now()) {
   const roll = Math.random();
   const drops = [];
 
+  // Вспомогательная функция создания дропа
   const createDrop = (type, quantity = 1) => {
+    // Самая важная проверка — разрешён ли предмет с мобов вообще
+    if (!ITEM_CONFIG[type]?.canDropFromEnemy) {
+      console.warn(`Попытка дропнуть запрещённый предмет с моба: ${type}`);
+      return null;
+    }
+
     const itemId = `${type}_${now}_${Math.random().toString(36).slice(2, 8)}`;
     return {
       itemId,
@@ -81,73 +87,106 @@ function generateEnemyDrop(enemyType, x, y, worldId, now = Date.now()) {
 
   // 10% — ничего
   if (roll < 0.1) {
-    return drops; // пусто
+    return drops;
   }
 
   // 10% — только пакет крови
   if (roll < 0.2) {
-    drops.push(createDrop("blood_pack"));
+    const drop = createDrop("blood_pack");
+    if (drop) drops.push(drop);
     return drops;
   }
 
   // 10% — 1 баляр + пакет крови
   if (roll < 0.3) {
-    drops.push(createDrop("balyary", 1));
-    drops.push(createDrop("blood_pack"));
+    const d1 = createDrop("balyary", 1);
+    const d2 = createDrop("blood_pack");
+    if (d1) drops.push(d1);
+    if (d2) drops.push(d2);
     return drops;
   }
 
   // 10% — 1 атом + пакет крови
   if (roll < 0.4) {
-    drops.push(createDrop("atom", 1));
-    drops.push(createDrop("blood_pack"));
+    const d1 = createDrop("atom", 1);
+    const d2 = createDrop("blood_pack");
+    if (d1) drops.push(d1);
+    if (d2) drops.push(d2);
     return drops;
   }
 
-  // 10% — 1 атом + 1 баляр (без крови!)
+  // 10% — 1 атом + 1 баляр (без крови)
   if (roll < 0.5) {
-    drops.push(createDrop("atom", 1));
-    drops.push(createDrop("balyary", 1));
+    const d1 = createDrop("atom", 1);
+    const d2 = createDrop("balyary", 1);
+    if (d1) drops.push(d1);
+    if (d2) drops.push(d2);
     return drops;
   }
 
-  // 27% — любой предмет rarity 1-3 + пакет крови
-  // (было 35%, уменьшили чтобы уместить +7% torn и +6% White Void)
+  // 27% — любой разрешённый еда/напиток + пакет крови
   if (roll < 0.77) {
-    const type =
-      LOW_RARITY_FOOD[Math.floor(Math.random() * LOW_RARITY_FOOD.length)];
-    drops.push(createDrop(type));
-    drops.push(createDrop("blood_pack"));
+    const validFood = LOW_RARITY_FOOD.filter(
+      (t) => ITEM_CONFIG[t]?.canDropFromEnemy,
+    );
+    if (validFood.length > 0) {
+      const type = validFood[Math.floor(Math.random() * validFood.length)];
+      const d1 = createDrop(type);
+      const d2 = createDrop("blood_pack");
+      if (d1) drops.push(d1);
+      if (d2) drops.push(d2);
+    }
     return drops;
   }
 
   // 15% — одна порванная вещь
   if (roll < 0.92) {
-    const type = TORN_ITEMS[Math.floor(Math.random() * TORN_ITEMS.length)];
-    drops.push(createDrop(type));
+    const validTorn = TORN_ITEMS.filter(
+      (t) => ITEM_CONFIG[t]?.canDropFromEnemy,
+    );
+    if (validTorn.length > 0) {
+      const type = validTorn[Math.floor(Math.random() * validTorn.length)];
+      const drop = createDrop(type);
+      if (drop) drops.push(drop);
+    }
     return drops;
   }
 
   // 3% — оружие ближнего боя
   if (roll < 0.95) {
-    const type =
-      MELEE_WEAPONS[Math.floor(Math.random() * MELEE_WEAPONS.length)];
-    drops.push(createDrop(type));
+    const validMelee = MELEE_WEAPONS.filter(
+      (t) => ITEM_CONFIG[t]?.canDropFromEnemy,
+    );
+    if (validMelee.length > 0) {
+      const type = validMelee[Math.floor(Math.random() * validMelee.length)];
+      const drop = createDrop(type);
+      if (drop) drops.push(drop);
+    }
     return drops;
   }
 
-  // 8% — White Void
+  // 3% — White Void (очень редко)
   if (roll < 0.98) {
-    const type =
-      WHITE_VOID_ITEMS[Math.floor(Math.random() * WHITE_VOID_ITEMS.length)];
-    drops.push(createDrop(type));
+    const validWhite = WHITE_VOID_ITEMS.filter(
+      (t) => ITEM_CONFIG[t]?.canDropFromEnemy,
+    );
+    if (validWhite.length > 0) {
+      const type = validWhite[Math.floor(Math.random() * validWhite.length)];
+      const drop = createDrop(type);
+      if (drop) drops.push(drop);
+    }
     return drops;
   }
 
-  // 2% — Chameleon
-  const type =
-    CHAMELEON_ITEMS[Math.floor(Math.random() * CHAMELEON_ITEMS.length)];
-  drops.push(createDrop(type));
+  // 2% — Chameleon (самая редкая категория)
+  const validCham = CHAMELEON_ITEMS.filter(
+    (t) => ITEM_CONFIG[t]?.canDropFromEnemy,
+  );
+  if (validCham.length > 0) {
+    const type = validCham[Math.floor(Math.random() * validCham.length)];
+    const drop = createDrop(type);
+    if (drop) drops.push(drop);
+  }
 
   return drops;
 }
