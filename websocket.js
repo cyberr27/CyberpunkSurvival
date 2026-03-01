@@ -218,7 +218,13 @@ function setupWebSocket(
           }
         }
 
-        if (moved || enemy.state === "attacking") {
+        if (
+          moved ||
+          enemy.state === "attacking" ||
+          now - (enemy.lastBroadcastTime || 0) >= 400
+        ) {
+          enemy.lastBroadcastTime = now;
+
           broadcastToWorld(
             wss,
             clients,
