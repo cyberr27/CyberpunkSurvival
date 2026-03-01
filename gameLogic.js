@@ -1,9 +1,6 @@
 const { saveUserDatabase } = require("./database");
 const { ITEM_CONFIG } = require("./items");
-console.log(
-  "plasma_rifle canBeAutoSpawned:",
-  ITEM_CONFIG["plasma_rifle"]?.canBeAutoSpawned,
-);
+
 // === КОНСТАНТЫ ВРАГОВ (переносим с клиента на сервер!) ===
 const ENEMY_SPEED = 2;
 const AGGRO_RANGE = 300;
@@ -194,34 +191,34 @@ function runGameLoop(
     });
 
     // ──────────────────────────────── УДАЛЕНИЕ ПРЕДМЕТОВ ────────────────────────────────
-    const expiredItems = []; // обычные предметы → могут респауниться
-    const enemyDropExpired = []; // дроп с мобов → удаляем навсегда
+    const expiredItems = []; // обычные → 10 мин → могут респавниться
+    const permanentExpired = []; // дроп с мобов И выброшенные игроком → 2 мин → навсегда
 
     for (const [itemId, item] of items) {
-      const age = now - item.spawnTime;
+      if (!item.spawnTime) continue; // защита от битых записей
 
-      if (item.isEnemyDrop === true) {
-        // Дроп с врагов — 2 минуты
+      const age = now - item.spawnTime;
+      const isSpecialShortLife =
+        item.isEnemyDrop === true || item.isDroppedByPlayer === true;
+
+      if (isSpecialShortLife) {
+        // 2 минуты — удаляем навсегда
         if (age > 2 * 60 * 1000) {
           items.delete(itemId);
-          enemyDropExpired.push({
+          permanentExpired.push({
             itemId,
             type: item.type,
             worldId: item.worldId,
+            reason: item.isDroppedByPlayer ? "player_drop" : "enemy_drop",
           });
         }
       } else {
-        // Всё остальное — 10 минут
+        // Обычные предметы — 10 минут
         if (age > 10 * 60 * 1000) {
           expiredItems.push({ itemId, worldId: item.worldId });
           items.delete(itemId);
         }
       }
-    }
-
-    // (опционально) логируем удаление дропа с мобов
-    if (enemyDropExpired.length > 0) {
-      console.log(`Удалено ${enemyDropExpired.length} дропов с врагов (2 мин)`);
     }
 
     const removeItemByWorld = new Map();
