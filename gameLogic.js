@@ -28,7 +28,7 @@ function runGameLoop(
   enemies,
 ) {
   // === AI МУТАНТОВ (каждые 200 мс для оптимизации) ===
-  const mutantAIInterval = setInterval(() => {
+  /*const mutantAIInterval = setInterval(() => {
     const now = Date.now();
 
     for (const [worldId, worldEnemiesMap] of worldEnemyCache) {
@@ -146,7 +146,7 @@ function runGameLoop(
         );
       });
     }
-  }, 200); // 200ms для оптимизации (5 FPS update, клиент интерполирует)
+  }, 200); // 200ms для оптимизации (5 FPS update, клиент интерполирует)*/
 
   // === ОСНОВНОЙ ЦИКЛ (30 сек) ===
   const mainLoop = setInterval(() => {
@@ -543,7 +543,7 @@ function runGameLoop(
   }, 30_000);
 
   // Возвращаем интервалы, чтобы можно было остановить при выключении
-  return { mainLoop, mutantAIInterval };
+  return { mainLoop /*mutantAIInterval*/ };
 }
 
 function broadcastToWorld(wss, clients, players, worldId, message) {
