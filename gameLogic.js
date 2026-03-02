@@ -19,15 +19,6 @@ const worldEnemyCache = new Map();
 let activeMainLoop = null;
 let activeMutantAI = null;
 
-module.exports.activeMainLoop = () => activeMainLoop;
-module.exports.activeMutantAI = () => activeMutantAI;
-module.exports.setActiveMainLoop = (value) => {
-  activeMainLoop = value;
-};
-module.exports.setActiveMutantAI = (value) => {
-  activeMutantAI = value;
-};
-
 // === ОСНОВНАЯ ИГРОВАЯ ПЕТЛЯ (30 сек) ===
 function runGameLoop(
   wss,
@@ -633,4 +624,14 @@ function broadcastToWorld(wss, clients, players, worldId, message) {
   });
 }
 
-module.exports = { runGameLoop };
+module.exports = {
+  runGameLoop,
+  activeMainLoop: () => activeMainLoop,
+  activeMutantAI: () => activeMutantAI,
+  setActiveMainLoop: (value) => {
+    activeMainLoop = value;
+  },
+  setActiveMutantAI: (value) => {
+    activeMutantAI = value;
+  },
+};
