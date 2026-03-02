@@ -238,11 +238,7 @@ function setupWebSocket(
                 worldId,
                 JSON.stringify({
                   type: "update",
-                  player: {
-                    id: closestPlayer.id,
-                    health: closestPlayer.health,
-                    energy: closestPlayer.energy,
-                  },
+                  player: { id: closestPlayer.id, ...closestPlayer },
                 }),
               );
             }
@@ -273,16 +269,7 @@ function setupWebSocket(
               worldId,
               JSON.stringify({
                 type: "enemyUpdate",
-                enemy: {
-                  id: enemy.id,
-                  x: enemy.x,
-                  y: enemy.y,
-                  state: enemy.state,
-                  direction: enemy.direction,
-                  targetId: enemy.targetId,
-                  lastAttackTime: enemy.lastAttackTime || 0,
-                  health: enemy.health, // на всякий случай
-                },
+                enemy: { id: enemy.id, ...enemy },
               }),
             );
           }
