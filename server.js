@@ -138,6 +138,7 @@ async function initializeServer() {
 const PORT = process.env.PORT || 10000;
 
 function stopGameLoops() {
+  // Получаем текущие интервалы через геттеры из gameLogic
   const mainLoop = gameLogic.activeMainLoop();
   if (mainLoop) {
     clearInterval(mainLoop);
