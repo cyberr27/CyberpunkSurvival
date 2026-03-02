@@ -1219,7 +1219,7 @@ function setupWebSocket(
           const worldEnemies = Array.from(enemies.values())
             .filter((e) => e.worldId === targetWorldId && e.health > 0)
             .map((e) => ({
-              id: e.id, // ← КЛЮЧЕВОЕ: клиент ждёт "id", а не "enemyId"
+              id: e.id, // ← КРИТИЧЕСКИ важно: id, а НЕ enemyId
               x: e.x,
               y: e.y,
               health: e.health,

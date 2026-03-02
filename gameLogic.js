@@ -173,7 +173,12 @@ function runGameLoop(
         }
 
         // Отправляем обновление только если было движение или атака
-        if (moved || attacked || enemy.state === "attacking") {
+        if (
+          moved ||
+          attacked ||
+          enemy.state === "attacking" ||
+          enemy.targetId
+        ) {
           broadcastToWorld(
             wss,
             clients,
