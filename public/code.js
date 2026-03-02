@@ -2287,47 +2287,43 @@ async function handleGameMessageLogic(data) {
     case "enemyUpdate":
       if (data.enemy && data.enemy.id) {
         const enemyId = data.enemy.id;
-        const newHealth = data.enemy.health;
 
-        if (newHealth <= 0) {
-          // Сервер сказал, что моб мёртв → удаляем локально
-          if (enemies.has(enemyId)) {
-            enemies.delete(enemyId);
-          }
-          if (window.enemySystem?.handleEnemyDeath) {
-            window.enemySystem.handleEnemyDeath(enemyId);
-          }
-        } else if (enemies.has(enemyId)) {
-          // Обычное обновление живого врага
-          const existing = enemies.get(enemyId);
-          enemies.set(enemyId, {
-            ...existing,
-            ...data.enemy,
-            targetX: data.enemy.x,
-            targetY: data.enemy.y,
-          });
-        } else {
-          // Новый враг
-          enemies.set(enemyId, {
-            ...data.enemy,
-            targetX: data.enemy.x,
-            targetY: data.enemy.y,
-          });
+        // Если враг уже удалён (например, умер, но пакет пришёл позже) — игнорируем
+        if (!enemies.has(enemyId)) {
+          // Можно залогировать для отладки: console.debug(`Ignored update for dead enemy ${enemyId}`);
+          break;
         }
+
+        const existing = enemies.get(enemyId);
+        enemies.set(enemyId, {
+          ...existing,
+          ...data.enemy,
+          targetX: data.enemy.x,
+          targetY: data.enemy.y,
+        });
       }
       break;
-
     case "enemyDied":
       const deadId = data.enemyId;
-      if (enemies.has(deadId)) {
-        enemies.delete(deadId);
-      }
-      // Вызываем обработчик смерти (эффекты, звук и т.д.), если он есть
-      if (window.enemySystem && window.enemySystem.handleEnemyDeath) {
-        window.enemySystem.handleEnemyDeath(deadId);
-      }
-      break;
 
+      if (enemies.has(deadId)) {
+        // Удаляем врага из карты
+        enemies.delete(deadId);
+
+        // Дополнительно: если в enemySystem есть внутренние кэши/анимации смерти — вызываем
+        if (window.enemySystem && window.enemySystem.handleEnemyDeath) {
+          window.enemySystem.handleEnemyDeath(deadId);
+        }
+
+        // Принудительно очищаем любые возможные ссылки (на всякий случай)
+        if (window.enemySystem?.enemies) {
+          window.enemySystem.enemies.delete(deadId);
+        }
+      }
+
+      // Можно добавить визуальный эффект смерти, если хочешь
+      // Например: showNotification("Враг повержен!", "#ff4444");
+      break;
     case "newEnemy":
       // Это сообщение приходит при спавне нового врага (у тебя есть spawnNewEnemy на сервере)
       if (data.enemy && data.enemy.id) {

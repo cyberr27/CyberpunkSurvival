@@ -5134,15 +5134,6 @@ function setupWebSocket(
               }),
             );
 
-            // 2. Отправляем финальное обновление с health: 0 (перестраховка)
-            broadcastToWorld(
-              wss,
-              clients,
-              players,
-              data.worldId,
-              JSON.stringify(updateMsg),
-            );
-
             // Дроп
             const dropItems = generateEnemyDrop(
               enemy.type,
@@ -5266,7 +5257,7 @@ function setupWebSocket(
                   clients,
                   broadcastToWorld,
                 ),
-              8000 + Math.random() * 7000,
+              12000 + Math.random() * 8000, // 12–20 секунд
             );
           } else {
             // ─── Враг ещё жив ───────────────────────────────────────────────
