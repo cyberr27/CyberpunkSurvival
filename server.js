@@ -5,6 +5,7 @@ const path = require("path");
 const { connectToDatabase, loadUserDatabase } = require("./database");
 const { setupWebSocket } = require("./websocket");
 const { runGameLoop } = require("./gameLogic");
+const { runGameLoop } = gameLogic;
 const { ITEM_CONFIG } = require("./items");
 const { loadTwisterState } = require("./misterTwisterServer");
 
@@ -137,14 +138,17 @@ async function initializeServer() {
 const PORT = process.env.PORT || 10000;
 
 function stopGameLoops() {
-  if (activeMainLoop) {
-    clearInterval(activeMainLoop);
-    activeMainLoop = null;
+  const mainLoop = gameLogic.activeMainLoop();
+  if (mainLoop) {
+    clearInterval(mainLoop);
+    gameLogic.setActiveMainLoop(null);
     console.log("[Shutdown] Основной игровой цикл (30s) остановлен");
   }
-  if (activeMutantAI) {
-    clearInterval(activeMutantAI);
-    activeMutantAI = null;
+
+  const mutantAI = gameLogic.activeMutantAI();
+  if (mutantAI) {
+    clearInterval(mutantAI);
+    gameLogic.setActiveMutantAI(null);
     console.log("[Shutdown] AI мутантов (200ms) остановлен");
   }
 }
