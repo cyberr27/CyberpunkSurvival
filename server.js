@@ -136,6 +136,37 @@ async function initializeServer() {
 
 const PORT = process.env.PORT || 10000;
 
+function stopGameLoops() {
+  if (activeMainLoop) {
+    clearInterval(activeMainLoop);
+    activeMainLoop = null;
+    console.log("[Shutdown] Основной игровой цикл (30s) остановлен");
+  }
+  if (activeMutantAI) {
+    clearInterval(activeMutantAI);
+    activeMutantAI = null;
+    console.log("[Shutdown] AI мутантов (200ms) остановлен");
+  }
+}
+
+process.on("SIGINT", () => {
+  console.log("\n[Server] Получен SIGINT → graceful shutdown...");
+  stopGameLoops();
+  server.close(() => {
+    console.log("[Server] HTTP-сервер закрыт");
+    process.exit(0);
+  });
+});
+
+process.on("SIGTERM", () => {
+  console.log("[Server] Получен SIGTERM → graceful shutdown...");
+  stopGameLoops();
+  server.close(() => {
+    console.log("[Server] HTTP-сервер закрыт");
+    process.exit(0);
+  });
+});
+
 initializeServer()
   .then(() => {
     server.listen(PORT, () => {

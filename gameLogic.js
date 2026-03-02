@@ -15,6 +15,10 @@ const worldPlayerCache = new Map();
 const worldItemCache = new Map();
 const worldEnemyCache = new Map();
 
+// Глобальные переменные для управления интервалами (чтобы можно было остановить)
+let activeMainLoop = null;
+let activeMutantAI = null;
+
 // === ОСНОВНАЯ ИГРОВАЯ ПЕТЛЯ (30 сек) ===
 function runGameLoop(
   wss,
@@ -27,15 +31,34 @@ function runGameLoop(
   userDatabase,
   enemies,
 ) {
+  // 1. Останавливаем предыдущие интервалы, если они были запущены
+  if (activeMainLoop) {
+    clearInterval(activeMainLoop);
+    activeMainLoop = null;
+    console.log("[GameLoop] Предыдущий основной цикл (30s) остановлен");
+  }
+  if (activeMutantAI) {
+    clearInterval(activeMutantAI);
+    activeMutantAI = null;
+    console.log("[GameLoop] Предыдущий AI мутантов (200ms) остановлен");
+  }
+
   // === AI МУТАНТОВ (каждые 200 мс для оптимизации) ===
   const mutantAIInterval = setInterval(() => {
     const now = Date.now();
 
-    // Кэши уже есть глобально и обновляются в 30-секундном цикле → используем их
+    // Быстрый выход, если вообще нет активных миров с игроками
+    if (worldPlayerCache.size === 0) return;
+
     for (const [worldId, worldEnemiesMap] of worldEnemyCache) {
       if (worldId === 0) continue;
-      const playerIds = worldPlayerCache.get(worldId) || new Set();
-      if (playerIds.size === 0) continue;
+
+      const playerIds = worldPlayerCache.get(worldId);
+      // Если в мире нет игроков — пропускаем полностью
+      if (!playerIds || playerIds.size === 0) continue;
+
+      // Если в мире нет врагов — тоже пропускаем
+      if (worldEnemiesMap.size === 0) continue;
 
       worldEnemiesMap.forEach((enemy) => {
         if (enemy.health <= 0) return;
@@ -184,6 +207,8 @@ function runGameLoop(
       });
     }
   }, 200);
+
+  console.log("[GameLoop] AI мутантов запущен — интервал 200 мс");
 
   // === ОСНОВНОЙ ЦИКЛ (30 сек) ===
   const mainLoop = setInterval(() => {
@@ -579,7 +604,12 @@ function runGameLoop(
     }
   }, 30_000);
 
-  // Возвращаем интервалы, чтобы можно было остановить при выключении
+  console.log("[GameLoop] Основной цикл запущен — интервал 30 сек");
+
+  activeMainLoop = mainLoop;
+  activeMutantAI = mutantAIInterval;
+
+  // Возвращаем интервалы, чтобы можно было остановить при выключении (совместимость)
   return { mainLoop, mutantAIInterval };
 }
 
