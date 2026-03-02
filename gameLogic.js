@@ -615,8 +615,8 @@ function runGameLoop(
 
   console.log("[GameLoop] Основной цикл запущен — интервал 30 сек");
 
-  gameLogic.setActiveMainLoop(mainLoop);
-  gameLogic.setActiveMutantAI(mutantAIInterval);
+  activeMainLoop = mainLoop;
+  activeMutantAI = mutantAIInterval;
 
   // Возвращаем интервалы, чтобы можно было остановить при выключении (совместимость)
   return { mainLoop, mutantAIInterval };
