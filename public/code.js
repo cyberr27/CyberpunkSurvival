@@ -20,6 +20,7 @@ let ws;
 let players = new Map();
 let myId;
 const items = new Map();
+const recentlyDeadEnemies = new Set();
 window.incomingMessageQueue = [];
 window.isProcessingMessages = false;
 
@@ -2288,50 +2289,108 @@ async function handleGameMessageLogic(data) {
       if (data.enemy && data.enemy.id) {
         const enemyId = data.enemy.id;
 
-        // Если враг уже удалён (например, умер, но пакет пришёл позже) — игнорируем
-        if (!enemies.has(enemyId)) {
-          // Можно залогировать для отладки: console.debug(`Ignored update for dead enemy ${enemyId}`);
+        // 1. Игнорируем любые обновления мёртвых/недавно умерших
+        if (recentlyDeadEnemies.has(enemyId)) {
           break;
         }
 
-        const existing = enemies.get(enemyId);
-        enemies.set(enemyId, {
-          ...existing,
-          ...data.enemy,
-          targetX: data.enemy.x,
-          targetY: data.enemy.y,
-        });
+        // 2. Если сервер прислал health <= 0 — сразу удаляем
+        if (data.enemy.health <= 0) {
+          if (enemies.has(enemyId)) {
+            enemies.delete(enemyId);
+          }
+          if (window.enemySystem?.handleEnemyDeath) {
+            window.enemySystem.handleEnemyDeath(enemyId);
+          }
+          recentlyDeadEnemies.add(enemyId);
+          setTimeout(() => recentlyDeadEnemies.delete(enemyId), 30000);
+          break;
+        }
+
+        // 3. Живой враг — обновляем (HP берём строго из пакета, без сглаживания)
+        let enemyObj;
+        if (enemies.has(enemyId)) {
+          enemyObj = enemies.get(enemyId);
+          // Важно: HP берём ТОЛЬКО из пакета, не усредняем и не интерполируем
+          console.log(
+            `[ENEMY HP] ${enemyId} ← server sent ${data.enemy.health}, was ${enemyObj?.health || "new"}`,
+          );
+          enemyObj.health = Number(data.enemy.health);
+          // Остальные поля обновляем
+          Object.assign(enemyObj, {
+            x: data.enemy.x,
+            y: data.enemy.y,
+            targetX: data.enemy.x,
+            targetY: data.enemy.y,
+            direction: data.enemy.direction || enemyObj.direction,
+            state: data.enemy.state || enemyObj.state,
+          });
+        } else {
+          // Новый враг — создаём с точным HP из пакета
+          enemyObj = {
+            ...data.enemy,
+            targetX: data.enemy.x,
+            targetY: data.enemy.y,
+            health: Number(data.enemy.health), // строго
+          };
+          enemies.set(enemyId, enemyObj);
+        }
+
+        // Сбрасываем анимацию только если нужно (не трогаем HP)
+        if (
+          data.enemy.state === "walking" ||
+          data.enemy.state === "attacking"
+        ) {
+          enemyObj.walkFrameTime = 0; // чтобы не было дёрганья
+        }
       }
       break;
     case "enemyDied":
       const deadId = data.enemyId;
 
       if (enemies.has(deadId)) {
-        // Удаляем врага из карты
         enemies.delete(deadId);
 
-        // Дополнительно: если в enemySystem есть внутренние кэши/анимации смерти — вызываем
         if (window.enemySystem && window.enemySystem.handleEnemyDeath) {
           window.enemySystem.handleEnemyDeath(deadId);
         }
 
-        // Принудительно очищаем любые возможные ссылки (на всякий случай)
         if (window.enemySystem?.enemies) {
           window.enemySystem.enemies.delete(deadId);
         }
       }
 
-      // Можно добавить визуальный эффект смерти, если хочешь
-      // Например: showNotification("Враг повержен!", "#ff4444");
+      // Запоминаем, что этот враг недавно умер (игнорируем любые обновления 30 сек)
+      recentlyDeadEnemies.add(deadId);
+      setTimeout(() => recentlyDeadEnemies.delete(deadId), 30000);
+
       break;
     case "newEnemy":
-      // Это сообщение приходит при спавне нового врага (у тебя есть spawnNewEnemy на сервере)
       if (data.enemy && data.enemy.id) {
-        enemies.set(data.enemy.id, {
-          ...data.enemy,
-          targetX: data.enemy.x,
-          targetY: data.enemy.y,
-        });
+        const enemyId = data.enemy.id;
+
+        // Если уже есть (дубликат пакета) — просто обновляем
+        if (enemies.has(enemyId)) {
+          const existing = enemies.get(enemyId);
+          enemies.set(enemyId, {
+            ...existing,
+            ...data.enemy,
+            targetX: data.enemy.x,
+            targetY: data.enemy.y,
+          });
+        } else {
+          // Новый враг
+          enemies.set(enemyId, {
+            ...data.enemy,
+            targetX: data.enemy.x,
+            targetY: data.enemy.y,
+          });
+        }
+
+        // Дополнительно: если enemySystem имеет свою карту — синхронизируем туда тоже
+        if (window.enemySystem?.enemies) {
+          window.enemySystem.enemies.set(enemyId, enemies.get(enemyId));
+        }
       }
       break;
     case "enemyKilled":
