@@ -29,7 +29,6 @@ function runGameLoop(
 ) {
   // === AI МУТАНТОВ (каждые 200 мс для оптимизации) ===
   const mutantAIInterval = setInterval(() => {
-    console.log(`[ENEMY-AI] Тик ${Date.now()}, врагов всего: ${enemies.size}`);
     const now = Date.now();
 
     // Кэши уже есть глобально и обновляются в 30-секундном цикле → используем их
