@@ -610,7 +610,7 @@ function runGameLoop(
   activeMutantAI = mutantAIInterval;
 
   // Возвращаем интервалы, чтобы можно было остановить при выключении (совместимость)
-  return { mainLoop, mutantAIInterval,activeMainLoop, activeMutantAI };
+  return { mainLoop, mutantAIInterval };
 }
 
 function broadcastToWorld(wss, clients, players, worldId, message) {
@@ -624,4 +624,4 @@ function broadcastToWorld(wss, clients, players, worldId, message) {
   });
 }
 
-module.exports = { runGameLoop };
+module.exports = { runGameLoop, activeMainLoop, activeMutantAI };

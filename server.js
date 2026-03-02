@@ -4,7 +4,7 @@ const WebSocket = require("ws");
 const path = require("path");
 const { connectToDatabase, loadUserDatabase } = require("./database");
 const { setupWebSocket } = require("./websocket");
-const { runGameLoop } = require("./gameLogic");
+const { runGameLoop, activeMainLoop, activeMutantAI } = require("./gameLogic");
 const { ITEM_CONFIG } = require("./items");
 const { loadTwisterState } = require("./misterTwisterServer");
 
