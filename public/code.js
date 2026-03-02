@@ -2287,19 +2287,27 @@ async function handleGameMessageLogic(data) {
     case "enemyUpdate":
       if (data.enemy && data.enemy.id) {
         const enemyId = data.enemy.id;
+        const newHealth = data.enemy.health;
 
-        if (enemies.has(enemyId)) {
-          // Существующий враг — обновляем поля (с сохранением локальных данных, если нужно)
+        if (newHealth <= 0) {
+          // Сервер сказал, что моб мёртв → удаляем локально
+          if (enemies.has(enemyId)) {
+            enemies.delete(enemyId);
+          }
+          if (window.enemySystem?.handleEnemyDeath) {
+            window.enemySystem.handleEnemyDeath(enemyId);
+          }
+        } else if (enemies.has(enemyId)) {
+          // Обычное обновление живого врага
           const existing = enemies.get(enemyId);
           enemies.set(enemyId, {
             ...existing,
             ...data.enemy,
-            // Для плавной интерполяции движения врагов (если у тебя есть система интерполяции)
             targetX: data.enemy.x,
             targetY: data.enemy.y,
           });
         } else {
-          // Новый враг (пришёл впервые, например, при входе в мир или спавне)
+          // Новый враг
           enemies.set(enemyId, {
             ...data.enemy,
             targetX: data.enemy.x,

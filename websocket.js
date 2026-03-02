@@ -5081,34 +5081,48 @@ function setupWebSocket(
           const attacker = players.get(attackerId);
           if (!attacker) continue;
 
-          // Простейший rate-limit на уровне сервера (~1 атака / 350 мс)
+          // Rate-limit ~350 мс между атаками одного игрока
           const now = Date.now();
           if (attacker.lastAttackTime && now - attacker.lastAttackTime < 350) {
-            continue; // слишком быстро → пропускаем
+            continue;
           }
           attacker.lastAttackTime = now;
 
           const enemy = enemies.get(data.targetId);
-          if (!enemy || enemy.worldId !== data.worldId || enemy.health <= 0) {
+          if (!enemy || enemy.worldId !== data.worldId) {
             continue;
           }
 
-          // Проверяем расстояние (опционально, но очень рекомендуется)
+          // Даже если health уже <=0 — пропускаем, но не падаем
+          if (enemy.health <= 0) continue;
+
+          // Проверка дистанции (анти-чит/анти-лаг)
           const dx = attacker.x - enemy.x;
           const dy = attacker.y - enemy.y;
           const distSq = dx * dx + dy * dy;
-          if (distSq > 120 * 120) {
-            // примерно 2–2.5 тайла
-            continue; // слишком далеко → чит или лаг
-          }
+          if (distSq > 120 * 120) continue;
 
-          // Наносим урон
+          // ─── Наносим урон ────────────────────────────────────────────────
+          const oldHealth = enemy.health;
           enemy.health = Math.max(0, enemy.health - data.damage);
 
-          // Если умер
+          // Подготавливаем сообщение об обновлении (всегда отправляем текущее состояние)
+          const updateMsg = {
+            type: "enemyUpdate",
+            enemy: {
+              id: data.targetId,
+              health: enemy.health,
+              x: enemy.x,
+              y: enemy.y,
+              // можно добавить direction/state если они меняются при смерти, но пока не обязательно
+            },
+          };
+
           if (enemy.health <= 0) {
+            // ─── Смерть ───────────────────────────────────────────────────
             enemies.delete(data.targetId);
 
+            // 1. Сообщаем всем о смерти
             broadcastToWorld(
               wss,
               clients,
@@ -5118,6 +5132,15 @@ function setupWebSocket(
                 type: "enemyDied",
                 enemyId: data.targetId,
               }),
+            );
+
+            // 2. Отправляем финальное обновление с health: 0 (перестраховка)
+            broadcastToWorld(
+              wss,
+              clients,
+              players,
+              data.worldId,
+              JSON.stringify(updateMsg),
             );
 
             // Дроп
@@ -5157,7 +5180,7 @@ function setupWebSocket(
               );
             }
 
-            // XP
+            // XP и лвл-ап
             let xpGained = 13;
             if (enemy.type === "scorpion") xpGained = 20;
             if (enemy.type === "blood_eye") xpGained = 50;
@@ -5185,7 +5208,7 @@ function setupWebSocket(
               if (ws.readyState === WebSocket.OPEN) {
                 ws.send(
                   JSON.stringify({
-                    type: "levelUpSuccess", // ← меняем на существующий тип, который уже обрабатывается на клиенте
+                    type: "levelUpSuccess",
                     level: attacker.level,
                     xp: attacker.xp,
                     xpToNextLevel: calculateXPToNextLevel(attacker.level),
@@ -5210,7 +5233,7 @@ function setupWebSocket(
               );
             }
 
-            // Прогресс квеста neon_quest_1
+            // Прогресс квеста
             if (enemy.type === "mutant") {
               if (
                 attacker.neonQuest &&
@@ -5231,7 +5254,7 @@ function setupWebSocket(
               }
             }
 
-            // Респавн
+            // Респавн через 8–15 сек
             setTimeout(
               () =>
                 spawnNewEnemy(
@@ -5246,27 +5269,20 @@ function setupWebSocket(
               8000 + Math.random() * 7000,
             );
           } else {
-            // Враг жив → обновляем только HP
+            // ─── Враг ещё жив ───────────────────────────────────────────────
             enemies.set(data.targetId, { ...enemy });
 
+            // Отправляем обновление здоровья всем в мире
             broadcastToWorld(
               wss,
               clients,
               players,
               data.worldId,
-              JSON.stringify({
-                type: "enemyUpdate",
-                enemy: {
-                  id: data.targetId,
-                  health: enemy.health,
-                  x: enemy.x,
-                  y: enemy.y,
-                },
-              }),
+              JSON.stringify(updateMsg),
             );
           }
 
-          // Сохраняем атакующего (XP, level и т.д.)
+          // Сохраняем изменения атакующего
           players.set(attackerId, { ...attacker });
           userDatabase.set(attackerId, { ...attacker });
           await saveUserDatabase(dbCollection, attackerId, attacker);
