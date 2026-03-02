@@ -15,7 +15,6 @@ const worldPlayerCache = new Map();
 const worldItemCache = new Map();
 const worldEnemyCache = new Map();
 
-// Глобальные переменные для управления интервалами (чтобы можно было остановить)
 let activeMainLoop = null;
 let activeMutantAI = null;
 
@@ -624,4 +623,17 @@ function broadcastToWorld(wss, clients, players, worldId, message) {
   });
 }
 
-module.exports = { runGameLoop };
+function stopGameLoops() {
+  if (activeMainLoop) {
+    clearInterval(activeMainLoop);
+    activeMainLoop = null;
+    console.log("[Shutdown] Основной игровой цикл (30s) остановлен");
+  }
+  if (activeMutantAI) {
+    clearInterval(activeMutantAI);
+    activeMutantAI = null;
+    console.log("[Shutdown] AI мутантов (200ms) остановлен");
+  }
+}
+
+module.exports = { runGameLoop, stopGameLoops };
