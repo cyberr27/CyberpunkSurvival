@@ -1,7 +1,6 @@
 const { saveUserDatabase } = require("./database");
 const { ITEM_CONFIG } = require("./items");
 
-// === КОНСТАНТЫ ВРАГОВ (переносим с клиента на сервер!) ===
 const ENEMY_SPEED = 2;
 const AGGRO_RANGE = 300;
 const ATTACK_RANGE = 50;
@@ -15,11 +14,9 @@ const worldPlayerCache = new Map();
 const worldItemCache = new Map();
 const worldEnemyCache = new Map();
 
-// Глобальные переменные для управления интервалами (чтобы можно было остановить)
 let activeMainLoop = null;
 let activeMutantAI = null;
 
-// === ОСНОВНАЯ ИГРОВАЯ ПЕТЛЯ (30 сек) ===
 function runGameLoop(
   wss,
   dbCollection,
@@ -29,35 +26,28 @@ function runGameLoop(
   worlds,
   ITEM_CONFIG,
   userDatabase,
-  enemies,
+  enemyMap,
 ) {
-  // 1. Останавливаем предыдущие интервалы, если они были запущены
   if (activeMainLoop) {
     clearInterval(activeMainLoop);
     activeMainLoop = null;
-    console.log("[GameLoop] Предыдущий основной цикл (30s) остановлен");
   }
   if (activeMutantAI) {
     clearInterval(activeMutantAI);
     activeMutantAI = null;
-    console.log("[GameLoop] Предыдущий AI мутантов (200ms) остановлен");
   }
 
-  // === AI МУТАНТОВ (каждые 200 мс для оптимизации) ===
   const mutantAIInterval = setInterval(() => {
     const now = Date.now();
 
-    // Быстрый выход, если вообще нет активных миров с игроками
     if (worldPlayerCache.size === 0) return;
 
     for (const [worldId, worldEnemiesMap] of worldEnemyCache) {
       if (worldId === 0) continue;
 
       const playerIds = worldPlayerCache.get(worldId);
-      // Если в мире нет игроков — пропускаем полностью
       if (!playerIds || playerIds.size === 0) continue;
 
-      // Если в мире нет врагов — тоже пропускаем
       if (worldEnemiesMap.size === 0) continue;
 
       worldEnemiesMap.forEach((enemy) => {
@@ -90,10 +80,10 @@ function runGameLoop(
 
           let speed = ENEMY_SPEED;
           let attackCooldown = ENEMY_ATTACK_COOLDOWN;
-          let minDmg = 10,
-            maxDmg = 15;
-          let minEnergyDmg = 0,
-            maxEnergyDmg = 0;
+          let minDmg = 10;
+          let maxDmg = 15;
+          let minEnergyDmg = 0;
+          let maxEnergyDmg = 0;
 
           if (enemy.type === "scorpion") {
             speed = 4;
@@ -109,7 +99,6 @@ function runGameLoop(
             maxDmg = 18;
           }
 
-          // Движение
           if (minDistSq > ATTACK_RANGE * ATTACK_RANGE) {
             const angle = Math.atan2(dy, dx);
             enemy.x += Math.cos(angle) * speed;
@@ -119,14 +108,12 @@ function runGameLoop(
 
           enemy.state = "walking";
 
-          // Направление
           if (Math.abs(dx) > Math.abs(dy)) {
             enemy.direction = dx > 0 ? "right" : "left";
           } else {
             enemy.direction = dy > 0 ? "down" : "up";
           }
 
-          // Атака
           if (
             minDistSq <= ATTACK_RANGE * ATTACK_RANGE &&
             now - (enemy.lastAttackTime || 0) >= attackCooldown
@@ -191,7 +178,6 @@ function runGameLoop(
           }
         }
 
-        // Отправляем обновление только если было движение или атака
         if (moved || attacked || enemy.state === "attacking") {
           broadcastToWorld(
             wss,
@@ -208,9 +194,6 @@ function runGameLoop(
     }
   }, 200);
 
-  console.log("[GameLoop] AI мутантов запущен — интервал 200 мс");
-
-  // === ОСНОВНОЙ ЦИКЛ (30 сек) ===
   const mainLoop = setInterval(() => {
     const currentTime = Date.now();
     const now = currentTime;
@@ -226,7 +209,7 @@ function runGameLoop(
       worldPlayerCache.get(player.worldId).add(player.id);
     }
 
-    for (const [enemyId, enemy] of enemies) {
+    for (const [enemyId, enemy] of enemyMap) {
       if (!worldEnemyCache.has(enemy.worldId)) {
         worldEnemyCache.set(enemy.worldId, new Map());
       }
@@ -252,30 +235,26 @@ function runGameLoop(
       }
     });
 
-    // ──────────────────────────────── УДАЛЕНИЕ ПРЕДМЕТОВ ────────────────────────────────
-    const expiredItems = []; // обычные → 10 мин → могут респавниться
-    const permanentExpired = []; // дроп с мобов И выброшенные игроком → 2 мин → навсегда
+    const expiredItems = [];
+    const permanentExpired = [];
 
     for (const [itemId, item] of items) {
-      if (!item.spawnTime) continue; // защита от битых записей
+      if (!item.spawnTime) continue;
 
       const age = now - item.spawnTime;
       const isSpecialShortLife =
         item.isEnemyDrop === true || item.isDroppedByPlayer === true;
 
       if (isSpecialShortLife) {
-        // 2 минуты — удаляем навсегда
         if (age > 2 * 60 * 1000) {
           items.delete(itemId);
           permanentExpired.push({
             itemId,
             type: item.type,
             worldId: item.worldId,
-            reason: item.isDroppedByPlayer ? "player_drop" : "enemy_drop",
           });
         }
       } else {
-        // Обычные предметы — 10 минут
         if (age > 10 * 60 * 1000) {
           expiredItems.push({ itemId, worldId: item.worldId });
           items.delete(itemId);
@@ -288,7 +267,6 @@ function runGameLoop(
       if (!removeItemByWorld.has(worldId)) removeItemByWorld.set(worldId, []);
       removeItemByWorld.get(worldId).push(itemId);
     }
-    // ────────────────────────────────────────────────────────────────────────────────────
 
     for (const world of worlds) {
       const worldId = world.id;
@@ -299,7 +277,6 @@ function runGameLoop(
         itemCounts[item.type] = (itemCounts[item.type] || 0) + 1;
       });
 
-      // Удаляем expired items per world (только обычные)
       const itemsToRemove = removeItemByWorld.get(worldId) || [];
       if (itemsToRemove.length > 0) {
         const removeMsg = JSON.stringify({
@@ -326,7 +303,6 @@ function runGameLoop(
         );
 
         const newItems = [];
-        const atomSpawns = [];
 
         for (let i = 0; i < itemsToSpawn; i++) {
           let type;
@@ -349,13 +325,7 @@ function runGameLoop(
               ...allowedMedium,
               ...allowedCommon,
             ];
-            if (fallback.length === 0) {
-              console.warn(
-                "Нет доступных предметов для спавна в мире",
-                worldId,
-              );
-              continue;
-            }
+            if (fallback.length === 0) continue;
             type = fallback[Math.floor(Math.random() * fallback.length)];
           }
 
@@ -375,15 +345,6 @@ function runGameLoop(
             items.set(itemId, newItem);
             worldItemsMap.set(itemId, newItem);
             newItems.push({ itemId, x, y, type, spawnTime: now, worldId });
-
-            // ─── ЛОГ АВТОСПАВНА (только для проверки механики) ────────────────────────
-            console.log(
-              `[AUTO-SPAWN] Мир ${worldId} | ${type} (${itemId}) | ` +
-                `rarity: ${ITEM_CONFIG[type]?.rarity || "?"} | ` +
-                `canAuto: ${ITEM_CONFIG[type]?.canBeAutoSpawned ?? false} | ` +
-                `x:${Math.round(x)}, y:${Math.round(y)}`,
-            );
-            // ────────────────────────────────────────────────────────────────────────
           }
         }
 
@@ -391,16 +352,8 @@ function runGameLoop(
           const msg = JSON.stringify({ type: "newItem", items: newItems });
           broadcastToWorld(wss, clients, players, worldId, msg);
         }
-        if (atomSpawns.length > 0) {
-          const atomMsg = JSON.stringify({
-            type: "atomSpawned",
-            messages: atomSpawns,
-          });
-          broadcastToWorld(wss, clients, players, worldId, atomMsg);
-        }
       }
 
-      // Мутанты: 10 на мир, кроме мира 0
       if (worldId !== 0 && playerCount > 0) {
         const worldEnemiesMap = worldEnemyCache.get(worldId) || new Map();
         const desiredMutants = 10;
@@ -435,7 +388,7 @@ function runGameLoop(
                 lastAttackTime: 0,
                 type: "mutant",
               };
-              enemies.set(enemyId, newEnemy);
+              enemyMap.set(enemyId, newEnemy);
               worldEnemiesMap.set(enemyId, newEnemy);
               newMutants.push({ ...newEnemy });
             }
@@ -446,116 +399,6 @@ function runGameLoop(
               enemies: newMutants,
             });
             broadcastToWorld(wss, clients, players, worldId, msg);
-          }
-        }
-      }
-
-      // Скорпионы
-      if (worldId !== 0 && worldId !== 3 && playerCount > 0) {
-        const worldEnemiesMap = worldEnemyCache.get(worldId) || new Map();
-        const desiredScorpions = 10;
-        const currentScorpions = Array.from(worldEnemiesMap.values()).filter(
-          (e) => e.type === "scorpion",
-        ).length;
-        if (currentScorpions < desiredScorpions) {
-          const toSpawn = desiredScorpions - currentScorpions;
-          const newScorpions = [];
-          for (let i = 0; i < toSpawn; i++) {
-            let x,
-              y,
-              attempts = 0;
-            const maxAttempts = 10;
-            do {
-              x = Math.random() * world.width;
-              y = Math.random() * world.height;
-              attempts++;
-            } while (checkCollisionServer(x, y) && attempts < maxAttempts);
-            if (attempts < maxAttempts) {
-              const enemyId = `scorpion_${Date.now()}_${i}`;
-              const newEnemy = {
-                id: enemyId,
-                x,
-                y,
-                health: 250,
-                direction: "down",
-                state: "idle",
-                frame: 0,
-                worldId,
-                targetId: null,
-                lastAttackTime: 0,
-                type: "scorpion",
-              };
-              enemies.set(enemyId, newEnemy);
-              worldEnemiesMap.set(enemyId, newEnemy);
-              newScorpions.push({ ...newEnemy });
-            }
-          }
-          if (newScorpions.length > 0) {
-            const msg = JSON.stringify({
-              type: "newEnemies",
-              enemies: newScorpions,
-            });
-            broadcastToWorld(wss, clients, players, worldId, msg);
-          }
-        }
-      }
-
-      // Blood Eyes
-      if (worldId !== 0 && worldId !== 3 && playerCount > 0) {
-        const worldEnemiesMap = worldEnemyCache.get(worldId) || new Map();
-        const desiredBloodEyes = 10;
-        const currentBloodEyes = Array.from(worldEnemiesMap.values()).filter(
-          (e) => e.type === "blood_eye",
-        ).length;
-
-        if (currentBloodEyes < desiredBloodEyes) {
-          const toSpawn = desiredBloodEyes - currentBloodEyes;
-          const newBloodEyes = [];
-
-          for (let i = 0; i < toSpawn; i++) {
-            let x,
-              y,
-              attempts = 0;
-            const maxAttempts = 10;
-            do {
-              x = Math.random() * world.width;
-              y = Math.random() * world.height;
-              attempts++;
-            } while (checkCollisionServer(x, y) && attempts < maxAttempts);
-
-            if (attempts < maxAttempts) {
-              const enemyId = `blood_eye_${Date.now()}_${i}`;
-              const newEnemy = {
-                id: enemyId,
-                x,
-                y,
-                health: 300,
-                maxHealth: 300,
-                direction: "down",
-                state: "idle",
-                frame: 0,
-                worldId,
-                targetId: null,
-                lastAttackTime: 0,
-                type: "blood_eye",
-              };
-              enemies.set(enemyId, newEnemy);
-              worldEnemiesMap.set(enemyId, newEnemy);
-              newBloodEyes.push({ ...newEnemy });
-            }
-          }
-
-          if (newBloodEyes.length > 0) {
-            broadcastToWorld(
-              wss,
-              clients,
-              players,
-              worldId,
-              JSON.stringify({
-                type: "newEnemies",
-                enemies: newBloodEyes,
-              }),
-            );
           }
         }
       }
@@ -582,11 +425,7 @@ function runGameLoop(
           const visibleItems = allItems.filter((item) => {
             const serverItem = items.get(item.itemId);
             if (!serverItem) return false;
-
-            // обычные предметы видят все
             if (!serverItem.isQuestItem) return true;
-
-            // квестовые — ТОЛЬКО владелец
             return serverItem.questOwnerId === playerId;
           });
 
@@ -602,14 +441,13 @@ function runGameLoop(
         });
       }
     }
-  }, 30_000);
+  }, 30000);
 
   console.log("[GameLoop] Основной цикл запущен — интервал 30 сек");
 
   activeMainLoop = mainLoop;
   activeMutantAI = mutantAIInterval;
 
-  // Возвращаем интервалы, чтобы можно было остановить при выключении (совместимость)
   return { mainLoop, mutantAIInterval };
 }
 
