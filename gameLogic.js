@@ -27,6 +27,127 @@ function runGameLoop(
   userDatabase,
   enemies,
 ) {
+  // === AI МУТАНТОВ (каждые 200 мс для оптимизации) ===
+  const mutantAIInterval = setInterval(() => {
+    const now = Date.now();
+
+    for (const [worldId, worldEnemiesMap] of worldEnemyCache) {
+      if (worldId === 0) continue;
+      const playerIds = worldPlayerCache.get(worldId) || new Set();
+      if (playerIds.size === 0) continue;
+
+      worldEnemiesMap.forEach((enemy) => {
+        if (enemy.health <= 0) return;
+
+        let closestPlayer = null;
+        let minDist = Infinity;
+        for (const playerId of playerIds) {
+          const player = players.get(playerId);
+          if (!player || player.health <= 0) continue;
+          const dx = player.x - enemy.x;
+          const dy = player.y - enemy.y;
+          const dist = dx * dx + dy * dy;
+          if (dist < minDist) {
+            minDist = dist;
+            closestPlayer = player;
+          }
+        }
+
+        if (closestPlayer && minDist <= AGGRO_RANGE * AGGRO_RANGE) {
+          enemy.targetId = closestPlayer.id;
+          const dx = closestPlayer.x - enemy.x;
+          const dy = closestPlayer.y - enemy.y;
+          let speed = ENEMY_SPEED;
+          let attackCooldown = ENEMY_ATTACK_COOLDOWN;
+          let minDmg = 10,
+            maxDmg = 15,
+            minEnergy = 0,
+            maxEnergy = 0;
+          if (enemy.type === "scorpion") {
+            speed = 4;
+            attackCooldown = 1000;
+            minDmg = 5;
+            maxDmg = 10;
+            minEnergy = 1;
+            maxEnergy = 2;
+          }
+          const angle = Math.atan2(dy, dx);
+          enemy.x += Math.cos(angle) * speed;
+          enemy.y += Math.sin(angle) * speed;
+          enemy.state = "walking";
+          if (Math.abs(dx) > Math.abs(dy)) {
+            enemy.direction = dx > 0 ? "right" : "left";
+          } else {
+            enemy.direction = dy > 0 ? "down" : "up";
+          }
+
+          if (
+            minDist <= ATTACK_RANGE * ATTACK_RANGE &&
+            now - enemy.lastAttackTime >= attackCooldown
+          ) {
+            const damage =
+              Math.floor(Math.random() * (maxDmg - minDmg + 1)) + minDmg;
+            let energyDmg = 0;
+            if (enemy.type === "scorpion") {
+              energyDmg =
+                Math.floor(Math.random() * (maxEnergy - minEnergy + 1)) +
+                minEnergy;
+              closestPlayer.energy = Math.max(
+                0,
+                closestPlayer.energy - energyDmg,
+              );
+            }
+            closestPlayer.health = Math.max(0, closestPlayer.health - damage);
+            enemy.lastAttackTime = now;
+
+            broadcastToWorld(
+              wss,
+              clients,
+              players,
+              worldId,
+              JSON.stringify({
+                type: "enemyAttack",
+                enemyId: enemy.id,
+                targetId: closestPlayer.id,
+                damage,
+                energyDmg,
+              }),
+            );
+            broadcastToWorld(
+              wss,
+              clients,
+              players,
+              worldId,
+              JSON.stringify({
+                type: "update",
+                player: { id: closestPlayer.id, ...closestPlayer },
+              }),
+            );
+          }
+        } else {
+          enemy.targetId = null;
+          enemy.state = "idle";
+          if (Math.random() < 0.1) {
+            const wanderAngle = Math.random() * Math.PI * 2;
+            enemy.x += Math.cos(wanderAngle) * ENEMY_SPEED * 0.5;
+            enemy.y += Math.sin(wanderAngle) * ENEMY_SPEED * 0.5;
+          }
+        }
+
+        broadcastToWorld(
+          wss,
+          clients,
+          players,
+          worldId,
+          JSON.stringify({
+            type: "enemyUpdate",
+            enemy: { id: enemy.id, ...enemy },
+          }),
+        );
+      });
+    }
+  }, 200); // 200ms для оптимизации (5 FPS update, клиент интерполирует)
+
   // === ОСНОВНОЙ ЦИКЛ (30 сек) ===
   const mainLoop = setInterval(() => {
     const currentTime = Date.now();
@@ -422,7 +543,7 @@ function runGameLoop(
   }, 30_000);
 
   // Возвращаем интервалы, чтобы можно было остановить при выключении
-  return { mainLoop };
+  return { mainLoop, mutantAIInterval };
 }
 
 function broadcastToWorld(wss, clients, players, worldId, message) {

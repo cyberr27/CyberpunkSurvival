@@ -88,220 +88,168 @@ function setupWebSocket(
 
     const ENEMY_UPDATE_INTERVAL_MS = 200;
 
-    // Константы (уже есть выше в файле, но для надёжности дублируем)
-    const ENEMY_SPEED = 2;
-    const AGGRO_RANGE = 300;
-    const ATTACK_RANGE = 50;
-    const ENEMY_ATTACK_COOLDOWN = 1000;
-
-    const mutantAIInterval = setInterval(() => {
+    const enemyUpdateInterval = setInterval(() => {
       const now = Date.now();
 
-      // Собираем кэш миров один раз за тик (оптимизация)
-      const worldPlayerCache = new Map();
-      const worldEnemyCache = new Map();
+      enemies.forEach((enemy, enemyId) => {
+        if (enemy.health <= 0) return;
 
-      for (const player of players.values()) {
-        if (!worldPlayerCache.has(player.worldId)) {
-          worldPlayerCache.set(player.worldId, new Set());
+        // === Определяем параметры в зависимости от типа врага ===
+        let speed = ENEMY_SPEED;
+        let aggroRange = AGGRO_RANGE;
+        let attackRange = ATTACK_RANGE;
+        let attackCooldown = ENEMY_ATTACK_COOLDOWN;
+        let minDamage = 10;
+        let maxDamage = 15;
+
+        if (enemy.type === "scorpion") {
+          speed = 4;
+          attackCooldown = 1000;
+          minDamage = 5;
+          maxDamage = 10;
+        } else if (enemy.type === "blood_eye") {
+          speed = 3.2;
+          aggroRange = 300;
+          attackCooldown = 2000;
+          minDamage = 12;
+          maxDamage = 18;
         }
-        if (player.health > 0) {
-          worldPlayerCache.get(player.worldId).add(player.id);
-        }
-      }
 
-      for (const [enemyId, enemy] of enemies) {
-        if (!worldEnemyCache.has(enemy.worldId)) {
-          worldEnemyCache.set(enemy.worldId, new Map());
-        }
-        worldEnemyCache.get(enemy.worldId).set(enemyId, enemy);
-      }
+        // === Поиск ближайшего живого игрока в радиусе аггро ===
+        let closestPlayer = null;
+        let minDistSq = aggroRange * aggroRange;
 
-      for (const [worldId, worldEnemiesMap] of worldEnemyCache) {
-        if (worldId === 0) continue; // безопасный мир без врагов
+        players.forEach((player) => {
+          if (player.worldId !== enemy.worldId || player.health <= 0) return;
 
-        const playerIds = worldPlayerCache.get(worldId) || new Set();
-        if (playerIds.size === 0) continue;
+          const dx = player.x - enemy.x;
+          const dy = player.y - enemy.y;
+          const distSq = dx * dx + dy * dy;
 
-        worldEnemiesMap.forEach((enemy) => {
-          if (enemy.health <= 0) return;
-
-          enemy.lastUpdateTime = enemy.lastUpdateTime || 0;
-
-          let closestPlayer = null;
-          let minDistSq = Infinity;
-
-          for (const playerId of playerIds) {
-            const player = players.get(playerId);
-            if (!player) continue;
-
-            const dx = player.x - enemy.x;
-            const dy = player.y - enemy.y;
-            const distSq = dx * dx + dy * dy;
-
-            if (distSq < minDistSq) {
-              minDistSq = distSq;
-              closestPlayer = player;
-            }
+          if (distSq < minDistSq) {
+            minDistSq = distSq;
+            closestPlayer = player;
           }
+        });
 
-          const inAggro =
-            closestPlayer && minDistSq <= AGGRO_RANGE * AGGRO_RANGE;
+        let moved = false;
 
-          if (inAggro) {
-            enemy.targetId = closestPlayer.id;
+        // === Если есть цель ===
+        if (closestPlayer) {
+          const dx = closestPlayer.x - enemy.x;
+          const dy = closestPlayer.y - enemy.y;
+          const dist = Math.hypot(dx, dy);
 
-            const dx = closestPlayer.x - enemy.x;
-            const dy = closestPlayer.y - enemy.y;
+          if (dist > attackRange) {
+            // Движение к игроку
+            const moveX = (dx / dist) * speed;
+            const moveY = (dy / dist) * speed;
+            enemy.x += moveX;
+            enemy.y += moveY;
+            moved = true;
 
-            // ── Параметры в зависимости от типа ────────
-            let speed = ENEMY_SPEED;
-            let attackCooldown = ENEMY_ATTACK_COOLDOWN;
-            let minDmg = 10;
-            let maxDmg = 15;
-            let minEnergyDmg = 0;
-            let maxEnergyDmg = 0;
-
-            if (enemy.type === "scorpion") {
-              speed = 4;
-              attackCooldown = 1000;
-              minDmg = 5;
-              maxDmg = 10;
-              minEnergyDmg = 1;
-              maxEnergyDmg = 2;
-            } else if (enemy.type === "blood_eye") {
-              speed = 3.2;
-              attackCooldown = 2000;
-              minDmg = 12;
-              maxDmg = 18;
-            }
-
-            // Движение
-            const angle = Math.atan2(dy, dx);
-            enemy.x += Math.cos(angle) * speed;
-            enemy.y += Math.sin(angle) * speed;
             enemy.state = "walking";
 
-            // Направление спрайта
             if (Math.abs(dx) > Math.abs(dy)) {
               enemy.direction = dx > 0 ? "right" : "left";
             } else {
               enemy.direction = dy > 0 ? "down" : "up";
             }
-
-            // Атака
-            if (
-              minDistSq <= ATTACK_RANGE * ATTACK_RANGE &&
-              now - (enemy.lastAttackTime || 0) >= attackCooldown
-            ) {
-              const damage =
-                Math.floor(Math.random() * (maxDmg - minDmg + 1)) + minDmg;
-              let energyDmg = 0;
-
-              if (enemy.type === "scorpion") {
-                energyDmg =
-                  Math.floor(
-                    Math.random() * (maxEnergyDmg - minEnergyDmg + 1),
-                  ) + minEnergyDmg;
-                closestPlayer.energy = Math.max(
-                  0,
-                  (closestPlayer.energy || 0) - energyDmg,
-                );
-              }
-
-              closestPlayer.health = Math.max(0, closestPlayer.health - damage);
-              enemy.lastAttackTime = now;
-
-              // Сохраняем изменения жертвы
-              players.set(closestPlayer.id, { ...closestPlayer });
-              userDatabase.set(closestPlayer.id, { ...closestPlayer });
-              saveUserDatabase(dbCollection, closestPlayer.id, closestPlayer);
-
-              // Рассылаем атаку
-              broadcastToWorld(
-                wss,
-                clients,
-                players,
-                worldId,
-                JSON.stringify({
-                  type: "enemyAttack",
-                  enemyId: enemy.id,
-                  targetId: closestPlayer.id,
-                  damage,
-                  energyDmg,
-                }),
-              );
-
-              // Обновление здоровья и энергии жертвы
-              broadcastToWorld(
-                wss,
-                clients,
-                players,
-                worldId,
-                JSON.stringify({
-                  type: "update",
-                  player: { id: closestPlayer.id, ...closestPlayer },
-                }),
-              );
-            }
           } else {
-            enemy.targetId = null;
-            enemy.state = "idle";
+            // Атака
+            if (now - (enemy.lastAttackTime || 0) >= attackCooldown) {
+              enemy.lastAttackTime = now;
+              enemy.state = "attacking";
 
-            // Случайное блуждание
-            if (Math.random() < 0.08) {
-              // чуть реже, чем 0.1 — субъективно приятнее
-              const wanderAngle = Math.random() * Math.PI * 2;
-              enemy.x += Math.cos(wanderAngle) * ENEMY_SPEED * 0.5;
-              enemy.y += Math.sin(wanderAngle) * ENEMY_SPEED * 0.5;
+              const damage =
+                Math.floor(Math.random() * (maxDamage - minDamage + 1)) +
+                minDamage;
+
+              if (closestPlayer.health > 0) {
+                closestPlayer.health = Math.max(
+                  0,
+                  closestPlayer.health - damage,
+                );
+
+                players.set(closestPlayer.id, { ...closestPlayer });
+                userDatabase.set(closestPlayer.id, { ...closestPlayer });
+                saveUserDatabase(dbCollection, closestPlayer.id, closestPlayer);
+
+                broadcastToWorld(
+                  wss,
+                  clients,
+                  players,
+                  enemy.worldId,
+                  JSON.stringify({
+                    type: "enemyAttack",
+                    targetId: closestPlayer.id,
+                    damage,
+                    enemyId,
+                  }),
+                );
+
+                broadcastToWorld(
+                  wss,
+                  clients,
+                  players,
+                  enemy.worldId,
+                  JSON.stringify({
+                    type: "update",
+                    player: {
+                      id: closestPlayer.id,
+                      health: closestPlayer.health,
+                    },
+                  }),
+                );
+              } else {
+                enemy.state = "idle";
+              }
+            } else {
+              enemy.state = "attacking";
             }
           }
-
-          // Отправляем обновление позиции/состояния только если двигался или атаковал
-          const shouldUpdate =
-            enemy.state === "walking" ||
-            enemy.state === "attacking" ||
-            enemy.targetId !== null ||
-            now - (enemy.lastUpdateTime || 0) > 800; // каждые 800 мс принудительно, даже если idle
-
-          if (shouldUpdate) {
-            enemy.lastUpdateTime = now; // запоминаем время последнего обновления
-
-            broadcastToWorld(
-              wss,
-              clients,
-              players,
-              worldId,
-              JSON.stringify({
-                type: "enemyUpdate",
-                enemy: {
-                  id: enemy.id,
-                  x: enemy.x,
-                  y: enemy.y,
-                  state: enemy.state,
-                  direction: enemy.direction,
-                  targetId: enemy.targetId || null,
-                  lastAttackTime: enemy.lastAttackTime || 0,
-                  health: enemy.health,
-                  frame: enemy.frame || 0, // ← если у тебя есть frame на сервере
-                  type: enemy.type || "mutant",
-                },
-              }),
-            );
+        } else {
+          enemy.state = "idle";
+          if (Math.random() < 0.08) {
+            const wanderAngle = Math.random() * Math.PI * 2;
+            enemy.x += Math.cos(wanderAngle) * speed * 0.5;
+            enemy.y += Math.sin(wanderAngle) * speed * 0.5;
+            moved = true;
           }
-        });
-      }
+        }
+
+        if (moved || enemy.state === "attacking") {
+          broadcastToWorld(
+            wss,
+            clients,
+            players,
+            enemy.worldId,
+            JSON.stringify({
+              type: "enemyUpdate",
+              enemy: {
+                id: enemyId,
+                x: enemy.x,
+                y: enemy.y,
+                state: enemy.state,
+                direction: enemy.direction,
+                health: enemy.health,
+                lastAttackTime: enemy.lastAttackTime || 0,
+              },
+            }),
+          );
+        }
+      });
     }, ENEMY_UPDATE_INTERVAL_MS);
 
-    // Остановка при выключении сервера (важно!)
-    const stopEnemyAI = () => {
-      console.log("[ENEMY] Остановка AI мутантов...");
-      clearInterval(mutantAIInterval);
+    // Остановка при завершении процесса
+    const stopInterval = () => {
+      console.log("Остановка глобального обновления врагов...");
+      clearInterval(enemyUpdateInterval);
     };
 
-    process.once("SIGTERM", stopEnemyAI);
+    process.once("SIGTERM", stopInterval);
     process.once("SIGINT", () => {
-      stopEnemyAI();
+      stopInterval();
       process.exit(0);
     });
   }
