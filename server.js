@@ -5,7 +5,6 @@ const path = require("path");
 const { connectToDatabase, loadUserDatabase } = require("./database");
 const { setupWebSocket } = require("./websocket");
 const gameLogic = require("./gameLogic");
-const { runGameLoop } = gameLogic;
 const { ITEM_CONFIG } = require("./items");
 const { loadTwisterState } = require("./misterTwisterServer");
 
@@ -120,15 +119,17 @@ async function initializeServer() {
     enemies,
   );
 
-  runGameLoop(
+  gameLogic.runGameLoop(
     wss,
     collection,
     clients,
     players,
+    userDatabase,
     items,
+    lights,
     worlds,
     ITEM_CONFIG,
-    userDatabase,
+    INACTIVITY_TIMEOUT,
     enemies,
   );
 
