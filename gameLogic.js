@@ -152,11 +152,7 @@ function runGameLoop(
               worldId,
               JSON.stringify({
                 type: "update",
-                player: {
-                  id: closestPlayer.id,
-                  health: closestPlayer.health,
-                  energy: closestPlayer.energy ?? 0,
-                },
+                player: { id: closestPlayer.id, ...closestPlayer },
               }),
             );
           }
@@ -181,16 +177,7 @@ function runGameLoop(
             worldId,
             JSON.stringify({
               type: "enemyUpdate",
-              enemy: {
-                id: enemy.id,
-                x: enemy.x,
-                y: enemy.y,
-                state: enemy.state,
-                direction: enemy.direction,
-                targetId: enemy.targetId || null,
-                lastAttackTime: enemy.lastAttackTime || 0,
-                health: enemy.health,
-              },
+              enemy: { id: enemy.id, ...enemy },
             }),
           );
         }
