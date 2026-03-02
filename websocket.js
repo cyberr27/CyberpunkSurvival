@@ -82,7 +82,6 @@ function setupWebSocket(
   INACTIVITY_TIMEOUT,
   enemies,
 ) {
-
   function checkCollisionServer(x, y) {
     return false;
   }
@@ -1217,16 +1216,26 @@ function setupWebSocket(
               worldId: item.worldId,
             }));
 
-          const worldEnemies = Array.from(enemies.entries())
-            .filter(([_, e]) => e.worldId === targetWorldId)
-            .map(([eid, e]) => ({
-              enemyId: eid,
+          const worldEnemies = Array.from(enemies.values())
+            .filter((e) => e.worldId === targetWorldId && e.health > 0)
+            .map((e) => ({
+              id: e.id, // ← КЛЮЧЕВОЕ: клиент ждёт "id", а не "enemyId"
               x: e.x,
               y: e.y,
               health: e.health,
-              direction: e.direction,
-              state: e.state,
-              frame: e.frame,
+              maxHealth:
+                e.maxHealth ||
+                (e.type === "blood_eye"
+                  ? 300
+                  : e.type === "scorpion"
+                    ? 250
+                    : 200),
+              type: e.type || "mutant",
+              direction: e.direction || "down",
+              state: e.state || "idle",
+              targetId: e.targetId || null,
+              lastAttackTime: e.lastAttackTime || 0,
+              frame: e.frame || 0,
               worldId: e.worldId,
             }));
 

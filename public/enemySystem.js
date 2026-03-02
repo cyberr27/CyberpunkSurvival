@@ -58,6 +58,7 @@ function initializeEnemySystem() {}
 
 // ─── Синхронизация врагов с сервера ──────────────────────────────────
 function syncEnemies(serverEnemies) {
+  console.log("[CLIENT] Получено врагов от сервера:", serverEnemies.length);
   const currentIds = new Set(enemies.keys());
 
   for (const srv of serverEnemies) {
