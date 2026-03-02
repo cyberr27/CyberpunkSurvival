@@ -621,16 +621,4 @@ function broadcastToWorld(wss, clients, players, worldId, message) {
   });
 }
 
-module.exports = {
-  runGameLoop,
-  clearGameIntervals: () => {
-    if (activeMainLoop) {
-      clearInterval(activeMainLoop);
-      activeMainLoop = null;
-    }
-    if (activeMutantAI) {
-      clearInterval(activeMutantAI);
-      activeMutantAI = null;
-    }
-  },
-};
+module.exports = { runGameLoop, activeMainLoop, activeMutantAI };
