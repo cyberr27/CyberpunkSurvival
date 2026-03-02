@@ -80,8 +80,14 @@ function syncEnemies(serverEnemies) {
 
       // Важно: при синхронизации сбрасываем локальную анимацию,
       // чтобы не было рассинхрона после долгого оффлайна вкладки
-      enemy.walkFrame = 0;
-      enemy.walkFrameTime = 0;
+      if (srv.state === "walking") {
+        // Если уже ходит — не сбрасываем кадр полностью, чтобы не было дёрганья
+        enemy.walkFrame = enemy.walkFrame || 0;
+        enemy.walkFrameTime = enemy.walkFrameTime || 0;
+      } else {
+        enemy.walkFrame = 0;
+        enemy.walkFrameTime = 0;
+      }
     } else {
       enemies.set(id, {
         id,

@@ -126,6 +126,8 @@ function setupWebSocket(
         worldEnemiesMap.forEach((enemy) => {
           if (enemy.health <= 0) return;
 
+          enemy.lastUpdateTime = enemy.lastUpdateTime || 0;
+
           let closestPlayer = null;
           let minDistSq = Infinity;
 
@@ -259,9 +261,12 @@ function setupWebSocket(
           const shouldUpdate =
             enemy.state === "walking" ||
             enemy.state === "attacking" ||
-            enemy.targetId !== null;
+            enemy.targetId !== null ||
+            now - (enemy.lastUpdateTime || 0) > 800; // каждые 800 мс принудительно, даже если idle
 
           if (shouldUpdate) {
+            enemy.lastUpdateTime = now; // запоминаем время последнего обновления
+
             broadcastToWorld(
               wss,
               clients,
@@ -269,7 +274,18 @@ function setupWebSocket(
               worldId,
               JSON.stringify({
                 type: "enemyUpdate",
-                enemy: { id: enemy.id, ...enemy },
+                enemy: {
+                  id: enemy.id,
+                  x: enemy.x,
+                  y: enemy.y,
+                  state: enemy.state,
+                  direction: enemy.direction,
+                  targetId: enemy.targetId || null,
+                  lastAttackTime: enemy.lastAttackTime || 0,
+                  health: enemy.health,
+                  frame: enemy.frame || 0, // ← если у тебя есть frame на сервере
+                  type: enemy.type || "mutant",
+                },
               }),
             );
           }
