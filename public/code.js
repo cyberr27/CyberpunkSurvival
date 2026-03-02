@@ -2363,14 +2363,7 @@ async function handleGameMessageLogic(data) {
       break;
     }
     case "syncEnemies":
-      if (
-        window.enemySystem &&
-        typeof window.enemySystem.syncEnemies === "function"
-      ) {
-        window.enemySystem.syncEnemies(data.enemies);
-      } else {
-        console.warn("enemySystem.syncEnemies не найден!");
-      }
+      window.enemySystem.syncEnemies(data.enemies);
       break;
     case "enemyAttack":
       if (data.targetId === myId) {

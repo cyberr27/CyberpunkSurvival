@@ -82,6 +82,227 @@ function setupWebSocket(
   INACTIVITY_TIMEOUT,
   enemies,
 ) {
+  // ─── ЗАПУСК ГЛОБАЛЬНОГО ОБНОВЛЕНИЯ ВРАГОВ ТОЛЬКО ОДИН РАЗ ───────────────
+  if (!setupWebSocket.enemyUpdateIntervalRunning) {
+    setupWebSocket.enemyUpdateIntervalRunning = true;
+
+    const ENEMY_UPDATE_INTERVAL_MS = 200;
+
+    // Константы (уже есть выше в файле, но для надёжности дублируем)
+    const ENEMY_SPEED = 2;
+    const AGGRO_RANGE = 300;
+    const ATTACK_RANGE = 50;
+    const ENEMY_ATTACK_COOLDOWN = 1000;
+
+    const mutantAIInterval = setInterval(() => {
+      const now = Date.now();
+
+      // Собираем кэш миров один раз за тик (оптимизация)
+      const worldPlayerCache = new Map();
+      const worldEnemyCache = new Map();
+
+      for (const player of players.values()) {
+        if (!worldPlayerCache.has(player.worldId)) {
+          worldPlayerCache.set(player.worldId, new Set());
+        }
+        if (player.health > 0) {
+          worldPlayerCache.get(player.worldId).add(player.id);
+        }
+      }
+
+      for (const [enemyId, enemy] of enemies) {
+        if (!worldEnemyCache.has(enemy.worldId)) {
+          worldEnemyCache.set(enemy.worldId, new Map());
+        }
+        worldEnemyCache.get(enemy.worldId).set(enemyId, enemy);
+      }
+
+      for (const [worldId, worldEnemiesMap] of worldEnemyCache) {
+        if (worldId === 0) continue; // безопасный мир без врагов
+
+        const playerIds = worldPlayerCache.get(worldId) || new Set();
+        if (playerIds.size === 0) continue;
+
+        worldEnemiesMap.forEach((enemy) => {
+          if (enemy.health <= 0) return;
+
+          let closestPlayer = null;
+          let minDistSq = Infinity;
+
+          for (const playerId of playerIds) {
+            const player = players.get(playerId);
+            if (!player) continue;
+
+            const dx = player.x - enemy.x;
+            const dy = player.y - enemy.y;
+            const distSq = dx * dx + dy * dy;
+
+            if (distSq < minDistSq) {
+              minDistSq = distSq;
+              closestPlayer = player;
+            }
+          }
+
+          const inAggro =
+            closestPlayer && minDistSq <= AGGRO_RANGE * AGGRO_RANGE;
+
+          if (inAggro) {
+            enemy.targetId = closestPlayer.id;
+
+            const dx = closestPlayer.x - enemy.x;
+            const dy = closestPlayer.y - enemy.y;
+
+            // ── Параметры в зависимости от типа ────────
+            let speed = ENEMY_SPEED;
+            let attackCooldown = ENEMY_ATTACK_COOLDOWN;
+            let minDmg = 10;
+            let maxDmg = 15;
+            let minEnergyDmg = 0;
+            let maxEnergyDmg = 0;
+
+            if (enemy.type === "scorpion") {
+              speed = 4;
+              attackCooldown = 1000;
+              minDmg = 5;
+              maxDmg = 10;
+              minEnergyDmg = 1;
+              maxEnergyDmg = 2;
+            } else if (enemy.type === "blood_eye") {
+              speed = 3.2;
+              attackCooldown = 2000;
+              minDmg = 12;
+              maxDmg = 18;
+            }
+
+            // Движение
+            const angle = Math.atan2(dy, dx);
+            enemy.x += Math.cos(angle) * speed;
+            enemy.y += Math.sin(angle) * speed;
+            enemy.state = "walking";
+
+            // Направление спрайта
+            if (Math.abs(dx) > Math.abs(dy)) {
+              enemy.direction = dx > 0 ? "right" : "left";
+            } else {
+              enemy.direction = dy > 0 ? "down" : "up";
+            }
+
+            // Атака
+            if (
+              minDistSq <= ATTACK_RANGE * ATTACK_RANGE &&
+              now - (enemy.lastAttackTime || 0) >= attackCooldown
+            ) {
+              const damage =
+                Math.floor(Math.random() * (maxDmg - minDmg + 1)) + minDmg;
+              let energyDmg = 0;
+
+              if (enemy.type === "scorpion") {
+                energyDmg =
+                  Math.floor(
+                    Math.random() * (maxEnergyDmg - minEnergyDmg + 1),
+                  ) + minEnergyDmg;
+                closestPlayer.energy = Math.max(
+                  0,
+                  (closestPlayer.energy || 0) - energyDmg,
+                );
+              }
+
+              closestPlayer.health = Math.max(0, closestPlayer.health - damage);
+              enemy.lastAttackTime = now;
+
+              // Сохраняем изменения жертвы
+              players.set(closestPlayer.id, { ...closestPlayer });
+              userDatabase.set(closestPlayer.id, { ...closestPlayer });
+              saveUserDatabase(dbCollection, closestPlayer.id, closestPlayer);
+
+              // Рассылаем атаку
+              broadcastToWorld(
+                wss,
+                clients,
+                players,
+                worldId,
+                JSON.stringify({
+                  type: "enemyAttack",
+                  enemyId: enemy.id,
+                  targetId: closestPlayer.id,
+                  damage,
+                  energyDmg,
+                }),
+              );
+
+              // Обновление здоровья и энергии жертвы
+              broadcastToWorld(
+                wss,
+                clients,
+                players,
+                worldId,
+                JSON.stringify({
+                  type: "update",
+                  player: {
+                    id: closestPlayer.id,
+                    health: closestPlayer.health,
+                    energy: closestPlayer.energy,
+                  },
+                }),
+              );
+            }
+          } else {
+            enemy.targetId = null;
+            enemy.state = "idle";
+
+            // Случайное блуждание
+            if (Math.random() < 0.08) {
+              // чуть реже, чем 0.1 — субъективно приятнее
+              const wanderAngle = Math.random() * Math.PI * 2;
+              enemy.x += Math.cos(wanderAngle) * ENEMY_SPEED * 0.5;
+              enemy.y += Math.sin(wanderAngle) * ENEMY_SPEED * 0.5;
+            }
+          }
+
+          // Отправляем обновление позиции/состояния только если двигался или атаковал
+          const shouldUpdate =
+            enemy.state === "walking" ||
+            enemy.state === "attacking" ||
+            enemy.targetId !== null;
+
+          if (shouldUpdate) {
+            broadcastToWorld(
+              wss,
+              clients,
+              players,
+              worldId,
+              JSON.stringify({
+                type: "enemyUpdate",
+                enemy: {
+                  id: enemy.id,
+                  x: enemy.x,
+                  y: enemy.y,
+                  state: enemy.state,
+                  direction: enemy.direction,
+                  targetId: enemy.targetId,
+                  lastAttackTime: enemy.lastAttackTime || 0,
+                  health: enemy.health, // на всякий случай
+                },
+              }),
+            );
+          }
+        });
+      }
+    }, ENEMY_UPDATE_INTERVAL_MS);
+
+    // Остановка при выключении сервера (важно!)
+    const stopEnemyAI = () => {
+      console.log("[ENEMY] Остановка AI мутантов...");
+      clearInterval(mutantAIInterval);
+    };
+
+    process.once("SIGTERM", stopEnemyAI);
+    process.once("SIGINT", () => {
+      stopEnemyAI();
+      process.exit(0);
+    });
+  }
+
   function checkCollisionServer(x, y) {
     return false;
   }
@@ -1216,26 +1437,16 @@ function setupWebSocket(
               worldId: item.worldId,
             }));
 
-          const worldEnemies = Array.from(enemies.values())
-            .filter((e) => e.worldId === targetWorldId && e.health > 0)
-            .map((e) => ({
-              id: e.id, // ← КРИТИЧЕСКИ важно: id, а НЕ enemyId
+          const worldEnemies = Array.from(enemies.entries())
+            .filter(([_, e]) => e.worldId === targetWorldId)
+            .map(([eid, e]) => ({
+              enemyId: eid,
               x: e.x,
               y: e.y,
               health: e.health,
-              maxHealth:
-                e.maxHealth ||
-                (e.type === "blood_eye"
-                  ? 300
-                  : e.type === "scorpion"
-                    ? 250
-                    : 200),
-              type: e.type || "mutant",
-              direction: e.direction || "down",
-              state: e.state || "idle",
-              targetId: e.targetId || null,
-              lastAttackTime: e.lastAttackTime || 0,
-              frame: e.frame || 0,
+              direction: e.direction,
+              state: e.state,
+              frame: e.frame,
               worldId: e.worldId,
             }));
 

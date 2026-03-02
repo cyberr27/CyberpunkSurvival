@@ -31,7 +31,6 @@ function runGameLoop(
   const mutantAIInterval = setInterval(() => {
     const now = Date.now();
 
-    // Кэши уже есть глобально и обновляются в 30-секундном цикле → используем их
     for (const [worldId, worldEnemiesMap] of worldEnemyCache) {
       if (worldId === 0) continue;
       const playerIds = worldPlayerCache.get(worldId) || new Set();
@@ -41,95 +40,65 @@ function runGameLoop(
         if (enemy.health <= 0) return;
 
         let closestPlayer = null;
-        let minDistSq = Infinity;
-
+        let minDist = Infinity;
         for (const playerId of playerIds) {
           const player = players.get(playerId);
           if (!player || player.health <= 0) continue;
           const dx = player.x - enemy.x;
           const dy = player.y - enemy.y;
-          const distSq = dx * dx + dy * dy;
-          if (distSq < minDistSq) {
-            minDistSq = distSq;
+          const dist = dx * dx + dy * dy;
+          if (dist < minDist) {
+            minDist = dist;
             closestPlayer = player;
           }
         }
 
-        const inAggro = closestPlayer && minDistSq <= AGGRO_RANGE * AGGRO_RANGE;
-
-        let moved = false;
-        let attacked = false;
-
-        if (inAggro) {
+        if (closestPlayer && minDist <= AGGRO_RANGE * AGGRO_RANGE) {
           enemy.targetId = closestPlayer.id;
           const dx = closestPlayer.x - enemy.x;
           const dy = closestPlayer.y - enemy.y;
-
           let speed = ENEMY_SPEED;
           let attackCooldown = ENEMY_ATTACK_COOLDOWN;
           let minDmg = 10,
-            maxDmg = 15;
-          let minEnergyDmg = 0,
-            maxEnergyDmg = 0;
-
+            maxDmg = 15,
+            minEnergy = 0,
+            maxEnergy = 0;
           if (enemy.type === "scorpion") {
             speed = 4;
             attackCooldown = 1000;
             minDmg = 5;
             maxDmg = 10;
-            minEnergyDmg = 1;
-            maxEnergyDmg = 2;
-          } else if (enemy.type === "blood_eye") {
-            speed = 3.2;
-            attackCooldown = 2000;
-            minDmg = 12;
-            maxDmg = 18;
+            minEnergy = 1;
+            maxEnergy = 2;
           }
-
-          // Движение
-          if (minDistSq > ATTACK_RANGE * ATTACK_RANGE) {
-            const angle = Math.atan2(dy, dx);
-            enemy.x += Math.cos(angle) * speed;
-            enemy.y += Math.sin(angle) * speed;
-            moved = true;
-          }
-
+          const angle = Math.atan2(dy, dx);
+          enemy.x += Math.cos(angle) * speed;
+          enemy.y += Math.sin(angle) * speed;
           enemy.state = "walking";
-
-          // Направление
           if (Math.abs(dx) > Math.abs(dy)) {
             enemy.direction = dx > 0 ? "right" : "left";
           } else {
             enemy.direction = dy > 0 ? "down" : "up";
           }
 
-          // Атака
           if (
-            minDistSq <= ATTACK_RANGE * ATTACK_RANGE &&
-            now - (enemy.lastAttackTime || 0) >= attackCooldown
+            minDist <= ATTACK_RANGE * ATTACK_RANGE &&
+            now - enemy.lastAttackTime >= attackCooldown
           ) {
             const damage =
               Math.floor(Math.random() * (maxDmg - minDmg + 1)) + minDmg;
             let energyDmg = 0;
-
             if (enemy.type === "scorpion") {
               energyDmg =
-                Math.floor(Math.random() * (maxEnergyDmg - minEnergyDmg + 1)) +
-                minEnergyDmg;
+                Math.floor(Math.random() * (maxEnergy - minEnergy + 1)) +
+                minEnergy;
               closestPlayer.energy = Math.max(
                 0,
-                (closestPlayer.energy || 0) - energyDmg,
+                closestPlayer.energy - energyDmg,
               );
             }
-
             closestPlayer.health = Math.max(0, closestPlayer.health - damage);
             enemy.lastAttackTime = now;
-            enemy.state = "attacking";
-            attacked = true;
-
-            players.set(closestPlayer.id, { ...closestPlayer });
-            userDatabase.set(closestPlayer.id, { ...closestPlayer });
-            saveUserDatabase(dbCollection, closestPlayer.id, closestPlayer);
 
             broadcastToWorld(
               wss,
@@ -144,7 +113,6 @@ function runGameLoop(
                 energyDmg,
               }),
             );
-
             broadcastToWorld(
               wss,
               clients,
@@ -152,56 +120,33 @@ function runGameLoop(
               worldId,
               JSON.stringify({
                 type: "update",
-                player: {
-                  id: closestPlayer.id,
-                  health: closestPlayer.health,
-                  energy: closestPlayer.energy ?? 0,
-                },
+                player: { id: closestPlayer.id, ...closestPlayer },
               }),
             );
           }
         } else {
           enemy.targetId = null;
           enemy.state = "idle";
-
-          if (Math.random() < 0.08) {
+          if (Math.random() < 0.1) {
             const wanderAngle = Math.random() * Math.PI * 2;
             enemy.x += Math.cos(wanderAngle) * ENEMY_SPEED * 0.5;
             enemy.y += Math.sin(wanderAngle) * ENEMY_SPEED * 0.5;
-            moved = true;
           }
         }
 
-        // Отправляем обновление только если было движение или атака
-        if (
-          moved ||
-          attacked ||
-          enemy.state === "attacking" ||
-          enemy.targetId
-        ) {
-          broadcastToWorld(
-            wss,
-            clients,
-            players,
-            worldId,
-            JSON.stringify({
-              type: "enemyUpdate",
-              enemy: {
-                id: enemy.id,
-                x: enemy.x,
-                y: enemy.y,
-                state: enemy.state,
-                direction: enemy.direction,
-                targetId: enemy.targetId || null,
-                lastAttackTime: enemy.lastAttackTime || 0,
-                health: enemy.health,
-              },
-            }),
-          );
-        }
+        broadcastToWorld(
+          wss,
+          clients,
+          players,
+          worldId,
+          JSON.stringify({
+            type: "enemyUpdate",
+            enemy: { id: enemy.id, ...enemy },
+          }),
+        );
       });
     }
-  }, 200);
+  }, 200); // 200ms для оптимизации (5 FPS update, клиент интерполирует)
 
   // === ОСНОВНОЙ ЦИКЛ (30 сек) ===
   const mainLoop = setInterval(() => {
