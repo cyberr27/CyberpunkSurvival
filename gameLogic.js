@@ -44,7 +44,7 @@ function runGameLoop(
   }
 
   // === AI МУТАНТОВ (каждые 200 мс для оптимизации) ===
-  const mutantAIInterval = setInterval(() => {
+  activeMutantAI = setInterval(() => {
     const now = Date.now();
 
     // Быстрый выход, если вообще нет активных миров с игроками
@@ -211,7 +211,7 @@ function runGameLoop(
   console.log("[GameLoop] AI мутантов запущен — интервал 200 мс");
 
   // === ОСНОВНОЙ ЦИКЛ (30 сек) ===
-  const mainLoop = setInterval(() => {
+  activeMainLoop = setInterval(() => {
     const currentTime = Date.now();
     const now = currentTime;
 
@@ -606,11 +606,8 @@ function runGameLoop(
 
   console.log("[GameLoop] Основной цикл запущен — интервал 30 сек");
 
-  activeMainLoop = mainLoop;
-  activeMutantAI = mutantAIInterval;
-
   // Возвращаем интервалы, чтобы можно было остановить при выключении (совместимость)
-  return { mainLoop, mutantAIInterval };
+  return { activeMainLoop, activeMutantAI };
 }
 
 function broadcastToWorld(wss, clients, players, worldId, message) {
