@@ -4,7 +4,7 @@ const WebSocket = require("ws");
 const path = require("path");
 const { connectToDatabase, loadUserDatabase } = require("./database");
 const { setupWebSocket } = require("./websocket");
-const gameLogic = require("./gameLogic");
+const { runGameLoop } = require("./gameLogic");
 const { ITEM_CONFIG } = require("./items");
 const { loadTwisterState } = require("./misterTwisterServer");
 
@@ -119,17 +119,15 @@ async function initializeServer() {
     enemies,
   );
 
-  gameLogic.runGameLoop(
+  runGameLoop(
     wss,
     collection,
     clients,
     players,
-    userDatabase,
     items,
-    lights,
     worlds,
     ITEM_CONFIG,
-    INACTIVITY_TIMEOUT,
+    userDatabase,
     enemies,
   );
 
@@ -139,18 +137,14 @@ async function initializeServer() {
 const PORT = process.env.PORT || 10000;
 
 function stopGameLoops() {
-  // Получаем текущие интервалы через геттеры из gameLogic
-  const mainLoop = gameLogic.activeMainLoop();
-  if (mainLoop) {
-    clearInterval(mainLoop);
-    gameLogic.setActiveMainLoop(null);
+  if (activeMainLoop) {
+    clearInterval(activeMainLoop);
+    activeMainLoop = null;
     console.log("[Shutdown] Основной игровой цикл (30s) остановлен");
   }
-
-  const mutantAI = gameLogic.activeMutantAI();
-  if (mutantAI) {
-    clearInterval(mutantAI);
-    gameLogic.setActiveMutantAI(null);
+  if (activeMutantAI) {
+    clearInterval(activeMutantAI);
+    activeMutantAI = null;
     console.log("[Shutdown] AI мутантов (200ms) остановлен");
   }
 }
