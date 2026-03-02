@@ -624,4 +624,4 @@ function broadcastToWorld(wss, clients, players, worldId, message) {
   });
 }
 
-module.exports = { runGameLoop, activeMainLoop, activeMutantAI };
+module.exports = { runGameLoop };
