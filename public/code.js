@@ -2225,60 +2225,49 @@ async function handleGameMessageLogic(data) {
     case "useItemSuccess":
       {
         const me = players.get(myId);
-        if (me) {
-          // Обновляем статы игрока (важно для других систем)
+        if (!me) break;
+
+        // Обновляем только те статы, которые пришли
+        if (data.stats) {
           if (data.stats.health !== undefined)
-            me.health = Math.max(
-              0,
-              Math.min(me.maxStats?.health || 100, Number(data.stats.health)),
-            );
-
+            me.health = Number(data.stats.health);
           if (data.stats.energy !== undefined)
-            me.energy = Math.max(
-              0,
-              Math.min(me.maxStats?.energy || 100, Number(data.stats.energy)),
-            );
-
-          if (data.stats.food !== undefined)
-            me.food = Math.max(
-              0,
-              Math.min(me.maxStats?.food || 100, Number(data.stats.food)),
-            );
-
+            me.energy = Number(data.stats.energy);
+          if (data.stats.food !== undefined) me.food = Number(data.stats.food);
           if (data.stats.water !== undefined)
-            me.water = Math.max(
-              0,
-              Math.min(me.maxStats?.water || 100, Number(data.stats.water)),
-            );
+            me.water = Number(data.stats.water);
+        }
 
-          if (data.stats.armor !== undefined)
-            me.armor = Math.max(0, Number(data.stats.armor || me.armor));
-
-          // КРИТИЧНО: полностью синхронизируем инвентарь игрока с серверным
+        // Полная синхронизация инвентаря — критично!
+        if (data.inventory) {
           me.inventory = data.inventory.map((slot) =>
+            slot ? { ...slot } : null,
+          );
+          window.inventory = me.inventory.map((slot) =>
             slot ? { ...slot } : null,
           );
         }
 
-        // Обновляем глобальную переменную inventory (используется в UI)
-        inventory = data.inventory.map((slot) => (slot ? { ...slot } : null));
-
-        // Перерисовываем всё
-        updateStatsDisplay();
-        window.inventorySystem.updateInventoryDisplay();
-
-        // Если был выбран слот с использованным предметом — снимаем выделение
+        // Если использовали предмет в выбранном слоте — снимаем выделение
         if (
-          selectedSlot !== null &&
-          (!inventory[selectedSlot] || inventory[selectedSlot] === null)
+          typeof data.slotIndex === "number" &&
+          selectedSlot === data.slotIndex &&
+          (!window.inventory[data.slotIndex] || data.remainingQuantity <= 0)
         ) {
           selectedSlot = null;
           document
-            .querySelectorAll(".inventory-slot.selected")
-            ?.forEach((el) => el.classList.remove("selected"));
+            .querySelectorAll(".inventory-slot")
+            .forEach((el) => el.classList.remove("selected"));
           document.getElementById("inventoryScreen").textContent = "";
-          document.getElementById("useBtn").disabled = true;
-          document.getElementById("dropBtn").disabled = true;
+        }
+
+        // Обновляем UI
+        updateStatsDisplay();
+        window.inventorySystem.updateInventoryDisplay();
+
+        // Включаем кнопку обратно (если инвентарь открыт)
+        if (isInventoryOpen) {
+          document.getElementById("useBtn").disabled = false;
         }
       }
       break;

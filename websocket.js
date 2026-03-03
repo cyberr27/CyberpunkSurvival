@@ -2279,37 +2279,35 @@ function setupWebSocket(
           const data = ws.useItemQueue.shift();
 
           const playerId = clients.get(ws);
-          if (!playerId || !players.has(playerId)) {
-            continue;
-          }
+          if (!playerId || !players.has(playerId)) continue;
 
           const player = players.get(playerId);
-          const slotIndex = data.slotIndex;
+          const { slotIndex } = data;
 
-          // 1. Проверка слота
+          // ─── 1. Базовые проверки пакета ────────────────────────────────────────
           if (
             typeof slotIndex !== "number" ||
+            !Number.isInteger(slotIndex) ||
             slotIndex < 0 ||
             slotIndex >= player.inventory.length ||
             !player.inventory[slotIndex]
           ) {
-            // Можно отправить ошибку, но чаще всего просто игнорируем
             continue;
           }
 
           const item = player.inventory[slotIndex];
 
-          // 2. Проверка, что предмет существует в конфиге
+          // ─── 2. Предмет должен существовать в конфиге ───────────────────────────
           const config = ITEM_CONFIG[item.type];
           if (!config) {
             console.warn(
-              `[AntiCheat] Игрок ${playerId} пытается использовать неизвестный предмет: ${item.type}`,
+              `[AntiCheat] ${playerId} → неизвестный item: ${item.type}`,
             );
             continue;
           }
 
-          // 3. Запрещённые для использования через useItem типы
-          const nonUsableTypes = [
+          // ─── 3. Запрещаем использовать через useItem то, что не предназначено ──
+          const forbiddenForUseItem = [
             "balyary",
             "blue_crystal",
             "green_crystal",
@@ -2317,21 +2315,22 @@ function setupWebSocket(
             "white_crystal",
             "yellow_crystal",
             "chameleon_crystal",
-            "nanofilament",
             "nanoalloy",
+            "nanofilament",
             "recipe_torn_equipment",
             "recipe_chameleon_equipment",
-            // можно добавить и другие, если появятся
+            "medical_certificate",
+            "medical_certificate_stamped",
           ];
 
-          if (nonUsableTypes.includes(item.type)) {
+          if (forbiddenForUseItem.includes(item.type)) {
             console.warn(
-              `[AntiCheat] Игрок ${playerId} пытается использовать запрещённый тип: ${item.type}`,
+              `[AntiCheat] ${playerId} → запрещённый useItem: ${item.type}`,
             );
             continue;
           }
 
-          // 4. Предметы, которые экипируются, а не используются
+          // ─── 4. Экипировку тоже запрещаем обрабатывать здесь ───────────────────
           if (
             config.type &&
             [
@@ -2345,134 +2344,124 @@ function setupWebSocket(
             ].includes(config.type)
           ) {
             console.warn(
-              `[AntiCheat] Игрок ${playerId} пытается использовать экипировку через useItem: ${item.type}`,
+              `[AntiCheat] ${playerId} → попытка useItem экипировки: ${item.type}`,
             );
             continue;
           }
 
-          // 5. Rate limit — не чаще 1 раза в 450 мс
-          const USE_COOLDOWN_MS = 450;
+          // ─── 5. Rate-limit (450–500 мс между использованиями) ──────────────────
+          const USE_COOLDOWN = 480;
           if (
             player.lastUseItemTime &&
-            now - player.lastUseItemTime < USE_COOLDOWN_MS
+            now - player.lastUseItemTime < USE_COOLDOWN
           ) {
-            // Можно отправить предупреждение, но чаще просто игнорируем
+            continue;
+          }
+          player.lastUseItemTime = now;
+
+          // ─── 6. Проверяем, что у предмета вообще есть эффект ───────────────────
+          if (!config.effect || Object.keys(config.effect).length === 0) {
             continue;
           }
 
-          player.lastUseItemTime = now;
+          // ─── 7. Применяем только разрешённые поля и с жёсткими лимитами ────────
+          const effect = config.effect;
 
-          // 6. Применяем только те эффекты, которые есть в конфиге
-          const effect = config.effect || {};
+          let changed = false;
 
-          let statsChanged = false;
-
-          if (effect.health) {
-            const add = Number(effect.health);
-            if (add > 0 && add <= 100) {
-              // разумный лимит на один предмет
+          // health
+          if (typeof effect.health === "number" && effect.health > 0) {
+            const add = Math.floor(effect.health);
+            if (add <= 100) {
+              // максимум за один предмет
               player.health = Math.min(
-                player.health + add,
+                (player.health || 0) + add,
                 player.maxStats?.health || 100,
               );
-              statsChanged = true;
+              changed = true;
             }
           }
 
-          if (effect.energy) {
-            const add = Number(effect.energy);
-            if (add > 0 && add <= 50) {
+          // energy
+          if (typeof effect.energy === "number" && effect.energy > 0) {
+            const add = Math.floor(effect.energy);
+            if (add <= 60) {
               player.energy = Math.min(
-                player.energy + add,
+                (player.energy || 0) + add,
                 player.maxStats?.energy || 100,
               );
-              statsChanged = true;
+              changed = true;
             }
           }
 
-          if (effect.food) {
-            const add = Number(effect.food);
-            if (add > 0 && add <= 50) {
+          // food
+          if (typeof effect.food === "number" && effect.food > 0) {
+            const add = Math.floor(effect.food);
+            if (add <= 60) {
               player.food = Math.min(
-                player.food + add,
+                (player.food || 0) + add,
                 player.maxStats?.food || 100,
               );
-              statsChanged = true;
+              changed = true;
             }
           }
 
-          if (effect.water) {
-            const add = Number(effect.water);
-            if (add > 0 && add <= 50) {
+          // water
+          if (typeof effect.water === "number" && effect.water !== undefined) {
+            const delta = Number(effect.water);
+            if (delta >= -30 && delta <= 60) {
+              // разрешаем небольшие штрафы (хлеб, сушёная рыба)
               player.water = Math.min(
-                player.water + add,
+                Math.max(0, (player.water || 0) + delta),
                 player.maxStats?.water || 100,
               );
-              statsChanged = true;
+              changed = true;
             }
           }
 
-          if (effect.armor) {
-            const add = Number(effect.armor);
-            if (add > 0 && add <= 20) {
-              player.armor = Math.min(
-                player.armor + add,
-                player.maxStats?.armor || 0,
-              );
-              statsChanged = true;
-            }
+          // Другие поля пока не поддерживаем через useItem (armor, damage и т.д.)
+          // если появятся — добавлять сюда с аналогичными проверками
+
+          if (!changed) {
+            // ничего не поменялось — не тратим время на сохранение и рассылку
+            continue;
           }
 
-          // Защита от отрицательных / некорректных значений
-          player.health = Math.max(
-            0,
-            Math.min(player.health, player.maxStats?.health || 100),
-          );
-          player.energy = Math.max(
-            0,
-            Math.min(player.energy, player.maxStats?.energy || 100),
-          );
-          player.food = Math.max(
-            0,
-            Math.min(player.food, player.maxStats?.food || 100),
-          );
-          player.water = Math.max(
-            0,
-            Math.min(player.water, player.maxStats?.water || 100),
-          );
-          player.armor = Math.max(
-            0,
-            Math.min(player.armor, player.maxStats?.armor || 0),
-          );
-
-          // Удаляем / уменьшаем количество
-          if (config.stackable && item.quantity > 1) {
+          // ─── 8. Уменьшаем количество / удаляем предмет ─────────────────────────
+          if (item.quantity > 1 && config.stackable) {
             item.quantity -= 1;
           } else {
             player.inventory[slotIndex] = null;
           }
 
-          // Сохраняем игрока
+          // ─── 9. Сохраняем изменения ────────────────────────────────────────────
           players.set(playerId, { ...player });
           userDatabase.set(playerId, { ...player });
           await saveUserDatabase(dbCollection, playerId, player);
 
-          // Отправляем клиенту результат
+          // ─── 10. Отправляем клиенту подтверждение + новые статы + инвентарь ───
           if (ws.readyState === WebSocket.OPEN) {
             ws.send(
               JSON.stringify({
                 type: "useItemSuccess",
+                slotIndex, // на каком слоте использовали
+                remainingQuantity: item.quantity || 0,
                 stats: {
-                  health: player.health,
-                  energy: player.energy,
-                  food: player.food,
-                  water: player.water,
-                  armor: player.armor,
+                  health: Math.floor(player.health),
+                  energy: Math.floor(player.energy),
+                  food: Math.floor(player.food),
+                  water: Math.floor(player.water),
+                  // armor если будет меняться — тоже сюда
                 },
-                inventory: player.inventory,
+                inventory: player.inventory.map((item) =>
+                  item ? { ...item } : null,
+                ),
               }),
             );
           }
+
+          // Можно (опционально) бродкастить только изменение статов другим игрокам
+          // но обычно это не нужно для consumable-ов
         }
 
         ws.isProcessingUseItem = false;
