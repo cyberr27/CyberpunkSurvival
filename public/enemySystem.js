@@ -128,37 +128,34 @@ function updateEnemies(deltaTime) {
   const currentWorldId = window.worldSystem?.currentWorldId;
   if (currentWorldId === undefined) return;
 
+  // Защита от огромных скачков времени (вкладка была свёрнута)
   let safeDelta = deltaTime;
   if (deltaTime > MAX_DELTA_FOR_ANIMATION) {
     safeDelta = MAX_DELTA_FOR_ANIMATION;
   }
 
   for (const enemy of enemies.values()) {
-    // Жёсткий фильтр: если HP <= 0 или нет в мире — полностью пропускаем
-    if (
-      enemy.worldId !== currentWorldId ||
-      enemy.health <= 0 ||
-      !Number.isFinite(enemy.health)
-    ) {
-      continue;
-    }
+    if (enemy.worldId !== currentWorldId || enemy.health <= 0) continue;
 
     const config = ENEMY_TYPES[enemy.type] || ENEMY_TYPES.mutant;
 
-    // Анимация только для живых
+    // ─── Обработка анимации ────────────────────────────────────────
     if (enemy.state === "walking" || enemy.state === "attacking") {
       enemy.walkFrameTime += safeDelta;
 
+      // Если накопилось слишком много времени → резетим, чтобы не дёргалось
       if (enemy.walkFrameTime > ANIMATION_CATCHUP_THRESHOLD) {
         enemy.walkFrameTime = enemy.walkFrameTime % config.frameDuration;
-        enemy.walkFrame = Math.floor(Math.random() * config.frames);
+        enemy.walkFrame = Math.floor(Math.random() * config.frames); // случайный кадр, чтобы не стояло на месте
       }
 
+      // Обычный цикл кадров
       while (enemy.walkFrameTime >= config.frameDuration) {
         enemy.walkFrame = (enemy.walkFrame + 1) % config.frames;
         enemy.walkFrameTime -= config.frameDuration;
       }
     } else {
+      // idle / dead / другие состояния → ресет анимации
       enemy.walkFrame = 0;
       enemy.walkFrameTime = 0;
     }
