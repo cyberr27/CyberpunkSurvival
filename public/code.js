@@ -2288,46 +2288,105 @@ async function handleGameMessageLogic(data) {
       if (data.enemy && data.enemy.id) {
         const enemyId = data.enemy.id;
 
+        // 1. Игнорируем любые обновления мёртвых/недавно умерших
+        if (recentlyDeadEnemies.has(enemyId)) {
+          break;
+        }
+
+        // 2. Если сервер прислал health <= 0 — сразу удаляем
+        if (data.enemy.health <= 0) {
+          if (enemies.has(enemyId)) {
+            enemies.delete(enemyId);
+          }
+          if (window.enemySystem?.handleEnemyDeath) {
+            window.enemySystem.handleEnemyDeath(enemyId);
+          }
+          recentlyDeadEnemies.add(enemyId);
+          setTimeout(() => recentlyDeadEnemies.delete(enemyId), 30000);
+          break;
+        }
+
+        // 3. Живой враг — обновляем (HP берём строго из пакета, без сглаживания)
+        let enemyObj;
         if (enemies.has(enemyId)) {
-          // Существующий враг — обновляем поля (с сохранением локальных данных, если нужно)
+          enemyObj = enemies.get(enemyId);
+          // Важно: HP берём ТОЛЬКО из пакета, не усредняем и не интерполируем
+          enemyObj.health = Number(data.enemy.health);
+          // Остальные поля обновляем
+          Object.assign(enemyObj, {
+            x: data.enemy.x,
+            y: data.enemy.y,
+            targetX: data.enemy.x,
+            targetY: data.enemy.y,
+            direction: data.enemy.direction || enemyObj.direction,
+            state: data.enemy.state || enemyObj.state,
+          });
+        } else {
+          // Новый враг — создаём с точным HP из пакета
+          enemyObj = {
+            ...data.enemy,
+            targetX: data.enemy.x,
+            targetY: data.enemy.y,
+            health: Number(data.enemy.health), // строго
+          };
+          enemies.set(enemyId, enemyObj);
+        }
+
+        // Сбрасываем анимацию только если нужно (не трогаем HP)
+        if (
+          data.enemy.state === "walking" ||
+          data.enemy.state === "attacking"
+        ) {
+          enemyObj.walkFrameTime = 0; // чтобы не было дёрганья
+        }
+      }
+      break;
+    case "enemyDied":
+      const deadId = data.enemyId;
+
+      if (enemies.has(deadId)) {
+        enemies.delete(deadId);
+
+        if (window.enemySystem && window.enemySystem.handleEnemyDeath) {
+          window.enemySystem.handleEnemyDeath(deadId);
+        }
+
+        if (window.enemySystem?.enemies) {
+          window.enemySystem.enemies.delete(deadId);
+        }
+      }
+
+      // Запоминаем, что этот враг недавно умер (игнорируем любые обновления 30 сек)
+      recentlyDeadEnemies.add(deadId);
+      setTimeout(() => recentlyDeadEnemies.delete(deadId), 30000);
+
+      break;
+    case "newEnemy":
+      if (data.enemy && data.enemy.id) {
+        const enemyId = data.enemy.id;
+
+        // Если уже есть (дубликат пакета) — просто обновляем
+        if (enemies.has(enemyId)) {
           const existing = enemies.get(enemyId);
           enemies.set(enemyId, {
             ...existing,
             ...data.enemy,
-            // Для плавной интерполяции движения врагов (если у тебя есть система интерполяции)
             targetX: data.enemy.x,
             targetY: data.enemy.y,
           });
         } else {
-          // Новый враг (пришёл впервые, например, при входе в мир или спавне)
+          // Новый враг
           enemies.set(enemyId, {
             ...data.enemy,
             targetX: data.enemy.x,
             targetY: data.enemy.y,
           });
         }
-      }
-      break;
 
-    case "enemyDied":
-      const deadId = data.enemyId;
-      if (enemies.has(deadId)) {
-        enemies.delete(deadId);
-      }
-      // Вызываем обработчик смерти (эффекты, звук и т.д.), если он есть
-      if (window.enemySystem && window.enemySystem.handleEnemyDeath) {
-        window.enemySystem.handleEnemyDeath(deadId);
-      }
-      break;
-
-    case "newEnemy":
-      // Это сообщение приходит при спавне нового врага (у тебя есть spawnNewEnemy на сервере)
-      if (data.enemy && data.enemy.id) {
-        enemies.set(data.enemy.id, {
-          ...data.enemy,
-          targetX: data.enemy.x,
-          targetY: data.enemy.y,
-        });
+        // Дополнительно: если enemySystem имеет свою карту — синхронизируем туда тоже
+        if (window.enemySystem?.enemies) {
+          window.enemySystem.enemies.set(enemyId, enemies.get(enemyId));
+        }
       }
       break;
     case "enemyKilled":
@@ -2367,12 +2426,10 @@ async function handleGameMessageLogic(data) {
       break;
     case "enemyAttack":
       if (data.targetId === myId) {
-        triggerAttackAnimation?.(); // если функция существует
         if (window.regenerationSystem) {
           window.regenerationSystem.resetTimerOnDamage();
         }
       }
-      break;
     case "neonQuestStarted":
       showNotification("Заказ принят: Очистка пустошей", "#00ff44");
       break;
