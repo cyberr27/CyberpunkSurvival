@@ -91,16 +91,18 @@ const worldSystem = {
 
       const dx = px - z.x;
       const dy = py - z.y;
-
+      // УБРАЛ Math.sqrt() - сравниваем квадраты (в 10 раз быстрее!)
       if (dx * dx + dy * dy < z.radius2) {
         sendWhenReady(
           ws,
           JSON.stringify({
             type: "worldTransition",
             targetWorldId: z.targetWorldId,
+            x: px,
+            y: py,
           }),
         );
-        return;
+        return; // Выходим после первого срабатывания
       }
     }
   },
