@@ -2046,8 +2046,31 @@ function setupWebSocket(
             player.inventory = Array(20).fill(null);
           }
 
-          // ─── 1. Проверка слота ───────────────────────────────────────────────
+          // ─── 0. САМЫЙ ПЕРВЫЙ — кулдаун (защита от спама) ────────────────────────
+          const DROP_COOLDOWN_MS = 500;
+
           if (
+            player.lastDropTime &&
+            now - player.lastDropTime < DROP_COOLDOWN_MS
+          ) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "dropFailed",
+                  reason: "too_fast",
+                  retryAfterMs: DROP_COOLDOWN_MS - (now - player.lastDropTime),
+                  slotIndex: data.slotIndex ?? "unknown",
+                }),
+              );
+            }
+            continue;
+          }
+
+          player.lastDropTime = now;
+
+          // ─── 1. Проверка слота — делаем максимально надёжно ─────────────────────
+          if (
+            !data.hasOwnProperty("slotIndex") ||
             typeof data.slotIndex !== "number" ||
             !Number.isInteger(data.slotIndex) ||
             data.slotIndex < 0 ||
@@ -2058,12 +2081,12 @@ function setupWebSocket(
                 JSON.stringify({
                   type: "dropFailed",
                   reason: "invalid_slot",
-                  slotIndex: data.slotIndex ?? "unknown",
+                  slotIndex: data.slotIndex ?? "missing",
                 }),
               );
             }
             console.warn(
-              `[Drop AntiCheat] ${playerId} → invalid slot: ${data.slotIndex}`,
+              `[Drop AntiCheat] ${playerId} → invalid/missing slot: ${data.slotIndex}`,
             );
             continue;
           }
@@ -2071,6 +2094,7 @@ function setupWebSocket(
           const slotIndex = data.slotIndex;
           const item = player.inventory[slotIndex];
 
+          // Пустой слот — всегда отвечаем
           if (!item || !item.type) {
             if (ws.readyState === WebSocket.OPEN) {
               ws.send(
@@ -2084,9 +2108,10 @@ function setupWebSocket(
             continue;
           }
 
+          // Неизвестный тип предмета
           if (!ITEM_CONFIG[item.type]) {
             console.warn(
-              `[AntiCheat] ${playerId} → unknown item type: ${item.type}`,
+              `[AntiCheat] ${playerId} → unknown item: ${item.type}`,
             );
             if (ws.readyState === WebSocket.OPEN) {
               ws.send(
@@ -2100,32 +2125,9 @@ function setupWebSocket(
             continue;
           }
 
-          // ─── 2. Жёсткий кулдаун (даже если предыдущий запрос ещё обрабатывается) ──
-          const DROP_COOLDOWN_MS = 500; // 500 мс — более строгий, но всё ещё комфортный
-
-          if (
-            player.lastDropTime &&
-            now - player.lastDropTime < DROP_COOLDOWN_MS
-          ) {
-            if (ws.readyState === WebSocket.OPEN) {
-              ws.send(
-                JSON.stringify({
-                  type: "dropFailed",
-                  reason: "too_fast",
-                  slotIndex,
-                  retryAfterMs: DROP_COOLDOWN_MS - (now - player.lastDropTime),
-                }),
-              );
-            }
-            continue;
-          }
-
-          player.lastDropTime = now;
-
-          // ─── 3. Проверка количества — самое важное исправление ───────────────
+          // ─── 2. Количество ───────────────────────────────────────────────────────
           let quantityToDrop = Number(data.quantity);
 
-          // Если quantity не число, не целое, <= 0 или NaN → отклоняем полностью
           if (
             isNaN(quantityToDrop) ||
             !Number.isInteger(quantityToDrop) ||
@@ -2137,7 +2139,7 @@ function setupWebSocket(
                   type: "dropFailed",
                   reason: "invalid_quantity",
                   slotIndex,
-                  requested: data.quantity,
+                  requested: data.quantity ?? "missing",
                 }),
               );
             }
@@ -2163,12 +2165,12 @@ function setupWebSocket(
               );
             }
             console.warn(
-              `[AntiCheat] ${playerId} → tried to drop ${quantityToDrop} > ${currentQuantity} (${item.type})`,
+              `[AntiCheat] ${playerId} → ${quantityToDrop} > ${currentQuantity} (${item.type})`,
             );
             continue;
           }
 
-          // ─── Дальше всё как было — дроп разрешен ─────────────────────────────
+          // ─── Всё ок — дропаем (координаты игнорируем полностью) ─────────────────
           let dropX,
             dropY,
             attempts = 0;
