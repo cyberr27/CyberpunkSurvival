@@ -2046,7 +2046,7 @@ function setupWebSocket(
             player.inventory = Array(20).fill(null);
           }
 
-          // ─── Базовые проверки запроса ───────────────────────────────────────
+          // ─── 1. Проверка слота ───────────────────────────────────────────────
           if (
             typeof data.slotIndex !== "number" ||
             !Number.isInteger(data.slotIndex) ||
@@ -2058,12 +2058,12 @@ function setupWebSocket(
                 JSON.stringify({
                   type: "dropFailed",
                   reason: "invalid_slot",
-                  slotIndex: data.slotIndex,
+                  slotIndex: data.slotIndex ?? "unknown",
                 }),
               );
             }
             console.warn(
-              `[Drop] Игрок ${playerId} → некорректный слот: ${data.slotIndex}`,
+              `[Drop AntiCheat] ${playerId} → invalid slot: ${data.slotIndex}`,
             );
             continue;
           }
@@ -2084,10 +2084,9 @@ function setupWebSocket(
             continue;
           }
 
-          // Проверяем, что такой тип предмета вообще существует в игре
           if (!ITEM_CONFIG[item.type]) {
             console.warn(
-              `[AntiCheat] Игрок ${playerId} пытается выбросить неизвестный предмет: ${item.type}`,
+              `[AntiCheat] ${playerId} → unknown item type: ${item.type}`,
             );
             if (ws.readyState === WebSocket.OPEN) {
               ws.send(
@@ -2101,8 +2100,8 @@ function setupWebSocket(
             continue;
           }
 
-          // ─── Rate limit на дропы (защита от спама) ───────────────────────────
-          const DROP_COOLDOWN_MS = 450; // примерно 2 дропа в секунду максимум
+          // ─── 2. Жёсткий кулдаун (даже если предыдущий запрос ещё обрабатывается) ──
+          const DROP_COOLDOWN_MS = 500; // 500 мс — более строгий, но всё ещё комфортный
 
           if (
             player.lastDropTime &&
@@ -2114,7 +2113,7 @@ function setupWebSocket(
                   type: "dropFailed",
                   reason: "too_fast",
                   slotIndex,
-                  retryAfter: DROP_COOLDOWN_MS - (now - player.lastDropTime),
+                  retryAfterMs: DROP_COOLDOWN_MS - (now - player.lastDropTime),
                 }),
               );
             }
@@ -2123,20 +2122,35 @@ function setupWebSocket(
 
           player.lastDropTime = now;
 
-          // ─── Проверка количества ─────────────────────────────────────────────
-          let quantityToDrop = Number(data.quantity) || 1;
+          // ─── 3. Проверка количества — самое важное исправление ───────────────
+          let quantityToDrop = Number(data.quantity);
 
-          if (quantityToDrop < 1) {
-            quantityToDrop = 1;
+          // Если quantity не число, не целое, <= 0 или NaN → отклоняем полностью
+          if (
+            isNaN(quantityToDrop) ||
+            !Number.isInteger(quantityToDrop) ||
+            quantityToDrop <= 0
+          ) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "dropFailed",
+                  reason: "invalid_quantity",
+                  slotIndex,
+                  requested: data.quantity,
+                }),
+              );
+            }
+            console.warn(
+              `[Drop AntiCheat] ${playerId} → invalid quantity: ${data.quantity}`,
+            );
+            continue;
           }
 
           const isStackable = !!ITEM_CONFIG[item.type].stackable;
           const currentQuantity = isStackable ? item.quantity || 1 : 1;
 
           if (quantityToDrop > currentQuantity) {
-            console.warn(
-              `[AntiCheat] Игрок ${playerId} пытается выбросить больше, чем есть: ${quantityToDrop} > ${currentQuantity} (${item.type})`,
-            );
             if (ws.readyState === WebSocket.OPEN) {
               ws.send(
                 JSON.stringify({
@@ -2148,10 +2162,13 @@ function setupWebSocket(
                 }),
               );
             }
+            console.warn(
+              `[AntiCheat] ${playerId} → tried to drop ${quantityToDrop} > ${currentQuantity} (${item.type})`,
+            );
             continue;
           }
 
-          // ─── Определяем координаты дропа ─────────────────────────────────────
+          // ─── Дальше всё как было — дроп разрешен ─────────────────────────────
           let dropX,
             dropY,
             attempts = 0;
@@ -2181,7 +2198,6 @@ function setupWebSocket(
             continue;
           }
 
-          // ─── Всё прошло проверки — выполняем дроп ────────────────────────────
           const itemId = `${item.type}_${now}_${Math.random().toString(36).slice(2, 8)}`;
 
           const droppedItem = {
@@ -2208,12 +2224,10 @@ function setupWebSocket(
 
           items.set(itemId, droppedItem);
 
-          // Сохраняем игрока
           players.set(playerId, { ...player });
           userDatabase.set(playerId, { ...player });
           await saveUserDatabase?.(dbCollection, playerId, player);
 
-          // Рассылка всем + обновление инвентаря дропнувшему
           const dropMessage = {
             type: "itemDropped",
             itemId,
@@ -2234,7 +2248,6 @@ function setupWebSocket(
             JSON.stringify(dropMessage),
           );
 
-          // Обновляем инвентарь только дропнувшему игроку
           if (ws.readyState === WebSocket.OPEN) {
             ws.send(
               JSON.stringify({
