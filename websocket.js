@@ -2349,7 +2349,7 @@ function setupWebSocket(
             continue;
           }
 
-          // ─── 5. Rate-limit (450–500 мс между использованиями) ──────────────────
+          // ─── 5. Rate-limit (480 мс между использованиями) ───────────────────────
           const USE_COOLDOWN = 480;
           if (
             player.lastUseItemTime &&
@@ -2373,7 +2373,6 @@ function setupWebSocket(
           if (typeof effect.health === "number" && effect.health > 0) {
             const add = Math.floor(effect.health);
             if (add <= 100) {
-              // максимум за один предмет
               player.health = Math.min(
                 (player.health || 0) + add,
                 player.maxStats?.health || 100,
@@ -2407,10 +2406,9 @@ function setupWebSocket(
           }
 
           // water
-          if (typeof effect.water === "number" && effect.water !== undefined) {
+          if (typeof effect.water === "number") {
             const delta = Number(effect.water);
             if (delta >= -30 && delta <= 60) {
-              // разрешаем небольшие штрафы (хлеб, сушёная рыба)
               player.water = Math.min(
                 Math.max(0, (player.water || 0) + delta),
                 player.maxStats?.water || 100,
@@ -2419,11 +2417,20 @@ function setupWebSocket(
             }
           }
 
-          // Другие поля пока не поддерживаем через useItem (armor, damage и т.д.)
-          // если появятся — добавлять сюда с аналогичными проверками
+          // armor (добавлено для атомов и возможных будущих consumable-ов)
+          if (typeof effect.armor === "number" && effect.armor > 0) {
+            const add = Math.floor(effect.armor);
+            if (add <= 20) {
+              // разумный лимит на один consumable
+              player.armor = Math.min(
+                (player.armor || 0) + add,
+                player.maxStats?.armor || 100, // или другое значение, если у вас другой cap
+              );
+              changed = true;
+            }
+          }
 
           if (!changed) {
-            // ничего не поменялось — не тратим время на сохранение и рассылку
             continue;
           }
 
@@ -2439,19 +2446,19 @@ function setupWebSocket(
           userDatabase.set(playerId, { ...player });
           await saveUserDatabase(dbCollection, playerId, player);
 
-          // ─── 10. Отправляем клиенту подтверждение + новые статы + инвентарь ───
+          // ─── 10. Отправляем клиенту подтверждение ──────────────────────────────
           if (ws.readyState === WebSocket.OPEN) {
             ws.send(
               JSON.stringify({
                 type: "useItemSuccess",
-                slotIndex, // на каком слоте использовали
+                slotIndex,
                 remainingQuantity: item.quantity || 0,
                 stats: {
                   health: Math.floor(player.health),
                   energy: Math.floor(player.energy),
                   food: Math.floor(player.food),
                   water: Math.floor(player.water),
-                  // armor если будет меняться — тоже сюда
+                  armor: Math.floor(player.armor), // добавили
                 },
                 inventory: player.inventory.map((item) =>
                   item ? { ...item } : null,
@@ -2459,9 +2466,6 @@ function setupWebSocket(
               }),
             );
           }
-
-          // Можно (опционально) бродкастить только изменение статов другим игрокам
-          // но обычно это не нужно для consumable-ов
         }
 
         ws.isProcessingUseItem = false;

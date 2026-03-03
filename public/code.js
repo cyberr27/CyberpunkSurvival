@@ -2236,6 +2236,8 @@ async function handleGameMessageLogic(data) {
           if (data.stats.food !== undefined) me.food = Number(data.stats.food);
           if (data.stats.water !== undefined)
             me.water = Number(data.stats.water);
+          if (data.stats.armor !== undefined)
+            me.armor = Number(data.stats.armor);
         }
 
         // Полная синхронизация инвентаря — критично!
