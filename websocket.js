@@ -2046,7 +2046,7 @@ function setupWebSocket(
             player.inventory = Array(20).fill(null);
           }
 
-          // ─── 0. САМЫЙ ПЕРВЫЙ — кулдаун (защита от спама) ────────────────────────
+          // ─── 0. ЖЁСТКИЙ КУЛДАУН — ПЕРВАЯ ПРОВЕРКА ────────────────────────────────
           const DROP_COOLDOWN_MS = 500;
 
           if (
@@ -2063,12 +2063,11 @@ function setupWebSocket(
                 }),
               );
             }
+            // НЕ обновляем lastDropTime — только при успешном дропе
             continue;
           }
 
-          player.lastDropTime = now;
-
-          // ─── 1. Проверка слота — делаем максимально надёжно ─────────────────────
+          // ─── 1. Проверка наличия и корректности слота ────────────────────────────
           if (
             !data.hasOwnProperty("slotIndex") ||
             typeof data.slotIndex !== "number" ||
@@ -2086,7 +2085,7 @@ function setupWebSocket(
               );
             }
             console.warn(
-              `[Drop AntiCheat] ${playerId} → invalid/missing slot: ${data.slotIndex}`,
+              `[Drop] ${playerId} → invalid slot: ${data.slotIndex}`,
             );
             continue;
           }
@@ -2094,7 +2093,7 @@ function setupWebSocket(
           const slotIndex = data.slotIndex;
           const item = player.inventory[slotIndex];
 
-          // Пустой слот — всегда отвечаем
+          // Пустой слот — ОБЯЗАТЕЛЬНО отвечаем
           if (!item || !item.type) {
             if (ws.readyState === WebSocket.OPEN) {
               ws.send(
@@ -2108,7 +2107,6 @@ function setupWebSocket(
             continue;
           }
 
-          // Неизвестный тип предмета
           if (!ITEM_CONFIG[item.type]) {
             console.warn(
               `[AntiCheat] ${playerId} → unknown item: ${item.type}`,
@@ -2144,7 +2142,7 @@ function setupWebSocket(
               );
             }
             console.warn(
-              `[Drop AntiCheat] ${playerId} → invalid quantity: ${data.quantity}`,
+              `[Drop] ${playerId} → invalid quantity: ${data.quantity}`,
             );
             continue;
           }
@@ -2170,7 +2168,10 @@ function setupWebSocket(
             continue;
           }
 
-          // ─── Всё ок — дропаем (координаты игнорируем полностью) ─────────────────
+          // ─── Только если всё прошло — обновляем время последнего успешного дропа ──
+          player.lastDropTime = now;
+
+          // ─── Дроп ────────────────────────────────────────────────────────────────
           let dropX,
             dropY,
             attempts = 0;
@@ -2197,6 +2198,7 @@ function setupWebSocket(
                 }),
               );
             }
+            // НЕ обновляем lastDropTime при неудаче
             continue;
           }
 
