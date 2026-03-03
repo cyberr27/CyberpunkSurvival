@@ -1045,8 +1045,6 @@ function setupWebSocket(
         if (ws.isProcessingTransition) return;
         ws.isProcessingTransition = true;
 
-        const now = Date.now();
-
         while (ws.transitionQueue.length > 0) {
           const data = ws.transitionQueue.shift();
 
@@ -1057,125 +1055,133 @@ function setupWebSocket(
           if (!player) continue;
 
           const currentWorldId = player.worldId;
-          const targetWorldId = data.targetWorldId;
+          const requestedTargetId = Number(data.targetWorldId);
 
-          // 1. Проверяем, что целевой мир существует
-          if (!worlds.some((w) => w.id === targetWorldId)) {
-            ws.send(
-              JSON.stringify({
-                type: "worldTransitionFail",
-                reason: "invalid_world",
-              }),
-            );
+          // 1. Проверяем существование мира
+          if (!worlds.some((w) => w.id === requestedTargetId)) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "worldTransitionFail",
+                  reason: "invalid_world",
+                }),
+              );
+            }
             continue;
           }
 
-          // 2. Запрещаем переход в тот же мир
-          if (currentWorldId === targetWorldId) {
-            ws.send(
-              JSON.stringify({
-                type: "worldTransitionFail",
-                reason: "same_world",
-              }),
-            );
+          // 2. Нельзя перейти в тот же мир
+          if (currentWorldId === requestedTargetId) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "worldTransitionFail",
+                  reason: "same_world",
+                }),
+              );
+            }
             continue;
           }
 
-          // 3. Проверяем, есть ли вообще зона перехода из текущего мира в целевой
-          const possibleZones = transitionZones.filter(
-            (z) => z.source === currentWorldId && z.target === targetWorldId,
+          // 3. Есть ли вообще переход между этими мирами?
+          const possibleTransitions = transitionZones.filter(
+            (z) =>
+              z.sourceWorldId === currentWorldId &&
+              z.targetWorldId === requestedTargetId,
           );
 
-          if (possibleZones.length === 0) {
-            ws.send(
-              JSON.stringify({
-                type: "worldTransitionFail",
-                reason: "no_transition_available",
-              }),
-            );
+          if (possibleTransitions.length === 0) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "worldTransitionFail",
+                  reason: "no_transition_available",
+                }),
+              );
+            }
             continue;
           }
 
-          // 4. Проверяем, находится ли присланная позиция внутри хотя бы одной зоны
-          let transitionAllowed = false;
-          const px = Number(data.x);
-          const py = Number(data.y);
+          // ────────────────────────────────────────────────────────────────
+          // Самое важное — проверяем ПОСЛЕДНЮЮ ПОДТВЕРЖДЁННУЮ позицию
+          // ────────────────────────────────────────────────────────────────
 
-          if (isNaN(px) || isNaN(py)) {
-            ws.send(
-              JSON.stringify({
-                type: "worldTransitionFail",
-                reason: "invalid_coordinates",
-              }),
-            );
+          if (!player.lastConfirmedPosition) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "worldTransitionFail",
+                  reason: "no_confirmed_position",
+                }),
+              );
+            }
             continue;
           }
 
-          for (const zone of possibleZones) {
-            const dx = px - zone.x;
-            const dy = py - zone.y;
+          const { x: confirmedX, y: confirmedY } = player.lastConfirmedPosition;
+
+          let canTransition = false;
+          let usedZone = null;
+
+          for (const zone of possibleTransitions) {
+            const dx = confirmedX - zone.x;
+            const dy = confirmedY - zone.y;
             const distSq = dx * dx + dy * dy;
             const radiusSq = zone.radius * zone.radius;
 
             if (distSq <= radiusSq) {
-              transitionAllowed = true;
+              canTransition = true;
+              usedZone = zone;
               break;
             }
           }
 
-          if (!transitionAllowed) {
-            ws.send(
-              JSON.stringify({
-                type: "worldTransitionFail",
-                reason: "position_not_in_transition_zone",
-              }),
-            );
-            continue;
-          }
-
-          if (player.lastConfirmedPosition) {
-            const dxConfirmed = px - player.lastConfirmedPosition.x;
-            const dyConfirmed = py - player.lastConfirmedPosition.y;
-            const distFromConfirmed = Math.hypot(dxConfirmed, dyConfirmed);
-
-            const MAX_CONFIRMED_DIST = 120; // тот же лимит, что и в move
-
-            if (distFromConfirmed > MAX_CONFIRMED_DIST) {
+          if (!canTransition) {
+            if (ws.readyState === WebSocket.OPEN) {
               ws.send(
                 JSON.stringify({
                   type: "worldTransitionFail",
-                  reason: "position_mismatch_with_confirmed",
+                  reason: "player_not_in_transition_zone",
                 }),
               );
-              continue;
             }
-          }
-
-          const MAX_POSITION_AGE_MS = 1500; // 1.5 секунды — достаточно для подхода пешком
-
-          if (
-            !player.lastMoveTime ||
-            now - player.lastMoveTime > MAX_POSITION_AGE_MS
-          ) {
-            ws.send(
-              JSON.stringify({
-                type: "worldTransitionFail",
-                reason: "position_not_recently_confirmed",
-              }),
-            );
             continue;
           }
 
-          // ── Если все проверки пройдены — выполняем переход ────────────────────────
+          // Дополнительная защита от очень старой позиции
+          const now = Date.now();
+          const MAX_AGE_MS = 4000; // 4 секунды — достаточно чтобы дойти пешком
+
+          if (!player.lastMoveTime || now - player.lastMoveTime > MAX_AGE_MS) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "worldTransitionFail",
+                  reason: "position_too_old",
+                }),
+              );
+            }
+            continue;
+          }
+
+          // ────────────────────────────────────────────────────────────────
+          // Всё хорошо → выполняем переход
+          // ────────────────────────────────────────────────────────────────
+
           const oldWorldId = currentWorldId;
 
-          player.worldId = targetWorldId;
-          player.x = px;
-          player.y = py;
+          player.worldId = requestedTargetId;
 
-          // Сохраняем позицию в историю миров (как было)
+          // Берём координаты ИЗ ПОДТВЕРЖДЁННОЙ позиции (игнорируем то, что прислал клиент)
+          player.x = confirmedX;
+          player.y = confirmedY;
+
+          // Сохраняем для истории миров
           player.worldPositions = player.worldPositions || {};
-          player.worldPositions[targetWorldId] = { x: px, y: py };
+          player.worldPositions[requestedTargetId] = {
+            x: confirmedX,
+            y: confirmedY,
+          };
 
           players.set(playerId, { ...player });
           userDatabase.set(playerId, { ...player });
@@ -1190,13 +1196,13 @@ function setupWebSocket(
             JSON.stringify({ type: "playerLeft", id: playerId }),
           );
 
-          // Собираем данные нового мира (как было)
+          // Собираем состояние нового мира
           const worldPlayers = Array.from(players.values()).filter(
-            (p) => p.id !== playerId && p.worldId === targetWorldId,
+            (p) => p.id !== playerId && p.worldId === requestedTargetId,
           );
 
           const worldItems = Array.from(items.entries())
-            .filter(([_, item]) => item.worldId === targetWorldId)
+            .filter(([, item]) => item.worldId === requestedTargetId)
             .map(([itemId, item]) => ({
               itemId,
               x: item.x,
@@ -1207,7 +1213,7 @@ function setupWebSocket(
             }));
 
           const worldEnemies = Array.from(enemies.entries())
-            .filter(([_, e]) => e.worldId === targetWorldId)
+            .filter(([, e]) => e.worldId === requestedTargetId)
             .map(([eid, e]) => ({
               enemyId: eid,
               x: e.x,
@@ -1219,28 +1225,35 @@ function setupWebSocket(
               worldId: e.worldId,
             }));
 
-          // Успешный переход
-          ws.send(
-            JSON.stringify({
-              type: "worldTransitionSuccess",
-              worldId: targetWorldId,
-              x: player.x,
-              y: player.y,
-              lights:
-                lights.get(targetWorldId)?.map(({ id, ...rest }) => rest) || [],
-              players: worldPlayers,
-              items: worldItems,
-              enemies: worldEnemies,
-            }),
-          );
+          // Успешный ответ клиенту
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(
+              JSON.stringify({
+                type: "worldTransitionSuccess",
+                worldId: requestedTargetId,
+                x: player.x,
+                y: player.y,
+                lights:
+                  lights
+                    .get(requestedTargetId)
+                    ?.map(({ id, ...rest }) => rest) || [],
+                players: worldPlayers,
+                items: worldItems,
+                enemies: worldEnemies,
+              }),
+            );
+          }
 
-          // Уведомляем новый мир о новом игроке
+          // Уведомляем новый мир
           broadcastToWorld(
             wss,
             clients,
             players,
-            targetWorldId,
-            JSON.stringify({ type: "newPlayer", player: { ...player } }),
+            requestedTargetId,
+            JSON.stringify({
+              type: "newPlayer",
+              player: { ...player },
+            }),
           );
         }
 
