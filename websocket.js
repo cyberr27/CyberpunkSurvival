@@ -2046,7 +2046,7 @@ function setupWebSocket(
             player.inventory = Array(20).fill(null);
           }
 
-          // ─── 0. ЖЁСТКИЙ КУЛДАУН — ПЕРВАЯ ПРОВЕРКА ────────────────────────────────
+          // ─── 0. Кулдаун — должен быть САМЫМ ПЕРВЫМ после проверки игрока ───────
           const DROP_COOLDOWN_MS = 500;
 
           if (
@@ -2063,13 +2063,14 @@ function setupWebSocket(
                 }),
               );
             }
-            // НЕ обновляем lastDropTime — только при успешном дропе
             continue;
           }
 
-          // ─── 1. Проверка наличия и корректности слота ────────────────────────────
+          // ─── 1. Проверка слота ──────────────────────────────────────────────────
+          let slotIndex;
+
           if (
-            !data.hasOwnProperty("slotIndex") ||
+            !("slotIndex" in data) ||
             typeof data.slotIndex !== "number" ||
             !Number.isInteger(data.slotIndex) ||
             data.slotIndex < 0 ||
@@ -2090,11 +2091,11 @@ function setupWebSocket(
             continue;
           }
 
-          const slotIndex = data.slotIndex;
+          slotIndex = data.slotIndex;
           const item = player.inventory[slotIndex];
 
-          // Пустой слот — ОБЯЗАТЕЛЬНО отвечаем
-          if (!item || !item.type) {
+          // Пустой слот — всегда отвечаем клиенту
+          if (!item || typeof item !== "object" || !item.type) {
             if (ws.readyState === WebSocket.OPEN) {
               ws.send(
                 JSON.stringify({
@@ -2109,7 +2110,7 @@ function setupWebSocket(
 
           if (!ITEM_CONFIG[item.type]) {
             console.warn(
-              `[AntiCheat] ${playerId} → unknown item: ${item.type}`,
+              `[AntiCheat] ${playerId} → unknown item type: ${item.type}`,
             );
             if (ws.readyState === WebSocket.OPEN) {
               ws.send(
@@ -2123,8 +2124,9 @@ function setupWebSocket(
             continue;
           }
 
-          // ─── 2. Количество ───────────────────────────────────────────────────────
-          let quantityToDrop = Number(data.quantity);
+          // ─── 2. Количество ──────────────────────────────────────────────────────
+          const quantityRaw = data.quantity;
+          let quantityToDrop = Number(quantityRaw);
 
           if (
             isNaN(quantityToDrop) ||
@@ -2137,12 +2139,12 @@ function setupWebSocket(
                   type: "dropFailed",
                   reason: "invalid_quantity",
                   slotIndex,
-                  requested: data.quantity ?? "missing",
+                  requested: quantityRaw ?? "missing",
                 }),
               );
             }
             console.warn(
-              `[Drop] ${playerId} → invalid quantity: ${data.quantity}`,
+              `[Drop] ${playerId} → invalid quantity: ${quantityRaw}`,
             );
             continue;
           }
@@ -2168,10 +2170,10 @@ function setupWebSocket(
             continue;
           }
 
-          // ─── Только если всё прошло — обновляем время последнего успешного дропа ──
+          // ─── Только успешный дроп обновляет таймер кулдауна ────────────────────
           player.lastDropTime = now;
 
-          // ─── Дроп ────────────────────────────────────────────────────────────────
+          // ─── Дроп ───────────────────────────────────────────────────────────────
           let dropX,
             dropY,
             attempts = 0;
@@ -2198,7 +2200,7 @@ function setupWebSocket(
                 }),
               );
             }
-            // НЕ обновляем lastDropTime при неудаче
+            // НЕ обновляем lastDropTime при неудачном размещении
             continue;
           }
 
