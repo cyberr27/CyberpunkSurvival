@@ -1005,6 +1005,7 @@ function setupWebSocket(
               pickupSpamCount: 0,
               lastUseItemTime: 0,
               lastXPAddTime: 0,
+              lastDropTime: 0,
               healthUpgrade: 0,
               energyUpgrade: 0,
               foodUpgrade: 0,
@@ -1346,6 +1347,7 @@ function setupWebSocket(
             pickupSpamCount: player.pickupSpamCount || 0,
             lastUseItemTime: 0,
             lastXPAddTime: 0,
+            lastDropTime: 0,
             healthUpgrade: player.healthUpgrade || 0,
             energyUpgrade: player.energyUpgrade || 0,
             foodUpgrade: player.foodUpgrade || 0,
@@ -2030,34 +2032,134 @@ function setupWebSocket(
         if (ws.isProcessingDrop) return;
         ws.isProcessingDrop = true;
 
+        const now = Date.now();
+
         while (ws.dropQueue.length > 0) {
           const data = ws.dropQueue.shift();
 
           const playerId = clients.get(ws);
-          if (!playerId) continue;
+          if (!playerId || !players.has(playerId)) continue;
 
           const player = players.get(playerId);
-          if (!player) continue;
+
+          if (!player.inventory) {
+            player.inventory = Array(20).fill(null);
+          }
+
+          // ─── Базовые проверки запроса ───────────────────────────────────────
+          if (
+            typeof data.slotIndex !== "number" ||
+            !Number.isInteger(data.slotIndex) ||
+            data.slotIndex < 0 ||
+            data.slotIndex >= player.inventory.length
+          ) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "dropFailed",
+                  reason: "invalid_slot",
+                  slotIndex: data.slotIndex,
+                }),
+              );
+            }
+            console.warn(
+              `[Drop] Игрок ${playerId} → некорректный слот: ${data.slotIndex}`,
+            );
+            continue;
+          }
 
           const slotIndex = data.slotIndex;
           const item = player.inventory[slotIndex];
-          if (!item) continue;
 
-          let quantityToDrop = data.quantity || 1;
-          if (ITEM_CONFIG[item.type]?.stackable) {
-            const currentQuantity = item.quantity || 1;
-            if (quantityToDrop > currentQuantity) {
-              continue; // некорректный запрос — игнорируем
+          if (!item || !item.type) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "dropFailed",
+                  reason: "empty_slot",
+                  slotIndex,
+                }),
+              );
             }
+            continue;
           }
 
+          // Проверяем, что такой тип предмета вообще существует в игре
+          if (!ITEM_CONFIG[item.type]) {
+            console.warn(
+              `[AntiCheat] Игрок ${playerId} пытается выбросить неизвестный предмет: ${item.type}`,
+            );
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "dropFailed",
+                  reason: "invalid_item_type",
+                  slotIndex,
+                }),
+              );
+            }
+            continue;
+          }
+
+          // ─── Rate limit на дропы (защита от спама) ───────────────────────────
+          const DROP_COOLDOWN_MS = 450; // примерно 2 дропа в секунду максимум
+
+          if (
+            player.lastDropTime &&
+            now - player.lastDropTime < DROP_COOLDOWN_MS
+          ) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "dropFailed",
+                  reason: "too_fast",
+                  slotIndex,
+                  retryAfter: DROP_COOLDOWN_MS - (now - player.lastDropTime),
+                }),
+              );
+            }
+            continue;
+          }
+
+          player.lastDropTime = now;
+
+          // ─── Проверка количества ─────────────────────────────────────────────
+          let quantityToDrop = Number(data.quantity) || 1;
+
+          if (quantityToDrop < 1) {
+            quantityToDrop = 1;
+          }
+
+          const isStackable = !!ITEM_CONFIG[item.type].stackable;
+          const currentQuantity = isStackable ? item.quantity || 1 : 1;
+
+          if (quantityToDrop > currentQuantity) {
+            console.warn(
+              `[AntiCheat] Игрок ${playerId} пытается выбросить больше, чем есть: ${quantityToDrop} > ${currentQuantity} (${item.type})`,
+            );
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "dropFailed",
+                  reason: "not_enough_quantity",
+                  slotIndex,
+                  requested: quantityToDrop,
+                  available: currentQuantity,
+                }),
+              );
+            }
+            continue;
+          }
+
+          // ─── Определяем координаты дропа ─────────────────────────────────────
           let dropX,
             dropY,
             attempts = 0;
           const maxAttempts = 10;
+
           do {
             const angle = Math.random() * Math.PI * 2;
-            const radius = Math.random() * 80 + 20; // чуть ближе, чем было
+            const radius = Math.random() * 80 + 20;
             dropX = player.x + Math.cos(angle) * radius;
             dropY = player.y + Math.sin(angle) * radius;
             attempts++;
@@ -2079,7 +2181,7 @@ function setupWebSocket(
             continue;
           }
 
-          const now = Date.now();
+          // ─── Всё прошло проверки — выполняем дроп ────────────────────────────
           const itemId = `${item.type}_${now}_${Math.random().toString(36).slice(2, 8)}`;
 
           const droppedItem = {
@@ -2088,16 +2190,17 @@ function setupWebSocket(
             type: item.type,
             spawnTime: now,
             worldId: player.worldId,
-            isDroppedByPlayer: true, // ← главное изменение
+            isDroppedByPlayer: true,
           };
 
-          if (ITEM_CONFIG[item.type]?.stackable) {
+          if (isStackable) {
             droppedItem.quantity = quantityToDrop;
 
-            if (quantityToDrop === (item.quantity || 1)) {
+            if (quantityToDrop === currentQuantity) {
               player.inventory[slotIndex] = null;
             } else {
-              player.inventory[slotIndex].quantity -= quantityToDrop;
+              player.inventory[slotIndex].quantity =
+                currentQuantity - quantityToDrop;
             }
           } else {
             player.inventory[slotIndex] = null;
@@ -2108,9 +2211,9 @@ function setupWebSocket(
           // Сохраняем игрока
           players.set(playerId, { ...player });
           userDatabase.set(playerId, { ...player });
-          await saveUserDatabase(dbCollection, playerId, player);
+          await saveUserDatabase?.(dbCollection, playerId, player);
 
-          // Рассылка всем в мире + обновление инвентаря дропнувшему
+          // Рассылка всем + обновление инвентаря дропнувшему
           const dropMessage = {
             type: "itemDropped",
             itemId,
@@ -2120,9 +2223,7 @@ function setupWebSocket(
             spawnTime: now,
             worldId: player.worldId,
             isDroppedByPlayer: true,
-            quantity: ITEM_CONFIG[item.type]?.stackable
-              ? quantityToDrop
-              : undefined,
+            quantity: isStackable ? quantityToDrop : undefined,
           };
 
           broadcastToWorld(
@@ -2133,7 +2234,7 @@ function setupWebSocket(
             JSON.stringify(dropMessage),
           );
 
-          // Обновляем инвентарь и статы дропнувшему игроку
+          // Обновляем инвентарь только дропнувшему игроку
           if (ws.readyState === WebSocket.OPEN) {
             ws.send(
               JSON.stringify({
@@ -2141,7 +2242,6 @@ function setupWebSocket(
                 player: {
                   id: playerId,
                   inventory: player.inventory,
-                  ...player,
                 },
               }),
             );

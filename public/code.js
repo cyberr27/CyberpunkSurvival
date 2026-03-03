@@ -1273,6 +1273,7 @@ function handleAuthMessage(event) {
         pickupSpamCount: data.pickupSpamCount || 0,
         lastUseItemTime: 0,
         lastXPAddTime: 0,
+        lastDropTime: 0,
         healthUpgrade: data.healthUpgrade || 0,
         energyUpgrade: data.energyUpgrade || 0,
         foodUpgrade: data.foodUpgrade || 0,
