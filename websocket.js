@@ -3419,30 +3419,35 @@ function setupWebSocket(
         while (ws.tradeCompletedQueue.length > 0) {
           const data = ws.tradeCompletedQueue.shift();
 
-          const senderId = clients.get(ws);
-          if (!senderId || !players.has(senderId)) continue;
+          // 1. Кто реально отправил пакет завершения
+          const initiatorId = clients.get(ws);
+          if (!initiatorId || !players.has(initiatorId)) continue;
 
+          // 2. Находим партнёра
           let partnerId = data.toId;
           if (!partnerId || !players.has(partnerId)) {
+            // Если toId не пришёл — ищем по активной сделке
             for (const [key, state] of tradeOffers.entries()) {
               const [id1, id2] = key.split("-");
-              if (id1 === senderId || id2 === senderId) {
-                partnerId = id1 === senderId ? id2 : id1;
+              if (id1 === initiatorId || id2 === initiatorId) {
+                partnerId = id1 === initiatorId ? id2 : id1;
                 break;
               }
             }
           }
           if (!partnerId || !players.has(partnerId)) continue;
 
+          // 3. Нормализованный ключ (для поиска состояния — это не влияет на логику обмена)
           const tradeKey =
-            senderId < partnerId
-              ? `${senderId}-${partnerId}`
-              : `${partnerId}-${senderId}`;
+            initiatorId < partnerId
+              ? `${initiatorId}-${partnerId}`
+              : `${partnerId}-${initiatorId}`;
 
           if (!tradeOffers.has(tradeKey)) continue;
 
           const tradeState = tradeOffers.get(tradeKey);
 
+          // 4. Оба подтвердили — без изменений
           if (!tradeState.myConfirmed || !tradeState.partnerConfirmed) {
             console.warn(
               `[Trade] Попытка завершить без двойного подтверждения: ${tradeKey}`,
@@ -3450,17 +3455,28 @@ function setupWebSocket(
             continue;
           }
 
-          const playerAId = tradeKey.split("-")[0];
-          const playerBId = tradeKey.split("-")[1];
-          const playerA = players.get(playerAId);
-          const playerB = players.get(playerBId);
+          // 5. Игроки (без привязки к "меньший/больший")
+          const playerInitiator = players.get(initiatorId);
+          const playerPartner = players.get(partnerId);
 
-          if (!playerA?.inventory || !playerB?.inventory) continue;
+          if (!playerInitiator?.inventory || !playerPartner?.inventory)
+            continue;
 
-          const offerA = tradeState.myOffer;
-          const offerB = tradeState.partnerOffer;
+          // 6. Определяем офферы относительно того, кто отправил пакет
+          let offerFromInitiator, offerFromPartner;
 
-          // ─── 5. Валидация офферов (без изменений) ───
+          // myOffer всегда принадлежит игроку с меньшим ID
+          const smallerId = tradeKey.split("-")[0];
+
+          if (initiatorId === smallerId) {
+            offerFromInitiator = tradeState.myOffer;
+            offerFromPartner = tradeState.partnerOffer;
+          } else {
+            offerFromInitiator = tradeState.partnerOffer;
+            offerFromPartner = tradeState.myOffer;
+          }
+
+          // ─── 7. Валидация офферов (без изменений) ───
           const validateOffer = (player, offer) => {
             const slotUsage = new Map();
 
@@ -3500,21 +3516,20 @@ function setupWebSocket(
           };
 
           if (
-            !validateOffer(playerA, offerA) ||
-            !validateOffer(playerB, offerB)
+            !validateOffer(playerInitiator, offerFromInitiator) ||
+            !validateOffer(playerPartner, offerFromPartner)
           ) {
             console.warn(
               `[TradeAntiCheat] Недействительный оффер при завершении ${tradeKey}`,
             );
-            broadcastTradeCancelled(wss, clients, playerAId, playerBId);
+            broadcastTradeCancelled(wss, clients, initiatorId, partnerId);
             tradeOffers.delete(tradeKey);
             tradeRequests.delete(tradeKey);
             continue;
           }
 
-          // ─── 6. Самое важное — считаем инвентарь ПОСЛЕ удаления отданных предметов ───
+          // ─── 8. Симуляция инвентаря после удаления (теперь симметрично) ───
           const simulateInventoryAfterRemove = (player, outgoingOffer) => {
-            // Глубокая копия инвентаря
             const simulated = player.inventory.map((item) =>
               item ? { ...item } : null,
             );
@@ -3536,10 +3551,16 @@ function setupWebSocket(
             return simulated;
           };
 
-          const simulatedA = simulateInventoryAfterRemove(playerA, offerA);
-          const simulatedB = simulateInventoryAfterRemove(playerB, offerB);
+          const simulatedInitiator = simulateInventoryAfterRemove(
+            playerInitiator,
+            offerFromInitiator,
+          );
+          const simulatedPartner = simulateInventoryAfterRemove(
+            playerPartner,
+            offerFromPartner,
+          );
 
-          // ─── 7. Теперь считаем свободные слоты и текущие количества после симуляции ───
+          // ─── 9. Подсчёт после симуляции (без изменений) ───
           const countFreeAfterSim = (inv) =>
             inv.filter((s) => s === null).length;
 
@@ -3571,32 +3592,39 @@ function setupWebSocket(
 
               const current = countCurrentQty(simInv, type);
               const missing = want - current;
-              if (missing > 0) total += 1; // один новый стак покроет всё недостающее
+              if (missing > 0) total += 1;
             }
 
             return total;
           };
 
-          const freeAfterA = countFreeAfterSim(simulatedA);
-          const freeAfterB = countFreeAfterSim(simulatedB);
+          const freeAfterInitiator = countFreeAfterSim(simulatedInitiator);
+          const freeAfterPartner = countFreeAfterSim(simulatedPartner);
 
-          const needForA = countNeededSlotsAfterSim(simulatedA, offerB);
-          const needForB = countNeededSlotsAfterSim(simulatedB, offerA);
+          const needForInitiator = countNeededSlotsAfterSim(
+            simulatedInitiator,
+            offerFromPartner,
+          );
+          const needForPartner = countNeededSlotsAfterSim(
+            simulatedPartner,
+            offerFromInitiator,
+          );
 
-          if (freeAfterA < needForA || freeAfterB < needForB) {
+          if (
+            freeAfterInitiator < needForInitiator ||
+            freeAfterPartner < needForPartner
+          ) {
             console.warn(
               `[Trade] Недостаточно места ПОСЛЕ удаления ${tradeKey} ` +
-                `(A: ${freeAfterA} < ${needForA}, B: ${freeAfterB} < ${needForB})`,
+                `(Initiator: ${freeAfterInitiator} < ${needForInitiator}, Partner: ${freeAfterPartner} < ${needForPartner})`,
             );
-            broadcastTradeCancelled(wss, clients, playerAId, playerBId);
+            broadcastTradeCancelled(wss, clients, initiatorId, partnerId);
             tradeOffers.delete(tradeKey);
             tradeRequests.delete(tradeKey);
             continue;
           }
 
-          // ─── Всё ок — выполняем реальный обмен ───
-
-          // 8. Удаляем (как раньше)
+          // ─── 10. Реальный обмен (симметрично) ───
           const removeOffered = (player, offer) => {
             offer.forEach((item) => {
               if (!item) return;
@@ -3613,10 +3641,9 @@ function setupWebSocket(
             });
           };
 
-          removeOffered(playerA, offerA);
-          removeOffered(playerB, offerB);
+          removeOffered(playerInitiator, offerFromInitiator);
+          removeOffered(playerPartner, offerFromPartner);
 
-          // 9. Добавляем (как раньше, идентично клиенту)
           const addReceived = (player, itemsToAdd) => {
             itemsToAdd.forEach((item) => {
               if (!item) return;
@@ -3645,32 +3672,32 @@ function setupWebSocket(
             });
           };
 
-          addReceived(playerA, offerB);
-          addReceived(playerB, offerA);
+          addReceived(playerInitiator, offerFromPartner);
+          addReceived(playerPartner, offerFromInitiator);
 
-          // 10–11. Сохранение, отправка, очистка (без изменений)
-          players.set(playerAId, { ...playerA });
-          players.set(playerBId, { ...playerB });
-          userDatabase.set(playerAId, { ...playerA });
-          userDatabase.set(playerBId, { ...playerB });
-          await saveUserDatabase(dbCollection, playerAId, playerA);
-          await saveUserDatabase(dbCollection, playerBId, playerB);
+          // 11–12. Сохранение, отправка, очистка
+          players.set(initiatorId, { ...playerInitiator });
+          players.set(partnerId, { ...playerPartner });
+          userDatabase.set(initiatorId, { ...playerInitiator });
+          userDatabase.set(partnerId, { ...playerPartner });
+          await saveUserDatabase(dbCollection, initiatorId, playerInitiator);
+          await saveUserDatabase(dbCollection, partnerId, playerPartner);
 
           wss.clients.forEach((client) => {
             if (client.readyState !== WebSocket.OPEN) return;
             const cid = clients.get(client);
-            if (cid === playerAId) {
+            if (cid === initiatorId) {
               client.send(
                 JSON.stringify({
                   type: "tradeCompleted",
-                  newInventory: playerA.inventory,
+                  newInventory: playerInitiator.inventory,
                 }),
               );
-            } else if (cid === playerBId) {
+            } else if (cid === partnerId) {
               client.send(
                 JSON.stringify({
                   type: "tradeCompleted",
-                  newInventory: playerB.inventory,
+                  newInventory: playerPartner.inventory,
                 }),
               );
             }
