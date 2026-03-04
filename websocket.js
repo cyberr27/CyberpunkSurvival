@@ -2349,7 +2349,7 @@ function setupWebSocket(
             continue;
           }
 
-          // 5. Rate-limit
+          // 5. Rate-limit (оставляем защиту от спама)
           const USE_COOLDOWN = 480;
           if (
             player.lastUseItemTime &&
@@ -2359,13 +2359,11 @@ function setupWebSocket(
           }
           player.lastUseItemTime = now;
 
-          // 6. Есть ли вообще эффект
-          if (!config.effect || Object.keys(config.effect).length === 0) {
-            continue;
-          }
+          // 6. Есть ли вообще эффект — если нет, всё равно разрешаем "сжечь" предмет
+          //    (но без изменений статов)
+          const effect = config.effect || {};
 
-          // 7. Применяем ВСЕ числовые эффекты (и + и -)
-          const effect = config.effect;
+          // 7. Применяем эффекты с жёстким ограничением по максимуму и защитой от читов
           let changed = false;
 
           const fields = ["health", "energy", "food", "water", "armor"];
@@ -2376,19 +2374,31 @@ function setupWebSocket(
             const delta = Number(effect[field]);
             if (delta === 0) continue;
 
-            let current = player[field] || 0;
-            const maxVal = player.maxStats?.[field] || 100;
+            let current = player[field] ?? 0;
+            const maxVal = player.maxStats?.[field] ?? 100;
 
             let newVal;
 
             if (delta > 0) {
-              // Положительный эффект — с лимитом на максимум за один предмет
-              const safeAdd = Math.min(delta, 100); // самый большой разумный бонус
-              newVal = Math.min(current + safeAdd, maxVal);
+              // Положительный бонус — не превышаем максимум
+              newVal = Math.min(current + delta, maxVal);
             } else {
-              // Отрицательный эффект — защита от слишком сильного штрафа
-              const safeSub = Math.max(delta, -50); // не больше -50 за раз от одного предмета
-              newVal = Math.max(0, current + safeSub);
+              // Отрицательный эффект — не уходим ниже 0
+              newVal = Math.max(0, current + delta);
+            }
+
+            // Защита от слишком больших значений в принципе (античит)
+            if (delta > 0 && delta > 150) {
+              console.warn(
+                `[AntiCheat] ${playerId} item ${item.type} даёт слишком большой +${delta} к ${field}`,
+              );
+              newVal = current; // откатываем изменение
+            }
+            if (delta < 0 && delta < -100) {
+              console.warn(
+                `[AntiCheat] ${playerId} item ${item.type} даёт слишком большой штраф ${delta} к ${field}`,
+              );
+              newVal = current;
             }
 
             if (newVal !== current) {
@@ -2397,23 +2407,19 @@ function setupWebSocket(
             }
           }
 
-          if (!changed) {
-            continue;
-          }
-
-          // 8. Уменьшаем количество / удаляем предмет
+          // 8. Уменьшаем количество / удаляем предмет **ВСЕГДА**, даже если статы не изменились
           if (item.quantity > 1 && config.stackable) {
             item.quantity -= 1;
           } else {
             player.inventory[slotIndex] = null;
           }
 
-          // 9. Сохраняем
+          // 9. Сохраняем игрока
           players.set(playerId, { ...player });
           userDatabase.set(playerId, { ...player });
           await saveUserDatabase(dbCollection, playerId, player);
 
-          // 10. Отправляем клиенту
+          // 10. Отправляем клиенту подтверждение использования (всегда!)
           if (ws.readyState === WebSocket.OPEN) {
             ws.send(
               JSON.stringify({
@@ -2421,14 +2427,14 @@ function setupWebSocket(
                 slotIndex,
                 remainingQuantity: item.quantity || 0,
                 stats: {
-                  health: Math.floor(player.health),
-                  energy: Math.floor(player.energy),
-                  food: Math.floor(player.food),
-                  water: Math.floor(player.water),
-                  armor: Math.floor(player.armor),
+                  health: Math.floor(player.health ?? 0),
+                  energy: Math.floor(player.energy ?? 0),
+                  food: Math.floor(player.food ?? 0),
+                  water: Math.floor(player.water ?? 0),
+                  armor: Math.floor(player.armor ?? 0),
                 },
-                inventory: player.inventory.map((item) =>
-                  item ? { ...item } : null,
+                inventory: player.inventory.map((it) =>
+                  it ? { ...it } : null,
                 ),
               }),
             );
