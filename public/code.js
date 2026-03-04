@@ -2202,6 +2202,7 @@ async function handleGameMessageLogic(data) {
     case "tradeCancelled":
       window.tradeSystem.handleTradeMessage(data);
       break;
+
     case "tradeCompleted":
       if (data.newInventory) {
         // КРИТИЧНО: обновляем локальный инвентарь
