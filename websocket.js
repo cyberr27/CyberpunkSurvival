@@ -2284,7 +2284,7 @@ function setupWebSocket(
           const player = players.get(playerId);
           const { slotIndex } = data;
 
-          // ─── 1. Базовые проверки пакета ────────────────────────────────────────
+          // 1. Базовые проверки пакета
           if (
             typeof slotIndex !== "number" ||
             !Number.isInteger(slotIndex) ||
@@ -2297,7 +2297,7 @@ function setupWebSocket(
 
           const item = player.inventory[slotIndex];
 
-          // ─── 2. Предмет должен существовать в конфиге ───────────────────────────
+          // 2. Предмет должен существовать в конфиге
           const config = ITEM_CONFIG[item.type];
           if (!config) {
             console.warn(
@@ -2306,7 +2306,7 @@ function setupWebSocket(
             continue;
           }
 
-          // ─── 3. Запрещаем использовать через useItem то, что не предназначено ──
+          // 3. Запрещённые для использования через useItem
           const forbiddenForUseItem = [
             "balyary",
             "blue_crystal",
@@ -2330,7 +2330,7 @@ function setupWebSocket(
             continue;
           }
 
-          // ─── 4. Экипировку тоже запрещаем обрабатывать здесь ───────────────────
+          // 4. Экипировку запрещаем обрабатывать здесь
           if (
             config.type &&
             [
@@ -2349,7 +2349,7 @@ function setupWebSocket(
             continue;
           }
 
-          // ─── 5. Rate-limit (480 мс между использованиями) ───────────────────────
+          // 5. Rate-limit
           const USE_COOLDOWN = 480;
           if (
             player.lastUseItemTime &&
@@ -2359,73 +2359,40 @@ function setupWebSocket(
           }
           player.lastUseItemTime = now;
 
-          // ─── 6. Проверяем, что у предмета вообще есть эффект ───────────────────
+          // 6. Есть ли вообще эффект
           if (!config.effect || Object.keys(config.effect).length === 0) {
             continue;
           }
 
-          // ─── 7. Применяем только разрешённые поля и с жёсткими лимитами ────────
+          // 7. Применяем ВСЕ числовые эффекты (и + и -)
           const effect = config.effect;
-
           let changed = false;
 
-          // health
-          if (typeof effect.health === "number" && effect.health > 0) {
-            const add = Math.floor(effect.health);
-            if (add <= 100) {
-              player.health = Math.min(
-                (player.health || 0) + add,
-                player.maxStats?.health || 100,
-              );
-              changed = true;
-            }
-          }
+          const fields = ["health", "energy", "food", "water", "armor"];
 
-          // energy
-          if (typeof effect.energy === "number" && effect.energy > 0) {
-            const add = Math.floor(effect.energy);
-            if (add <= 60) {
-              player.energy = Math.min(
-                (player.energy || 0) + add,
-                player.maxStats?.energy || 100,
-              );
-              changed = true;
-            }
-          }
+          for (const field of fields) {
+            if (typeof effect[field] !== "number") continue;
 
-          // food
-          if (typeof effect.food === "number" && effect.food > 0) {
-            const add = Math.floor(effect.food);
-            if (add <= 60) {
-              player.food = Math.min(
-                (player.food || 0) + add,
-                player.maxStats?.food || 100,
-              );
-              changed = true;
-            }
-          }
+            const delta = Number(effect[field]);
+            if (delta === 0) continue;
 
-          // water
-          if (typeof effect.water === "number") {
-            const delta = Number(effect.water);
-            if (delta >= -30 && delta <= 60) {
-              player.water = Math.min(
-                Math.max(0, (player.water || 0) + delta),
-                player.maxStats?.water || 100,
-              );
-              changed = true;
-            }
-          }
+            let current = player[field] || 0;
+            const maxVal = player.maxStats?.[field] || 100;
 
-          // armor (добавлено для атомов и возможных будущих consumable-ов)
-          if (typeof effect.armor === "number" && effect.armor > 0) {
-            const add = Math.floor(effect.armor);
-            if (add <= 20) {
-              // разумный лимит на один consumable
-              player.armor = Math.min(
-                (player.armor || 0) + add,
-                player.maxStats?.armor || 100, // или другое значение, если у вас другой cap
-              );
+            let newVal;
+
+            if (delta > 0) {
+              // Положительный эффект — с лимитом на максимум за один предмет
+              const safeAdd = Math.min(delta, 100); // самый большой разумный бонус
+              newVal = Math.min(current + safeAdd, maxVal);
+            } else {
+              // Отрицательный эффект — защита от слишком сильного штрафа
+              const safeSub = Math.max(delta, -50); // не больше -50 за раз от одного предмета
+              newVal = Math.max(0, current + safeSub);
+            }
+
+            if (newVal !== current) {
+              player[field] = newVal;
               changed = true;
             }
           }
@@ -2434,19 +2401,19 @@ function setupWebSocket(
             continue;
           }
 
-          // ─── 8. Уменьшаем количество / удаляем предмет ─────────────────────────
+          // 8. Уменьшаем количество / удаляем предмет
           if (item.quantity > 1 && config.stackable) {
             item.quantity -= 1;
           } else {
             player.inventory[slotIndex] = null;
           }
 
-          // ─── 9. Сохраняем изменения ────────────────────────────────────────────
+          // 9. Сохраняем
           players.set(playerId, { ...player });
           userDatabase.set(playerId, { ...player });
           await saveUserDatabase(dbCollection, playerId, player);
 
-          // ─── 10. Отправляем клиенту подтверждение ──────────────────────────────
+          // 10. Отправляем клиенту
           if (ws.readyState === WebSocket.OPEN) {
             ws.send(
               JSON.stringify({
@@ -2458,7 +2425,7 @@ function setupWebSocket(
                   energy: Math.floor(player.energy),
                   food: Math.floor(player.food),
                   water: Math.floor(player.water),
-                  armor: Math.floor(player.armor), // добавили
+                  armor: Math.floor(player.armor),
                 },
                 inventory: player.inventory.map((item) =>
                   item ? { ...item } : null,
