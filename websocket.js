@@ -2995,42 +2995,93 @@ function setupWebSocket(
         while (ws.tradeAcceptedQueue.length > 0) {
           const data = ws.tradeAcceptedQueue.shift();
 
-          const fromId = data.fromId; // кто принял (B)
-          const toId = data.toId; // инициатор (A)
+          const acceptorId = data.fromId; // кто отправил принятие (игрок B)
+          const initiatorId = data.toId; // кому отправлено принятие (игрок A — инициатор)
 
-          // Всегда сортированный ключ (защита от дубликатов)
-          const sortedIds = [fromId, toId].sort();
-          const tradeKey = `${sortedIds[0]}-${sortedIds[1]}`;
-
-          // Проверяем, что запрос существует и ещё pending
-          if (
-            !tradeRequests.has(tradeKey) ||
-            tradeRequests.get(tradeKey).status !== "pending"
-          ) {
+          if (!acceptorId || !initiatorId || acceptorId === initiatorId) {
+            // Сам себя принять нельзя + защита от мусорных пакетов
             continue;
           }
 
-          // Меняем статус и создаём офферы
-          tradeRequests.set(tradeKey, { status: "accepted" });
+          // Всегда сортируем для однозначного ключа
+          const sortedIds = [acceptorId, initiatorId].sort();
+          const tradeKey = `${sortedIds[0]}-${sortedIds[1]}`;
 
-          tradeOffers.set(tradeKey, {
-            myOffer: Array(4).fill(null),
-            partnerOffer: Array(4).fill(null),
-            myConfirmed: false,
-            partnerConfirmed: false,
+          // Проверяем, существует ли запрос и он ещё в ожидании
+          if (!tradeRequests.has(tradeKey)) {
+            // Запроса вообще нет → игнорируем / можно отправить ошибку
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "tradeError",
+                  message: "Торговый запрос не найден",
+                }),
+              );
+            }
+            continue;
+          }
+
+          const request = tradeRequests.get(tradeKey);
+
+          if (request.status !== "pending") {
+            // Уже принят / отменён / завершён
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "tradeError",
+                  message: "Торговый запрос уже обработан или отменён",
+                }),
+              );
+            }
+            continue;
+          }
+
+          // Самое важное: проверяем, что именно тот игрок, которому предназначался запрос, его принимает
+          if (request.targetId !== acceptorId) {
+            // Кто-то другой пытается принять чужой запрос
+            console.warn(
+              `[Trade Anti-Cheat] Игрок ${acceptorId} пытается принять чужой запрос от ${initiatorId}`,
+            );
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "tradeError",
+                  message: "Это не ваш торговый запрос",
+                }),
+              );
+            }
+            continue;
+          }
+
+          // Всё прошло проверку → принимаем торговлю
+
+          // Обновляем статус запроса
+          tradeRequests.set(tradeKey, {
+            ...request,
+            status: "accepted",
+            acceptedAt: Date.now(),
           });
 
-          // Уведомляем обоих о начале торговли
-          // fromId в сообщении = инициатор (A) для обоих клиентов
+          // Создаём структуру для предложений
+          tradeOffers.set(tradeKey, {
+            initiatorOffer: Array(4).fill(null), // того, кто создал запрос (A)
+            acceptorOffer: Array(4).fill(null), // того, кто принял     (B)
+            initiatorConfirmed: false,
+            acceptorConfirmed: false,
+            initiatorId,
+            acceptorId,
+          });
+
+          // Уведомляем обоих игроков
           wss.clients.forEach((client) => {
             if (client.readyState === WebSocket.OPEN) {
               const clientId = clients.get(client);
-              if (clientId === fromId || clientId === toId) {
+              if (clientId === initiatorId || clientId === acceptorId) {
                 client.send(
                   JSON.stringify({
                     type: "tradeAccepted",
-                    fromId: toId, // initiator
-                    toId: fromId, // acceptor
+                    fromId: initiatorId, // всегда инициатор для консистентности на клиенте
+                    toId: acceptorId,
                   }),
                 );
               }
