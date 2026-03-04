@@ -2461,7 +2461,7 @@ function setupWebSocket(
 
           const { slotIndex, slotName: requestedSlotName } = data;
 
-          // ─── 1. Проверяем существование слота в инвентаре ─────────────────────
+          // 1. Проверяем существование слота в инвентаре
           if (
             typeof slotIndex !== "number" ||
             slotIndex < 0 ||
@@ -2480,6 +2480,24 @@ function setupWebSocket(
           }
 
           const item = player.inventory[slotIndex];
+
+          // Проверка itemId
+          if (
+            !item.itemId ||
+            typeof item.itemId !== "string" ||
+            item.itemId.trim() === ""
+          ) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "equipItemFail",
+                  error: "Некорректный идентификатор предмета",
+                }),
+              );
+            }
+            continue;
+          }
+
           const config = ITEM_CONFIG[item.type];
 
           if (!config || !config.type) {
@@ -2494,7 +2512,7 @@ function setupWebSocket(
             continue;
           }
 
-          // ─── 2. Проверка уровня (обязательно на сервере) ───────────────────────
+          // 2. Проверка уровня
           if (
             config.level !== undefined &&
             (player.level || 0) < config.level
@@ -2510,7 +2528,7 @@ function setupWebSocket(
             continue;
           }
 
-          // ─── 3. Сервер сам решает, в какой слот надевать ───────────────────────
+          // 3. Сервер сам решает слот
           let targetSlot;
 
           if (config.type === "weapon") {
@@ -2533,7 +2551,7 @@ function setupWebSocket(
               if (currentMain) {
                 const currCfg = ITEM_CONFIG[currentMain.type];
                 if (currCfg?.hands === "twohanded") {
-                  targetSlot = "weapon"; // заменяем двуручное
+                  targetSlot = "weapon";
                 } else {
                   targetSlot =
                     player.equipment.offhand === null ? "offhand" : "weapon";
@@ -2542,7 +2560,6 @@ function setupWebSocket(
                 targetSlot = "weapon";
               }
             } else {
-              // неизвестный тип hands
               if (ws.readyState === WebSocket.OPEN) {
                 ws.send(
                   JSON.stringify({
@@ -2573,12 +2590,12 @@ function setupWebSocket(
             }
           }
 
-          // ─── 4. Запоминаем старый предмет в этом слоте ─────────────────────────
+          // 4. Запоминаем старый предмет
           const oldItem = player.equipment[targetSlot]
             ? { ...player.equipment[targetSlot] }
             : null;
 
-          // ─── 5. Меняем инвентарь и экипировку ──────────────────────────────────
+          // 5. Меняем инвентарь и экипировку
           if (oldItem) {
             player.inventory[slotIndex] = {
               type: oldItem.type,
@@ -2593,7 +2610,6 @@ function setupWebSocket(
             itemId: item.itemId,
           };
 
-          // Очищаем offhand при необходимости
           if (oldItem && ITEM_CONFIG[oldItem.type]?.hands === "twohanded") {
             player.equipment.offhand = null;
           }
@@ -2601,28 +2617,36 @@ function setupWebSocket(
             player.equipment.offhand = null;
           }
 
-          // ─── 6. Пересчитываем статы полностью на сервере ───────────────────────
-          const oldMaxStats = { ...player.maxStats };
-
+          // 6. Пересчитываем статы
           calculateMaxStats(player, ITEM_CONFIG);
 
-          // Принудительно ограничиваем текущие статы
           player.health = Math.min(player.health, player.maxStats.health);
           player.energy = Math.min(player.energy, player.maxStats.energy);
           player.food = Math.min(player.food, player.maxStats.food);
           player.water = Math.min(player.water, player.maxStats.water);
           player.armor = Math.min(player.armor, player.maxStats.armor || 0);
 
-          // ─── 7. Простая проверка адекватности статов (защита от подмены) ───────
-          const deltaHealth = Math.abs(
-            player.maxStats.health - (data.maxStats?.health || 0),
-          );
-          const deltaEnergy = Math.abs(
-            player.maxStats.energy - (data.maxStats?.energy || 0),
-          );
+          // 7. Расширенная проверка всех статов
+          const deltas = {
+            health: Math.abs(
+              player.maxStats.health - (data.maxStats?.health || 0),
+            ),
+            energy: Math.abs(
+              player.maxStats.energy - (data.maxStats?.energy || 0),
+            ),
+            food: Math.abs(player.maxStats.food - (data.maxStats?.food || 0)),
+            water: Math.abs(
+              player.maxStats.water - (data.maxStats?.water || 0),
+            ),
+            armor: Math.abs(
+              (player.maxStats.armor || 0) - (data.maxStats?.armor || 0),
+            ),
+          };
 
-          if (deltaHealth > 150 || deltaEnergy > 150) {
-            // Откатываем изменения
+          const maxDelta = Math.max(...Object.values(deltas));
+
+          if (maxDelta > 250) {
+            // Откат изменений
             if (oldItem) {
               player.inventory[slotIndex] = {
                 type: oldItem.type,
@@ -2635,7 +2659,7 @@ function setupWebSocket(
             if (oldItem && ITEM_CONFIG[oldItem.type]?.hands === "twohanded") {
               player.equipment.offhand = null;
             }
-            calculateMaxStats(player, ITEM_CONFIG); // восстанавливаем статы
+            calculateMaxStats(player, ITEM_CONFIG);
 
             if (ws.readyState === WebSocket.OPEN) {
               ws.send(
@@ -2648,7 +2672,7 @@ function setupWebSocket(
             continue;
           }
 
-          // ─── 8. Всё ок — сохраняем и рассылаем ────────────────────────────────
+          // 8. Всё ок — сохраняем
           players.set(playerId, { ...player });
           userDatabase.set(playerId, { ...player });
           await saveUserDatabase(dbCollection, playerId, player);
@@ -2671,7 +2695,6 @@ function setupWebSocket(
             );
           }
 
-          // Обновляем других игроков в мире (только видимые статы)
           broadcastToWorld(
             wss,
             clients,
