@@ -2995,21 +2995,17 @@ function setupWebSocket(
         while (ws.tradeAcceptedQueue.length > 0) {
           const data = ws.tradeAcceptedQueue.shift();
 
-          const acceptorId = data.fromId; // кто отправил принятие (игрок B)
-          const initiatorId = data.toId; // кому отправлено принятие (игрок A — инициатор)
+          const acceptorId = data.fromId; // кто нажал "принять" (B)
+          const initiatorId = data.toId; // кто отправил запрос изначально (A)
 
           if (!acceptorId || !initiatorId || acceptorId === initiatorId) {
-            // Сам себя принять нельзя + защита от мусорных пакетов
             continue;
           }
 
-          // Всегда сортируем для однозначного ключа
           const sortedIds = [acceptorId, initiatorId].sort();
           const tradeKey = `${sortedIds[0]}-${sortedIds[1]}`;
 
-          // Проверяем, существует ли запрос и он ещё в ожидании
           if (!tradeRequests.has(tradeKey)) {
-            // Запроса вообще нет → игнорируем / можно отправить ошибку
             if (ws.readyState === WebSocket.OPEN) {
               ws.send(
                 JSON.stringify({
@@ -3024,7 +3020,6 @@ function setupWebSocket(
           const request = tradeRequests.get(tradeKey);
 
           if (request.status !== "pending") {
-            // Уже принят / отменён / завершён
             if (ws.readyState === WebSocket.OPEN) {
               ws.send(
                 JSON.stringify({
@@ -3036,9 +3031,8 @@ function setupWebSocket(
             continue;
           }
 
-          // Самое важное: проверяем, что именно тот игрок, которому предназначался запрос, его принимает
+          // Проверяем, что именно адресат принимает запрос
           if (request.targetId !== acceptorId) {
-            // Кто-то другой пытается принять чужой запрос
             console.warn(
               `[Trade Anti-Cheat] Игрок ${acceptorId} пытается принять чужой запрос от ${initiatorId}`,
             );
@@ -3053,26 +3047,26 @@ function setupWebSocket(
             continue;
           }
 
-          // Всё прошло проверку → принимаем торговлю
-
-          // Обновляем статус запроса
+          // Всё в порядке → принимаем торговлю
           tradeRequests.set(tradeKey, {
             ...request,
             status: "accepted",
             acceptedAt: Date.now(),
           });
 
-          // Создаём структуру для предложений
+          // Возвращаем имена myOffer / partnerOffer, как было изначально
           tradeOffers.set(tradeKey, {
-            initiatorOffer: Array(4).fill(null), // того, кто создал запрос (A)
-            acceptorOffer: Array(4).fill(null), // того, кто принял     (B)
-            initiatorConfirmed: false,
-            acceptorConfirmed: false,
+            myOffer: Array(4).fill(null),
+            partnerOffer: Array(4).fill(null),
+            myConfirmed: false,
+            partnerConfirmed: false,
+            // для внутренней логики сервера можно хранить, кто есть кто
             initiatorId,
             acceptorId,
           });
 
-          // Уведомляем обоих игроков
+          // Важно: отправляем ОДИНАКОВОЕ сообщение обоим игрокам
+          // fromId = инициатор (A), toId = принимающий (B)
           wss.clients.forEach((client) => {
             if (client.readyState === WebSocket.OPEN) {
               const clientId = clients.get(client);
@@ -3080,8 +3074,8 @@ function setupWebSocket(
                 client.send(
                   JSON.stringify({
                     type: "tradeAccepted",
-                    fromId: initiatorId, // всегда инициатор для консистентности на клиенте
-                    toId: acceptorId,
+                    fromId: initiatorId, // всегда инициатор
+                    toId: acceptorId, // всегда тот, кто принял
                   }),
                 );
               }
