@@ -2874,38 +2874,114 @@ function setupWebSocket(
         if (ws.isProcessingTradeRequest) return;
         ws.isProcessingTradeRequest = true;
 
+        const now = Date.now();
+
         while (ws.tradeRequestQueue.length > 0) {
           const data = ws.tradeRequestQueue.shift();
 
+          // ───────────────────────────────────────────────
+          // 1. Проверяем, что это действительно тот игрок, чей ws
           const fromId = clients.get(ws);
           if (!fromId) continue;
 
+          // Защита: fromId в пакете должен совпадать с реальным владельцем соединения
+          if (data.fromId !== fromId) {
+            console.warn(
+              `[AntiCheat] Подделка fromId в tradeRequest: ${data.fromId} ≠ ${fromId}`,
+            );
+            continue;
+          }
+
           const toId = data.toId;
+          if (!toId || typeof toId !== "string" || toId === fromId) continue;
+
           const playerA = players.get(fromId);
           const playerB = players.get(toId);
 
-          // УБРАНЫ ПРОВЕРКИ НА РАССТОЯНИЕ И ЗДОРОВЬЕ (как было)
-          if (!playerA || !playerB || playerA.worldId !== playerB.worldId)
-            continue;
+          if (!playerA || !playerB) continue;
 
-          // Всегда сортированный ключ (меньший ID первым) — защита от дубликатов
-          const sortedIds = [fromId, toId].sort();
+          // Оба должны быть в одном мире (строгая проверка)
+          if (playerA.worldId !== playerB.worldId) {
+            // Можно отправить ошибку клиенту, но пока просто молча игнорируем
+            continue;
+          }
+
+          // ───────────────────────────────────────────────
+          // 2. Анти-спам / кулдаун на запросы торговли от одного игрока
+          if (!ws.lastTradeRequestTime) {
+            ws.lastTradeRequestTime = 0;
+          }
+
+          const TRADE_REQUEST_COOLDOWN_MS = 7500; // 7.5 секунд между запросами
+
+          if (now - ws.lastTradeRequestTime < TRADE_REQUEST_COOLDOWN_MS) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "tradeError",
+                  message:
+                    "Подожди немного перед следующим запросом на торговлю",
+                  retryAfter: Math.ceil(
+                    (TRADE_REQUEST_COOLDOWN_MS -
+                      (now - ws.lastTradeRequestTime)) /
+                      1000,
+                  ),
+                }),
+              );
+            }
+            continue;
+          }
+
+          // Обновляем время последнего запроса
+          ws.lastTradeRequestTime = now;
+
+          // ───────────────────────────────────────────────
+          // 3. Уникальный ключ запроса (уже было, оставляем + усиливаем)
+          const sortedIds = [fromId, toId].sort((a, b) => a.localeCompare(b));
           const tradeKey = `${sortedIds[0]}-${sortedIds[1]}`;
 
-          // Если уже есть активный запрос — не перезаписываем (можно добавить логику отказа, но пока как было)
-          if (tradeRequests.has(tradeKey)) continue;
-
-          tradeRequests.set(tradeKey, { status: "pending" });
-
-          // Отправляем уведомление ТОЛЬКО целевому игроку
-          wss.clients.forEach((client) => {
+          // Если уже есть активный запрос или открытая торговля — не создаём новый
+          if (tradeRequests.has(tradeKey)) {
+            const existing = tradeRequests.get(tradeKey);
             if (
-              client.readyState === WebSocket.OPEN &&
-              clients.get(client) === toId
+              existing.status === "pending" ||
+              existing.status === "accepted"
             ) {
-              client.send(
-                JSON.stringify({ type: "tradeRequest", fromId, toId }),
-              );
+              // Можно отправить сообщение "ожидайте ответа" или просто игнорировать
+              if (ws.readyState === WebSocket.OPEN) {
+                ws.send(
+                  JSON.stringify({
+                    type: "tradeError",
+                    message: "Запрос на торговлю уже отправлен этому игроку",
+                  }),
+                );
+              }
+              continue;
+            }
+          }
+
+          // ───────────────────────────────────────────────
+          // 4. Создаём запрос (как было)
+          tradeRequests.set(tradeKey, {
+            status: "pending",
+            from: fromId,
+            to: toId,
+            timestamp: now,
+          });
+
+          // Отправляем уведомление ТОЛЬКО получателю
+          wss.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+              const clientId = clients.get(client);
+              if (clientId === toId) {
+                client.send(
+                  JSON.stringify({
+                    type: "tradeRequest",
+                    fromId: fromId,
+                    toId: toId,
+                  }),
+                );
+              }
             }
           });
         }
