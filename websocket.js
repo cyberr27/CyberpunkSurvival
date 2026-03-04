@@ -3259,39 +3259,145 @@ function setupWebSocket(
         while (ws.tradeConfirmedQueue.length > 0) {
           const data = ws.tradeConfirmedQueue.shift();
 
-          const fromId = clients.get(ws);
-          if (!fromId) continue;
+          const confirmerId = clients.get(ws);
+          if (!confirmerId || !players.has(confirmerId)) continue;
 
-          const toId = data.toId;
+          const partnerId = data.toId;
+          if (!partnerId || !players.has(partnerId)) continue;
+
+          // Нормализуем ключ (всегда меньший ID первый)
           const tradeKey =
-            fromId < toId ? `${fromId}-${toId}` : `${toId}-${fromId}`;
+            confirmerId < partnerId
+              ? `${confirmerId}-${partnerId}`
+              : `${partnerId}-${confirmerId}`;
 
-          if (!tradeOffers.has(tradeKey)) continue;
-
-          const offers = tradeOffers.get(tradeKey);
-
-          // Обновляем флаг подтверждения
-          if (fromId === tradeKey.split("-")[0]) {
-            // fromId — инициатор (A)
-            offers.myConfirmed = true;
-          } else {
-            // fromId — второй игрок (B)
-            offers.partnerConfirmed = true;
+          if (!tradeOffers.has(tradeKey)) {
+            // Торговля уже завершена / отменена / не существовала
+            continue;
           }
 
-          // Сохраняем изменения
-          tradeOffers.set(tradeKey, offers);
+          const tradeState = tradeOffers.get(tradeKey);
 
-          // Отправляем подтверждение ТОЛЬКО партнёру
+          // Определяем, чьё это подтверждение
+          const isConfirmerFirst = confirmerId === tradeKey.split("-")[0];
+
+          // Проверяем, не подтверждал ли уже этот игрок раньше
+          if (
+            isConfirmerFirst
+              ? tradeState.myConfirmed
+              : tradeState.partnerConfirmed
+          ) {
+            // Уже подтверждал → игнорируем (защита от спама)
+            continue;
+          }
+
+          // Получаем оффер того, кто сейчас подтверждает
+          const myOffer = isConfirmerFirst
+            ? tradeState.myOffer
+            : tradeState.partnerOffer;
+
+          const player = players.get(confirmerId);
+          if (!player || !Array.isArray(player.inventory)) continue;
+
+          const inventory = player.inventory;
+
+          // ───────────────────────────────────────────────
+          // Главная проверка: все ли предметы из оффера ещё есть в инвентаре
+          // ───────────────────────────────────────────────
+          let offerValid = true;
+
+          const slotUsage = new Map(); // originalSlot → использованное количество
+
+          for (const item of myOffer) {
+            if (!item) continue;
+
+            const origSlot = item.originalSlot;
+            if (
+              typeof origSlot !== "number" ||
+              origSlot < 0 ||
+              origSlot >= inventory.length
+            ) {
+              offerValid = false;
+              break;
+            }
+
+            const realItem = inventory[origSlot];
+            if (!realItem || realItem.type !== item.type) {
+              offerValid = false;
+              break;
+            }
+
+            const realQty = realItem.quantity || 1;
+            const offeredQty = item.quantity || 1;
+
+            if (offeredQty > realQty) {
+              offerValid = false;
+              break;
+            }
+
+            // Проверяем, что non-stackable предмет не используется несколько раз
+            if (!ITEM_CONFIG[item.type]?.stackable) {
+              const used = slotUsage.get(origSlot) || 0;
+              if (used > 0) {
+                offerValid = false;
+                break;
+              }
+              slotUsage.set(origSlot, used + 1);
+            }
+          }
+
+          if (!offerValid) {
+            // Оффер больше недействителен → отменяем торговлю
+            console.warn(
+              `[AntiCheat] Игрок ${confirmerId} подтвердил недействительный оффер → отмена`,
+            );
+
+            broadcastTradeCancelled(wss, clients, confirmerId, partnerId);
+
+            tradeOffers.delete(tradeKey);
+            tradeRequests.delete(tradeKey); // на всякий случай
+
+            // Можно отправить сообщение виновнику
+            wss.clients.forEach((client) => {
+              if (
+                client.readyState === WebSocket.OPEN &&
+                clients.get(client) === confirmerId
+              ) {
+                client.send(
+                  JSON.stringify({
+                    type: "tradeError",
+                    message:
+                      "Торговля отменена: некоторые предметы больше недоступны",
+                  }),
+                );
+              }
+            });
+
+            continue;
+          }
+
+          // ───────────────────────────────────────────────
+          // Всё в порядке — принимаем подтверждение
+          // ───────────────────────────────────────────────
+
+          if (isConfirmerFirst) {
+            tradeState.myConfirmed = true;
+          } else {
+            tradeState.partnerConfirmed = true;
+          }
+
+          tradeOffers.set(tradeKey, tradeState);
+
+          // Рассылаем подтверждение партнёру (как было)
           wss.clients.forEach((client) => {
             if (
               client.readyState === WebSocket.OPEN &&
-              clients.get(client) === toId
+              clients.get(client) === partnerId
             ) {
               client.send(
                 JSON.stringify({
                   type: "tradeConfirmed",
-                  fromId,
+                  fromId: confirmerId,
                 }),
               );
             }
