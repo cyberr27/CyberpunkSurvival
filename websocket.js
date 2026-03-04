@@ -3105,43 +3105,147 @@ function setupWebSocket(
         while (ws.tradeOfferQueue.length > 0) {
           const data = ws.tradeOfferQueue.shift();
 
-          const fromId = clients.get(ws);
-          if (!fromId) continue;
+          // Кто реально отправил этот пакет
+          const senderId = clients.get(ws);
+          if (!senderId) continue;
 
-          const toId = data.toId;
-          const tradeKey =
-            fromId < toId ? `${fromId}-${toId}` : `${toId}-${fromId}`;
-
-          if (!tradeOffers.has(tradeKey)) continue;
-
-          // Получаем текущие офферы
-          const offers = tradeOffers.get(tradeKey);
-
-          // Обновляем нужную сторону
-          if (fromId === tradeKey.split("-")[0]) {
-            // fromId — инициатор (A)
-            offers.myOffer = data.offer;
-          } else {
-            // fromId — второй игрок (B)
-            offers.partnerOffer = data.offer;
+          // Пакет должен быть от этого игрока
+          if (data.fromId !== senderId) {
+            console.warn(
+              `[AntiCheat] Подмена fromId в tradeOffer: ${data.fromId} ≠ ${senderId}`,
+            );
+            continue;
           }
 
-          // Сохраняем изменения
-          tradeOffers.set(tradeKey, offers);
+          const toId = data.toId;
+          if (!toId || typeof toId !== "string" || toId === senderId) continue;
 
-          // Отправляем обновление ТОЛЬКО партнёру
-          wss.clients.forEach((client) => {
-            if (
-              client.readyState === WebSocket.OPEN &&
-              clients.get(client) === toId
-            ) {
-              client.send(
-                JSON.stringify({
-                  type: "tradeOffer",
-                  fromId,
-                  offer: data.offer,
-                }),
+          // Сортированный ключ (как принято везде)
+          const sortedIds = [senderId, toId].sort((a, b) => a.localeCompare(b));
+          const tradeKey = `${sortedIds[0]}-${sortedIds[1]}`;
+
+          // Есть ли вообще активная торговля?
+          if (!tradeOffers.has(tradeKey)) {
+            console.warn(
+              `[AntiCheat] tradeOffer без активной сделки: ${tradeKey}`,
+            );
+            continue;
+          }
+
+          const tradeState = tradeOffers.get(tradeKey);
+
+          // Определяем, чья это сторона
+          let isMyOffer;
+          if (senderId === sortedIds[0]) {
+            isMyOffer = true; // sender — первый в паре (myOffer)
+          } else if (senderId === sortedIds[1]) {
+            isMyOffer = false; // sender — второй (partnerOffer для первого)
+          } else {
+            continue; // невозможная ситуация
+          }
+
+          const sentOffer = data.offer;
+          if (!Array.isArray(sentOffer) || sentOffer.length !== 4) {
+            console.warn(
+              `[AntiCheat] Некорректный формат offer от ${senderId}`,
+            );
+            continue;
+          }
+
+          // Получаем реальный инвентарь игрока с сервера
+          const player = players.get(senderId);
+          if (!player || !player.inventory) {
+            console.warn(`[AntiCheat] Нет игрока или инвентаря: ${senderId}`);
+            continue;
+          }
+
+          const realInventory = player.inventory; // массив 20 слотов
+
+          // ───────────────────────────────────────────────────────
+          // Главная проверка: валидируем каждый слот оффера
+          // ───────────────────────────────────────────────────────
+          const slotUsage = new Map(); // originalSlot → сколько раз использован
+
+          for (let i = 0; i < 4; i++) {
+            const offeredItem = sentOffer[i];
+
+            if (offeredItem === null) continue;
+
+            // Минимальная структура
+            if (!offeredItem.type || !offeredItem.originalSlot) {
+              console.warn(
+                `[AntiCheat] Некорректный предмет в оффере слот ${i} от ${senderId}`,
               );
+              continue;
+            }
+
+            const origSlot = offeredItem.originalSlot;
+
+            // originalSlot должен быть в пределах инвентаря
+            if (origSlot < 0 || origSlot >= 20) {
+              console.warn(
+                `[AntiCheat] Неверный originalSlot ${origSlot} от ${senderId}`,
+              );
+              continue;
+            }
+
+            const realItem = realInventory[origSlot];
+            if (!realItem || realItem.type !== offeredItem.type) {
+              console.warn(
+                `[AntiCheat] Несовпадение типа предмета в слоте ${origSlot} от ${senderId}: ` +
+                  `ожидали ${realItem?.type}, получили ${offeredItem.type}`,
+              );
+              continue;
+            }
+
+            // Проверяем количество
+            const realQty = realItem.quantity || 1;
+            const offeredQty = offeredItem.quantity || 1;
+
+            if (offeredQty > realQty) {
+              console.warn(
+                `[AntiCheat] Превышено количество в оффере слот ${origSlot} от ${senderId}: ` +
+                  `${offeredQty} > ${realQty} (${realItem.type})`,
+              );
+              continue;
+            }
+
+            // Проверяем, что один слот инвентаря не используется несколько раз
+            const prevCount = slotUsage.get(origSlot) || 0;
+            if (prevCount > 0 && !ITEM_CONFIG[realItem.type]?.stackable) {
+              console.warn(
+                `[AntiCheat] Дублирование non-stackable предмета из слота ${origSlot} от ${senderId}`,
+              );
+              continue;
+            }
+            slotUsage.set(origSlot, prevCount + 1);
+          }
+
+          // ───────────────────────────────────────────────────────
+          // Если все проверки прошли — принимаем оффер
+          // ───────────────────────────────────────────────────────
+
+          if (isMyOffer) {
+            tradeState.myOffer = sentOffer;
+          } else {
+            tradeState.partnerOffer = sentOffer;
+          }
+
+          tradeOffers.set(tradeKey, tradeState);
+
+          // Отправляем обновление **только** партнёру
+          wss.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+              const clientId = clients.get(client);
+              if (clientId === toId) {
+                client.send(
+                  JSON.stringify({
+                    type: "tradeOffer",
+                    fromId: senderId,
+                    offer: sentOffer,
+                  }),
+                );
+              }
             }
           });
         }
