@@ -2992,45 +2992,103 @@ function setupWebSocket(
         if (ws.isProcessingTradeAccepted) return;
         ws.isProcessingTradeAccepted = true;
 
+        const now = Date.now();
+
         while (ws.tradeAcceptedQueue.length > 0) {
           const data = ws.tradeAcceptedQueue.shift();
 
-          const fromId = data.fromId; // кто принял (B)
-          const toId = data.toId; // инициатор (A)
+          // ────────────────────────────────────────────────────────────────
+          // 1. Проверяем, что пакет отправлен реальным владельцем соединения
+          const acceptorId = clients.get(ws); // кто реально отправил пакет
+          if (!acceptorId) continue;
 
-          // Всегда сортированный ключ (защита от дубликатов)
-          const sortedIds = [fromId, toId].sort();
-          const tradeKey = `${sortedIds[0]}-${sortedIds[1]}`;
-
-          // Проверяем, что запрос существует и ещё pending
-          if (
-            !tradeRequests.has(tradeKey) ||
-            tradeRequests.get(tradeKey).status !== "pending"
-          ) {
+          if (data.fromId !== acceptorId) {
+            console.warn(
+              `[AntiCheat] Подмена fromId в tradeAccepted: ${data.fromId} ≠ ${acceptorId}`,
+            );
             continue;
           }
 
-          // Меняем статус и создаём офферы
+          const initiatorId = data.toId; // кто отправлял запрос (A)
+          if (!initiatorId || typeof initiatorId !== "string") continue;
+
+          // Защита от само-торговли (маловероятно, но на всякий)
+          if (acceptorId === initiatorId) continue;
+
+          // ────────────────────────────────────────────────────────────────
+          // 2. Сортированный ключ — защита от подмены порядка id
+          const sortedIds = [acceptorId, initiatorId].sort((a, b) =>
+            a.localeCompare(b),
+          );
+          const tradeKey = `${sortedIds[0]}-${sortedIds[1]}`;
+
+          // ────────────────────────────────────────────────────────────────
+          // 3. Проверяем существование и актуальность запроса
+          if (!tradeRequests.has(tradeKey)) {
+            // Запроса вообще нет → возможный чит / устаревший пакет
+            continue;
+          }
+
+          const request = tradeRequests.get(tradeKey);
+
+          if (request.status !== "pending") {
+            // Уже accepted / completed / cancelled → повторный accept запрещён
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "tradeError",
+                  message: "Нельзя принять этот запрос повторно",
+                }),
+              );
+            }
+            continue;
+          }
+
+          // Проверяем, что именно этот игрок должен был принять запрос
+          if (request.to !== acceptorId) {
+            console.warn(
+              `[AntiCheat] Игрок ${acceptorId} пытается принять чужой запрос (должен был ${request.to})`,
+            );
+            continue;
+          }
+
+          // ────────────────────────────────────────────────────────────────
+          // 4. Проверяем состояние обоих игроков (минимально, но важно)
+          const playerA = players.get(initiatorId); // кто предлагал
+          const playerB = players.get(acceptorId); // кто принимает
+
+          if (!playerA || !playerB) continue;
+
+          // Оба должны быть в одном мире
+          if (playerA.worldId !== playerB.worldId) continue;
+
+          // ────────────────────────────────────────────────────────────────
+          // 5. Успешный accept — меняем состояние и чистим запрос
           tradeRequests.set(tradeKey, { status: "accepted" });
 
+          // Сразу удаляем запрос — это главное средство против дублирующих accept
+          tradeRequests.delete(tradeKey);
+
+          // Создаём состояние обмена (как было раньше)
           tradeOffers.set(tradeKey, {
             myOffer: Array(4).fill(null),
             partnerOffer: Array(4).fill(null),
             myConfirmed: false,
             partnerConfirmed: false,
+            // Можно добавить timestamp: now, если захочешь потом чистить зависшие сделки
           });
 
-          // Уведомляем обоих о начале торговли
-          // fromId в сообщении = инициатор (A) для обоих клиентов
+          // ────────────────────────────────────────────────────────────────
+          // 6. Уведомляем обоих (логика отправки остаётся прежней)
           wss.clients.forEach((client) => {
             if (client.readyState === WebSocket.OPEN) {
               const clientId = clients.get(client);
-              if (clientId === fromId || clientId === toId) {
+              if (clientId === acceptorId || clientId === initiatorId) {
                 client.send(
                   JSON.stringify({
                     type: "tradeAccepted",
-                    fromId: toId, // initiator
-                    toId: fromId, // acceptor
+                    fromId: initiatorId, // всегда инициатор
+                    toId: acceptorId, // всегда акцептор
                   }),
                 );
               }
