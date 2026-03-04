@@ -1961,15 +1961,16 @@ async function handleGameMessageLogic(data) {
         me.inventory = data.inventory;
         me.equipment = data.equipment;
         me.maxStats = data.maxStats;
-        me.health = data.stats.health;
-        me.energy = data.stats.energy;
-        me.food = data.stats.food;
-        me.water = data.stats.water;
-        me.armor = data.stats.armor;
+
+        // Важно: принудительно ограничиваем текущие статы (на случай рассинхрона)
+        me.health = Math.min(me.health, me.maxStats.health);
+        me.energy = Math.min(me.energy, me.maxStats.energy);
+        me.food = Math.min(me.food, me.maxStats.food);
+        me.water = Math.min(me.water, me.maxStats.water);
+        me.armor = Math.min(me.armor, me.maxStats.armor);
 
         inventory = me.inventory.map((slot) => (slot ? { ...slot } : null));
 
-        // Синхронизируем визуальные слоты
         window.equipmentSystem.equipmentSlots = { ...data.equipment };
         window.equipmentSystem.applyEquipmentEffects(me);
         window.equipmentSystem.updateEquipmentDisplay();
@@ -1981,9 +1982,12 @@ async function handleGameMessageLogic(data) {
       showNotification("Предмет снят", "#00ff88");
       break;
     }
-    case "unequipItemFail":
-      window.equipmentSystem.handleUnequipFail(message.error);
+
+    case "unequipItemFail": {
+      showNotification(data.error || "Не удалось снять предмет!", "#ff5555");
+      window.equipmentSystem.handleUnequipFail(data.error || "Ошибка сервера");
       break;
+    }
     case "inventoryFull":
       pendingPickups.delete(data.itemId);
       break;
