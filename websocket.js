@@ -3932,6 +3932,11 @@ function setupWebSocket(
 
         const now = Date.now();
 
+        // Константы — должны совпадать с клиентом robot_doctor.js
+        const NPC_X = 1600;
+        const NPC_Y = 1717;
+        const INTERACTION_RADIUS_SQ = 2500; // 50×50 = 2500, как в клиенте
+
         while (ws.robotDoctorFreeHealQueue.length > 0) {
           const data = ws.robotDoctorFreeHealQueue.shift();
 
@@ -3940,80 +3945,86 @@ function setupWebSocket(
 
           const player = players.get(playerId);
 
-          // 1. Базовые проверки существования данных
-          if (!player.maxStats?.health) {
-            ws.send(
-              JSON.stringify({
-                type: "robotDoctorResult",
-                success: false,
-                error: "Ошибка данных персонажа",
-              }),
-            );
+          // 1. Базовая проверка данных персонажа
+          if (!player.maxStats?.health || typeof player.level !== "number") {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "robotDoctorResult",
+                  success: false,
+                  error: "Ошибка данных персонажа",
+                }),
+              );
+            }
             continue;
           }
 
-          // 2. Проверка уровня (самое важное условие бесплатного лечения)
-          if ((player.level | 0) > 5) {
-            ws.send(
-              JSON.stringify({
-                type: "robotDoctorResult",
-                success: false,
-                error: "Доступно только до 5 уровня",
-              }),
-            );
+          // 2. Проверка уровня ≤ 5
+          if (player.level > 5) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "robotDoctorResult",
+                  success: false,
+                  error: "Доступно только до 5 уровня",
+                }),
+              );
+            }
             continue;
           }
 
           // 3. Проверка, что здоровье действительно не полное
           const maxHP = player.maxStats.health;
           if (player.health >= maxHP) {
-            ws.send(
-              JSON.stringify({
-                type: "robotDoctorResult",
-                success: false,
-                error: "Здоровье уже полное",
-              }),
-            );
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "robotDoctorResult",
+                  success: false,
+                  error: "Здоровье уже полное",
+                }),
+              );
+            }
             continue;
           }
 
-          // 4. Защита от спама — кулдаун на одно бесплатное лечение за сессию
-          if (
-            player.lastFreeHealTime &&
-            now - player.lastFreeHealTime < 3_600_000
-          ) {
-            // 1 час
-            ws.send(
-              JSON.stringify({
-                type: "robotDoctorResult",
-                success: false,
-                error: "Бесплатное лечение доступно раз в час",
-              }),
-            );
+          // 4. Проверка расстояния до NPC (самая важная серверная защита)
+          const dx = player.x - NPC_X;
+          const dy = player.y - NPC_Y;
+          const distanceSq = dx * dx + dy * dy;
+
+          if (distanceSq > INTERACTION_RADIUS_SQ) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "robotDoctorResult",
+                  success: false,
+                  error: "Подойдите ближе к медицинскому модулю",
+                }),
+              );
+            }
             continue;
           }
 
-          // 5. Защита от слишком частых запросов (даже если кулдаун сброшен)
-          if (ws.lastFreeHealRequest && now - ws.lastFreeHealRequest < 1500) {
-            // 1.5 секунды
-            continue; // просто игнорируем без ответа — снижает нагрузку
+          // 5. Защита от спама — минимальный интервал между запросами от одного клиента
+          if (ws.lastFreeHealRequest && now - ws.lastFreeHealRequest < 1200) {
+            // 1.2 секунды
+            // тихо игнорируем, без ответа клиенту — снижает нагрузку на сеть
+            continue;
           }
           ws.lastFreeHealRequest = now;
 
-          // ─── Всё проверки пройдены ───
+          // ─── Все проверки пройдены ───
 
           // Применяем полное восстановление
           player.health = maxHP;
-
-          // Запоминаем время последнего бесплатного лечения
-          player.lastFreeHealTime = now;
 
           // Сохраняем изменения
           players.set(playerId, { ...player });
           userDatabase.set(playerId, { ...player });
           await saveUserDatabase(dbCollection, playerId, player);
 
-          // Отправляем клиенту подтверждение (формат совместим с существующим кодом)
+          // Отправляем подтверждение клиенту
           if (ws.readyState === WebSocket.OPEN) {
             ws.send(
               JSON.stringify({
@@ -4026,7 +4037,7 @@ function setupWebSocket(
           }
         }
 
-        ws.isProcessingRobotFreeHeal = false;
+        ws.isProcessingRobotDoctorFreeHeal = false;
       }
       async function processCompleteDoctorQuestQueue(ws) {
         if (ws.isProcessingCompleteDoctorQuest) return;
