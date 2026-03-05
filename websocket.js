@@ -3930,6 +3930,8 @@ function setupWebSocket(
         if (ws.isProcessingRobotDoctorFreeHeal) return;
         ws.isProcessingRobotDoctorFreeHeal = true;
 
+        const now = Date.now();
+
         while (ws.robotDoctorFreeHealQueue.length > 0) {
           const data = ws.robotDoctorFreeHealQueue.shift();
 
@@ -3938,38 +3940,93 @@ function setupWebSocket(
 
           const player = players.get(playerId);
 
-          // Проверка условий (уровень ≤ 5 и здоровье не полное)
-          if (player.level > 5 || player.health >= player.maxStats.health) {
+          // 1. Базовые проверки существования данных
+          if (!player.maxStats?.health) {
             ws.send(
               JSON.stringify({
                 type: "robotDoctorResult",
                 success: false,
-                error: "Условия не выполнены",
+                error: "Ошибка данных персонажа",
               }),
             );
             continue;
           }
 
-          // Полное восстановление здоровья
-          player.health = player.maxStats.health;
+          // 2. Проверка уровня (самое важное условие бесплатного лечения)
+          if ((player.level | 0) > 5) {
+            ws.send(
+              JSON.stringify({
+                type: "robotDoctorResult",
+                success: false,
+                error: "Доступно только до 5 уровня",
+              }),
+            );
+            continue;
+          }
+
+          // 3. Проверка, что здоровье действительно не полное
+          const maxHP = player.maxStats.health;
+          if (player.health >= maxHP) {
+            ws.send(
+              JSON.stringify({
+                type: "robotDoctorResult",
+                success: false,
+                error: "Здоровье уже полное",
+              }),
+            );
+            continue;
+          }
+
+          // 4. Защита от спама — кулдаун на одно бесплатное лечение за сессию
+          if (
+            player.lastFreeHealTime &&
+            now - player.lastFreeHealTime < 3_600_000
+          ) {
+            // 1 час
+            ws.send(
+              JSON.stringify({
+                type: "robotDoctorResult",
+                success: false,
+                error: "Бесплатное лечение доступно раз в час",
+              }),
+            );
+            continue;
+          }
+
+          // 5. Защита от слишком частых запросов (даже если кулдаун сброшен)
+          if (ws.lastFreeHealRequest && now - ws.lastFreeHealRequest < 1500) {
+            // 1.5 секунды
+            continue; // просто игнорируем без ответа — снижает нагрузку
+          }
+          ws.lastFreeHealRequest = now;
+
+          // ─── Всё проверки пройдены ───
+
+          // Применяем полное восстановление
+          player.health = maxHP;
+
+          // Запоминаем время последнего бесплатного лечения
+          player.lastFreeHealTime = now;
 
           // Сохраняем изменения
           players.set(playerId, { ...player });
           userDatabase.set(playerId, { ...player });
           await saveUserDatabase(dbCollection, playerId, player);
 
-          // Отправляем успешный результат
-          ws.send(
-            JSON.stringify({
-              type: "robotDoctorResult",
-              success: true,
-              action: "freeHeal",
-              health: player.health,
-            }),
-          );
+          // Отправляем клиенту подтверждение (формат совместим с существующим кодом)
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(
+              JSON.stringify({
+                type: "robotDoctorResult",
+                success: true,
+                action: "freeHeal",
+                health: player.health,
+              }),
+            );
+          }
         }
 
-        ws.isProcessingRobotDoctorFreeHeal = false;
+        ws.isProcessingRobotFreeHeal = false;
       }
       async function processCompleteDoctorQuestQueue(ws) {
         if (ws.isProcessingCompleteDoctorQuest) return;
