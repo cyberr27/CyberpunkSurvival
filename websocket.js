@@ -4043,35 +4043,88 @@ function setupWebSocket(
         if (ws.isProcessingCompleteDoctorQuest) return;
         ws.isProcessingCompleteDoctorQuest = true;
 
+        const now = Date.now();
+
+        // Константы — берём точно такие же, как в robot_doctor.js
+        const NPC_X = 1600;
+        const NPC_Y = 1717;
+        const INTERACTION_RADIUS_SQ = 2500; // 50×50, как в клиенте
+
         while (ws.completeDoctorQuestQueue.length > 0) {
           const data = ws.completeDoctorQuestQueue.shift();
 
           const playerId = clients.get(ws);
-          if (!playerId) continue;
+          if (!playerId || !players.has(playerId)) continue;
 
           const player = players.get(playerId);
-          if (!player) continue;
 
-          // Проверяем, не получал ли уже справку
-          if (player.medicalCertificate === true) {
-            ws.send(JSON.stringify({ type: "doctorQuestAlreadyDone" }));
+          // 1. Базовая проверка существования нужных полей
+          if (!player.inventory || !Array.isArray(player.inventory)) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "doctorQuestError",
+                  error: "Ошибка данных инвентаря",
+                }),
+              );
+            }
             continue;
           }
 
-          // Ищем свободный слот
+          // 2. Уже получена справка → не выдаём повторно
+          if (player.medicalCertificate === true) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({ type: "doctorQuestAlreadyDone" }));
+            }
+            continue;
+          }
+
+          // 3. Проверка расстояния до NPC (главная защита от читов)
+          const dx = player.x - NPC_X;
+          const dy = player.y - NPC_Y;
+          const distanceSq = dx * dx + dy * dy;
+
+          if (distanceSq > INTERACTION_RADIUS_SQ) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "doctorQuestError",
+                  error: "Подойдите ближе к медицинскому модулю",
+                }),
+              );
+            }
+            continue;
+          }
+
+          // 4. Защита от спама — минимальный интервал между попытками завершения квеста
+          if (
+            ws.lastDoctorQuestAttempt &&
+            now - ws.lastDoctorQuestAttempt < 1500
+          ) {
+            // 1.5 секунды
+            // тихо игнорируем, без ответа — уменьшает нагрузку
+            continue;
+          }
+          ws.lastDoctorQuestAttempt = now;
+
+          // 5. Поиск свободного слота в инвентаре
           const freeSlot = player.inventory.findIndex((slot) => slot === null);
           if (freeSlot === -1) {
-            ws.send(JSON.stringify({ type: "inventoryFull" }));
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({ type: "inventoryFull" }));
+            }
             continue;
           }
 
-          // Выдаём медицинскую справку
+          // ─── Все проверки пройдены ───
+
+          // Выдаём предмет
           player.inventory[freeSlot] = {
             type: "medical_certificate",
             quantity: 1,
           };
 
-          // Ставим флаг навсегда
+          // Устанавливаем флаг (навсегда)
           player.medicalCertificate = true;
 
           // Сохраняем изменения
@@ -4079,14 +4132,16 @@ function setupWebSocket(
           userDatabase.set(playerId, { ...player });
           await saveUserDatabase(dbCollection, playerId, player);
 
-          // Отправляем успешный результат клиенту
-          ws.send(
-            JSON.stringify({
-              type: "doctorQuestCompleted",
-              inventory: player.inventory,
-              medicalCertificate: true,
-            }),
-          );
+          // Отправляем успешный результат (формат не меняем)
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(
+              JSON.stringify({
+                type: "doctorQuestCompleted",
+                inventory: player.inventory,
+                medicalCertificate: true,
+              }),
+            );
+          }
         }
 
         ws.isProcessingCompleteDoctorQuest = false;
