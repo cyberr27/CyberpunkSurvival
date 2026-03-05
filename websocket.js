@@ -4262,6 +4262,13 @@ function setupWebSocket(
         if (ws.isProcessingRobotDoctorFullHeal) return;
         ws.isProcessingRobotDoctorFullHeal = true;
 
+        const now = Date.now();
+
+        // Константы — совпадают с robot_doctor.js
+        const NPC_X = 1600;
+        const NPC_Y = 1717;
+        const INTERACTION_RADIUS_SQ = 2500;
+
         while (ws.robotDoctorFullHealQueue.length > 0) {
           const data = ws.robotDoctorFullHealQueue.shift();
 
@@ -4270,21 +4277,68 @@ function setupWebSocket(
 
           const player = players.get(playerId);
 
+          // 1. Базовая проверка данных
+          if (
+            !player.inventory ||
+            !Array.isArray(player.inventory) ||
+            !player.maxStats?.health
+          ) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "robotDoctorResult",
+                  success: false,
+                  error: "Ошибка данных персонажа",
+                }),
+              );
+            }
+            continue;
+          }
+
+          // 2. Проверка расстояния до NPC
+          const dx = player.x - NPC_X;
+          const dy = player.y - NPC_Y;
+          const distanceSq = dx * dx + dy * dy;
+
+          if (distanceSq > INTERACTION_RADIUS_SQ) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "robotDoctorResult",
+                  success: false,
+                  error: "Подойдите ближе к медицинскому модулю",
+                }),
+              );
+            }
+            continue;
+          }
+
+          // 3. Защита от спама — минимальный интервал между запросами
+          if (ws.lastFullHealRequest && now - ws.lastFullHealRequest < 1200) {
+            // 1.2 секунды
+            // тихо игнорируем
+            continue;
+          }
+          ws.lastFullHealRequest = now;
+
+          // 4. Расчёт недостающего здоровья и стоимости
           const missingHP = player.maxStats.health - player.health;
           if (missingHP <= 0) {
-            ws.send(
-              JSON.stringify({
-                type: "robotDoctorResult",
-                success: false,
-                error: "Здоровье уже полное",
-              }),
-            );
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "robotDoctorResult",
+                  success: false,
+                  error: "Здоровье уже полное",
+                }),
+              );
+            }
             continue;
           }
 
           const cost = Math.floor(missingHP / 20);
 
-          // Ищем баляры
+          // 5. Проверка наличия достаточного количества баляров
           const balyarySlot = player.inventory.findIndex(
             (s) => s && s.type === "balyary",
           );
@@ -4294,24 +4348,26 @@ function setupWebSocket(
               : 0;
 
           if (balyaryCount < cost) {
-            ws.send(
-              JSON.stringify({
-                type: "robotDoctorResult",
-                success: false,
-                error: "Недостаточно баляров",
-              }),
-            );
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "robotDoctorResult",
+                  success: false,
+                  error: "Недостаточно баляров",
+                }),
+              );
+            }
             continue;
           }
 
-          // Снимаем ровно нужное количество баляров
+          // 6. Списание баляров
           if (balyaryCount === cost) {
             player.inventory[balyarySlot] = null;
           } else {
             player.inventory[balyarySlot].quantity -= cost;
           }
 
-          // Полное восстановление здоровья
+          // 7. Полное восстановление
           player.health = player.maxStats.health;
 
           // Сохраняем изменения
@@ -4319,17 +4375,19 @@ function setupWebSocket(
           userDatabase.set(playerId, { ...player });
           await saveUserDatabase(dbCollection, playerId, player);
 
-          // Отправляем успешный результат
-          ws.send(
-            JSON.stringify({
-              type: "robotDoctorResult",
-              success: true,
-              action: "fullHeal",
-              health: player.health,
-              cost: cost,
-              inventory: player.inventory,
-            }),
-          );
+          // Отправляем результат (формат не изменился)
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(
+              JSON.stringify({
+                type: "robotDoctorResult",
+                success: true,
+                action: "fullHeal",
+                health: player.health,
+                cost: cost,
+                inventory: player.inventory,
+              }),
+            );
+          }
         }
 
         ws.isProcessingRobotDoctorFullHeal = false;
