@@ -3419,268 +3419,205 @@ function setupWebSocket(
         while (ws.tradeCompletedQueue.length > 0) {
           const data = ws.tradeCompletedQueue.shift();
 
-          // 1. Кто реально отправил этот пакет
-          const senderId = clients.get(ws);
-          if (!senderId || !players.has(senderId)) continue;
+          const fromId = clients.get(ws);
+          if (!fromId || !players.has(fromId)) continue;
 
-          const partnerId = data.toId;
-          if (!partnerId || !players.has(partnerId)) continue;
-
-          // Нормализуем ключ (всегда меньший ID первый)
-          const [idA, idB] = [senderId, partnerId].sort((a, b) =>
-            a.localeCompare(b),
-          );
-          const tradeKey = `${idA}-${idB}`;
-
-          // 2. Есть ли вообще активное состояние торговли
-          if (!tradeOffers.has(tradeKey)) {
-            console.warn(
-              `[Trade] Нет активного обмена для ${tradeKey} (от ${senderId})`,
-            );
-            continue;
+          // Получаем второго участника
+          let toId = data.toId;
+          if (!toId || !players.has(toId)) {
+            // Если toId не пришёл — ищем по активным трейдам
+            for (const [key, offers] of tradeOffers.entries()) {
+              const [id1, id2] = key.split("-");
+              if (id1 === fromId || id2 === fromId) {
+                toId = id1 === fromId ? id2 : id1;
+                break;
+              }
+            }
           }
+          if (!toId || !players.has(toId)) continue;
 
-          const tradeState = tradeOffers.get(tradeKey);
+          // Нормализуем ключ (меньший ID первым)
+          const tradeKey =
+            fromId < toId ? `${fromId}-${toId}` : `${toId}-${fromId}`;
+          if (!tradeOffers.has(tradeKey)) continue;
 
-          // 3. Оба должны были подтвердить до того, как кто-то отправил tradeCompleted
-          if (!tradeState.myConfirmed || !tradeState.partnerConfirmed) {
-            console.warn(
-              `[AntiCheat] Попытка завершить неподтверждённый обмен ${tradeKey}`,
-            );
-            // Можно сразу отменить, но пока просто игнорируем
-            continue;
-          }
+          const offers = tradeOffers.get(tradeKey);
+          if (!offers.myConfirmed || !offers.partnerConfirmed) continue;
 
-          // 4. Определяем, кто есть кто
-          const playerAId = idA; // меньший ID
-          const playerBId = idB;
-          const isSenderA = senderId === playerAId;
-
+          // Определяем игроков
+          const playerAId = tradeKey.split("-")[0]; // меньший ID
+          const playerBId = tradeKey.split("-")[1];
           const playerA = players.get(playerAId);
           const playerB = players.get(playerBId);
 
-          if (!playerA?.inventory || !playerB?.inventory) continue;
+          if (!playerA || !playerB || !playerA.inventory || !playerB.inventory)
+            continue;
 
-          // Офферы всегда привязаны к ключу: myOffer — у меньшего ID
-          const offerA = tradeState.myOffer; // что отдаёт игрок с меньшим ID
-          const offerB = tradeState.partnerOffer; // что отдаёт игрок с большим ID
+          // Определяем офферы (A — меньший ID)
+          const offerFromA = offers.myOffer;
+          const offerFromB = offers.partnerOffer;
 
-          // 5. Валидация: всё ли ещё на месте у обоих
+          // ВАЛИДАЦИЯ: предметы на месте
           const validateOffer = (player, offer) => {
-            const slotUsage = new Map(); // originalSlot → суммарное количество
-
-            for (const item of offer) {
-              if (!item) continue;
-
-              const slot = item.originalSlot;
-              if (typeof slot !== "number" || slot < 0 || slot >= 20) {
-                return false;
-              }
-
-              const invItem = player.inventory[slot];
+            return offer.every((item) => {
+              if (!item) return true;
+              const invItem = player.inventory[item.originalSlot];
               if (!invItem) return false;
               if (invItem.type !== item.type) return false;
-
-              const realQty = invItem.quantity ?? 1;
-              const wantQty = item.quantity ?? 1;
-
-              if (wantQty > realQty) return false;
-
-              // non-stackable предмет не должен дублироваться в оффере
-              if (!ITEM_CONFIG[item.type]?.stackable) {
-                const used = slotUsage.get(slot) || 0;
-                if (used > 0) return false;
-                slotUsage.set(slot, used + 1);
-              } else {
-                const used = slotUsage.get(slot) || 0;
-                slotUsage.set(slot, used + wantQty);
-                if (used + wantQty > realQty) return false;
-              }
-            }
-            return true;
+              if (item.quantity && invItem.quantity < item.quantity)
+                return false;
+              return true;
+            });
           };
 
           if (
-            !validateOffer(playerA, offerA) ||
-            !validateOffer(playerB, offerB)
+            !validateOffer(playerA, offerFromA) ||
+            !validateOffer(playerB, offerFromB)
           ) {
-            console.warn(
-              `[AntiCheat] Обмен ${tradeKey} отменён: предметы пропали`,
-            );
-
-            // Отмена для обоих
-            wss.clients.forEach((client) => {
-              if (client.readyState === WebSocket.OPEN) {
-                const cid = clients.get(client);
-                if (cid === playerAId || cid === playerBId) {
-                  client.send(
-                    JSON.stringify({
-                      type: "tradeCancelled",
-                      reason: "items_missing",
-                    }),
-                  );
-                }
-              }
-            });
-
-            tradeOffers.delete(tradeKey);
+            broadcastTradeCancelled(wss, clients, playerAId, playerBId);
             tradeRequests.delete(tradeKey);
+            tradeOffers.delete(tradeKey);
             continue;
           }
 
-          // 6. Проверка места под новые предметы
-          const countRequiredSlots = (player, incoming) => {
-            let needed = 0;
-            const byType = new Map();
-
-            incoming.forEach((item) => {
+          // Проверка свободного места
+          const calculateRequiredSlots = (player, incomingOffer) => {
+            let required = 0;
+            incomingOffer.forEach((item) => {
               if (!item) return;
-              const t = item.type;
-              const q = item.quantity ?? 1;
-              byType.set(t, (byType.get(t) ?? 0) + q);
-            });
-
-            for (const [type, qty] of byType) {
-              const stackable = ITEM_CONFIG[type]?.stackable;
-              if (stackable) {
-                // Есть ли уже стек?
-                const hasStack = player.inventory.some((s) => s?.type === type);
-                if (!hasStack) needed++;
+              const type = item.type;
+              const isStackable = ITEM_CONFIG[type]?.stackable;
+              if (isStackable) {
+                const hasStack = player.inventory.some(
+                  (s) => s && s.type === type,
+                );
+                if (!hasStack) required += 1;
               } else {
-                needed += qty; // каждый предмет — отдельный слот
+                required += 1;
               }
-            }
-            return needed;
+            });
+            return required;
           };
 
-          const countFreedSlots = (player, outgoing) => {
+          const calculateFreedSlots = (player, ownOffer) => {
             let freed = 0;
-            outgoing.forEach((item) => {
-              if (!item) return;
-              const slot = item.originalSlot;
-              const inv = player.inventory[slot];
-              if (!inv) return;
-
+            ownOffer.forEach((item) => {
+              if (!item || item.originalSlot === undefined) return;
+              const slotItem = player.inventory[item.originalSlot];
+              if (!slotItem) return;
               if (ITEM_CONFIG[item.type]?.stackable && item.quantity) {
-                const left = (inv.quantity ?? 1) - item.quantity;
-                if (left <= 0) freed++;
+                const remaining = (slotItem.quantity || 1) - item.quantity;
+                if (remaining <= 0) freed += 1;
               } else {
-                freed++;
+                freed += 1;
               }
             });
             return freed;
           };
 
-          const freeA = playerA.inventory.filter((s) => s === null).length;
-          const freeB = playerB.inventory.filter((s) => s === null).length;
+          const freeSlotsA = playerA.inventory.filter((s) => s === null).length;
+          const freeSlotsB = playerB.inventory.filter((s) => s === null).length;
 
-          const willFreeA = countFreedSlots(playerA, offerA);
-          const willFreeB = countFreedSlots(playerB, offerB);
+          const freedByA = calculateFreedSlots(playerA, offerFromA);
+          const freedByB = calculateFreedSlots(playerB, offerFromB);
 
-          const needForA = countRequiredSlots(playerA, offerB);
-          const needForB = countRequiredSlots(playerB, offerA);
+          const totalAvailableA = freeSlotsA + freedByA;
+          const totalAvailableB = freeSlotsB + freedByB;
 
-          if (freeA + willFreeA < needForA || freeB + willFreeB < needForB) {
-            console.warn(`[Trade] Недостаточно места после обмена ${tradeKey}`);
+          const requiredForA = calculateRequiredSlots(playerA, offerFromB);
+          const requiredForB = calculateRequiredSlots(playerB, offerFromA);
 
-            wss.clients.forEach((client) => {
-              if (client.readyState === WebSocket.OPEN) {
-                const cid = clients.get(client);
-                if (cid === playerAId || cid === playerBId) {
-                  client.send(
-                    JSON.stringify({
-                      type: "tradeCancelled",
-                      reason: "no_inventory_space",
-                    }),
-                  );
-                }
-              }
-            });
-
+          if (
+            totalAvailableA < requiredForA ||
+            totalAvailableB < requiredForB
+          ) {
+            broadcastTradeCancelled(wss, clients, playerAId, playerBId);
+            tradeRequests.delete(tradeKey);
             tradeOffers.delete(tradeKey);
             continue;
           }
 
-          // ───────────────────────────────────────────────
-          // 7. Выполняем обмен
-          // ───────────────────────────────────────────────
-
-          // Убираем свои предметы
-          const removeOffer = (player, offer) => {
-            offer.forEach((item) => {
-              if (!item) return;
-              const idx = item.originalSlot;
-              const it = player.inventory[idx];
-              if (!it || it.type !== item.type) return;
-
+          // УДАЛЕНИЕ отданных предметов (с поддержкой частичного стака)
+          offerFromA.forEach((item) => {
+            if (item && item.originalSlot !== undefined) {
+              const slotIndex = item.originalSlot;
+              const invItem = playerA.inventory[slotIndex];
+              if (!invItem || invItem.type !== item.type) return;
               if (ITEM_CONFIG[item.type]?.stackable && item.quantity) {
-                it.quantity = (it.quantity ?? 1) - item.quantity;
-                if (it.quantity <= 0) player.inventory[idx] = null;
+                invItem.quantity = (invItem.quantity || 1) - item.quantity;
+                if (invItem.quantity <= 0) playerA.inventory[slotIndex] = null;
               } else {
-                player.inventory[idx] = null;
+                playerA.inventory[slotIndex] = null;
               }
-            });
-          };
+            }
+          });
 
-          removeOffer(playerA, offerA);
-          removeOffer(playerB, offerB);
+          offerFromB.forEach((item) => {
+            if (item && item.originalSlot !== undefined) {
+              const slotIndex = item.originalSlot;
+              const invItem = playerB.inventory[slotIndex];
+              if (!invItem || invItem.type !== item.type) return;
+              if (ITEM_CONFIG[item.type]?.stackable && item.quantity) {
+                invItem.quantity = (invItem.quantity || 1) - item.quantity;
+                if (invItem.quantity <= 0) playerB.inventory[slotIndex] = null;
+              } else {
+                playerB.inventory[slotIndex] = null;
+              }
+            }
+          });
 
-          // Добавляем чужие
-          const addItems = (player, itemsToAdd) => {
+          // ДОБАВЛЕНИЕ полученных предметов (с поиском стака)
+          const addItemsToPlayer = (player, itemsToAdd) => {
             itemsToAdd.forEach((item) => {
               if (!item) return;
               const type = item.type;
-              const qty = item.quantity ?? 1;
-
+              const qty = item.quantity || 1;
               if (ITEM_CONFIG[type]?.stackable) {
-                // Пытаемся добавить в существующий стек
+                let added = false;
                 for (let i = 0; i < player.inventory.length; i++) {
                   const slot = player.inventory[i];
-                  if (slot?.type === type) {
-                    slot.quantity = (slot.quantity ?? 1) + qty;
-                    return;
+                  if (slot && slot.type === type) {
+                    slot.quantity = (slot.quantity || 1) + qty;
+                    added = true;
+                    break;
                   }
                 }
+                if (added) return;
               }
-
-              // Новый слот
-              const freeIdx = player.inventory.findIndex((s) => s === null);
-              if (freeIdx !== -1) {
-                player.inventory[freeIdx] = {
+              const freeSlot = player.inventory.findIndex((s) => s === null);
+              if (freeSlot !== -1) {
+                player.inventory[freeSlot] = {
                   type,
                   quantity: qty,
-                  itemId: `${type}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`,
+                  itemId: `${type}_${Date.now()}_${Math.random()}`,
                 };
               }
             });
           };
 
-          addItems(playerA, offerB);
-          addItems(playerB, offerA);
+          addItemsToPlayer(playerA, offerFromB);
+          addItemsToPlayer(playerB, offerFromA);
 
-          // 8. Сохраняем в базу
+          // Сохранение
           players.set(playerAId, { ...playerA });
           players.set(playerBId, { ...playerB });
-
           userDatabase.set(playerAId, { ...playerA });
           userDatabase.set(playerBId, { ...playerB });
-
           await saveUserDatabase(dbCollection, playerAId, playerA);
           await saveUserDatabase(dbCollection, playerBId, playerB);
 
-          // 9. Отправляем каждому обновлённый инвентарь (игнорируем то, что прислал клиент)
+          // Отправка каждому новому инвентарю
           wss.clients.forEach((client) => {
             if (client.readyState !== WebSocket.OPEN) return;
-            const cid = clients.get(client);
-
-            if (cid === playerAId) {
+            const clientId = clients.get(client);
+            if (clientId === playerAId) {
               client.send(
                 JSON.stringify({
                   type: "tradeCompleted",
                   newInventory: playerA.inventory,
                 }),
               );
-            } else if (cid === playerBId) {
+            } else if (clientId === playerBId) {
               client.send(
                 JSON.stringify({
                   type: "tradeCompleted",
@@ -3690,9 +3627,9 @@ function setupWebSocket(
             }
           });
 
-          // 10. Чистим состояние
-          tradeOffers.delete(tradeKey);
+          // Очистка
           tradeRequests.delete(tradeKey);
+          tradeOffers.delete(tradeKey);
         }
 
         ws.isProcessingTradeCompleted = false;
