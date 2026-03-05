@@ -3827,38 +3827,109 @@ function setupWebSocket(
         if (ws.isProcessingTradeChat) return;
         ws.isProcessingTradeChat = true;
 
+        const now = Date.now();
+
+        // Инициализируем per-websocket счётчики, если их ещё нет
+        if (!ws.tradeChatTimestamps) {
+          ws.tradeChatTimestamps = [];
+        }
+        if (!ws.tradeChatLastMessageTime) {
+          ws.tradeChatLastMessageTime = 0;
+        }
+
         while (ws.tradeChatQueue.length > 0) {
           const data = ws.tradeChatQueue.shift();
 
-          const fromId = clients.get(ws);
-          if (!fromId) continue;
+          // ─── 1. Проверяем отправителя ───────────────────────────────────────
+          const senderId = clients.get(ws);
+          if (!senderId) continue;
 
-          const toId = data.toId;
-          if (!toId || !players.has(toId)) continue;
-
-          // Проверяем, что торговля всё ещё активна
-          const sortedIds = [fromId, toId].sort();
-          const tradeKey = `${sortedIds[0]}-${sortedIds[1]}`;
-
-          if (!tradeOffers.has(tradeKey) && !tradeRequests.has(tradeKey)) {
-            continue; // Торговля уже завершена/отменена — игнорируем
+          if (data.fromId !== senderId) {
+            console.warn(
+              `[AntiCheat] Подмена fromId в tradeChatMessage: ${data.fromId} ≠ ${senderId}`,
+            );
+            continue;
           }
 
-          const messagePacket = JSON.stringify({
+          // ─── 2. Проверяем получателя ─────────────────────────────────────────
+          const toId = data.toId;
+          if (!toId || typeof toId !== "string" || toId === senderId) {
+            continue;
+          }
+
+          if (!players.has(toId)) continue;
+
+          // ─── 3. Проверяем, что торговля вообще активна (самое главное) ───────
+          const sorted = [senderId, toId].sort((a, b) => a.localeCompare(b));
+          const tradeKey = `${sorted[0]}-${sorted[1]}`;
+
+          const hasActiveTrade =
+            tradeOffers.has(tradeKey) ||
+            tradeRequests.has(tradeKey) ||
+            // на случай, если кто-то успевает написать в первые 300–500 мс после завершения
+            (tradeCooldowns.has(`${senderId}-${toId}`) &&
+              now - (tradeCooldowns.get(`${senderId}-${toId}`) || 0) < 8000);
+
+          if (!hasActiveTrade) {
+            // Можно логировать, но не наказывать — просто игнорируем
+            continue;
+          }
+
+          // ─── 4. Анти-флуд (per-websocket + per-trade) ────────────────────────
+
+          // Очищаем старые метки времени (окно 5 секунд)
+          ws.tradeChatTimestamps = ws.tradeChatTimestamps.filter(
+            (ts) => now - ts < 5000,
+          );
+
+          const MAX_MESSAGES_PER_5SEC = 5; // очень щедро
+          const MIN_INTERVAL_MS = 600; // минимум 0.6 сек между сообщениями
+
+          if (ws.tradeChatTimestamps.length >= MAX_MESSAGES_PER_5SEC) {
+            // Слишком много сообщений за короткий период
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "tradeChatError",
+                  message: "Слишком быстро пишешь. Подожди пару секунд.",
+                }),
+              );
+            }
+            continue;
+          }
+
+          if (now - ws.tradeChatLastMessageTime < MIN_INTERVAL_MS) {
+            continue; // слишком быстрое сообщение — молча игнорируем
+          }
+
+          // ─── 5. Ограничение длины (на всякий случай) ─────────────────────────
+          let message = String(data.message || "").trim();
+          if (message.length === 0 || message.length > 180) {
+            continue;
+          }
+
+          // Можно ещё убрать все control-персонажи, если хочется паранойи
+          message = message.replace(/[\x00-\x1F\x7F]/g, "");
+
+          // ─── 6. Всё ок — отправляем обоим участникам ─────────────────────────
+          const packet = JSON.stringify({
             type: "tradeChatMessage",
-            fromId: fromId,
-            message: data.message,
+            fromId: senderId,
+            message: message,
           });
 
-          // Рассылаем сообщение обоим участникам (отправителю и получателю)
           wss.clients.forEach((client) => {
             if (client.readyState === WebSocket.OPEN) {
-              const clientId = clients.get(client);
-              if (clientId === toId || clientId === fromId) {
-                client.send(messagePacket);
+              const cid = clients.get(client);
+              if (cid === senderId || cid === toId) {
+                client.send(packet);
               }
             }
           });
+
+          // Обновляем метки
+          ws.tradeChatTimestamps.push(now);
+          ws.tradeChatLastMessageTime = now;
         }
 
         ws.isProcessingTradeChat = false;
