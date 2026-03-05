@@ -3704,26 +3704,115 @@ function setupWebSocket(
         while (ws.tradeCancelledQueue.length > 0) {
           const data = ws.tradeCancelledQueue.shift();
 
-          const fromId = clients.get(ws);
-          if (!fromId) continue;
+          const cancelerId = clients.get(ws);
+          if (!cancelerId) continue;
 
-          const toId = data.toId;
-          if (!toId) continue;
+          const partnerId = data.toId;
+          if (!partnerId || !players.has(partnerId)) continue;
 
-          // Симметричный ключ (меньший ID первым)
-          const tradeKey =
-            fromId < toId ? `${fromId}-${toId}` : `${toId}-${fromId}`;
+          // Нормализуем ключ (всегда меньший ID первый)
+          const [idA, idB] = [cancelerId, partnerId].sort((a, b) =>
+            a.localeCompare(b),
+          );
+          const tradeKey = `${idA}-${idB}`;
 
-          // Очищаем состояние торговли
-          tradeRequests.delete(tradeKey);
+          if (!tradeOffers.has(tradeKey)) {
+            // Возможно уже отменено ранее или завершено
+            continue;
+          }
+
+          const tradeState = tradeOffers.get(tradeKey);
+
+          const playerAId = idA; // меньший ID — владелец myOffer
+          const playerBId = idB;
+
+          const playerA = players.get(playerAId);
+          const playerB = players.get(playerBId);
+
+          if (!playerA?.inventory || !playerB?.inventory) {
+            // Кто-то вышел / сломался — просто чистим
+            tradeOffers.delete(tradeKey);
+            tradeRequests.delete(tradeKey);
+            continue;
+          }
+
+          // ------------------------------------------------------------------
+          // Восстанавливаем предметы у ОБОИХ игроков на серверной стороне
+          // ------------------------------------------------------------------
+
+          const restoreOfferToInventory = (player, offer) => {
+            if (!Array.isArray(offer)) return;
+
+            offer.forEach((item) => {
+              if (!item) return;
+
+              const { type, quantity = 1, originalSlot } = item;
+
+              // Пытаемся вернуть в оригинальный слот, если он свободен
+              if (
+                originalSlot >= 0 &&
+                originalSlot < player.inventory.length &&
+                !player.inventory[originalSlot]
+              ) {
+                player.inventory[originalSlot] = {
+                  ...item,
+                  itemId: `${type}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+                };
+                return;
+              }
+
+              // Иначе — в первый свободный слот
+              const freeSlot = player.inventory.findIndex((s) => s === null);
+              if (freeSlot !== -1) {
+                player.inventory[freeSlot] = {
+                  ...item,
+                  itemId: `${type}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+                };
+                return;
+              }
+
+              // Если места нет — предмет теряется (очень редкий случай)
+              // Можно в будущем добавить логирование или уведомление
+              console.warn(
+                `[Trade Cancel] Нет места для возврата предмета ${type} игроку ${player.id}`,
+              );
+            });
+          };
+
+          // Возвращаем то, что лежало в предложении у каждого
+          restoreOfferToInventory(playerA, tradeState.myOffer);
+          restoreOfferToInventory(playerB, tradeState.partnerOffer);
+
+          // Сохраняем изменения инвентаря в базу
+          players.set(playerAId, { ...playerA });
+          players.set(playerBId, { ...playerB });
+
+          userDatabase.set(playerAId, { ...playerA });
+          userDatabase.set(playerBId, { ...playerB });
+
+          await saveUserDatabase(dbCollection, playerAId, playerA);
+          await saveUserDatabase(dbCollection, playerBId, playerB);
+
+          // ------------------------------------------------------------------
+          // Чистим состояние торговли
+          // ------------------------------------------------------------------
           tradeOffers.delete(tradeKey);
+          tradeRequests.delete(tradeKey);
 
-          // Уведомляем обоих участников об отмене
+          // ------------------------------------------------------------------
+          // Рассылаем отмену ОБОИМ (без передачи инвентаря!)
+          // Клиент сам вернёт свои предметы из myOffer — как сейчас
+          // ------------------------------------------------------------------
           wss.clients.forEach((client) => {
             if (client.readyState === WebSocket.OPEN) {
               const clientId = clients.get(client);
-              if (clientId === fromId || clientId === toId) {
-                client.send(JSON.stringify({ type: "tradeCancelled" }));
+              if (clientId === playerAId || clientId === playerBId) {
+                client.send(
+                  JSON.stringify({
+                    type: "tradeCancelled",
+                    // НЕ отправляем newInventory — клиент сам вернёт свои вещи
+                  }),
+                );
               }
             }
           });
