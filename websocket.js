@@ -2949,8 +2949,11 @@ function setupWebSocket(
           const tradeKey = `${sortedIds[0]}-${sortedIds[1]}`;
 
           // Если уже есть активный запрос или открытая торговля — не создаём новый
-          if (tradeCooldowns.has(tradeKey)) {
-            const cooldownEnd = tradeCooldowns.get(tradeKey);
+          const directionKey =
+            fromId < toId ? `${fromId}-${toId}` : `${toId}-${fromId}`;
+
+          if (tradeCooldowns.has(directionKey)) {
+            const cooldownEnd = tradeCooldowns.get(directionKey);
             if (now < cooldownEnd) {
               const secondsLeft = Math.ceil((cooldownEnd - now) / 1000);
               if (ws.readyState === WebSocket.OPEN) {
@@ -2965,7 +2968,7 @@ function setupWebSocket(
               continue;
             }
             // Кулдаун истёк — чистим
-            tradeCooldowns.delete(tradeKey);
+            tradeCooldowns.delete(directionKey);
           }
 
           // Если уже есть активный запрос или открытая торговля — не создаём новый
@@ -3734,16 +3737,36 @@ function setupWebSocket(
           const partnerId = data.toId;
           if (!partnerId || !players.has(partnerId)) continue;
 
-          // Нормализуем ключ (всегда меньший ID первый)
+          // Нормализуем ключ (меньший ID первый)
           const [idA, idB] = [cancelerId, partnerId].sort((a, b) =>
             a.localeCompare(b),
           );
           const tradeKey = `${idA}-${idB}`;
 
-          // Устанавливаем кулдаун на 30 секунд для этой пары
-          tradeCooldowns.set(tradeKey, now + TRADE_COOLDOWN_AFTER_CANCEL_MS);
+          // ────────────────────────────────────────────────────────
+          // Кулдаун ставим ТОЛЬКО если отмена пришла из диалога отказа
+          // (отправитель запроса получает кулдаун, получатель — нет)
+          // ────────────────────────────────────────────────────────
+          const isFromDialog = data.fromDialog === true;
 
-          // Если была открытая торговля — возвращаем предметы на серверной стороне
+          if (isFromDialog) {
+            // Это отказ от входящего запроса → кулдаун ТОЛЬКО отправителю (cancelerId)
+            // Генерируем ключ именно для направления "отправитель → получатель"
+            const directionKey =
+              cancelerId < partnerId
+                ? `${cancelerId}-${partnerId}`
+                : `${partnerId}-${cancelerId}`;
+
+            tradeCooldowns.set(
+              directionKey,
+              now + TRADE_COOLDOWN_AFTER_CANCEL_MS,
+            );
+          }
+          // Если это отмена внутри окна — кулдаун НЕ ставим никому
+
+          // ────────────────────────────────────────────────────────
+          // Если была открытая торговля — возвращаем предметы
+          // ────────────────────────────────────────────────────────
           if (tradeOffers.has(tradeKey)) {
             const tradeState = tradeOffers.get(tradeKey);
 
@@ -3788,7 +3811,6 @@ function setupWebSocket(
               restoreOfferToInventory(playerA, tradeState.myOffer);
               restoreOfferToInventory(playerB, tradeState.partnerOffer);
 
-              // Сохраняем инвентари
               players.set(idA, { ...playerA });
               players.set(idB, { ...playerB });
               userDatabase.set(idA, { ...playerA });
