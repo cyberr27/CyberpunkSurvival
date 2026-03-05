@@ -4150,6 +4150,13 @@ function setupWebSocket(
         if (ws.isProcessingRobotDoctorHeal20) return;
         ws.isProcessingRobotDoctorHeal20 = true;
 
+        const now = Date.now();
+
+        // Константы — совпадают с robot_doctor.js
+        const NPC_X = 1600;
+        const NPC_Y = 1717;
+        const INTERACTION_RADIUS_SQ = 2500;
+
         while (ws.robotDoctorHeal20Queue.length > 0) {
           const data = ws.robotDoctorHeal20Queue.shift();
 
@@ -4158,34 +4165,76 @@ function setupWebSocket(
 
           const player = players.get(playerId);
 
-          // Ищем баляры
-          const balyarySlot = player.inventory.findIndex(
-            (s) => s && s.type === "balyary",
-          );
-
-          // Проверка наличия хотя бы 1 баляра
+          // 1. Базовые проверки данных игрока
           if (
-            balyarySlot === -1 ||
-            (player.inventory[balyarySlot].quantity || 0) < 1
+            !player.inventory ||
+            !Array.isArray(player.inventory) ||
+            !player.maxStats?.health
           ) {
-            ws.send(
-              JSON.stringify({
-                type: "robotDoctorResult",
-                success: false,
-                error: "Нет баляров",
-              }),
-            );
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "robotDoctorResult",
+                  success: false,
+                  error: "Ошибка данных персонажа",
+                }),
+              );
+            }
             continue;
           }
 
-          // Снимаем ровно 1 баляр
+          // 2. Проверка расстояния до робота-доктора
+          const dx = player.x - NPC_X;
+          const dy = player.y - NPC_Y;
+          const distanceSq = dx * dx + dy * dy;
+
+          if (distanceSq > INTERACTION_RADIUS_SQ) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "robotDoctorResult",
+                  success: false,
+                  error: "Подойдите ближе к медицинскому модулю",
+                }),
+              );
+            }
+            continue;
+          }
+
+          // 3. Защита от спама — минимальный интервал между запросами
+          if (ws.lastHeal20Request && now - ws.lastHeal20Request < 1000) {
+            // 1 секунда
+            // тихо игнорируем без ответа клиенту
+            continue;
+          }
+          ws.lastHeal20Request = now;
+
+          // 4. Поиск баляров в инвентаре
+          const balyarySlot = player.inventory.findIndex(
+            (s) => s && s.type === "balyary" && (s.quantity || 0) >= 1,
+          );
+
+          if (balyarySlot === -1) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "robotDoctorResult",
+                  success: false,
+                  error: "Нет баляров",
+                }),
+              );
+            }
+            continue;
+          }
+
+          // 5. Снимаем ровно 1 баляр
           if (player.inventory[balyarySlot].quantity === 1) {
             player.inventory[balyarySlot] = null;
           } else {
             player.inventory[balyarySlot].quantity -= 1;
           }
 
-          // +20 HP, но не выше максимума
+          // 6. Лечение +20 HP (не выше максимума)
           player.health = Math.min(player.maxStats.health, player.health + 20);
 
           // Сохраняем изменения
@@ -4193,16 +4242,18 @@ function setupWebSocket(
           userDatabase.set(playerId, { ...player });
           await saveUserDatabase(dbCollection, playerId, player);
 
-          // Отправляем успешный результат
-          ws.send(
-            JSON.stringify({
-              type: "robotDoctorResult",
-              success: true,
-              action: "heal20",
-              health: player.health,
-              inventory: player.inventory,
-            }),
-          );
+          // Отправляем результат клиенту (формат не меняется)
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(
+              JSON.stringify({
+                type: "robotDoctorResult",
+                success: true,
+                action: "heal20",
+                health: player.health,
+                inventory: player.inventory,
+              }),
+            );
+          }
         }
 
         ws.isProcessingRobotDoctorHeal20 = false;
