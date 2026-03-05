@@ -374,15 +374,6 @@ function runGameLoop(
             items.set(itemId, newItem);
             worldItemsMap.set(itemId, newItem);
             newItems.push({ itemId, x, y, type, spawnTime: now, worldId });
-
-            // ─── ЛОГ АВТОСПАВНА (только для проверки механики) ────────────────────────
-            console.log(
-              `[AUTO-SPAWN] Мир ${worldId} | ${type} (${itemId}) | ` +
-                `rarity: ${ITEM_CONFIG[type]?.rarity || "?"} | ` +
-                `canAuto: ${ITEM_CONFIG[type]?.canBeAutoSpawned ?? false} | ` +
-                `x:${Math.round(x)}, y:${Math.round(y)}`,
-            );
-            // ────────────────────────────────────────────────────────────────────────
           }
         }
 
