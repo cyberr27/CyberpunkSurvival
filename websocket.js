@@ -2939,6 +2939,9 @@ function setupWebSocket(
             `[TRADE COOLDOWN CHECK] ${directionKey} — exists: ${tradeCooldowns.has(directionKey)}`,
           );
 
+          console.log(
+            `[DEBUG] fromId=${fromId}, toId=${toId}, directionKey=${directionKey}`,
+          );
           if (tradeCooldowns.has(directionKey)) {
             const cooldownEnd = tradeCooldowns.get(directionKey);
             if (now < cooldownEnd) {
@@ -3736,6 +3739,8 @@ function setupWebSocket(
           const isFromDialog = data.fromDialog === true;
 
           if (isFromDialog) {
+            const directionKey = `${partnerId}-${cancelerId}`;
+
             tradeCooldowns.set(
               directionKey,
               now + TRADE_COOLDOWN_AFTER_CANCEL_MS,
