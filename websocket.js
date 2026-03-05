@@ -2887,12 +2887,10 @@ function setupWebSocket(
         while (ws.tradeRequestQueue.length > 0) {
           const data = ws.tradeRequestQueue.shift();
 
-          // ───────────────────────────────────────────────
           // 1. Проверяем, что это действительно тот игрок, чей ws
           const fromId = clients.get(ws);
           if (!fromId) continue;
 
-          // Защита: fromId в пакете должен совпадать с реальным владельцем соединения
           if (data.fromId !== fromId) {
             console.warn(
               `[AntiCheat] Подделка fromId в tradeRequest: ${data.fromId} ≠ ${fromId}`,
@@ -2908,19 +2906,12 @@ function setupWebSocket(
 
           if (!playerA || !playerB) continue;
 
-          // Оба должны быть в одном мире (строгая проверка)
-          if (playerA.worldId !== playerB.worldId) {
-            // Можно отправить ошибку клиенту, но пока просто молча игнорируем
-            continue;
-          }
+          if (playerA.worldId !== playerB.worldId) continue;
 
-          // ───────────────────────────────────────────────
-          // 2. Анти-спам / кулдаун на запросы торговли от одного игрока
-          if (!ws.lastTradeRequestTime) {
-            ws.lastTradeRequestTime = 0;
-          }
+          // 2. Анти-спам / кулдаун на запросы от одного игрока
+          if (!ws.lastTradeRequestTime) ws.lastTradeRequestTime = 0;
 
-          const TRADE_REQUEST_COOLDOWN_MS = 7500; // 7.5 секунд между запросами
+          const TRADE_REQUEST_COOLDOWN_MS = 7500;
 
           if (now - ws.lastTradeRequestTime < TRADE_REQUEST_COOLDOWN_MS) {
             if (ws.readyState === WebSocket.OPEN) {
@@ -2940,16 +2931,13 @@ function setupWebSocket(
             continue;
           }
 
-          // Обновляем время последнего запроса
           ws.lastTradeRequestTime = now;
 
-          // ───────────────────────────────────────────────
-          // 3. Уникальный ключ запроса (уже было, оставляем + усиливаем)
-          const sortedIds = [fromId, toId].sort((a, b) => a.localeCompare(b));
-          const tradeKey = `${sortedIds[0]}-${sortedIds[1]}`;
-
-          // Если уже есть активный запрос или открытая торговля — не создаём новый
+          // Ключ для кулдауна — строго направленный
           const directionKey = `${fromId}-${toId}`;
+          console.log(
+            `[TRADE COOLDOWN CHECK] ${directionKey} — exists: ${tradeCooldowns.has(directionKey)}`,
+          );
 
           if (tradeCooldowns.has(directionKey)) {
             const cooldownEnd = tradeCooldowns.get(directionKey);
@@ -2966,11 +2954,13 @@ function setupWebSocket(
               }
               continue;
             }
-            // Кулдаун истёк — чистим
             tradeCooldowns.delete(directionKey);
           }
 
-          // Если уже есть активный запрос или открытая торговля — не создаём новый
+          // Ключ для tradeRequests — симметричный (как везде)
+          const sortedIds = [fromId, toId].sort((a, b) => a.localeCompare(b));
+          const tradeKey = `${sortedIds[0]}-${sortedIds[1]}`;
+
           if (tradeRequests.has(tradeKey)) {
             const existing = tradeRequests.get(tradeKey);
             if (
@@ -2987,11 +2977,9 @@ function setupWebSocket(
               }
               continue;
             }
-            // Если статус был "cancelled" или другой — можно перезаписать (но лучше чистить при отмене)
           }
 
-          // ───────────────────────────────────────────────
-          // 4. Создаём запрос (как было)
+          // 4. Создаём запрос
           tradeRequests.set(tradeKey, {
             status: "pending",
             from: fromId,
@@ -3736,35 +3724,36 @@ function setupWebSocket(
           const partnerId = data.toId;
           if (!partnerId || !players.has(partnerId)) continue;
 
-          // Нормализуем ключ (меньший ID первый)
-          const [idA, idB] = [cancelerId, partnerId].sort((a, b) =>
+          // Для tradeRequests и tradeOffers — симметричный ключ (как везде в системе)
+          const sortedIds = [cancelerId, partnerId].sort((a, b) =>
             a.localeCompare(b),
           );
-          const tradeKey = `${idA}-${idB}`;
+          const tradeKey = `${sortedIds[0]}-${sortedIds[1]}`;
 
-          // ────────────────────────────────────────────────────────
-          // Кулдаун ставим ТОЛЬКО если отмена пришла из диалога отказа
-          // (отправитель запроса получает кулдаун, получатель — нет)
-          // ────────────────────────────────────────────────────────
+          // Для кулдауна — строго направленный ключ (от отменяющего → к партнёру)
+          const directionKey = `${cancelerId}-${partnerId}`;
+
           const isFromDialog = data.fromDialog === true;
 
           if (isFromDialog) {
-            // Кулдаун только для отправителя запроса → строго в направлении "от кого → к кому"
-            const directionKey = `${cancelerId}-${partnerId}`;
-
             tradeCooldowns.set(
               directionKey,
               now + TRADE_COOLDOWN_AFTER_CANCEL_MS,
             );
+            console.log(
+              `[TRADE COOLDOWN SET] ${directionKey} until ${new Date(now + TRADE_COOLDOWN_AFTER_CANCEL_MS)}`,
+            );
           }
 
+          // Если была открытая торговля — возвращаем предметы
           if (tradeOffers.has(tradeKey)) {
             const tradeState = tradeOffers.get(tradeKey);
 
-            const playerA = players.get(idA);
-            const playerB = players.get(idB);
+            // Здесь используем cancelerId и partnerId вместо idA/idB
+            const playerCanceler = players.get(cancelerId);
+            const playerPartner = players.get(partnerId);
 
-            if (playerA?.inventory && playerB?.inventory) {
+            if (playerCanceler?.inventory && playerPartner?.inventory) {
               const restoreOfferToInventory = (player, offer) => {
                 if (!Array.isArray(offer)) return;
                 offer.forEach((item) => {
@@ -3799,15 +3788,15 @@ function setupWebSocket(
                 });
               };
 
-              restoreOfferToInventory(playerA, tradeState.myOffer);
-              restoreOfferToInventory(playerB, tradeState.partnerOffer);
+              restoreOfferToInventory(playerCanceler, tradeState.myOffer);
+              restoreOfferToInventory(playerPartner, tradeState.partnerOffer);
 
-              players.set(idA, { ...playerA });
-              players.set(idB, { ...playerB });
-              userDatabase.set(idA, { ...playerA });
-              userDatabase.set(idB, { ...playerB });
-              await saveUserDatabase(dbCollection, idA, playerA);
-              await saveUserDatabase(dbCollection, idB, playerB);
+              players.set(cancelerId, { ...playerCanceler });
+              players.set(partnerId, { ...playerPartner });
+              userDatabase.set(cancelerId, { ...playerCanceler });
+              userDatabase.set(partnerId, { ...playerPartner });
+              await saveUserDatabase(dbCollection, cancelerId, playerCanceler);
+              await saveUserDatabase(dbCollection, partnerId, playerPartner);
             }
 
             tradeOffers.delete(tradeKey);
@@ -3820,7 +3809,7 @@ function setupWebSocket(
           wss.clients.forEach((client) => {
             if (client.readyState === WebSocket.OPEN) {
               const clientId = clients.get(client);
-              if (clientId === idA || clientId === idB) {
+              if (clientId === cancelerId || clientId === partnerId) {
                 client.send(JSON.stringify({ type: "tradeCancelled" }));
               }
             }
