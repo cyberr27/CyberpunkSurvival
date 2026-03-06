@@ -1784,6 +1784,7 @@ function updateStatsDisplay() {
 `;
     updateUpgradeButtons();
 
+    // Координаты — полезная фича, оставляем
     document.getElementById("coords").innerHTML = `X: ${Math.floor(
       me.x,
     )}<br>Y: ${Math.floor(me.y)}`;
@@ -2150,6 +2151,51 @@ async function handleGameMessageLogic(data) {
         players.set(data.player.id, updatedPlayer);
       }
       break;
+    case "updateMaxStatsResult":
+      if (data.success) {
+        const me = players.get(myId);
+        if (!me) break;
+
+        // Обновляем объект игрока
+        me.upgradePoints = data.upgradePoints;
+        me.healthUpgrade = data.healthUpgrade;
+        me.energyUpgrade = data.energyUpgrade;
+        me.foodUpgrade = data.foodUpgrade;
+        me.waterUpgrade = data.waterUpgrade;
+
+        if (data.maxStats) {
+          me.maxStats = { ...data.maxStats };
+        }
+
+        // Обновляем текущие значения (сервер уже ограничил)
+        if (data.health !== undefined) me.health = data.health;
+        if (data.energy !== undefined) me.energy = data.energy;
+        if (data.food !== undefined) me.food = data.food;
+        if (data.water !== undefined) me.water = data.water;
+
+        // Синхронизируем глобальные переменные levelSystem
+        window.levelSystem.upgradePoints = data.upgradePoints;
+        window.levelSystem.healthUpgrade = data.healthUpgrade;
+        window.levelSystem.energyUpgrade = data.energyUpgrade;
+        window.levelSystem.foodUpgrade = data.foodUpgrade;
+        window.levelSystem.waterUpgrade = data.waterUpgrade;
+
+        // Если maxStats пришли — обновляем и их
+        if (data.maxStats) {
+          window.levelSystem.maxStats = { ...data.maxStats };
+        }
+
+        updateStatsDisplay();
+        updateUpgradeButtons(); // важно — перерисовать кнопки +/-
+      } else {
+        alert(data.error || "Не удалось улучшить характеристики");
+        // Можно также вернуть очки визуально, но лучше просто обновить из сервера
+        if (data.upgradePoints !== undefined) {
+          window.levelSystem.upgradePoints = data.upgradePoints;
+          updateUpgradeButtons();
+        }
+      }
+      break;
     case "itemDropped":
       if (data.worldId === currentWorldId) {
         items.set(data.itemId, {
@@ -2349,8 +2395,8 @@ async function handleGameMessageLogic(data) {
         if (typeof window.levelSystem.updateLevelDisplay === "function") {
           window.levelSystem.updateLevelDisplay();
         }
-        if (typeof window.levelSystem.updateStatsDisplay === "function") {
-          window.levelSystem.updateStatsDisplay();
+        if (typeof updateStatsDisplay === "function") {
+          updateStatsDisplay();
         }
         if (typeof window.levelSystem.updateUpgradeButtons === "function") {
           window.levelSystem.updateUpgradeButtons();

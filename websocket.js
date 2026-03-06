@@ -4579,64 +4579,136 @@ function setupWebSocket(
         while (ws.updateMaxStatsQueue.length > 0) {
           const data = ws.updateMaxStatsQueue.shift();
 
-          const id = clients.get(ws);
-          if (!id) continue;
+          const playerId = clients.get(ws);
+          if (!playerId) continue;
 
-          const player = players.get(id);
+          const player = players.get(playerId);
           if (!player) continue;
 
-          // Обновляем upgradePoints и upgrade-поля
-          player.upgradePoints = data.upgradePoints;
+          // 1. Проверяем, что пришли именно дельты (сколько добавить в каждую характеристику)
+          const deltas = {
+            health: Number(data.deltaHealth) || 0,
+            energy: Number(data.deltaEnergy) || 0,
+            food: Number(data.deltaFood) || 0,
+            water: Number(data.deltaWater) || 0,
+          };
 
-          // СОХРАНЯЕМ UPGRADE ПОЛЯ (fallback на старое значение, если не пришло)
-          player.healthUpgrade =
-            data.healthUpgrade !== undefined
-              ? data.healthUpgrade
-              : player.healthUpgrade || 0;
-          player.energyUpgrade =
-            data.energyUpgrade !== undefined
-              ? data.energyUpgrade
-              : player.energyUpgrade || 0;
-          player.foodUpgrade =
-            data.foodUpgrade !== undefined
-              ? data.foodUpgrade
-              : player.foodUpgrade || 0;
-          player.waterUpgrade =
-            data.waterUpgrade !== undefined
-              ? data.waterUpgrade
-              : player.waterUpgrade || 0;
+          // Суммарная стоимость в upgrade points
+          const totalCost =
+            deltas.health + deltas.energy + deltas.food + deltas.water;
 
-          // Сохраняем изменения
-          players.set(id, { ...player });
-          userDatabase.set(id, { ...player });
-          await saveUserDatabase(dbCollection, id, player);
+          if (totalCost <= 0) {
+            // ничего не тратим → можно просто пропустить или вернуть текущие значения
+            sendCurrentUpgrades(ws, player);
+            continue;
+          }
 
-          // Рассылаем обновление только этому игроку
-          wss.clients.forEach((client) => {
-            if (
-              client.readyState === WebSocket.OPEN &&
-              clients.get(client) === id
-            ) {
-              client.send(
+          // 2. Проверяем, хватает ли очков и нет ли отрицательных значений
+          const currentPoints = Number(player.upgradePoints) || 0;
+
+          if (
+            totalCost > currentPoints ||
+            deltas.health < 0 ||
+            deltas.energy < 0 ||
+            deltas.food < 0 ||
+            deltas.water < 0
+          ) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
                 JSON.stringify({
-                  type: "update",
-                  player: {
-                    id,
-                    upgradePoints: player.upgradePoints,
-                    healthUpgrade: player.healthUpgrade,
-                    energyUpgrade: player.energyUpgrade,
-                    foodUpgrade: player.foodUpgrade,
-                    waterUpgrade: player.waterUpgrade,
-                    // Можно добавить maxStats/health/energy/food/water, если клиент их пересчитывает на основе upgrade
-                    // maxStats: player.maxStats, // если пересчитывается на сервере
-                  },
+                  type: "updateMaxStatsResult",
+                  success: false,
+                  error:
+                    "Недостаточно upgrade points или некорректные значения",
+                  upgradePoints: currentPoints,
+                  healthUpgrade: player.healthUpgrade || 0,
+                  energyUpgrade: player.energyUpgrade || 0,
+                  foodUpgrade: player.foodUpgrade || 0,
+                  waterUpgrade: player.waterUpgrade || 0,
                 }),
               );
             }
-          });
+            continue;
+          }
+
+          // 3. Применяем дельты (сервер сам решает, сколько добавить)
+          player.healthUpgrade = (player.healthUpgrade || 0) + deltas.health;
+          player.energyUpgrade = (player.energyUpgrade || 0) + deltas.energy;
+          player.foodUpgrade = (player.foodUpgrade || 0) + deltas.food;
+          player.waterUpgrade = (player.waterUpgrade || 0) + deltas.water;
+
+          // Снимаем потраченные очки
+          player.upgradePoints = currentPoints - totalCost;
+
+          // 4. Пересчитываем максимальные статы (самое важное!)
+          calculateMaxStats(player, ITEM_CONFIG);
+
+          // 5. Жёстко ограничиваем текущие значения (уже есть в calculateMaxStats, но для надёжности)
+          player.health = Math.max(
+            0,
+            Math.min(player.health ?? 0, player.maxStats.health),
+          );
+          player.energy = Math.max(
+            0,
+            Math.min(player.energy ?? 0, player.maxStats.energy),
+          );
+          player.food = Math.max(
+            0,
+            Math.min(player.food ?? 0, player.maxStats.food),
+          );
+          player.water = Math.max(
+            0,
+            Math.min(player.water ?? 0, player.maxStats.water),
+          );
+
+          // 6. Сохраняем
+          players.set(playerId, { ...player });
+          userDatabase.set(playerId, { ...player });
+          await saveUserDatabase(dbCollection, playerId, player);
+
+          // 7. Отправляем успешный результат только этому игроку
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(
+              JSON.stringify({
+                type: "updateMaxStatsResult",
+                success: true,
+                upgradePoints: player.upgradePoints,
+                healthUpgrade: player.healthUpgrade,
+                energyUpgrade: player.energyUpgrade,
+                foodUpgrade: player.foodUpgrade,
+                waterUpgrade: player.waterUpgrade,
+                maxStats: player.maxStats,
+                health: player.health,
+                energy: player.energy,
+                food: player.food,
+                water: player.water,
+              }),
+            );
+          }
         }
 
         ws.isProcessingUpdateMaxStats = false;
+      }
+      // Вспомогательная функция (processUpdateMaxStatsQueue)
+      function sendCurrentUpgrades(ws, player) {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(
+            JSON.stringify({
+              type: "updateMaxStatsResult",
+              success: true,
+              upgradePoints: player.upgradePoints || 0,
+              healthUpgrade: player.healthUpgrade || 0,
+              energyUpgrade: player.energyUpgrade || 0,
+              foodUpgrade: player.foodUpgrade || 0,
+              waterUpgrade: player.waterUpgrade || 0,
+              maxStats: player.maxStats || {},
+              health: player.health || 0,
+              energy: player.energy || 0,
+              food: player.food || 0,
+              water: player.water || 0,
+            }),
+          );
+        }
       }
       async function processUpdateInventoryQueue(ws) {
         if (ws.isProcessingUpdateInventory) return;
