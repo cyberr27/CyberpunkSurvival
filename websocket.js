@@ -3940,6 +3940,14 @@ function setupWebSocket(
         while (ws.robotDoctorFreeHealQueue.length > 0) {
           const data = ws.robotDoctorFreeHealQueue.shift();
 
+          if (
+            Object.keys(data).length !== 1 ||
+            data.type !== "robotDoctorFreeHeal"
+          ) {
+            // или "completeDoctorQuest"
+            continue;
+          }
+
           const playerId = clients.get(ws);
           if (!playerId || !players.has(playerId)) continue;
 
@@ -4053,6 +4061,14 @@ function setupWebSocket(
         while (ws.completeDoctorQuestQueue.length > 0) {
           const data = ws.completeDoctorQuestQueue.shift();
 
+          if (
+            Object.keys(data).length !== 1 ||
+            data.type !== "robotDoctorFreeHeal"
+          ) {
+            // или "completeDoctorQuest"
+            continue;
+          }
+
           const playerId = clients.get(ws);
           if (!playerId || !players.has(playerId)) continue;
 
@@ -4160,6 +4176,15 @@ function setupWebSocket(
         while (ws.robotDoctorHeal20Queue.length > 0) {
           const data = ws.robotDoctorHeal20Queue.shift();
 
+          // ─── НОВАЯ ЗАЩИТА ОТ ПОДДЕЛКИ ПАКЕТА ───
+          if (
+            Object.keys(data).length !== 1 ||
+            data.type !== "robotDoctorHeal20"
+          ) {
+            // пакет содержит лишние поля или неправильный type → молча игнорируем
+            continue;
+          }
+
           const playerId = clients.get(ws);
           if (!playerId || !players.has(playerId)) continue;
 
@@ -4201,10 +4226,18 @@ function setupWebSocket(
             continue;
           }
 
-          // 3. Защита от спама — минимальный интервал между запросами
-          if (ws.lastHeal20Request && now - ws.lastHeal20Request < 1000) {
-            // 1 секунда
-            // тихо игнорируем без ответа клиенту
+          // 3. УСИЛЕННАЯ защита от спама
+          if (ws.lastHeal20Request && now - ws.lastHeal20Request < 1500) {
+            // было 1000 → стало 1500
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "robotDoctorResult",
+                  success: false,
+                  error: "Слишком быстро. Подождите 1.5 секунды",
+                }),
+              );
+            }
             continue;
           }
           ws.lastHeal20Request = now;
@@ -4314,9 +4347,24 @@ function setupWebSocket(
           }
 
           // 3. Защита от спама — минимальный интервал между запросами
-          if (ws.lastFullHealRequest && now - ws.lastFullHealRequest < 1200) {
-            // 1.2 секунды
-            // тихо игнорируем
+          if (
+            Object.keys(data).length !== 1 ||
+            data.type !== "robotDoctorFullHeal"
+          ) {
+            continue; // подделка пакета
+          }
+
+          if (ws.lastFullHealRequest && now - ws.lastFullHealRequest < 1500) {
+            // тоже 1.5 сек
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "robotDoctorResult",
+                  success: false,
+                  error: "Слишком быстро. Подождите 1.5 секунды",
+                }),
+              );
+            }
             continue;
           }
           ws.lastFullHealRequest = now;
