@@ -5218,15 +5218,23 @@ function setupWebSocket(
           ).length;
 
           if (freeSlots >= itemsToGive.length) {
+            // Выдаём в инвентарь с уникальным itemId для каждого предмета
             itemsToGive.forEach((type) => {
               for (let i = 0; i < player.inventory.length; i++) {
-                if (!player.inventory[i]) {
-                  player.inventory[i] = { type, quantity: 1 };
+                if (player.inventory[i] === null) {
+                  const itemId = `starter_${type.replace(/[^a-zA-Z0-9]/g, "_")}_${playerId}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+                  player.inventory[i] = {
+                    type,
+                    quantity: 1,
+                    itemId, // ← ключевой фикс: теперь есть itemId
+                  };
                   break;
                 }
               }
             });
           } else {
+            // Если места не хватает — дроп на землю (логика не менялась)
             const radius = 30;
 
             itemsToGive.forEach((type, index) => {
@@ -5250,7 +5258,7 @@ function setupWebSocket(
 
               items.set(itemId, questItem);
 
-              // 👁 Отправляем ТОЛЬКО этому игроку
+              // Отправляем ТОЛЬКО этому игроку
               if (ws.readyState === WebSocket.OPEN) {
                 ws.send(
                   JSON.stringify({
