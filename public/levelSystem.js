@@ -111,16 +111,24 @@ function updateUpgradeButtons() {
       return;
     }
 
-    // Удаляем старые кнопки
+    // Всегда удаляем старые кнопки в любом случае
     const buttons = statsEl.querySelectorAll(".upgrade-btn");
     buttons.forEach((btn) => btn.remove());
 
-    // Создаём новые кнопки, если есть очки
-    if (upgradePoints > 0) {
+    // Берём актуальное количество очков ИЗ ОБЪЕКТА ИГРОКА, а не из глобальной переменной
+    const me = players.get(myId);
+    const currentUpgradePoints = me?.upgradePoints ?? 0;
+
+    // Если очков больше 0 — создаём кнопки
+    if (currentUpgradePoints > 0) {
       createUpgradeButtons();
-    } else {
     }
-  } catch (error) {}
+
+    // Опционально: синхронизируем глобальную переменную (для совместимости со старым кодом)
+    upgradePoints = currentUpgradePoints;
+  } catch (error) {
+    console.error("Ошибка в updateUpgradeButtons:", error);
+  }
 }
 
 function initializeLevelSystem() {
