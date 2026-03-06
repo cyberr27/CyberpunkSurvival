@@ -4447,63 +4447,104 @@ function setupWebSocket(
         while (ws.buyWaterQueue.length > 0) {
           const data = ws.buyWaterQueue.shift();
 
-          const id = clients.get(ws);
-          if (!id) continue;
+          const playerId = clients.get(ws);
+          if (!playerId) continue;
 
-          const player = players.get(id);
+          const player = players.get(playerId);
           if (!player || !player.inventory) continue;
 
+          // ────────────────────────────────────────────────
+          // Самое важное — сервер сам решает цену и прибавку
+          // ────────────────────────────────────────────────
+          let cost, waterGain;
+
+          switch (data.option) {
+            case "small":
+              cost = 1;
+              waterGain = 20;
+              break;
+            case "large":
+              cost = 2;
+              waterGain = 50;
+              break;
+            default:
+              // неизвестный вариант → отклоняем
+              if (ws.readyState === WebSocket.OPEN) {
+                ws.send(
+                  JSON.stringify({
+                    type: "buyWaterResult",
+                    success: false,
+                    error: "Неверный выбор напитка",
+                  }),
+                );
+              }
+              continue;
+          }
+
+          // Дополнительная защита от очевидных манипуляций
+          if (typeof cost !== "number" || cost < 1 || cost > 100) continue;
+          if (typeof waterGain !== "number" || waterGain < 1 || waterGain > 100)
+            continue;
+
+          // Проверяем наличие достаточного количества баляров
           const balyarySlot = player.inventory.findIndex(
             (slot) => slot && slot.type === "balyary",
           );
+
           const balyaryCount =
             balyarySlot !== -1
               ? player.inventory[balyarySlot].quantity || 0
               : 0;
 
-          if (balyaryCount < data.cost) {
-            ws.send(
-              JSON.stringify({
-                type: "buyWaterResult",
-                success: false,
-                error: "Not enough balyary!",
-              }),
-            );
+          if (balyaryCount < cost) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "buyWaterResult",
+                  success: false,
+                  error: "Недостаточно баляр!",
+                }),
+              );
+            }
             continue;
           }
 
-          // Снимаем ровно data.cost баляров
-          if (balyaryCount === data.cost) {
+          // ─── Списание баляров ──────────────────────────────────────
+          if (balyaryCount === cost) {
             player.inventory[balyarySlot] = null;
           } else {
-            player.inventory[balyarySlot].quantity -= data.cost;
+            player.inventory[balyarySlot].quantity -= cost;
           }
 
-          // Добавляем воду, но не выше максимума
+          // ─── Добавление воды (не больше максимума) ─────────────────
+          const oldWater = player.water || 0;
           player.water = Math.min(
-            player.maxStats.water,
-            player.water + data.waterGain,
+            player.maxStats?.water || 100,
+            (player.water || 0) + waterGain,
           );
 
-          // Сохраняем изменения
-          players.set(id, { ...player });
-          userDatabase.set(id, { ...player });
-          await saveUserDatabase(dbCollection, id, player);
+          // Сохраняем
+          players.set(playerId, { ...player });
+          userDatabase.set(playerId, { ...player });
+          await saveUserDatabase(dbCollection, playerId, player);
 
-          // Отправляем успешный результат
-          ws.send(
-            JSON.stringify({
-              type: "buyWaterResult",
-              success: true,
-              option: data.option,
-              water: player.water,
-              inventory: player.inventory,
-              balyaryCount:
-                balyarySlot !== -1
-                  ? player.inventory[balyarySlot]?.quantity || 0
-                  : 0,
-            }),
-          );
+          // Успешный ответ
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(
+              JSON.stringify({
+                type: "buyWaterResult",
+                success: true,
+                option: data.option,
+                water: player.water,
+                waterGained: player.water - oldWater, // честно показываем сколько реально добавилось
+                inventory: player.inventory,
+                balyaryCount:
+                  balyarySlot !== -1 && player.inventory[balyarySlot]
+                    ? player.inventory[balyarySlot].quantity
+                    : 0,
+              }),
+            );
+          }
         }
 
         ws.isProcessingBuyWater = false;
