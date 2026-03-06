@@ -4453,8 +4453,32 @@ function setupWebSocket(
           const player = players.get(playerId);
           if (!player || !player.inventory) continue;
 
+          // ─────────────────────────────────────────────────────────────
+          // Проверка расстояния до автомата (защита от удалённого использования)
+          // ─────────────────────────────────────────────────────────────
+          const VENDING_CENTER_X = 600 + 110 / 2; // 655
+          const VENDING_CENTER_Y = 2350 + 90 / 2; // 2395
+          const INTERACTION_DISTANCE = 50;
+
+          const dx = player.x + 20 - VENDING_CENTER_X;
+          const dy = player.y + 20 - VENDING_CENTER_Y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+
+          if (distance > INTERACTION_DISTANCE) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "buyWaterResult",
+                  success: false,
+                  error: "Вы слишком далеко от автомата!",
+                }),
+              );
+            }
+            continue;
+          }
+
           // ────────────────────────────────────────────────
-          // Самое важное — сервер сам решает цену и прибавку
+          // Сервер сам решает цену и прибавку
           // ────────────────────────────────────────────────
           let cost, waterGain;
 
@@ -4468,7 +4492,6 @@ function setupWebSocket(
               waterGain = 50;
               break;
             default:
-              // неизвестный вариант → отклоняем
               if (ws.readyState === WebSocket.OPEN) {
                 ws.send(
                   JSON.stringify({
@@ -4481,7 +4504,7 @@ function setupWebSocket(
               continue;
           }
 
-          // Дополнительная защита от очевидных манипуляций
+          // Дополнительная защита от манипуляций (на всякий случай)
           if (typeof cost !== "number" || cost < 1 || cost > 100) continue;
           if (typeof waterGain !== "number" || waterGain < 1 || waterGain > 100)
             continue;
@@ -4536,7 +4559,7 @@ function setupWebSocket(
                 success: true,
                 option: data.option,
                 water: player.water,
-                waterGained: player.water - oldWater, // честно показываем сколько реально добавилось
+                waterGained: player.water - oldWater,
                 inventory: player.inventory,
                 balyaryCount:
                   balyarySlot !== -1 && player.inventory[balyarySlot]
