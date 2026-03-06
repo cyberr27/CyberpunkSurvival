@@ -2934,27 +2934,40 @@ async function handleGameMessageLogic(data) {
         data.skillPoints,
       );
 
-      // Обновляем skillPoints
-      if (data.skillPoints !== undefined) {
-        window.skillsSystem.skillPoints = Number(data.skillPoints);
+      const me = players.get(myId);
+      if (me) {
+        // Обновляем объект игрока — это источник правды
+        me.level = data.level;
+        me.xp = data.xp;
+        me.xpToNextLevel = calculateXPToNextLevel(data.level); // если сервер не прислал
+        me.upgradePoints = data.upgradePoints;
 
-        if (data.skillPoints > oldSkillPoints) {
-          showNotification(
-            `+${data.skillPoints - oldSkillPoints} очков навыков за уровень!`,
-            "#ffaa00",
-          );
-        }
+        // Обновляем skillPoints, если пришли
+        if (data.skillPoints !== undefined) {
+          window.skillsSystem.skillPoints = Number(data.skillPoints);
 
-        if (window.skillsSystem.isSkillsOpen) {
-          window.skillsSystem.updateSkillPointsDisplay();
+          if (data.skillPoints > oldSkillPoints) {
+            showNotification(
+              `+${data.skillPoints - oldSkillPoints} очков навыков за уровень!`,
+              "#ffaa00",
+            );
+          }
+
+          if (window.skillsSystem.isSkillsOpen) {
+            window.skillsSystem.updateSkillPointsDisplay();
+          }
         }
+        window.levelSystem.upgradePoints = me.upgradePoints;
       }
 
       // Показываем красивый level up эффект
       showLevelUpEffect();
+
+      // Обновляем UI ТОЛЬКО ПОСЛЕ обновления данных
       updateLevelDisplay();
       updateStatsDisplay();
-      updateUpgradeButtons();
+      updateUpgradeButtons(); // теперь кнопки появятся сразу, если upgradePoints > 0
+
       break;
     }
     case "regenerationApplied":
