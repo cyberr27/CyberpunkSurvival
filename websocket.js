@@ -4061,11 +4061,11 @@ function setupWebSocket(
         while (ws.completeDoctorQuestQueue.length > 0) {
           const data = ws.completeDoctorQuestQueue.shift();
 
+          // ─── Проверка на подделку пакета (только type, без лишних полей) ───
           if (
             Object.keys(data).length !== 1 ||
-            data.type !== "robotDoctorFreeHeal"
+            data.type !== "completeDoctorQuest"
           ) {
-            // или "completeDoctorQuest"
             continue;
           }
 
