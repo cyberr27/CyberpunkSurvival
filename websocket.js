@@ -18,6 +18,7 @@ const { calculateMaxStats, EQUIPMENT_TYPES } = require("./calculateMaxStats");
 const { spawnNewEnemy } = require("./spawnNewEnemy");
 const { transitionZones } = require("./transitionZones");
 const { QUESTS } = require("./npsJohn");
+const { showNotification } = require("./public/notifications");
 
 function broadcastToWorld(wss, clients, players, worldId, message) {
   wss.clients.forEach((client) => {
