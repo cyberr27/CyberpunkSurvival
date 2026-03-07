@@ -18,7 +18,6 @@ const { calculateMaxStats, EQUIPMENT_TYPES } = require("./calculateMaxStats");
 const { spawnNewEnemy } = require("./spawnNewEnemy");
 const { transitionZones } = require("./transitionZones");
 const { QUESTS } = require("./npsJohn");
-const { showNotification } = require("./public/notifications");
 
 function broadcastToWorld(wss, clients, players, worldId, message) {
   wss.clients.forEach((client) => {
@@ -5133,9 +5132,8 @@ function setupWebSocket(
         if (ws.isProcessingUpdateQuests) return;
         ws.isProcessingUpdateQuests = true;
 
-        showNotification(
+        console.warn(
           "[QuestSystem] Получен устаревший/неиспользуемый пакет updateQuests",
-          "#ff001e",
         );
 
         while (ws.updateQuestsQueue.length > 0) {
@@ -5167,9 +5165,8 @@ function setupWebSocket(
         if (ws.isProcessingSelectQuest) return;
         ws.isProcessingSelectQuest = true;
 
-        showNotification(
+        console.warn(
           "[QuestSystem] Получен устаревший/неиспользуемый пакет updateQuests",
-          "#ff001e",
         );
 
         while (ws.selectQuestQueue.length > 0) {
