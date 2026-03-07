@@ -5132,6 +5132,11 @@ function setupWebSocket(
         if (ws.isProcessingUpdateQuests) return;
         ws.isProcessingUpdateQuests = true;
 
+        showNotification(
+          "[QuestSystem] Получен устаревший/неиспользуемый пакет updateQuests",
+          "#ff001e",
+        );
+
         while (ws.updateQuestsQueue.length > 0) {
           const data = ws.updateQuestsQueue.shift();
 
@@ -5160,6 +5165,11 @@ function setupWebSocket(
       async function processSelectQuestQueue(ws) {
         if (ws.isProcessingSelectQuest) return;
         ws.isProcessingSelectQuest = true;
+
+        showNotification(
+          "[QuestSystem] Получен устаревший/неиспользуемый пакет updateQuests",
+          "#ff001e",
+        );
 
         while (ws.selectQuestQueue.length > 0) {
           const data = ws.selectQuestQueue.shift();
