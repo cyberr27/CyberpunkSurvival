@@ -36,6 +36,37 @@ function createLevelDisplayElement() {
   }
 }
 
+function updateStatsDisplay() {
+  try {
+    const statsEl = document.getElementById("stats");
+    if (!statsEl) {
+      return;
+    }
+    const me = players.get(myId);
+    if (!me) {
+      return;
+    }
+    statsEl.innerHTML = `
+  <span class="health">Здоровье: ${Math.min(me.health, me.maxStats.health)}/${
+    me.maxStats.health
+  }</span><br>
+  <span class="energy">Энергия: ${Math.min(me.energy, me.maxStats.energy)}/${
+    me.maxStats.energy
+  }</span><br>
+  <span class="food">Еда: ${Math.min(me.food, me.maxStats.food)}/${
+    me.maxStats.food
+  }</span><br>
+  <span class="water">Вода: ${Math.min(me.water, me.maxStats.water)}/${
+    me.maxStats.water
+  }</span><br>
+  <span class="armor">Броня: ${Math.min(me.armor, me.maxStats.armor)}/${
+    me.maxStats.armor
+  }</span>
+`;
+    updateUpgradeButtons();
+  } catch (error) {}
+}
+
 function createUpgradeButtons() {
   try {
     const statsEl = document.getElementById("stats");
@@ -44,11 +75,9 @@ function createUpgradeButtons() {
       return;
     }
 
-    // Удаляем старые кнопки
     const existingButtons = statsEl.querySelectorAll(".upgrade-btn");
     existingButtons.forEach((btn) => btn.remove());
 
-    // Если нет очков — ничего не рисуем
     if (upgradePoints <= 0) {
       return;
     }
@@ -69,38 +98,56 @@ function createUpgradeButtons() {
       button.style.cursor = "pointer";
 
       button.addEventListener("click", () => {
-        // Проверяем наличие очков на момент клика (для UX)
         if (upgradePoints <= 0) {
           console.warn("Нет доступных очков улучшения");
           return;
         }
 
-        // Отправляем на сервер намерение потратить 1 очко именно в эту характеристику
-        if (ws && ws.readyState === WebSocket.OPEN) {
-          const payload = {
-            type: "updateMaxStats",
-          };
+        upgradePoints--;
 
-          // Только одно поле будет равно 1
-          if (statType === "health") payload.deltaHealth = 1;
-          if (statType === "energy") payload.deltaEnergy = 1;
-          if (statType === "food") payload.deltaFood = 1;
-          if (statType === "water") payload.deltaWater = 1;
+        // Увеличиваем upgrade-поле в window.levelSystem
+        const upgradeField = `${statType}Upgrade`;
+        window.levelSystem[upgradeField] =
+          (window.levelSystem[upgradeField] || 0) + 1;
 
-          sendWhenReady(ws, JSON.stringify(payload));
+        // БАЗОВОЕ ЗНАЧЕНИЕ — 100, БРОНИ — 0
+        const baseValue = statType === "armor" ? 0 : 100;
+        maxStats[statType] = baseValue + window.levelSystem[upgradeField];
+        window.levelSystem.maxStats[statType] = maxStats[statType];
+
+        const me = players.get(myId);
+        if (me) {
+          me.maxStats[statType] = maxStats[statType];
+          me[statType] = Math.min(
+            me[statType] || baseValue,
+            maxStats[statType],
+          );
+          me[upgradeField] = window.levelSystem[upgradeField]; // сохраняем в игроке
         }
 
-        // Оптимистично отключаем кнопку сразу (чтобы не было двойных кликов)
-        // Но настоящая синхронизация произойдёт только после ответа сервера
-        button.disabled = true;
-        button.style.opacity = "0.5";
+        // НОВОЕ: Переприменяем эффекты экипировки к новому base + upgrades
+        window.equipmentSystem.applyEquipmentEffects(me);
+
+        updateStatsDisplay();
+
+        if (ws.readyState === WebSocket.OPEN) {
+          sendWhenReady(
+            ws,
+            JSON.stringify({
+              type: "updateMaxStats",
+              upgradePoints,
+              healthUpgrade: window.levelSystem.healthUpgrade || 0,
+              energyUpgrade: window.levelSystem.energyUpgrade || 0,
+              foodUpgrade: window.levelSystem.foodUpgrade || 0,
+              waterUpgrade: window.levelSystem.waterUpgrade || 0,
+            }),
+          );
+        }
       });
 
       span.appendChild(button);
     });
-  } catch (error) {
-    console.error("Ошибка в createUpgradeButtons:", error);
-  }
+  } catch (error) {}
 }
 
 function updateUpgradeButtons() {
@@ -111,24 +158,16 @@ function updateUpgradeButtons() {
       return;
     }
 
-    // Всегда удаляем старые кнопки в любом случае
+    // Удаляем старые кнопки
     const buttons = statsEl.querySelectorAll(".upgrade-btn");
     buttons.forEach((btn) => btn.remove());
 
-    // Берём актуальное количество очков ИЗ ОБЪЕКТА ИГРОКА, а не из глобальной переменной
-    const me = players.get(myId);
-    const currentUpgradePoints = me?.upgradePoints ?? 0;
-
-    // Если очков больше 0 — создаём кнопки
-    if (currentUpgradePoints > 0) {
+    // Создаём новые кнопки, если есть очки
+    if (upgradePoints > 0) {
       createUpgradeButtons();
+    } else {
     }
-
-    // Опционально: синхронизируем глобальную переменную (для совместимости со старым кодом)
-    upgradePoints = currentUpgradePoints;
-  } catch (error) {
-    console.error("Ошибка в updateUpgradeButtons:", error);
-  }
+  } catch (error) {}
 }
 
 function initializeLevelSystem() {
@@ -383,6 +422,7 @@ window.levelSystem = {
   handleEnemyKill,
   meleeDamageBonus,
   updateLevelDisplay,
+  updateStatsDisplay,
   showXPEffect,
   showLevelUpEffect,
   checkLevelUp,
