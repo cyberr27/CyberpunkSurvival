@@ -2532,6 +2532,7 @@ async function handleGameMessageLogic(data) {
           data.xp,
           null,
           data.upgradePoints,
+          data.skillPoints,
         );
 
         // Обновляем инвентарь

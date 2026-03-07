@@ -5422,6 +5422,7 @@ function setupWebSocket(
             player.level += 1;
             player.xp -= xpToNext;
             player.upgradePoints = (player.upgradePoints || 0) + 10;
+            player.skillPoints = (player.skillPoints || 0) + 3;
             xpToNext = calculateXPToNextLevel(player.level);
           }
 
@@ -5554,6 +5555,7 @@ function setupWebSocket(
                 xp: player.xp,
                 xpToNextLevel: xpToNext,
                 upgradePoints: player.upgradePoints,
+                skillPoints: player.skillPoints,
                 inventory: player.inventory,
                 corporateDocumentsSubmitted: true,
               }),
