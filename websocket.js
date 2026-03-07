@@ -4868,17 +4868,13 @@ function setupWebSocket(
           }
 
           // 9. Добавляем новые квесты до 5 штук (как на клиенте)
-          const currentCount = player.availableQuests.length;
-          const toAdd = 5 - currentCount;
-          if (toAdd > 0) {
+          if (player.availableQuests.length < 5) {
             const exclude = [...player.availableQuests];
-            const shuffled = QUESTS.slice().sort(() => 0.5 - Math.random());
-            for (const q of shuffled) {
-              if (toAdd <= 0) break;
-              if (!exclude.includes(q.id)) {
-                player.availableQuests.push(q.id);
-                exclude.push(q.id);
-              }
+            const filtered = QUESTS.filter((q) => !exclude.includes(q.id));
+            if (filtered.length > 0) {
+              const randomIndex = Math.floor(Math.random() * filtered.length);
+              const newQuestId = filtered[randomIndex].id;
+              player.availableQuests.push(newQuestId);
             }
           }
 
