@@ -4714,48 +4714,226 @@ function setupWebSocket(
         if (ws.isProcessingUpdateInventory) return;
         ws.isProcessingUpdateInventory = true;
 
+        const now = Date.now();
+
         while (ws.updateInventoryQueue.length > 0) {
           const data = ws.updateInventoryQueue.shift();
 
-          const id = clients.get(ws);
-          if (!id) continue;
+          const playerId = clients.get(ws);
+          if (!playerId || !players.has(playerId)) continue;
 
-          const player = players.get(id);
-          if (!player) continue;
+          const player = players.get(playerId);
 
-          // Полностью заменяем инвентарь новым массивом
-          player.inventory = data.inventory;
-
-          // Обновляем availableQuests, если пришло
-          player.availableQuests =
-            data.availableQuests !== undefined
-              ? data.availableQuests
-              : player.availableQuests;
-
-          // Сохраняем изменения
-          players.set(id, { ...player });
-          userDatabase.set(id, { ...player });
-          await saveUserDatabase(dbCollection, id, player);
-
-          // Рассылаем обновление только этому игроку
-          wss.clients.forEach((client) => {
-            if (
-              client.readyState === WebSocket.OPEN &&
-              clients.get(client) === id
-            ) {
-              client.send(
+          // ─── 1. Базовая валидация пакета ───────────────────────────────────────
+          if (
+            typeof data.questId !== "number" ||
+            data.questId < 1 ||
+            data.questId > 20
+          ) {
+            console.warn(
+              `[AntiCheat] ${playerId} → invalid questId: ${data.questId}`,
+            );
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
                 JSON.stringify({
-                  type: "update",
-                  player: {
-                    id,
-                    inventory: player.inventory,
-                    availableQuests: player.availableQuests,
-                    // Можно добавить другие поля, если клиент их ждёт
-                  },
+                  type: "questCompleteFailed",
+                  reason: "invalid_quest_id",
+                  questId: data.questId,
                 }),
               );
             }
+            continue;
+          }
+
+          const questId = data.questId;
+
+          // ─── 2. Проверяем, что квест вообще выбран игроком ──────────────────────
+          if (!player.selectedQuestId || player.selectedQuestId !== questId) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "questCompleteFailed",
+                  reason: "quest_not_selected",
+                  questId,
+                }),
+              );
+            }
+            continue;
+          }
+
+          // ─── 3. Находим квест в константе QUESTS (должна быть на сервере) ───────
+          // Предполагаем, что QUESTS экспортирована или определена в этом же файле
+          const quest = QUESTS.find((q) => q.id === questId);
+          if (!quest) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "questCompleteFailed",
+                  reason: "quest_not_found",
+                  questId,
+                }),
+              );
+            }
+            continue;
+          }
+
+          // ─── 4. Rate-limit на сдачу квестов (защита от спама) ───────────────────
+          const QUEST_COMPLETE_COOLDOWN_MS = 1500; // 1.5 секунды
+          if (
+            player.lastQuestCompleteTime &&
+            now - player.lastQuestCompleteTime < QUEST_COMPLETE_COOLDOWN_MS
+          ) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "questCompleteFailed",
+                  reason: "too_fast",
+                  retryAfterMs:
+                    QUEST_COMPLETE_COOLDOWN_MS -
+                    (now - player.lastQuestCompleteTime),
+                }),
+              );
+            }
+            continue;
+          }
+
+          // ─── 5. Проверяем наличие нужных предметов ──────────────────────────────
+          if (!player.inventory) player.inventory = Array(20).fill(null);
+
+          let availableCount = 0;
+          player.inventory.forEach((slot) => {
+            if (slot && slot.type === quest.target.type) {
+              availableCount += slot.quantity || 1;
+            }
           });
+
+          if (availableCount < quest.target.quantity) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "questCompleteFailed",
+                  reason: "not_enough_items",
+                  questId,
+                  needed: quest.target.quantity,
+                  have: availableCount,
+                }),
+              );
+            }
+            continue;
+          }
+
+          // ─── Всё валидно — выполняем сдачу квеста ───────────────────────────────
+
+          // 6. Удаляем предметы
+          let toRemove = quest.target.quantity;
+          for (let i = 0; i < player.inventory.length && toRemove > 0; i++) {
+            const slot = player.inventory[i];
+            if (slot && slot.type === quest.target.type) {
+              const qty = slot.quantity || 1;
+              const rem = Math.min(toRemove, qty);
+              slot.quantity = qty - rem;
+              toRemove -= rem;
+              if (slot.quantity <= 0) {
+                player.inventory[i] = null;
+              }
+            }
+          }
+
+          // 7. Добавляем награду (balyary)
+          const rewardQty = quest.reward.quantity;
+          const balyaryIndex = player.inventory.findIndex(
+            (s) => s && s.type === "balyary",
+          );
+          if (balyaryIndex !== -1) {
+            player.inventory[balyaryIndex].quantity =
+              (player.inventory[balyaryIndex].quantity || 1) + rewardQty;
+          } else {
+            const freeIndex = player.inventory.findIndex((s) => s === null);
+            if (freeIndex !== -1) {
+              player.inventory[freeIndex] = {
+                type: "balyary",
+                quantity: rewardQty,
+              };
+            }
+            // если инвентарь полон — награда теряется (можно добавить уведомление)
+          }
+
+          // 8. Удаляем завершённый квест из доступных
+          if (player.availableQuests) {
+            player.availableQuests = player.availableQuests.filter(
+              (id) => id !== questId,
+            );
+          } else {
+            player.availableQuests = [];
+          }
+
+          // 9. Добавляем новые квесты до 5 штук (как на клиенте)
+          const currentCount = player.availableQuests.length;
+          const toAdd = 5 - currentCount;
+          if (toAdd > 0) {
+            const exclude = [...player.availableQuests];
+            const shuffled = QUESTS.slice().sort(() => 0.5 - Math.random());
+            for (const q of shuffled) {
+              if (toAdd <= 0) break;
+              if (!exclude.includes(q.id)) {
+                player.availableQuests.push(q.id);
+                exclude.push(q.id);
+              }
+            }
+          }
+
+          // 10. Сбрасываем выбранный квест
+          player.selectedQuestId = null;
+
+          // 11. Начисляем опыт за сдачу квеста (если есть система уровней)
+          const rarity = quest.rarity || 3;
+          const xpReward = rarity * 25; // пример: 75, 50, 25 XP в зависимости от rarity
+          player.xp = (player.xp || 0) + xpReward;
+
+          // Проверяем level up (можно вынести в отдельную функцию позже)
+          while (player.xp >= calculateXPToNextLevel(player.level || 1)) {
+            const xpToNext = calculateXPToNextLevel(player.level || 1);
+            player.xp -= xpToNext;
+            player.level = (player.level || 1) + 1;
+            player.upgradePoints = (player.upgradePoints || 0) + 10;
+            player.skillPoints = (player.skillPoints || 0) + 3;
+          }
+
+          // 12. Обновляем время последней сдачи
+          player.lastQuestCompleteTime = now;
+
+          // 13. Сохраняем игрока
+          players.set(playerId, { ...player });
+          userDatabase.set(playerId, { ...player });
+          await saveUserDatabase(dbCollection, playerId, player);
+
+          // 14. Отправляем успех клиенту
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(
+              JSON.stringify({
+                type: "update",
+                player: {
+                  id: playerId,
+                  inventory: player.inventory,
+                  availableQuests: player.availableQuests,
+                  selectedQuestId: null,
+                  xp: player.xp,
+                  level: player.level,
+                  upgradePoints: player.upgradePoints,
+                  skillPoints: player.skillPoints,
+                  // можно добавить xpGained: xpReward
+                },
+              }),
+            );
+
+            ws.send(
+              JSON.stringify({
+                type: "questCompleted",
+                questId,
+                xpGained: xpReward,
+              }),
+            );
+          }
         }
 
         ws.isProcessingUpdateInventory = false;
