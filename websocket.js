@@ -4762,8 +4762,7 @@ function setupWebSocket(
             continue;
           }
 
-          // ─── 3. Находим квест в константе QUESTS (должна быть на сервере) ───────
-          // Предполагаем, что QUESTS экспортирована или определена в этом же файле
+          // ─── 3. Находим квест в константе QUESTS ────────────────────────────────
           const quest = QUESTS.find((q) => q.id === questId);
           if (!quest) {
             if (ws.readyState === WebSocket.OPEN) {
@@ -4886,12 +4885,16 @@ function setupWebSocket(
           // 10. Сбрасываем выбранный квест
           player.selectedQuestId = null;
 
-          // 11. Начисляем опыт за сдачу квеста (если есть система уровней)
+          // 11. Начисляем опыт за сдачу квеста — ТОЧНО КАК НА КЛИЕНТЕ
           const rarity = quest.rarity || 3;
-          const xpReward = rarity * 25; // пример: 75, 50, 25 XP в зависимости от rarity
+          let xpReward;
+          if (rarity === 1) xpReward = 3;
+          else if (rarity === 2) xpReward = 2;
+          else xpReward = 1;
+
           player.xp = (player.xp || 0) + xpReward;
 
-          // Проверяем level up (можно вынести в отдельную функцию позже)
+          // Проверяем level up
           while (player.xp >= calculateXPToNextLevel(player.level || 1)) {
             const xpToNext = calculateXPToNextLevel(player.level || 1);
             player.xp -= xpToNext;
@@ -4922,7 +4925,6 @@ function setupWebSocket(
                   level: player.level,
                   upgradePoints: player.upgradePoints,
                   skillPoints: player.skillPoints,
-                  // можно добавить xpGained: xpReward
                 },
               }),
             );
