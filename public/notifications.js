@@ -28,4 +28,4 @@ window.showNotification = function (message, color = "#1900ff") {
 
 // Для обратной совместимости, если где-то вызывают через notificationsSystem
 window.notificationsSystem.showNotification = window.showNotification;
-module.exports = { showNotification: window.showNotification };
+module.exports = { showNotification };
