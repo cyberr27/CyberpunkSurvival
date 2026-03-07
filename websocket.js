@@ -4950,16 +4950,24 @@ function setupWebSocket(
           const player = players.get(id);
           if (!player) continue;
 
-          // Отправляем текущее состояние квеста (без изменений в базе)
+          // Защита структуры на всякий случай
+          if (!player.neonQuest) {
+            player.neonQuest = {
+              currentQuestId: null,
+              progress: { killMutants: 0 },
+              completed: [],
+            };
+          }
+
           ws.send(
             JSON.stringify({
               type: "neonQuestSync",
-              progress: player.neonQuest || {
-                currentQuestId: null,
-                progress: 0,
-                completed: [],
+              quest: {
+                currentQuestId: player.neonQuest.currentQuestId,
+                progress: player.neonQuest.progress || { killMutants: 0 },
+                completed: player.neonQuest.completed || [],
               },
-              isMet: player.alexNeonMet || false,
+              isMet: !!player.alexNeonMet,
             }),
           );
         }
@@ -4979,20 +4987,57 @@ function setupWebSocket(
           const player = players.get(id);
           if (!player) continue;
 
-          // Проверяем, есть ли активный квест
-          if (player.neonQuest && player.neonQuest.currentQuestId) {
-            // Сливаем пришедший прогресс в существующий
-            player.neonQuest.progress = {
-              ...player.neonQuest.progress,
-              ...data.progress,
-            };
-
-            // Сохраняем изменения
-            players.set(id, { ...player });
-            userDatabase.set(id, { ...player });
-            await saveUserDatabase(dbCollection, id, player);
+          // ─── Защита от читов ───────────────────────────────────────
+          if (!player.neonQuest || !player.neonQuest.currentQuestId) {
+            // нет активного квеста — игнорируем любые обновления
+            continue;
           }
-          // Ничего не отправляем клиенту — обновление одностороннее
+
+          if (player.neonQuest.currentQuestId !== "neon_quest_1") {
+            // поддержка только этого квеста
+            continue;
+          }
+
+          const incomingKills = Number(data.progress?.killMutants);
+          if (!Number.isInteger(incomingKills) || incomingKills < 0) {
+            // мусорные данные
+            continue;
+          }
+
+          const currentKills = player.neonQuest.progress?.killMutants || 0;
+
+          // Самое главное — клиент не может уменьшить счётчик и не может прыгнуть больше чем +1
+          if (incomingKills <= currentKills) {
+            // попытка уменьшить или оставить как есть — игнорируем
+            continue;
+          }
+
+          if (incomingKills > currentKills + 1) {
+            // клиент пытается прибавить сразу +2 и более — это чит
+            console.warn(
+              `[AntiCheat Neon] Игрок ${id} пытается накрутить прогресс: ${currentKills} → ${incomingKills}`,
+            );
+            // можно добавить бан/кик/лог, но пока просто игнорируем
+            continue;
+          }
+
+          // ─── Всё прошло проверку ───────────────────────────────────
+          player.neonQuest.progress = {
+            killMutants: incomingKills,
+          };
+
+          // Сохраняем
+          players.set(id, { ...player });
+          userDatabase.set(id, { ...player });
+          await saveUserDatabase(dbCollection, id, player);
+
+          // Отправляем клиенту нормальное значение (на всякий случай)
+          ws.send(
+            JSON.stringify({
+              type: "neonQuestProgressUpdate",
+              progress: player.neonQuest.progress,
+            }),
+          );
         }
 
         ws.isProcessingNeonQuestProgress = false;
@@ -5009,20 +5054,27 @@ function setupWebSocket(
 
           const player = players.get(id);
 
-          // Проверяем, что квест активен и именно "neon_quest_1"
-          if (
-            !player.neonQuest ||
-            player.neonQuest.currentQuestId !== "neon_quest_1"
-          ) {
-            continue; // Нельзя сдать
+          // ─── Защита ────────────────────────────────────────────────
+          if (!player.neonQuest) continue;
+
+          if (player.neonQuest.currentQuestId !== "neon_quest_1") {
+            // пытаются сдать не тот квест или нет активного
+            continue;
           }
 
-          const kills = player.neonQuest.progress?.killMutants || 0;
+          const kills = Number(player.neonQuest.progress?.killMutants || 0);
           if (kills < 3) {
-            continue; // Нельзя сдать — прогресс не выполнен
+            // не выполнено
+            ws.send(
+              JSON.stringify({
+                type: "neonQuestError",
+                message: "Необходимо убить 3 мутантов",
+              }),
+            );
+            continue;
           }
 
-          // Даём награду
+          // ─── Выдача награды ────────────────────────────────────────
           player.xp = (player.xp || 0) + 150;
 
           let xpToNext = calculateXPToNextLevel(player.level);
@@ -5033,7 +5085,7 @@ function setupWebSocket(
             xpToNext = calculateXPToNextLevel(player.level);
           }
 
-          // Даём 50 баляров (ищем слот или свободный)
+          // 50 баляров
           let added = false;
           for (let i = 0; i < player.inventory.length; i++) {
             if (player.inventory[i]?.type === "balyary") {
@@ -5049,20 +5101,18 @@ function setupWebSocket(
             }
           }
 
-          // Если не добавили (инвентарь полный) — баляры потеряются (как было раньше)
-
-          // Завершаем квест навсегда
+          // Завершаем квест
           player.neonQuest.currentQuestId = null;
-          if (!player.neonQuest.completed) player.neonQuest.completed = [];
+          player.neonQuest.completed = player.neonQuest.completed || [];
           player.neonQuest.completed.push("neon_quest_1");
           player.neonQuest.progress = {};
 
-          // Сохраняем изменения
+          // Сохраняем
           players.set(id, { ...player });
           userDatabase.set(id, { ...player });
           await saveUserDatabase(dbCollection, id, player);
 
-          // Отправляем успешное завершение клиенту
+          // Успешный ответ
           ws.send(
             JSON.stringify({
               type: "neonQuestCompleted",
@@ -5143,19 +5193,39 @@ function setupWebSocket(
 
           const player = players.get(id);
 
-          // ГАРАНТИРУЕМ правильную структуру (как было раньше)
+          // ─── Защита от читов ───────────────────────────────────────
+          if (!player.neonQuest) {
+            player.neonQuest = {
+              currentQuestId: null,
+              progress: {},
+              completed: [],
+            };
+          }
+
+          // Уже взят или завершён — игнорируем
+          if (player.neonQuest.currentQuestId !== null) {
+            // Можно отправить ошибку, но для простоты просто молча игнорируем
+            continue;
+          }
+
+          if (player.neonQuest.completed?.includes("neon_quest_1")) {
+            // Уже завершён ранее — не даём повторно взять
+            continue;
+          }
+
+          // ─── Всё ок — принимаем квест ──────────────────────────────
           player.neonQuest = {
             currentQuestId: "neon_quest_1",
             progress: { killMutants: 0 },
-            completed: player.neonQuest?.completed || [], // сохраняем старые завершённые
+            completed: player.neonQuest.completed || [],
           };
 
-          // Сохраняем изменения
+          // Сохраняем
           players.set(id, { ...player });
           userDatabase.set(id, { ...player });
           await saveUserDatabase(dbCollection, id, player);
 
-          // Отправляем клиенту уведомление о начале квеста
+          // Уведомляем клиента
           if (ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({ type: "neonQuestStarted" }));
           }
@@ -6430,7 +6500,7 @@ function setupWebSocket(
                 player.alexNeonMet = true;
                 changed = true;
 
-                // Бродкаст обновления всем в мире (как было)
+                // Бродкаст обновления всем в мире
                 broadcastToWorld(
                   wss,
                   clients,
@@ -6444,9 +6514,12 @@ function setupWebSocket(
                     },
                   }),
                 );
+              } else {
+                console.warn(
+                  `[AntiCheat] Игрок ${id} повторно отправил meetNeonAlex`,
+                );
               }
               break;
-
             case "meetCaptain":
               if (
                 data.captainMet !== undefined &&
