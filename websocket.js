@@ -17,6 +17,7 @@ const { obstacles } = require("./obstacles");
 const { calculateMaxStats, EQUIPMENT_TYPES } = require("./calculateMaxStats");
 const { spawnNewEnemy } = require("./spawnNewEnemy");
 const { transitionZones } = require("./transitionZones");
+const { QUESTS } = require("./npsJohn");
 
 function broadcastToWorld(wss, clients, players, worldId, message) {
   wss.clients.forEach((client) => {
@@ -3940,6 +3941,14 @@ function setupWebSocket(
         while (ws.robotDoctorFreeHealQueue.length > 0) {
           const data = ws.robotDoctorFreeHealQueue.shift();
 
+          if (
+            Object.keys(data).length !== 1 ||
+            data.type !== "robotDoctorFreeHeal"
+          ) {
+            // или "completeDoctorQuest"
+            continue;
+          }
+
           const playerId = clients.get(ws);
           if (!playerId || !players.has(playerId)) continue;
 
@@ -4053,6 +4062,14 @@ function setupWebSocket(
         while (ws.completeDoctorQuestQueue.length > 0) {
           const data = ws.completeDoctorQuestQueue.shift();
 
+          // ─── Проверка на подделку пакета (только type, без лишних полей) ───
+          if (
+            Object.keys(data).length !== 1 ||
+            data.type !== "completeDoctorQuest"
+          ) {
+            continue;
+          }
+
           const playerId = clients.get(ws);
           if (!playerId || !players.has(playerId)) continue;
 
@@ -4160,6 +4177,15 @@ function setupWebSocket(
         while (ws.robotDoctorHeal20Queue.length > 0) {
           const data = ws.robotDoctorHeal20Queue.shift();
 
+          // ─── НОВАЯ ЗАЩИТА ОТ ПОДДЕЛКИ ПАКЕТА ───
+          if (
+            Object.keys(data).length !== 1 ||
+            data.type !== "robotDoctorHeal20"
+          ) {
+            // пакет содержит лишние поля или неправильный type → молча игнорируем
+            continue;
+          }
+
           const playerId = clients.get(ws);
           if (!playerId || !players.has(playerId)) continue;
 
@@ -4201,10 +4227,18 @@ function setupWebSocket(
             continue;
           }
 
-          // 3. Защита от спама — минимальный интервал между запросами
-          if (ws.lastHeal20Request && now - ws.lastHeal20Request < 1000) {
-            // 1 секунда
-            // тихо игнорируем без ответа клиенту
+          // 3. УСИЛЕННАЯ защита от спама
+          if (ws.lastHeal20Request && now - ws.lastHeal20Request < 1500) {
+            // было 1000 → стало 1500
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "robotDoctorResult",
+                  success: false,
+                  error: "Слишком быстро. Подождите 1.5 секунды",
+                }),
+              );
+            }
             continue;
           }
           ws.lastHeal20Request = now;
@@ -4314,9 +4348,24 @@ function setupWebSocket(
           }
 
           // 3. Защита от спама — минимальный интервал между запросами
-          if (ws.lastFullHealRequest && now - ws.lastFullHealRequest < 1200) {
-            // 1.2 секунды
-            // тихо игнорируем
+          if (
+            Object.keys(data).length !== 1 ||
+            data.type !== "robotDoctorFullHeal"
+          ) {
+            continue; // подделка пакета
+          }
+
+          if (ws.lastFullHealRequest && now - ws.lastFullHealRequest < 1500) {
+            // тоже 1.5 сек
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "robotDoctorResult",
+                  success: false,
+                  error: "Слишком быстро. Подождите 1.5 секунды",
+                }),
+              );
+            }
             continue;
           }
           ws.lastFullHealRequest = now;
@@ -4399,63 +4448,127 @@ function setupWebSocket(
         while (ws.buyWaterQueue.length > 0) {
           const data = ws.buyWaterQueue.shift();
 
-          const id = clients.get(ws);
-          if (!id) continue;
+          const playerId = clients.get(ws);
+          if (!playerId) continue;
 
-          const player = players.get(id);
+          const player = players.get(playerId);
           if (!player || !player.inventory) continue;
 
+          // ─────────────────────────────────────────────────────────────
+          // Проверка расстояния до автомата (защита от удалённого использования)
+          // ─────────────────────────────────────────────────────────────
+          const VENDING_CENTER_X = 600 + 110 / 2; // 655
+          const VENDING_CENTER_Y = 2350 + 90 / 2; // 2395
+          const INTERACTION_DISTANCE = 50;
+
+          const dx = player.x + 20 - VENDING_CENTER_X;
+          const dy = player.y + 20 - VENDING_CENTER_Y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+
+          if (distance > INTERACTION_DISTANCE) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "buyWaterResult",
+                  success: false,
+                  error: "Вы слишком далеко от автомата!",
+                }),
+              );
+            }
+            continue;
+          }
+
+          // ────────────────────────────────────────────────
+          // Сервер сам решает цену и прибавку
+          // ────────────────────────────────────────────────
+          let cost, waterGain;
+
+          switch (data.option) {
+            case "small":
+              cost = 1;
+              waterGain = 20;
+              break;
+            case "large":
+              cost = 2;
+              waterGain = 50;
+              break;
+            default:
+              if (ws.readyState === WebSocket.OPEN) {
+                ws.send(
+                  JSON.stringify({
+                    type: "buyWaterResult",
+                    success: false,
+                    error: "Неверный выбор напитка",
+                  }),
+                );
+              }
+              continue;
+          }
+
+          // Дополнительная защита от манипуляций (на всякий случай)
+          if (typeof cost !== "number" || cost < 1 || cost > 100) continue;
+          if (typeof waterGain !== "number" || waterGain < 1 || waterGain > 100)
+            continue;
+
+          // Проверяем наличие достаточного количества баляров
           const balyarySlot = player.inventory.findIndex(
             (slot) => slot && slot.type === "balyary",
           );
+
           const balyaryCount =
             balyarySlot !== -1
               ? player.inventory[balyarySlot].quantity || 0
               : 0;
 
-          if (balyaryCount < data.cost) {
-            ws.send(
-              JSON.stringify({
-                type: "buyWaterResult",
-                success: false,
-                error: "Not enough balyary!",
-              }),
-            );
+          if (balyaryCount < cost) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "buyWaterResult",
+                  success: false,
+                  error: "Недостаточно баляр!",
+                }),
+              );
+            }
             continue;
           }
 
-          // Снимаем ровно data.cost баляров
-          if (balyaryCount === data.cost) {
+          // ─── Списание баляров ──────────────────────────────────────
+          if (balyaryCount === cost) {
             player.inventory[balyarySlot] = null;
           } else {
-            player.inventory[balyarySlot].quantity -= data.cost;
+            player.inventory[balyarySlot].quantity -= cost;
           }
 
-          // Добавляем воду, но не выше максимума
+          // ─── Добавление воды (не больше максимума) ─────────────────
+          const oldWater = player.water || 0;
           player.water = Math.min(
-            player.maxStats.water,
-            player.water + data.waterGain,
+            player.maxStats?.water || 100,
+            (player.water || 0) + waterGain,
           );
 
-          // Сохраняем изменения
-          players.set(id, { ...player });
-          userDatabase.set(id, { ...player });
-          await saveUserDatabase(dbCollection, id, player);
+          // Сохраняем
+          players.set(playerId, { ...player });
+          userDatabase.set(playerId, { ...player });
+          await saveUserDatabase(dbCollection, playerId, player);
 
-          // Отправляем успешный результат
-          ws.send(
-            JSON.stringify({
-              type: "buyWaterResult",
-              success: true,
-              option: data.option,
-              water: player.water,
-              inventory: player.inventory,
-              balyaryCount:
-                balyarySlot !== -1
-                  ? player.inventory[balyarySlot]?.quantity || 0
-                  : 0,
-            }),
-          );
+          // Успешный ответ
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(
+              JSON.stringify({
+                type: "buyWaterResult",
+                success: true,
+                option: data.option,
+                water: player.water,
+                waterGained: player.water - oldWater,
+                inventory: player.inventory,
+                balyaryCount:
+                  balyarySlot !== -1 && player.inventory[balyarySlot]
+                    ? player.inventory[balyarySlot].quantity
+                    : 0,
+              }),
+            );
+          }
         }
 
         ws.isProcessingBuyWater = false;
@@ -4467,111 +4580,359 @@ function setupWebSocket(
         while (ws.updateMaxStatsQueue.length > 0) {
           const data = ws.updateMaxStatsQueue.shift();
 
-          const id = clients.get(ws);
-          if (!id) continue;
+          const playerId = clients.get(ws);
+          if (!playerId) continue;
 
-          const player = players.get(id);
+          const player = players.get(playerId);
           if (!player) continue;
 
-          // Обновляем upgradePoints и upgrade-поля
-          player.upgradePoints = data.upgradePoints;
+          // 1. Проверяем, что пришли именно дельты (сколько добавить в каждую характеристику)
+          const deltas = {
+            health: Number(data.deltaHealth) || 0,
+            energy: Number(data.deltaEnergy) || 0,
+            food: Number(data.deltaFood) || 0,
+            water: Number(data.deltaWater) || 0,
+          };
 
-          // СОХРАНЯЕМ UPGRADE ПОЛЯ (fallback на старое значение, если не пришло)
-          player.healthUpgrade =
-            data.healthUpgrade !== undefined
-              ? data.healthUpgrade
-              : player.healthUpgrade || 0;
-          player.energyUpgrade =
-            data.energyUpgrade !== undefined
-              ? data.energyUpgrade
-              : player.energyUpgrade || 0;
-          player.foodUpgrade =
-            data.foodUpgrade !== undefined
-              ? data.foodUpgrade
-              : player.foodUpgrade || 0;
-          player.waterUpgrade =
-            data.waterUpgrade !== undefined
-              ? data.waterUpgrade
-              : player.waterUpgrade || 0;
+          // Суммарная стоимость в upgrade points
+          const totalCost =
+            deltas.health + deltas.energy + deltas.food + deltas.water;
 
-          // Сохраняем изменения
-          players.set(id, { ...player });
-          userDatabase.set(id, { ...player });
-          await saveUserDatabase(dbCollection, id, player);
+          if (totalCost <= 0) {
+            // ничего не тратим → можно просто пропустить или вернуть текущие значения
+            sendCurrentUpgrades(ws, player);
+            continue;
+          }
 
-          // Рассылаем обновление только этому игроку
-          wss.clients.forEach((client) => {
-            if (
-              client.readyState === WebSocket.OPEN &&
-              clients.get(client) === id
-            ) {
-              client.send(
+          // 2. Проверяем, хватает ли очков и нет ли отрицательных значений
+          const currentPoints = Number(player.upgradePoints) || 0;
+
+          if (
+            totalCost > currentPoints ||
+            deltas.health < 0 ||
+            deltas.energy < 0 ||
+            deltas.food < 0 ||
+            deltas.water < 0
+          ) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
                 JSON.stringify({
-                  type: "update",
-                  player: {
-                    id,
-                    upgradePoints: player.upgradePoints,
-                    healthUpgrade: player.healthUpgrade,
-                    energyUpgrade: player.energyUpgrade,
-                    foodUpgrade: player.foodUpgrade,
-                    waterUpgrade: player.waterUpgrade,
-                    // Можно добавить maxStats/health/energy/food/water, если клиент их пересчитывает на основе upgrade
-                    // maxStats: player.maxStats, // если пересчитывается на сервере
-                  },
+                  type: "updateMaxStatsResult",
+                  success: false,
+                  error:
+                    "Недостаточно upgrade points или некорректные значения",
+                  upgradePoints: currentPoints,
+                  healthUpgrade: player.healthUpgrade || 0,
+                  energyUpgrade: player.energyUpgrade || 0,
+                  foodUpgrade: player.foodUpgrade || 0,
+                  waterUpgrade: player.waterUpgrade || 0,
                 }),
               );
             }
-          });
+            continue;
+          }
+
+          // 3. Применяем дельты (сервер сам решает, сколько добавить)
+          player.healthUpgrade = (player.healthUpgrade || 0) + deltas.health;
+          player.energyUpgrade = (player.energyUpgrade || 0) + deltas.energy;
+          player.foodUpgrade = (player.foodUpgrade || 0) + deltas.food;
+          player.waterUpgrade = (player.waterUpgrade || 0) + deltas.water;
+
+          // Снимаем потраченные очки
+          player.upgradePoints = currentPoints - totalCost;
+
+          // 4. Пересчитываем максимальные статы (самое важное!)
+          calculateMaxStats(player, ITEM_CONFIG);
+
+          // 5. Жёстко ограничиваем текущие значения (уже есть в calculateMaxStats, но для надёжности)
+          player.health = Math.max(
+            0,
+            Math.min(player.health ?? 0, player.maxStats.health),
+          );
+          player.energy = Math.max(
+            0,
+            Math.min(player.energy ?? 0, player.maxStats.energy),
+          );
+          player.food = Math.max(
+            0,
+            Math.min(player.food ?? 0, player.maxStats.food),
+          );
+          player.water = Math.max(
+            0,
+            Math.min(player.water ?? 0, player.maxStats.water),
+          );
+
+          // 6. Сохраняем
+          players.set(playerId, { ...player });
+          userDatabase.set(playerId, { ...player });
+          await saveUserDatabase(dbCollection, playerId, player);
+
+          // 7. Отправляем успешный результат только этому игроку
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(
+              JSON.stringify({
+                type: "updateMaxStatsResult",
+                success: true,
+                upgradePoints: player.upgradePoints,
+                healthUpgrade: player.healthUpgrade,
+                energyUpgrade: player.energyUpgrade,
+                foodUpgrade: player.foodUpgrade,
+                waterUpgrade: player.waterUpgrade,
+                maxStats: player.maxStats,
+                health: player.health,
+                energy: player.energy,
+                food: player.food,
+                water: player.water,
+              }),
+            );
+          }
         }
 
         ws.isProcessingUpdateMaxStats = false;
+      }
+      // Вспомогательная функция (processUpdateMaxStatsQueue)
+      function sendCurrentUpgrades(ws, player) {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(
+            JSON.stringify({
+              type: "updateMaxStatsResult",
+              success: true,
+              upgradePoints: player.upgradePoints || 0,
+              healthUpgrade: player.healthUpgrade || 0,
+              energyUpgrade: player.energyUpgrade || 0,
+              foodUpgrade: player.foodUpgrade || 0,
+              waterUpgrade: player.waterUpgrade || 0,
+              maxStats: player.maxStats || {},
+              health: player.health || 0,
+              energy: player.energy || 0,
+              food: player.food || 0,
+              water: player.water || 0,
+            }),
+          );
+        }
       }
       async function processUpdateInventoryQueue(ws) {
         if (ws.isProcessingUpdateInventory) return;
         ws.isProcessingUpdateInventory = true;
 
+        const now = Date.now();
+
         while (ws.updateInventoryQueue.length > 0) {
           const data = ws.updateInventoryQueue.shift();
 
-          const id = clients.get(ws);
-          if (!id) continue;
+          const playerId = clients.get(ws);
+          if (!playerId || !players.has(playerId)) continue;
 
-          const player = players.get(id);
-          if (!player) continue;
+          const player = players.get(playerId);
 
-          // Полностью заменяем инвентарь новым массивом
-          player.inventory = data.inventory;
-
-          // Обновляем availableQuests, если пришло
-          player.availableQuests =
-            data.availableQuests !== undefined
-              ? data.availableQuests
-              : player.availableQuests;
-
-          // Сохраняем изменения
-          players.set(id, { ...player });
-          userDatabase.set(id, { ...player });
-          await saveUserDatabase(dbCollection, id, player);
-
-          // Рассылаем обновление только этому игроку
-          wss.clients.forEach((client) => {
-            if (
-              client.readyState === WebSocket.OPEN &&
-              clients.get(client) === id
-            ) {
-              client.send(
+          // ─── 1. Базовая валидация пакета ───────────────────────────────────────
+          if (
+            typeof data.questId !== "number" ||
+            data.questId < 1 ||
+            data.questId > 20
+          ) {
+            console.warn(
+              `[AntiCheat] ${playerId} → invalid questId: ${data.questId}`,
+            );
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
                 JSON.stringify({
-                  type: "update",
-                  player: {
-                    id,
-                    inventory: player.inventory,
-                    availableQuests: player.availableQuests,
-                    // Можно добавить другие поля, если клиент их ждёт
-                  },
+                  type: "questCompleteFailed",
+                  reason: "invalid_quest_id",
+                  questId: data.questId,
                 }),
               );
             }
+            continue;
+          }
+
+          const questId = data.questId;
+
+          // ─── 2. Проверяем, что квест вообще выбран игроком ──────────────────────
+          if (!player.selectedQuestId || player.selectedQuestId !== questId) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "questCompleteFailed",
+                  reason: "quest_not_selected",
+                  questId,
+                }),
+              );
+            }
+            continue;
+          }
+
+          // ─── 3. Находим квест в константе QUESTS ────────────────────────────────
+          const quest = QUESTS.find((q) => q.id === questId);
+          if (!quest) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "questCompleteFailed",
+                  reason: "quest_not_found",
+                  questId,
+                }),
+              );
+            }
+            continue;
+          }
+
+          // ─── 4. Rate-limit на сдачу квестов (защита от спама) ───────────────────
+          const QUEST_COMPLETE_COOLDOWN_MS = 1500; // 1.5 секунды
+          if (
+            player.lastQuestCompleteTime &&
+            now - player.lastQuestCompleteTime < QUEST_COMPLETE_COOLDOWN_MS
+          ) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "questCompleteFailed",
+                  reason: "too_fast",
+                  retryAfterMs:
+                    QUEST_COMPLETE_COOLDOWN_MS -
+                    (now - player.lastQuestCompleteTime),
+                }),
+              );
+            }
+            continue;
+          }
+
+          // ─── 5. Проверяем наличие нужных предметов ──────────────────────────────
+          if (!player.inventory) player.inventory = Array(20).fill(null);
+
+          let availableCount = 0;
+          player.inventory.forEach((slot) => {
+            if (slot && slot.type === quest.target.type) {
+              availableCount += slot.quantity || 1;
+            }
           });
+
+          if (availableCount < quest.target.quantity) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "questCompleteFailed",
+                  reason: "not_enough_items",
+                  questId,
+                  needed: quest.target.quantity,
+                  have: availableCount,
+                }),
+              );
+            }
+            continue;
+          }
+
+          // ─── Всё валидно — выполняем сдачу квеста ───────────────────────────────
+
+          // 6. Удаляем предметы
+          let toRemove = quest.target.quantity;
+          for (let i = 0; i < player.inventory.length && toRemove > 0; i++) {
+            const slot = player.inventory[i];
+            if (slot && slot.type === quest.target.type) {
+              const qty = slot.quantity || 1;
+              const rem = Math.min(toRemove, qty);
+              slot.quantity = qty - rem;
+              toRemove -= rem;
+              if (slot.quantity <= 0) {
+                player.inventory[i] = null;
+              }
+            }
+          }
+
+          // 7. Добавляем награду (balyary)
+          const rewardQty = quest.reward.quantity;
+          const balyaryIndex = player.inventory.findIndex(
+            (s) => s && s.type === "balyary",
+          );
+          if (balyaryIndex !== -1) {
+            player.inventory[balyaryIndex].quantity =
+              (player.inventory[balyaryIndex].quantity || 1) + rewardQty;
+          } else {
+            const freeIndex = player.inventory.findIndex((s) => s === null);
+            if (freeIndex !== -1) {
+              player.inventory[freeIndex] = {
+                type: "balyary",
+                quantity: rewardQty,
+              };
+            }
+            // если инвентарь полон — награда теряется (можно добавить уведомление)
+          }
+
+          // 8. Удаляем завершённый квест из доступных
+          if (player.availableQuests) {
+            player.availableQuests = player.availableQuests.filter(
+              (id) => id !== questId,
+            );
+          } else {
+            player.availableQuests = [];
+          }
+
+          // 9. Добавляем новые квесты до 5 штук (как на клиенте)
+          if (player.availableQuests.length < 5) {
+            const exclude = [...player.availableQuests];
+            const filtered = QUESTS.filter((q) => !exclude.includes(q.id));
+            if (filtered.length > 0) {
+              const randomIndex = Math.floor(Math.random() * filtered.length);
+              const newQuestId = filtered[randomIndex].id;
+              player.availableQuests.push(newQuestId);
+            }
+          }
+
+          // 10. Сбрасываем выбранный квест
+          player.selectedQuestId = null;
+
+          // 11. Начисляем опыт за сдачу квеста — ТОЧНО КАК НА КЛИЕНТЕ
+          const rarity = quest.rarity || 3;
+          let xpReward;
+          if (rarity === 1) xpReward = 3;
+          else if (rarity === 2) xpReward = 2;
+          else xpReward = 1;
+
+          player.xp = (player.xp || 0) + xpReward;
+
+          // Проверяем level up
+          while (player.xp >= calculateXPToNextLevel(player.level || 1)) {
+            const xpToNext = calculateXPToNextLevel(player.level || 1);
+            player.xp -= xpToNext;
+            player.level = (player.level || 1) + 1;
+            player.upgradePoints = (player.upgradePoints || 0) + 10;
+            player.skillPoints = (player.skillPoints || 0) + 3;
+          }
+
+          // 12. Обновляем время последней сдачи
+          player.lastQuestCompleteTime = now;
+
+          // 13. Сохраняем игрока
+          players.set(playerId, { ...player });
+          userDatabase.set(playerId, { ...player });
+          await saveUserDatabase(dbCollection, playerId, player);
+
+          // 14. Отправляем успех клиенту
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(
+              JSON.stringify({
+                type: "update",
+                player: {
+                  id: playerId,
+                  inventory: player.inventory,
+                  availableQuests: player.availableQuests,
+                  selectedQuestId: null,
+                  xp: player.xp,
+                  level: player.level,
+                  upgradePoints: player.upgradePoints,
+                  skillPoints: player.skillPoints,
+                },
+              }),
+            );
+
+            ws.send(
+              JSON.stringify({
+                type: "questCompleted",
+                questId,
+                xpGained: xpReward,
+              }),
+            );
+          }
         }
 
         ws.isProcessingUpdateInventory = false;
@@ -5034,15 +5395,23 @@ function setupWebSocket(
           ).length;
 
           if (freeSlots >= itemsToGive.length) {
+            // Выдаём в инвентарь с уникальным itemId для каждого предмета
             itemsToGive.forEach((type) => {
               for (let i = 0; i < player.inventory.length; i++) {
-                if (!player.inventory[i]) {
-                  player.inventory[i] = { type, quantity: 1 };
+                if (player.inventory[i] === null) {
+                  const itemId = `starter_${type.replace(/[^a-zA-Z0-9]/g, "_")}_${playerId}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+                  player.inventory[i] = {
+                    type,
+                    quantity: 1,
+                    itemId, // ← ключевой фикс: теперь есть itemId
+                  };
                   break;
                 }
               }
             });
           } else {
+            // Если места не хватает — дроп на землю (логика не менялась)
             const radius = 30;
 
             itemsToGive.forEach((type, index) => {
@@ -5066,7 +5435,7 @@ function setupWebSocket(
 
               items.set(itemId, questItem);
 
-              // 👁 Отправляем ТОЛЬКО этому игроку
+              // Отправляем ТОЛЬКО этому игроку
               if (ws.readyState === WebSocket.OPEN) {
                 ws.send(
                   JSON.stringify({
